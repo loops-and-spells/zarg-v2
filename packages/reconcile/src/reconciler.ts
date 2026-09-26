@@ -13,7 +13,7 @@ export interface ReconcilerOptions {
   readonly quietMs: number
   readonly findings: Findings
   /** Run one pass (Pass.execute with the engine provided). */
-  readonly execute: (payload: { graph: string; branch: string; base: string }) => Effect.Effect<PassResult, unknown>
+  readonly execute: (payload: { graph: string; branch: string; base: string; attempt: number }) => Effect.Effect<PassResult, unknown>
   /** Called after each pass (for threads and logs). */
   readonly onResult?: (result: PassResult | { readonly status: "skipped"; readonly reason: string }) => void
 }
@@ -23,6 +23,8 @@ export interface ReconcilerOptions {
  * writes). A pass starts only when the working graph differs from the last reconciled one.
  */
 export const startReconciler = (opts: ReconcilerOptions) => {
+  // A pass that failed for a state is tried again (under a new key) the next time the trigger fires.
+  const attempts = new Map<string, number>()
   const once = Effect.gen(function* () {
     const problem = yield* checkoutProblem(opts.repo)
     if (problem !== undefined) {
@@ -33,7 +35,11 @@ export const startReconciler = (opts: ReconcilerOptions) => {
     const base = yield* git(opts.repo, ["rev-parse", "HEAD"])
     if ((yield* baseTree(opts.repo, base)) === graph) return { status: "skipped", reason: "already reconciled" } as const
     const branch = yield* git(opts.repo, ["symbolic-ref", "--short", "HEAD"])
-    return yield* opts.execute({ graph, branch, base })
+    const key = `${graph}:${branch}@${base}`
+    const attempt = attempts.get(key) ?? 0
+    const result = yield* opts.execute({ graph, branch, base, attempt })
+    if (result.status === "failed") attempts.set(key, attempt + 1)
+    return result
   })
   const trigger = makeTrigger(opts.quietMs, () =>
     Effect.runPromise(

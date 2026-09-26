@@ -6,7 +6,8 @@ import { git, gitRun } from "./git"
 /** Where passes keep their worktrees. A `*` .gitignore inside keeps them out of the repository. */
 export const worktreeRoot = (repo: string) => join(repo, ".zarg", "reconcile", "wt")
 
-const ensureIgnored = (repo: string) => {
+/** Keep `.zarg/reconcile/` (worktrees, findings, landing notes) out of the repository, whatever its .gitignore says. */
+export const ensureIgnored = (repo: string) => {
   const dir = join(repo, ".zarg", "reconcile")
   mkdirSync(dir, { recursive: true })
   if (!existsSync(join(dir, ".gitignore"))) writeFileSync(join(dir, ".gitignore"), "*\n")
@@ -25,6 +26,8 @@ export const ensureWorktree = (repo: string, path: string, branch: string, base:
       yield* git(path, ["clean", "-q", "-fd"])
     } else {
       mkdirSync(join(path, ".."), { recursive: true })
+      // A worktree whose directory was deleted (git clean -fdx) is still registered: forget it first.
+      yield* git(repo, ["worktree", "prune"])
       yield* git(repo, ["worktree", "add", "-q", "-B", branch, path, base])
     }
     return path

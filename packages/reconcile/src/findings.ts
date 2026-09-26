@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
-import { dirname, join } from "node:path"
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs"
+import { join } from "node:path"
+import { ensureIgnored } from "./worktree"
 
 export type FindingKind = "unplannable" | "blocked-card" | "merge-conflict" | "verify-failing" | "landing-blocked" | "pass-error"
 
@@ -27,7 +28,7 @@ export const makeFindings = (repo: string) => {
   const file = findingsPath(repo)
   const read = (): ReadonlyArray<Finding> => (existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as ReadonlyArray<Finding>) : [])
   const write = (all: ReadonlyArray<Finding>) => {
-    mkdirSync(dirname(file), { recursive: true })
+    ensureIgnored(repo)
     writeFileSync(`${file}.tmp`, JSON.stringify(all, null, 2))
     renameSync(`${file}.tmp`, file)
   }

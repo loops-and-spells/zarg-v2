@@ -1,6 +1,6 @@
 import { rmSync } from "node:fs"
 import { join } from "node:path"
-import { type Duration, Effect, Schema } from "effect"
+import { type Duration, Effect, Schema, Semaphore } from "effect"
 import type { Snapshot } from "@zarg/graph"
 import { Activity, DurableClock, Workflow } from "effect/unstable/workflow"
 import { baseTree, CHECKPOINT, GRAPH, LEGACY_CHECKPOINT, snapshotAtTree } from "./checkpoint"
@@ -13,11 +13,16 @@ import { ensureWorktree, removeWorktree, worktreeRoot } from "./worktree"
 /** What one phase did for one item. A failure becomes a finding and drops the item from later phases. */
 export type ItemOutcome = { readonly ok: true } | { readonly ok: false; readonly kind: FindingKind; readonly title: string; readonly detail: string }
 
+/**
+ * One phase. Each item runs in its own worktree and commits there; the item branches are then merged into
+ * the pass worktree, so a failed item leaves nothing behind.
+ */
 export interface Phase {
   readonly name: string
-  /** Each item runs in its own worktree and commits there; the branches are merged afterwards. Otherwise items share the pass worktree. */
-  readonly isolated: boolean
-  readonly run: (item: string, cwd: string) => Effect.Effect<ItemOutcome>
+  /** Run the spec's `setup` in each item worktree first (e.g. implement needs dependencies; plan does not). */
+  readonly setup: boolean
+  /** A failure or defect here fails this item only. */
+  readonly run: (item: string, cwd: string) => Effect.Effect<ItemOutcome, unknown>
 }
 
 export interface ReconcileSpec {
@@ -57,9 +62,10 @@ export type PassResult = typeof PassResult.Type
 
 /** One reconcile pass over one graph state, onto one branch at one base commit. Durable: it resumes after a restart. */
 export const Pass = Workflow.make("zarg/ReconcilePass", {
-  payload: { graph: Schema.String, branch: Schema.String, base: Schema.String },
+  /** `attempt` changes the key: a pass that failed for the same graph and base can be tried again. */
+  payload: { graph: Schema.String, branch: Schema.String, base: Schema.String, attempt: Schema.Number },
   success: PassResult,
-  idempotencyKey: (p) => `${p.graph}:${p.branch}@${p.base}`,
+  idempotencyKey: (p) => `${p.graph}:${p.branch}@${p.base}#${p.attempt}`,
 })
 
 const Outcome = Schema.Union([
@@ -76,21 +82,51 @@ const commitAll = (cwd: string, message: string) =>
     return yield* git(cwd, ["rev-parse", "HEAD"])
   })
 
+/** One pass at a time per repository, including passes the engine resumes on start. */
+const passLocks = new Map<string, Semaphore.Semaphore>()
+const passLock = (repo: string) => {
+  let s = passLocks.get(repo)
+  if (s === undefined) {
+    s = Semaphore.makeUnsafe(1)
+    passLocks.set(repo, s)
+  }
+  return s
+}
+
 /** The workflow implementation for `spec`, as a layer. Every side effect is an Activity; the body replays on resume. */
 export const passLayer = (spec: ReconcileSpec) =>
-  Pass.toLayer((payload, executionId) =>
+  Pass.toLayer((payload, executionId) => {
+    const id = executionId.slice(0, 12)
+    const act = <A, I>(name: string, success: Schema.Codec<A, I>, execute: Effect.Effect<A, unknown>) =>
+      Activity.make({ name, success, execute: Effect.orDie(execute) as Effect.Effect<A> })
+    // Anything unexpected ends the pass as failed with a finding (recorded, so a resume does not repeat it).
+    const died = (cause: unknown) =>
+      act(
+        "findings:died",
+        Schema.Void,
+        Effect.sync(() => void spec.findings.raise({ kind: "pass-error", title: "a reconcile pass failed", detail: String(cause).slice(0, 4000), about: [], pass: id })),
+      ).pipe(Effect.as({ status: "failed", landed: [], failed: [] } satisfies PassResult))
+    return Semaphore.withPermits(passLock(spec.repo), 1)(body(spec, payload, id, act)).pipe(Effect.catchCause(died))
+  })
+
+const body = (
+  spec: ReconcileSpec,
+  payload: typeof Pass.payloadSchema.Type,
+  id: string,
+  act: <A, I>(name: string, success: Schema.Codec<A, I>, execute: Effect.Effect<A, unknown>) => Effect.Effect<A, never, any>,
+) =>
     Effect.gen(function* () {
-      const id = executionId.slice(0, 12)
       const root = join(worktreeRoot(spec.repo), id)
       const main = join(root, "main")
       const branchOf = (name: string) => `zarg/${id}/${name}`
-      const act = <A, I>(name: string, success: Schema.Codec<A, I>, execute: Effect.Effect<A, unknown>) =>
-        Activity.make({ name, success, execute: Effect.orDie(execute) as Effect.Effect<A> })
 
       const scope = yield* act(
         "affected",
         Schema.Struct({ items: Strings, removed: Strings }),
         Effect.gen(function* () {
+          // A pass that waited for another (or resumed after a restart) may find its graph already reconciled.
+          const tip = yield* gitRun(spec.repo, ["rev-parse", "-q", "--verify", `refs/heads/${payload.branch}`])
+          if (tip.code === 0 && (yield* baseTree(spec.repo, tip.stdout.trim())) === payload.graph) return { items: [], removed: [] }
           const baseGraph = yield* baseTree(spec.repo, payload.base)
           const [before, after] = yield* Effect.all([snapshotAtTree(spec.repo, baseGraph), snapshotAtTree(spec.repo, payload.graph)])
           const affected = spec.affected(before, after)
@@ -120,16 +156,20 @@ export const passLayer = (spec: ReconcileSpec) =>
       let live = [...scope.items]
       for (const phase of spec.phases) {
         const passHead = yield* act(`${phase.name}:head`, Schema.String, git(main, ["rev-parse", "HEAD"]))
+        const name = (item: string) => `${phase.name}-${item}`
         const runItem = (item: string) =>
           act(
             `${phase.name}:${item}`,
             Outcome,
             Effect.gen(function* () {
-              if (!phase.isolated) return yield* phase.run(item, main)
-              const wt = join(root, item)
-              yield* ensureWorktree(spec.repo, wt, branchOf(item), passHead)
-              if (spec.setup) yield* spec.setup(wt)
-              const out = yield* phase.run(item, wt)
+              const wt = join(root, name(item))
+              yield* ensureWorktree(spec.repo, wt, branchOf(name(item)), passHead)
+              if (phase.setup && spec.setup) yield* spec.setup(wt)
+              const out = yield* phase.run(item, wt).pipe(
+                Effect.catchCause((cause) =>
+                  Effect.succeed({ ok: false, kind: "pass-error", title: `${phase.name} failed for ${item}`, detail: String(cause).slice(0, 4000) } as ItemOutcome),
+                ),
+              )
               if (out.ok) yield* commitAll(wt, `${phase.name}: ${item}`)
               return out
             }),
@@ -137,23 +177,19 @@ export const passLayer = (spec: ReconcileSpec) =>
         const outcomes = yield* Effect.all(live.map(runItem), { concurrency: spec.maxParallel })
         for (const [item, out] of outcomes) if (!out.ok) failures.set(item, out)
         live = live.filter((i) => !failures.has(i))
-        if (phase.isolated) {
-          const conflicts = yield* act(
-            `${phase.name}:merge`,
-            Strings,
-            Effect.map(
-              mergeBranches(main, live.map(branchOf), (c) => spec.resolve(main, c.files)),
-              (r) => r.failed.map((c) => c.branch),
-            ),
-          )
-          for (const b of conflicts) {
-            const item = live.find((i) => branchOf(i) === b)!
-            failures.set(item, { ok: false, kind: "merge-conflict", title: `${item} conflicts with other cards in this pass`, detail: `branch ${b} could not be merged` })
-          }
-          live = live.filter((i) => !failures.has(i))
-        } else {
-          yield* act(`${phase.name}:commit`, Schema.String, commitAll(main, `${phase.name}: ${live.join(", ")}`))
+        const conflicts = yield* act(
+          `${phase.name}:merge`,
+          Strings,
+          Effect.map(
+            mergeBranches(main, live.map((i) => branchOf(name(i))), (c) => spec.resolve(main, c.files), passHead),
+            (r) => r.failed.map((c) => c.branch),
+          ),
+        )
+        for (const b of conflicts) {
+          const item = live.find((i) => branchOf(name(i)) === b)!
+          failures.set(item, { ok: false, kind: "merge-conflict", title: `${item} conflicts with other cards in this pass`, detail: `branch ${b} could not be merged` })
         }
+        live = live.filter((i) => !failures.has(i))
       }
 
       const gate = (label: string) =>
@@ -170,9 +206,9 @@ export const passLayer = (spec: ReconcileSpec) =>
             return v
           }),
         )
-      const report = (extra: ReadonlyArray<{ kind: FindingKind; title: string; detail: string; about: ReadonlyArray<string> }>) =>
+      const report = (site: string, extra: ReadonlyArray<{ kind: FindingKind; title: string; detail: string; about: ReadonlyArray<string> }>) =>
         act(
-          `findings:${extra.length}`,
+          `findings:${site}`,
           Schema.Void,
           Effect.sync(() => {
             for (const [item, f] of failures) spec.findings.raise({ kind: f.kind, title: f.title, detail: f.detail, about: [item], pass: id })
@@ -183,7 +219,7 @@ export const passLayer = (spec: ReconcileSpec) =>
 
       const verified = yield* gate("verify")
       if (!verified.passed) {
-        yield* report([{ kind: "verify-failing", title: "verify still fails after the fix attempts", detail: verified.output.slice(-4000), about: live }])
+        yield* report("verify", [{ kind: "verify-failing", title: "verify still fails after the fix attempts", detail: verified.output.slice(-4000), about: live }])
         return { status: "failed", landed: [], failed: [...live, ...failed()].sort() } satisfies PassResult
       }
 
@@ -204,22 +240,27 @@ export const passLayer = (spec: ReconcileSpec) =>
         const r = yield* act(
           `land:${attempt}`,
           Schema.Struct({ status: Schema.String, head: Schema.optionalKey(Schema.String), paths: Schema.optionalKey(Strings), reason: Schema.optionalKey(Schema.String) }),
-          lock(land(spec.repo, commit, base)),
+          lock(land(spec.repo, commit, base, payload.branch)),
         )
         if (r.status === "landed") break
         if (r.status === "moved") {
           const rebased = yield* act(
             `rebase:${attempt}`,
             Schema.Boolean,
-            Effect.map(rebaseOnto(main, r.head!, (files) => spec.resolve(main, files)), (x) => x.ok),
+            Effect.gen(function* () {
+              // Re-run safe: start from the pass commit; replay only it (not your old base) onto your new HEAD.
+              yield* gitRun(main, ["rebase", "--abort"])
+              yield* git(main, ["reset", "-q", "--hard", commit])
+              return (yield* rebaseOnto(main, r.head!, base, (files) => spec.resolve(main, files))).ok
+            }),
           )
           if (!rebased) {
-            yield* report([{ kind: "merge-conflict", title: "this pass conflicts with your new commits", detail: `rebase onto ${r.head} failed`, about: live }])
+            yield* report(`rebase:${attempt}`, [{ kind: "merge-conflict", title: "this pass conflicts with your new commits", detail: `rebase onto ${r.head} failed`, about: live }])
             return { status: "failed", landed: [], failed: [...live, ...failed()].sort() } satisfies PassResult
           }
           const again = yield* gate(`verify:${attempt}`)
           if (!again.passed) {
-            yield* report([{ kind: "verify-failing", title: "verify fails on top of your new commits", detail: again.output.slice(-4000), about: live }])
+            yield* report(`verify:${attempt}`, [{ kind: "verify-failing", title: "verify fails on top of your new commits", detail: again.output.slice(-4000), about: live }])
             return { status: "failed", landed: [], failed: [...live, ...failed()].sort() } satisfies PassResult
           }
           base = r.head!
@@ -228,7 +269,7 @@ export const passLayer = (spec: ReconcileSpec) =>
         }
         if (r.status === "refused" || attempt >= spec.landAttempts) {
           const detail = r.status === "refused" ? r.reason! : `waiting on your uncommitted edits in ${(r.paths ?? []).join(", ")}`
-          yield* report([{ kind: "landing-blocked", title: "the implementation commit cannot land", detail, about: live }])
+          yield* report(`land:${attempt}`, [{ kind: "landing-blocked", title: "the implementation commit cannot land", detail, about: live }])
           return { status: "failed", commit, landed: [], failed: [...live, ...failed()].sort() } satisfies PassResult
         }
         yield* DurableClock.sleep({ name: `land-wait:${attempt}`, duration: spec.landRetry })
@@ -240,11 +281,10 @@ export const passLayer = (spec: ReconcileSpec) =>
         Effect.gen(function* () {
           spec.findings.clearFor(live)
           for (const [item, f] of failures) spec.findings.raise({ kind: f.kind, title: f.title, detail: f.detail, about: [item], pass: id })
-          for (const item of scope.items) yield* removeWorktree(spec.repo, join(root, item), branchOf(item))
+          for (const phase of spec.phases) for (const item of scope.items) yield* removeWorktree(spec.repo, join(root, `${phase.name}-${item}`), branchOf(`${phase.name}-${item}`))
           yield* removeWorktree(spec.repo, main, branchOf("main"))
           yield* Effect.sync(() => rmSync(root, { recursive: true, force: true }))
         }),
       )
       return { status: "landed", commit, landed: live.sort(), failed: failed() } satisfies PassResult
-    }),
-  )
+    })

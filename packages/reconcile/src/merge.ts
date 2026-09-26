@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { git, gitRun } from "./git"
+import { conflictedFiles, git, gitRun, hasConflictMarkers } from "./git"
 
 export interface Conflict {
   readonly branch: string
@@ -12,8 +12,14 @@ export interface Conflict {
  * or false (the merge is aborted and the branch reported). Returns the merged branches and the conflicts
  * that could not be resolved.
  */
-export const mergeBranches = <E, R>(cwd: string, branches: ReadonlyArray<string>, resolve: (c: Conflict) => Effect.Effect<boolean, E, R>) =>
+export const mergeBranches = <E, R>(cwd: string, branches: ReadonlyArray<string>, resolve: (c: Conflict) => Effect.Effect<boolean, E, R>, from?: string) =>
   Effect.gen(function* () {
+    // Re-run safe: an earlier, interrupted run may have left a merge in progress. Start over from `from`.
+    if (from !== undefined) {
+      yield* gitRun(cwd, ["merge", "--abort"])
+      yield* git(cwd, ["reset", "-q", "--hard", from])
+      yield* git(cwd, ["clean", "-q", "-fd"])
+    }
     const merged: Array<string> = []
     const failed: Array<Conflict> = []
     for (const branch of branches) {
@@ -22,11 +28,10 @@ export const mergeBranches = <E, R>(cwd: string, branches: ReadonlyArray<string>
         merged.push(branch)
         continue
       }
-      const files = (yield* git(cwd, ["diff", "--name-only", "--diff-filter=U"])).split("\n").filter((f) => f.length > 0)
+      const files = yield* conflictedFiles(cwd)
       const conflict = { branch, files }
-      const ok = files.length > 0 && (yield* resolve(conflict))
-      const markers = ok ? (yield* gitRun(cwd, ["grep", "-l", "-e", "^<<<<<<< ", "--", ...files])).stdout.trim() : ""
-      if (ok && markers === "") {
+      const ok = files.length > 0 && (yield* resolve(conflict)) && !(yield* hasConflictMarkers(cwd, files))
+      if (ok) {
         yield* git(cwd, ["add", "-A"])
         yield* git(cwd, ["commit", "-q", "--no-edit"])
         merged.push(branch)

@@ -3,8 +3,9 @@ import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
+import { Effect } from "effect"
 import { card, cleanup, repo, sh, state, write, writeNode } from "./repo"
-import { runPass, stubSpec } from "./stub-spec"
+import { runPass, runPasses, stubSpec } from "./stub-spec"
 
 afterAll(cleanup)
 const db = () => join(mkdtempSync(join(tmpdir(), "zarg-db-")), "cluster.db")
@@ -143,6 +144,46 @@ describe("reconcile pass", () => {
     expect(calls.filter((c) => c === "implement UX-0002")).toHaveLength(2)
     expect(sh(r, "git log --format=%s")).toBe("feat: implement UX-0001, UX-0002\ninit")
   }, 30_000)
+
+  test("a card whose phase dies fails alone with a finding; the others land", async () => {
+    const r = repo()
+    graph(r, ["UX-0001", "UX-0002"])
+    const spec = stubSpec(r, { implementDies: ["UX-0002"] })
+    expect(await runPass(spec, db())).toMatchObject({ status: "landed", landed: ["UX-0001"], failed: ["UX-0002"] })
+    expect(spec.findings.list().map((f) => [f.kind, f.about])).toEqual([["pass-error", ["UX-0002"]]])
+  })
+
+  test("a pass that dies ends as failed with a finding; the next attempt runs it again", async () => {
+    const r = repo()
+    graph(r, ["UX-0001"])
+    const file = db()
+    const spec = stubSpec(r, { verifyDies: 1 })
+    expect(await runPass(spec, file, 0)).toMatchObject({ status: "failed" })
+    expect(spec.findings.list().map((f) => f.kind)).toEqual(["pass-error"])
+    expect(await runPass(spec, file, 0)).toMatchObject({ status: "failed" })
+    expect(await runPass(spec, file, 1)).toMatchObject({ status: "landed" })
+  })
+
+  test("a plan that fails after writing a partial file leaves nothing in the commit", async () => {
+    const r = repo()
+    graph(r, ["UX-0001", "UX-0002"])
+    expect(await runPass(stubSpec(r, { planFails: ["UX-0002"] }), db())).toMatchObject({ landed: ["UX-0001"], failed: ["UX-0002"] })
+    expect(existsSync(join(r, ".zarg/plans/UX-0002.md"))).toBe(false)
+    expect(sh(r, "git status --porcelain")).toBe("")
+  })
+
+  test("two passes on one repository never run at the same time", async () => {
+    const r = repo()
+    graph(r, ["UX-0001"])
+    const file = db()
+    const spec = stubSpec(r)
+    let active = 0
+    let max = 0
+    const slow = { ...spec, phases: spec.phases.map((p) => ({ ...p, run: (item: string, cwd: string) => Effect.gen(function* () { active++; max = Math.max(max, active); yield* Effect.sleep(100); const out = yield* p.run(item, cwd); active--; return out }) })) }
+    const results = await runPasses(slow, file, [0, 1])
+    expect(max).toBe(1)
+    expect(results.map((x) => x.status).sort()).toEqual(["landed", "nothing"])
+  })
 
   test("a removed card's plan and code are deleted in the next pass", async () => {
     const r = repo()

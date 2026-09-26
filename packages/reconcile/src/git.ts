@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from "node:fs"
+import { join } from "node:path"
 import { Data, Effect } from "effect"
 
 export class GitError extends Data.TaggedError("GitError")<{ readonly args: ReadonlyArray<string>; readonly message: string }> {}
@@ -24,3 +26,15 @@ export const git = (cwd: string, args: ReadonlyArray<string>, env: Record<string
 
 /** git's well-known empty tree. */
 export const EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
+/** Paths from a `-z` listing (no C-quoting, so non-ASCII names come through as they are). */
+export const zPaths = (out: string) => out.split("\0").filter((p) => p.length > 0)
+
+/** Files git reports as conflicted in `cwd`. */
+export const conflictedFiles = (cwd: string) => Effect.map(git(cwd, ["diff", "--name-only", "-z", "--diff-filter=U"]), zPaths)
+
+const MARKER = /^(<{7}|={7}|>{7})(\s|$)/m
+
+/** True when any of `files` (relative to `cwd`) still contains a conflict marker line. */
+export const hasConflictMarkers = (cwd: string, files: ReadonlyArray<string>) =>
+  Effect.sync(() => files.some((f) => existsSync(join(cwd, f)) && MARKER.test(readFileSync(join(cwd, f), "utf8"))))

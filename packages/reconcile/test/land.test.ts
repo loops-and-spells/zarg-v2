@@ -26,27 +26,27 @@ const passCommit = async () => {
 describe("land", () => {
   test("fast-forwards; the driver's identical uncommitted cards end up clean; landing again is a no-op", async () => {
     const { r, base, commit } = await passCommit()
-    expect(await run(land(r, commit, base))).toEqual({ status: "landed" })
+    expect(await run(land(r, commit, base, "main"))).toEqual({ status: "landed" })
     expect(sh(r, "git rev-parse HEAD")).toBe(commit)
     expect(sh(r, "git status --porcelain")).toBe("")
-    expect(await run(land(r, commit, base))).toEqual({ status: "landed" })
+    expect(await run(land(r, commit, base, "main"))).toEqual({ status: "landed" })
   })
 
   test("your edits in other files stay; edits in a file the commit changes make it wait", async () => {
     const { r, base, commit } = await passCommit()
     write(r, "README.md", "mine\n")
     write(r, "src/home.ts", "my version\n")
-    expect(await run(land(r, commit, base))).toEqual({ status: "waiting", paths: ["src/home.ts"] })
+    expect(await run(land(r, commit, base, "main"))).toEqual({ status: "waiting", paths: ["src/home.ts"] })
     expect(sh(r, "git rev-parse HEAD")).toBe(base)
     sh(r, "rm src/home.ts")
-    expect(await run(land(r, commit, base))).toEqual({ status: "landed" })
+    expect(await run(land(r, commit, base, "main"))).toEqual({ status: "landed" })
     expect(readFileSync(join(r, "README.md"), "utf8")).toBe("mine\n")
   })
 
   test("a card the driver edited again keeps its newer content after landing", async () => {
     const { r, base, commit } = await passCommit()
     writeNode(r, card("UX-0001", "S-0001", "S-0001", "the user taps twice"))
-    expect(await run(land(r, commit, base))).toEqual({ status: "landed" })
+    expect(await run(land(r, commit, base, "main"))).toEqual({ status: "landed" })
     expect(readFileSync(join(r, ".zarg/graph/nodes/UX-0001.json"), "utf8")).toContain("taps twice")
     expect(sh(r, "git status --porcelain")).toBe("M .zarg/graph/nodes/UX-0001.json")
   })
@@ -54,7 +54,7 @@ describe("land", () => {
   test("a card the driver removed during the pass stays removed", async () => {
     const { r, base, commit } = await passCommit()
     sh(r, "rm .zarg/graph/nodes/UX-0001.json")
-    expect(await run(land(r, commit, base))).toEqual({ status: "landed" })
+    expect(await run(land(r, commit, base, "main"))).toEqual({ status: "landed" })
     expect(existsSync(join(r, ".zarg/graph/nodes/UX-0001.json"))).toBe(false)
   })
 
@@ -64,10 +64,10 @@ describe("land", () => {
     write(r, "notes.md", "yours\n")
     sh(r, "git add -A && git commit -qm yours")
     const head = sh(r, "git rev-parse HEAD")
-    const moved = await run(land(r, sh(wt, "git rev-parse HEAD"), base))
+    const moved = await run(land(r, sh(wt, "git rev-parse HEAD"), base, "main"))
     expect(moved).toEqual({ status: "moved", head })
-    expect(await run(rebaseOnto(wt, head, () => Effect.succeed(false)))).toEqual({ ok: true })
-    expect(await run(land(r, sh(wt, "git rev-parse HEAD"), head))).toEqual({ status: "landed" })
+    expect(await run(rebaseOnto(wt, head, base, () => Effect.succeed(false)))).toEqual({ ok: true })
+    expect(await run(land(r, sh(wt, "git rev-parse HEAD"), head, "main"))).toEqual({ status: "landed" })
     expect(readFileSync(join(r, "notes.md"), "utf8")).toBe("yours\n")
     expect(existsSync(join(r, "src/home.ts"))).toBe(true)
   })
@@ -75,6 +75,6 @@ describe("land", () => {
   test("a detached HEAD or a merge in progress refuses to land", async () => {
     const { r, base, commit } = await passCommit()
     sh(r, "git checkout -q --detach")
-    expect((await run(land(r, commit, base))).status).toBe("refused")
+    expect((await run(land(r, commit, base, "main"))).status).toBe("refused")
   })
 })
