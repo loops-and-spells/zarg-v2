@@ -2196,7 +2196,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
   - Output is JSON on stdout (`render` prints text).
   - Failures print `{ "error": <tag>, ...fields }` to stderr and exit with code 1.
   - The graph lives in `$ZARG_ROOT/.zarg/graph`, with the working directory as the default root. Run it as `mise run -q zarg -- <command>`.
-  - Do not use `bun run zarg`: it can pick up a globally installed zarg v1.
+  - Do not use `bun run zarg`: bun does not link workspace bins at the root, so it finds no `zarg` script.
 
 - [ ] **Step 1: Dependencies and bin**
 
