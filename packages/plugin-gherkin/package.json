@@ -1,0 +1,16 @@
+{
+  "name": "@zarg/plugin-gherkin",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./server": "./src/server/index.ts"
+  },
+  "dependencies": {
+    "@zarg/graph": "workspace:*",
+    "@zarg/plugin": "workspace:*",
+    "effect": "^4.0.0-rc.117"
+  },
+  "devDependencies": {
+    "@effect/platform-bun": "^4.0.0-rc.117"
+  }
+}

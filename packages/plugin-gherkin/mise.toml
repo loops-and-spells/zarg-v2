@@ -1,0 +1,5 @@
+[tasks.typecheck]
+run = "bunx tsc"
+
+[tasks.test]
+run = "bun test"

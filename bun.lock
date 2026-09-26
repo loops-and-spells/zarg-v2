@@ -37,6 +37,17 @@
         "@effect/platform-bun": "^4.0.0-rc.117",
       },
     },
+    "packages/plugin-gherkin": {
+      "name": "@zarg/plugin-gherkin",
+      "dependencies": {
+        "@zarg/graph": "workspace:*",
+        "@zarg/plugin": "workspace:*",
+        "effect": "^4.0.0-rc.117",
+      },
+      "devDependencies": {
+        "@effect/platform-bun": "^4.0.0-rc.117",
+      },
+    },
   },
   "packages": {
     "@effect/platform-bun": ["@effect/platform-bun@4.0.0-rc.117", "", { "dependencies": { "@effect/platform-node-shared": "^4.0.0-rc.117" }, "peerDependencies": { "effect": "^4.0.0-rc.117" } }, "sha512-jyvoxPjT9562z5Tc2gib9GB16jcgh43jhpsuNQxs9B8WJ7RB2doPBQdrYLSSWRodGPLJBKJGzToRRbJiaGblsw=="],
@@ -112,6 +123,8 @@
     "@zarg/graph": ["@zarg/graph@workspace:packages/graph"],
 
     "@zarg/plugin": ["@zarg/plugin@workspace:packages/plugin"],
+
+    "@zarg/plugin-gherkin": ["@zarg/plugin-gherkin@workspace:packages/plugin-gherkin"],
 
     "ansi-regex": ["ansi-regex@6.3.0", "", {}, "sha512-WpDfL7NO6j7tH88IDBNVdUJxDh9nmCteAVW9dsep846XdwF4naCBK+/tGLX3KJgcpgMRXCFlTM2hKGoK9FsdrQ=="],
 
