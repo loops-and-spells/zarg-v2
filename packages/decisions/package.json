@@ -1,0 +1,12 @@
+{
+  "name": "@zarg/decisions",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@zarg/model": "workspace:*",
+    "effect": "^4.0.0-rc.117"
+  }
+}
