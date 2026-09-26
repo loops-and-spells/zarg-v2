@@ -123,6 +123,15 @@
         "effect": "^4.0.0-rc.117",
       },
     },
+    "packages/reconcile": {
+      "name": "@zarg/reconcile",
+      "dependencies": {
+        "@effect/platform-bun": "^4.0.0-rc.117",
+        "@effect/sql-sqlite-bun": "4.0.0-rc.117",
+        "@zarg/graph": "workspace:*",
+        "effect": "^4.0.0-rc.117",
+      },
+    },
     "packages/rlm": {
       "name": "@zarg/rlm",
       "dependencies": {
@@ -147,6 +156,8 @@
     "@effect/platform-bun": ["@effect/platform-bun@4.0.0-rc.117", "", { "dependencies": { "@effect/platform-node-shared": "^4.0.0-rc.117" }, "peerDependencies": { "effect": "^4.0.0-rc.117" } }, "sha512-jyvoxPjT9562z5Tc2gib9GB16jcgh43jhpsuNQxs9B8WJ7RB2doPBQdrYLSSWRodGPLJBKJGzToRRbJiaGblsw=="],
 
     "@effect/platform-node-shared": ["@effect/platform-node-shared@4.0.0-rc.117", "", { "dependencies": { "@types/ws": "^8.18.1", "ws": "^8.21.3" }, "peerDependencies": { "effect": "^4.0.0-rc.117" } }, "sha512-GyRkEfLBG49MwJe+/XDPiXYcQ44RA9p2z0AurlsWhR1cd1PqOUMEZU1pORL+/R5hR8aH6ZuqoJYD8lAc6h+wlA=="],
+
+    "@effect/sql-sqlite-bun": ["@effect/sql-sqlite-bun@4.0.0-rc.117", "", { "peerDependencies": { "effect": "^4.0.0-rc.117" } }, "sha512-UjgkEmR+s5Rc870sDsDzu/8AA5KQqcBeq5qgH6AFe5OYfv3GCMfoQTkIvnl+Q3M5KaZosYgwwEy9uij/J2HOJw=="],
 
     "@opentui/core": ["@opentui/core@0.5.12", "", { "dependencies": { "bun-ffi-structs": "0.3.1", "diff": "9.0.0", "marked": "17.0.1", "string-width": "7.2.0", "strip-ansi": "7.1.2" }, "optionalDependencies": { "@opentui/core-darwin-arm64": "0.5.12", "@opentui/core-darwin-x64": "0.5.12", "@opentui/core-linux-arm64": "0.5.12", "@opentui/core-linux-arm64-musl": "0.5.12", "@opentui/core-linux-x64": "0.5.12", "@opentui/core-linux-x64-musl": "0.5.12", "@opentui/core-win32-arm64": "0.5.12", "@opentui/core-win32-x64": "0.5.12" }, "peerDependencies": { "web-tree-sitter": "0.25.10" } }, "sha512-ZXBE5gmvdovmV8zJQrOQf6E44v1tJRDEgrM2MYhEglzgXZ+smIUp95O8zeRYGsuIzQIiMPMgQqKtTJuzvAb7BQ=="],
 
@@ -245,6 +256,8 @@
     "@zarg/provider-openrouter": ["@zarg/provider-openrouter@workspace:packages/provider-openrouter"],
 
     "@zarg/provider-zarg-router": ["@zarg/provider-zarg-router@workspace:packages/provider-zarg-router"],
+
+    "@zarg/reconcile": ["@zarg/reconcile@workspace:packages/reconcile"],
 
     "@zarg/rlm": ["@zarg/rlm@workspace:packages/rlm"],
 

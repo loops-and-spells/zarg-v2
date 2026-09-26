@@ -1,0 +1,14 @@
+{
+  "name": "@zarg/reconcile",
+  "dependencies": {
+    "@effect/platform-bun": "^4.0.0-rc.117",
+    "@effect/sql-sqlite-bun": "4.0.0-rc.117",
+    "@zarg/graph": "workspace:*",
+    "effect": "^4.0.0-rc.117"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "private": true,
+  "type": "module"
+}
