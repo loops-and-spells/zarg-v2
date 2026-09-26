@@ -19,4 +19,5 @@ export const gherkin = server({
   render,
 })
 
+export * from "./affected"
 export * from "./model"
