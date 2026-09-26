@@ -3,7 +3,7 @@
   "id": "S-0021",
   "props": {
     "terminal": false,
-    "text": "the reconcile commit is ready to land"
+    "text": "the implementation commit is ready to land"
   },
   "type": "gherkin/state"
 }

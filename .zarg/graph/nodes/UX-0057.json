@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0056",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0022",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0057",
+  "props": {
+    "title": "A card cannot be planned",
+    "when": "the planner finds the card contradicts another card"
+  },
+  "type": "gherkin/card"
+}

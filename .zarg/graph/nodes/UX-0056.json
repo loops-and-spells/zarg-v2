@@ -1,0 +1,22 @@
+{
+  "edges": [
+    {
+      "to": "S-0056",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0057",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0019",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0056",
+  "props": {
+    "title": "Plans are written",
+    "when": "the planner finishes every changed card"
+  },
+  "type": "gherkin/card"
+}

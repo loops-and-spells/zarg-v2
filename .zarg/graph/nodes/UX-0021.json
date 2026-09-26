@@ -11,8 +11,8 @@
   ],
   "id": "UX-0021",
   "props": {
-    "title": "The reconciler updates the code",
-    "when": "the reconciler implements each card in its own worktree"
+    "title": "The implementer updates the code",
+    "when": "the implementer codes each plan in its own worktree"
   },
   "type": "gherkin/card"
 }

@@ -22,7 +22,7 @@ You talk to one agent, the **intent agent**, and only about intent. Everything d
 | specify | intents to atomic features (the Gherkin user action graph) | automatically, after quiet |
 | rehearse | features to refined features: testers roleplay the flows | in the background, continuously |
 | plan | features to a plan per change | automatically, after quiet |
-| build | plan to code, in git worktrees, verified, landed as commits | automatically, after quiet |
+| implement | plan to code, in git worktrees, verified, landed as commits | automatically, after quiet |
 
 - **Fast and cheap where it can be.** A small choice model (JEV-style Decisions: yes/no, choice, score with confidence) makes the frequent small judgments: what a change affects, whether work is atomic, triaging and deduping findings, scoring rehearsal steps. Large models only write intents, cards, plans and code. Local models through zarg-router come first.
 - **Visible and interruptible.** Every agent's work shows live (the RLM tree, budgets, decisions with confidence), and you can stop any of it.
@@ -33,13 +33,13 @@ Success: you describe what you want, answer a few good questions, and working, v
 ## Affected users and systems
 
 - The developer, through the zarg TUI (and any AG-UI client).
-- The project's git repository: intents, the feature graph (`.zarg/graph`) and code share one history. Each build pass lands one commit containing the cards and their code.
+- The project's git repository: intents, the feature graph (`.zarg/graph`) and code share one history. Each implement pass lands one commit containing the cards, their plans and their code.
 - Model providers: zarg-router (local models, the choice model) and OpenRouter.
 
 ## Constraints
 
 - Git is required. Downstream work happens in git worktrees and lands on your branch automatically; only conflicts it cannot settle reach you.
-- Agents never cross their layer: the intent agent changes intents (and, until specify exists, the graph), never code; build changes code, never requirements.
+- Agents never cross their layer: the intent agent changes intents (and, until specify exists, the graph), never code; implement changes code, never requirements.
 - The RLM is the unit of agency: every agent run is an RLM with a scoped layer and budget, and RLMs call RLMs to fold context. The kernel exists for folding, not isolation.
 - Plugins decide what goes on the graph. The core is headless and speaks AG-UI; clients are separate.
 - Secrets never reach a model, a log or the wire (varlock, redaction).
@@ -54,15 +54,15 @@ Done:
 - The core process with AG-UI, driver threads with inquiries, the client and the OpenTUI app (phase 2b-1). The driver there is the first form of the intent agent.
 
 Next:
-1. **Plan and build** on a generic reconcile loop (2b-2), each pass a durable workflow: per-card worktrees, verify, landing, merge conflicts, findings to the agenda.
+1. **Plan and implement** on a generic reconcile loop (2b-2), each pass a durable workflow: per-card worktrees, verify, landing, merge conflicts, findings to the agenda.
 2. **Capture**: the driver becomes the intent agent and keeps `intent/*.md`; its context comes from artifacts, never the transcript; pending questions become durable.
 3. **Specify**: intents projected to cards, with each card tracing to its intent.
 4. **Rehearse**: roleplay testers over the graph (ported from Colony's flow tester: edge-pair walks, typed findings, step scores).
-5. Provider login and model setup; build code ownership (tagged regions, generated output or a hybrid).
+5. Provider login and model setup; implement code ownership (tagged regions, generated output or a hybrid).
 
 ## Open questions
 
-- The plan artifact: its format, and whether plans are committed or kept per pass only.
+- The plan artifact: one committed plan file per card (`.zarg/plans/<card>.md`); its exact format is set in the 2b-2 spec.
 - How an intent is accepted: an explicit yes from you, or implied once specify projects it cleanly.
 - Rehearse cost and cadence: how many testers, how often, and which findings reach you versus being applied automatically.
 - Several threads with different focuses: one intent agent with many threads, or one per focus.

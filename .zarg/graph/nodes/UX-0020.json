@@ -5,7 +5,7 @@
       "type": "gherkin/arrives"
     },
     {
-      "to": "S-0019",
+      "to": "S-0056",
       "type": "gherkin/then"
     }
   ],
