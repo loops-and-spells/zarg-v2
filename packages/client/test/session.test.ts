@@ -1,0 +1,101 @@
+import { describe, expect, test } from "bun:test"
+import { type Cause, Effect, Queue, Stream } from "effect"
+import { type Client, CoreError, makeSession, type RunRequest, type WireEvent } from "../src"
+
+/** A client whose event stream the test feeds; each `stream()` call opens a new feed. */
+const fakeClient = (opts: { readonly refuseRuns?: boolean; readonly streamFails?: boolean } = {}) => {
+  const runs: Array<RunRequest> = []
+  const streams: Array<{ since: number; queue: Queue.Queue<WireEvent, CoreError | Cause.Done> }> = []
+  const stops: Array<string> = []
+  const client = {
+    run: (r: RunRequest) => {
+      runs.push(r)
+      return opts.refuseRuns ? Stream.fail(new CoreError({ status: 401, message: "unauthorized" })) : Stream.empty
+    },
+    stream: (since: number) => {
+      if (opts.streamFails) return Stream.fail(new CoreError({ status: 0, message: "core is not reachable" }))
+      const queue = Effect.runSync(Queue.make<WireEvent, CoreError | Cause.Done>())
+      streams.push({ since, queue })
+      return Stream.fromQueue(queue)
+    },
+    threads: () => Effect.succeed([]),
+    stop: (id: string) => Effect.sync(() => void stops.push(id)),
+  } as unknown as Client
+  const push = (e: WireEvent) => Effect.runSync(Queue.offer(streams.at(-1)!.queue, e))
+  return { client, runs, streams, stops, push }
+}
+const tick = (ms = 20) => new Promise((r) => setTimeout(r, ms))
+const inquiry = { id: "inq-1", reason: "inquiry", message: "Which?", metadata: { options: [{ id: "a", label: "A" }, { id: "b", label: "B" }], allowOther: true } }
+
+describe("session", () => {
+  test("start follows the event stream from the beginning and posts a plain run", async () => {
+    const f = fakeClient()
+    const s = makeSession({ client: f.client, threadId: "main", focus: ["S-0002"] })
+    let changes = 0
+    s.subscribe(() => changes++)
+    s.start()
+    await tick()
+    expect(f.streams.map((x) => x.since)).toEqual([0])
+    expect(f.runs).toEqual([{ threadId: "main", focus: ["S-0002"] }])
+    f.push({ type: "RUN_STARTED", threadId: "main", seq: 1, runId: "r" })
+    await tick()
+    expect(s.state().thread.status).toBe("running")
+    expect(changes).toBe(1)
+    s.close()
+  })
+
+  test("answer resumes the pending inquiry; send posts a message; blank input is ignored", async () => {
+    const f = fakeClient()
+    const s = makeSession({ client: f.client, threadId: "main" })
+    s.answer({ choice: "a" })
+    expect(f.runs).toEqual([])
+    s.start()
+    await tick()
+    f.push({ type: "RUN_FINISHED", threadId: "main", seq: 1, runId: "r", outcome: { type: "interrupt", interrupts: [inquiry] } })
+    await tick()
+    s.answer({ choice: "b" })
+    s.send("   ")
+    s.send("do payments first")
+    await tick()
+    expect(f.runs.slice(1)).toEqual([
+      { threadId: "main", answer: { interruptId: "inq-1", answer: { choice: "b" } } },
+      { threadId: "main", message: "do payments first" },
+    ])
+    s.stop()
+    await tick()
+    expect(f.stops).toEqual(["main"])
+    s.close()
+  })
+
+  test("a broken stream reconnects from the last event seen", async () => {
+    const f = fakeClient()
+    const s = makeSession({ client: f.client, threadId: "main" })
+    s.start()
+    await tick()
+    f.push({ type: "RUN_STARTED", threadId: "main", seq: 7, runId: "r" })
+    await tick()
+    Effect.runSync(Queue.end(f.streams[0]!.queue))
+    await tick(300)
+    expect(f.streams.map((x) => x.since)).toEqual([0, 7])
+    expect(s.state().core).toBe("up")
+    s.close()
+  })
+
+  test("when the core cannot be reached after retries it counts as stopped", async () => {
+    const f = fakeClient({ streamFails: true })
+    const s = makeSession({ client: f.client, threadId: "main" })
+    s.start()
+    await tick(1500)
+    expect(s.state()).toMatchObject({ core: "down", notice: "core stopped: core is not reachable" })
+    s.close()
+  })
+
+  test("a refused run shows its reason", async () => {
+    const f = fakeClient({ refuseRuns: true })
+    const s = makeSession({ client: f.client, threadId: "main" })
+    s.start()
+    await tick()
+    expect(s.state().notice).toBe("unauthorized")
+    s.close()
+  })
+})
