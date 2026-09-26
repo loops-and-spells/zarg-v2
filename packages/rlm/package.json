@@ -1,0 +1,20 @@
+{
+  "name": "@zarg/rlm",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@zarg/decisions": "workspace:*",
+    "@zarg/graph": "workspace:*",
+    "@zarg/kernel": "workspace:*",
+    "@zarg/model": "workspace:*",
+    "@zarg/plugin": "workspace:*",
+    "effect": "^4.0.0-rc.117"
+  },
+  "devDependencies": {
+    "@effect/platform-bun": "^4.0.0-rc.117",
+    "@zarg/plugin-gherkin": "workspace:*"
+  }
+}

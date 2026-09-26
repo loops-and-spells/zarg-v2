@@ -1,0 +1,102 @@
+import { BunServices } from "@effect/platform-bun"
+import { describe, expect, test } from "bun:test"
+import { mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { Effect, Layer } from "effect"
+import { GraphStore, layer as graphLayer } from "@zarg/graph"
+import { Kernel } from "@zarg/kernel"
+import { layer as hostLayer, PluginHost } from "@zarg/plugin/server"
+import { gherkin } from "@zarg/plugin-gherkin/server"
+import { agenda, graph, inquire, pluginService, type Scope, verify } from "../src"
+
+/** A real graph with the gherkin plugin: S-0001 → UX-0001 → S-0002, plus an unrelated S-0003. */
+const withGraph = <A>(scope: Scope, body: (k: Kernel.Kernel) => Effect.Effect<A>) =>
+  Effect.gen(function* () {
+    const host = yield* PluginHost
+    const store = yield* GraphStore
+    yield* host.call("gherkin/add-state", { text: "the home page is shown", entry: true })
+    yield* host.call("gherkin/add-card", { title: "Open pricing", when: "the user opens pricing", arrives: { id: "S-0001" }, then: [{ text: "the plan picker is shown", terminal: true }] })
+    yield* host.call("gherkin/add-state", { text: "an unrelated screen", entry: true, terminal: true })
+    const ctx = { host, snapshot: store.snapshot.pipe(Effect.mapError((e) => ({ _tag: e._tag, message: e.message }))), scope }
+    const services = [graph(ctx), pluginService(gherkin, ctx)!]
+    const k = yield* Kernel.make({ services })
+    return yield* body(k)
+  }).pipe(
+    Effect.scoped,
+    Effect.provide(Layer.provideMerge(hostLayer([gherkin]), graphLayer(mkdtempSync(join(tmpdir(), "zarg-rlm-graph-"))))),
+    Effect.provide(BunServices.layer),
+    Effect.runPromise,
+  )
+
+describe("Graph service", () => {
+  test("render and agenda are narrowed to the scope's focus", async () => {
+    const out = await withGraph({ graph: { focus: ["UX-0001"], k: 1 } }, (k) => k.run("return yield* Graph.render({})"))
+    expect(out.output).toContain("UX-0001 Open pricing")
+    expect(out.output).not.toContain("S-0003")
+  })
+
+  test("show returns the node with its hash; nodes outside the scope are refused", async () => {
+    const out = await withGraph({ graph: { focus: ["UX-0001"], k: 1 } }, (k) =>
+      Effect.all([k.run('return (yield* Graph.show({ id: "S-0002" })).hash'), k.run('return yield* Graph.show({ id: "S-0003" })')]),
+    )
+    expect(out[0].output).toMatch(/^[0-9a-f]{12}$/)
+    expect(out[1].output).toContain("OutOfScope")
+  })
+})
+
+describe("plugin tools as services", () => {
+  test("Gherkin.addCard runs through the write pipeline and lints", async () => {
+    const out = await withGraph({}, (k) =>
+      Effect.all([
+        k.run('return (yield* Gherkin.addState({ text: "a settings page is shown", entry: true, terminal: true })).added'),
+        k.run('return yield* Gherkin.addState({ text: "shown if logged in" })'),
+      ]),
+    )
+    expect(out[0].output).toContain("S-0004")
+    expect(out[1].output).toContain("LintFailed")
+    expect(out[1].output).toContain('contains "if"')
+  })
+
+  test("writes that name nodes outside the scope are refused", async () => {
+    const out = await withGraph({ graph: { focus: ["UX-0001"], k: 1 } }, (k) => k.run('return yield* Gherkin.editState({ id: "S-0003", text: "changed" })'))
+    expect(out.output).toContain("OutOfScope")
+  })
+})
+
+describe("Inquire, Agenda and Verify", () => {
+  const kernel = <A>(services: Parameters<typeof Kernel.make>[0]["services"], f: (k: Kernel.Kernel) => Effect.Effect<A>) =>
+    Effect.runPromise(Effect.scoped(Effect.flatMap(Kernel.make({ services }), f)))
+
+  test("Inquire.ask returns the developer's answer; bad option counts are refused", async () => {
+    const asked: Array<string> = []
+    const svc = inquire({ ask: (q) => Effect.sync(() => (asked.push(q.question), { choice: "b" })) })
+    const out = await kernel([svc], (k) =>
+      Effect.all([
+        k.run('return yield* Inquire.ask({ question: "Which?", options: [{ id: "a", label: "A", recommended: true, why: "simpler" }, { id: "b", label: "B" }] })'),
+        k.run('return yield* Inquire.ask({ question: "Only one?", options: [{ id: "a", label: "A" }] })'),
+      ]),
+    )
+    expect(out[0].output).toContain('"choice": "b"')
+    expect(out[1].output).toContain("InvalidQuestion")
+    expect(asked).toEqual(["Which?"])
+  })
+
+  test("Agenda.raise hands the item to the inbox", async () => {
+    const titles: Array<string> = []
+    const out = await kernel([agenda({ raise: (i) => Effect.sync(() => (titles.push(i.title), "A-1")) })], (k) =>
+      k.run('return yield* Agenda.raise({ title: "UX-0007 contradicts UX-0003", detail: "d", about: ["UX-0007"] })'),
+    )
+    expect(out.output).toContain('"id": "A-1"')
+    expect(titles).toEqual(["UX-0007 contradicts UX-0003"])
+  })
+
+  test("Verify reports the gate's verdict", async () => {
+    const root = mkdtempSync(join(tmpdir(), "zarg-verify-"))
+    const ctx = { root, scope: {}, sensitive: [] }
+    const out = await kernel([verify(ctx, ["bash", "-c", "echo checks passed"])], (k) => k.run("return yield* Verify.run({})"))
+    expect(out.output).toContain('"passed": true')
+    const failing = await kernel([verify(ctx, ["bash", "-c", "echo broken; exit 3"])], (k) => k.run("return (yield* Verify.run({})).passed"))
+    expect(failing.output).toBe("false")
+  })
+})
