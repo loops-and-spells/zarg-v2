@@ -1,0 +1,22 @@
+{
+  "edges": [
+    {
+      "to": "S-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0033",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0034",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0034",
+  "props": {
+    "title": "Driver asks for a role's model",
+    "when": "a role has no model set"
+  },
+  "type": "gherkin/card"
+}

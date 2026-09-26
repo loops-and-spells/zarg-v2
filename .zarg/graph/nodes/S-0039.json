@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0039",
+  "props": {
+    "terminal": true,
+    "text": "the start failure reason is shown"
+  },
+  "type": "gherkin/state"
+}

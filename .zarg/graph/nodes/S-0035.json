@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0035",
+  "props": {
+    "text": "the role's model is saved to config"
+  },
+  "type": "gherkin/state"
+}

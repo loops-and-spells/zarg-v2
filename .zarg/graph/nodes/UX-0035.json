@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0033",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0035",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0035",
+  "props": {
+    "title": "Developer picks a model",
+    "when": "the developer picks a model for the role"
+  },
+  "type": "gherkin/card"
+}

@@ -1,0 +1,22 @@
+{
+  "edges": [
+    {
+      "to": "S-0033",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0036",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0033",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0036",
+  "props": {
+    "title": "A model without tool calls is refused",
+    "when": "the developer picks a model without tool calling"
+  },
+  "type": "gherkin/card"
+}

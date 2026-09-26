@@ -1,0 +1,22 @@
+{
+  "edges": [
+    {
+      "to": "S-0035",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0037",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0038",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0037",
+  "props": {
+    "title": "A cold model warms up",
+    "when": "the chosen model is cold"
+  },
+  "type": "gherkin/card"
+}

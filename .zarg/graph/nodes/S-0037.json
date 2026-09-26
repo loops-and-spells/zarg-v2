@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0037",
+  "props": {
+    "terminal": true,
+    "text": "warm-up progress is shown"
+  },
+  "type": "gherkin/state"
+}

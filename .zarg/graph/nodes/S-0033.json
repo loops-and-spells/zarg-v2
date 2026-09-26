@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0033",
+  "props": {
+    "text": "a model question lists available models"
+  },
+  "type": "gherkin/state"
+}
