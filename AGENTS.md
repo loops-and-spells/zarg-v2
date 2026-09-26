@@ -62,7 +62,7 @@ mise install
 
 ## Rules
 
-- Run tools through mise (`mise exec -- bun ...`) or in a shell with mise activated. Never rely on a globally installed tool version.
+- Run tools through mise (`mise x -- bun ...`). A globally installed bun can shadow the pinned one even inside `mise run`, so every task calls `mise x -- bun`, and tests spawn `process.execPath`, never a bare `bun`.
 - Add or change a tool version only in `mise.toml`. Never document a version anywhere else.
 - Use `bun`, never `npm`, `npx`, `yarn`, `pnpm`, or `node`. Use `bunx` in place of `npx`.
 - Use `bun add` / `bun remove` to change dependencies. Commit `bun.lock`.

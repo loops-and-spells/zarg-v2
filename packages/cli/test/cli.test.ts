@@ -7,7 +7,7 @@ const main = join(import.meta.dir, "../src/main.ts")
 let dir = ""
 
 const zargIn = (root: string, ...args: Array<string>) => {
-  const p = Bun.spawnSync(["bun", main, ...args], { cwd: root, env: { ...process.env, ZARG_ROOT: root } })
+  const p = Bun.spawnSync([process.execPath, main, ...args], { cwd: root, env: { ...process.env, ZARG_ROOT: root } })
   return { code: p.exitCode, out: p.stdout.toString(), err: p.stderr.toString() }
 }
 const zarg = (...args: Array<string>) => zargIn(dir, ...args)

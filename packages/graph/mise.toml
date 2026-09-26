@@ -1,5 +1,5 @@
 [tasks.typecheck]
-run = "bunx tsc"
+run = "mise x -- bunx tsc"
 
 [tasks.test]
-run = "bun test"
+run = "mise x -- bun test"

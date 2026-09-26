@@ -12,4 +12,5 @@ depends = ["//...:typecheck", "//...:test"]
 
 [tasks.zarg]
 description = "Run this repo's zarg CLI: mise run zarg -- agenda"
-run = "bun packages/cli/src/main.ts"
+run = "mise x -- bun packages/cli/src/main.ts"
+
