@@ -306,10 +306,11 @@ Phase 1 is done when Claude Code, using only the two skills, adds a zarg require
 
 The core process, AG-UI over HTTP and SSE, threads, the stub-model tests, and zarg's own driver and sync agents replacing the skills. From then on, the CLI routes writes through core when core is running.
 
-Before phase 2 starts, write two specs:
+Phase 2 is split into three specs:
 
-- **Model provider:** which API, and whether to call it directly with `fetch` (OpenAI-compatible, as colony did) or through an SDK.
-- **Sync code ownership:** tagged regions, fully generated output, or a hybrid. This replaces the phase 1 `// @card` grep convention.
+- **2a, agent runtime:** `docs/superpowers/specs/2026-09-25-agent-runtime-design.md`. Model access, decisions, the kernel, services, and the RLM as the unit of agency. It replaces plugin `tools` with plugin `services` and supersedes the "Core services" list in section 5.
+- **2b, core process:** AG-UI, threads and focus, and the driver and sync loops on top of 2a.
+- **2c, sync code ownership:** tagged regions, fully generated output, or a hybrid. This replaces the phase 1 `// @card` grep convention.
 
 Phase 2 work, including everything phase 1 deferred:
 
