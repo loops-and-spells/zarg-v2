@@ -14,3 +14,7 @@ depends = ["//...:typecheck", "//...:test"]
 description = "Run this repo's zarg CLI: mise run zarg -- agenda"
 run = "mise x -- bun packages/cli/src/main.ts"
 
+
+[tasks.smoke]
+description = "Live smoke test: one real research RLM on this repo (needs the configured model providers)"
+run = "mise x -- bun packages/rlm/smoke/smoke.ts"
