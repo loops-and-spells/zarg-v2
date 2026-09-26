@@ -12,10 +12,15 @@
     "packages/cli": {
       "name": "@zarg/cli",
       "bin": {
-        "zarg": "src/index.ts",
+        "zarg": "src/main.ts",
       },
       "dependencies": {
+        "@effect/platform-bun": "^4.0.0-rc.117",
         "@opentui/core": "^0.5.12",
+        "@zarg/graph": "workspace:*",
+        "@zarg/plugin": "workspace:*",
+        "@zarg/plugin-gherkin": "workspace:*",
+        "effect": "^4.0.0-rc.117",
       },
     },
     "packages/graph": {
