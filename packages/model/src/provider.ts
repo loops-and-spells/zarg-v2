@@ -36,7 +36,8 @@ export const plain = (provider: string, settings: Readonly<Record<string, Config
 /** An optional setting that must be secret when present (API keys). */
 export const secret = (provider: string, settings: Readonly<Record<string, ConfigValue>>, key: string) => {
   const v = settings[key]
-  if (v === undefined) return Effect.succeed(undefined)
+  // "${KEY:-}" with KEY unset expands to "": no key configured, not a plain-text secret.
+  if (v === undefined || v === "") return Effect.succeed(undefined)
   return Redacted.isRedacted(v)
     ? Effect.succeed(v)
     : Effect.fail(

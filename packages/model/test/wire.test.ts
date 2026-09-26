@@ -104,6 +104,79 @@ describe("openRouterWire.stream", () => {
   })
 })
 
+describe("timeouts before response headers", () => {
+  const hang = () => serve(() => new Promise<Response>(() => {}))
+
+  test("a chat request whose headers never arrive fails with first-output", async () => {
+    const s = hang()
+    const started = Date.now()
+    const err = await collectErr(openRouterWire({ baseUrl: s.url, timeouts: { idleMs: 1000, firstOutputMs: 100 } }).stream(req))
+    expect(err).toMatchObject({ kind: "first-output" })
+    expect(Date.now() - started).toBeLessThan(1000)
+  })
+
+  test("a /models request whose headers never arrive times out", async () => {
+    const s = hang()
+    const err = await Effect.runPromise(Effect.flip(openRouterWire({ baseUrl: s.url, requestTimeoutMs: 100 }).models))
+    expect(err).toMatchObject({ kind: "timeout" })
+  })
+})
+
+describe("cancellation", () => {
+  test("taking only part of a stream cancels the HTTP response", async () => {
+    let cancelled = false
+    let sent = 0
+    const s = serve(
+      () =>
+        new Response(
+          new ReadableStream({
+            async pull(c) {
+              await Bun.sleep(20)
+              sent++
+              c.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(delta({ content: `t${sent}` }))}\n\n`))
+            },
+            cancel() {
+              cancelled = true
+            },
+          }),
+          { headers: { "content-type": "text/event-stream" } },
+        ),
+    )
+    await Effect.runPromise(Stream.runCollect(Stream.take(openRouterWire({ baseUrl: s.url }).stream(req), 1)))
+    await Bun.sleep(200)
+    expect(cancelled).toBe(true)
+    expect(sent).toBeLessThan(6)
+  })
+})
+
+describe("SSE framing", () => {
+  const raw = (text: string) => serve(() => new Response(text, { headers: { "content-type": "text/event-stream" } }))
+  const texts = (events: ReadonlyArray<StreamEvent>) => events.flatMap((e) => (e.type === "text" ? [e.delta] : []))
+
+  test("CRLF-separated frames are parsed", async () => {
+    const s = raw(`data: ${JSON.stringify(delta({ content: "a" }))}\r\n\r\ndata: ${JSON.stringify(delta({ content: "b" }))}\r\n\r\n`)
+    expect(texts(await collect(openRouterWire({ baseUrl: s.url }).stream(req)))).toEqual(["a", "b"])
+  })
+
+  test("a CRLF pair split across chunks does not end a frame early", async () => {
+    const body = `data: ${JSON.stringify(delta({ content: "a" }))}`
+    const s = serve(() => sse([`${body}\r`, 10, `\n\r\n`, `data: ${JSON.stringify(delta({ content: "b" }))}\r\n\r\n`]))
+    expect(texts(await collect(openRouterWire({ baseUrl: s.url }).stream(req)))).toEqual(["a", "b"])
+  })
+
+  test("data: without a space after the colon is parsed", async () => {
+    const s = raw(`data:${JSON.stringify(delta({ content: "x" }))}\n\n`)
+    expect(texts(await collect(openRouterWire({ baseUrl: s.url }).stream(req)))).toEqual(["x"])
+  })
+
+  test("a last frame without a trailing blank line is not dropped", async () => {
+    const s = raw(`data: ${JSON.stringify(delta({ content: "last" }, "stop"))}`)
+    const events = await collect(openRouterWire({ baseUrl: s.url }).stream(req))
+    expect(texts(events)).toEqual(["last"])
+    expect(events.at(-1)).toEqual({ type: "done", finishReason: "stop" })
+  })
+})
+
 describe("openRouterWire.models", () => {
   test("parses limits, tool support and zarg-router capabilities from /models rows", async () => {
     const s = serve(() =>

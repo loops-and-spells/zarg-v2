@@ -56,18 +56,75 @@ const read = (s: State, t: SseTimeouts) => {
   )
 }
 
-/** Parse an OpenAI-style SSE body into StreamEvents. Tool calls are emitted, assembled, before `done`. */
-export const parseSse = (response: Response, t: SseTimeouts): Stream.Stream<StreamEvent, ModelError> => {
+/**
+ * Parse an OpenAI-style SSE body into StreamEvents. Tool calls are emitted, assembled, before `done`.
+ * `startedAt` is when the request was sent, so time spent waiting for headers counts toward first output.
+ */
+export const parseSse = (response: Response, t: SseTimeouts, startedAt: number = Date.now()): Stream.Stream<StreamEvent, ModelError> => {
   const state: State = {
     reader: response.body!.getReader(),
     decoder: new TextDecoder(),
-    deadline: Date.now() + t.firstOutputMs,
+    deadline: startedAt + t.firstOutputMs,
     buf: "",
     toolCalls: new Map(),
     finishReason: undefined,
     sawOutput: false,
     done: false,
     events: [],
+  }
+
+  /** Handle one SSE frame (the text between blank lines). */
+  const frame = (s: State, text: string): Effect.Effect<void, ModelError> =>
+    Effect.gen(function* () {
+      // Lines starting with ":" are comments (zarg-router sends ": warming <model>").
+      // Per the SSE spec, one optional space follows "data:", and multiple data lines join with "\n".
+      const data = text
+        .split("\n")
+        .filter((l) => l.startsWith("data:"))
+        .map((l) => (l.startsWith("data: ") ? l.slice(6) : l.slice(5)))
+        .join("\n")
+      if (!data || data === "[DONE]") return
+      let j: any
+      try {
+        j = JSON.parse(data)
+      } catch (e) {
+        return yield* new ModelError({ kind: "stream", message: `bad SSE JSON: ${e instanceof Error ? e.message : String(e)}` })
+      }
+      // An in-band error frame is a failed stream, never an empty turn.
+      if (j.error !== undefined && j.error !== null) {
+        const message = typeof j.error === "string" ? j.error : (j.error.message ?? JSON.stringify(j.error))
+        return yield* new ModelError({ kind: "stream", message, status: typeof j.error?.code === "number" ? j.error.code : 0 })
+      }
+      if (j.usage) s.events.push({ type: "usage", usage: mapUsage(j.usage) })
+      // Read before the delta guard: some backends send finish_reason on a chunk without a delta.
+      const fr = j.choices?.[0]?.finish_reason
+      if (fr) s.finishReason = fr
+      const delta = j.choices?.[0]?.delta
+      if (!delta) return
+      const r = delta.reasoning_content ?? delta.reasoning
+      if (r) {
+        s.sawOutput = true
+        s.events.push({ type: "reasoning", delta: r })
+      }
+      if (delta.content) {
+        s.sawOutput = true
+        s.events.push({ type: "text", delta: delta.content })
+      }
+      for (const tc of delta.tool_calls ?? []) {
+        s.sawOutput = true
+        const cur = s.toolCalls.get(tc.index) ?? { id: "", type: "function" as const, function: { name: "", arguments: "" } }
+        if (tc.id) cur.id = tc.id
+        if (tc.function?.name) cur.function.name = tc.function.name
+        if (tc.function?.arguments) cur.function.arguments += tc.function.arguments
+        s.toolCalls.set(tc.index, cur)
+      }
+    })
+
+  /** Normalise CRLF/CR to LF, keeping a trailing "\r" pending in case its "\n" is in the next chunk. */
+  const normalise = (buf: string, final: boolean) => {
+    const keep = !final && buf.endsWith("\r") ? "\r" : ""
+    const body = keep ? buf.slice(0, -1) : buf
+    return body.replace(/\r\n?/g, "\n") + keep
   }
 
   const step = (s: State): Effect.Effect<readonly [StreamEvent, State] | undefined, ModelError> =>
@@ -78,60 +135,28 @@ export const parseSse = (response: Response, t: SseTimeouts): Stream.Stream<Stre
         if (s.done) return undefined
         const chunk = yield* read(s, t)
         if (chunk.done) {
+          // A last frame without a trailing blank line still counts.
+          const rest = normalise(s.buf + s.decoder.decode(), true)
+          s.buf = ""
+          if (rest.trim().length > 0) yield* frame(s, rest)
           for (const call of s.toolCalls.values()) s.events.push({ type: "toolCall", call: call as ToolCall })
           s.events.push({ type: "done", ...(s.finishReason !== undefined ? { finishReason: s.finishReason } : {}) })
           s.done = true
           continue
         }
-        s.buf += s.decoder.decode(chunk.value, { stream: true })
+        s.buf = normalise(s.buf + s.decoder.decode(chunk.value, { stream: true }), false)
         let idx: number
         while ((idx = s.buf.indexOf("\n\n")) !== -1) {
-          const frame = s.buf.slice(0, idx)
+          const text = s.buf.slice(0, idx)
           s.buf = s.buf.slice(idx + 2)
-          // Lines starting with ":" are comments (zarg-router sends ": warming <model>").
-          const data = frame
-            .split("\n")
-            .filter((l) => l.startsWith("data: "))
-            .map((l) => l.slice(6))
-            .join("")
-          if (!data || data === "[DONE]") continue
-          let j: any
-          try {
-            j = JSON.parse(data)
-          } catch (e) {
-            return yield* new ModelError({ kind: "stream", message: `bad SSE JSON: ${e instanceof Error ? e.message : String(e)}` })
-          }
-          // An in-band error frame is a failed stream, never an empty turn.
-          if (j.error !== undefined && j.error !== null) {
-            const message = typeof j.error === "string" ? j.error : (j.error.message ?? JSON.stringify(j.error))
-            return yield* new ModelError({ kind: "stream", message, status: typeof j.error?.code === "number" ? j.error.code : 0 })
-          }
-          if (j.usage) s.events.push({ type: "usage", usage: mapUsage(j.usage) })
-          // Read before the delta guard: some backends send finish_reason on a chunk without a delta.
-          const fr = j.choices?.[0]?.finish_reason
-          if (fr) s.finishReason = fr
-          const delta = j.choices?.[0]?.delta
-          if (!delta) continue
-          const r = delta.reasoning_content ?? delta.reasoning
-          if (r) {
-            s.sawOutput = true
-            s.events.push({ type: "reasoning", delta: r })
-          }
-          if (delta.content) {
-            s.sawOutput = true
-            s.events.push({ type: "text", delta: delta.content })
-          }
-          for (const tc of delta.tool_calls ?? []) {
-            s.sawOutput = true
-            const cur = s.toolCalls.get(tc.index) ?? { id: "", type: "function" as const, function: { name: "", arguments: "" } }
-            if (tc.id) cur.id = tc.id
-            if (tc.function?.name) cur.function.name = tc.function.name
-            if (tc.function?.arguments) cur.function.arguments += tc.function.arguments
-            s.toolCalls.set(tc.index, cur)
-          }
+          yield* frame(s, text)
         }
       }
     })
 
-  return Stream.unfold(state, step)
+  // Cancel the response body however the stream ends: done, failed, or interrupted by a consumer
+  // that stopped early (Stream.take, a timeout). Otherwise the provider keeps generating and billing.
+  return Stream.unfold(state, step).pipe(
+    Stream.ensuring(Effect.sync(() => void state.reader.cancel().catch(() => {}))),
+  )
 }

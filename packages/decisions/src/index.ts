@@ -152,6 +152,8 @@ export interface DecisionsOptions {
   readonly role?: string
   /** Chat role used for the structured fallback. */
   readonly fallbackRole?: string
+  /** Deadline for a whole decision, including looking up the model. */
+  readonly deadlineMs?: number
 }
 
 export const make = (opts: DecisionsOptions = {}) =>
@@ -160,6 +162,7 @@ export const make = (opts: DecisionsOptions = {}) =>
     const model = yield* Model.Model
     const role = opts.role ?? "decision"
     const fallbackRole = opts.fallbackRole ?? "driver"
+    const deadlineMs = opts.deadlineMs ?? LIMITS.deadlineMs
 
     const native = (ref: string, req: DecisionRequest) =>
       Effect.gen(function* () {
@@ -204,10 +207,8 @@ export const make = (opts: DecisionsOptions = {}) =>
     const toDecisionError = (e: ModelError | DecisionError) =>
       e._tag === "DecisionError" ? e : new DecisionError({ kind: "unavailable", message: e.message })
 
-    const decide = (req: DecisionRequest) =>
+    const answer = (req: DecisionRequest) =>
       Effect.gen(function* () {
-        yield* validate(req)
-        const started = Date.now()
         const nativeRef = config.roles[role]
         const nativeOk =
           nativeRef !== undefined &&
@@ -215,7 +216,7 @@ export const make = (opts: DecisionsOptions = {}) =>
             Effect.map((i) => i.capabilities.includes("decision")),
             Effect.orElseSucceed(() => false),
           ))
-        const attempt = nativeOk
+        const answers: Record<string, Answer> = yield* nativeOk
           ? native(nativeRef!, req).pipe(
               Effect.mapError(toDecisionError),
               Effect.catchTag("DecisionError", (e) =>
@@ -227,15 +228,23 @@ export const make = (opts: DecisionsOptions = {}) =>
           : config.roles[fallbackRole] !== undefined
             ? structured(config.roles[fallbackRole]!, req).pipe(Effect.mapError(toDecisionError))
             : Effect.fail(new DecisionError({ kind: "unavailable", message: `no decision model; set roles.${role} or roles.${fallbackRole}` }))
-        const answers = yield* attempt.pipe(
+        return { answers, transport: nativeOk ? "native" : "structured" }
+      })
+
+    const decide = (req: DecisionRequest) =>
+      Effect.gen(function* () {
+        yield* validate(req)
+        const started = Date.now()
+        // One deadline around everything, including the /models lookup.
+        const { answers, transport } = yield* answer(req).pipe(
           Effect.timeoutOrElse({
-            duration: LIMITS.deadlineMs,
-            orElse: () => Effect.fail(new DecisionError({ kind: "deadline", message: `no decision within ${LIMITS.deadlineMs}ms` })),
+            duration: deadlineMs,
+            orElse: () => Effect.fail(new DecisionError({ kind: "deadline", message: `no decision within ${deadlineMs}ms` })),
           }),
         )
         yield* Effect.logInfo("decision").pipe(
           Effect.annotateLogs({
-            transport: nativeOk ? "native" : "structured",
+            transport,
             latencyMs: Date.now() - started,
             confidence: Object.values(answers).map((a) => a.confidence.toFixed(3)).join(","),
           }),

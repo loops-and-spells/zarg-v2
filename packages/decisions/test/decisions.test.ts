@@ -8,6 +8,8 @@ const info = (id: string, capabilities: ReadonlyArray<string>): ModelInfo => ({
 })
 
 interface Fake {
+  readonly stallInfo?: boolean
+  readonly deadlineMs?: number
   readonly systemone?: (body: any) => Effect.Effect<unknown, ModelError>
   readonly chat?: (prompt: string) => ReadonlyArray<StreamEvent>
   readonly roles: Readonly<Record<string, string>>
@@ -26,7 +28,7 @@ const run = <A, E>(fake: Fake, eff: Effect.Effect<A, E, Decisions>) => {
   const model = Layer.succeed(Model.Model, {
     client: () => Effect.succeed(client),
     list: () => Effect.succeed([]),
-    info: (ref) => Effect.succeed(info(ref, ref === "r:jevk5" ? ["decision"] : [])),
+    info: (ref) => (fake.stallInfo ? Effect.never : Effect.succeed(info(ref, ref === "r:jevk5" ? ["decision"] : []))),
     warm: () => Effect.void,
     stream: (req) => {
       calls.chat.push(req)
@@ -34,7 +36,8 @@ const run = <A, E>(fake: Fake, eff: Effect.Effect<A, E, Decisions>) => {
     },
   })
   const config = Layer.succeed(Config.Config, { providers: {}, roles: fake.roles, extra: {} })
-  return Effect.runPromise(Effect.provide(eff, Layer.provide(layer(), Layer.merge(model, config)))).then((out) => ({ out, calls }))
+  const decisions = layer(fake.deadlineMs === undefined ? {} : { deadlineMs: fake.deadlineMs })
+  return Effect.runPromise(Effect.provide(eff, Layer.provide(decisions, Layer.merge(model, config)))).then((out) => ({ out, calls }))
 }
 
 const req: DecisionRequest = {
@@ -119,5 +122,10 @@ describe("Decisions", () => {
     const { out, calls } = await run({ roles: { driver: "r:chat" } }, tooFew)
     expect(out).toMatchObject({ kind: "invalid", message: "q: 2 to 16 options allowed, got 1" })
     expect(calls.chat.length).toBe(0)
+  })
+  test("the deadline covers looking up the model, not just answering", async () => {
+    const one = Decisions.use((d) => Effect.flip(d.decide({ state: "s", questions: { ready: { type: "noul", instructions: "?" } } })))
+    const { out } = await run({ roles: { decision: "r:jevk5", driver: "r:chat" }, stallInfo: true, deadlineMs: 50 }, one)
+    expect(out).toMatchObject({ kind: "deadline" })
   })
 })

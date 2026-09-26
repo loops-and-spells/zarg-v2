@@ -20,6 +20,8 @@ export interface WireOptions {
   readonly retries?: number
   /** Base of the jittered exponential backoff when no Retry-After is sent. */
   readonly backoffMs?: number
+  /** Deadline for non-streaming requests (GET /models), including waiting for headers. */
+  readonly requestTimeoutMs?: number
   readonly fetch?: typeof fetch
 }
 
@@ -53,6 +55,14 @@ export const openRouterWire = (o: WireOptions): WireClient => {
   const retries = o.retries ?? 3
   const backoffMs = o.backoffMs ?? 100
   const timeouts = { ...DEFAULT_TIMEOUTS, ...o.timeouts }
+  const requestTimeoutMs = o.requestTimeoutMs ?? 30_000
+  const deadline = <A>(ms: number, kind: "timeout" | "first-output", what: string) => (eff: Effect.Effect<A, ModelError>) =>
+    eff.pipe(
+      Effect.timeoutOrElse({
+        duration: ms,
+        orElse: () => Effect.fail(new ModelError({ kind, message: `${what}: no response within ${ms}ms` })),
+      }),
+    )
   const headers = (json: boolean): Record<string, string> => ({
     ...(json ? { "content-type": "application/json" } : {}),
     ...(o.apiKey ? { authorization: `Bearer ${Redacted.value(o.apiKey)}` } : {}),
@@ -91,6 +101,7 @@ export const openRouterWire = (o: WireOptions): WireClient => {
     })
 
   const models = Effect.flatMap(send("/models", { method: "GET", headers: headers(false) }), json).pipe(
+    deadline(requestTimeoutMs, "timeout", "GET /models"),
     Effect.map((body) => (Array.isArray(body?.data) ? body.data.map(parseModelRow) : [])),
   )
 
@@ -102,8 +113,12 @@ export const openRouterWire = (o: WireOptions): WireClient => {
             try: () => buildRequestBody(req),
             catch: (e) => new ModelError({ kind: "config", message: e instanceof Error ? e.message : String(e) }),
           })
-          const res = yield* send("/chat/completions", { method: "POST", headers: headers(true), body })
-          return parseSse(res, timeouts)
+          // The first-output clock starts before the request: waiting for headers counts too.
+          const startedAt = Date.now()
+          const res = yield* send("/chat/completions", { method: "POST", headers: headers(true), body }).pipe(
+            deadline(timeouts.firstOutputMs, "first-output", "POST /chat/completions"),
+          )
+          return parseSse(res, timeouts, startedAt)
         }),
       ),
     models,

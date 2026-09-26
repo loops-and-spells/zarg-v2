@@ -21,4 +21,8 @@ describe("openrouter provider", () => {
     expect(typeof client.stream).toBe("function")
     expect(client.warm).toBeUndefined()
   })
+  test("an empty api_key (unset variable with an empty default) means no key, not a config error", async () => {
+    const client = await Effect.runPromise(openrouter.connect({ base_url: "http://x", api_key: "" }))
+    expect(typeof client.stream).toBe("function")
+  })
 })
