@@ -58,6 +58,14 @@ describe("plugin tools as services", () => {
     expect(out[1].output).toContain('contains "if"')
   })
 
+  test("text that merely looks like an id is not treated as one", async () => {
+    const out = await withGraph({ graph: { focus: ["UX-0001"], k: 1 } }, (k) =>
+      k.run('return (yield* Gherkin.editCard({ id: "UX-0001", title: "Dates use ISO-8601" })).changed'),
+    )
+    expect(out.output).toContain("UX-0001")
+    expect(out.output).not.toContain("OutOfScope")
+  })
+
   test("writes that name nodes outside the scope are refused", async () => {
     const out = await withGraph({ graph: { focus: ["UX-0001"], k: 1 } }, (k) => k.run('return yield* Gherkin.editState({ id: "S-0003", text: "changed" })'))
     expect(out.output).toContain("OutOfScope")

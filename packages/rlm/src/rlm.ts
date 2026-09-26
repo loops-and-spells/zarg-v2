@@ -51,27 +51,62 @@ const resultType = (schema: Schema.Codec<any, any>) => {
   return tsType(d.schema, d.definitions ?? {})
 }
 
-const systemPrompt = (spec: RlmSpec, preset: Preset, manifest: string, result: string, budget: Budget) =>
+const systemPrompt = (
+  spec: RlmSpec,
+  preset: Preset,
+  manifest: string,
+  result: string,
+  budget: Budget,
+  depth: number,
+  maxDepth: number,
+  children: ReadonlyArray<string>,
+) =>
   [
     preset.stance ?? `You are a zarg ${spec.preset} agent.`,
-    "You work only by calling the `exec` tool with TypeScript cells. Each cell is a generator body: `const x = yield* Service.method(params)`; `return` a value to see it in the tool result. Declarations persist across cells.",
-    "Stay inside your scope. Work that needs files or graph nodes outside it, or reading more than a few files, goes to a child with `yield* Rlm.exec({ task, preset, scope })`: you get back only its result, which keeps your context small.",
+    "You work only by calling the `exec` tool with TypeScript cells. Each cell is a generator body: `const x = yield* Service.method(params)`; `return` a value to see it in the tool result. Declarations persist across cells, and older tool outputs get shortened, so keep results you need in variables.",
+    children.length > 0
+      ? [
+          "Stay inside your scope. Work that needs files or graph nodes outside it, or reading more than a few files, goes to a child with `yield* Rlm.exec({ task, preset, scope })`: you get back only its result, which keeps your context small. A child starts fresh: put everything it needs to know in its task.",
+          `Presets you may spawn and what each returns:\n${children.join("\n")}`,
+        ].join("\n\n")
+      : "Stay inside your scope. You cannot spawn children.",
     `When you are done, finish with \`yield* Rlm.done({ value })\` where value is: ${result}`,
     `Scope: ${describeScope(spec.scope)}`,
-    `Budget: ${budget.turns} turns.`,
+    `Depth: ${depth} of ${maxDepth}. Budget: ${budget.turns} turns.`,
     "Services available to your cells:",
     "```ts",
     manifest.trim(),
     "```",
   ].join("\n\n")
 
-/** Keep the latest tool outputs whole; shorten older ones so a long run stays in context. */
+/**
+ * Keep the latest tool outputs whole; shorten older ones so a long run stays in context.
+ * Outputs of cells that folded work into a child (`Rlm.exec`) are the valuable part and stay whole.
+ * Large cell arguments (a file written in full) are shortened once they are old.
+ */
 const trimOld = (messages: Array<ChatMessage>, keep: number) => {
+  const folded = new Set<string>()
+  for (const m of messages) for (const c of m.toolCalls ?? []) if (c.function.arguments.includes("Rlm.exec")) folded.add(c.id)
   const toolIdx = messages.flatMap((m, i) => (m.role === "tool" ? [i] : []))
-  for (const i of toolIdx.slice(0, Math.max(0, toolIdx.length - keep))) {
+  const old = new Set(toolIdx.slice(0, Math.max(0, toolIdx.length - keep)))
+  for (const i of old) {
     const m = messages[i]!
     const c = m.content ?? ""
+    if (m.toolCallId !== undefined && folded.has(m.toolCallId)) continue
     if (c.length > 600) messages[i] = { ...m, content: `${c.slice(0, 400)}\n… [older output trimmed] …` }
+  }
+  const oldCalls = new Set([...old].map((i) => messages[i]!.toolCallId))
+  for (const [i, m] of messages.entries()) {
+    if (m.role !== "assistant" || m.toolCalls === undefined) continue
+    if (!m.toolCalls.some((c) => oldCalls.has(c.id) && c.function.arguments.length > 600 && !folded.has(c.id))) continue
+    messages[i] = {
+      ...m,
+      toolCalls: m.toolCalls.map((c) =>
+        oldCalls.has(c.id) && c.function.arguments.length > 600 && !folded.has(c.id)
+          ? { ...c, function: { ...c.function, arguments: JSON.stringify({ code: `${String((JSON.parse(c.function.arguments) as { code?: unknown }).code ?? "").slice(0, 300)}\n// … [older cell trimmed] …` }) } }
+          : c,
+      ),
+    }
   }
 }
 
@@ -133,7 +168,21 @@ export const make = (deps: RlmDeps) =>
           const kernel = yield* Kernel.make({ services: [...layer, rlmService], env: {}, ...(deps.cellTimeoutMs ? { timeoutMs: deps.cellTimeoutMs } : {}) })
 
           const messages: Array<ChatMessage> = [
-            { role: "system", content: systemPrompt(spec, preset, kernel.manifest, resultType(resultSchema), budget) },
+            {
+              role: "system",
+              content: systemPrompt(
+                spec,
+                preset,
+                kernel.manifest,
+                resultType(resultSchema),
+                budget,
+                depth,
+                deps.settings.maxDepth,
+                depth >= deps.settings.maxDepth
+                  ? []
+                  : (preset.spawns ?? []).map((p) => `- ${p} → ${resultType(results[deps.settings.presets[p]?.result ?? "text"] ?? Schema.String)}`),
+              ),
+            },
             { role: "user", content: spec.task },
           ]
           const started = Date.now()

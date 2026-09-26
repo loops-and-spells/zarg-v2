@@ -88,7 +88,7 @@ const CallResult = Schema.Struct({
 /**
  * A plugin's tools as a yieldable service: plugin "gherkin" with tool "add-card" becomes
  * `Gherkin.addCard(params)`. Every call runs through the PluginHost write pipeline.
- * Writes that touch nodes outside the scope are refused after the fact is known (the result lists them).
+ * A write whose params name an existing node outside the RLM's graph scope is refused before it runs.
  */
 export const pluginService = (plugin: ServerPlugin, ctx: GraphContext): Bound | undefined => {
   const tools = plugin.tools ?? []
@@ -102,8 +102,10 @@ export const pluginService = (plugin: ServerPlugin, ctx: GraphContext): Bound | 
       camel(t.name),
       (params: unknown) =>
         Effect.gen(function* () {
-          const visible = scopeSet(yield* ctx.snapshot, ctx.scope)
-          const touched = JSON.stringify(params).match(/[A-Z]+-\d{4}/g) ?? []
+          const snap = yield* ctx.snapshot
+          const visible = scopeSet(snap, ctx.scope)
+          // Only strings that are ids of existing nodes count; "ISO-8601" in a title is just text.
+          const touched = (JSON.stringify(params).match(/\b[A-Za-z]+-\d{4,}\b/g) ?? []).filter((id) => snap.nodes.has(id))
           const outside = visible === undefined ? [] : touched.filter((id) => !visible.has(id))
           if (outside.length > 0) return yield* Effect.fail(outOfScope(outside.join(", ")))
           return yield* ctx.host.call(`${plugin.name}/${t.name}`, params).pipe(

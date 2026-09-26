@@ -1,3 +1,5 @@
+import { existsSync, realpathSync } from "node:fs"
+import { dirname, join, relative } from "node:path"
 import { Effect, Schema } from "effect"
 import { bind, type Bound, defineService, type ServiceFailure } from "@zarg/kernel"
 import { redact, scrubEnv, type SensitiveValue } from "@zarg/model"
@@ -12,17 +14,31 @@ export interface CoreContext {
 const fail = (_tag: string, message: string): ServiceFailure => ({ _tag, message })
 const clip = (text: string, max = 32_768) => (text.length <= max ? text : `${text.slice(0, max / 2)}\n… [${text.length - max} characters cut] …\n${text.slice(-max / 2)}`)
 
-/** Resolve a path the RLM asked for, enforcing root, scope and the env-file rule. */
+/**
+ * The real path of `rel`, following symlinks. For a path that does not exist yet (a write),
+ * the nearest existing ancestor is resolved and the rest appended.
+ */
+const realRel = (root: string, rel: string): string => {
+  const realRoot = realpathSync(root)
+  let dir = join(root, rel)
+  const rest: Array<string> = []
+  while (!existsSync(dir) && dir !== root) {
+    rest.unshift(dir.slice(dirname(dir).length + 1))
+    dir = dirname(dir)
+  }
+  return withinRoot(realRoot, join(realpathSync(dir), ...rest))
+}
+
+/** Resolve a path the RLM asked for, enforcing root, scope and the env-file rule on the real (symlink-free) path. */
+const check = (ctx: CoreContext, path: string): string => {
+  const rel = realRel(ctx.root, withinRoot(ctx.root, path))
+  if (isEnvSecretFile(rel)) throw new OutOfScope(`${rel} holds secrets; agents cannot read it`)
+  if (!pathInScope(ctx.scope, rel)) throw new OutOfScope(`${rel} is outside this RLM's scope (${(ctx.scope.paths ?? []).join(", ") || "no files"}); hand the work to a child RLM`)
+  return rel
+}
+
 const resolvePath = (ctx: CoreContext, path: string) =>
-  Effect.try({
-    try: () => {
-      const rel = withinRoot(ctx.root, path)
-      if (isEnvSecretFile(rel)) throw new OutOfScope(`${rel} holds secrets; agents cannot read it`)
-      if (!pathInScope(ctx.scope, rel)) throw new OutOfScope(`${rel} is outside this RLM's scope (${(ctx.scope.paths ?? []).join(", ") || "no files"}); hand the work to a child RLM`)
-      return rel
-    },
-    catch: (e) => fail("OutOfScope", e instanceof Error ? e.message : String(e)),
-  })
+  Effect.try({ try: () => check(ctx, path), catch: (e) => fail("OutOfScope", e instanceof Error ? e.message : String(e)) })
 
 const FsRead = {
   read: { doc: "Read a text file (repo-relative path inside your scope).", params: Schema.Struct({ path: Schema.String }), success: Schema.String },
@@ -55,7 +71,12 @@ const fsHandlers = (ctx: CoreContext) => ({
     Effect.promise(async () => {
       const out: Array<string> = []
       for await (const f of new Bun.Glob(glob).scan({ cwd: ctx.root, onlyFiles: true })) {
-        if (pathInScope(ctx.scope, f) && !isEnvSecretFile(f) && !f.startsWith("node_modules/")) out.push(f)
+        if (f.startsWith("node_modules/") || f.includes("/node_modules/")) continue
+        try {
+          out.push(check(ctx, f))
+        } catch {
+          // Outside the repo, outside the scope, or an env file: not listed.
+        }
         if (out.length >= 2000) break
       }
       return out.sort()
@@ -80,19 +101,29 @@ export const fs = (ctx: CoreContext): Bound =>
 export const runCommand = (ctx: CoreContext, argv: ReadonlyArray<string>, timeoutMs: number) =>
   Effect.tryPromise({
     try: async (signal) => {
-      const proc = Bun.spawn([...argv], {
+      // setsid puts the command in its own process group, so a timeout kills everything it started;
+      // otherwise a forked child keeps the output pipes open and the read never ends.
+      const proc = Bun.spawn(["setsid", ...argv], {
         cwd: ctx.root,
         env: scrubEnv(process.env, ctx.sensitive),
         stdout: "pipe",
         stderr: "pipe",
         signal,
       })
-      const timer = setTimeout(() => proc.kill(), timeoutMs)
+      let timedOut = false
+      const timer = setTimeout(() => {
+        timedOut = true
+        try {
+          process.kill(-proc.pid, "SIGKILL")
+        } catch {
+          proc.kill("SIGKILL")
+        }
+      }, timeoutMs)
       const [stdout, stderr, exitCode] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited])
       clearTimeout(timer)
       return {
         exitCode,
-        timedOut: proc.signalCode !== null && exitCode !== 0,
+        timedOut,
         stdout: clip(redact(stdout, ctx.sensitive)),
         stderr: clip(redact(stderr, ctx.sensitive)),
       }

@@ -136,6 +136,40 @@ describe("folding into children", () => {
   })
 })
 
+describe("prompting for folding", () => {
+  test("the system prompt lists spawnable presets with result types, the depth, and how context works", async () => {
+    const r = await run({ driver: [{ cell: 'yield* Rlm.done({ value: "x" })' }] }, { task: "t", preset: "driver", scope: {} })
+    const system = String(r.seen[0]!.messages[0]!.content)
+    expect(system).toContain("research → { findings: ReadonlyArray<string>; sources: ReadonlyArray<string> }")
+    expect(system).toContain("Depth: 0 of 4")
+    expect(system).toContain("A child starts fresh")
+    expect(system).toContain("keep results you need in variables")
+  })
+
+  test("child results stay whole while old write arguments are trimmed", async () => {
+    const big = "y".repeat(3000)
+    const r = await run(
+      {
+        driver: [
+          { cell: 'const child = yield* Rlm.exec({ task: "find", preset: "research", scope: {} })\nreturn child' },
+          { cell: `return ${JSON.stringify(big)}.length` },
+          { cell: "return 1" },
+          { cell: "return 2" },
+          { cell: "return 3" },
+          { cell: "return 4" },
+          { cell: 'yield* Rlm.done({ value: "ok" })' },
+        ],
+        research: [{ cell: `yield* Rlm.done({ value: { findings: [${JSON.stringify("f".repeat(1500))}], sources: [] } })` }],
+      },
+      { task: "parent", preset: "driver", scope: {} },
+    )
+    const last = r.seen.filter((s) => s.preset === "driver").at(-1)!.messages
+    const text = JSON.stringify(last)
+    expect(text).toContain("f".repeat(1500))
+    expect(text).not.toContain(big)
+  })
+})
+
 describe("scoped core services", () => {
   const cellOut = (seen: ReadonlyArray<{ messages: ReadonlyArray<any> }>) => String(seen[1]!.messages.at(-1)?.content)
   const once = (cell: string, preset = "implement-card") =>
