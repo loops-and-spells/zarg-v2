@@ -306,9 +306,43 @@ Phase 1 is done when Claude Code, using only the two skills, adds a zarg require
 
 The core process, AG-UI over HTTP and SSE, threads, the stub-model tests, and zarg's own driver and sync agents replacing the skills. From then on, the CLI routes writes through core when core is running.
 
+Before phase 2 starts, write two specs:
+
+- **Model provider:** which API, and whether to call it directly with `fetch` (OpenAI-compatible, as colony did) or through an SDK.
+- **Sync code ownership:** tagged regions, fully generated output, or a hybrid. This replaces the phase 1 `// @card` grep convention.
+
+Phase 2 work, including everything phase 1 deferred:
+
+- Core process
+  - `zarg-core`, one per project, with `.zarg/run/core.json` and the unix socket `.zarg/run/core.sock`.
+  - AG-UI 1.0 endpoints `POST /runs` and `GET /stream?since=`, plus a contract test against the `@ag-ui/core` schemas.
+  - The CLI attaches to core, starting it if needed, and sends graph writes through it.
+- Graph store (deferred from phase 1)
+  - The `commits` stream and the file watcher that turns outside edits (git checkout, merge, hand edit) into normal commits.
+  - An in-memory snapshot cache in core. The phase 1 store rereads the directory on every call.
+  - Single-writer commits in core. That closes the race where two processes committing within milliseconds both pass the stale check.
+  - A write-ahead log only if partial multi-file commits happen in practice.
+- Plugin contract (deferred from phase 1)
+  - `reactor`: receives commits filtered to the plugin's types.
+  - `project`: plugin state published as AG-UI `STATE_DELTA` at `/plugins/<name>`.
+  - `layer`: services the plugin needs, provided through Effect DI.
+  - Effect-returning lints only if a lint needs I/O. Phase 1 lints are pure functions.
+- Threads and agents
+  - Driver threads (1..N, `main` always exists), each with a focus. The `sync` thread. Event logs in `.zarg/threads/<threadId>.jsonl`. Context built from the graph, never by replaying the thread.
+  - The driver loop with inquiry interrupts (`RUN_FINISHED` outcome `interrupt`, answered with `RunAgentInput.resume`), your interjections, and "what next?" when the agenda is empty.
+  - The sync agent: debounced commit subscription dispatching to reactors, with findings raised to the agenda.
+  - The conflict rule with `StaleNode` naming the thread that changed the node.
+  - Core services `Model`, `Workspace` and `Threads`.
+- Agenda sources: sync findings (a card the sync agent could not implement, code that drifted from its card) and your unfinished goal statement.
+- Tests: a stub `Model` layer that replays scripted tool calls, covering the driver loop, inquiry and resume, conflict merge and sync dispatch.
+- Only if needed: a `split-card` tool. Phase 1 relies on edge cardinality to keep cards small.
+
 ### Phase 3: client and TUI
 
-`@zarg/client`, the OpenTUI views, and each plugin's client half.
+- `@zarg/client`: an AG-UI SSE client, a pure event reducer, and the host for client plugins.
+- Each plugin's client half: a `state` schema and `views`. The gherkin plugin gets a user action graph view.
+- The OpenTUI shell in `@zarg/cli`, replacing the phase 1 placeholder: inquiry pickers (recommended option preselected, free-text last), thread switching, plugin views.
+- The import-boundary test: `@zarg/client` and the TUI never import `@zarg/core` or any `/server` subpath.
 
 ## Out of scope
 
