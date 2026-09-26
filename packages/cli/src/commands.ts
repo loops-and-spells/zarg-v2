@@ -2,6 +2,7 @@ import { Console, Effect, Option } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
 import { diff, GraphStore, hash, Snapshot } from "@zarg/graph"
 import { PluginHost } from "@zarg/plugin/server"
+import { readClaim, startHeadless, stopCore } from "@zarg/client"
 import { cardRefs, snapshotAt } from "./git"
 import { root } from "./root"
 
@@ -86,8 +87,34 @@ const diffCmd = Command.make("diff", { since: Flag.String("since").pipe(Flag.wit
   }),
 )
 
-const tui = Command.make("tui", {}, () => Effect.promise(() => import("./tui").then((m) => m.runTui())))
-
-export const zarg = Command.make("zarg").pipe(
-  Command.withSubcommands([tool, show, render, agenda, lint, query, diffCmd, tui]),
+const coreStart = Command.make(
+  "start",
+  { headless: Flag.Boolean("headless").pipe(Flag.withDescription("run until `zarg core stop`, detached from this terminal")) },
+  ({ headless }) =>
+    Effect.gen(function* () {
+      if (!headless) return yield* Effect.fail(new Error("only `zarg core start --headless` is supported; `zarg` starts a core for its session"))
+      const { coreCommand } = yield* Effect.promise(() => import("./tui/run"))
+      const info = yield* startHeadless({ root, command: coreCommand() })
+      yield* print({ pid: info.pid, socket: info.socket, mode: info.mode })
+    }),
 )
+
+const coreStop = Command.make("stop", {}, () => Effect.flatMap(stopCore(root), (stopped) => print({ stopped })))
+
+const coreStatus = Command.make("status", {}, () =>
+  Effect.sync(() => readClaim(root)).pipe(
+    Effect.flatMap((c) => print(c === undefined ? { running: false } : { running: true, pid: c.pid, mode: c.mode, ready: c.ready === true, driver: c.driver ?? null })),
+  ),
+)
+
+const core = Command.make("core").pipe(Command.withSubcommands([coreStart, coreStop, coreStatus]))
+
+/** `zarg [--thread <id>] [--focus <node>…]` opens the TUI; the subcommands are the graph tools and core lifecycle. */
+export const zarg = Command.make(
+  "zarg",
+  {
+    thread: Flag.String("thread").pipe(Flag.withDefault("main"), Flag.withDescription("driver thread to open")),
+    focus: Flag.String("focus").pipe(Flag.atLeast(0), Flag.withDescription("graph node the thread focuses on (repeatable)")),
+  },
+  ({ thread, focus }) => Effect.flatMap(Effect.promise(() => import("./tui/run")), (m) => m.runTui({ root, threadId: thread, focus })),
+).pipe(Command.withSubcommands([tool, show, render, agenda, lint, query, diffCmd, core]))

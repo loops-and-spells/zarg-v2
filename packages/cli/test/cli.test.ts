@@ -141,3 +141,26 @@ test("diff --since works when ZARG_ROOT is a subdirectory of the git repo", () =
   expect(r.err).toBe("")
   expect(JSON.parse(r.out).added.map((n: { id: string }) => n.id)).toEqual(["S-0002"])
 })
+
+describe("zarg core", () => {
+  test("start --headless runs a core until stop; status reports it", () => {
+    const root = mkdtempSync(join(tmpdir(), "zarg-core-cmd-"))
+    Bun.spawnSync(["sh", "-c", `printf '# @defaultSensitive=false\\n# ---\\n' > .env.schema`], { cwd: root })
+    try {
+      expect(JSON.parse(zargIn(root, "core", "status").out)).toEqual({ running: false })
+      const refused = zargIn(root, "core", "start")
+      expect(refused.code).toBe(1)
+      expect(refused.err).toContain("--headless")
+      const started = zargIn(root, "core", "start", "--headless")
+      expect(started.err).toBe("")
+      const { pid, mode } = JSON.parse(started.out)
+      expect(mode).toBe("headless")
+      expect(JSON.parse(zargIn(root, "core", "status").out)).toMatchObject({ running: true, pid, mode: "headless", ready: true })
+      expect(JSON.parse(zargIn(root, "core", "stop").out)).toEqual({ stopped: true })
+      expect(JSON.parse(zargIn(root, "core", "status").out)).toEqual({ running: false })
+    } finally {
+      zargIn(root, "core", "stop")
+      rmSync(root, { recursive: true, force: true })
+    }
+  }, 30_000)
+})
