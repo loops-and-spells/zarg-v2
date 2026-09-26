@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0051",
+  "props": {
+    "terminal": true,
+    "text": "sensitive variables are absent from its environment"
+  },
+  "type": "gherkin/state"
+}

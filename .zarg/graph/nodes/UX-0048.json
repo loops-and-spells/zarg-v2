@@ -1,0 +1,22 @@
+{
+  "edges": [
+    {
+      "to": "S-0040",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0052",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0053",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0048",
+  "props": {
+    "title": "A service outside the preset is refused",
+    "when": "an agent uses a service outside its preset"
+  },
+  "type": "gherkin/card"
+}

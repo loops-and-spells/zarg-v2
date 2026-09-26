@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0052",
+  "props": {
+    "terminal": true,
+    "text": "the code is refused before it runs"
+  },
+  "type": "gherkin/state"
+}

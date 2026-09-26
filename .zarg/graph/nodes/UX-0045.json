@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0040",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0049",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0045",
+  "props": {
+    "title": "A secret in output is redacted",
+    "when": "agent output contains a sensitive value"
+  },
+  "type": "gherkin/card"
+}
