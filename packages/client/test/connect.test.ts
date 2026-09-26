@@ -1,9 +1,9 @@
 import { afterAll, describe, expect, test } from "bun:test"
-import { mkdtempSync, rmSync } from "node:fs"
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect } from "effect"
-import { connect, isAlive, readInfo, startHeadless, stopCore } from "../src"
+import { connect, infoPath, isAlive, readInfo, startHeadless, stopCore } from "../src"
 
 const command = [process.execPath, join(import.meta.dir, "fake-core.ts")]
 const roots: Array<string> = []
@@ -35,6 +35,19 @@ describe("connect", () => {
     await second.close()
     expect(isAlive(first.info.pid)).toBe(true)
     await first.close()
+  })
+
+  test("a core that is still starting is waited for, then attached", async () => {
+    const root = fresh()
+    const socket = join(root, "core.sock")
+    const server = Bun.serve({ unix: socket, fetch: () => Response.json([]) })
+    mkdirSync(join(root, ".zarg", "run"), { recursive: true })
+    const info = { pid: process.pid, socket, token: "t", mode: "headless" }
+    writeFileSync(infoPath(root), JSON.stringify(info))
+    setTimeout(() => writeFileSync(infoPath(root), JSON.stringify({ ...info, ready: true })), 300)
+    const c = await Effect.runPromise(connect({ root, command: ["false"] }))
+    server.stop(true)
+    expect(c).toMatchObject({ owned: false, info: { pid: process.pid, ready: true } })
   })
 
   test("a core that fails to start reports its stderr", async () => {

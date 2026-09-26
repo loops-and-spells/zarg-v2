@@ -13,7 +13,7 @@ const run = join(root, ".zarg", "run")
 mkdirSync(run, { recursive: true })
 const socket = join(run, "core.sock")
 const server = Bun.serve({ unix: socket, fetch: () => Response.json([]) })
-writeFileSync(join(run, "core.json"), JSON.stringify({ pid: process.pid, socket, token: "t", mode: values.mode }), { mode: 0o600 })
+writeFileSync(join(run, "core.json"), JSON.stringify({ pid: process.pid, socket, token: "t", mode: values.mode, ready: true }), { mode: 0o600 })
 const bye = () => {
   server.stop(true)
   rmSync(join(run, "core.json"), { force: true })

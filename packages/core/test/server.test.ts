@@ -84,6 +84,11 @@ describe("core HTTP API", () => {
     expect((await post(h, "/runs", input("r1"), "wrong")).status).toBe(401)
   })
 
+  test("a thread id that is not a plain name is a 400 (it names a log file)", async () => {
+    const h = await handler()
+    for (const threadId of ["../escape", "feature/x", ""]) expect((await post(h, "/runs", input("r1", { threadId }))).status).toBe(400)
+  })
+
   test("an invalid RunAgentInput is a 400", async () => {
     const h = await handler()
     expect((await post(h, "/runs", { threadId: "main" })).status).toBe(400)

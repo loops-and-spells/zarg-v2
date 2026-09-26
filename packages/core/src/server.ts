@@ -21,6 +21,9 @@ export class Log extends Context.Service<Log, ThreadLog>()("@zarg/core/Log") {}
 /** The bearer token every request must carry (from `.zarg/run/core.json`). */
 export class Token extends Context.Service<Token, string>()("@zarg/core/Token") {}
 
+/** A thread id names its log file, `.zarg/threads/<id>.jsonl`. */
+export const THREAD_ID = /^[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}$/
+
 const encoder = new TextEncoder()
 
 /** An SSE response: each event as `data: <json>\n\n`. A client that disconnects interrupts only this stream. */
@@ -64,6 +67,7 @@ const routes = HttpRouter.addAll(
           const parsed = RunAgentInputSchema.safeParse(body)
           if (!parsed.success) return error(400, `invalid RunAgentInput: ${parsed.error.message}`)
           const input = parsed.data
+          if (!THREAD_ID.test(input.threadId)) return error(400, `invalid threadId "${input.threadId}": use letters, digits, ".", "_" or "-"`)
           const focusProp = (input.forwardedProps as { focus?: unknown } | undefined)?.focus
           const focus = Array.isArray(focusProp) ? focusProp.map(String) : []
           const lastMsg = input.messages.at(-1)

@@ -1,7 +1,8 @@
-import { Deferred, Effect, Exit, Fiber, Stream } from "effect"
+import { Cause, Deferred, Effect, Exit, Fiber, Semaphore, Stream } from "effect"
 import type { AgendaItem } from "@zarg/plugin/server"
 import type { Answer, Asker, Question, Rlm, Scope } from "@zarg/rlm"
 import * as E from "./events"
+import type { Interrupt } from "@ag-ui/core"
 import type { WireEvent } from "./events"
 import type { ThreadLog } from "./log"
 
@@ -29,9 +30,9 @@ interface Pending {
   readonly id: string
   readonly question: Question
   readonly answer: Deferred.Deferred<Answer>
+  /** The AG-UI interrupt, kept to send again to a run that brings no answer. */
+  readonly interrupt: Interrupt
 }
-
-let interruptCounter = 0
 
 /** One driver thread: a loop of driver RLMs, one per agenda item, paused at inquiries. */
 export const makeThread = (deps: ThreadDeps) =>
@@ -41,11 +42,14 @@ export const makeThread = (deps: ThreadDeps) =>
     /** True from RUN_STARTED until this run's RUN_FINISHED or RUN_ERROR. */
     let open = false
     let loop: Fiber.Fiber<void, never> | undefined
+    let loopGen = 0
+    // run, stop and a new question change the same state; one at a time.
+    const lock = yield* Semaphore.make(1)
+    const locked = Semaphore.withPermits(lock, 1)
     let pending: Pending | undefined
     let paused: Deferred.Deferred<void> | undefined
     const recent: Array<string> = []
     const activity = new Map<string, Record<string, unknown>>()
-    let messageCounter = 0
     const emit = (d: E.Draft) => {
       if (d.type === "RUN_FINISHED" || d.type === "RUN_ERROR") open = false
       return log.append(threadId, d)
@@ -54,7 +58,8 @@ export const makeThread = (deps: ThreadDeps) =>
     const note = (role: "assistant" | "user", text: string) => {
       recent.push(`${role === "user" ? "developer" : "driver"}: ${text}`)
       if (recent.length > 8) recent.shift()
-      return emitAll(E.textMessage(`${threadId}-m${++messageCounter}`, role, text))
+      // Random ids: a restarted core must not reuse ids already in the thread's log.
+      return emitAll(E.textMessage(`${threadId}-${crypto.randomUUID()}`, role, text))
     }
 
     // Inquire: park the cell and end the current run with an interrupt; a later run's resume answers it.
@@ -62,10 +67,8 @@ export const makeThread = (deps: ThreadDeps) =>
       ask: (question) =>
         Effect.gen(function* () {
           const answer = yield* Deferred.make<Answer>()
-          const id = `inq-${++interruptCounter}`
-          pending = { id, question, answer }
-          yield* emit(
-            E.runInterrupted(threadId, runId, {
+          const id = `inq-${crypto.randomUUID()}`
+          const interrupt = {
               id,
               reason: "inquiry",
               message: question.question,
@@ -76,7 +79,12 @@ export const makeThread = (deps: ThreadDeps) =>
                   { type: "object", properties: { other: { type: "string" } }, required: ["other"] },
                 ],
               },
-            } as never),
+            } as unknown as Interrupt
+          yield* locked(
+            Effect.gen(function* () {
+              pending = { id, question, answer, interrupt }
+              yield* emit(E.runInterrupted(threadId, runId, interrupt))
+            }),
           )
           return yield* Deferred.await(answer)
         }),
@@ -121,6 +129,9 @@ export const makeThread = (deps: ThreadDeps) =>
         ]
           .filter((x) => x.length > 0)
           .join("\n\n")
+        // Each item gets a fresh driver RLM, whose ids start over: start a fresh tree.
+        activity.clear()
+        yield* emit(E.activitySnapshot(`${threadId}-activity`, { rlms: {} }))
         const outcome = yield* Effect.exit(deps.driver({ task, preset: "driver", scope }, asker, observe))
         if (Exit.isSuccess(outcome)) {
           yield* note("assistant", String(outcome.value.value))
@@ -135,13 +146,30 @@ export const makeThread = (deps: ThreadDeps) =>
       }
     })
 
+    // A loop that dies of a defect ends the open run with RUN_ERROR and clears itself, so the next run starts a new one.
     const startLoop = Effect.gen(function* () {
-      if (loop === undefined) loop = yield* Effect.forkDetach(body as Effect.Effect<void>)
+      if (loop !== undefined) return
+      const gen = ++loopGen
+      const guarded = (body as Effect.Effect<void>).pipe(
+        Effect.onExit((exit) =>
+          Effect.gen(function* () {
+            if (loopGen !== gen) return
+            loop = undefined
+            pending = undefined
+            paused = undefined
+            if (Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)) {
+              const e = Cause.squash(exit.cause)
+              yield* Effect.exit(emit(E.runError(`the thread loop failed: ${e instanceof Error ? e.message : String(e)}`, "internal")))
+            }
+          }),
+        ),
+      )
+      loop = yield* Effect.forkDetach(guarded)
     })
 
     const run = (input: RunInput): Stream.Stream<WireEvent> =>
       Stream.unwrap(
-        Effect.gen(function* () {
+        locked(Effect.gen(function* () {
           const from = log.all().at(-1)?.seq ?? 0
           // A run still open (the driver was working, no question yet) ends here; this run takes over.
           if (open) yield* emit(E.runFinished(threadId, runId))
@@ -175,24 +203,35 @@ export const makeThread = (deps: ThreadDeps) =>
             paused = undefined
             yield* Deferred.succeed(p, undefined)
           }
+          // Still waiting on a question this run did not answer (a client that just attached): ask it again.
+          if (pending !== undefined) yield* emit(E.runInterrupted(threadId, runId, pending.interrupt))
           yield* startLoop
           const mine = runId
           return log.stream(from, threadId).pipe(
             Stream.takeUntil((e) => (e.type === "RUN_FINISHED" && e.runId === mine) || e.type === "RUN_ERROR"),
           )
-        }),
+        })),
       )
 
     /** Stop the thread's current work: the running RLM and its children are interrupted. */
-    const stop = Effect.gen(function* () {
-      const f = loop
-      loop = undefined
-      pending = undefined
-      paused = undefined
-      if (f !== undefined) yield* Fiber.interrupt(f)
-      yield* note("assistant", "(stopped)")
-      yield* emit(E.runStopped(threadId, runId))
-    })
+    const stop = locked(
+      Effect.gen(function* () {
+        const f = loop
+        loopGen++
+        pending = undefined
+        paused = undefined
+        if (f !== undefined) yield* Fiber.interrupt(f)
+        loop = undefined
+        // With no run open (waiting on a question, or idle), the stop note gets a run of its own.
+        if (!open) {
+          runId = `stop-${crypto.randomUUID()}`
+          open = true
+          yield* emit(E.runStarted(threadId, runId))
+        }
+        yield* note("assistant", "(stopped)")
+        yield* emit(E.runStopped(threadId, runId))
+      }),
+    )
 
     return { id: threadId, focus: deps.focus, run, stop, status: () => (pending ? "waiting" : loop ? "running" : "idle") }
   })

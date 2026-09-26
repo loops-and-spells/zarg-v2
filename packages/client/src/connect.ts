@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process"
 import { Data, Effect } from "effect"
-import { type CoreInfo, isAlive, readInfo } from "./info"
+import { type CoreInfo, isAlive, readClaim, readInfo } from "./info"
 
 export class CoreStartError extends Data.TaggedError("CoreStartError")<{ readonly message: string }> {}
 
@@ -61,12 +61,23 @@ const start = (root: string, command: ReadonlyArray<string>, mode: "child" | "he
     })
   })
 
+/** Wait while a core holds the project but is still starting (loading config and models). */
+const untilStarted = (root: string, timeoutMs: number) =>
+  Effect.gen(function* () {
+    const deadline = Date.now() + timeoutMs
+    for (let c = readClaim(root); c !== undefined && c.ready !== true; c = readClaim(root)) {
+      if (Date.now() > deadline) return yield* new CoreStartError({ message: `core (pid ${c.pid}) did not become ready within ${timeoutMs}ms` })
+      yield* Effect.sleep(50)
+    }
+  })
+
 /**
  * Attach to this project's running core, or start one as a child of this process.
  * `command` runs zarg-core (for example `[process.execPath, "<path>/main.ts"]`).
  */
 export const connect = (opts: { readonly root: string; readonly command: ReadonlyArray<string>; readonly timeoutMs?: number }) =>
   Effect.gen(function* () {
+    yield* untilStarted(opts.root, opts.timeoutMs ?? 30_000)
     const live = readInfo(opts.root)
     if (live !== undefined) return { info: live, owned: false, close: async () => {} } satisfies Connection
     const child = yield* start(opts.root, opts.command, "child", opts.timeoutMs ?? 30_000)
@@ -76,7 +87,7 @@ export const connect = (opts: { readonly root: string; readonly command: Readonl
 /** Start a headless core that outlives this process. Fails when a core is already running. */
 export const startHeadless = (opts: { readonly root: string; readonly command: ReadonlyArray<string>; readonly timeoutMs?: number }) =>
   Effect.gen(function* () {
-    const live = readInfo(opts.root)
+    const live = readClaim(opts.root)
     if (live !== undefined) return yield* new CoreStartError({ message: `a core is already running for this project (pid ${live.pid})` })
     return (yield* start(opts.root, opts.command, "headless", opts.timeoutMs ?? 30_000)).info
   })

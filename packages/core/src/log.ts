@@ -3,6 +3,16 @@ import { join } from "node:path"
 import { Effect, PubSub, Stream } from "effect"
 import type { Draft, WireEvent } from "./events"
 
+/** Redact every string value, never keys or the JSON around them (an escaped secret would slip past, a short one could hit a key). */
+const redactValues = (value: unknown, redact: (text: string) => string): unknown =>
+  typeof value === "string"
+    ? redact(value)
+    : Array.isArray(value)
+      ? value.map((v) => redactValues(v, redact))
+      : value !== null && typeof value === "object"
+        ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, redactValues(v, redact)]))
+        : value
+
 /**
  * Every event of every thread, in order: kept in memory for `/stream?since=`, appended to
  * `<dir>/<threadId>.jsonl`, and published to live subscribers. `redact` runs before anything is stored or sent.
@@ -14,7 +24,11 @@ export const makeLog = (dir: string, redact: (text: string) => string) =>
     // Earlier sessions' events come first so sequence numbers keep increasing across restarts.
     for (const f of readdirSync(dir).filter((f) => f.endsWith(".jsonl")).sort()) {
       for (const line of readFileSync(join(dir, f), "utf8").split("\n")) {
-        if (line.trim().length > 0) events.push(JSON.parse(line) as WireEvent)
+        if (line.trim().length === 0) continue
+        // A line cut short by a crash is skipped; the rest of the log stays usable.
+        try {
+          events.push(JSON.parse(line) as WireEvent)
+        } catch {}
       }
     }
     events.sort((a, b) => a.seq - b.seq)
@@ -23,7 +37,7 @@ export const makeLog = (dir: string, redact: (text: string) => string) =>
 
     const append = (threadId: string, draft: Draft): Effect.Effect<WireEvent> =>
       Effect.gen(function* () {
-        const event = JSON.parse(redact(JSON.stringify({ ...draft, threadId, seq: ++seq }))) as WireEvent
+        const event = { ...(redactValues(draft, redact) as Draft), threadId, seq: ++seq } as WireEvent
         events.push(event)
         appendFileSync(join(dir, `${threadId}.jsonl`), `${JSON.stringify(event)}\n`)
         yield* PubSub.publish(hub, event)

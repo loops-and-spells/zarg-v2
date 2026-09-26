@@ -8,7 +8,7 @@ import { BunHttpServer, BunRuntime } from "@effect/platform-bun"
 import { Cause, Effect, Exit, Layer, Runtime } from "effect"
 import { HttpRouter } from "effect/unstable/http"
 import { runDir } from "@zarg/client"
-import { claim, release } from "./lifecycle"
+import { claim, markReady, release } from "./lifecycle"
 import { liveCore, liveLayer } from "./live"
 import { api, Log, Threads, Token } from "./server"
 
@@ -31,8 +31,10 @@ const parentGone = Effect.callback<void>((resume) => {
   return Effect.sync(() => clearInterval(timer))
 })
 
+const info = { pid: process.pid, socket, token, mode, ...(owner !== undefined ? { owner } : {}) } as const
+
 const program = Effect.gen(function* () {
-  const claimed = claim(root, { pid: process.pid, socket, token, mode, ...(owner !== undefined ? { owner } : {}) })
+  const claimed = claim(root, info)
   if (!claimed.ok) {
     console.error(claimed.reason)
     return yield* Effect.sync(() => process.exit(2))
@@ -46,6 +48,7 @@ const program = Effect.gen(function* () {
       Layer.provide([BunHttpServer.layer({ unix: socket }), Layer.succeed(Threads, core.threads), Layer.succeed(Log, core.log), Layer.succeed(Token, token)]),
     ),
   )
+  markReady(root, info)
   console.log(`ready ${socket}`)
   // SIGINT and SIGTERM interrupt this fiber (runMain); finalizers stop the server and release core.json.
   yield* mode === "child" ? parentGone : Effect.never

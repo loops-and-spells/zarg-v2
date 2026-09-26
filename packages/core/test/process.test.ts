@@ -49,6 +49,20 @@ describe("zarg-core process", () => {
     await second.proc.exited
   }, 20_000)
 
+  test("two cores started at once: exactly one serves, the other exits 2", async () => {
+    const spawn = () => Bun.spawn([process.execPath, main, "--root", root, "--mode", "child"], { stdin: "pipe", stdout: "pipe", stderr: "pipe" })
+    const procs = [spawn(), spawn()]
+    const first = (p: (typeof procs)[number]) =>
+      p.stdout
+        .getReader()
+        .read()
+        .then(async ({ value }) => (value && new TextDecoder().decode(value).startsWith("ready ") ? "ready" : `exit ${await p.exited}`))
+    const outcomes = await Promise.all(procs.map(first))
+    expect(outcomes.sort()).toEqual(["exit 2", "ready"])
+    for (const p of procs) p.stdin.end()
+    await Promise.all(procs.map((p) => p.exited))
+  }, 20_000)
+
   test("a core that cannot start exits 1 with the reason on stderr and leaves no core.json", () => {
     const broken = mkdtempSync(join(tmpdir(), "zarg-proc-bad-"))
     mkdirSync(join(broken, ".zarg"))
