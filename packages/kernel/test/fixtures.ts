@@ -6,6 +6,7 @@ export const Notes = defineService("Notes", "A tiny note store for tests.", {
   get: { doc: "Read a note by id.", params: Schema.Struct({ id: Schema.String }), success: Schema.String },
   fail: { doc: "Always fails with Nope.", params: Schema.Struct({}), success: Schema.String },
   slow: { doc: "Wait, then return.", params: Schema.Struct({ ms: Schema.Number }), success: Schema.String },
+  echoDate: { doc: "Return the date it was given.", params: Schema.Struct({ at: Schema.Date }), success: Schema.Struct({ at: Schema.Date }) },
 })
 
 /** Bound Notes with observable side effects for assertions. */
@@ -25,6 +26,7 @@ export const notes = () => {
       return v === undefined ? Effect.fail({ _tag: "NotFound", message: `no note ${id}` }) : Effect.succeed(v)
     },
     fail: () => Effect.fail({ _tag: "Nope", message: "always fails" }),
+    echoDate: ({ at }) => Effect.succeed({ at }),
     slow: ({ ms }) =>
       Effect.sleep(ms).pipe(
         Effect.as("slept"),

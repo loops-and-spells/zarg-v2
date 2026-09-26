@@ -26,4 +26,9 @@ describe("manifest", () => {
     expect(text).toContain("  /** Store a note; returns its id. */\n  add(params: { text: string }): Eff<{ id: string }>")
     expect(text).toContain("interface Eff<A>")
   })
+  test("a recursive schema does not crash the manifest", () => {
+    interface Tree { readonly label: string; readonly children: ReadonlyArray<Tree> }
+    const Tree: Schema.Codec<Tree> = Schema.Struct({ label: Schema.String, children: Schema.Array(Schema.suspend((): Schema.Codec<Tree> => Tree)) })
+    expect(ts(Tree)).toContain("label: string")
+  })
 })

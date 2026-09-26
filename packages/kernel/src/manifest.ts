@@ -10,16 +10,21 @@ const isNumberEncoding = (s: any) =>
 const key = (k: string) => (/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(k) ? k : JSON.stringify(k))
 
 /** JSON Schema (as Effect emits it) → a TypeScript type, for the model to read and the checker to enforce. */
-export const tsType = (s: any, defs: Record<string, any> = {}): string => {
+export const tsType = (s: any, defs: Record<string, any> = {}, refs: ReadonlySet<string> = new Set()): string => {
+  const recur = (x: any) => tsType(x, defs, refs)
   if (s === undefined || s === true || (typeof s === "object" && Object.keys(s).length === 0)) return "unknown"
-  if (s.$ref !== undefined) return tsType(defs[String(s.$ref).split("/").pop()!], defs)
+  if (s.$ref !== undefined) {
+    // A recursive schema refers back to itself; the inner occurrence is typed as unknown.
+    const name = String(s.$ref).split("/").pop()!
+    return refs.has(name) ? "unknown" : tsType(defs[name], defs, new Set([...refs, name]))
+  }
   // Effect encodes an empty struct as "anything but null", which TypeScript spells {}.
   if (s.not?.type === "null" && Object.keys(s).length === 1) return "{}"
   if (isNumberEncoding(s)) return "number"
   if (Array.isArray(s.enum)) return s.enum.map((v: unknown) => JSON.stringify(v)).join(" | ")
   if (s.const !== undefined) return JSON.stringify(s.const)
   if (Array.isArray(s.anyOf) || Array.isArray(s.oneOf)) {
-    return [...new Set((s.anyOf ?? s.oneOf).map((x: any) => tsType(x, defs)))].join(" | ")
+    return [...new Set((s.anyOf ?? s.oneOf).map(recur))].join(" | ")
   }
   switch (s.type) {
     case "string":
@@ -33,14 +38,14 @@ export const tsType = (s: any, defs: Record<string, any> = {}): string => {
       return "null"
     case "array":
       return Array.isArray(s.prefixItems)
-        ? `readonly [${s.prefixItems.map((x: any) => tsType(x, defs)).join(", ")}]`
-        : `ReadonlyArray<${tsType(s.items, defs)}>`
+        ? `readonly [${s.prefixItems.map(recur).join(", ")}]`
+        : `ReadonlyArray<${recur(s.items)}>`
     case "object": {
       const props = Object.entries(s.properties ?? {})
       const required = new Set<string>(s.required ?? [])
-      const fields = props.map(([k, v]) => `${key(k)}${required.has(k) ? "" : "?"}: ${tsType(v, defs)}`)
+      const fields = props.map(([k, v]) => `${key(k)}${required.has(k) ? "" : "?"}: ${recur(v)}`)
       if (props.length === 0 && typeof s.additionalProperties === "object") {
-        return `Readonly<Record<string, ${tsType(s.additionalProperties, defs)}>>`
+        return `Readonly<Record<string, ${recur(s.additionalProperties)}>>`
       }
       return fields.length === 0 ? "{}" : `{ ${fields.join("; ")} }`
     }

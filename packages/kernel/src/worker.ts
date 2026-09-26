@@ -13,8 +13,10 @@ const running = new Map<number, Fiber.Fiber<unknown, unknown>>()
 let nextCall = 0
 let currentRun = 0
 
+// Captured at load: a cell that shadows JSON (and persists it to globalThis) must not break formatting.
+const stringify = JSON.stringify.bind(JSON)
 const format = (v: unknown): string | undefined =>
-  v === undefined ? undefined : typeof v === "string" ? v : JSON.stringify(v, null, 2)
+  v === undefined ? undefined : typeof v === "string" ? v : stringify(v, null, 2)
 
 /** A failure the cell can catch by tag: `Effect.catchTag("StaleNode", ...)`. */
 const failure = (e: { _tag: string; message: string }) => Object.assign(new Error(e.message), e)
@@ -27,7 +29,20 @@ const stub = (service: string, method: string) => (params: unknown) =>
   })
 
 const log = (runId: number) => (...values: Array<unknown>) =>
-  post({ type: "log", runId, line: values.map((v) => (typeof v === "string" ? v : JSON.stringify(v))).join(" ") })
+  post({
+    type: "log",
+    runId,
+    line: values
+      .map((v) => {
+        if (typeof v === "string") return v
+        try {
+          return stringify(v)
+        } catch {
+          return String(v)
+        }
+      })
+      .join(" "),
+  })
 
 self.onmessage = (event: MessageEvent<ToWorker>) => {
   const m = event.data
@@ -63,19 +78,39 @@ self.onmessage = (event: MessageEvent<ToWorker>) => {
     post({ type: "done", id: m.id, ok: false, error: e instanceof Error ? e.message : String(e) })
     return
   }
-  const fiber = Effect.runFork(Effect.gen(gen))
+  // Hold the iterator: when a yielded call fails, Effect.gen abandons the generator without
+  // running its finally, so return() is called here to persist the names declared so far.
+  const it = gen()
+  const fiber = Effect.runFork(Effect.gen(() => it))
   running.set(m.id, fiber)
   fiber.addObserver((exit) => {
     running.delete(m.id)
-    if (Exit.isSuccess(exit)) post({ type: "done", id: m.id, ok: true, value: format(exit.value) })
-    else {
-      const err = Cause.squash(exit.cause)
-      const text = Cause.hasInterruptsOnly(exit.cause)
-        ? "interrupted"
-        : err instanceof Error
-          ? `${(err as { _tag?: string })._tag ?? err.name}: ${err.message}`
-          : String(err)
-      post({ type: "done", id: m.id, ok: false, error: text })
+    try {
+      it.return(undefined)
+    } catch {
+      // A throw from the cell's own finally is not the cell's result.
+    }
+    try {
+      if (Exit.isSuccess(exit)) {
+        let text: string | undefined
+        try {
+          text = format(exit.value)
+        } catch (e) {
+          post({ type: "done", id: m.id, ok: false, error: `could not format the return value: ${e instanceof Error ? e.message : String(e)}` })
+          return
+        }
+        post({ type: "done", id: m.id, ok: true, value: text })
+      } else {
+        const err = Cause.squash(exit.cause)
+        const text = Cause.hasInterruptsOnly(exit.cause)
+          ? "interrupted"
+          : err instanceof Error
+            ? `${(err as { _tag?: string })._tag ?? err.name}: ${err.message}`
+            : String(err)
+        post({ type: "done", id: m.id, ok: false, error: text })
+      }
+    } catch (e) {
+      post({ type: "done", id: m.id, ok: false, error: `could not report the result: ${e instanceof Error ? e.message : String(e)}` })
     }
   })
 }

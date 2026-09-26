@@ -21,6 +21,7 @@ Phase 2 is split into three specs:
 - The model's only tool is `exec({code})`. Code runs in a kernel, and **every integration is a yieldable Effect service**: `yield* Graph.render(...)`, `yield* Decisions.decide(...)`, `yield* Rlm.exec(...)`. There are no injected globals and no stringly `host(kind, payload)` calls.
 - **The RLM is the unit of agency.** Every agent run, including the driver and each sync pass, is an RLM. An RLM has its own encapsulated runtime built from its layer, like an Effect `ManagedRuntime`. RLMs call RLMs to fold context. There is no separate sub-agent concept.
 - An RLM is told exactly what its layer provides. Its prompt and its typecheck come from the same manifest.
+- **The kernel folds context; it is not a security sandbox.** A preset's layer bounds what an RLM attends to and is told about, not what model-written code could reach with a cast. Leak-guard hygiene still applies: the worker gets no sensitive variables, and outputs are redacted before a model sees them.
 - An RLM's layer comes from its preset, not from its parent. A child may be wider or narrower than its parent. A preset spawn graph in config bounds what each preset may spawn.
 - **Providers are plugins.** A provider plugin contributes a model adapter, its env schema fragment, and a check that verifies entered credentials. zarg-router and OpenRouter are the first two provider plugins; both use the OpenRouter-wire adapter (`/chat/completions`), ported from zarg v1. An Anthropic SDK provider can come later as another plugin.
 - Decisions (choice, yes/no, score with probabilities and confidence) are a service backed by zarg-router's `jevk5` over `POST /systemone`, with a structured-output fallback.
@@ -149,7 +150,8 @@ Every RLM has an id, a parent id, a preset and a scope. RLM start and end, cells
 - **Timeout:** the deadline counts only time the cell runs in the worker. While a cell is yielded on a service call (a model turn, a child RLM, `Inquire.ask` waiting for the developer), the clock pauses. On timeout the worker is terminated and respawned, and its globals are lost. The model is told that this happened. A second death in a row ends the RLM with `RlmError{kind: "kernel"}`.
 - Interrupting a cell also interrupts its host-side service fibers, including child RLMs.
 - Output is capped at 32 KB per cell.
-- The kernel runs with the scrubbed environment described in "Leak guard".
+- The worker gets only the environment the host passes (empty by default), so no sensitive variable is in it. See "Leak guard".
+- Cells run one at a time per kernel. Calls from timers a cell left running are refused once the cell finishes. A crashed worker is noticed at once and replaced.
 
 ## Services
 

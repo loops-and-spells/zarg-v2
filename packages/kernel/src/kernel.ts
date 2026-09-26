@@ -1,4 +1,4 @@
-import { Deferred, Effect, Exit, FiberSet, Schema } from "effect"
+import { Deferred, Effect, Exit, FiberSet, Schema, Semaphore } from "effect"
 import { makeChecker } from "./check"
 import { manifest } from "./manifest"
 import type { FromWorker, ToWorker } from "./protocol"
@@ -23,50 +23,109 @@ export interface KernelOptions {
   readonly timeoutMs?: number
   /** Output larger than this is cut, keeping head and tail. */
   readonly outputCap?: number
+  /** The worker's whole environment. Defaults to empty; pass only what cells may see (never secrets). */
+  readonly env?: Readonly<Record<string, string>>
 }
 
-const cap = (text: string, max: number) =>
-  text.length <= max ? text : `${text.slice(0, max / 2)}\n… [${text.length - max} characters cut] …\n${text.slice(-max / 2)}`
+/** Collects output with a hard cap as it arrives: keeps the head and the tail, counts the rest. */
+const collector = (cap: number) => {
+  const half = Math.floor(cap / 2)
+  let head = ""
+  let tail = ""
+  let cut = 0
+  const addTail = (t: string) => {
+    tail += t
+    if (tail.length > half) {
+      cut += tail.length - half
+      tail = tail.slice(-half)
+    }
+  }
+  return {
+    push: (line: string) => {
+      const l = `${line}\n`
+      if (head.length < half) {
+        const room = half - head.length
+        head += l.slice(0, room)
+        if (l.length > room) addTail(l.slice(room))
+      } else addTail(l)
+    },
+    text: () => (cut > 0 ? `${head}… [${cut} characters cut] …\n${tail}` : head + tail).replace(/\n$/, ""),
+  }
+}
 
 const toFailure = (e: unknown): ServiceFailure =>
   typeof e === "object" && e !== null && "_tag" in e
     ? { _tag: String((e as { _tag: unknown })._tag), message: String((e as { message?: unknown }).message ?? "") }
     : { _tag: "Error", message: e instanceof Error ? e.message : String(e) }
 
+type Outcome = { readonly ok: boolean; readonly text: string | undefined; readonly crashed: boolean }
+
 /**
  * One kernel: a Bun Worker that runs cells as Effect generator bodies.
- * Service calls cross back to the host, are decoded with the method's params Schema,
- * run with the bound handler, and the result is encoded with its success Schema.
+ * Service calls cross back to the host, are decoded from JSON with the method's params Schema,
+ * run with the bound handler, and the result is encoded to JSON with its success Schema.
+ * The kernel folds context; it is not a security sandbox (see the spec's Kernel section).
  */
 export const make = (opts: KernelOptions) =>
   Effect.gen(function* () {
     const timeoutMs = opts.timeoutMs ?? 120_000
     const outputCap = opts.outputCap ?? 32_768
+    const env = { ...opts.env }
     const text = manifest(opts.services.map((s) => s.def))
     const checker = makeChecker(text)
     const byName = new Map(opts.services.map((s) => [s.def.name, s]))
     const calls = yield* FiberSet.make()
     const runCall = yield* FiberSet.runtime(calls)<never>()
+    const lock = yield* Semaphore.make(1)
 
     let worker: Worker | undefined
     let onMessage: (m: FromWorker) => void = () => {}
+    let onCrash: (reason: string) => void = () => {}
+    let dead = false
+
+    const send = (m: ToWorker) => worker?.postMessage(m)
 
     const spawn = Effect.gen(function* () {
       const ready = yield* Deferred.make<void>()
-      const w = new Worker(new URL("./worker.ts", import.meta.url))
+      const w = new Worker(new URL("./worker.ts", import.meta.url), { env } as WorkerOptions)
       w.onmessage = (e: MessageEvent<FromWorker>) => {
         if (e.data.type === "ready") Deferred.doneUnsafe(ready, Exit.void)
         else onMessage(e.data)
       }
+      w.onerror = (e: ErrorEvent) => {
+        e.preventDefault()
+        if (w === worker) onCrash(e.message || "uncaught error in the worker")
+      }
+      w.addEventListener("close", () => {
+        if (w === worker) onCrash("the worker exited")
+      })
       const services = Object.fromEntries(opts.services.map((s) => [s.def.name, Object.keys(s.def.methods)]))
-      w.postMessage({ type: "init", services } satisfies ToWorker)
-      yield* Deferred.await(ready)
       worker = w
+      w.postMessage({ type: "init", services } satisfies ToWorker)
+      yield* Deferred.await(ready).pipe(
+        Effect.timeoutOrElse({ duration: 10_000, orElse: () => Effect.die(new Error("kernel worker did not start within 10s")) }),
+      )
+      dead = false
     })
-    yield* spawn
-    yield* Effect.addFinalizer(() => Effect.sync(() => worker?.terminate()))
 
-    const send = (m: ToWorker) => worker?.postMessage(m)
+    /** Replace the worker: host calls stop, globals are gone. */
+    const restart = Effect.gen(function* () {
+      const old = worker
+      worker = undefined
+      old?.terminate()
+      yield* FiberSet.clear(calls)
+      checker.reset()
+      yield* spawn
+    })
+
+    yield* spawn
+    yield* Effect.addFinalizer(() =>
+      Effect.sync(() => {
+        const w = worker
+        worker = undefined
+        w?.terminate()
+      }),
+    )
 
     // Serve one service call from the worker; typed failures travel back as { _tag, message }.
     const serve = (m: Extract<FromWorker, { type: "call" }>) => {
@@ -83,11 +142,12 @@ export const make = (opts: KernelOptions) =>
         reply(Exit.fail({ _tag: "UnknownService", message: `${m.service}.${m.method} is not in this kernel's layer` }))
         return Effect.void
       }
-      return Schema.decodeUnknownEffect(def.params)(m.params).pipe(
+      // Only JSON crosses the boundary: decode from and encode to each schema's JSON form.
+      return Schema.decodeUnknownEffect(Schema.toCodecJson(def.params))(m.params).pipe(
         Effect.mapError((e): ServiceFailure => ({ _tag: "InvalidParams", message: `${m.service}.${m.method}: ${e.message}` })),
         Effect.flatMap(handler),
         Effect.flatMap((value) =>
-          Schema.encodeEffect(def.success)(value).pipe(
+          Schema.encodeEffect(Schema.toCodecJson(def.success))(value).pipe(
             Effect.mapError((e): ServiceFailure => ({ _tag: "InvalidResult", message: `${m.service}.${m.method}: ${e.message}` })),
           ),
         ),
@@ -96,17 +156,43 @@ export const make = (opts: KernelOptions) =>
       )
     }
 
+    /** Between cells: calls from leftover timers are refused, logs dropped, a crash noted for the next run. */
+    const idle = () => {
+      onMessage = (m) => {
+        if (m.type === "call") {
+          send({
+            type: "reply",
+            callId: m.callId,
+            ok: false,
+            error: { _tag: "CellFinished", message: "this cell already finished; calls from timers or background work are refused" },
+          })
+        }
+      }
+      onCrash = () => {
+        dead = true
+      }
+    }
+    idle()
+
     let nextRun = 0
-    const run = (cell: string): Effect.Effect<CellResult> =>
+    const runOnce = (cell: string): Effect.Effect<CellResult> =>
       Effect.gen(function* () {
+        let restarted = false
+        if (dead) {
+          yield* restart
+          restarted = true
+        }
         const checked = checker.check(cell)
         if (!checked.ok) {
-          return { ok: false, output: cap(`typecheck failed, the cell did not run:\n${checked.errors.join("\n")}`, outputCap), restarted: false }
+          const out = collector(outputCap)
+          out.push(`typecheck failed, the cell did not run:\n${checked.errors.join("\n")}`)
+          return { ok: false, output: out.text(), restarted }
         }
         const { body, names } = toBody(cell)
         const id = ++nextRun
-        const lines: Array<string> = []
-        const done = yield* Deferred.make<{ ok: boolean; text: string | undefined }>()
+        const out = collector(outputCap)
+        const done = yield* Deferred.make<Outcome>()
+
         // The deadline counts only time the cell runs in the worker. While a service call is in
         // flight the cell is yielded to the host (a model turn, a child RLM, a question to the
         // developer), and the clock pauses.
@@ -119,7 +205,7 @@ export const make = (opts: KernelOptions) =>
           last = now
         }
         onMessage = (m) => {
-          if (m.type === "log" && m.runId === id) lines.push(m.line)
+          if (m.type === "log" && m.runId === id) out.push(m.line)
           else if (m.type === "call" && m.runId === id) {
             tick()
             inFlight++
@@ -133,12 +219,13 @@ export const make = (opts: KernelOptions) =>
                 ),
               ),
             )
-          }
-          else if (m.type === "done" && m.id === id) {
-            Deferred.doneUnsafe(done, Exit.succeed(m.ok ? { ok: true, text: m.value } : { ok: false, text: m.error }))
+          } else if (m.type === "done" && m.id === id) {
+            Deferred.doneUnsafe(done, Exit.succeed(m.ok ? { ok: true, text: m.value, crashed: false } : { ok: false, text: m.error, crashed: false }))
           }
         }
+        onCrash = (reason) => Deferred.doneUnsafe(done, Exit.succeed({ ok: false, text: `kernel crashed: ${reason}`, crashed: true }))
         send({ type: "run", id, body })
+
         const watchdog = Effect.gen(function* () {
           while (true) {
             yield* Effect.sleep(Math.min(50, timeoutMs))
@@ -151,22 +238,32 @@ export const make = (opts: KernelOptions) =>
             Effect.gen(function* () {
               send({ type: "interrupt", id })
               yield* FiberSet.clear(calls)
+              // A CPU-bound cell cannot see the interrupt: give it a moment, then replace the worker.
+              const settled = yield* Deferred.await(done).pipe(
+                Effect.timeoutOrElse({ duration: 500, orElse: () => Effect.succeed(undefined) }),
+              )
+              idle()
+              if (settled === undefined) yield* restart
             }),
           ),
         )
-        if (outcome === undefined) {
-          // Timed out: stop host work, replace the worker. Globals are lost.
-          yield* FiberSet.clear(calls)
-          worker?.terminate()
-          yield* spawn
-          checker.reset()
-          const out = [...lines, `cell timed out after ${timeoutMs}ms; the kernel was restarted and earlier globals are gone`]
-          return { ok: false, output: cap(out.join("\n"), outputCap), restarted: true }
+        idle()
+        if (outcome === undefined || outcome.crashed) {
+          yield* restart
+          out.push(
+            outcome === undefined
+              ? `cell timed out after ${timeoutMs}ms; the kernel was restarted and earlier globals are gone`
+              : `${outcome.text}; the kernel was restarted and earlier globals are gone`,
+          )
+          return { ok: false, output: out.text(), restarted: true }
         }
         checker.declare(names)
-        const out = [...lines, ...(outcome.text === undefined ? [] : [outcome.ok ? outcome.text : `error: ${outcome.text}`])]
-        return { ok: outcome.ok, output: cap(out.join("\n"), outputCap), restarted: false }
+        if (outcome.text !== undefined) out.push(outcome.ok ? outcome.text : `error: ${outcome.text}`)
+        return { ok: outcome.ok, output: out.text(), restarted }
       })
+
+    /** Cells run one at a time: a kernel has one set of globals and one worker. */
+    const run = (cell: string) => Semaphore.withPermits(lock, 1)(runOnce(cell))
 
     return { run, manifest: text }
   })
