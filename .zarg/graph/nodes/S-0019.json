@@ -2,7 +2,7 @@
   "edges": [],
   "id": "S-0019",
   "props": {
-    "text": "the sync agent works on the changed cards"
+    "text": "the reconciler works on the changed cards"
   },
   "type": "gherkin/state"
 }

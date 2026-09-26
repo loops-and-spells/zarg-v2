@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0054",
+  "props": {
+    "terminal": true,
+    "text": "the reconcile commit lands on the developer's branch"
+  },
+  "type": "gherkin/state"
+}

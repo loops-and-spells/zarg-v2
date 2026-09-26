@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0021",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0055",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0050",
+  "props": {
+    "title": "Landing waits for the developer",
+    "when": "the developer has uncommitted edits in its files"
+  },
+  "type": "gherkin/card"
+}

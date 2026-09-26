@@ -9,10 +9,10 @@
       "type": "gherkin/then"
     }
   ],
-  "id": "UX-0021",
+  "id": "UX-0053",
   "props": {
-    "title": "The reconciler updates the code",
-    "when": "the reconciler implements each card in its own worktree"
+    "title": "An obvious merge conflict",
+    "when": "card worktrees conflict in an obvious way"
   },
   "type": "gherkin/card"
 }

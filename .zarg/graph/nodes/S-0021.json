@@ -2,8 +2,8 @@
   "edges": [],
   "id": "S-0021",
   "props": {
-    "terminal": true,
-    "text": "the sync checkpoint moves forward"
+    "terminal": false,
+    "text": "the reconcile commit is ready to land"
   },
   "type": "gherkin/state"
 }

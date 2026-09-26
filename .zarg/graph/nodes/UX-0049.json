@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0021",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0054",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0049",
+  "props": {
+    "title": "The commit lands",
+    "when": "no uncommitted edit touches its files"
+  },
+  "type": "gherkin/card"
+}

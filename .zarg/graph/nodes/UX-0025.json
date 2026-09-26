@@ -11,7 +11,7 @@
   ],
   "id": "UX-0025",
   "props": {
-    "title": "Driver takes up a blocked card",
+    "title": "Driver takes up a reconcile finding",
     "when": "the driver reads the agenda again"
   },
   "type": "gherkin/card"

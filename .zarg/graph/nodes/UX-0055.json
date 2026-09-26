@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0020",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0022",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0055",
+  "props": {
+    "title": "Verify keeps failing",
+    "when": "the second fix attempt still fails"
+  },
+  "type": "gherkin/card"
+}

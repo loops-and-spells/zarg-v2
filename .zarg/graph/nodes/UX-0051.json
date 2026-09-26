@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0055",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0022",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0051",
+  "props": {
+    "title": "Landing stops waiting",
+    "when": "ten minutes pass with the files still edited"
+  },
+  "type": "gherkin/card"
+}
