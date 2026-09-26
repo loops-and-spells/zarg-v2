@@ -63,6 +63,20 @@
         "@effect/platform-bun": "^4.0.0-rc.117",
       },
     },
+    "packages/provider-openrouter": {
+      "name": "@zarg/provider-openrouter",
+      "dependencies": {
+        "@zarg/model": "workspace:*",
+        "effect": "^4.0.0-rc.117",
+      },
+    },
+    "packages/provider-zarg-router": {
+      "name": "@zarg/provider-zarg-router",
+      "dependencies": {
+        "@zarg/model": "workspace:*",
+        "effect": "^4.0.0-rc.117",
+      },
+    },
   },
   "packages": {
     "@effect/platform-bun": ["@effect/platform-bun@4.0.0-rc.117", "", { "dependencies": { "@effect/platform-node-shared": "^4.0.0-rc.117" }, "peerDependencies": { "effect": "^4.0.0-rc.117" } }, "sha512-jyvoxPjT9562z5Tc2gib9GB16jcgh43jhpsuNQxs9B8WJ7RB2doPBQdrYLSSWRodGPLJBKJGzToRRbJiaGblsw=="],
@@ -150,6 +164,10 @@
     "@zarg/plugin": ["@zarg/plugin@workspace:packages/plugin"],
 
     "@zarg/plugin-gherkin": ["@zarg/plugin-gherkin@workspace:packages/plugin-gherkin"],
+
+    "@zarg/provider-openrouter": ["@zarg/provider-openrouter@workspace:packages/provider-openrouter"],
+
+    "@zarg/provider-zarg-router": ["@zarg/provider-zarg-router@workspace:packages/provider-zarg-router"],
 
     "ansi-regex": ["ansi-regex@6.3.0", "", {}, "sha512-WpDfL7NO6j7tH88IDBNVdUJxDh9nmCteAVW9dsep846XdwF4naCBK+/tGLX3KJgcpgMRXCFlTM2hKGoK9FsdrQ=="],
 
