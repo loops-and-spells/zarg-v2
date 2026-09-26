@@ -3,6 +3,9 @@ import { join } from "node:path"
 import { Effect, PubSub, Stream } from "effect"
 import type { Draft, WireEvent } from "./events"
 
+/** Per-thread RLM transcripts sit next to the event logs and are not events. */
+const TRANSCRIPT = ".rlm.jsonl"
+
 /** Redact every string value, never keys or the JSON around them (an escaped secret would slip past, a short one could hit a key). */
 const redactValues = (value: unknown, redact: (text: string) => string): unknown =>
   typeof value === "string"
@@ -22,7 +25,7 @@ export const makeLog = (dir: string, redact: (text: string) => string) =>
     mkdirSync(dir, { recursive: true })
     const events: Array<WireEvent> = []
     // Earlier sessions' events come first so sequence numbers keep increasing across restarts.
-    for (const f of readdirSync(dir).filter((f) => f.endsWith(".jsonl")).sort()) {
+    for (const f of readdirSync(dir).filter((f) => f.endsWith(".jsonl") && !f.endsWith(TRANSCRIPT)).sort()) {
       for (const line of readFileSync(join(dir, f), "utf8").split("\n")) {
         if (line.trim().length === 0) continue
         // A line cut short by a crash is skipped; the rest of the log stays usable.
@@ -56,10 +59,14 @@ export const makeLog = (dir: string, redact: (text: string) => string) =>
         }),
       )
 
+    /** Append a record to the thread's RLM transcript (`<thread>.rlm.jsonl`): redacted, stored only, never sent. */
+    const transcript = (threadId: string, record: Record<string, unknown>) =>
+      Effect.sync(() => appendFileSync(join(dir, `${threadId}${TRANSCRIPT}`), `${JSON.stringify({ ...(redactValues(record, redact) as object), at: new Date().toISOString() })}\n`))
+
     /** End every live stream (shutdown): open SSE responses finish instead of holding the server open. */
     const close = PubSub.shutdown(hub)
 
-    return { append, stream, close, all: () => events as ReadonlyArray<WireEvent>, exists: (threadId: string) => existsSync(join(dir, `${threadId}.jsonl`)) }
+    return { append, stream, close, transcript, all: () => events as ReadonlyArray<WireEvent>, exists: (threadId: string) => existsSync(join(dir, `${threadId}.jsonl`)) }
   })
 
 export type ThreadLog = Effect.Success<ReturnType<typeof makeLog>>

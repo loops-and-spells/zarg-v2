@@ -43,8 +43,10 @@ export interface RlmDeps {
 
 /** What an observer (the core's activity feed) sees of RLMs as they run. */
 export type RlmEvent =
-  | { readonly type: "start"; readonly id: string; readonly parent: string | undefined; readonly preset: string; readonly scope: Scope; readonly depth: number; readonly budget: Budget }
+  | { readonly type: "start"; readonly id: string; readonly parent: string | undefined; readonly preset: string; readonly task: string; readonly scope: Scope; readonly depth: number; readonly budget: Budget }
   | { readonly type: "turn"; readonly id: string; readonly turn: number; readonly tokens: number }
+  /** What one turn did: the model's text and each cell with its result (for transcripts, not the UI). */
+  | { readonly type: "step"; readonly id: string; readonly turn: number; readonly text: string; readonly cells: ReadonlyArray<{ readonly code: string; readonly ok: boolean; readonly output: string }> }
   | { readonly type: "atomize"; readonly id: string; readonly atomic: boolean; readonly reason: string; readonly criteria: Atomized["criteria"] }
   | { readonly type: "plan"; readonly id: string; readonly children: ReadonlyArray<{ readonly id: string; readonly preset: string; readonly dependsOn: ReadonlyArray<string> }> }
   | { readonly type: "end"; readonly id: string; readonly ok: true; readonly turns: number; readonly tokens: number }
@@ -226,7 +228,7 @@ export const make = (deps: RlmDeps) =>
           let tokens = 0
           let restarts = 0
           yield* Effect.logInfo("rlm.start").pipe(Effect.annotateLogs({ rlm: id, parent: parent?.id ?? "", preset: spec.preset, depth }))
-          emit({ type: "start", id, parent: parent?.id, preset: spec.preset, scope: spec.scope, depth, budget })
+          emit({ type: "start", id, parent: parent?.id, preset: spec.preset, task: spec.task, scope: spec.scope, depth, budget })
           let turnCount = 0
 
           const turn = Effect.gen(function* () {
@@ -242,7 +244,10 @@ export const make = (deps: RlmDeps) =>
               if (e.type === "usage") tokens += e.usage.promptTokens + e.usage.completionTokens
             }
             messages.push({ role: "assistant", content: text.length > 0 ? text : null, ...(calls.length > 0 ? { toolCalls: calls } : {}) })
+            const cells: Array<{ code: string; ok: boolean; output: string }> = []
+            const step = () => emit({ type: "step", id, turn: turnCount, text, cells })
             if (calls.length === 0) {
+              step()
               messages.push({ role: "user", content: "Use the exec tool. Finish with `yield* Rlm.done({ value })`." })
               return
             }
@@ -252,13 +257,16 @@ export const make = (deps: RlmDeps) =>
                 code = String((JSON.parse(call.function.arguments) as { code?: unknown }).code ?? "")
               } catch {
                 messages.push({ role: "tool", name: "exec", toolCallId: call.id, content: "error: exec arguments must be JSON {\"code\": string}" })
+                cells.push({ code: call.function.arguments, ok: false, output: "exec arguments must be JSON" })
                 continue
               }
               const r = yield* kernel.run(code)
+              cells.push({ code, ok: r.ok, output: r.output })
               restarts = r.restarted ? restarts + 1 : 0
               if (restarts >= 2) return yield* new RlmError({ kind: "kernel", message: "the kernel died twice in a row" })
               messages.push({ role: "tool", name: "exec", toolCallId: call.id, content: `${r.ok ? "ok" : "failed"}\n${r.output}` })
             }
+            step()
             trimOld(messages, deps.keepOutputs ?? 4)
           })
 

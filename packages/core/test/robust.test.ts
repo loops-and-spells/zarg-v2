@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { mkdtempSync, writeFileSync } from "node:fs"
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Fiber, Stream } from "effect"
@@ -119,9 +119,9 @@ describe("thread robustness", () => {
     const driver: Driver = (_s, asker, observe) =>
       Effect.gen(function* () {
         const budget = { turns: 25, tokens: 1, wallMs: 1 }
-        observe({ type: "start", id: "rlm-1", parent: undefined, preset: "driver", scope: {}, depth: 0, budget })
+        observe({ type: "start", id: "rlm-1", parent: undefined, preset: "driver", task: "t", scope: {}, depth: 0, budget })
         if (calls++ === 0) {
-          observe({ type: "start", id: "rlm-2", parent: "rlm-1", preset: "research", scope: {}, depth: 1, budget })
+          observe({ type: "start", id: "rlm-2", parent: "rlm-1", preset: "research", task: "t", scope: {}, depth: 1, budget })
           observe({ type: "end", id: "rlm-2", ok: true, turns: 1, tokens: 1 })
           return outcome("first")
         }
@@ -148,6 +148,37 @@ describe("thread robustness", () => {
     const inq = (es: ReadonlyArray<WireEvent>) => (last(es) as any).outcome.interrupts[0].id
     expect(ids(b).filter((id) => ids(a).includes(id))).toEqual([])
     expect(inq(a)).not.toBe(inq(b))
+  })
+})
+
+describe("transcripts", () => {
+  test("each RLM's task, text, cells and outputs go to <thread>.rlm.jsonl, redacted, never to the wire", async () => {
+    const driver: Driver = (_s, asker, observe) =>
+      Effect.gen(function* () {
+        observe({ type: "start", id: "rlm-1", parent: undefined, preset: "driver", task: "the task", scope: {}, depth: 0, budget: { turns: 25, tokens: 1, wallMs: 1 } })
+        observe({ type: "step", id: "rlm-1", turn: 1, text: "hmm", cells: [{ code: 'Fs.read("zt-secret")', ok: false, output: "no such file" }] })
+        return (yield* asker.ask(question)) as never
+      }) as never
+    const out = await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread, dir } = yield* setup(driver, undefined, (t) => t.replaceAll("zt-secret", "<redacted:ZT>"))
+        const events = yield* collect(thread.run({ runId: "r1" }))
+        return { events, dir }
+      }),
+    )
+    const lines = readFileSync(join(out.dir, "main.rlm.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l))
+    expect(lines.map((l) => l.type)).toEqual(["start", "step"])
+    expect(lines[0]).toMatchObject({ rlm: "rlm-1", preset: "driver", task: "the task" })
+    expect(lines[1]).toMatchObject({ rlm: "rlm-1", turn: 1, text: "hmm", cells: [{ code: 'Fs.read("<redacted:ZT>")', ok: false, output: "no such file" }] })
+    expect(JSON.stringify(out.events)).not.toContain("the task")
+  })
+
+  test("a restarted core does not read transcripts as events", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "zarg-log-"))
+    writeFileSync(join(dir, "main.jsonl"), `${JSON.stringify({ type: "RUN_STARTED", threadId: "main", runId: "r", seq: 1 })}\n`)
+    writeFileSync(join(dir, "main.rlm.jsonl"), `${JSON.stringify({ type: "step", rlm: "rlm-1", turn: 1 })}\n`)
+    const all = await Effect.runPromise(Effect.map(makeLog(dir, (t) => t), (l) => l.all()))
+    expect(all.map((e) => String(e.type))).toEqual(["RUN_STARTED"])
   })
 })
 

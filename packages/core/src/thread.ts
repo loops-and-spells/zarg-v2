@@ -92,6 +92,13 @@ export const makeThread = (deps: ThreadDeps) =>
 
     // RLM events become one activity message: the tree of RLMs working for this thread.
     const observe = (e: Rlm.RlmEvent) => {
+      // Transcripts get what each RLM was asked and did; the activity tree gets its shape and status.
+      if (e.type === "step") {
+        const { type, id, ...rest } = e
+        Effect.runSync(log.transcript(threadId, { type, rlm: id, ...rest }))
+        return
+      }
+      if (e.type === "start") Effect.runSync(log.transcript(threadId, { type: "start", rlm: e.id, parent: e.parent ?? null, preset: e.preset, task: e.task }))
       const prev = activity.get(e.id) ?? {}
       const next: Record<string, unknown> =
         e.type === "start"

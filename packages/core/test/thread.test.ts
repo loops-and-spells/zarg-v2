@@ -180,7 +180,7 @@ describe("thread runs", () => {
   test("RLM activity becomes activity deltas for the agents pane", async () => {
     const driver: Driver = (_spec, asker, observe) =>
       Effect.gen(function* () {
-        observe({ type: "start", id: "rlm-1", parent: undefined, preset: "driver", scope: {}, depth: 0, budget: { turns: 25, tokens: 1, wallMs: 1 } })
+        observe({ type: "start", id: "rlm-1", parent: undefined, preset: "driver", task: "t", scope: {}, depth: 0, budget: { turns: 25, tokens: 1, wallMs: 1 } })
         observe({ type: "turn", id: "rlm-1", turn: 1, tokens: 10 })
         return (yield* asker.ask(question)) as never
       }) as never

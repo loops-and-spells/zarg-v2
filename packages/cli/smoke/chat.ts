@@ -7,7 +7,8 @@ import { openSession } from "../src/tui/run"
 
 const root = process.env.ZARG_ROOT ?? process.cwd()
 const TIMEOUT_MS = 5 * 60_000
-const opened = await Effect.runPromise(openSession({ root, threadId: `smoke-${Date.now()}`, focus: [] }))
+const threadId = `smoke-${Date.now()}`
+const opened = await Effect.runPromise(openSession({ root, threadId, focus: [] }))
 console.log(`core ${opened.meta.mode}, driver ${opened.meta.driver ?? "?"}`)
 
 const verdict = await new Promise<{ ok: boolean; why: string }>((done) => {
@@ -36,5 +37,6 @@ const verdict = await new Promise<{ ok: boolean; why: string }>((done) => {
 const s = opened.session.state()
 for (const r of Object.values(s.thread.rlms)) console.log(`rlm   ${r.preset} ${r.id} ${r.turns}/${r.budget} ${r.status}`)
 await opened.close()
+console.log(`transcript .zarg/threads/${threadId}.rlm.jsonl`)
 console.log(verdict.ok ? `PASS: ${verdict.why}` : `FAIL: ${verdict.why}`)
 process.exit(verdict.ok ? 0 : 1)

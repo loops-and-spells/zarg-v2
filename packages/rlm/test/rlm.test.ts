@@ -98,6 +98,26 @@ describe("Rlm.exec", () => {
 })
 
 describe("observe", () => {
+  test("reports each turn's text, cells and outputs, and the task an RLM started with", async () => {
+    const events: Array<Rlm.RlmEvent> = []
+    const stub = stubModel({ driver: [{ text: "thinking out loud" }, { cell: 'console.log("hi")' }, { cell: 'yield* Rlm.done({ value: "ok" })' }] })
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const s = yield* settings({})
+        const rlm = yield* Rlm.make({ settings: s, services: factory, roles: { driver: "stub:m" }, cellTimeoutMs: 5000, observe: (e) => events.push(e) })
+        yield* rlm.exec({ task: "say hi", preset: "driver", scope: {} })
+      }).pipe(Effect.provide(stub.layer)),
+    )
+    expect(events[0]).toMatchObject({ type: "start", task: "say hi" })
+    const steps = events.filter((e) => e.type === "step")
+    expect(steps).toEqual([
+      { type: "step", id: "rlm-1", turn: 1, text: "thinking out loud", cells: [] },
+      { type: "step", id: "rlm-1", turn: 2, text: "", cells: [{ code: 'console.log("hi")', ok: true, output: "hi" }] },
+      { type: "step", id: "rlm-1", turn: 3, text: "", cells: [{ code: 'yield* Rlm.done({ value: "ok" })', ok: true, output: "" }] },
+    ])
+  })
+
+
   test("reports start, turns and end for each RLM, including children and failures", async () => {
     const events: Array<Rlm.RlmEvent> = []
     const stub = stubModel({
@@ -111,7 +131,7 @@ describe("observe", () => {
         yield* rlm.exec({ task: "t", preset: "driver", scope: {} })
       }).pipe(Effect.provide(stub.layer)),
     )
-    expect(events.map((e) => `${e.type}:${e.id}`)).toEqual(["start:rlm-1", "turn:rlm-1", "start:rlm-2", "turn:rlm-2", "end:rlm-2", "turn:rlm-1", "end:rlm-1"])
+    expect(events.filter((e) => e.type !== "step").map((e) => `${e.type}:${e.id}`)).toEqual(["start:rlm-1", "turn:rlm-1", "start:rlm-2", "turn:rlm-2", "end:rlm-2", "turn:rlm-1", "end:rlm-1"])
     expect(events[2]).toMatchObject({ type: "start", id: "rlm-2", parent: "rlm-1", preset: "research", depth: 1 })
     expect(events.at(-1)).toMatchObject({ type: "end", ok: true, turns: 2 })
 
