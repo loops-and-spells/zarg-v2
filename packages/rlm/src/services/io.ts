@@ -47,3 +47,38 @@ export const inquire = (asker: Asker): Bound =>
         ? Effect.fail({ _tag: "InvalidQuestion", message: `ask with 2 to 4 options, got ${q.options.length}` })
         : asker.ask(q),
   })
+
+const DQuestion = Schema.Union([
+  Schema.Struct({ type: Schema.Literal("choice"), instructions: Schema.String, criteria: Schema.Record(Schema.String, Schema.String) }),
+  Schema.Struct({ type: Schema.Literal("noul"), instructions: Schema.String }),
+  Schema.Struct({ type: Schema.Literal("score"), instructions: Schema.String, levels: Schema.Array(Schema.String) }),
+])
+const DAnswer = Schema.Struct({
+  type: Schema.String,
+  choice: Schema.optionalKey(Schema.String),
+  answer: Schema.optionalKey(Schema.Boolean),
+  level: Schema.optionalKey(Schema.String),
+  score: Schema.optionalKey(Schema.Number),
+  probability: Schema.optionalKey(Schema.Number),
+  confidence: Schema.Number,
+})
+
+export const DecisionsDef = defineService("Decisions", "Fast judgments by a small decision model: choice, yes/no (noul), or score, each with a confidence.", {
+  decide: {
+    doc: "Answer 1-8 questions about a state. Use it to classify work or check a result before acting on it.",
+    params: Schema.Struct({ state: Schema.String, questions: Schema.Record(Schema.String, DQuestion) }),
+    success: Schema.Record(Schema.String, DAnswer),
+  },
+})
+
+/** The Decisions service (from @zarg/decisions) as a kernel service. */
+export const decisionsService = (decisions: {
+  readonly decide: (req: { state: string; questions: Record<string, unknown> }) => Effect.Effect<Readonly<Record<string, unknown>>, { readonly message: string; readonly kind?: string }>
+}): Bound =>
+  bind(DecisionsDef, {
+    decide: (req) =>
+      decisions.decide(req as never).pipe(
+        Effect.map((answers) => answers as never),
+        Effect.mapError((e): ServiceFailure => ({ _tag: "DecisionError", message: e.message })),
+      ),
+  })

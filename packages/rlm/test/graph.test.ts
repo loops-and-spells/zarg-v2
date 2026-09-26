@@ -8,7 +8,7 @@ import { GraphStore, layer as graphLayer } from "@zarg/graph"
 import { Kernel } from "@zarg/kernel"
 import { layer as hostLayer, PluginHost } from "@zarg/plugin/server"
 import { gherkin } from "@zarg/plugin-gherkin/server"
-import { agenda, graph, inquire, pluginService, type Scope, verify } from "../src"
+import { agenda, decisionsService, graph, inquire, pluginService, type Scope, verify } from "../src"
 
 /** A real graph with the gherkin plugin: S-0001 → UX-0001 → S-0002, plus an unrelated S-0003. */
 const withGraph = <A>(scope: Scope, body: (k: Kernel.Kernel) => Effect.Effect<A>) =>
@@ -106,5 +106,13 @@ describe("Inquire, Agenda and Verify", () => {
     expect(out.output).toContain('"passed": true')
     const failing = await kernel([verify(ctx, ["bash", "-c", "echo broken; exit 3"])], (k) => k.run("return (yield* Verify.run({})).passed"))
     expect(failing.output).toBe("false")
+  })
+
+  test("Decisions.decide answers from cells", async () => {
+    const svc = decisionsService({
+      decide: (req) => Effect.succeed(Object.fromEntries(Object.keys(req.questions).map((k) => [k, { type: "noul", answer: true, probability: 0.8, confidence: 0.6 }]))),
+    })
+    const out = await kernel([svc], (k) => k.run('const a = yield* Decisions.decide({ state: "s", questions: { ok: { type: "noul", instructions: "fine?" } } })\nreturn a.ok.answer'))
+    expect(out.output).toBe("true")
   })
 })
