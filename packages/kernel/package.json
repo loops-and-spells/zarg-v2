@@ -1,0 +1,12 @@
+{
+  "name": "@zarg/kernel",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "effect": "^4.0.0-rc.117",
+    "typescript5": "npm:typescript@5.9"
+  }
+}
