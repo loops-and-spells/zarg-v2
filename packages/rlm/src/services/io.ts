@@ -28,7 +28,8 @@ const Question = Schema.Struct({
   about: Schema.optionalKey(Schema.Array(Schema.String)),
 })
 export type Question = typeof Question.Type
-const Answer = Schema.Struct({ choice: Schema.optionalKey(Schema.String), other: Schema.optionalKey(Schema.String) })
+/** An option id, or free text; `interjected` when the developer wrote a message instead of answering. */
+const Answer = Schema.Struct({ choice: Schema.optionalKey(Schema.String), other: Schema.optionalKey(Schema.String), interjected: Schema.optionalKey(Schema.Boolean) })
 export type Answer = typeof Answer.Type
 
 export const InquireDef = defineService("Inquire", "Ask the developer a question. The cell waits (yielded) until they answer.", {

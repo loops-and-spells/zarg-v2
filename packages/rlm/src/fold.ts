@@ -16,6 +16,8 @@ export interface Atomized {
   readonly atomic: boolean
   /** Why: each criterion's answer and confidence, or why the check was skipped. */
   readonly reason: string
+  /** Each criterion's answer and confidence (empty when Decisions was unavailable). */
+  readonly criteria: ReadonlyArray<{ readonly name: string; readonly answer: boolean; readonly confidence: number }>
 }
 
 /** Ask Decisions whether a task is atomic. If Decisions cannot answer, treat the task as atomic. */
@@ -26,14 +28,17 @@ export const atomize = (decisions: Decisions["Service"], task: string, scope: st
     )
     const req: DecisionRequest = { state: `Task: ${task}\nScope: ${scope}`, questions }
     const answers = yield* decisions.decide(req).pipe(Effect.option)
-    if (answers._tag === "None") return { atomic: true, reason: "decisions unavailable; executing directly" } satisfies Atomized
+    if (answers._tag === "None") return { atomic: true, reason: "decisions unavailable; executing directly", criteria: [] } satisfies Atomized
     const notes = Object.entries(answers.value).map(([k, a]: [string, Answer]) =>
       a.type === "noul" ? `${k}: ${a.answer ? "yes" : "no"} (${a.confidence.toFixed(2)})` : `${k}: ?`,
     )
     // Plan only on a confident "no". A hedging model (low confidence) executes directly,
     // as ROMA's own tie-breaker does; otherwise uncertainty would plan at every level.
     const atomic = !Object.values(answers.value).some((a) => a.type === "noul" && !a.answer && a.confidence >= minConfidence)
-    return { atomic, reason: notes.join(", ") } satisfies Atomized
+    const criteria = Object.entries(answers.value).flatMap(([name, a]: [string, Answer]) =>
+      a.type === "noul" ? [{ name, answer: a.answer, confidence: a.confidence }] : [],
+    )
+    return { atomic, reason: notes.join(", "), criteria } satisfies Atomized
   })
 
 export const PlanChild = Schema.Struct({

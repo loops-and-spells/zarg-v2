@@ -65,12 +65,12 @@ const factory = (name: string, scope: Scope): Bound | undefined => {
   return undefined
 }
 
-const run = (scripts: Record<string, ReadonlyArray<Reply>>, spec: Rlm.RlmSpec, d: ReturnType<typeof decisions>, raw: unknown = {}) => {
+const run = (scripts: Record<string, ReadonlyArray<Reply>>, spec: Rlm.RlmSpec, d: ReturnType<typeof decisions>, raw: unknown = {}, observe?: (e: Rlm.RlmEvent) => void) => {
   const stub = stubModel(scripts)
   return Effect.runPromise(
     Effect.gen(function* () {
       const s = yield* settings(raw)
-      const rlm = yield* Rlm.make({ settings: s, services: factory, roles: { driver: "stub:m", sync: "stub:m" }, decisions: d.service, cellTimeoutMs: 5000 })
+      const rlm = yield* Rlm.make({ settings: s, services: factory, roles: { driver: "stub:m", sync: "stub:m" }, decisions: d.service, cellTimeoutMs: 5000, ...(observe ? { observe } : {}) })
       return yield* Effect.exit(rlm.exec(spec))
     }).pipe(Effect.provide(stub.layer)),
   ).then((exit) => ({ exit, seen: stub.seen }))
@@ -89,6 +89,16 @@ describe("folding", () => {
     expect(value(r)).toBe("direct")
     expect(r.seen.some((s) => s.preset === "plan")).toBe(false)
     expect(Object.keys(d.calls[0]!.questions)).toEqual(["single", "oneExecutor", "noSteps", "noPackaging", "noCoordination"])
+  })
+
+  test("the atomize event carries each criterion's answer and confidence", async () => {
+    const events: Array<Rlm.RlmEvent> = []
+    await run({ driver: [{ cell: 'yield* Rlm.done({ value: "direct" })' }] }, { task: "small", preset: "driver", scope: {} }, decisions(true), {}, (e) => events.push(e))
+    const a = events.find((e) => e.type === "atomize")
+    expect(a?.type === "atomize" && a.atomic).toBe(true)
+    expect(a?.type === "atomize" && a.criteria).toEqual(
+      ["single", "oneExecutor", "noSteps", "noPackaging", "noCoordination"].map((name) => ({ name, answer: true, confidence: 0.9 })),
+    )
   })
 
   test("a non-atomic task is planned; children run in dependency order; the parent folds `children`", async () => {

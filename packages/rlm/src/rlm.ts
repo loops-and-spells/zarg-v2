@@ -2,7 +2,7 @@ import { Data, Effect, Ref, Schema, Semaphore, Stream } from "effect"
 import { bind, type Bound, defineService, Kernel, type ServiceFailure, tsType } from "@zarg/kernel"
 import { Model, type ChatMessage, type ToolCall } from "@zarg/model"
 import type { Decisions } from "@zarg/decisions"
-import { atomize, type ChildResult, preview, requestPlan, scopeOf, waves } from "./fold"
+import { atomize, type Atomized, type ChildResult, preview, requestPlan, scopeOf, waves } from "./fold"
 import { budgetOf, type Budget, type Preset, RESULTS, type RlmSettings } from "./presets"
 import { describeScope, type Scope } from "./scope"
 
@@ -37,7 +37,18 @@ export interface RlmDeps {
   readonly decisions?: Decisions["Service"]
   /** Overrides `settings.minConfidence` (atomize and "decision" verification). */
   readonly minConfidence?: number
+  /** Called synchronously for each RLM event (start, turns, atomize, plan, end). */
+  readonly observe?: (event: RlmEvent) => void
 }
+
+/** What an observer (the core's activity feed) sees of RLMs as they run. */
+export type RlmEvent =
+  | { readonly type: "start"; readonly id: string; readonly parent: string | undefined; readonly preset: string; readonly scope: Scope; readonly depth: number; readonly budget: Budget }
+  | { readonly type: "turn"; readonly id: string; readonly turn: number; readonly tokens: number }
+  | { readonly type: "atomize"; readonly id: string; readonly atomic: boolean; readonly reason: string; readonly criteria: Atomized["criteria"] }
+  | { readonly type: "plan"; readonly id: string; readonly children: ReadonlyArray<{ readonly id: string; readonly preset: string; readonly dependsOn: ReadonlyArray<string> }> }
+  | { readonly type: "end"; readonly id: string; readonly ok: true; readonly turns: number; readonly tokens: number }
+  | { readonly type: "end"; readonly id: string; readonly ok: false; readonly kind: RlmErrorKind | "stopped"; readonly message: string }
 
 export interface RlmOutcome {
   readonly id: string
@@ -121,6 +132,13 @@ export const make = (deps: RlmDeps) =>
     const model = yield* Model.Model
     const results = deps.results ?? RESULTS
     const turns = yield* Semaphore.make(deps.settings.maxConcurrent)
+    const emit = (e: RlmEvent) => {
+      try {
+        deps.observe?.(e)
+      } catch {
+        // An observer must never break a run.
+      }
+    }
     // Gates run one at a time: they share one working tree, and one child's broken edit must not fail another's gate.
     const gates = yield* Semaphore.make(1)
     let counter = 0
@@ -144,6 +162,17 @@ export const make = (deps: RlmDeps) =>
           if (resultSchema === undefined) return yield* new RlmError({ kind: "config", message: `unknown result "${preset.result}"` })
           const budget = budgetOf(preset, spec.budget)
           const id = `rlm-${++counter}`
+          yield* Effect.addFinalizer((exit) =>
+            Effect.sync(() => {
+              if (exit._tag === "Success") return
+              const err = exit.cause.reasons.find((r) => r._tag === "Fail")?.error as RlmError | undefined
+              emit(
+                err === undefined
+                  ? { type: "end", id, ok: false, kind: "stopped", message: "stopped" }
+                  : { type: "end", id, ok: false, kind: err.kind, message: err.message },
+              )
+            }),
+          )
           const me = { id, preset: spec.preset, depth }
 
           // The value handed to Rlm.done, once it decodes against the preset's result Schema.
@@ -197,8 +226,11 @@ export const make = (deps: RlmDeps) =>
           let tokens = 0
           let restarts = 0
           yield* Effect.logInfo("rlm.start").pipe(Effect.annotateLogs({ rlm: id, parent: parent?.id ?? "", preset: spec.preset, depth }))
+          emit({ type: "start", id, parent: parent?.id, preset: spec.preset, scope: spec.scope, depth, budget })
+          let turnCount = 0
 
           const turn = Effect.gen(function* () {
+            emit({ type: "turn", id, turn: ++turnCount, tokens })
             const events = yield* Semaphore.withPermits(turns, 1)(
               Stream.runCollect(model.stream({ model: ref, messages, tools: [EXEC_TOOL] })),
             ).pipe(Effect.mapError((e) => new RlmError({ kind: "model", message: e.message })))
@@ -237,11 +269,13 @@ export const make = (deps: RlmDeps) =>
             const minConfidence = deps.minConfidence ?? deps.settings.minConfidence
             const a = yield* atomize(deps.decisions, spec.task, describeScope(spec.scope), minConfidence)
             yield* Effect.logInfo("rlm.atomize").pipe(Effect.annotateLogs({ rlm: id, atomic: a.atomic, reason: a.reason }))
+            emit({ type: "atomize", id, atomic: a.atomic, reason: a.reason, criteria: a.criteria })
             if (!a.atomic) {
               const choices = spawnable.map((p) => `- ${p} → ${resultType(results[deps.settings.presets[p]?.result ?? "text"] ?? Schema.String)}`)
               const plan = yield* Semaphore.withPermits(turns, 1)(requestPlan(model, ref, spec.task, describeScope(spec.scope), choices, spawnable)).pipe(
                 Effect.mapError((e) => ("model" in e ? new RlmError({ kind: "model", message: e.model }) : new RlmError({ kind: "plan", message: e.plan }))),
               )
+              emit({ type: "plan", id, children: plan.children.map((c) => ({ id: c.id, preset: c.preset, dependsOn: c.dependsOn })) })
               yield* Effect.logInfo("rlm.plan").pipe(
                 Effect.annotateLogs({ rlm: id, children: plan.children.map((c) => `${c.id}:${c.preset}${c.dependsOn.length > 0 ? `<-${c.dependsOn.join("+")}` : ""}`).join(" ") }),
               )
@@ -286,6 +320,7 @@ export const make = (deps: RlmDeps) =>
             const done = yield* Ref.get(finished)
             if (done !== undefined) {
               yield* Effect.logInfo("rlm.end").pipe(Effect.annotateLogs({ rlm: id, turns: n, tokens }))
+              emit({ type: "end", id, ok: true, turns: n, tokens })
               return { id, value: done.value, turns: n, tokens }
             }
           }
@@ -293,7 +328,10 @@ export const make = (deps: RlmDeps) =>
           messages.push({ role: "user", content: "Your budget is exhausted. In your next cell call `yield* Rlm.done({ value })` with your best result now." })
           yield* turn
           const last = yield* Ref.get(finished)
-          if (last !== undefined) return { id, value: last.value, turns: budget.turns + 1, tokens }
+          if (last !== undefined) {
+            emit({ type: "end", id, ok: true, turns: budget.turns + 1, tokens })
+            return { id, value: last.value, turns: budget.turns + 1, tokens }
+          }
           return yield* new RlmError({ kind: "budget", message: `${spec.preset} did not finish within its budget (${budget.turns} turns)` })
         }),
       )

@@ -97,6 +97,36 @@ describe("Rlm.exec", () => {
   })
 })
 
+describe("observe", () => {
+  test("reports start, turns and end for each RLM, including children and failures", async () => {
+    const events: Array<Rlm.RlmEvent> = []
+    const stub = stubModel({
+      driver: [{ cell: 'return yield* Rlm.exec({ task: "find", preset: "research", scope: {} })' }, { cell: 'yield* Rlm.done({ value: "ok" })' }],
+      research: [{ cell: 'yield* Rlm.done({ value: { findings: [], sources: [] } })' }],
+    })
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const s = yield* settings({})
+        const rlm = yield* Rlm.make({ settings: s, services: factory, roles: { driver: "stub:m" }, cellTimeoutMs: 5000, observe: (e) => events.push(e) })
+        yield* rlm.exec({ task: "t", preset: "driver", scope: {} })
+      }).pipe(Effect.provide(stub.layer)),
+    )
+    expect(events.map((e) => `${e.type}:${e.id}`)).toEqual(["start:rlm-1", "turn:rlm-1", "start:rlm-2", "turn:rlm-2", "end:rlm-2", "turn:rlm-1", "end:rlm-1"])
+    expect(events[2]).toMatchObject({ type: "start", id: "rlm-2", parent: "rlm-1", preset: "research", depth: 1 })
+    expect(events.at(-1)).toMatchObject({ type: "end", ok: true, turns: 2 })
+
+    const failed: Array<Rlm.RlmEvent> = []
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const s = yield* settings({})
+        const rlm = yield* Rlm.make({ settings: s, services: factory, roles: { driver: "stub:m" }, observe: (e) => failed.push(e) })
+        yield* Effect.exit(rlm.exec({ task: "t", preset: "research", scope: {}, budget: { turns: 1 } }))
+      }).pipe(Effect.provide(stubModel({ research: [{ cell: "return 1" }] }).layer)),
+    )
+    expect(failed.at(-1)).toMatchObject({ type: "end", ok: false, kind: "budget" })
+  })
+})
+
 describe("folding into children", () => {
   test("a child runs in its own kernel and the parent sees only its result", async () => {
     const r = await run(
