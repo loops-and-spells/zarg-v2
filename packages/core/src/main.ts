@@ -18,6 +18,8 @@ const mode = values.mode === "headless" ? "headless" : "child"
 const socket = join(runDir(root), "core.sock")
 const token = randomBytes(24).toString("hex")
 const owner = mode === "child" ? process.ppid : undefined
+// Test-only: scripted models instead of real providers (see stubLayer).
+const stubFile = process.env.ZARG_CORE_STUB
 
 /** Completes when the parent CLI is gone: its stdin pipe closes or this process is re-parented. */
 const parentGone = Effect.callback<void>((resume) => {
@@ -40,7 +42,7 @@ const program = Effect.gen(function* () {
     return yield* Effect.sync(() => process.exit(2))
   }
   yield* Effect.addFinalizer(() => Effect.sync(() => release(root, process.pid)))
-  const core = yield* liveCore(root)
+  const core = yield* liveCore(root, { stub: stubFile !== undefined })
   // A core killed without cleanup leaves its socket file; we hold the claim now, so it is safe to remove.
   rmSync(socket, { force: true })
   yield* Layer.build(
@@ -48,11 +50,11 @@ const program = Effect.gen(function* () {
       Layer.provide([BunHttpServer.layer({ unix: socket }), Layer.succeed(Threads, core.threads), Layer.succeed(Log, core.log), Layer.succeed(Token, token)]),
     ),
   )
-  markReady(root, info)
+  markReady(root, { ...info, ...(core.driver !== undefined ? { driver: core.driver } : {}) })
   console.log(`ready ${socket}`)
   // SIGINT and SIGTERM interrupt this fiber (runMain); finalizers stop the server and release core.json.
   yield* mode === "child" ? parentGone : Effect.never
-}).pipe(Effect.scoped, Effect.provide(liveLayer(root)))
+}).pipe(Effect.scoped, Effect.provide(liveLayer(root, stubFile)))
 
 // Exit once finalizers ran, on success too: open handles (stdin, workers) would otherwise keep the process alive.
 // A failure is written synchronously first: a piped stderr would lose an async log at process.exit.

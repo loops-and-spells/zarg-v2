@@ -10,6 +10,8 @@ export interface CoreInfo {
   readonly owner?: number
   /** Set once the core serves its socket. Until then the pid holds the project but cannot be reached. */
   readonly ready?: boolean
+  /** The driver role's model reference, for the status line. */
+  readonly driver?: string
 }
 
 export const runDir = (root: string) => join(root, ".zarg", "run")

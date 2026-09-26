@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { Effect } from "effect"
+import { Effect, Stream } from "effect"
 import { makeClient, readInfo } from "@zarg/client"
 
 const main = join(import.meta.dir, "..", "src", "main.ts")
@@ -61,6 +61,24 @@ describe("zarg-core process", () => {
     expect(outcomes.sort()).toEqual(["exit 2", "ready"])
     for (const p of procs) p.stdin.end()
     await Promise.all(procs.map((p) => p.exited))
+  }, 20_000)
+
+  test("stub mode: a run reaches the scripted driver's question; core.json names the driver model", async () => {
+    const stub = join(root, "stub.json")
+    writeFileSync(stub, JSON.stringify({ cells: ['const a = yield* Inquire.ask({ question: "Stubbed?", options: [{ id: "y", label: "Yes" }, { id: "n", label: "No" }] })\nreturn a'] }))
+    const proc = Bun.spawn([process.execPath, main, "--root", root, "--mode", "child"], {
+      stdin: "pipe",
+      stdout: "pipe",
+      stderr: "pipe",
+      env: { ...process.env, ZARG_CORE_STUB: stub },
+    })
+    await proc.stdout.getReader().read()
+    const info = readInfo(root)!
+    expect(info.driver).toBe("stub:scripted")
+    const events = await Effect.runPromise(Stream.runCollect(makeClient(info).run({ threadId: "main" })).pipe(Effect.map((c) => [...c])))
+    expect(events.at(-1)).toMatchObject({ type: "RUN_FINISHED", outcome: { type: "interrupt", interrupts: [{ message: "Stubbed?" }] } })
+    proc.stdin.end()
+    await proc.exited
   }, 20_000)
 
   test("a core that cannot start exits 1 with the reason on stderr and leaves no core.json", () => {

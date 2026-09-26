@@ -12,12 +12,19 @@ import { openrouter } from "@zarg/provider-openrouter"
 import { zargRouter } from "@zarg/provider-zarg-router"
 import { type Asker, decisionsService, fsRead, graph, inquire, pluginService, Rlm, type Scope, settings } from "@zarg/rlm"
 import { makeLog } from "./log"
+import { STUB_MODEL, stubLayer } from "./stub"
 import { makeThreads } from "./threads"
 
-/** Everything a real core needs for a project: the 2a runtime, the thread log and the threads. */
-export const liveCore = (root: string) =>
+/**
+ * Everything a real core needs for a project: the 2a runtime, the thread log and the threads.
+ * With `stub`, every role uses the scripted stub model (see `stubLayer`).
+ */
+export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =>
   Effect.gen(function* () {
     const config = yield* Config.Config
+    const roles: Readonly<Record<string, string>> = opts.stub
+      ? { ...Object.fromEntries(Object.keys(config.roles).map((r) => [r, STUB_MODEL])), driver: STUB_MODEL }
+      : config.roles
     const model = yield* Model.Model
     const env = yield* Env
     const host = yield* PluginHost
@@ -38,20 +45,22 @@ export const liveCore = (root: string) =>
         if (name === "Decisions") return decisionsService(decisions as never)
         return undefined
       }
-      return Rlm.make({ settings: rlmSettings, services: factory, roles: config.roles, decisions, observe }).pipe(
+      return Rlm.make({ settings: rlmSettings, services: factory, roles, decisions, observe }).pipe(
         Effect.provideService(Model.Model, model),
       )
     }
     const threads = yield* makeThreads({ log, agenda: (focus) => host.agenda(focus), makeRlm })
-    return { log, threads }
+    return { log, threads, driver: roles.driver }
   })
 
-/** Layers for a project root: env, config, models, decisions, graph and plugins. */
-export const liveLayer = (root: string) => {
+/** Layers for a project root: env, config, models, decisions, graph and plugins. `stubFile` swaps in the scripted models. */
+export const liveLayer = (root: string, stubFile?: string) => {
   const base = Layer.merge(envLayer(root), BunServices.layer)
   const config = Layer.provideMerge(Config.layer({ userDir: join(homedir(), ".config", "zarg"), projectDir: root }), base)
-  const model = Layer.provideMerge(Model.layer([zargRouter, openrouter]), config)
-  const decisions = Layer.provideMerge(decisionsLayer(), model)
+  const decisions =
+    stubFile !== undefined
+      ? Layer.provideMerge(stubLayer(stubFile), config)
+      : Layer.provideMerge(decisionsLayer(), Layer.provideMerge(Model.layer([zargRouter, openrouter]), config))
   const graphs = Layer.provideMerge(hostLayer([gherkin]), graphLayer(join(root, ".zarg", "graph")))
   return Layer.mergeAll(decisions, Layer.provideMerge(graphs, BunServices.layer))
 }
