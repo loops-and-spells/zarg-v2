@@ -3,7 +3,7 @@
 Date: 2026-09-25
 Status: approved in conversation, pending written review
 Parent: `docs/superpowers/specs/2026-09-25-harness-architecture-design.md` (phase 2)
-Requirements served: UX-0008..UX-0025 in `.zarg/graph` (driver loop, what next, conflicts, sync loop)
+Requirements served: UX-0008..UX-0025 (driver loop, what next, conflicts, sync loop) and UX-0026..UX-0033 (provider login and logout) in `.zarg/graph`
 
 ## Intent
 
@@ -22,7 +22,7 @@ Phase 2 is split into three specs:
 - **The RLM is the unit of agency.** Every agent run, including the driver and each sync pass, is an RLM. An RLM has its own encapsulated runtime built from its layer, like an Effect `ManagedRuntime`. RLMs call RLMs to fold context. There is no separate sub-agent concept.
 - An RLM is told exactly what its layer provides. Its prompt and its typecheck come from the same manifest.
 - An RLM's layer comes from its preset, not from its parent. A child may be wider or narrower than its parent. A preset spawn graph in config bounds what each preset may spawn.
-- The first model adapter speaks the OpenRouter wire (`/chat/completions`), ported from zarg v1. It covers zarg-router (local models) and OpenRouter. An Anthropic SDK adapter can come later behind the same service.
+- **Providers are plugins.** A provider plugin contributes a model adapter, its env schema fragment, and a check that verifies entered credentials. zarg-router and OpenRouter are the first two provider plugins; both use the OpenRouter-wire adapter (`/chat/completions`), ported from zarg v1. An Anthropic SDK provider can come later as another plugin.
 - Decisions (choice, yes/no, score with probabilities and confidence) are a service backed by zarg-router's `jevk5` over `POST /systemone`, with a structured-output fallback.
 - Environment and secrets go through varlock's programmatic API. Secrets are stored with varlock's device-bound encryption. Sensitive values never reach a model.
 
@@ -30,7 +30,10 @@ Phase 2 is split into three specs:
 
 ```
 packages/
-  model/      @zarg/model      Env, config loader, Secrets, Model service (OpenRouter-wire adapter)
+  model/      @zarg/model      Env, config loader, Secrets, Model service, the provider contract,
+                               and the OpenRouter-wire adapter that provider plugins reuse
+  provider-zarg-router/  @zarg/provider-zarg-router   provider plugin (warm-up, /systemone capability)
+  provider-openrouter/   @zarg/provider-openrouter    provider plugin
   decisions/  @zarg/decisions  Decisions service
   kernel/     @zarg/kernel     Bun Worker kernel and its RPC bridge
   rlm/        @zarg/rlm        Rlm service: presets, spawn graph, scope, the turn loop
@@ -168,6 +171,26 @@ Each is a `Context.Service` with Schema-typed methods and a doc line per method.
 
 The plugin contract's `tools: Tool[]` becomes `services: PluginService[]`. A plugin service is a set of Schema-typed methods with doc lines. Every write method still runs through the write pipeline: decode, structural checks, lints, commit. `zarg tool call <plugin>/<method>` keeps working as a thin CLI over the same methods, so the phase 1 skills do not break.
 
+## Providers
+
+A provider is a plugin contribution:
+
+```ts
+provider: {
+  name: "openrouter",
+  schema: "./openrouter.env.schema",      // its env schema fragment
+  adapter: openRouterWire({ dialect: "openrouter" }),
+  verify: (values) => Effect<void, ProviderRejected>,   // e.g. GET /models with the key
+  warm?: (ref) => Effect<void, ModelError>,              // zarg-router: POST /admin/warm
+}
+```
+
+- `Model` routes a `provider:model` reference to the provider plugin named `provider`.
+- **Login fields come from the schema.** `Env.fields(provider)` returns the items of the provider's schema fragment: name, type and validation, default, description, and whether it is `@sensitive`. A login form renders one field per item. Sensitive fields hide input. A value that fails its schema type is refused locally before `verify` is called (UX-0029).
+- **Login:** values that pass the schema go to `verify`. On success, sensitive values are stored with `Secrets.set` (encrypted on this device) and non-sensitive values in `~/.zarg/.env.local` as plain text, then `Env.reload` runs (UX-0027). On rejection nothing is stored (UX-0028).
+- **Logout** removes the provider's stored values with `Secrets.remove` (UX-0032).
+- The `/login` and `/logout` commands and the driver's "login or another model" inquiry (UX-0030, UX-0031, UX-0033) are built in 2b on these operations.
+
 ## Model
 
 ```ts
@@ -239,6 +262,7 @@ class Env extends Context.Service<Env, {
   readonly get: (name: string) => Effect<string | Redacted<string>, EnvError>
   readonly sensitive: ReadonlyArray<{ name: string, value: Redacted<string> }>
   readonly reload: Effect<void, EnvError>
+  readonly fields: (provider: string) => Effect<ReadonlyArray<EnvField>, EnvError>  // login form items
 }>()("@zarg/model/Env") {}
 ```
 
@@ -247,7 +271,7 @@ The live layer calls varlock's programmatic `load()` at core startup and reads t
 ### Schema files
 
 - A committed root `.env.schema` imports provider and plugin fragments with `@import(...)`.
-- Each provider owns a fragment in `.zarg/providers/<provider>.env.schema` declaring its variables (`@required`, `@sensitive`, `@type`). A fragment is imported only when a configured role uses that provider (`enabled=`), so an unused provider never fails on a missing key.
+- Each provider plugin ships a fragment declaring its variables (`@required`, `@sensitive`, `@type`). A fragment is imported only when a configured role uses that provider (`enabled=`), so an unused provider never fails on a missing key.
 - Plugins that need secrets ship fragments the same way.
 - User values live in `~/.zarg/.env.local`, and project values in a gitignored `.env.local`. The project overlays the user.
 
@@ -264,7 +288,7 @@ class Secrets extends Context.Service<Secrets, {
 - `set` stores `NAME=varlock(local:...)` (device-bound encryption) in `~/.zarg/.env.local`, then calls `Env.reload`. Plaintext secrets are never written to disk.
 - **Unverified:** varlock's docs describe `varlock(local:...)` values but not a programmatic API that encrypts and writes one. The first plan task is a spike that decides between a programmatic call and shelling out to the varlock CLI.
 - `Secrets` is a host service. It is in no RLM preset's layer.
-- The `/login` flow and secret management are requirements. They are captured as cards in the graph after this spec and built in 2b on top of `Secrets`.
+- The `/login` flow is captured as UX-0026..UX-0033. Its operations are in "Providers"; its commands and inquiry are built in 2b.
 
 ### Leak guard
 
@@ -299,7 +323,7 @@ No test in `mise run verify` touches the network.
 
 1. Spike: varlock `load()` under Bun 1.4.2, and how to encrypt a value (programmatic or CLI).
 2. `Env`, config loader, `Secrets`.
-3. `@zarg/model` (OpenRouter-wire adapter).
+3. `@zarg/model`: provider contract and the OpenRouter-wire adapter; then the zarg-router and OpenRouter provider plugins.
 4. `@zarg/decisions`.
 5. `@zarg/kernel`.
 6. Plugin tools become plugin services; `zarg tool call` keeps working.
