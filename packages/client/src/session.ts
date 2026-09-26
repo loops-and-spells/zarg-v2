@@ -49,17 +49,24 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
     f.addObserver(() => fibers.delete(f))
   }
 
-  const follow = (attempt: number): Effect.Effect<void> =>
-    Stream.runForEach(opts.client.stream(state.thread.seq), (e) =>
-      Effect.sync(() => set({ ...state, thread: reduce(state.thread, e), core: "up" })),
+  const follow = (attempt: number): Effect.Effect<void> => {
+    // A connection that delivered events was healthy: the next break starts counting from zero.
+    let received = false
+    return Stream.runForEach(opts.client.stream(state.thread.seq), (e) =>
+      Effect.sync(() => {
+        received = true
+        set({ ...state, thread: reduce(state.thread, e), core: "up" })
+      }),
     ).pipe(
       Effect.catch((e) => Effect.succeed(e.message)),
-      Effect.flatMap((problem) =>
-        attempt < RETRIES
+      Effect.flatMap((problem) => {
+        if (received) attempt = 0
+        return attempt < RETRIES
           ? Effect.andThen(Effect.sleep(200 * (attempt + 1)), follow(attempt + 1))
-          : Effect.sync(() => set({ ...state, core: "down", notice: `core stopped${typeof problem === "string" ? `: ${problem}` : ""}` })),
-      ),
+          : Effect.sync(() => set({ ...state, core: "down", notice: `core stopped${typeof problem === "string" ? `: ${problem}` : ""}` }))
+      }),
     )
+  }
 
   const post = (r: Omit<RunRequest, "threadId" | "focus">) =>
     fork(

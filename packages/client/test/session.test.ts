@@ -81,6 +81,22 @@ describe("session", () => {
     s.close()
   })
 
+  test("reconnects that deliver events reset the retry count", async () => {
+    const f = fakeClient()
+    const s = makeSession({ client: f.client, threadId: "main" })
+    s.start()
+    for (let seq = 1; seq <= 5; seq++) {
+      await tick(250)
+      f.push({ type: "RUN_STARTED", threadId: "main", seq, runId: `r${seq}` })
+      await tick()
+      Effect.runSync(Queue.end(f.streams.at(-1)!.queue))
+    }
+    await tick(300)
+    expect(s.state().core).toBe("up")
+    expect(f.streams.map((x) => x.since)).toEqual([0, 1, 2, 3, 4, 5])
+    await s.close()
+  })
+
   test("when the core cannot be reached after retries it counts as stopped", async () => {
     const f = fakeClient({ streamFails: true })
     const s = makeSession({ client: f.client, threadId: "main" })

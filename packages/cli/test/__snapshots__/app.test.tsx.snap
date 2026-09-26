@@ -14,9 +14,9 @@ exports[`tui frames an inquiry: picker with the recommended option preselected a
 │                                                            ││                                              │
 │                                                            ││                                              │
 │                                                            ││                                              │
-│                                                            ││                                              │
 └────────────────────────────────────────────────────────────┘└──────────────────────────────────────────────┘
-┌─Which card first?──────────────────────────────────────────────────────────────────────────────────────────┐
+┌─Question───────────────────────────────────────────────────────────────────────────────────────────────────┐
+│Which card first?                                                                                           │
 │  Login                                                                                                     │
 │› Checkout (recommended) — most used                                                                        │
 │  Something else…                                                                                           │
@@ -24,7 +24,7 @@ exports[`tui frames an inquiry: picker with the recommended option preselected a
 ┌─Message────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │choose above, or pick Something else…                                                                       │
 └────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-thread main · zarg-router:deepseek-v4.1-flash-exl3 · core child · waiting   ^C stop · ^C^C exit · Tab agents  
+core child · waiting · thread main · zarg-router:deepseek-v4.1-flash-exl3   ^C stop · ^C^C exit · Tab agents  
 "
 `;
 
@@ -52,6 +52,6 @@ exports[`tui frames a run error shows its kind and message in the conversation 1
 ┌─Message────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │type a message, Enter to send                                                                               │
 └────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-thread main · zarg-router:deepseek-v4.1-flash-exl3 · core child · error   ^C stop · ^C^C exit · Tab agents    
+core child · error · thread main · zarg-router:deepseek-v4.1-flash-exl3   ^C stop · ^C^C exit · Tab agents    
 "
 `;

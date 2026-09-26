@@ -56,7 +56,10 @@ export const makeLog = (dir: string, redact: (text: string) => string) =>
         }),
       )
 
-    return { append, stream, all: () => events as ReadonlyArray<WireEvent>, exists: (threadId: string) => existsSync(join(dir, `${threadId}.jsonl`)) }
+    /** End every live stream (shutdown): open SSE responses finish instead of holding the server open. */
+    const close = PubSub.shutdown(hub)
+
+    return { append, stream, close, all: () => events as ReadonlyArray<WireEvent>, exists: (threadId: string) => existsSync(join(dir, `${threadId}.jsonl`)) }
   })
 
 export type ThreadLog = Effect.Success<ReturnType<typeof makeLog>>

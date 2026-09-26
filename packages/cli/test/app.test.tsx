@@ -72,7 +72,7 @@ describe("tui frames", () => {
     expect(frame).toContain("  Something else…")
     expect(frame).toContain("driver rlm-1  3/25 5847 tok  running")
     expect(frame).toContain("  research rlm-2  2/15  done")
-    expect(frame).toContain("thread main · zarg-router:deepseek-v4.1-flash-exl3 · core child · waiting")
+    expect(frame).toContain("core child · waiting · thread main · zarg-router:deepseek-v4.1-flash-exl3")
     expect(frame).toMatchSnapshot()
   })
 
@@ -117,5 +117,36 @@ describe("tui frames", () => {
     const rows = t.captureCharFrame().split("\n").filter((r) => r.includes("word"))
     expect(rows.length).toBeGreaterThan(1)
     expect(rows.join(" ").match(/word/g)?.length).toBe(40)
+  })
+
+  test("a long question wraps inside the picker at 80 columns", async () => {
+    const question = "Checkout has two open branches: card declined and address invalid. Which one should we specify first, given the agenda?"
+    const t = await render({ ...waiting, thread: { ...waiting.thread, pendingInquiry: { ...inquiry, question } } }, { width: 80, height: 30 })
+    const words = t.captureCharFrame().match(/[A-Za-z:,.?]+/g) ?? []
+    for (const w of question.split(" ")) expect(words).toContain(w)
+  })
+
+  test("at 80 columns with a long thread and driver, the status line still shows the core state and thread status", async () => {
+    const fake = fakeSession({ thread: { ...initial("feature-checkout-refactor"), status: "error" }, core: "down" })
+    const t = await testRender(
+      <App session={fake.session} meta={{ threadId: "feature-checkout-refactor", driver: "openrouter:anthropic/claude-sonnet-4.5", mode: "child" }} onExit={() => {}} />,
+      { width: 80, height: 24 },
+    )
+    destroy = () => t.renderer.destroy()
+    await t.waitForVisualIdle()
+    expect(t.captureCharFrame()).toContain("core stopped · error")
+  })
+
+  test("Tab moves focus to the agents pane, where arrows scroll a tall tree", async () => {
+    const rlms = Object.fromEntries(
+      Array.from({ length: 40 }, (_, i) => [`rlm-${i + 1}`, { id: `rlm-${i + 1}`, parent: i === 0 ? null : "rlm-1", preset: i === 0 ? "driver" : "research", depth: i === 0 ? 0 : 1, turns: 1, budget: 15, status: "done" as const, decisions: [] }]),
+    )
+    const t = await render({ thread: { ...initial("main"), status: "running", rlms }, core: "up" })
+    expect(t.captureCharFrame()).not.toContain("rlm-40 ")
+    t.mockInput.pressTab()
+    await t.waitForVisualIdle()
+    for (let i = 0; i < 40; i++) t.mockInput.pressArrow("down")
+    await t.waitForVisualIdle()
+    expect(t.captureCharFrame()).toContain("research rlm-40")
   })
 })

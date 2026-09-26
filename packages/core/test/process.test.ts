@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { Effect, Stream } from "effect"
+import { Effect, Fiber, Stream } from "effect"
 import { makeClient, readInfo } from "@zarg/client"
 
 const main = join(import.meta.dir, "..", "src", "main.ts")
@@ -79,6 +79,18 @@ describe("zarg-core process", () => {
     expect(events.at(-1)).toMatchObject({ type: "RUN_FINISHED", outcome: { type: "interrupt", interrupts: [{ message: "Stubbed?" }] } })
     proc.stdin.end()
     await proc.exited
+  }, 20_000)
+
+  test("a core with a client following its event stream still stops within 2s", async () => {
+    const { proc } = await start("headless")
+    const info = readInfo(root)!
+    const follower = Effect.runFork(Stream.runDrain(makeClient(info).stream(0)))
+    await Bun.sleep(200)
+    const t0 = Date.now()
+    proc.kill("SIGTERM")
+    await proc.exited
+    expect(Date.now() - t0).toBeLessThan(2000)
+    Effect.runFork(Fiber.interrupt(follower))
   }, 20_000)
 
   test("a core that cannot start exits 1 with the reason on stderr and leaves no core.json", () => {

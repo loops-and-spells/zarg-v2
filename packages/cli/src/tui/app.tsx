@@ -51,17 +51,18 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             </text>
           ))}
         </scrollbox>
-        <box title="Agents" style={{ width: 48, border: true, borderColor: ui.focus === "agents" ? COLORS.accent : COLORS.dim, flexDirection: "column" }}>
+        <scrollbox title="Agents" focused={ui.focus === "agents"} style={{ width: 48, border: true, borderColor: ui.focus === "agents" ? COLORS.accent : COLORS.dim }}>
           {agents.length === 0 ? <text fg={COLORS.dim}>no agents running</text> : null}
           {agents.map((a, i) => (
             <text key={i} fg={a.kind === "decision" ? COLORS.dim : COLORS.zarg}>
               {`${"  ".repeat(a.depth)}${a.kind === "decision" ? "· " : ""}${a.text}`}
             </text>
           ))}
-        </box>
+        </scrollbox>
       </box>
       {inquiry !== undefined ? (
-        <box title={inquiry.question} style={{ border: true, borderColor: COLORS.accent, flexDirection: "column", flexShrink: 0 }}>
+        <box title="Question" style={{ border: true, borderColor: COLORS.accent, flexDirection: "column", flexShrink: 0 }}>
+          <text fg={COLORS.zarg}>{inquiry.question}</text>
           {pickerRows(inquiry, ui.pick).map((r) => (
             <text key={r.id} fg={r.selected ? COLORS.accent : COLORS.zarg}>
               {`${r.selected ? "›" : " "} ${r.label}${r.recommended ? " (recommended)" : ""}${r.selected && r.why !== undefined ? ` — ${r.why}` : ""}`}

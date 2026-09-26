@@ -1,5 +1,5 @@
 import { dirname, join } from "node:path"
-import { createCliRenderer } from "@opentui/core"
+import { type CliRenderer, createCliRenderer } from "@opentui/core"
 import { createRoot } from "@opentui/react"
 import { Effect } from "effect"
 import { connect, makeClient, makeSession, type Session } from "@zarg/client"
@@ -35,19 +35,27 @@ export const openSession = (opts: { readonly root: string; readonly threadId: st
     } satisfies Opened
   })
 
+/**
+ * Render the app on `renderer` until the renderer is destroyed, then close the session (stopping a child
+ * core). Every way out ends there: the exit keys, a signal (OpenTUI destroys the renderer on SIGINT, SIGTERM,
+ * SIGHUP) or an app that crashed, since Ctrl-D is also watched below React.
+ */
+export const mount = (renderer: CliRenderer, opened: Opened) =>
+  new Promise<void>((done) => {
+    const exit = () => {
+      if (!renderer.isDestroyed) renderer.destroy()
+    }
+    renderer.once("destroy", () => void opened.close().then(done))
+    renderer.keyInput.on("keypress", (key) => {
+      if (key.ctrl && key.name === "d") exit()
+    })
+    createRoot(renderer).render(<App session={opened.session} meta={opened.meta} onExit={exit} />)
+    opened.session.start()
+  })
+
 /** `zarg`: open the TUI on a thread; resolves when the developer exits. */
 export const runTui = (opts: { readonly root: string; readonly threadId: string; readonly focus: ReadonlyArray<string> }) =>
   Effect.gen(function* () {
     const opened = yield* openSession(opts)
-    yield* Effect.promise(async () => {
-      const renderer = await createCliRenderer({ exitOnCtrlC: false })
-      await new Promise<void>((done) => {
-        const exit = () => {
-          renderer.destroy()
-          void opened.close().then(done)
-        }
-        createRoot(renderer).render(<App session={opened.session} meta={opened.meta} onExit={exit} />)
-        opened.session.start()
-      })
-    })
+    yield* Effect.promise(async () => mount(await createCliRenderer({ exitOnCtrlC: false }), opened))
   })

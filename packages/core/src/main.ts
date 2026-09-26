@@ -50,6 +50,8 @@ const program = Effect.gen(function* () {
       Layer.provide([BunHttpServer.layer({ unix: socket }), Layer.succeed(Threads, core.threads), Layer.succeed(Log, core.log), Layer.succeed(Token, token)]),
     ),
   )
+  // Finalizers run in reverse: live streams end first, so the server's graceful stop does not wait on them.
+  yield* Effect.addFinalizer(() => core.log.close)
   markReady(root, { ...info, ...(core.driver !== undefined ? { driver: core.driver } : {}) })
   console.log(`ready ${socket}`)
   // SIGINT and SIGTERM interrupt this fiber (runMain); finalizers stop the server and release core.json.

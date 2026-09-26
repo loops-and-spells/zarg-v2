@@ -41,8 +41,17 @@ describe("picker", () => {
     ui = onKey(ui, waiting, { name: "return" }, 0).ui
     expect(ui.other).toBe(true)
     expect(inputFocused(ui, waiting)).toBe(true)
-    expect(onSubmit(ui, waiting, "do payments first")).toEqual({ ui: { ...ui, other: false }, action: { type: "answer", answer: { other: "do payments first" } } })
+    expect(onSubmit(ui, waiting, "do payments first")).toEqual({ ui: { ...ui, other: false, answered: "inq-1" }, action: { type: "answer", answer: { other: "do payments first" } } })
     expect(onKey(ui, waiting, { name: "escape" }, 0).ui.other).toBe(false)
+  })
+
+  test("a second Enter on the same inquiry does nothing (the answer is on its way)", () => {
+    const ui = syncUi(initialUi, waiting)
+    const first = onKey(ui, waiting, { name: "return" }, 0)
+    expect(first.action).toEqual({ type: "answer", answer: { choice: "b" } })
+    expect(onKey(first.ui, waiting, { name: "return" }, 0).action).toBeUndefined()
+    const typed = onSubmit({ ...first.ui, other: true }, waiting, "text")
+    expect(typed.action).toBeUndefined()
   })
 
   test("once the inquiry is answered the picker state clears", () => {
@@ -81,7 +90,7 @@ describe("conversation, agents and status", () => {
       { kind: "error", text: "model: router down" },
       { kind: "notice", text: "core stopped" },
     ])
-    expect(statusLine(s, { threadId: "main", driver: "zarg-router:deepseek", mode: "child" })).toBe("thread main · zarg-router:deepseek · core stopped · error")
+    expect(statusLine(s, { threadId: "main", driver: "zarg-router:deepseek", mode: "child" })).toBe("core stopped · error · thread main · zarg-router:deepseek")
   })
 
   test("the RLM tree nests children under parents with decisions and confidence", () => {

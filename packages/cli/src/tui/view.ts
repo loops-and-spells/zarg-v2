@@ -9,6 +9,8 @@ export interface Ui {
   readonly inquiryId?: string
   /** True while the "Something else…" text field is open. */
   readonly other: boolean
+  /** The inquiry already answered: further Enters wait for the core to move on. */
+  readonly answered?: string
   /** When Ctrl-C was last pressed (ms); a second press within `EXIT_WINDOW_MS` exits. */
   readonly lastCtrlC?: number
 }
@@ -92,13 +94,9 @@ export interface Meta {
   readonly mode: "child" | "headless"
 }
 
+/** Most important first, so a narrow terminal cuts the driver model, never the core state. */
 export const statusLine = (s: SessionState, meta: Meta) =>
-  [
-    `thread ${meta.threadId}`,
-    meta.driver ?? "driver model unknown",
-    s.core === "down" ? "core stopped" : `core ${meta.mode}`,
-    s.thread.status,
-  ].join(" · ")
+  [s.core === "down" ? "core stopped" : `core ${meta.mode}`, s.thread.status, `thread ${meta.threadId}`, meta.driver ?? "driver model unknown"].join(" · ")
 
 export interface Key {
   readonly name: string
@@ -120,7 +118,8 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number): { readonl
   }
   if (key.name === "tab") return { ui: { ...ui, focus: ui.focus === "conversation" ? "agents" : "conversation" } }
   const inquiry = s.thread.pendingInquiry
-  if (inquiry === undefined) return { ui }
+  // The picker takes keys only while the conversation side has focus; on the agents pane arrows scroll.
+  if (inquiry === undefined || ui.focus !== "conversation" || ui.answered === inquiry.id) return { ui }
   if (ui.other) return key.name === "escape" ? { ui: { ...ui, other: false } } : { ui }
   const rows = pickerRows(inquiry, ui.pick)
   if (key.name === "up") return { ui: { ...ui, pick: Math.max(0, ui.pick - 1) } }
@@ -129,7 +128,7 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number): { readonl
     const row = rows[ui.pick]
     if (row === undefined) return { ui }
     if (row.id === OTHER) return { ui: { ...ui, other: true } }
-    return { ui, action: { type: "answer", answer: { choice: row.id } } }
+    return { ui: { ...ui, answered: inquiry.id }, action: { type: "answer", answer: { choice: row.id } } }
   }
   return { ui }
 }
@@ -137,9 +136,13 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number): { readonl
 /** Enter in the text field: the "Something else…" answer, or a message (an interjection while the driver works). */
 export const onSubmit = (ui: Ui, s: SessionState, text: string): { readonly ui: Ui; readonly action?: Action } => {
   if (text.trim().length === 0) return { ui }
-  if (ui.other && s.thread.pendingInquiry !== undefined) return { ui: { ...ui, other: false }, action: { type: "answer", answer: { other: text } } }
+  const inquiry = s.thread.pendingInquiry
+  if (ui.other && inquiry !== undefined) {
+    if (ui.answered === inquiry.id) return { ui }
+    return { ui: { ...ui, other: false, answered: inquiry.id }, action: { type: "answer", answer: { other: text } } }
+  }
   return { ui, action: { type: "send", text } }
 }
 
 /** The text field takes keys unless the picker is choosing. */
-export const inputFocused = (ui: Ui, s: SessionState) => s.thread.pendingInquiry === undefined || ui.other
+export const inputFocused = (ui: Ui, s: SessionState) => ui.focus === "conversation" && (s.thread.pendingInquiry === undefined || ui.other)
