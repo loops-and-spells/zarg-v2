@@ -68,6 +68,15 @@ const checkNode = (reg: Registry, ctx: LintContext, node: Node): ReadonlyArray<F
       out.push(error("edge-target", `${node.id}: "${edge.type}" must point to a ${spec.to}, ${edge.to} is a ${target.type}`, [node.id, edge.to]))
     }
   }
+  // @card UX-0007
+  const seen = new Set<string>()
+  for (const edge of node.edges) {
+    const key = `${edge.type}\u0000${edge.to}`
+    if (seen.has(key)) {
+      out.push(error("duplicate-edge", `${node.id}: links ${edge.to} as "${edge.type}" twice; remove the duplicate`, [node.id, edge.to]))
+    }
+    seen.add(key)
+  }
   for (const [type, spec] of reg.edges) {
     if (spec.from !== node.type) continue
     const n = node.edges.filter((e) => e.type === type).length

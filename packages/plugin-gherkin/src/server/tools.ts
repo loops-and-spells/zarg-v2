@@ -54,6 +54,7 @@ export const addState = tool({
     }),
 })
 
+// @card UX-0004
 export const editState = tool({
   name: "edit-state",
   description: "Reword a state or change its entry/terminal flags. Every card using it updates.",
@@ -70,6 +71,7 @@ export const editState = tool({
     })),
 })
 
+// @card UX-0002
 export const addCard = tool({
   name: "add-card",
   description: "Add a card: one arrival Given, up to 3 extra Givens, one When, 1-5 Thens. States by {id} or {text}.",

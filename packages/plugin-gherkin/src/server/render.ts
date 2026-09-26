@@ -19,6 +19,7 @@ const renderCard = (snap: Snapshot.Snapshot, card: Node): string => {
 }
 
 /** Gherkin text for every card (or those touching `focus`), then states no card uses. */
+// @card UX-0002
 export const render = (snap: Snapshot.Snapshot, focus?: ReadonlySet<string>): string => {
   const shown = cards(snap).filter(
     (c) => focus === undefined || focus.has(c.id) || c.edges.some((e) => focus.has(e.to)),

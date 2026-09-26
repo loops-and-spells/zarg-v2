@@ -22,6 +22,7 @@ beforeAll(() => {
 afterAll(() => rmSync(dir, { recursive: true, force: true }))
 
 describe("zarg cli", () => {
+  // @card UX-0002
   test("tool call writes the graph and render shows it", () => {
     expect(json("tool", "call", "gherkin/add-state", '{"text":"the home page is shown","entry":true}').added).toEqual(["S-0001"])
     const r = json("tool", "call", "gherkin/add-card", JSON.stringify({ title: "Open pricing", when: "the user clicks Pricing", arrives: { id: "S-0001" }, then: [{ text: "the plan picker is shown" }] }))
@@ -36,6 +37,7 @@ describe("zarg cli", () => {
     expect(s.inbound).toEqual([{ from: "UX-0001", type: "gherkin/then" }])
   })
 
+  // @card UX-0003
   test("failures are JSON on stderr with exit code 1", () => {
     const r = zarg("tool", "call", "gherkin/add-state", '{"text":"shown if paid"}')
     expect(r.code).toBe(1)
@@ -50,6 +52,7 @@ describe("zarg cli", () => {
     expect(JSON.parse(r.err).error).toBe("StaleNode")
   })
 
+  // @card UX-0005
   test("diff --since compares a git ref with the working tree", () => {
     git("add", ".zarg")
     git("commit", "-qm", "graph")
@@ -59,6 +62,7 @@ describe("zarg cli", () => {
     expect(d.added).toEqual([])
   })
 
+  // @card UX-0001
   test("agenda and focus", () => {
     const ids = json("agenda").map((i: { id: string }) => i.id)
     expect(ids).toEqual(["gherkin:dead-end:S-0002"])
@@ -66,10 +70,10 @@ describe("zarg cli", () => {
   })
 
   test("query code finds @card tags in tracked files", async () => {
-    await Bun.write(join(dir, "app.ts"), "// @card UX-0001\n")
+    await Bun.write(join(dir, "app.ts"), "// @card UX-0999\n")
     git("add", "app.ts")
-    expect(json("query", "code", "UX-0001")).toEqual(["app.ts:1:// @card UX-0001"])
-    expect(json("query", "code", "UX-0002")).toEqual([])
+    expect(json("query", "code", "UX-0999")).toEqual(["app.ts:1:// @card UX-0999"])
+    expect(json("query", "code", "UX-0998")).toEqual([])
   })
 
   test("a malformed --expect is an error, not ignored", () => {

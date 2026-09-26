@@ -80,6 +80,7 @@ describe("PluginHost.call", () => {
 })
 
 describe("PluginHost read side", () => {
+  // @card UX-0001
   test("agenda lists plugin items and bad files, filtered by focus", async () => {
     const out = await run(
       Effect.gen(function* () {

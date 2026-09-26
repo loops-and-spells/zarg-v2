@@ -10,6 +10,7 @@ const sh = (cwd: string, args: ReadonlyArray<string>) =>
 const decode = Schema.decodeUnknownEffect(Schema.fromJsonString(Node))
 
 /** The graph as committed at `ref`, read with git (the working tree is untouched). Undecodable files are skipped and reported. */
+// @card UX-0005
 export const snapshotAt = (root: string, ref: string) =>
   Effect.gen(function* () {
     // --full-name: paths from the repo top, which is what `git show ref:path` expects.

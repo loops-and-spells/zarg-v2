@@ -74,6 +74,7 @@ export const layer = (dir: string): Layer.Layer<GraphStore, never, FileSystem.Fi
 
       const snapshot = Effect.map(load, (l) => l.snapshot)
 
+      // @card UX-0002
       const commit = (changes: ReadonlyArray<Change>, expect: Expect = {}) =>
         Effect.gen(function* () {
           for (const c of changes) {

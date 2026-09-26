@@ -20,6 +20,7 @@ describe("GraphStore", () => {
     expect(size).toBe(0)
   })
 
+  // @card UX-0002
   test("commit writes canonical files and snapshot reads them back", async () => {
     const result = await withStore((dir) =>
       Effect.gen(function* () {

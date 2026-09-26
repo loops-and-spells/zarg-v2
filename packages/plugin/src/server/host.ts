@@ -86,6 +86,7 @@ export const layer = (
           const d = diff(before, after)
           const findings = check(reg, { before, after, diff: d })
           const errors = findings.filter((f) => f.severity === "error")
+          // @card UX-0006
           if (errors.length > 0) return yield* new LintFailed({ findings: errors })
           // Guard against writes that land between our read and our commit.
           const touched: Record<string, string> = {}
@@ -108,6 +109,7 @@ export const layer = (
         check(reg, { before: Snapshot.empty, after, diff: diff(Snapshot.empty, after) }),
       )
 
+      // @card UX-0001
       const agenda = (focus?: ReadonlySet<string>) =>
         Effect.map(store.load, (loaded) =>
           [...problemItems(loaded), ...plugins.flatMap((p) => p.agenda?.(loaded.snapshot) ?? [])]

@@ -44,6 +44,22 @@ describe("check", () => {
     const n2: Node = { id: "N-0002", type: "notes/note", props: { text: "b" }, edges: [{ type: "notes/about", to: "N-0001" }] }
     expect(findings([topic, n1, n2])).toEqual(["edge-target"])
   })
+  // @card UX-0007
+  test("the same edge twice is refused with a fix hint", () => {
+    const note: Node = {
+      id: "N-0001",
+      type: "notes/note",
+      props: { text: "a" },
+      edges: [{ type: "notes/about", to: "T-0001" }, { type: "notes/about", to: "T-0001" }],
+    }
+    const after = Snapshot.make([topic, note])
+    const found = check(reg, { before: Snapshot.empty, after, diff: diff(Snapshot.empty, after) })
+    expect(found.map((f) => f.code)).toContain("duplicate-edge")
+    expect(found.find((f) => f.code === "duplicate-edge")?.message).toBe(
+      'N-0001: links T-0001 as "notes/about" twice; remove the duplicate',
+    )
+  })
+
   test("plugin lints run after structural checks", () => {
     expect(findings([{ ...topic, props: { name: "" } }])).toEqual(["empty-name"])
   })

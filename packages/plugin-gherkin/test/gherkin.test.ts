@@ -4,6 +4,7 @@ import { PluginHost } from "@zarg/plugin/server"
 import { call, pricing, run } from "./harness"
 
 describe("pricing example", () => {
+  // @card UX-0002
   test("renders as Gherkin with shared states", async () => {
     const text = await run(Effect.andThen(pricing, PluginHost.use((h) => h.render(new Set(["UX-0003"])))))
     expect(text).toBe(
@@ -22,6 +23,7 @@ describe("pricing example", () => {
     expect(text).not.toContain("S-0007")
   })
 
+  // @card UX-0004
   test("rewording a state changes every card that uses it", async () => {
     const text = await run(
       Effect.gen(function* () {
@@ -81,9 +83,24 @@ describe("gherkin rules", () => {
     expect(err._tag === "LintFailed" && err.findings.map((f) => f.code)).toContain("too-many-edges")
   })
 
+  // @card UX-0003
   test("a clause with 'if' is rejected", async () => {
     const err = await run(Effect.flip(call("add-state", { text: "the form is shown if the user is signed in" })))
     expect(err._tag === "LintFailed" && err.findings[0]?.code).toBe("conditional")
+  })
+
+  // @card UX-0006
+  test("a refused change succeeds when retried using the hint", async () => {
+    const out = await run(
+      Effect.gen(function* () {
+        const err = yield* Effect.flip(call("add-state", { text: "the form is shown if paid" }))
+        const hint = err._tag === "LintFailed" ? err.findings[0]?.message : ""
+        const ok = yield* call("add-state", { text: "the paid form is shown" })
+        return { hint, added: ok.added }
+      }),
+    )
+    expect(out.hint).toContain("make one card per case instead")
+    expect(out.added).toEqual(["S-0001"])
   })
 
   test("a clause over 15 words is rejected", async () => {
@@ -129,6 +146,17 @@ describe("gherkin rules", () => {
     )
     expect(text).toContain("Given the visitor is on the home page  # S-0001")
     expect(text).not.toContain("S-0002")
+  })
+
+  // @card UX-0007
+  test("add-card with the same Then twice is refused", async () => {
+    const err = await run(
+      Effect.andThen(
+        pricing,
+        Effect.flip(call("add-card", { title: "t", when: "the user acts", arrives: { id: "S-0001" }, then: [{ id: "S-0002" }, { id: "S-0002" }] })),
+      ),
+    )
+    expect(err._tag === "LintFailed" && err.findings.map((f) => f.code)).toContain("duplicate-edge")
   })
 
   test("unlink removes a then edge", async () => {

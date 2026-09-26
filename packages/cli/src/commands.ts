@@ -62,6 +62,7 @@ const render = Command.make("render", { focus, k }, (o) =>
   Effect.flatMap(focusSet(o.focus, o.k), (f) => PluginHost.use((h) => Effect.flatMap(h.render(f), print))),
 )
 
+// @card UX-0001
 const agenda = Command.make("agenda", { focus, k }, (o) =>
   Effect.flatMap(focusSet(o.focus, o.k), (f) => PluginHost.use((h) => Effect.flatMap(h.agenda(f), print))),
 )
@@ -76,6 +77,7 @@ const code = Command.make("code", { id: Argument.String("id") }, ({ id }) => Eff
 
 const query = Command.make("query").pipe(Command.withSubcommands([neighbors, code]))
 
+// @card UX-0005
 const diffCmd = Command.make("diff", { since: Flag.String("since").pipe(Flag.withDescription("git ref")) }, ({ since }) =>
   Effect.gen(function* () {
     const before = yield* snapshotAt(root, since)
