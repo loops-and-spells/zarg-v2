@@ -1,0 +1,63 @@
+import { afterAll, describe, expect, test } from "bun:test"
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { Effect } from "effect"
+import { makeClient, readInfo } from "@zarg/client"
+
+const main = join(import.meta.dir, "..", "src", "main.ts")
+const root = mkdtempSync(join(tmpdir(), "zarg-proc-"))
+writeFileSync(join(root, ".env.schema"), "# @defaultSensitive=false\n# ---\n")
+afterAll(() => rmSync(root, { recursive: true, force: true }))
+
+const start = async (mode: "child" | "headless") => {
+  const proc = Bun.spawn([process.execPath, main, "--root", root, "--mode", mode], { stdin: "pipe", stdout: "pipe", stderr: "pipe" })
+  const reader = proc.stdout.getReader()
+  const { value } = await reader.read()
+  reader.releaseLock()
+  return { proc, first: new TextDecoder().decode(value) }
+}
+
+describe("zarg-core process", () => {
+  test("a child core serves its socket with a token, refuses a second core, and exits when stdin closes", async () => {
+    const { proc, first } = await start("child")
+    expect(first.startsWith("ready ")).toBe(true)
+    const info = readInfo(root)!
+    expect(info).toMatchObject({ pid: proc.pid, mode: "child" })
+
+    expect(await Effect.runPromise(makeClient(info).threads())).toEqual([{ id: "main", focus: [], status: "idle" }])
+    const denied = await Effect.runPromise(Effect.flip(makeClient({ socket: info.socket, token: "wrong" }).threads()))
+    expect(denied.status).toBe(401)
+
+    const second = Bun.spawnSync([process.execPath, main, "--root", root, "--mode", "headless"])
+    expect(second.exitCode).toBe(2)
+    expect(second.stderr.toString()).toContain("already running")
+
+    proc.stdin.end()
+    expect(await proc.exited).toBe(0)
+    expect(readInfo(root)).toBeUndefined()
+  }, 20_000)
+
+  test("a core killed without cleanup leaves files behind; the next core starts anyway", async () => {
+    const first = await start("child")
+    first.proc.kill("SIGKILL")
+    await first.proc.exited
+    const second = await start("child")
+    expect(second.first.startsWith("ready ")).toBe(true)
+    expect(await Effect.runPromise(makeClient(readInfo(root)!).threads())).toHaveLength(1)
+    second.proc.stdin.end()
+    await second.proc.exited
+  }, 20_000)
+
+  test("a core that cannot start exits 1 with the reason on stderr and leaves no core.json", () => {
+    const broken = mkdtempSync(join(tmpdir(), "zarg-proc-bad-"))
+    mkdirSync(join(broken, ".zarg"))
+    writeFileSync(join(broken, ".zarg", "config.toml"), "not = [valid toml\n")
+    writeFileSync(join(broken, ".env.schema"), "# @defaultSensitive=false\n# ---\n")
+    const r = Bun.spawnSync([process.execPath, main, "--root", broken, "--mode", "child"], { stdin: "ignore" })
+    rmSync(broken, { recursive: true, force: true })
+    expect(r.exitCode).toBe(1)
+    expect(r.stderr.toString()).toContain("invalid TOML")
+    expect(readInfo(broken)).toBeUndefined()
+  }, 20_000)
+})

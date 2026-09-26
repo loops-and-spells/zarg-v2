@@ -34,8 +34,10 @@ packages/<name>/
 - `packages/decisions` (`@zarg/decisions`): `Decisions` service (JEV `/systemone`, structured fallback).
 - `packages/kernel` (`@zarg/kernel`): yieldable service definitions, the manifest they generate, and the Bun Worker kernel that typechecks and runs cells.
 - `packages/rlm` (`@zarg/rlm`): the RLM (unit of agency): presets and spawn graph, scoped core services (`Graph`, `Fs`, `Sh`, `Verify`, `Agenda`, `Inquire`), plugin tools as services, and the turn loop.
+- `packages/core` (`@zarg/core`): `zarg-core`, one per project: driver threads on RLMs, the AG-UI API on `.zarg/run/core.sock` (token in `.zarg/run/core.json`), thread logs in `.zarg/threads/`.
+- `packages/client` (`@zarg/client`): attach to or start a core, the AG-UI client, and `reduce` (events → thread state). Never imports `@zarg/core` or a `/server` subpath.
 
-Design: `docs/superpowers/specs/2026-09-25-harness-architecture-design.md` and `docs/superpowers/specs/2026-09-25-agent-runtime-design.md`.
+Design: `docs/superpowers/specs/2026-09-25-harness-architecture-design.md`, `docs/superpowers/specs/2026-09-25-agent-runtime-design.md` and `docs/superpowers/specs/2026-09-26-core-driver-tui-design.md`.
 
 ## Secrets
 

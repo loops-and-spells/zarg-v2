@@ -1,0 +1,68 @@
+#!/usr/bin/env bun
+// zarg-core: one per project. `--mode child` (default) exits with its parent; `--mode headless` runs until stopped.
+import { randomBytes } from "node:crypto"
+import { rmSync, writeSync } from "node:fs"
+import { join } from "node:path"
+import { parseArgs } from "node:util"
+import { BunHttpServer, BunRuntime } from "@effect/platform-bun"
+import { Cause, Effect, Exit, Layer, Runtime } from "effect"
+import { HttpRouter } from "effect/unstable/http"
+import { runDir } from "@zarg/client"
+import { claim, release } from "./lifecycle"
+import { liveCore, liveLayer } from "./live"
+import { api, Log, Threads, Token } from "./server"
+
+const { values } = parseArgs({ options: { root: { type: "string" }, mode: { type: "string" } } })
+const root = values.root ?? process.cwd()
+const mode = values.mode === "headless" ? "headless" : "child"
+const socket = join(runDir(root), "core.sock")
+const token = randomBytes(24).toString("hex")
+const owner = mode === "child" ? process.ppid : undefined
+
+/** Completes when the parent CLI is gone: its stdin pipe closes or this process is re-parented. */
+const parentGone = Effect.callback<void>((resume) => {
+  const done = () => resume(Effect.void)
+  process.stdin.on("end", done)
+  process.stdin.on("close", done)
+  process.stdin.resume()
+  const timer = setInterval(() => {
+    if (process.ppid !== owner) done()
+  }, 1000)
+  return Effect.sync(() => clearInterval(timer))
+})
+
+const program = Effect.gen(function* () {
+  const claimed = claim(root, { pid: process.pid, socket, token, mode, ...(owner !== undefined ? { owner } : {}) })
+  if (!claimed.ok) {
+    console.error(claimed.reason)
+    return yield* Effect.sync(() => process.exit(2))
+  }
+  yield* Effect.addFinalizer(() => Effect.sync(() => release(root, process.pid)))
+  const core = yield* liveCore(root)
+  // A core killed without cleanup leaves its socket file; we hold the claim now, so it is safe to remove.
+  rmSync(socket, { force: true })
+  yield* Layer.build(
+    HttpRouter.serve(api, { disableListenLog: true, disableLogger: true }).pipe(
+      Layer.provide([BunHttpServer.layer({ unix: socket }), Layer.succeed(Threads, core.threads), Layer.succeed(Log, core.log), Layer.succeed(Token, token)]),
+    ),
+  )
+  console.log(`ready ${socket}`)
+  // SIGINT and SIGTERM interrupt this fiber (runMain); finalizers stop the server and release core.json.
+  yield* mode === "child" ? parentGone : Effect.never
+}).pipe(Effect.scoped, Effect.provide(liveLayer(root)))
+
+// Exit once finalizers ran, on success too: open handles (stdin, workers) would otherwise keep the process alive.
+// A failure is written synchronously first: a piped stderr would lose an async log at process.exit.
+BunRuntime.runMain(program, {
+  disableErrorReporting: true,
+  teardown: (exit, onExit) => {
+    if (Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)) {
+      const e = Cause.squash(exit.cause)
+      writeSync(2, `zarg-core: ${e instanceof Error ? e.message : String(e)}\n`)
+    }
+    Runtime.defaultTeardown(exit, (code) => {
+      onExit(code)
+      process.exit(code)
+    })
+  },
+})
