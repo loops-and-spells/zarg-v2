@@ -2,7 +2,7 @@ import { Data, Effect, Ref, Schema, Semaphore, Stream } from "effect"
 import { bind, type Bound, defineService, Kernel, type ServiceFailure, tsType } from "@zarg/kernel"
 import { Model, type ChatMessage, type ToolCall } from "@zarg/model"
 import type { Decisions } from "@zarg/decisions"
-import { atomize, type ChildResult, requestPlan, scopeOf, waves } from "./fold"
+import { atomize, type ChildResult, preview, requestPlan, scopeOf, waves } from "./fold"
 import { budgetOf, type Budget, type Preset, RESULTS, type RlmSettings } from "./presets"
 import { describeScope, type Scope } from "./scope"
 
@@ -35,7 +35,7 @@ export interface RlmDeps {
   readonly keepOutputs?: number
   /** Enables folding: atomize with Decisions, then plan children when a task is not atomic. */
   readonly decisions?: Decisions["Service"]
-  /** Minimum confidence for atomize and for "decision" verification (default 0.5). */
+  /** Overrides `settings.minConfidence` (atomize and "decision" verification). */
   readonly minConfidence?: number
 }
 
@@ -121,6 +121,8 @@ export const make = (deps: RlmDeps) =>
     const model = yield* Model.Model
     const results = deps.results ?? RESULTS
     const turns = yield* Semaphore.make(deps.settings.maxConcurrent)
+    // Gates run one at a time: they share one working tree, and one child's broken edit must not fail another's gate.
+    const gates = yield* Semaphore.make(1)
     let counter = 0
 
     const exec = (spec: RlmSpec, parent?: { readonly id: string; readonly preset: string; readonly depth: number }): Effect.Effect<RlmOutcome, RlmError> =>
@@ -191,7 +193,7 @@ export const make = (deps: RlmDeps) =>
             },
             { role: "user", content: spec.task },
           ]
-          const started = Date.now()
+          let started = Date.now()
           let tokens = 0
           let restarts = 0
           yield* Effect.logInfo("rlm.start").pipe(Effect.annotateLogs({ rlm: id, parent: parent?.id ?? "", preset: spec.preset, depth }))
@@ -232,33 +234,49 @@ export const make = (deps: RlmDeps) =>
           // and handed to this RLM as the `children` global before its first turn.
           const spawnable = depth >= deps.settings.maxDepth ? [] : (preset.spawns ?? [])
           if (deps.decisions !== undefined && spawnable.length > 0) {
-            const minConfidence = deps.minConfidence ?? 0.5
+            const minConfidence = deps.minConfidence ?? deps.settings.minConfidence
             const a = yield* atomize(deps.decisions, spec.task, describeScope(spec.scope), minConfidence)
             yield* Effect.logInfo("rlm.atomize").pipe(Effect.annotateLogs({ rlm: id, atomic: a.atomic, reason: a.reason }))
             if (!a.atomic) {
               const choices = spawnable.map((p) => `- ${p} → ${resultType(results[deps.settings.presets[p]?.result ?? "text"] ?? Schema.String)}`)
               const plan = yield* Semaphore.withPermits(turns, 1)(requestPlan(model, ref, spec.task, describeScope(spec.scope), choices, spawnable)).pipe(
-                Effect.mapError((reason) => new RlmError({ kind: "plan", message: reason })),
+                Effect.mapError((e) => ("model" in e ? new RlmError({ kind: "model", message: e.model }) : new RlmError({ kind: "plan", message: e.plan }))),
+              )
+              yield* Effect.logInfo("rlm.plan").pipe(
+                Effect.annotateLogs({ rlm: id, children: plan.children.map((c) => `${c.id}:${c.preset}${c.dependsOn.length > 0 ? `<-${c.dependsOn.join("+")}` : ""}`).join(" ") }),
               )
               const byId = new Map<string, ChildResult>()
               for (const wave of waves(plan)!) {
                 const outcomes = yield* Effect.forEach(
                   wave,
                   (c) => {
-                    const inputs = c.dependsOn.map((d) => `- ${d}: ${JSON.stringify(byId.get(d))}`)
+                    const inputs = c.dependsOn.map((d) => `- ${d}: ${preview(JSON.stringify(byId.get(d)), 4000)}`)
                     const task = inputs.length === 0 ? c.task : `${c.task}\n\nResults you depend on:\n${inputs.join("\n")}`
                     return runChild({ task, preset: c.preset, scope: scopeOf(c) }, me, c.id, minConfidence)
                   },
                   { concurrency: deps.settings.maxConcurrent },
                 )
-                for (const o of outcomes) byId.set(o.id, o)
+                for (const o of outcomes) {
+                  byId.set(o.id, o)
+                  yield* Effect.logInfo("rlm.child").pipe(
+                    Effect.annotateLogs({ rlm: id, child: o.id, ok: o.ok, ...(o.ok ? (o.unverified ? { unverified: o.unverified } : {}) : { kind: o.kind, reason: preview(o.reason, 300) }) }),
+                  )
+                }
               }
               const children = plan.children.map((c) => byId.get(c.id)!)
               yield* kernel.run(`const children = ${JSON.stringify(children)}`)
+              // The note stays small: ids, status and a preview. The full results are in the global.
+              const summary = children.map((c) =>
+                c.ok
+                  ? `- ${c.id} (${c.preset}) ok${c.unverified ? ` (unverified: ${c.unverified})` : ""}: ${preview(JSON.stringify(c.value), 200)}`
+                  : `- ${c.id} (${c.preset}) failed, ${c.kind}: ${preview(c.reason, 200)}`,
+              )
               messages.push({
                 role: "user",
-                content: `This task was split into ${children.length} children. Their results are in the global \`children\` (failed ones have ok: false with a reason):\n${JSON.stringify(children, null, 2)}\nCombine them into your result and finish with \`yield* Rlm.done({ value })\`.`,
+                content: `This task was split into ${children.length} children. Their full results are in the global \`children\` (an array of { id, preset, ok, value } or { id, preset, ok: false, kind, reason }):\n${summary.join("\n")}\nRead what you need from \`children\`, combine it into your result, and finish with \`yield* Rlm.done({ value })\`.`,
               })
+              // Time spent in children does not count against this RLM's own wall budget.
+              started = Date.now()
             }
           }
 
@@ -300,16 +318,18 @@ export const make = (deps: RlmDeps) =>
           const gate = deps.services("Verify", spec.scope)
           const check = gate?.handlers["run"]
           if (check === undefined) return { id: childId, preset: spec.preset, ok: false, kind: "verify", reason: "no Verify service to gate this result" }
-          const r = (yield* check({}).pipe(Effect.orElseSucceed(() => ({ passed: false, output: "the gate could not run" })))) as { passed: boolean; output: string }
+          const r = (yield* Semaphore.withPermits(gates, 1)(check({})).pipe(Effect.orElseSucceed(() => ({ passed: false, output: "the gate could not run" })))) as { passed: boolean; output: string }
           if (!r.passed) return { id: childId, preset: spec.preset, ok: false, kind: "verify", reason: `the verify gate failed:\n${r.output.slice(-2000)}` }
         }
         if (preset.verify === "decision" && deps.decisions !== undefined) {
           const d = yield* deps.decisions
-            .decide({ state: `Task: ${spec.task}\nResult: ${JSON.stringify(value.value)}`, questions: { ok: { type: "noul", instructions: "Does the result satisfy the task?" } } })
+            .decide({ state: `Task: ${preview(spec.task, 2000)}\nResult: ${preview(JSON.stringify(value.value), 4000)}`, questions: { ok: { type: "noul", instructions: "Does the result satisfy the task?" } } })
             .pipe(Effect.option)
           const a = d._tag === "Some" ? d.value.ok : undefined
-          if (a === undefined || a.type !== "noul" || !a.answer || a.confidence < minConfidence) {
-            return { id: childId, preset: spec.preset, ok: false, kind: "verify", reason: a === undefined ? "the result could not be checked" : `a check judged the result insufficient (confidence ${a.confidence.toFixed(2)})` }
+          // A check that could not run keeps the child's work, marked unverified.
+          if (a === undefined || a.type !== "noul") return { id: childId, preset: spec.preset, ok: true, value: value.value, unverified: "the result could not be checked" }
+          if (!a.answer || a.confidence < minConfidence) {
+            return { id: childId, preset: spec.preset, ok: false, kind: "verify", reason: `a check judged the result insufficient (confidence ${a.confidence.toFixed(2)})` }
           }
         }
         return { id: childId, preset: spec.preset, ok: true, value: value.value }

@@ -29,6 +29,8 @@ const RlmConfig = Schema.Struct({
 export interface RlmSettings {
   readonly maxDepth: number
   readonly maxConcurrent: number
+  /** `[rlm.atomize] min_confidence`: how sure a "no" must be to plan, and a "decision" check to pass. */
+  readonly minConfidence: number
   readonly presets: Readonly<Record<string, Preset>>
 }
 
@@ -56,7 +58,7 @@ export const settings = (raw: unknown) =>
         }
       }
     }
-    return { maxDepth: cfg.max_depth ?? 4, maxConcurrent: cfg.max_concurrent ?? 8, presets } satisfies RlmSettings
+    return { maxDepth: cfg.max_depth ?? 4, maxConcurrent: cfg.max_concurrent ?? 8, minConfidence: cfg.atomize?.min_confidence ?? 0.5, presets } satisfies RlmSettings
   })
 
 export const budgetOf = (p: Preset, override: Partial<Budget> = {}): Budget => {

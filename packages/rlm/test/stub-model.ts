@@ -20,7 +20,7 @@ const events = (r: { cell: string } | { text: string }, n: number): ReadonlyArra
 export const stubModel = (scripts: Readonly<Record<string, ReadonlyArray<Reply>>>) => {
   const seen: Array<{ preset: string; messages: ReadonlyArray<ChatMessage> }> = []
   const cursor = new Map<string, number>()
-  const layer = Layer.succeed(Model.Model, {
+  const service: Model.Model["Service"] = {
     client: () => Effect.die("unused"),
     list: () => Effect.succeed([]),
     info: () => Effect.die("unused"),
@@ -36,6 +36,6 @@ export const stubModel = (scripts: Readonly<Record<string, ReadonlyArray<Reply>>
       if (r === undefined) return Stream.fromIterable(events({ text: "(no script)" }, i))
       return Stream.fromIterable(events(typeof r === "function" ? r(req.messages) : r, i))
     },
-  })
-  return { layer, seen }
+  }
+  return { layer: Layer.succeed(Model.Model, service), service, seen }
 }

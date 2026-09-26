@@ -30,7 +30,9 @@ export const atomize = (decisions: Decisions["Service"], task: string, scope: st
     const notes = Object.entries(answers.value).map(([k, a]: [string, Answer]) =>
       a.type === "noul" ? `${k}: ${a.answer ? "yes" : "no"} (${a.confidence.toFixed(2)})` : `${k}: ?`,
     )
-    const atomic = Object.values(answers.value).every((a) => a.type === "noul" && a.answer && a.confidence >= minConfidence)
+    // Plan only on a confident "no". A hedging model (low confidence) executes directly,
+    // as ROMA's own tie-breaker does; otherwise uncertainty would plan at every level.
+    const atomic = !Object.values(answers.value).some((a) => a.type === "noul" && !a.answer && a.confidence >= minConfidence)
     return { atomic, reason: notes.join(", ") } satisfies Atomized
   })
 
@@ -134,7 +136,7 @@ export const requestPlan = (model: Model.Model["Service"], ref: string, task: st
           outputSchema: planJsonSchema(allowed),
           maxTokens: 4096,
         }),
-      ).pipe(Effect.mapError((e) => e.message))
+      ).pipe(Effect.mapError((e) => ({ model: e.message })))
       const text = events.flatMap((e) => (e.type === "text" ? [e.delta] : [])).join("")
       const plan = yield* Effect.try({ try: () => JSON.parse(text) as unknown, catch: () => "the plan is not JSON" }).pipe(
         Effect.flatMap((j) => Schema.decodeUnknownEffect(Plan)(j).pipe(Effect.mapError((e) => e.message))),
@@ -144,10 +146,13 @@ export const requestPlan = (model: Model.Model["Service"], ref: string, task: st
       if (plan._tag === "Success" && problems.length === 0) return plan.success
       feedback = `\n\nYour previous plan could not run:\n- ${problems.join("\n- ")}\nFix it.`
     }
-    return yield* Effect.fail(feedback.trim())
+    return yield* Effect.fail({ plan: feedback.trim() })
   })
+
+/** At most `max` characters of `text`, marking the cut. */
+export const preview = (text: string, max: number) => (text.length <= max ? text : `${text.slice(0, max)}… [${text.length - max} more characters]`)
 
 /** A child's outcome as its parent sees it: the result, or an explicit failure. */
 export type ChildResult =
-  | { readonly id: string; readonly preset: string; readonly ok: true; readonly value: unknown }
+  | { readonly id: string; readonly preset: string; readonly ok: true; readonly value: unknown; readonly unverified?: string }
   | { readonly id: string; readonly preset: string; readonly ok: false; readonly kind: "verify" | "decode" | "budget" | "error"; readonly reason: string }

@@ -2,8 +2,9 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { Effect } from "effect"
+import { Effect, Layer, Stream } from "effect"
 import type { Answer, DecisionRequest } from "@zarg/decisions"
+import { Model, ModelError } from "@zarg/model"
 import { bind, type Bound, defineService } from "@zarg/kernel"
 import { Schema } from "effect"
 import { fs, fsRead, type Plan, planProblems, Rlm, type Scope, settings, waves } from "../src"
@@ -39,7 +40,7 @@ afterAll(() => rmSync(root, { recursive: true, force: true }))
  * Decisions stub. Atomize: the root task ("big") is atomic only when `atomic` is true; planned children
  * are always atomic, so they do not plan again. Verify answers come from `verdict`.
  */
-const decisions = (atomic: boolean, verdict = { answer: true, confidence: 0.9 }) => {
+const decisions = (atomic: boolean, verdict = { answer: true, confidence: 0.9 }, atomizeConfidence = 0.9) => {
   const calls: Array<DecisionRequest> = []
   return {
     calls,
@@ -49,7 +50,7 @@ const decisions = (atomic: boolean, verdict = { answer: true, confidence: 0.9 })
           calls.push(req)
           const answer = (yes: boolean, confidence: number): Answer => ({ type: "noul", answer: yes, probability: yes ? confidence : 1 - confidence, confidence })
           const root = req.state.startsWith("Task: big")
-          return Object.fromEntries(Object.keys(req.questions).map((k) => [k, k === "ok" ? answer(verdict.answer, verdict.confidence) : answer(root ? atomic : true, 0.9)]))
+          return Object.fromEntries(Object.keys(req.questions).map((k) => [k, k === "ok" ? answer(verdict.answer, verdict.confidence) : answer(root ? atomic : true, root ? atomizeConfidence : 0.9)]))
         }),
     },
   }
@@ -182,5 +183,80 @@ describe("folding", () => {
     const failing = { calls: [] as Array<DecisionRequest>, service: { decide: () => Effect.fail({ _tag: "DecisionError" as const, kind: "unavailable" as const, message: "down" }) } }
     const r = await run({ driver: [{ cell: 'yield* Rlm.done({ value: "direct" })' }] }, { task: "t", preset: "driver", scope: {} }, failing as never)
     expect(value(r)).toBe("direct")
+  })
+
+  test("a hedging decision model does not trigger planning: only a confident no plans", async () => {
+    const hedging = await run({ driver: [{ cell: 'yield* Rlm.done({ value: "direct" })' }] }, { task: "big", preset: "driver", scope: {} }, decisions(false, undefined, 0.1))
+    expect(value(hedging)).toBe("direct")
+    expect(hedging.seen.some((s) => s.preset === "plan")).toBe(false)
+  })
+
+  test("the children note is capped; the global keeps everything", async () => {
+    const huge = "z".repeat(20000)
+    const plan: Plan = { children: [child("a"), child("b")] }
+    const r = await run(
+      { plan: [planText(plan)], research: [researchDone(huge)], driver: [{ cell: "yield* Rlm.done({ value: String(children[0].value.findings[0].length) })" }] },
+      { task: "big", preset: "driver", scope: {} },
+      decisions(false),
+    )
+    expect(value(r)).toBe("20000")
+    const note = String(r.seen.filter((s) => s.preset === "driver")[0]!.messages.at(-1)?.content)
+    expect(note.length).toBeLessThan(3000)
+  })
+
+  test("when the decision check cannot run, the child's work is kept and marked unverified", async () => {
+    const raw = { presets: { research: { layer: ["Fs:read", "Rlm"], spawns: ["research"], role: "driver", result: "research", verify: "decision" } } }
+    const plan: Plan = { children: [child("a"), child("b")] }
+    const base = decisions(false)
+    const flaky = {
+      calls: base.calls,
+      service: {
+        decide: (req: DecisionRequest) =>
+          "ok" in req.questions ? Effect.fail({ _tag: "DecisionError" as const, kind: "deadline" as const, message: "slow" }) : base.service.decide(req),
+      },
+    }
+    const r = await run(
+      { plan: [planText(plan)], research: [researchDone("kept")], driver: [{ cell: "yield* Rlm.done({ value: JSON.stringify(children.map((c: any) => [c.ok, c.unverified ?? null, c.value?.findings[0] ?? null])) })" }] },
+      { task: "big", preset: "driver", scope: {} },
+      flaky as never,
+      raw,
+    )
+    expect(JSON.parse(value(r))).toEqual([[true, "the result could not be checked", "kept"], [true, "the result could not be checked", "kept"]])
+  })
+
+  test("[rlm.atomize] min_confidence from config is used", async () => {
+    const r = await run(
+      { plan: [planText({ children: [child("a"), child("b")] })], research: [researchDone("x")], driver: [{ cell: 'yield* Rlm.done({ value: "done" })' }] },
+      { task: "big", preset: "driver", scope: {} },
+      decisions(false, undefined, 0.3),
+      { atomize: { min_confidence: 0.2 } },
+    )
+    expect(value(r)).toBe("done")
+    expect(r.seen.some((s) => s.preset === "plan")).toBe(true)
+  })
+
+  test("time spent in children does not use up the parent's wall budget", async () => {
+    const raw = { presets: { driver: { layer: ["Rlm"], spawns: ["research"], role: "driver", result: "text", verify: "none", budget: { wallMs: 300 } }, research: { layer: ["Rlm"], role: "driver", result: "research", verify: "none" } } }
+    const slow: Reply = { cell: 'const end = Date.now() + 400\nwhile (Date.now() < end) {}\nyield* Rlm.done({ value: { findings: ["slow"], sources: [] } })' }
+    const r = await run(
+      { plan: [planText({ children: [child("a"), child("b")] })], research: [slow], driver: [{ cell: "return children.length" }, { cell: 'yield* Rlm.done({ value: "combined" })' }] },
+      { task: "big", preset: "driver", scope: {} },
+      decisions(false),
+      raw,
+    )
+    expect(value(r)).toBe("combined")
+  })
+
+  test("a model error while planning is a model error, not a plan error", async () => {
+    const stub = stubModel({})
+    const failing = Layer.succeed(Model.Model, { ...stub.service, stream: (req: any) => (req.outputSchema ? Stream.fail(new ModelError({ kind: "transport", message: "router down" })) : stub.service.stream(req)) })
+    const exit = await Effect.runPromise(
+      Effect.gen(function* () {
+        const s = yield* settings({})
+        const rlm = yield* Rlm.make({ settings: s, services: factory, roles: { driver: "stub:m" }, decisions: decisions(false).service, cellTimeoutMs: 5000 })
+        return yield* Effect.exit(rlm.exec({ task: "big", preset: "driver", scope: {} }))
+      }).pipe(Effect.provide(failing)),
+    )
+    expect((exit as any).cause.reasons[0].error).toMatchObject({ kind: "model" })
   })
 })
