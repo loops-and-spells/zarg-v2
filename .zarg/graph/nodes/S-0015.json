@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0015",
+  "props": {
+    "terminal": true,
+    "text": "the topic becomes the driver's focus"
+  },
+  "type": "gherkin/state"
+}
