@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0010",
+  "props": {
+    "terminal": true,
+    "text": "the recommended option is marked"
+  },
+  "type": "gherkin/state"
+}

@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0009",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0011",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0011",
+  "props": {
+    "title": "Developer types their own answer",
+    "when": "the developer types their own answer"
+  },
+  "type": "gherkin/card"
+}

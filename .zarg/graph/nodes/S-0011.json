@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0011",
+  "props": {
+    "text": "the answer is saved to the graph"
+  },
+  "type": "gherkin/state"
+}

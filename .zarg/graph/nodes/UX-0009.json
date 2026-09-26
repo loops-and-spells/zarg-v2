@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0009",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0011",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0009",
+  "props": {
+    "title": "Developer picks an option",
+    "when": "the developer picks an option"
+  },
+  "type": "gherkin/card"
+}

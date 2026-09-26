@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0009",
+  "props": {
+    "text": "one question with options is shown"
+  },
+  "type": "gherkin/state"
+}

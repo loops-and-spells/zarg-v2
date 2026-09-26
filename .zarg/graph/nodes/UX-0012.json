@@ -1,0 +1,22 @@
+{
+  "edges": [
+    {
+      "to": "S-0009",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0012",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0013",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0012",
+  "props": {
+    "title": "Developer interjects",
+    "when": "the developer writes a message instead of answering"
+  },
+  "type": "gherkin/card"
+}

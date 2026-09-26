@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0012",
+  "props": {
+    "terminal": true,
+    "text": "the pending question is dropped"
+  },
+  "type": "gherkin/state"
+}
