@@ -36,6 +36,7 @@ packages/<name>/
 - `packages/rlm` (`@zarg/rlm`): the RLM (unit of agency): presets and spawn graph, scoped core services (`Graph`, `Fs`, `Sh`, `Verify`, `Agenda`, `Inquire`), plugin tools as services, and the turn loop.
 - `packages/core` (`@zarg/core`): `zarg-core`, one per project: driver threads on RLMs, the AG-UI API on `.zarg/run/core.sock` (token in `.zarg/run/core.json`), thread logs in `.zarg/threads/`.
 - `packages/client` (`@zarg/client`): attach to or start a core, the AG-UI client, and `reduce` (events → thread state). Never imports `@zarg/core` or a `/server` subpath.
+- `packages/reconcile` (`@zarg/reconcile`): the reconcile loop every downstream phase runs (see `intent/zarg.md`): affected cards, per-card git worktrees, merge, verify with fixes, one commit per pass landed on your branch, findings; each pass is a durable Effect workflow (`.zarg/run/cluster.db`).
 
 Design: `docs/superpowers/specs/2026-09-25-harness-architecture-design.md`, `docs/superpowers/specs/2026-09-25-agent-runtime-design.md` and `docs/superpowers/specs/2026-09-26-core-driver-tui-design.md`.
 
