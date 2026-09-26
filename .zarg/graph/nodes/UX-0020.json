@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0011",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0019",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0020",
+  "props": {
+    "title": "Sync picks up a change",
+    "when": "the graph stays quiet for two seconds"
+  },
+  "type": "gherkin/card"
+}

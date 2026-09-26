@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0019",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0020",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0021",
+  "props": {
+    "title": "Sync updates the code",
+    "when": "the sync agent updates code for each card"
+  },
+  "type": "gherkin/card"
+}

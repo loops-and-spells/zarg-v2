@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0019",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0022",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0024",
+  "props": {
+    "title": "A card cannot be implemented",
+    "when": "a card contradicts another card"
+  },
+  "type": "gherkin/card"
+}

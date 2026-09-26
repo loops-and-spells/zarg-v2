@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0020",
+  "props": {
+    "text": "the verify gate runs"
+  },
+  "type": "gherkin/state"
+}

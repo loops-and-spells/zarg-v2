@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0022",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0009",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0025",
+  "props": {
+    "title": "Driver takes up a blocked card",
+    "when": "the driver reads the agenda again"
+  },
+  "type": "gherkin/card"
+}

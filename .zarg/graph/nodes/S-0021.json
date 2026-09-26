@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0021",
+  "props": {
+    "terminal": true,
+    "text": "the sync checkpoint moves forward"
+  },
+  "type": "gherkin/state"
+}

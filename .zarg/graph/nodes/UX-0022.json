@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0020",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0021",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0022",
+  "props": {
+    "title": "Verify passes",
+    "when": "every check passes"
+  },
+  "type": "gherkin/card"
+}
