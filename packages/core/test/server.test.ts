@@ -2,12 +2,12 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { Effect, Layer, Stream } from "effect"
+import { type Duration, Effect, Layer, Stream } from "effect"
 import { EventSchemas } from "@ag-ui/core/schemas"
 import { Model, type ChatMessage, type StreamEvent } from "@zarg/model"
 import { type Asker, inquire, Rlm, settings } from "@zarg/rlm"
 import { HttpRouter } from "effect/unstable/http"
-import { api, Log, makeLog, makeThreads, Threads, Token } from "../src"
+import { api, Heartbeat, Log, makeLog, makeThreads, Threads, Token } from "../src"
 
 /** A stub model: the driver asks one question, then finishes with the answer. */
 const stub = Layer.succeed(Model.Model, {
@@ -33,7 +33,7 @@ const TOKEN = "t0ken"
 /** The router as a fetch handler, over a real Rlm on the stub model (disposed after each test). */
 const handlers: Array<{ dispose: () => Promise<void> }> = []
 afterEach(() => Promise.all(handlers.splice(0).map((h) => h.dispose())))
-const handler = async () => {
+const handler = async (heartbeat: Duration.Input = "5 seconds") => {
   const { threads, log } = await Effect.runPromise(
     Effect.gen(function* () {
       const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zarg-srv-")), (t) => t)
@@ -46,7 +46,7 @@ const handler = async () => {
     }).pipe(Effect.provide(stub)),
   )
   const web = HttpRouter.toWebHandler(
-    api.pipe(Layer.provide([Layer.succeed(Threads, threads), Layer.succeed(Log, log), Layer.succeed(Token, TOKEN)])),
+    api.pipe(Layer.provide([Layer.succeed(Threads, threads), Layer.succeed(Log, log), Layer.succeed(Token, TOKEN), Layer.succeed(Heartbeat, heartbeat)])),
     { disableLogger: true },
   )
   handlers.push(web)
@@ -111,6 +111,15 @@ describe("core HTTP API", () => {
     await events(await post(h, "/runs", input("r1")), 1)
     const again = await events(await post(h, "/runs", input("r2")))
     expect(again.at(-1)).toMatchObject({ type: "RUN_FINISHED", outcome: { type: "interrupt" } })
+  })
+
+  test("a quiet event stream carries heartbeat comments, so idle timeouts never cut it", async () => {
+    const h = await handler("50 millis")
+    const res = await h(new Request("http://core/stream?since=0", { headers: { authorization: `Bearer ${TOKEN}` } }))
+    const reader = res.body!.getReader()
+    const first = await Promise.race([reader.read(), Bun.sleep(1000).then(() => undefined)])
+    await reader.cancel()
+    expect(new TextDecoder().decode(first?.value)).toBe(": ping\n\n")
   })
 
   test("every event is valid AG-UI 1.0", async () => {

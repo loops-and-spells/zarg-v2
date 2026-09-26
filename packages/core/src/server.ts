@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Stream } from "effect"
+import { Context, type Duration, Effect, Layer, Stream } from "effect"
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { RunAgentInputSchema } from "@ag-ui/core/schemas"
 import type { WireEvent } from "./events"
@@ -24,12 +24,20 @@ export class Token extends Context.Service<Token, string>()("@zarg/core/Token") 
 /** A thread id names its log file, `.zarg/threads/<id>.jsonl`. */
 export const THREAD_ID = /^[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}$/
 
+/** How often a quiet SSE stream sends a `: ping` comment (Bun closes connections idle for 10s). */
+export const Heartbeat = Context.Reference<Duration.Input>("@zarg/core/Heartbeat", { defaultValue: () => "5 seconds" })
+
 const encoder = new TextEncoder()
+const ping = encoder.encode(": ping\n\n")
 
 /** An SSE response: each event as `data: <json>\n\n`. A client that disconnects interrupts only this stream. */
-const sse = (events: Stream.Stream<WireEvent>) =>
+const sse = (events: Stream.Stream<WireEvent>, heartbeat: Duration.Input) =>
   HttpServerResponse.stream(
-    events.pipe(Stream.map((e) => encoder.encode(`data: ${JSON.stringify(e)}\n\n`))),
+    events.pipe(
+      Stream.map((e) => encoder.encode(`data: ${JSON.stringify(e)}\n\n`)),
+      // Comments keep the connection alive through long model turns; clients ignore them. The stream ends with the events.
+      Stream.merge(Stream.tick(heartbeat).pipe(Stream.drop(1), Stream.as(ping)), { haltStrategy: "left" }),
+    ),
     { contentType: "text/event-stream", headers: { "cache-control": "no-cache" } },
   )
 
@@ -54,6 +62,7 @@ const searchParam = (req: HttpServerRequest.HttpServerRequest, name: string) => 
 const routes = HttpRouter.addAll(
   Effect.gen(function* () {
     const threads = yield* Threads
+    const heartbeat = yield* Heartbeat
     const log = yield* Log
     // Only a user message this core has not seen yet counts as new input.
     const seenMessages = new Set<string>()
@@ -76,13 +85,13 @@ const routes = HttpRouter.addAll(
           const message = fresh && typeof lastMsg.content === "string" ? lastMsg.content : undefined
           const resume = (input as { resume?: Array<{ interruptId: string; payload?: unknown }> }).resume
           const thread = yield* threads.get(input.threadId, focus)
-          return sse(thread.run({ runId: input.runId, ...(message !== undefined ? { message } : {}), ...(resume ? { resume } : {}) }))
+          return sse(thread.run({ runId: input.runId, ...(message !== undefined ? { message } : {}), ...(resume ? { resume } : {}) }), heartbeat)
         }),
       ),
       HttpRouter.route(
         "GET",
         "/stream",
-        Effect.map(HttpServerRequest.HttpServerRequest, (req) => sse(log.stream(Number(searchParam(req, "since") ?? 0)))),
+        Effect.map(HttpServerRequest.HttpServerRequest, (req) => sse(log.stream(Number(searchParam(req, "since") ?? 0)), heartbeat)),
       ),
       HttpRouter.route(
         "GET",
