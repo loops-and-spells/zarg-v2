@@ -25,7 +25,21 @@ packages/<name>/
 
 ## Packages
 
-- `packages/cli` (`@zarg/cli`): primary package. Harness CLI for a coding agent. TUI built on OpenTUI (`@opentui/core`). Entry: `src/index.ts`. Tasks: `dev`, `start`, `typecheck`.
+- `packages/graph` (`@zarg/graph`): JSON graph store under `.zarg/graph`: snapshot, queries, diff.
+- `packages/plugin` (`@zarg/plugin/server`): plugin contract, `PluginHost` and the write pipeline.
+- `packages/plugin-gherkin` (`@zarg/plugin-gherkin/server`): atomic Gherkin user action graph (states and cards).
+- `packages/cli` (`@zarg/cli`): the `zarg` CLI. Run it with `mise run -q zarg -- <command>`.
+
+Design: `docs/superpowers/specs/2026-09-25-harness-architecture-design.md`.
+
+## Requirements
+
+This repo's requirements live in its own zarg graph under `.zarg/graph`.
+
+- Use the `zarg-drive` skill (`.claude/skills/zarg-drive/SKILL.md`) to refine requirements. It edits only the graph.
+- Use the `zarg-sync` skill (`.claude/skills/zarg-sync/SKILL.md`) to make code match the graph. It edits only code.
+- Never edit `.zarg/graph` files by hand. Change them through `zarg tool call`.
+- Tag code that implements a card with a `// @card <id>` comment (for example `// @card UX-0003`).
 
 ## Tasks
 
@@ -53,4 +67,5 @@ mise install
 - Use `bun`, never `npm`, `npx`, `yarn`, `pnpm`, or `node`. Use `bunx` in place of `npx`.
 - Use `bun add` / `bun remove` to change dependencies. Commit `bun.lock`.
 - Use `bun test` for tests and `bun run <script>` for package scripts.
+- `mise run verify` typechecks and tests every package. It must pass before any commit.
 - Define repeatable project commands as `[tasks]` in `mise.toml`, so humans and agents run the same thing (`mise run <task>`).
