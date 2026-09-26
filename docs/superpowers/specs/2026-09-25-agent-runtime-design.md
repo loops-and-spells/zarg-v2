@@ -187,7 +187,7 @@ provider: {
 
 - `Model` routes a `provider:model` reference to the provider plugin named `provider`.
 - **Login fields come from the schema.** `Env.fields(provider)` returns the items of the provider's schema fragment: name, type and validation, default, description, and whether it is `@sensitive`. A login form renders one field per item. Sensitive fields hide input. A value that fails its schema type is refused locally before `verify` is called (UX-0029).
-- **Login:** values that pass the schema go to `verify`. On success, sensitive values are stored with `Secrets.set` (encrypted on this device) and non-sensitive values in `~/.zarg/.env.local` as plain text, then `Env.reload` runs (UX-0027). On rejection nothing is stored (UX-0028).
+- **Login:** values that pass the schema go to `verify`. On success, sensitive values are stored with `Secrets.set` (encrypted on this device) and non-sensitive values in `~/.config/zarg/.env.local` as plain text, then `Env.reload` runs (UX-0027). On rejection nothing is stored (UX-0028).
 - **Logout** removes the provider's stored values with `Secrets.remove` (UX-0032).
 - The `/login` and `/logout` commands and the driver's "login or another model" inquiry (UX-0030, UX-0031, UX-0033) are built in 2b on these operations.
 
@@ -226,13 +226,14 @@ Answer = choice + probabilities + confidence | score + legend + probabilities + 
 ```
 
 - The `decision` role's model is used. When its `/models` row advertises the `systemone` capability, the call goes to `POST {base_url}/systemone`.
-- Otherwise the fallback asks a chat role for strict JSON-schema output, with one independent context per question and no tools.
+- Otherwise the fallback asks the `driver` role's model for strict JSON-schema output (a probability per option), with one independent context per question and no tools.
+- Tool support is read strictly from `supported_parameters`. zarg-router does not advertise `tools` yet; the router is being fixed to advertise it for models whose backend has a tool-call parser.
 - Limits follow JEV: 1 to 8 questions, 2 to 16 choice options, 2 to 10 score levels, a 30-second deadline.
 - Every call is logged with latency, transport, model and confidence.
 
 ## Config
 
-Files: `~/.zarg/config.toml`, then `./.zarg/config.toml`. Tables merge. Validated with Schema, and unknown keys are an error.
+Files: `~/.config/zarg/config.toml`, then `./.zarg/config.toml`. (`~/.zarg/` belongs to zarg v1 and is not read.) Tables merge. Validated with Schema, and unknown keys are an error.
 
 ```toml
 [providers.zarg-router]
@@ -243,8 +244,8 @@ base_url = "${OPENROUTER_URL:-https://openrouter.ai/api/v1}"
 api_key  = "${OPENROUTER_API_KEY}"
 
 [roles]            # model per role; nothing is shipped by default
-driver   = "zarg-router:qwen3.8-27b-fp8"
-sync     = "openrouter:deepseek/deepseek-v4-pro"
+driver   = "zarg-router:deepseek-v4.1-flash-exl3"
+sync     = "zarg-router:deepseek-v4.1-flash-exl3"
 decision = "zarg-router:jevk5"
 ```
 
@@ -271,9 +272,11 @@ The live layer calls varlock's programmatic `load()` at core startup and reads t
 ### Schema files
 
 - A committed root `.env.schema` imports provider and plugin fragments with `@import(...)`.
-- Each provider plugin ships a fragment declaring its variables (`@required`, `@sensitive`, `@type`). A fragment is imported only when a configured role uses that provider (`enabled=`), so an unused provider never fails on a missing key.
+- Each provider plugin ships its fragment as `.env.schema` at its package root (varlock only imports `.env.*` files) and declares its variables there (`@required`, `@sensitive`, `@type`). The repo's root `.env.schema` imports each provider package directory, then `~/.config/zarg/` (`allowMissing`). Later imports win, and the root folder's own `.env.local` wins over all imports, so the root schema holds no defaults.
+- `@required` on a provider nobody uses only marks that item with an error; loading does not fail. zarg checks item errors only for providers its roles use.
+- Process environment variables override file values (varlock's precedence) and keep the schema's sensitivity.
 - Plugins that need secrets ship fragments the same way.
-- User values live in `~/.zarg/.env.local`, and project values in a gitignored `.env.local`. The project overlays the user.
+- User values live in `~/.config/zarg/.env.local`, and project values in a gitignored `.env.local`. The project overlays the user.
 
 ### Secrets
 
@@ -285,8 +288,8 @@ class Secrets extends Context.Service<Secrets, {
 }>()("@zarg/model/Secrets") {}
 ```
 
-- `set` stores `NAME=varlock(local:...)` (device-bound encryption) in `~/.zarg/.env.local`, then calls `Env.reload`. Plaintext secrets are never written to disk.
-- **Unverified:** varlock's docs describe `varlock(local:...)` values but not a programmatic API that encrypts and writes one. The first plan task is a spike that decides between a programmatic call and shelling out to the varlock CLI.
+- `set` pipes the value to `varlock encrypt` on stdin (varlock has no programmatic encrypt) and stores the resulting `NAME=varlock("local:...")` line in `~/.config/zarg/.env.local`, then calls `Env.reload`. Plaintext secrets are never written to disk.
+- Loading uses `internal.loadVarlockEnvGraph` (the loader varlock's CLI uses; the plain loader lacks the `varlock()` resolver). It sits under varlock's `internal` export, so it is pinned to varlock 1.20.0 and covered by tests.
 - `Secrets` is a host service. It is in no RLM preset's layer.
 - The `/login` flow is captured as UX-0026..UX-0033. Its operations are in "Providers"; its commands and inquiry are built in 2b.
 
@@ -321,7 +324,7 @@ No test in `mise run verify` touches the network.
 
 ## Build order
 
-1. Spike: varlock `load()` under Bun 1.4.2, and how to encrypt a value (programmatic or CLI).
+1. Toolchain: mise tasks call `mise x -- bun` so they run the pinned bun even when a global bun is first on PATH. (Spike done: see Environment and secrets.)
 2. `Env`, config loader, `Secrets`.
 3. `@zarg/model`: provider contract and the OpenRouter-wire adapter; then the zarg-router and OpenRouter provider plugins.
 4. `@zarg/decisions`.
