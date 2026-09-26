@@ -1,10 +1,12 @@
 import { Data, Effect, Ref, Schema, Semaphore, Stream } from "effect"
 import { bind, type Bound, defineService, Kernel, type ServiceFailure, tsType } from "@zarg/kernel"
 import { Model, type ChatMessage, type ToolCall } from "@zarg/model"
+import type { Decisions } from "@zarg/decisions"
+import { atomize, type ChildResult, requestPlan, scopeOf, waves } from "./fold"
 import { budgetOf, type Budget, type Preset, RESULTS, type RlmSettings } from "./presets"
 import { describeScope, type Scope } from "./scope"
 
-export type RlmErrorKind = "budget" | "result" | "model" | "kernel" | "spawn" | "config"
+export type RlmErrorKind = "budget" | "result" | "model" | "kernel" | "spawn" | "config" | "plan"
 
 export class RlmError extends Data.TaggedError("RlmError")<{
   readonly kind: RlmErrorKind
@@ -31,6 +33,10 @@ export interface RlmDeps {
   readonly cellTimeoutMs?: number
   /** Tool outputs kept in full; older ones are trimmed. */
   readonly keepOutputs?: number
+  /** Enables folding: atomize with Decisions, then plan children when a task is not atomic. */
+  readonly decisions?: Decisions["Service"]
+  /** Minimum confidence for atomize and for "decision" verification (default 0.5). */
+  readonly minConfidence?: number
 }
 
 export interface RlmOutcome {
@@ -222,6 +228,40 @@ export const make = (deps: RlmDeps) =>
             trimOld(messages, deps.keepOutputs ?? 4)
           })
 
+          // Folding: a task that is not atomic is planned into children, run in waves, verified,
+          // and handed to this RLM as the `children` global before its first turn.
+          const spawnable = depth >= deps.settings.maxDepth ? [] : (preset.spawns ?? [])
+          if (deps.decisions !== undefined && spawnable.length > 0) {
+            const minConfidence = deps.minConfidence ?? 0.5
+            const a = yield* atomize(deps.decisions, spec.task, describeScope(spec.scope), minConfidence)
+            yield* Effect.logInfo("rlm.atomize").pipe(Effect.annotateLogs({ rlm: id, atomic: a.atomic, reason: a.reason }))
+            if (!a.atomic) {
+              const choices = spawnable.map((p) => `- ${p} → ${resultType(results[deps.settings.presets[p]?.result ?? "text"] ?? Schema.String)}`)
+              const plan = yield* Semaphore.withPermits(turns, 1)(requestPlan(model, ref, spec.task, describeScope(spec.scope), choices, spawnable)).pipe(
+                Effect.mapError((reason) => new RlmError({ kind: "plan", message: reason })),
+              )
+              const byId = new Map<string, ChildResult>()
+              for (const wave of waves(plan)!) {
+                const outcomes = yield* Effect.forEach(
+                  wave,
+                  (c) => {
+                    const inputs = c.dependsOn.map((d) => `- ${d}: ${JSON.stringify(byId.get(d))}`)
+                    const task = inputs.length === 0 ? c.task : `${c.task}\n\nResults you depend on:\n${inputs.join("\n")}`
+                    return runChild({ task, preset: c.preset, scope: scopeOf(c) }, me, c.id, minConfidence)
+                  },
+                  { concurrency: deps.settings.maxConcurrent },
+                )
+                for (const o of outcomes) byId.set(o.id, o)
+              }
+              const children = plan.children.map((c) => byId.get(c.id)!)
+              yield* kernel.run(`const children = ${JSON.stringify(children)}`)
+              messages.push({
+                role: "user",
+                content: `This task was split into ${children.length} children. Their results are in the global \`children\` (failed ones have ok: false with a reason):\n${JSON.stringify(children, null, 2)}\nCombine them into your result and finish with \`yield* Rlm.done({ value })\`.`,
+              })
+            }
+          }
+
           const over = () => tokens >= budget.tokens || Date.now() - started >= budget.wallMs
           for (let n = 1; n <= budget.turns && !over(); n++) {
             yield* turn
@@ -239,6 +279,41 @@ export const make = (deps: RlmDeps) =>
           return yield* new RlmError({ kind: "budget", message: `${spec.preset} did not finish within its budget (${budget.turns} turns)` })
         }),
       )
+
+    /** Run one planned child, then check it before its parent sees it. Failures become explicit entries. */
+    const runChild = (
+      spec: RlmSpec,
+      parent: { readonly id: string; readonly preset: string; readonly depth: number },
+      childId: string,
+      minConfidence: number,
+    ): Effect.Effect<ChildResult> =>
+      Effect.gen(function* () {
+        const preset = deps.settings.presets[spec.preset]!
+        const outcome = yield* Effect.exit(exec(spec, parent))
+        if (outcome._tag === "Failure") {
+          const e = outcome.cause.reasons.find((r) => r._tag === "Fail")?.error as RlmError | undefined
+          return { id: childId, preset: spec.preset, ok: false, kind: e?.kind === "budget" ? "budget" : "error", reason: e?.message ?? "the child failed" }
+        }
+        const value = yield* Schema.encodeEffect(Schema.toCodecJson(results[preset.result ?? "text"] ?? Schema.String))(outcome.value.value).pipe(Effect.option)
+        if (value._tag === "None") return { id: childId, preset: spec.preset, ok: false, kind: "decode", reason: "the result could not be encoded" }
+        if (preset.verify === "gate") {
+          const gate = deps.services("Verify", spec.scope)
+          const check = gate?.handlers["run"]
+          if (check === undefined) return { id: childId, preset: spec.preset, ok: false, kind: "verify", reason: "no Verify service to gate this result" }
+          const r = (yield* check({}).pipe(Effect.orElseSucceed(() => ({ passed: false, output: "the gate could not run" })))) as { passed: boolean; output: string }
+          if (!r.passed) return { id: childId, preset: spec.preset, ok: false, kind: "verify", reason: `the verify gate failed:\n${r.output.slice(-2000)}` }
+        }
+        if (preset.verify === "decision" && deps.decisions !== undefined) {
+          const d = yield* deps.decisions
+            .decide({ state: `Task: ${spec.task}\nResult: ${JSON.stringify(value.value)}`, questions: { ok: { type: "noul", instructions: "Does the result satisfy the task?" } } })
+            .pipe(Effect.option)
+          const a = d._tag === "Some" ? d.value.ok : undefined
+          if (a === undefined || a.type !== "noul" || !a.answer || a.confidence < minConfidence) {
+            return { id: childId, preset: spec.preset, ok: false, kind: "verify", reason: a === undefined ? "the result could not be checked" : `a check judged the result insufficient (confidence ${a.confidence.toFixed(2)})` }
+          }
+        }
+        return { id: childId, preset: spec.preset, ok: true, value: value.value }
+      })
 
     return { exec: (spec: RlmSpec) => exec(spec) }
   })

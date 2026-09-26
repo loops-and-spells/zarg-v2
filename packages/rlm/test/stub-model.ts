@@ -26,7 +26,8 @@ export const stubModel = (scripts: Readonly<Record<string, ReadonlyArray<Reply>>
     info: () => Effect.die("unused"),
     warm: () => Effect.void,
     stream: (req) => {
-      const preset = /zarg (\S+) agent/.exec(String(req.messages[0]?.content))?.[1] ?? "?"
+      // Structured-output requests are plan requests.
+      const preset = req.outputSchema !== undefined ? "plan" : (/zarg (\S+) agent/.exec(String(req.messages[0]?.content))?.[1] ?? "?")
       seen.push({ preset, messages: [...req.messages] })
       const i = cursor.get(preset) ?? 0
       cursor.set(preset, i + 1)
