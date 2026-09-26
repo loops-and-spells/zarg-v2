@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0025",
+  "props": {
+    "terminal": true,
+    "text": "sensitive values are stored encrypted on this device"
+  },
+  "type": "gherkin/state"
+}

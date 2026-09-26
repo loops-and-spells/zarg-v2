@@ -1,0 +1,22 @@
+{
+  "edges": [
+    {
+      "to": "S-0023",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0025",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0026",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0027",
+  "props": {
+    "title": "Valid values are stored",
+    "when": "the provider accepts the entered values"
+  },
+  "type": "gherkin/card"
+}

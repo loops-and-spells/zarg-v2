@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0023",
+  "props": {
+    "text": "the provider's login fields are shown from its schema"
+  },
+  "type": "gherkin/state"
+}

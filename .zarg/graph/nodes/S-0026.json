@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0026",
+  "props": {
+    "terminal": true,
+    "text": "the provider's models become available"
+  },
+  "type": "gherkin/state"
+}

@@ -1,0 +1,26 @@
+{
+  "edges": [
+    {
+      "to": "S-0023",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0027",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0028",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0023",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0028",
+  "props": {
+    "title": "Rejected values are not stored",
+    "when": "the provider rejects the entered values"
+  },
+  "type": "gherkin/card"
+}

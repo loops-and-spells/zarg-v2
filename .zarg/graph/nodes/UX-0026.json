@@ -1,0 +1,22 @@
+{
+  "edges": [
+    {
+      "to": "S-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0023",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0024",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0026",
+  "props": {
+    "title": "Developer starts a provider login",
+    "when": "the developer runs /login for a provider"
+  },
+  "type": "gherkin/card"
+}

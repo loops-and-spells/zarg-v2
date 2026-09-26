@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0031",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0032",
+  "props": {
+    "title": "Developer logs out",
+    "when": "the developer runs /logout for a provider"
+  },
+  "type": "gherkin/card"
+}

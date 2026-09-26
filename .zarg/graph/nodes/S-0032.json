@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0032",
+  "props": {
+    "terminal": true,
+    "text": "the role uses the chosen model"
+  },
+  "type": "gherkin/state"
+}

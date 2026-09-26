@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0030",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0023",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0031",
+  "props": {
+    "title": "Developer chooses to log in",
+    "when": "the developer chooses to log in"
+  },
+  "type": "gherkin/card"
+}
