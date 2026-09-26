@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0016",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0018",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0018",
+  "props": {
+    "title": "Driver asks about conflicting edits",
+    "when": "the driver finds the edits conflicting"
+  },
+  "type": "gherkin/card"
+}

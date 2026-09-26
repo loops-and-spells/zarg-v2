@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0016",
+  "props": {
+    "text": "the save is refused as stale"
+  },
+  "type": "gherkin/state"
+}

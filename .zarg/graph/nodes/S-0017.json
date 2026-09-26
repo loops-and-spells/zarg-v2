@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0017",
+  "props": {
+    "terminal": true,
+    "text": "the merge is noted in the thread"
+  },
+  "type": "gherkin/state"
+}
