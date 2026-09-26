@@ -1,6 +1,8 @@
 export * as Config from "./config"
 export * from "./env"
 export * from "./errors"
+export * as Model from "./model"
+export * from "./provider"
 export * from "./redact"
 export * as Secrets from "./secrets"
 export * from "./wire"
