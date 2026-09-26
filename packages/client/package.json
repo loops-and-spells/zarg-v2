@@ -1,0 +1,11 @@
+{
+  "name": "@zarg/client",
+  "dependencies": {
+    "effect": "^4.0.0-rc.117"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "private": true,
+  "type": "module"
+}
