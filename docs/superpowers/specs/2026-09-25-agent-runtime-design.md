@@ -3,7 +3,7 @@
 Date: 2026-09-25
 Status: approved in conversation, pending written review
 Parent: `docs/superpowers/specs/2026-09-25-harness-architecture-design.md` (phase 2)
-Requirements served: UX-0008..UX-0025 (driver loop, what next, conflicts, sync loop) and UX-0026..UX-0033 (provider login and logout) in `.zarg/graph`
+Requirements served: UX-0008..UX-0025 (driver loop, what next, conflicts, sync loop), UX-0026..UX-0033 (provider login and logout), UX-0034..UX-0039 (model setup), UX-0040..UX-0044 (visible agent work) and UX-0045..UX-0048 (secret safety, preset boundary) in `.zarg/graph`
 
 ## Intent
 
