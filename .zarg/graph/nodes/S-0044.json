@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0044",
+  "props": {
+    "terminal": true,
+    "text": "the chosen option shows its confidence"
+  },
+  "type": "gherkin/state"
+}

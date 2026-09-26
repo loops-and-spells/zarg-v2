@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0048",
+  "props": {
+    "terminal": true,
+    "text": "each agent shows its scope"
+  },
+  "type": "gherkin/state"
+}

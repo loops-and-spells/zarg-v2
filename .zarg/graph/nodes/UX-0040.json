@@ -1,0 +1,26 @@
+{
+  "edges": [
+    {
+      "to": "S-0040",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0041",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0042",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0048",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0040",
+  "props": {
+    "title": "Developer watches agents work",
+    "when": "the developer opens the activity view"
+  },
+  "type": "gherkin/card"
+}

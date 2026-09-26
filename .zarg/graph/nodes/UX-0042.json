@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0040",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0044",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0042",
+  "props": {
+    "title": "A decision is shown",
+    "when": "an agent makes a decision"
+  },
+  "type": "gherkin/card"
+}

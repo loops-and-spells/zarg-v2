@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0040",
+  "props": {
+    "entry": true,
+    "text": "an agent run is in progress"
+  },
+  "type": "gherkin/state"
+}

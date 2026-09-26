@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0043",
+  "props": {
+    "terminal": true,
+    "text": "the child appears under its parent"
+  },
+  "type": "gherkin/state"
+}

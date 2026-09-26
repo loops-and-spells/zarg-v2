@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0040",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0043",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0041",
+  "props": {
+    "title": "A child agent appears",
+    "when": "an agent hands work to a child agent"
+  },
+  "type": "gherkin/card"
+}

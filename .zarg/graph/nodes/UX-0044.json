@@ -1,0 +1,22 @@
+{
+  "edges": [
+    {
+      "to": "S-0040",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0046",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0047",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0044",
+  "props": {
+    "title": "Developer stops an agent",
+    "when": "the developer stops an agent"
+  },
+  "type": "gherkin/card"
+}
