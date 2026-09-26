@@ -1,4 +1,4 @@
-import { Context, Data, Effect, Layer, Schema } from "effect"
+import { Context, Data, Effect, Layer, Schema, Semaphore } from "effect"
 import {
   diff,
   type Expect,
@@ -71,8 +71,11 @@ export const layer = (
       const tools = new Map<string, Tool>()
       for (const p of plugins) for (const t of p.tools ?? []) tools.set(`${p.name}/${t.name}`, t)
 
+      // Calls in this process run one at a time: each reads the snapshot its changes are checked
+      // against, so two at once would pick the same new ids. Other processes are caught by `expect`.
+      const lock = yield* Semaphore.make(1)
       const call = (name: string, raw: unknown, expect: Expect = {}) =>
-        Effect.gen(function* () {
+        Semaphore.withPermits(lock, 1)(Effect.gen(function* () {
           const t = tools.get(name)
           if (t === undefined) {
             return yield* new ToolError({ message: `unknown tool "${name}"; run \`zarg tool list\`` })
@@ -103,7 +106,7 @@ export const layer = (
             removed: d.removed.map((n) => n.id),
             warnings: findings,
           }
-        })
+        }))
 
       const lint = Effect.map(store.snapshot, (after) =>
         check(reg, { before: Snapshot.empty, after, diff: diff(Snapshot.empty, after) }),

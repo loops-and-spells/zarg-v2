@@ -26,6 +26,22 @@ describe("PluginHost.call", () => {
     expect(out.ids).toEqual(["T-0001"])
   })
 
+  test("concurrent calls in one process each commit, with distinct ids", async () => {
+    const out = await run(
+      Effect.gen(function* () {
+        const host = yield* PluginHost
+        const rs = yield* Effect.all(
+          ["a", "b", "c", "d"].map((name) => host.call("notes/add-topic", { name })),
+          { concurrency: "unbounded" },
+        )
+        const snap = yield* (yield* GraphStore).snapshot
+        return { added: rs.flatMap((r) => r.added), ids: [...snap.nodes.keys()].sort() }
+      }),
+    )
+    expect(out.added.sort()).toEqual(["T-0001", "T-0002", "T-0003", "T-0004"])
+    expect(out.ids).toEqual(["T-0001", "T-0002", "T-0003", "T-0004"])
+  })
+
   test("unknown tool and invalid params are ToolErrors", async () => {
     const errs = await run(
       Effect.gen(function* () {
