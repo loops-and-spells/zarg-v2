@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0005",
+  "props": {
+    "text": "the change is refused with a fix hint"
+  },
+  "type": "gherkin/state"
+}

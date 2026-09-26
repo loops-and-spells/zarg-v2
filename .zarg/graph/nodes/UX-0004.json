@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0001",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0006",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0004",
+  "props": {
+    "title": "Agent rewords a state",
+    "when": "the agent rewords a state"
+  },
+  "type": "gherkin/card"
+}

@@ -1,0 +1,22 @@
+{
+  "edges": [
+    {
+      "to": "S-0001",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0003",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0004",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0002",
+  "props": {
+    "title": "Agent adds a card",
+    "when": "the agent adds a card through a tool call"
+  },
+  "type": "gherkin/card"
+}

@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0001",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0005",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0003",
+  "props": {
+    "title": "A conditional clause is refused",
+    "when": "the agent adds a conditional clause"
+  },
+  "type": "gherkin/card"
+}

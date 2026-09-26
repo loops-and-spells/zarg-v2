@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0005",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0003",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0006",
+  "props": {
+    "title": "Agent retries with the hint",
+    "when": "the agent retries using the hint"
+  },
+  "type": "gherkin/card"
+}

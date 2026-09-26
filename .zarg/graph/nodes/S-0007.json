@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0007",
+  "props": {
+    "terminal": true,
+    "text": "each added, changed or removed node is listed"
+  },
+  "type": "gherkin/state"
+}
