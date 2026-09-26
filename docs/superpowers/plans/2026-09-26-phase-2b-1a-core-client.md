@@ -4,9 +4,9 @@
 
 **Goal:** A `zarg-core` process per project that runs driver threads on RLMs and speaks AG-UI over a unix socket, and `@zarg/client`, which starts or attaches to that core, streams its events and folds them into thread state for a UI.
 
-**Architecture:** RLMs report their lifecycle to an `observe` callback. A thread runs a loop of driver RLMs (one per agenda item); the driver's `Inquire.ask` parks the cell and ends the current AG-UI run with an interrupt, and the next run's `resume` answers it. Every event goes through one log (redacted, sequence-numbered, appended to `.zarg/threads/<id>.jsonl`, published live). A Bun fetch handler on `.zarg/run/core.sock` serves `/runs`, `/stream`, `/threads` and `/threads/:id/stop` with a bearer token from `.zarg/run/core.json`. The client reads `core.json`, attaches or spawns a child core, parses SSE into an Effect `Stream`, and a pure `reduce` turns events into `ThreadState`.
+**Architecture:** RLMs report their lifecycle to an `observe` callback. A thread runs a loop of driver RLMs (one per agenda item); the driver's `Inquire.ask` parks the cell and ends the current AG-UI run with an interrupt, and the next run's `resume` answers it. Every event goes through one log (redacted, sequence-numbered, appended to `.zarg/threads/<id>.jsonl`, published live). An Effect `HttpRouter` app, served by `BunHttpServer` on `.zarg/run/core.sock`, serves `/runs`, `/stream`, `/threads` and `/threads/:id/stop` with a bearer-token middleware (token from `.zarg/run/core.json`); `Threads`, `Log` and `Token` are services. The client reads `core.json`, attaches or spawns a child core, parses SSE into an Effect `Stream`, and a pure `reduce` turns events into `ThreadState`.
 
-**Tech Stack:** bun 1.4.2 (via mise), Effect `4.0.0-rc.117`, `@ag-ui/core` 1.0.0 (types and zod schemas), `@zarg/rlm`, `@zarg/model`, `@zarg/plugin`.
+**Tech Stack:** bun 1.4.2 (via mise), Effect `4.0.0-rc.117` (`effect/unstable/http` `HttpRouter`, `@effect/platform-bun` `BunHttpServer` and `BunRuntime`), `@ag-ui/core` 1.0.0 (types and zod schemas), `@zarg/rlm`, `@zarg/model`, `@zarg/plugin`.
 
 **Spec:** `docs/superpowers/specs/2026-09-26-core-driver-tui-design.md` (all sections except "Client and TUI"'s OpenTUI app, which is plan 2b-1b).
 
@@ -22,7 +22,7 @@
 
 ### Deliberate differences from the spec
 
-- The server is a plain Bun fetch handler served with `Bun.serve({ unix })`, not Effect `HttpRouter`. Four routes and an SSE body need nothing more, and tests call the handler with `Request`s in-process, which is what `toWebHandler` was for.
+- `RunAgentInput` is validated with `@ag-ui/core`'s zod schema, not an Effect Schema copy: AG-UI's own schema is the contract.
 - `core.json` helpers (`CoreInfo`, `readInfo`, `isAlive`, `infoPath`, `runDir`) live in `@zarg/client`: the file is the contract both sides read. Core imports them and adds `claim`/`release`.
 - The RLM tree shows the **atomize** decisions, with each criterion's answer and confidence. A failed "decision" verification of a child shows in that child's `failed` status and error text.
 - A message typed while the driver works, with no question pending, ends the open run (`RUN_FINISHED` for it) and joins the recent conversation the next driver item sees. It does not interrupt the running RLM; stop does.
@@ -1704,14 +1704,14 @@ git commit -m "feat(core): thread log and driver loop with inquiries as AG-UI in
 
 **Interfaces:**
 - Consumes: `makeThread`, `Thread`, `ThreadLog`, `WireEvent` (Task 4); `Rlm.make`, `settings`, `inquire` from `@zarg/rlm`.
-- Produces: `Threads { get(id, focus): Effect<Thread>, list(): Thread[] }`; `makeThreads({ log, agenda, makeRlm(asker, observe): Effect<Rlm> })` (creates `main`); `makeHandler({ token, threads, log }): (Request) => Promise<Response>` serving `POST /runs` (AG-UI `RunAgentInput`, focus from `forwardedProps.focus`, SSE `data: <json>\n\n`), `GET /stream?since=`, `GET /threads`, `POST /threads/:id/stop`; 401 without the token, 400 for an invalid input, 404 otherwise.
+- Produces: services `Threads` (`{ get(id, focus): Effect<Thread>, list(): Thread[] }`), `Log` (`ThreadLog`) and `Token` (`string`); `makeThreads({ log, agenda, makeRlm(asker, observe): Effect<Rlm> })` returning `Threads["Service"]` (creates `main`); `api`, a router layer (`HttpRouter.addAll` routes plus a global auth middleware) needing `Threads`, `Log`, `Token`, serving `POST /runs` (AG-UI `RunAgentInput`, focus from `forwardedProps.focus`, SSE `data: <json>\n\n`), `GET /stream?since=`, `GET /threads`, `POST /threads/:id/stop`; 401 without the token, 400 for an invalid input, 404 for an unknown thread. Tests serve it with `HttpRouter.toWebHandler`.
 
 - [ ] **Step 1: Write the failing test**
 
-`packages/core/test/server.test.ts` (a real `Rlm` on a stub model; every event is checked against `@ag-ui/core`'s zod schemas):
+`packages/core/test/server.test.ts` (`api` through `HttpRouter.toWebHandler`, over a real `Rlm` on a stub model; every event is checked against `@ag-ui/core`'s zod schemas):
 
 ```ts
-import { describe, expect, test } from "bun:test"
+import { afterEach, describe, expect, test } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -1719,7 +1719,8 @@ import { Effect, Layer, Stream } from "effect"
 import { EventSchemas } from "@ag-ui/core/schemas"
 import { Model, type ChatMessage, type StreamEvent } from "@zarg/model"
 import { type Asker, inquire, Rlm, settings } from "@zarg/rlm"
-import { makeHandler, makeLog, makeThreads } from "../src"
+import { HttpRouter } from "effect/unstable/http"
+import { api, Log, makeLog, makeThreads, Threads, Token } from "../src"
 
 /** A stub model: the driver asks one question, then finishes with the answer. */
 const stub = Layer.succeed(Model.Model, {
@@ -1742,8 +1743,11 @@ const stub = Layer.succeed(Model.Model, {
 })
 
 const TOKEN = "t0ken"
-const handler = () =>
-  Effect.runPromise(
+/** The router as a fetch handler, over a real Rlm on the stub model (disposed after each test). */
+const handlers: Array<{ dispose: () => Promise<void> }> = []
+afterEach(() => Promise.all(handlers.splice(0).map((h) => h.dispose())))
+const handler = async () => {
+  const { threads, log } = await Effect.runPromise(
     Effect.gen(function* () {
       const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zarg-srv-")), (t) => t)
       const model = yield* Model.Model
@@ -1751,9 +1755,16 @@ const handler = () =>
       const makeRlm = (asker: Asker, observe: (e: Rlm.RlmEvent) => void) =>
         Rlm.make({ settings: s, services: (n) => (n === "Inquire" ? inquire(asker) : undefined), roles: { driver: "stub:m" }, observe }).pipe(Effect.provideService(Model.Model, model))
       const threads = yield* makeThreads({ log, agenda: () => Effect.succeed([]), makeRlm })
-      return makeHandler({ token: TOKEN, threads, log })
+      return { threads, log }
     }).pipe(Effect.provide(stub)),
   )
+  const web = HttpRouter.toWebHandler(
+    api.pipe(Layer.provide([Layer.succeed(Threads, threads), Layer.succeed(Log, log), Layer.succeed(Token, TOKEN)])),
+    { disableLogger: true },
+  )
+  handlers.push(web)
+  return (req: Request) => web.handler(req)
+}
 
 const post = (h: (r: Request) => Promise<Response>, path: string, body: unknown, token = TOKEN) =>
   h(new Request(`http://core${path}`, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body) }))
@@ -1842,7 +1853,7 @@ describe("core HTTP API", () => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `cd packages/core && mise x -- bun test test/server.test.ts`
-Expected: FAIL (`makeHandler` and `makeThreads` are not exported).
+Expected: FAIL (`api`, `Threads`, `Log`, `Token` and `makeThreads` are not exported).
 
 - [ ] **Step 3: Implement**
 
@@ -1875,7 +1886,7 @@ export const makeThreads = (deps: ThreadsDeps) =>
         driver: (spec, asker, observe) => Effect.flatMap(deps.makeRlm(asker, observe), (rlm) => rlm.exec(spec)),
       })
     threads.set("main", yield* create("main", []))
-    const registry: Threads = {
+    const registry: Threads["Service"] = {
       get: (id, focus) =>
         Effect.gen(function* () {
           const existing = threads.get(id)
@@ -1893,92 +1904,116 @@ export const makeThreads = (deps: ThreadsDeps) =>
 `packages/core/src/server.ts`:
 
 ```ts
-import { Effect, Stream } from "effect"
+import { Context, Effect, Layer, Stream } from "effect"
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { RunAgentInputSchema } from "@ag-ui/core/schemas"
 import type { WireEvent } from "./events"
 import type { ThreadLog } from "./log"
 import type { Thread } from "./thread"
 
-export interface Threads {
-  /** The thread with this id, created on first use with the given focus. */
-  readonly get: (id: string, focus: ReadonlyArray<string>) => Effect.Effect<Thread>
-  readonly list: () => ReadonlyArray<Thread>
-}
+/** Driver threads by id. */
+export class Threads extends Context.Service<
+  Threads,
+  {
+    /** The thread with this id, created on first use with the given focus. */
+    readonly get: (id: string, focus: ReadonlyArray<string>) => Effect.Effect<Thread>
+    readonly list: () => ReadonlyArray<Thread>
+  }
+>()("@zarg/core/Threads") {}
 
-const json = (body: unknown, status = 200) => Response.json(body, { status })
+/** The event log every thread writes to. */
+export class Log extends Context.Service<Log, ThreadLog>()("@zarg/core/Log") {}
 
-/** An SSE response that writes each event as `data: <json>\n\n` until the stream ends. */
-const sse = (events: Stream.Stream<WireEvent>) => {
-  const encoder = new TextEncoder()
-  let fiber: { abort: () => void } | undefined
-  const body = new ReadableStream<Uint8Array>({
-    start(controller) {
-      const ac = new AbortController()
-      fiber = { abort: () => ac.abort() }
-      Effect.runPromise(
-        Stream.runForEach(events, (e) => Effect.sync(() => controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n\n`)))),
-        { signal: ac.signal },
-      )
-        .catch(() => {})
-        .finally(() => {
-          try {
-            controller.close()
-          } catch {
-            // already closed by the client
-          }
-        })
-    },
-    cancel() {
-      fiber?.abort()
-    },
-  })
-  return new Response(body, { headers: { "content-type": "text/event-stream", "cache-control": "no-cache" } })
-}
+/** The bearer token every request must carry (from `.zarg/run/core.json`). */
+export class Token extends Context.Service<Token, string>()("@zarg/core/Token") {}
+
+const encoder = new TextEncoder()
+
+/** An SSE response: each event as `data: <json>\n\n`. A client that disconnects interrupts only this stream. */
+const sse = (events: Stream.Stream<WireEvent>) =>
+  HttpServerResponse.stream(
+    events.pipe(Stream.map((e) => encoder.encode(`data: ${JSON.stringify(e)}\n\n`))),
+    { contentType: "text/event-stream", headers: { "cache-control": "no-cache" } },
+  )
+
+const error = (status: number, message: string) => HttpServerResponse.jsonUnsafe({ error: message }, { status })
+
+/** Every route needs `Authorization: Bearer <token>`. */
+const auth = HttpRouter.middleware(
+  Effect.gen(function* () {
+    const token = yield* Token
+    return (app) =>
+      Effect.gen(function* () {
+        const req = yield* HttpServerRequest.HttpServerRequest
+        if (req.headers.authorization !== `Bearer ${token}`) return error(401, "unauthorized")
+        return yield* app
+      })
+  }),
+  { global: true },
+)
+
+const searchParam = (req: HttpServerRequest.HttpServerRequest, name: string) => new URL(req.url, "http://core").searchParams.get(name)
+
+const routes = HttpRouter.addAll(
+  Effect.gen(function* () {
+    const threads = yield* Threads
+    const log = yield* Log
+    // Only a user message this core has not seen yet counts as new input.
+    const seenMessages = new Set<string>()
+    return [
+      HttpRouter.route(
+        "POST",
+        "/runs",
+        Effect.gen(function* () {
+          const req = yield* HttpServerRequest.HttpServerRequest
+          const body = yield* req.json.pipe(Effect.orElseSucceed(() => undefined))
+          const parsed = RunAgentInputSchema.safeParse(body)
+          if (!parsed.success) return error(400, `invalid RunAgentInput: ${parsed.error.message}`)
+          const input = parsed.data
+          const focusProp = (input.forwardedProps as { focus?: unknown } | undefined)?.focus
+          const focus = Array.isArray(focusProp) ? focusProp.map(String) : []
+          const lastMsg = input.messages.at(-1)
+          const fresh = lastMsg !== undefined && lastMsg.role === "user" && !seenMessages.has(lastMsg.id)
+          for (const m of input.messages) seenMessages.add(m.id)
+          const message = fresh && typeof lastMsg.content === "string" ? lastMsg.content : undefined
+          const resume = (input as { resume?: Array<{ interruptId: string; payload?: unknown }> }).resume
+          const thread = yield* threads.get(input.threadId, focus)
+          return sse(thread.run({ runId: input.runId, ...(message !== undefined ? { message } : {}), ...(resume ? { resume } : {}) }))
+        }),
+      ),
+      HttpRouter.route(
+        "GET",
+        "/stream",
+        Effect.map(HttpServerRequest.HttpServerRequest, (req) => sse(log.stream(Number(searchParam(req, "since") ?? 0)))),
+      ),
+      HttpRouter.route(
+        "GET",
+        "/threads",
+        Effect.sync(() => HttpServerResponse.jsonUnsafe(threads.list().map((t) => ({ id: t.id, focus: t.focus, status: t.status() })))),
+      ),
+      HttpRouter.route(
+        "POST",
+        "/threads/:id/stop",
+        Effect.gen(function* () {
+          const { id } = yield* HttpRouter.params
+          const t = threads.list().find((x) => x.id === id)
+          if (t === undefined) return error(404, "no such thread")
+          yield* t.stop
+          return HttpServerResponse.jsonUnsafe({ stopped: t.id })
+        }),
+      ),
+    ]
+  }),
+)
 
 /**
- * Core's HTTP API. Every request needs `Authorization: Bearer <token>`.
+ * Core's HTTP API, as router layers. Needs `Threads`, `Log` and `Token`.
  *   POST /runs                 AG-UI RunAgentInput → SSE of the run's events
  *   GET  /stream?since=<seq>   every thread's events after seq, then live (SSE)
  *   GET  /threads              [{ id, focus, status }]
  *   POST /threads/:id/stop     stop the thread's current work
  */
-export const makeHandler = (opts: { readonly token: string; readonly threads: Threads; readonly log: ThreadLog }) => {
-  const seenMessages = new Set<string>()
-  return async (req: Request): Promise<Response> => {
-    if (req.headers.get("authorization") !== `Bearer ${opts.token}`) return json({ error: "unauthorized" }, 401)
-    const url = new URL(req.url)
-    if (req.method === "POST" && url.pathname === "/runs") {
-      const parsed = RunAgentInputSchema.safeParse(await req.json().catch(() => undefined))
-      if (!parsed.success) return json({ error: `invalid RunAgentInput: ${parsed.error.message}` }, 400)
-      const input = parsed.data
-      const focus = Array.isArray((input.forwardedProps as { focus?: unknown } | undefined)?.focus)
-        ? ((input.forwardedProps as { focus: Array<unknown> }).focus.map(String))
-        : []
-      // Only a user message this core has not seen yet counts as new input.
-      const lastMsg = input.messages.at(-1)
-      const fresh = lastMsg !== undefined && lastMsg.role === "user" && !seenMessages.has(lastMsg.id)
-      for (const m of input.messages) seenMessages.add(m.id)
-      const message = fresh && typeof lastMsg.content === "string" ? lastMsg.content : undefined
-      const resume = (input as { resume?: Array<{ interruptId: string; payload?: unknown }> }).resume
-      const thread = await Effect.runPromise(opts.threads.get(input.threadId, focus))
-      return sse(thread.run({ runId: input.runId, ...(message !== undefined ? { message } : {}), ...(resume ? { resume } : {}) }))
-    }
-    if (req.method === "GET" && url.pathname === "/stream") {
-      return sse(opts.log.stream(Number(url.searchParams.get("since") ?? 0)))
-    }
-    if (req.method === "GET" && url.pathname === "/threads") {
-      return json(opts.threads.list().map((t) => ({ id: t.id, focus: t.focus, status: t.status() })))
-    }
-    const stop = /^\/threads\/([^/]+)\/stop$/.exec(url.pathname)
-    if (req.method === "POST" && stop !== null) {
-      const t = opts.threads.list().find((x) => x.id === decodeURIComponent(stop[1]!))
-      if (t === undefined) return json({ error: "no such thread" }, 404)
-      await Effect.runPromise(t.stop)
-      return json({ stopped: t.id })
-    }
-    return json({ error: "not found" }, 404)
-  }
-}
+export const api = Layer.mergeAll(routes, auth)
 ```
 
 Append to `packages/core/src/index.ts`:
@@ -1998,7 +2033,7 @@ Expected: PASS (16 tests).
 ```bash
 mise run verify
 git add packages/core
-git commit -m "feat(core): AG-UI HTTP API over SSE with token auth"
+git commit -m "feat(core): AG-UI HTTP API on HttpRouter, SSE, token middleware"
 ```
 
 ---
@@ -2011,8 +2046,8 @@ git commit -m "feat(core): AG-UI HTTP API over SSE with token auth"
 - Test: `packages/core/test/lifecycle.test.ts`, `packages/core/test/process.test.ts`
 
 **Interfaces:**
-- Consumes: `CoreInfo`, `readInfo`, `infoPath`, `runDir`, `makeClient` (Task 2); `makeLog` (Task 4); `makeThreads`, `makeHandler` (Task 5).
-- Produces: `claim(root, info): { ok: true } | { ok: false; reason }`, `release(root, pid)`; `liveCore(root)` (Effect of `{ log, threads }`), `liveLayer(root)`; the executable `packages/core/src/main.ts --root <dir> --mode child|headless` (prints `ready <socket>`, exit 2 when another core holds the project, exit 1 with the reason on stderr when it cannot start).
+- Consumes: `CoreInfo`, `readInfo`, `infoPath`, `runDir`, `makeClient` (Task 2); `makeLog` (Task 4); `makeThreads`, `api`, `Threads`, `Log`, `Token` (Task 5).
+- Produces: `claim(root, info): { ok: true } | { ok: false; reason }`, `release(root, pid)`; `liveCore(root)` (Effect of `{ log, threads }`), `liveLayer(root)`; the executable `packages/core/src/main.ts --root <dir> --mode child|headless` (serves `api` with `HttpRouter.serve` on `BunHttpServer.layer({ unix })`, run by `BunRuntime.runMain`; prints `ready <socket>`; exit 2 when another core holds the project; exit 1 with `zarg-core: <reason>` on stderr when it cannot start; exit 0 when its parent goes away in child mode).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -2066,7 +2101,7 @@ describe("core.json", () => {
 
 ```ts
 import { afterAll, describe, expect, test } from "bun:test"
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect } from "effect"
@@ -2114,6 +2149,18 @@ describe("zarg-core process", () => {
     expect(await Effect.runPromise(makeClient(readInfo(root)!).threads())).toHaveLength(1)
     second.proc.stdin.end()
     await second.proc.exited
+  }, 20_000)
+
+  test("a core that cannot start exits 1 with the reason on stderr and leaves no core.json", () => {
+    const broken = mkdtempSync(join(tmpdir(), "zarg-proc-bad-"))
+    mkdirSync(join(broken, ".zarg"))
+    writeFileSync(join(broken, ".zarg", "config.toml"), "not = [valid toml\n")
+    writeFileSync(join(broken, ".env.schema"), "# @defaultSensitive=false\n# ---\n")
+    const r = Bun.spawnSync([process.execPath, main, "--root", broken, "--mode", "child"], { stdin: "ignore" })
+    rmSync(broken, { recursive: true, force: true })
+    expect(r.exitCode).toBe(1)
+    expect(r.stderr.toString()).toContain("invalid TOML")
+    expect(readInfo(broken)).toBeUndefined()
   }, 20_000)
 })
 ```
@@ -2220,14 +2267,16 @@ export const liveLayer = (root: string) => {
 #!/usr/bin/env bun
 // zarg-core: one per project. `--mode child` (default) exits with its parent; `--mode headless` runs until stopped.
 import { randomBytes } from "node:crypto"
-import { rmSync } from "node:fs"
+import { rmSync, writeSync } from "node:fs"
 import { join } from "node:path"
 import { parseArgs } from "node:util"
-import { ManagedRuntime } from "effect"
+import { BunHttpServer, BunRuntime } from "@effect/platform-bun"
+import { Cause, Effect, Exit, Layer, Runtime } from "effect"
+import { HttpRouter } from "effect/unstable/http"
 import { runDir } from "@zarg/client"
 import { claim, release } from "./lifecycle"
 import { liveCore, liveLayer } from "./live"
-import { makeHandler } from "./server"
+import { api, Log, Threads, Token } from "./server"
 
 const { values } = parseArgs({ options: { root: { type: "string" }, mode: { type: "string" } } })
 const root = values.root ?? process.cwd()
@@ -2236,43 +2285,53 @@ const socket = join(runDir(root), "core.sock")
 const token = randomBytes(24).toString("hex")
 const owner = mode === "child" ? process.ppid : undefined
 
-const claimed = claim(root, { pid: process.pid, socket, token, mode, ...(owner !== undefined ? { owner } : {}) })
-if (!claimed.ok) {
-  console.error(claimed.reason)
-  process.exit(2)
-}
-
-const runtime = ManagedRuntime.make(liveLayer(root))
-const core = await runtime.runPromise(liveCore(root)).catch((e: unknown) => {
-  console.error(`core failed to start: ${e instanceof Error ? e.message : String(e)}`)
-  release(root, process.pid)
-  process.exit(1)
+/** Completes when the parent CLI is gone: its stdin pipe closes or this process is re-parented. */
+const parentGone = Effect.callback<void>((resume) => {
+  const done = () => resume(Effect.void)
+  process.stdin.on("end", done)
+  process.stdin.on("close", done)
+  process.stdin.resume()
+  const timer = setInterval(() => {
+    if (process.ppid !== owner) done()
+  }, 1000)
+  return Effect.sync(() => clearInterval(timer))
 })
 
-// A core killed without cleanup leaves its socket file; we hold the claim now, so it is safe to remove.
-rmSync(socket, { force: true })
-const server = Bun.serve({ unix: socket, fetch: makeHandler({ token, threads: core.threads, log: core.log }) })
+const program = Effect.gen(function* () {
+  const claimed = claim(root, { pid: process.pid, socket, token, mode, ...(owner !== undefined ? { owner } : {}) })
+  if (!claimed.ok) {
+    console.error(claimed.reason)
+    return yield* Effect.sync(() => process.exit(2))
+  }
+  yield* Effect.addFinalizer(() => Effect.sync(() => release(root, process.pid)))
+  const core = yield* liveCore(root)
+  // A core killed without cleanup leaves its socket file; we hold the claim now, so it is safe to remove.
+  rmSync(socket, { force: true })
+  yield* Layer.build(
+    HttpRouter.serve(api, { disableListenLog: true, disableLogger: true }).pipe(
+      Layer.provide([BunHttpServer.layer({ unix: socket }), Layer.succeed(Threads, core.threads), Layer.succeed(Log, core.log), Layer.succeed(Token, token)]),
+    ),
+  )
+  console.log(`ready ${socket}`)
+  // SIGINT and SIGTERM interrupt this fiber (runMain); finalizers stop the server and release core.json.
+  yield* mode === "child" ? parentGone : Effect.never
+}).pipe(Effect.scoped, Effect.provide(liveLayer(root)))
 
-const shutdown = async (code = 0) => {
-  server.stop(true)
-  release(root, process.pid)
-  await runtime.dispose().catch(() => {})
-  process.exit(code)
-}
-process.on("SIGTERM", () => void shutdown())
-process.on("SIGINT", () => void shutdown())
-
-if (mode === "child") {
-  // Exit with the CLI: when stdin closes or the parent process is gone.
-  process.stdin.on("end", () => void shutdown())
-  process.stdin.on("close", () => void shutdown())
-  process.stdin.resume()
-  setInterval(() => {
-    if (process.ppid !== owner) void shutdown()
-  }, 1000).unref()
-}
-
-console.log(`ready ${socket}`)
+// Exit once finalizers ran, on success too: open handles (stdin, workers) would otherwise keep the process alive.
+// A failure is written synchronously first: a piped stderr would lose an async log at process.exit.
+BunRuntime.runMain(program, {
+  disableErrorReporting: true,
+  teardown: (exit, onExit) => {
+    if (Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)) {
+      const e = Cause.squash(exit.cause)
+      writeSync(2, `zarg-core: ${e instanceof Error ? e.message : String(e)}\n`)
+    }
+    Runtime.defaultTeardown(exit, (code) => {
+      onExit(code)
+      process.exit(code)
+    })
+  },
+})
 ```
 
 Append to `packages/core/src/index.ts`:
@@ -2300,7 +2359,7 @@ and add `docs/superpowers/specs/2026-09-26-core-driver-tui-design.md` to the "De
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `cd packages/core && mise x -- bunx tsc -p . && mise x -- bun test`
-Expected: PASS (21 tests).
+Expected: PASS (22 tests).
 
 - [ ] **Step 5: Commit**
 
