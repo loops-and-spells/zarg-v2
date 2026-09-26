@@ -29,8 +29,16 @@ packages/<name>/
 - `packages/plugin` (`@zarg/plugin/server`): plugin contract, `PluginHost` and the write pipeline.
 - `packages/plugin-gherkin` (`@zarg/plugin-gherkin/server`): atomic Gherkin user action graph (states and cards).
 - `packages/cli` (`@zarg/cli`): the `zarg` CLI. Run it with `mise run -q zarg -- <command>`.
+- `packages/model` (`@zarg/model`): `Env` and `Secrets` (varlock), config loader, `Model` service, provider contract, OpenRouter-wire client.
+- `packages/provider-zarg-router`, `packages/provider-openrouter`: provider plugins. Each ships its `.env.schema` fragment.
+- `packages/decisions` (`@zarg/decisions`): `Decisions` service (JEV `/systemone`, structured fallback).
 
-Design: `docs/superpowers/specs/2026-09-25-harness-architecture-design.md`.
+Design: `docs/superpowers/specs/2026-09-25-harness-architecture-design.md` and `docs/superpowers/specs/2026-09-25-agent-runtime-design.md`.
+
+## Secrets
+
+- The root `.env.schema` declares every variable zarg reads (it imports the provider packages and `~/.config/zarg/`). Values live in gitignored `.env.local` files. Store secrets with varlock's device-bound encryption: `echo "$KEY" | mise x -- bunx varlock encrypt`.
+- Never print, log or commit a secret value. In tests, use variable names unique to the test so a developer's real environment cannot override them or leak into output.
 
 ## Requirements
 

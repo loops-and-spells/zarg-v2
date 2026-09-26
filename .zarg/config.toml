@@ -1,0 +1,13 @@
+# zarg configuration for this repo. ${VAR} expands from the varlock-resolved environment.
+
+[providers.zarg-router]
+base_url = "${ZARG_ROUTER_URL}"
+
+[providers.openrouter]
+base_url = "${OPENROUTER_URL}"
+api_key  = "${OPENROUTER_API_KEY:-}"
+
+[roles]
+driver   = "zarg-router:deepseek-v4.1-flash-exl3"
+sync     = "zarg-router:deepseek-v4.1-flash-exl3"
+decision = "zarg-router:jevk5"
