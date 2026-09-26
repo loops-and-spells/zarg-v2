@@ -1,0 +1,14 @@
+{
+  "name": "@zarg/graph",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "effect": "^4.0.0-rc.117"
+  },
+  "devDependencies": {
+    "@effect/platform-bun": "^4.0.0-rc.117"
+  }
+}

@@ -5,3 +5,11 @@ config_roots = ["packages/*"]
 
 [tools]
 bun = "1.4.2"
+
+[tasks.verify]
+description = "Typecheck and test every package. Exit code is the verdict."
+depends = ["//...:typecheck", "//...:test"]
+
+[tasks.zarg]
+description = "Run this repo's zarg CLI: mise run zarg -- agenda"
+run = "bun packages/cli/src/main.ts"
