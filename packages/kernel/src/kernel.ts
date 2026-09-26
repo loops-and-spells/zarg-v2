@@ -16,7 +16,10 @@ export interface CellResult {
 
 export interface KernelOptions {
   readonly services: ReadonlyArray<Bound>
-  /** A cell that runs longer is stopped and the worker replaced. */
+  /**
+   * A cell that runs longer than this in the worker is stopped and the worker replaced.
+   * Time spent yielded on service calls does not count.
+   */
   readonly timeoutMs?: number
   /** Output larger than this is cut, keeping head and tail. */
   readonly outputCap?: number
@@ -104,16 +107,46 @@ export const make = (opts: KernelOptions) =>
         const id = ++nextRun
         const lines: Array<string> = []
         const done = yield* Deferred.make<{ ok: boolean; text: string | undefined }>()
+        // The deadline counts only time the cell runs in the worker. While a service call is in
+        // flight the cell is yielded to the host (a model turn, a child RLM, a question to the
+        // developer), and the clock pauses.
+        let inFlight = 0
+        let used = 0
+        let last = Date.now()
+        const tick = () => {
+          const now = Date.now()
+          if (inFlight === 0) used += now - last
+          last = now
+        }
         onMessage = (m) => {
           if (m.type === "log" && m.runId === id) lines.push(m.line)
-          else if (m.type === "call" && m.runId === id) runCall(serve(m))
+          else if (m.type === "call" && m.runId === id) {
+            tick()
+            inFlight++
+            runCall(
+              serve(m).pipe(
+                Effect.ensuring(
+                  Effect.sync(() => {
+                    tick()
+                    inFlight--
+                  }),
+                ),
+              ),
+            )
+          }
           else if (m.type === "done" && m.id === id) {
             Deferred.doneUnsafe(done, Exit.succeed(m.ok ? { ok: true, text: m.value } : { ok: false, text: m.error }))
           }
         }
         send({ type: "run", id, body })
-        const outcome = yield* Deferred.await(done).pipe(
-          Effect.timeoutOrElse({ duration: timeoutMs, orElse: () => Effect.succeed(undefined) }),
+        const watchdog = Effect.gen(function* () {
+          while (true) {
+            yield* Effect.sleep(Math.min(50, timeoutMs))
+            tick()
+            if (used >= timeoutMs) return undefined
+          }
+        })
+        const outcome = yield* Effect.race(Deferred.await(done), watchdog).pipe(
           Effect.onInterrupt(() =>
             Effect.gen(function* () {
               send({ type: "interrupt", id })

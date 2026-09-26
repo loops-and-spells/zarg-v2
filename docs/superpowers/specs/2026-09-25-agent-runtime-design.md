@@ -146,7 +146,7 @@ Every RLM has an id, a parent id, a preset and a scope. RLM start and end, cells
 - The cell body runs as an `Effect.gen` body. Top-level `const`, `let`, `function` and `class` declarations persist as worker globals across cells.
 - `import` is refused. Everything comes from services.
 - Worker-side services are RPC clients generated from the service definitions. Calls cross to the host with Schema-encoded payloads and run in the RLM's host runtime. Typed failures come back as typed failures the cell can `catchTag`.
-- **Timeout:** the worker is terminated and respawned, and its globals are lost. The model is told that this happened. A second death in a row ends the RLM with `RlmError{kind: "kernel"}`.
+- **Timeout:** the deadline counts only time the cell runs in the worker. While a cell is yielded on a service call (a model turn, a child RLM, `Inquire.ask` waiting for the developer), the clock pauses. On timeout the worker is terminated and respawned, and its globals are lost. The model is told that this happened. A second death in a row ends the RLM with `RlmError{kind: "kernel"}`.
 - Interrupting a cell also interrupts its host-side service fibers, including child RLMs.
 - Output is capped at 32 KB per cell.
 - The kernel runs with the scrubbed environment described in "Leak guard".

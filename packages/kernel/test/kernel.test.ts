@@ -91,6 +91,19 @@ describe("Kernel", () => {
     expect(out.fresh.output).toBe("alive")
   })
 
+  test("time spent yielded on a host call does not count toward the deadline", async () => {
+    const out = await withKernel((k) => k.run("return yield* Notes.slow({ ms: 600 })"), { timeoutMs: 200 })
+    expect(out).toEqual({ ok: true, output: "slept", restarted: false })
+  })
+
+  test("time running in the worker between calls still counts", async () => {
+    const out = await withKernel(
+      (k) => k.run('yield* Notes.slow({ ms: 50 })\nconst end = Date.now() + 1000\nwhile (Date.now() < end) {}\nreturn "done"'),
+      { timeoutMs: 300 },
+    )
+    expect(out).toMatchObject({ ok: false, restarted: true })
+  })
+
   test("interrupting a cell interrupts its host-side calls", async () => {
     const seen = await withKernel((k, n) =>
       Effect.gen(function* () {
