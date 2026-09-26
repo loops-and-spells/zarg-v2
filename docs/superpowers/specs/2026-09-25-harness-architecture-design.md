@@ -340,6 +340,8 @@ Phase 2 work, including everything phase 1 deferred:
 
 ### Phase 3: client and TUI
 
+> Update 2026-09-26: `@zarg/client` and the OpenTUI app moved into phase 2b-1 (`docs/superpowers/specs/2026-09-26-core-driver-tui-design.md`). Phase 3 is now plugin views: each plugin's client half.
+
 - `@zarg/client`: an AG-UI SSE client, a pure event reducer, and the host for client plugins.
 - Each plugin's client half: a `state` schema and `views`. The gherkin plugin gets a user action graph view.
 - The OpenTUI shell in `@zarg/cli`, replacing the phase 1 placeholder: inquiry pickers (recommended option preselected, free-text last), thread switching, plugin views.
