@@ -91,6 +91,11 @@ layer  = ["Graph", "Fs:read", "Decisions", "Rlm"]
 spawns = ["research"]
 role   = "driver"
 budget = { turns = 15 }
+result = "research"   # a result Schema registered by name (see Folding)
+verify = "none"       # "gate" | "decision" | "none"
+
+[rlm.atomize]
+min_confidence = 0.5
 ```
 
 - The host checks every `Rlm.exec`: the parent's preset must list the child's preset in `spawns`. Otherwise the call fails with `RlmError{kind: "spawn"}`.
@@ -125,6 +130,17 @@ The RLM's runtime is built from its layer narrowed to its scope:
 - A parent sees only a child's decoded result, never its transcript. This keeps each RLM's context small.
 - Inside one RLM, only the latest few tool outputs are kept in full. Older ones are trimmed to a short head plus a note.
 - The prompt stance tells every RLM to fold early: work outside its scope, or reading beyond a few files, goes to a child RLM.
+
+### Folding (informed by ROMA)
+
+Research: `outputs/roma-folding-research.md` (ROMA, arXiv:2602.01848). ROMA's gains are self-reported and have no recursion ablation, so zarg adopts its mechanics, not its numbers.
+
+1. **Atomize.** When an RLM starts, the host calls `Decisions.decide` with five yes/no questions about the task and scope: single deliverable, one executor suffices, no step dependencies, no packaging of several outputs, no outside coordination. The task is **atomic** when every answer is yes with confidence at least `rlm.atomize.min_confidence` (default 0.5). Atomic tasks run in the RLM's kernel as described above. Anything else is **planned**. At `max_depth` a task always executes (backstop). Every atomize decision is logged.
+2. **Plan.** A non-atomic RLM makes one structured-output model call that returns `Plan = { children: [{ id, task, preset, scope, dependsOn }] }` with 2 to 8 children. The host checks it: each preset is allowed by the spawn graph, `dependsOn` is a DAG over known ids. A bad plan is fed back once for a retry, then fails as `RlmError{kind: "plan"}`. Children run in parallel waves in dependency order, within `max_concurrent`; each child receives its dependencies' results.
+3. **Result types come from presets.** Each preset declares a `result` Schema (for example `research → { findings, sources }`, `implement-card → { files, summary }`), so a plan names presets, not Schemas.
+4. **Verify before folding.** A child's result reaches its parent only after it decodes against the preset's Schema and passes the preset's `verify`: `"gate"` (the `Verify` service must pass; code-writing presets), `"decision"` (a `Decisions` yes/no "does this result satisfy the task?" at the configured confidence), or `"none"` (the parent judges). A failed child appears in the parent's results as `{ ok: false, kind: "verify" | "decode" | "budget", reason }`, never silently absorbed.
+5. **Aggregate in the parent.** After the waves, the parent continues its own kernel loop with a typed `children` global (declared in its manifest) and folds with code, reasoning only where it needs to. Its own result still decodes against its Schema. There is no separate aggregator role.
+6. `Rlm.exec(spec)` remains for ad-hoc folds from inside a cell; planning is the structured path for decomposition.
 
 ### Inquire
 
