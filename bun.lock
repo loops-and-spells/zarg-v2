@@ -29,6 +29,25 @@
         "effect": "^4.0.0-rc.117",
       },
     },
+    "packages/core": {
+      "name": "@zarg/core",
+      "dependencies": {
+        "@ag-ui/core": "1.0.0",
+        "@effect/platform-bun": "^4.0.0-rc.117",
+        "@zarg/client": "workspace:*",
+        "@zarg/decisions": "workspace:*",
+        "@zarg/graph": "workspace:*",
+        "@zarg/kernel": "workspace:*",
+        "@zarg/model": "workspace:*",
+        "@zarg/plugin": "workspace:*",
+        "@zarg/plugin-gherkin": "workspace:*",
+        "@zarg/provider-openrouter": "workspace:*",
+        "@zarg/provider-zarg-router": "workspace:*",
+        "@zarg/rlm": "workspace:*",
+        "effect": "^4.0.0-rc.117",
+        "zod": "3",
+      },
+    },
     "packages/decisions": {
       "name": "@zarg/decisions",
       "dependencies": {
@@ -116,6 +135,8 @@
     },
   },
   "packages": {
+    "@ag-ui/core": ["@ag-ui/core@1.0.0", "", { "peerDependencies": { "zod": "^3.25.18 || ^4.0.0" }, "optionalPeers": ["zod"] }, "sha512-yCRhsQvb4+lmGMrDsi4TOJxqKpm/kb3H64wwL+Z90jNVrkhy17RErfzsNgybfbjNKLM0nenEDYDVJsZHJJSigQ=="],
+
     "@effect/platform-bun": ["@effect/platform-bun@4.0.0-rc.117", "", { "dependencies": { "@effect/platform-node-shared": "^4.0.0-rc.117" }, "peerDependencies": { "effect": "^4.0.0-rc.117" } }, "sha512-jyvoxPjT9562z5Tc2gib9GB16jcgh43jhpsuNQxs9B8WJ7RB2doPBQdrYLSSWRodGPLJBKJGzToRRbJiaGblsw=="],
 
     "@effect/platform-node-shared": ["@effect/platform-node-shared@4.0.0-rc.117", "", { "dependencies": { "@types/ws": "^8.18.1", "ws": "^8.21.3" }, "peerDependencies": { "effect": "^4.0.0-rc.117" } }, "sha512-GyRkEfLBG49MwJe+/XDPiXYcQ44RA9p2z0AurlsWhR1cd1PqOUMEZU1pORL+/R5hR8aH6ZuqoJYD8lAc6h+wlA=="],
@@ -196,6 +217,8 @@
 
     "@zarg/client": ["@zarg/client@workspace:packages/client"],
 
+    "@zarg/core": ["@zarg/core@workspace:packages/core"],
+
     "@zarg/decisions": ["@zarg/decisions@workspace:packages/decisions"],
 
     "@zarg/graph": ["@zarg/graph@workspace:packages/graph"],
@@ -245,5 +268,7 @@
     "web-tree-sitter": ["web-tree-sitter@0.25.10", "", { "peerDependencies": { "@types/emscripten": "^1.40.0" }, "optionalPeers": ["@types/emscripten"] }, "sha512-Y09sF44/13XvgVKgO2cNDw5rGk6s26MgoZPXLESvMXeefBf7i6/73eFurre0IsTW6E14Y0ArIzhUMmjoc7xyzA=="],
 
     "ws": ["ws@8.21.3", "", { "peerDependencies": { "bufferutil": "^4.0.1", "utf-8-validate": ">=5.0.2" }, "optionalPeers": ["bufferutil", "utf-8-validate"] }, "sha512-201TZ/kPWxoPr/OKWjquZR1SWKXcvxdH+e1xrx89b3YbmzLMFCLfnaG1HFIgWzJOEWZ7MvpK++odZufgYR50Rw=="],
+
+    "zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
   }
 }
