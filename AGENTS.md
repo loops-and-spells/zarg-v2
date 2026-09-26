@@ -28,7 +28,7 @@ packages/<name>/
 - `packages/graph` (`@zarg/graph`): JSON graph store under `.zarg/graph`: snapshot, queries, diff.
 - `packages/plugin` (`@zarg/plugin/server`): plugin contract, `PluginHost` and the write pipeline.
 - `packages/plugin-gherkin` (`@zarg/plugin-gherkin/server`): atomic Gherkin user action graph (states and cards).
-- `packages/cli` (`@zarg/cli`): the `zarg` CLI. Run it with `mise run -q zarg -- <command>`.
+- `packages/cli` (`@zarg/cli`): the `zarg` CLI. `zarg [--thread <id>] [--focus <node>]…` opens the TUI (it starts a core as its child, or attaches to a running one); `zarg core start --headless`, `zarg core stop`, `zarg core status` manage a detached core; the other subcommands are graph tools. Run it with `mise run -q zarg -- <command>`. `mise run smoke:chat` runs one live driver item (needs the configured driver model; ask first).
 - `packages/model` (`@zarg/model`): `Env` and `Secrets` (varlock), config loader, `Model` service, provider contract, OpenRouter-wire client.
 - `packages/provider-zarg-router`, `packages/provider-openrouter`: provider plugins. Each ships its `.env.schema` fragment.
 - `packages/decisions` (`@zarg/decisions`): `Decisions` service (JEV `/systemone`, structured fallback).
