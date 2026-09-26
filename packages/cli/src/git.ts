@@ -9,18 +9,22 @@ const sh = (cwd: string, args: ReadonlyArray<string>) =>
 
 const decode = Schema.decodeUnknownEffect(Schema.fromJsonString(Node))
 
-/** The graph as committed at `ref`, read with git (the working tree is untouched). */
+/** The graph as committed at `ref`, read with git (the working tree is untouched). Undecodable files are skipped and reported. */
 export const snapshotAt = (root: string, ref: string) =>
   Effect.gen(function* () {
-    const listing = yield* sh(root, ["ls-tree", "-r", "--name-only", ref, "--", ".zarg/graph/nodes"])
+    // --full-name: paths from the repo top, which is what `git show ref:path` expects.
+    const listing = yield* sh(root, ["ls-tree", "-r", "--full-name", "--name-only", ref, "--", ".zarg/graph/nodes"])
     const files = listing.split("\n").filter((f) => f.endsWith(".json"))
-    const nodes = yield* Effect.forEach(files, (file) =>
-      sh(root, ["show", `${ref}:${file}`]).pipe(
-        Effect.flatMap(decode),
-        Effect.mapError((e) => new IoError({ path: file, message: e.message })),
+    const results = yield* Effect.forEach(files, (file) =>
+      Effect.flatMap(sh(root, ["show", `${ref}:${file}`]), (text) =>
+        decode(text).pipe(
+          Effect.catch((e) => Effect.succeed({ file, message: e.message })),
+        ),
       ),
     )
-    return Snapshot.make(nodes)
+    const problems = results.filter((r): r is { file: string; message: string } => "file" in r)
+    const nodes = results.filter((r): r is Node => !("file" in r))
+    return { snapshot: Snapshot.make(nodes), problems }
   })
 
 /** `path:line:text` hits for `@card <id>` in tracked files. */

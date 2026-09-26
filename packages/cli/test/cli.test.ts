@@ -6,10 +6,11 @@ import { join } from "node:path"
 const main = join(import.meta.dir, "../src/main.ts")
 let dir = ""
 
-const zarg = (...args: Array<string>) => {
-  const p = Bun.spawnSync(["bun", main, ...args], { cwd: dir, env: { ...process.env, ZARG_ROOT: dir } })
+const zargIn = (root: string, ...args: Array<string>) => {
+  const p = Bun.spawnSync(["bun", main, ...args], { cwd: root, env: { ...process.env, ZARG_ROOT: root } })
   return { code: p.exitCode, out: p.stdout.toString(), err: p.stderr.toString() }
 }
+const zarg = (...args: Array<string>) => zargIn(dir, ...args)
 const json = (...args: Array<string>) => JSON.parse(zarg(...args).out)
 const git = (...args: Array<string>) =>
   Bun.spawnSync(["git", "-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd: dir })
@@ -92,4 +93,47 @@ describe("zarg cli", () => {
     expect(zarg("render").code).toBe(0)
     rmSync(join(dir, ".zarg/graph/nodes/S-0099.json"))
   })
+
+  test("a damaged state that a card uses: render still works and new states get fresh ids", async () => {
+    const file = join(dir, ".zarg/graph/nodes/S-0002.json")
+    const saved = await Bun.file(file).text()
+    await Bun.write(file, "{ broken")
+    expect(zarg("render").out).toContain("<missing S-0002>")
+    const r = json("tool", "call", "gherkin/add-state", '{"text":"an unrelated state"}')
+    expect(r.added).toEqual(["S-0003"])
+    expect(await Bun.file(file).text()).toBe("{ broken")
+    await Bun.write(file, saved)
+    zarg("tool", "call", "gherkin/remove", '{"id":"S-0003"}')
+  })
+
+  test("diff --since skips a damaged file at the ref and reports it", async () => {
+    const file = join(dir, ".zarg/graph/nodes/S-0002.json")
+    const saved = await Bun.file(file).text()
+    await Bun.write(file, "{ broken")
+    git("add", ".zarg")
+    git("commit", "-qm", "damaged")
+    await Bun.write(file, saved)
+    const d = json("diff", "--since", "HEAD")
+    expect(d.added.map((n: { id: string }) => n.id)).toEqual(["S-0002"])
+    expect(d.problems.map((p: { file: string }) => p.file)).toEqual([".zarg/graph/nodes/S-0002.json"])
+    git("add", ".zarg")
+    git("commit", "-qm", "restored")
+  })
+})
+
+test("diff --since works when ZARG_ROOT is a subdirectory of the git repo", () => {
+  const top = mkdtempSync(join(tmpdir(), "zarg-sub-"))
+  const sub = join(top, "app")
+  const run = (...args: Array<string>) =>
+    Bun.spawnSync(["git", "-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd: top })
+  run("init", "-q")
+  Bun.spawnSync(["mkdir", "-p", sub])
+  zargIn(sub, "tool", "call", "gherkin/add-state", '{"text":"start"}')
+  run("add", ".")
+  run("commit", "-qm", "graph")
+  zargIn(sub, "tool", "call", "gherkin/add-state", '{"text":"next"}')
+  const r = zargIn(sub, "diff", "--since", "HEAD")
+  rmSync(top, { recursive: true, force: true })
+  expect(r.err).toBe("")
+  expect(JSON.parse(r.out).added.map((n: { id: string }) => n.id)).toEqual(["S-0002"])
 })

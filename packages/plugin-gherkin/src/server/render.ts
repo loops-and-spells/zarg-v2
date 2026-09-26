@@ -1,8 +1,10 @@
 import { type Node, Snapshot } from "@zarg/graph"
 import { ARRIVES, cards, GIVEN, states, text, THEN } from "./model"
 
-const line = (keyword: string, snap: Snapshot.Snapshot, id: string) =>
-  `  ${keyword.padEnd(5)} ${text(snap.nodes.get(id)!)}  # ${id}`
+const line = (keyword: string, snap: Snapshot.Snapshot, id: string) => {
+  const state = snap.nodes.get(id)
+  return `  ${keyword.padEnd(5)} ${state === undefined ? `<missing ${id}>` : text(state)}  # ${id}`
+}
 
 const renderCard = (snap: Snapshot.Snapshot, card: Node): string => {
   const targets = (type: string) => Snapshot.out(snap, card.id, type).map((e) => e.to)

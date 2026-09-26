@@ -14,7 +14,7 @@ Run the CLI from the repo root as `mise run -q zarg -- <command>`.
 1. The graph must be committed. If `git status --porcelain .zarg/graph` prints anything, ask the user whether to commit it (`git commit -m "req: ..."`) before continuing.
 2. Note the current commit: `TARGET=$(git rev-parse HEAD)`.
 3. Find the last synced commit in `.zarg/sync.json` (`{"graph": "<sha>"}`). If the file does not exist, use the empty tree `4b825dc642cb6eb9a060e54bf8d69288fbee4904`.
-4. Get the changes: `mise run -q zarg -- diff --since <sha>`. If `added`, `removed` and `changed` are all empty, report "in sync" and stop.
+4. Get the changes: `mise run -q zarg -- diff --since <sha>`. If `added`, `removed` and `changed` are all empty, report "in sync" and stop. If `problems` lists files that were damaged at that commit, tell the user: those nodes count as added, so check their cards against existing code with `query code` before writing anything new.
 5. Work out which cards are affected:
    - every added, changed or removed `gherkin/card`
    - for every changed state, the cards that use it: `show <state-id>` lists them under `inbound`

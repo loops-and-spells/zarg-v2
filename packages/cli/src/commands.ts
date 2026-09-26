@@ -80,7 +80,7 @@ const diffCmd = Command.make("diff", { since: Flag.String("since").pipe(Flag.wit
   Effect.gen(function* () {
     const before = yield* snapshotAt(root, since)
     const after = yield* GraphStore.use((s) => s.snapshot)
-    yield* print(diff(before, after))
+    yield* print({ ...diff(before.snapshot, after), problems: before.problems })
   }),
 )
 

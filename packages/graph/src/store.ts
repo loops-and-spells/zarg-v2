@@ -68,7 +68,8 @@ export const layer = (dir: string): Layer.Layer<GraphStore, never, FileSystem.Fi
         )
         const problems = results.filter((r): r is InvalidNode => r instanceof InvalidNode)
         const nodes = results.filter((r): r is Node => !(r instanceof InvalidNode))
-        return { snapshot: make(nodes), problems }
+        const reserved = new Set(problems.map((p) => path.basename(p.file, ".json")))
+        return { snapshot: make(nodes, reserved), problems }
       })
 
       const snapshot = Effect.map(load, (l) => l.snapshot)
@@ -83,13 +84,21 @@ export const layer = (dir: string): Layer.Layer<GraphStore, never, FileSystem.Fi
             }
           }
           const before = yield* snapshot
+          for (const c of changes) {
+            const id = c._tag === "Put" ? c.node.id : c.id
+            if (before.reserved.has(id)) {
+              return yield* new InvalidNode({ file: fileOf(id), message: `${id} failed to load; restore or fix the file first` })
+            }
+          }
           for (const [id, expected] of Object.entries(expect)) {
             const cur = before.nodes.get(id)
             const actual = cur === undefined ? undefined : hash(cur)
             if ((actual ?? "absent") !== expected) return yield* new StaleNode({ id, expected, actual })
           }
           const after = applyChanges(before, changes)
-          const dangling = danglingEdges(after)[0]
+          // Only edges this change introduces: a damaged file elsewhere must not block unrelated writes.
+          const touched = new Set(changes.map((c) => (c._tag === "Put" ? c.node.id : c.id)))
+          const dangling = danglingEdges(after).find((d) => touched.has(d.from) || touched.has(d.edge.to))
           if (dangling !== undefined) {
             return yield* new DanglingEdge({ from: dangling.from, type: dangling.edge.type, to: dangling.edge.to })
           }

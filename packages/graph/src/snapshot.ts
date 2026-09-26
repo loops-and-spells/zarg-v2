@@ -8,6 +8,8 @@ export interface InEdge {
 export interface Snapshot {
   readonly nodes: ReadonlyMap<string, Node>
   readonly inbound: ReadonlyMap<string, ReadonlyArray<InEdge>>
+  /** Ids whose files exist but failed to load. Never handed out again and never overwritten. */
+  readonly reserved: ReadonlySet<string>
 }
 
 export type Change =
@@ -17,7 +19,7 @@ export type Change =
 export const Put = (node: Node): Change => ({ _tag: "Put", node })
 export const Remove = (id: string): Change => ({ _tag: "Remove", id })
 
-export const make = (nodes: Iterable<Node>): Snapshot => {
+export const make = (nodes: Iterable<Node>, reserved: ReadonlySet<string> = new Set()): Snapshot => {
   const byId = new Map<string, Node>()
   for (const n of nodes) byId.set(n.id, n)
   const inbound = new Map<string, Array<InEdge>>()
@@ -28,7 +30,7 @@ export const make = (nodes: Iterable<Node>): Snapshot => {
       inbound.set(edge.to, list)
     }
   }
-  return { nodes: byId, inbound }
+  return { nodes: byId, inbound, reserved }
 }
 
 export const empty: Snapshot = make([])
@@ -39,7 +41,7 @@ export const applyChanges = (snap: Snapshot, changes: ReadonlyArray<Change>): Sn
     if (c._tag === "Put") next.set(c.node.id, c.node)
     else next.delete(c.id)
   }
-  return make(next.values())
+  return make(next.values(), snap.reserved)
 }
 
 /** Edges whose target is missing in the snapshot. */
@@ -84,7 +86,7 @@ export const neighbors = (snap: Snapshot, id: string, k: number): ReadonlyArray<
 export const nextId = (snap: Snapshot, prefix: string): string => {
   let max = 0
   const re = new RegExp(`^${prefix}-(\\d+)$`)
-  for (const id of snap.nodes.keys()) {
+  for (const id of [...snap.nodes.keys(), ...snap.reserved]) {
     const m = re.exec(id)
     if (m?.[1] !== undefined) max = Math.max(max, Number(m[1]))
   }

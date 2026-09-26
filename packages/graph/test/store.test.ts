@@ -1,7 +1,7 @@
 import { BunServices } from "@effect/platform-bun"
 import { describe, expect, test } from "bun:test"
 import { Effect, FileSystem, Path } from "effect"
-import { GraphStore, hash, layer, Put, Remove } from "../src"
+import { GraphStore, hash, layer, Put, Remove, Snapshot } from "../src"
 import { card, state } from "./fixtures"
 
 /** Runs `body` against a GraphStore rooted in a fresh temp dir. */
@@ -143,5 +143,46 @@ describe("GraphStore", () => {
     )
     expect(back).toEqual(node)
     expect(hash(back!)).toBe(hash(node))
+  })
+
+  test("a damaged file's id is reserved: nextId skips it and commit will not overwrite it", async () => {
+    const out = await withStore((dir) =>
+      Effect.gen(function* () {
+        const store = yield* GraphStore
+        const fs = yield* FileSystem.FileSystem
+        yield* store.commit([Put(state("S-0001", "a")), Put(state("S-0002", "b"))])
+        yield* fs.writeFileString(`${dir}/nodes/S-0002.json`, "{ broken")
+        const next = Snapshot.nextId(yield* store.snapshot, "S")
+        const err = yield* failure(store.commit([Put(state("S-0002", "unrelated"))]))
+        const text = yield* fs.readFileString(`${dir}/nodes/S-0002.json`)
+        return { next, tag: err._tag, text }
+      }),
+    )
+    expect(out).toEqual({ next: "S-0003", tag: "InvalidNode", text: "{ broken" })
+  })
+
+  test("a damaged file blocks only changes that touch it", async () => {
+    const out = await withStore((dir) =>
+      Effect.gen(function* () {
+        const store = yield* GraphStore
+        yield* store.commit([Put(state("S-0001", "a")), Put(card("UX-0001", "go", "S-0001", ["S-0001"]))])
+        yield* (yield* FileSystem.FileSystem).writeFileString(`${dir}/nodes/S-0001.json`, "<<<<<<< HEAD")
+        const ok = yield* store.commit([Put(state("S-0002", "b"))])
+        const pointing = yield* failure(store.commit([Put(card("UX-0002", "go", "S-0001", ["S-0002"]))]))
+        return { added: ok.diff.added.map((n) => n.id), pointing: pointing._tag }
+      }),
+    )
+    expect(out).toEqual({ added: ["S-0002"], pointing: "DanglingEdge" })
+  })
+
+  test("removing a node that an untouched node points to is still refused", async () => {
+    const err = await withStore(() =>
+      Effect.gen(function* () {
+        const store = yield* GraphStore
+        yield* store.commit([Put(state("S-0001", "a")), Put(card("UX-0001", "go", "S-0001", ["S-0001"]))])
+        return yield* failure(store.commit([Remove("S-0001")]))
+      }),
+    )
+    expect(err._tag).toBe("DanglingEdge")
   })
 })

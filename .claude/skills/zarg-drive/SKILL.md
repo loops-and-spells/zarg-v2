@@ -43,7 +43,7 @@ When the agenda is empty, ask "what next?" with options drawn from the graph (un
 
 ## Rules
 
-- Never edit `.zarg/graph` files by hand and never edit code.
+- Never edit `.zarg/graph` files by hand and never edit code. One exception: an agenda item with id `invalid-file:<path>` means a node file is damaged (often a merge conflict). Its id stays reserved and anything pointing at it renders as `<missing ...>`. Show the user the file and `git log -p -- <path>`, then restore it with `git checkout <ref> -- <path>` or resolve the conflict with their agreement.
 - Reuse states by id whenever the meaning is the same.
 - At natural stopping points, offer to commit the graph: `git add .zarg/graph && git commit -m "req: <summary>"`.
 - Stop when the user says so.
