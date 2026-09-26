@@ -1,4 +1,5 @@
 export * from "./check"
+export * as Kernel from "./kernel"
 export * from "./manifest"
 export * from "./service"
 export * from "./transform"

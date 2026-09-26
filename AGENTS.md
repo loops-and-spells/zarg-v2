@@ -32,6 +32,7 @@ packages/<name>/
 - `packages/model` (`@zarg/model`): `Env` and `Secrets` (varlock), config loader, `Model` service, provider contract, OpenRouter-wire client.
 - `packages/provider-zarg-router`, `packages/provider-openrouter`: provider plugins. Each ships its `.env.schema` fragment.
 - `packages/decisions` (`@zarg/decisions`): `Decisions` service (JEV `/systemone`, structured fallback).
+- `packages/kernel` (`@zarg/kernel`): yieldable service definitions, the manifest they generate, and the Bun Worker kernel that typechecks and runs cells.
 
 Design: `docs/superpowers/specs/2026-09-25-harness-architecture-design.md` and `docs/superpowers/specs/2026-09-25-agent-runtime-design.md`.
 
