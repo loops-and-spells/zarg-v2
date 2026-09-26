@@ -1,0 +1,8 @@
+[tasks.dev]
+run = "bun --watch src/index.ts"
+
+[tasks.start]
+run = "bun src/index.ts"
+
+[tasks.typecheck]
+run = "bunx tsc"
