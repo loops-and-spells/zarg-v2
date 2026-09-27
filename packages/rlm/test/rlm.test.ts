@@ -110,16 +110,31 @@ describe("observe", () => {
     )
     expect(events[0]).toMatchObject({ type: "start", task: "say hi" })
     const steps = events.filter((e) => e.type === "step")
-    const t = { firstTokenMs: expect.any(Number), modelMs: expect.any(Number), promptTokens: expect.any(Number), completionTokens: expect.any(Number) }
     const ms = expect.any(Number)
     expect(steps).toEqual([
-      { type: "step", id: "rlm-1", turn: 1, text: "thinking out loud", cells: [], ...t },
-      { type: "step", id: "rlm-1", turn: 2, text: "", cells: [{ code: 'console.log("hi")', ok: true, output: "hi", ms }], ...t },
-      { type: "step", id: "rlm-1", turn: 3, text: "", cells: [{ code: 'yield* Rlm.done({ value: "ok" })', ok: true, output: "", ms }], ...t },
+      { type: "step", id: "rlm-1", turn: 1, text: "thinking out loud", cells: [] },
+      { type: "step", id: "rlm-1", turn: 2, text: "", cells: [{ code: 'console.log("hi")', ok: true, output: "hi", ms }] },
+      { type: "step", id: "rlm-1", turn: 3, text: "", cells: [{ code: 'yield* Rlm.done({ value: "ok" })', ok: true, output: "", ms }] },
     ])
-    for (const s of steps) if (s.type === "step") expect(s.firstTokenMs).toBeLessThanOrEqual(s.modelMs)
+    for (const m of events) if (m.type === "model") expect(m.firstTokenMs).toBeLessThanOrEqual(m.modelMs)
   })
 
+
+  test("the model's timing is reported as soon as the call returns, before a cell that may wait on the developer", async () => {
+    const events: Array<Rlm.RlmEvent> = []
+    const stub = stubModel({ driver: [{ cell: 'yield* Rlm.done({ value: "ok" })' }] })
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const s = yield* settings({})
+        const rlm = yield* Rlm.make({ settings: s, services: factory, roles: { driver: "stub:m" }, cellTimeoutMs: 5000, observe: (e) => events.push(e) })
+        yield* rlm.exec({ task: "t", preset: "driver", scope: {} })
+      }).pipe(Effect.provide(stub.layer)),
+    )
+    const kinds = events.map((e) => e.type)
+    expect(kinds.indexOf("model")).toBeGreaterThan(kinds.indexOf("turn"))
+    expect(kinds.indexOf("model")).toBeLessThan(kinds.indexOf("step"))
+    expect(events.find((e) => e.type === "model")).toMatchObject({ id: "rlm-1", turn: 1, firstTokenMs: expect.any(Number), modelMs: expect.any(Number), promptTokens: expect.any(Number), completionTokens: expect.any(Number) })
+  })
 
   test("reports start, turns and end for each RLM, including children and failures", async () => {
     const events: Array<Rlm.RlmEvent> = []
@@ -134,8 +149,8 @@ describe("observe", () => {
         yield* rlm.exec({ task: "t", preset: "driver", scope: {} })
       }).pipe(Effect.provide(stub.layer)),
     )
-    expect(events.filter((e) => e.type !== "step").map((e) => `${e.type}:${e.id}`)).toEqual(["start:rlm-1", "turn:rlm-1", "start:rlm-2", "turn:rlm-2", "end:rlm-2", "turn:rlm-1", "end:rlm-1"])
-    expect(events[2]).toMatchObject({ type: "start", id: "rlm-2", parent: "rlm-1", preset: "research", depth: 1 })
+    expect(events.filter((e) => e.type !== "step" && e.type !== "model").map((e) => `${e.type}:${e.id}`)).toEqual(["start:rlm-1", "turn:rlm-1", "start:rlm-2", "turn:rlm-2", "end:rlm-2", "turn:rlm-1", "end:rlm-1"])
+    expect(events.find((e) => e.type === "start" && e.id === "rlm-2")).toMatchObject({ type: "start", id: "rlm-2", parent: "rlm-1", preset: "research", depth: 1 })
     expect(events.at(-1)).toMatchObject({ type: "end", ok: true, turns: 2 })
 
     const failed: Array<Rlm.RlmEvent> = []

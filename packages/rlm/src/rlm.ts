@@ -46,19 +46,26 @@ export type RlmEvent =
   | { readonly type: "start"; readonly id: string; readonly parent: string | undefined; readonly preset: string; readonly task: string; readonly scope: Scope; readonly depth: number; readonly budget: Budget }
   | { readonly type: "turn"; readonly id: string; readonly turn: number; readonly tokens: number }
   /**
-   * What one turn did: the model's text and each cell with its result (for transcripts, not the UI), and where
-   * the time went: until the first streamed event (mostly reading the prompt), the whole model call, each cell.
+   * Where a turn's model call spent its time, sent as soon as it returns (a cell after it may wait on the
+   * developer for good): until the first streamed event (mostly reading the prompt), the whole call, and tokens.
    */
+  | {
+      readonly type: "model"
+      readonly id: string
+      readonly turn: number
+      readonly firstTokenMs: number
+      readonly modelMs: number
+      readonly promptTokens: number
+      readonly completionTokens: number
+      readonly reasoningTokens: number
+    }
+  /** What one turn did: the model's text and each cell with its result and time (for transcripts, not the UI). */
   | {
       readonly type: "step"
       readonly id: string
       readonly turn: number
       readonly text: string
       readonly cells: ReadonlyArray<{ readonly code: string; readonly ok: boolean; readonly output: string; readonly ms: number }>
-      readonly firstTokenMs: number
-      readonly modelMs: number
-      readonly promptTokens: number
-      readonly completionTokens: number
     }
   | { readonly type: "atomize"; readonly id: string; readonly atomic: boolean; readonly reason: string; readonly criteria: Atomized["criteria"]; readonly ms: number }
   | { readonly type: "plan"; readonly id: string; readonly children: ReadonlyArray<{ readonly id: string; readonly preset: string; readonly dependsOn: ReadonlyArray<string> }> }
@@ -260,6 +267,7 @@ export const make = (deps: RlmDeps) =>
             let text = ""
             let promptTokens = 0
             let completionTokens = 0
+            let reasoningTokens = 0
             const calls: Array<ToolCall> = []
             for (const e of events) {
               if (e.type === "text") text += e.delta
@@ -267,12 +275,14 @@ export const make = (deps: RlmDeps) =>
               if (e.type === "usage") {
                 promptTokens += e.usage.promptTokens
                 completionTokens += e.usage.completionTokens
+                reasoningTokens += e.usage.reasoningTokens
               }
             }
             tokens += promptTokens + completionTokens
+            emit({ type: "model", id, turn: turnCount, firstTokenMs, modelMs, promptTokens, completionTokens, reasoningTokens })
             messages.push({ role: "assistant", content: text.length > 0 ? text : null, ...(calls.length > 0 ? { toolCalls: calls } : {}) })
             const cells: Array<{ code: string; ok: boolean; output: string; ms: number }> = []
-            const step = () => emit({ type: "step", id, turn: turnCount, text, cells, firstTokenMs, modelMs, promptTokens, completionTokens })
+            const step = () => emit({ type: "step", id, turn: turnCount, text, cells })
             if (calls.length === 0) {
               step()
               messages.push({ role: "user", content: "Use the exec tool. Finish with `yield* Rlm.done({ value })`." })

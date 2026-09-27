@@ -156,7 +156,7 @@ describe("transcripts", () => {
     const driver: Driver = (_s, asker, observe) =>
       Effect.gen(function* () {
         observe({ type: "start", id: "rlm-1", parent: undefined, preset: "driver", task: "the task\nthe agenda and graph context", scope: {}, depth: 0, budget: { turns: 25, tokens: 1, wallMs: 1 } })
-        observe({ type: "step", id: "rlm-1", turn: 1, text: "hmm", cells: [{ code: 'Fs.read("zt-secret")', ok: false, output: "no such file", ms: 3 }], firstTokenMs: 1, modelMs: 2, promptTokens: 10, completionTokens: 5 })
+        observe({ type: "step", id: "rlm-1", turn: 1, text: "hmm", cells: [{ code: 'Fs.read("zt-secret")', ok: false, output: "no such file", ms: 3 }] })
         return (yield* asker.ask(question)) as never
       }) as never
     const out = await Effect.runPromise(
