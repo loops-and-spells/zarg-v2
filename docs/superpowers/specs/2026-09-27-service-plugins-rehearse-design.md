@@ -9,7 +9,7 @@ Intent: `intent/zarg.md` ("Plugins decide what goes on the graph"; plugins, cont
 
 Rehearse leaves the core and becomes `@zarg/plugin-rehearse`, a first-party plugin in its own locked-down process like Gherkin. To make that possible, plugins gain what rehearse needs, in a form any plugin can use:
 
-- **`pluginDependencies`**: a plugin loads only when the plugins it names are loaded, and may call their methods.
+- **Typed plugin contracts and `pluginDependencies`**: a plugin depends on other plugins' contracts (Effect service tags), loads only when they are loaded and match, and calls their contract methods typed.
 - **A `service` archetype**, for plugins that do work (run agents, test, report) rather than define graph types or model providers.
 - **New powers**: `Models`, `Decisions` and `Agents`, each granted like the others.
 - **Agents that draw themselves**: a plugin's agents show in the agents pane with their own row and their own body (history, tables in tabs, actions on selected rows).
@@ -18,13 +18,37 @@ Rehearse leaves the core and becomes `@zarg/plugin-rehearse`, a first-party plug
 
 The core keeps one thing plugins must never do themselves: opening the driver's graph write gate and committing.
 
-## pluginDependencies
+## Plugin contracts and pluginDependencies
 
-- The manifest gains `pluginDependencies: ReadonlyArray<string>`: plugin names (`["gherkin"]`).
-- **Loading:** the host loads plugins in dependency order. A plugin loads only when every dependency loaded (installed, granted, enabled). Otherwise it does not load, and the agenda says why: "Plugin `rehearse` needs `gherkin`, which is not loaded (not granted)".
+Dependencies are typed: a plugin depends on another's **contract**, an Effect service tag, never on a name string.
+
+- **A contract** is a code-free subpath of the plugin's package (`@zarg/plugin-gherkin/contract`): the plugin's name and the Schemas of the methods other plugins may call, made with `pluginContract`, which returns an Effect `Context.Service` class:
+
+  ```ts
+  export class Gherkin extends pluginContract("gherkin", {
+    stories: { params: StoriesParams, success: StoriesResult },
+    step: { params: StepParams, success: StepView },
+  }) {}
+  ```
+
+  The plugin's own `definePlugin` uses the same method specs, so plugin and contract cannot drift.
+- **A dependent** lists contracts and yields them like any service:
+
+  ```ts
+  import { Gherkin } from "@zarg/plugin-gherkin/contract"
+  definePlugin({ name: "rehearse", archetype: "service", pluginDependencies: [Gherkin], make: Effect.gen(function* () {
+    const gherkin = yield* Gherkin // gherkin.stories(...), gherkin.step(...), typed
+  }) })
+  ```
+
+  An unknown plugin or method is a compile error. `pluginDependencies` accepts only contract tags.
+- **At runtime** the SDK builds each contract's service on the `Plugins.call` power, encoding params and decoding results with the contract's Schemas (as the kernel does for services).
+- **Manifest:** `zarg plugin build` writes `pluginDependencies: [{ name, methods }]`, where `methods` is a digest of the contract's JSON Schemas.
+- **Loading:** the host loads plugins in dependency order. A plugin loads only when every dependency loaded (installed, granted, enabled) and its manifest matches the digest; otherwise the agenda says why: "Plugin `rehearse` needs `gherkin`, which is not loaded (not granted)", or "was built against a different `gherkin` (stories changed); rebuild it".
 - **Cycles:** plugins in a dependency cycle do not load; the agenda names the cycle.
 - **At runtime:** a dependency that is disabled (three restarts in ten minutes) disables its dependents with it, reported the same way.
-- **Calling a dependency:** the new power `Plugins.call(name, method, params)` reaches only declared dependencies, and only their methods that are not agent tools and not write tools (plugin-to-plugin reads such as Gherkin's `stories` and `step`). Writes to the graph never go plugin to plugin; they go through the write pipeline from an agent.
+- **Calling:** `Plugins.call(name, method, params)` reaches only declared dependencies, and only the methods their contract lists: a contract is the plugin's public read surface. Writes and agent tools never go plugin to plugin; graph writes go through the write pipeline from an agent.
+- **Imports:** the rule that no package imports a plugin gains one exception: `/contract` subpaths. The import test also checks a contract module is code-free (Schemas and the tag, no plugin code), so a contract never pulls a plugin into another plugin or the core.
 - **Grants:** a dependency's grant is its own; depending on a plugin never widens either plugin's scopes.
 
 ## The service archetype
@@ -42,7 +66,7 @@ Each is declared in `scopes` (or `optional`), granted like the others, and bound
 | `Models.complete({ role, messages, outputSchema?, maxTokens? })` | `models: ["rehearse"]` (the roles it may use) | runs the configured model for that role; tokens count against the plugin and show in its agents |
 | `Agents.start({ id, parent?, title, task })`, `Agents.status({ id, progress?, text? })`, `Agents.step({ id, text })`, `Agents.end({ id, ok, message? })` | `agents: true` | shows the plugin's agents in the thread's agents pane, in the plugin's own activity stream (a driver item starting over leaves them); `step` lines are the agent's history (redacted, in the transcript) |
 | `Agenda.changed()` | (a plugin with an `agenda` method) | re-reads the plugin's agenda and wakes the driver when it waits on nothing, or only on zarg's own what-next question |
-| `Plugins.call(name, method, params)` | `pluginDependencies` | see above |
+| `Plugins.call(name, method, params)` | `pluginDependencies` | the transport under contract services; see above |
 
 Existing powers cover the rest: `Files` with declared `fs` scopes (rehearse: `.zarg/rehearse/**`), `Config` (the plugin's settings), `Graph` (read).
 
@@ -72,11 +96,11 @@ Existing powers cover the rest: `Files` with declared `fs` scopes (rehearse: `.z
 
 ## Rehearse as a plugin
 
-- `packages/plugin-rehearse` (`@zarg/plugin-rehearse`), first-party, `archetype: "service"`, `pluginDependencies: ["gherkin"]`.
+- `packages/plugin-rehearse` (`@zarg/plugin-rehearse`), first-party, `archetype: "service"`, `pluginDependencies: [Gherkin]` (from `@zarg/plugin-gherkin/contract`).
 - Scopes: `decisions: true`, `models: ["rehearse"]`, `agents: true`, `fs: { read: [".zarg/rehearse/**", "intent/**"], write: [".zarg/rehearse/**"] }`.
 - Config (`[plugins.rehearse]`): `auto_apply = false`, the screen thresholds (`feel_below`, `fail_at`, `fork_below`, `seam_below`, `real_keep`, `real_drop`), `in_flight`.
 - Methods: `run` (agent tool and `/rehearse`), `agenda`, `body`, `act`, `finding`, `resolved`.
-- Everything in the rehearse design keeps working: edge-pair and teleport stories (now through `Plugins.call("gherkin", "stories" | "step")`), personas from the intent, the decision-model screen, diagnosis, consolidation, the report, the record and resume, one run at a time, progress rows, tester history.
+- Everything in the rehearse design keeps working: edge-pair and teleport stories (now through the `Gherkin` contract: `gherkin.stories`, `gherkin.step`), personas from the intent, the decision-model screen, diagnosis, consolidation, the report, the record and resume, one run at a time, progress rows, tester history.
 - New, from the conversation: the tester's body is its history on top and its findings below in **Feedback** and **Likes** tabs; the run's body is the same table over all testers; `a` applies the selected findings, `d` dismisses them.
 - The core's `packages/core/src/rehearse/` goes away, except that the findings gate moves to `packages/core/src/findings.ts`.
 
@@ -91,7 +115,7 @@ Existing powers cover the rest: `Files` with declared `fs` scopes (rehearse: `.z
 
 No live model in `verify`: the host serves scripted `Decisions` and a stub model to plugins in tests.
 
-- **Dependencies:** order, a missing dependency, a cycle, a dependency disabled at runtime taking its dependents with it; `Plugins.call` refused for an undeclared plugin and for a write or agent method.
+- **Dependencies:** order, a missing dependency, a digest mismatch, a cycle, a dependency disabled at runtime taking its dependents with it; `Plugins.call` refused for an undeclared plugin and for a method outside the contract; a contract's service is typed (a compile-time test file with `@ts-expect-error` on an unknown method); the import test allows `/contract` subpaths and fails one that carries plugin code.
 - **Powers:** each refused without its scope; `Models` limited to declared roles; tokens counted; YOLO passes declared scopes only.
 - **Agents:** a plugin's agents show in the pane in their own stream, a driver reset leaves them, `status` draws the row, `step` lines are the history.
 - **Bodies:** the TUI draws history, lines and tabs; select, tab, apply, dismiss; a pending question keeps its keys.
