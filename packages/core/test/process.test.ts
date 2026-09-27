@@ -25,7 +25,11 @@ describe("zarg-core process", () => {
     const info = readInfo(root)!
     expect(info).toMatchObject({ pid: proc.pid, mode: "child" })
 
-    expect(await Effect.runPromise(makeClient(info).threads())).toEqual([{ id: "main", focus: [], status: "idle" }])
+    expect(await Effect.runPromise(makeClient(info).threads())).toEqual([
+      { id: "main", focus: [], status: "idle" },
+      { id: "plan", focus: [], status: "idle" },
+      { id: "implement", focus: [], status: "idle" },
+    ])
     const denied = await Effect.runPromise(Effect.flip(makeClient({ socket: info.socket, token: "wrong" }).threads()))
     expect(denied.status).toBe(401)
 
@@ -44,7 +48,7 @@ describe("zarg-core process", () => {
     await first.proc.exited
     const second = await start("child")
     expect(second.first.startsWith("ready ")).toBe(true)
-    expect(await Effect.runPromise(makeClient(readInfo(root)!).threads())).toHaveLength(1)
+    expect(await Effect.runPromise(makeClient(readInfo(root)!).threads())).toHaveLength(3)
     second.proc.stdin.end()
     await second.proc.exited
   }, 20_000)
@@ -92,6 +96,50 @@ describe("zarg-core process", () => {
     expect(Date.now() - t0).toBeLessThan(2000)
     Effect.runFork(Fiber.interrupt(follower))
   }, 20_000)
+
+  test("stub mode: a card written to the graph is planned, implemented and landed as one commit", async () => {
+    const project = mkdtempSync(join(tmpdir(), "zarg-proc-reconcile-"))
+    const git = (cmd: string) => Bun.spawnSync(["sh", "-c", cmd], { cwd: project, env: { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" } }).stdout.toString().trim()
+    git("git init -q -b main && git config user.email t@t && git config user.name t")
+    writeFileSync(join(project, ".env.schema"), "# @defaultSensitive=false\n# ---\n")
+    mkdirSync(join(project, ".zarg"))
+    writeFileSync(join(project, ".zarg", "config.toml"), '[reconcile]\nquiet_ms = 200\nverify = "test -f src/UX-0001.ts"\n')
+    writeFileSync(join(project, ".gitignore"), ".zarg/run/\n.zarg/threads/\n")
+    git("git add -A && git commit -qm init")
+    const stub = join(project, "..", `${project.split("/").pop()}-stub.json`)
+    writeFileSync(
+      stub,
+      JSON.stringify({
+        cells: [
+          'yield* Rlm.done({ value: { plan: "## Approach\\nAdd it.\\n## Files\\n- src/UX-0001.ts — new\\n## Tests\\n- none — stub\\n## Depends on\\nnone" } })',
+          'yield* Fs.write({ path: "src/UX-0001.ts", content: "// @card UX-0001\\nexport const ok = true\\n" })\nyield* Rlm.done({ value: { files: ["src/UX-0001.ts"], summary: "added" } })',
+        ],
+      }),
+    )
+    const proc = Bun.spawn([process.execPath, main, "--root", project, "--mode", "child"], { stdin: "pipe", stdout: "pipe", stderr: "pipe", env: { ...process.env, ZARG_CORE_STUB: stub } })
+    await proc.stdout.getReader().read()
+    mkdirSync(join(project, ".zarg", "graph", "nodes"), { recursive: true })
+    writeFileSync(join(project, ".zarg/graph/nodes/S-0001.json"), `${JSON.stringify({ id: "S-0001", type: "gherkin/state", props: { text: "the home page is shown" }, edges: [] })}\n`)
+    writeFileSync(
+      join(project, ".zarg/graph/nodes/UX-0001.json"),
+      `${JSON.stringify({ id: "UX-0001", type: "gherkin/card", props: { title: "Open home", when: "the user opens the app" }, edges: [{ type: "gherkin/arrives", to: "S-0001" }, { type: "gherkin/then", to: "S-0001" }] })}\n`,
+    )
+    const until = Date.now() + 30_000
+    while (git("git log -1 --format=%s") !== "feat: implement UX-0001" && Date.now() < until) await Bun.sleep(200)
+    proc.stdin.end()
+    await proc.exited
+    expect(git("git log -1 --format=%s")).toBe("feat: implement UX-0001")
+    expect(git("git show --name-only --format= HEAD").split("\n").sort()).toEqual([
+      ".zarg/graph/nodes/S-0001.json",
+      ".zarg/graph/nodes/UX-0001.json",
+      ".zarg/plans/UX-0001.md",
+      ".zarg/reconciled.json",
+      "src/UX-0001.ts",
+    ])
+    expect(git("git status --porcelain")).toBe("")
+    rmSync(project, { recursive: true, force: true })
+    rmSync(stub, { force: true })
+  }, 60_000)
 
   test("a core that cannot start exits 1 with the reason on stderr and leaves no core.json", () => {
     const broken = mkdtempSync(join(tmpdir(), "zarg-proc-bad-"))

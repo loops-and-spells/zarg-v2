@@ -13,6 +13,8 @@ import { zargRouter } from "@zarg/provider-zarg-router"
 import { type Asker, decisionsService, fsRead, graph, inquire, pluginService, Rlm, type Scope, settings } from "@zarg/rlm"
 import { makeLog } from "./log"
 import { STUB_MODEL, stubLayer } from "./stub"
+import { reconcileSettings } from "./phases"
+import { makeReconcile } from "./reconcile"
 import { makeThreads } from "./threads"
 
 /**
@@ -23,7 +25,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
   Effect.gen(function* () {
     const config = yield* Config.Config
     const roles: Readonly<Record<string, string>> = opts.stub
-      ? { ...Object.fromEntries(Object.keys(config.roles).map((r) => [r, STUB_MODEL])), driver: STUB_MODEL }
+      ? { ...Object.fromEntries(Object.keys(config.roles).map((r) => [r, STUB_MODEL])), driver: STUB_MODEL, plan: STUB_MODEL, implement: STUB_MODEL }
       : config.roles
     const model = yield* Model.Model
     const env = yield* Env
@@ -49,7 +51,24 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         Effect.provideService(Model.Model, model),
       )
     }
-    const threads = yield* makeThreads({ log, agenda: (focus) => host.agenda(focus), makeRlm })
+    // Plan and implement: the reconcile loop, unless `[reconcile] enabled = false`.
+    const reconcileConfig = yield* reconcileSettings(config.extra.reconcile)
+    const reconcile = reconcileConfig.enabled
+      ? yield* makeReconcile({
+          repo: root,
+          settings: reconcileConfig,
+          log,
+          sensitive,
+          makeRlm: (services, observe) =>
+            Rlm.make({ settings: rlmSettings, services, roles, decisions, observe }).pipe(Effect.provideService(Model.Model, model)),
+          extra: (name) => (name === "Decisions" ? decisionsService(decisions as never) : undefined),
+          // Landing writes graph files: no driver write may land halfway through it.
+          withGraphLock: (effect) => host.exclusive(effect),
+        })
+      : undefined
+    const agenda = (focus: ReadonlySet<string> | undefined) =>
+      Effect.map(host.agenda(focus), (items) => [...(reconcile?.agenda(focus) ?? []), ...items])
+    const threads = yield* makeThreads({ log, agenda, makeRlm, extra: reconcile?.threads ?? [] })
     return { log, threads, driver: roles.driver }
   })
 
