@@ -43,4 +43,24 @@ describe("service powers", () => {
     const items = await Effect.runPromise(hostWith([await fixturePlugin(plugin(`{}`, `return 1`))], (h) => h.agenda()))
     expect(items.map((i) => i.id)).toContain("svc:1")
   })
+
+  test("agents events reach the host with the plugin's name, only with the agents scope", async () => {
+    const src = (scopes: string) => `
+import { Effect, Schema } from "effect"
+import { Agents, definePlugin } from "@zarg/plugin-sdk"
+export default definePlugin({ name: "svc", service: "Svc", archetype: "service", config: Schema.Struct({}), scopes: ${scopes},
+  methods: { go: { doc: "go", params: Schema.Struct({}), success: Schema.Unknown, agents: true } },
+  make: Effect.gen(function* () { const a = yield* Agents
+    return { go: () => Effect.gen(function* () {
+      yield* a.start({ id: "t1", title: "tester", task: "walk" })
+      yield* a.status({ id: "t1", progress: { done: 1, total: 2 }, text: "1/2" })
+      yield* a.step({ id: "t1", text: "UX-1: ok" })
+      yield* a.end({ id: "t1", ok: true })
+      return "ok" }) } }) })`
+    const seen: Array<unknown> = []
+    await Effect.runPromise(hostWith([await fixturePlugin(src(`{ agents: true }`))], (h) => h.invoke("svc", "go", {}), { agents: (p, e) => void seen.push([p, (e as { event: string }).event]) }))
+    expect(seen).toEqual([["svc", "start"], ["svc", "status"], ["svc", "step"], ["svc", "end"]])
+    const refused = await Effect.runPromise(Effect.exit(hostWith([await fixturePlugin(src(`{}`))], (h) => h.invoke("svc", "go", {}), { agents: () => {} })))
+    expect(JSON.stringify(refused)).toContain("agents scope")
+  })
 })

@@ -73,6 +73,8 @@ export interface HostOptions {
   readonly decide?: (req: unknown) => Effect.Effect<unknown, unknown>
   /** A model role for plugins with the models scope. */
   readonly complete?: (req: { readonly role: string; readonly messages: ReadonlyArray<unknown>; readonly outputSchema?: unknown; readonly maxTokens?: number }) => Effect.Effect<{ readonly text: string; readonly promptTokens: number; readonly completionTokens: number }, unknown>
+  /** A plugin's agents events (start, status, step, end), for the agents pane. */
+  readonly agents?: (plugin: string, event: unknown) => void
   /** A plugin said its agenda changed. */
   readonly agendaChanged?: (plugin: string) => void
   /** Per plugin: decisions and tokens per hour. */
@@ -242,6 +244,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           ...(opts.decide !== undefined ? { decide: (req: unknown) => Effect.runPromise(opts.decide!(req).pipe(Effect.mapError((e) => ({ tag: "DecisionError", message: String((e as { message?: string }).message ?? e) })))) } : {}),
           ...(opts.complete !== undefined ? { complete: (req: Parameters<NonNullable<HostOptions["complete"]>>[0]) => Effect.runPromise(opts.complete!(req).pipe(Effect.mapError((e) => ({ tag: "ModelError", message: String((e as { message?: string }).message ?? e) })))) } : {}),
           agendaChanged: () => opts.agendaChanged?.(m.name),
+          agents: (e: unknown) => opts.agents?.(m.name, e),
           ...(opts.budget?.(m.name) !== undefined ? { budget: opts.budget(m.name)! } : {}),
           dependencies: (m.pluginDependencies ?? []).map((d) => ({ name: d.name, methods: byName.get(d.name)?.contract?.methods ?? [] })),
           // Looked up at call time: the dependency is running by then (checked below), or the call fails typed.

@@ -36,6 +36,13 @@ export class Models extends Context.Service<Models, {
 }>()("@zarg/plugin-sdk/Models") {}
 /** Time and randomness from the host: a plugin's sandbox has neither. */
 export class Clock extends Context.Service<Clock, { readonly now: Effect.Effect<number, PluginFailure>; readonly uuid: Effect.Effect<string, PluginFailure> }>()("@zarg/plugin-sdk/Clock") {}
+/** This plugin's agents in the agents pane (scope `agents: true`): their rows, their history, their end. */
+export class Agents extends Context.Service<Agents, {
+  readonly start: (a: { readonly id: string; readonly parent?: string; readonly title: string; readonly task: string }) => Effect.Effect<void, PluginFailure>
+  readonly status: (a: { readonly id: string; readonly progress?: { readonly done: number; readonly total: number }; readonly text?: string }) => Effect.Effect<void, PluginFailure>
+  readonly step: (a: { readonly id: string; readonly text: string }) => Effect.Effect<void, PluginFailure>
+  readonly end: (a: { readonly id: string; readonly ok: boolean; readonly message?: string }) => Effect.Effect<void, PluginFailure>
+}>()("@zarg/plugin-sdk/Agents") {}
 /** Tell the host this plugin's agenda changed (the driver may take it up). */
 export class Agenda extends Context.Service<Agenda, { readonly changed: Effect.Effect<void, PluginFailure> }>()("@zarg/plugin-sdk/Agenda") {}
 
@@ -58,6 +65,12 @@ export const servicesFrom = (raw: RawPowers) => ({
   models: Models.of({ complete: (req) => power(raw, "models.complete", req) }),
   clock: Clock.of({ now: power<number>(raw, "clock.now", {}), uuid: power<string>(raw, "clock.uuid", {}) }),
   agenda: Agenda.of({ changed: Effect.asVoid(power(raw, "agenda.changed", {})) }),
+  agents: Agents.of({
+    start: (a) => Effect.asVoid(power(raw, "agents.event", { event: "start", ...a })),
+    status: (a) => Effect.asVoid(power(raw, "agents.event", { event: "status", ...a })),
+    step: (a) => Effect.asVoid(power(raw, "agents.event", { event: "step", ...a })),
+    end: (a) => Effect.asVoid(power(raw, "agents.event", { event: "end", ...a })),
+  }),
   graph: Graph.of({
     snapshot: Effect.map(power<{ nodes: ReadonlyArray<never>; reserved?: ReadonlyArray<string> }>(raw, "graph.snapshot", {}), (s) => Snapshot.make(s.nodes, new Set(s.reserved ?? []))),
   }),

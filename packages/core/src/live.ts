@@ -17,6 +17,7 @@ import { judgeGaps } from "./gaps"
 import { outsideReads } from "./outside"
 import { nextGoals, type NextOption } from "./intent"
 import { makeLog } from "./log"
+import { pluginAgents } from "./plugin-agents"
 import { makeYolo, PluginControl, pluginHostLayer, USER_DIR, vaultFrom } from "./plugins"
 import { STUB_MODEL, stubLayer } from "./stub"
 import { reasonOf, reconcileGate, type ReconcileSettings } from "./phases"
@@ -165,6 +166,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     if (control.yolo.any()) yield* yolo.set(true)
     // A plugin's agenda changed (findings to take up): the driver wakes if it waits on nothing.
     control.setAgendaChanged(() => Effect.runFork(main.wake))
+    // Plugins' agents show in main's agents pane, each plugin in its own stream.
+    control.setAgents(pluginAgents(log, "main") as (plugin: string, event: unknown) => void)
     control.setAsk((q) =>
       main
         .ask({

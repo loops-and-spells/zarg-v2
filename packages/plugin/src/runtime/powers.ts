@@ -114,6 +114,8 @@ export const makePowers = (opts: {
   readonly decide?: (req: unknown) => Promise<unknown>
   readonly complete?: (req: { readonly role: string; readonly messages: ReadonlyArray<unknown>; readonly outputSchema?: unknown; readonly maxTokens?: number }) => Promise<{ readonly text: string; readonly promptTokens: number; readonly completionTokens: number }>
   readonly agendaChanged?: () => void
+  /** The plugin's agents events, to the agents pane. */
+  readonly agents?: (event: unknown) => void
   /** Calls and tokens per hour this plugin may spend on the decision model and model roles. */
   readonly budget?: { readonly decisionsPerHour: number; readonly tokensPerHour: number }
   /** Told while a question to the developer is open, so the call's deadline can stop. */
@@ -266,6 +268,12 @@ export const makePowers = (opts: {
       const out = await opts.complete({ role, messages: (a.messages ?? []) as ReadonlyArray<unknown>, ...(a.outputSchema !== undefined ? { outputSchema: a.outputSchema } : {}), ...(typeof a.maxTokens === "number" ? { maxTokens: a.maxTokens } : {}) })
       spend("tokens", out.promptTokens + out.completionTokens, Infinity)
       return out
+    },
+    "agents.event": async (e) => {
+      if (opts.manifest.scopes.agents !== true) throw notGranted(`${opts.plugin}: it has no agents scope`)
+      // The core checks ids and shapes; a bad event fails this call, never the core.
+      opts.agents?.(e)
+      return null
     },
     "clock.now": async () => Date.now(),
     "clock.uuid": async () => crypto.randomUUID(),

@@ -32,6 +32,8 @@ export class PluginControl extends Context.Service<
     readonly setAsk: (ask: Ask) => void
     /** A plugin's agenda changed: the core wakes the driver (set once main exists). */
     readonly setAgendaChanged: (f: (plugin: string) => void) => void
+    /** Where plugins' agents go (main's agents pane), set once the log exists. */
+    readonly setAgents: (f: (plugin: string, event: unknown) => void) => void
     readonly yolo: {
       readonly on: (plugin: string) => boolean
       /** On or off for one plugin, or for all when `plugin` is omitted. */
@@ -117,11 +119,13 @@ export const pluginHostLayer = (opts: {
   const userDir = opts.userDir ?? USER_DIR
   let ask: Ask | undefined
   let agendaChanged: (plugin: string) => void = () => {}
+  let agents: (plugin: string, event: unknown) => void = () => {}
   const yoloAll = { on: opts.yolo === true }
   const yoloPlugins = new Set<string>()
   const control = PluginControl.of({
     setAsk: (a) => void (ask = a),
     setAgendaChanged: (f) => void (agendaChanged = f),
+    setAgents: (f) => void (agents = f),
     yolo: {
       on: (plugin) => yoloAll.on || yoloPlugins.has(plugin),
       set: (on, plugin) => {
@@ -154,6 +158,7 @@ export const pluginHostLayer = (opts: {
         ...(opts.decide !== undefined ? { decide: opts.decide } : {}),
         ...(opts.complete !== undefined ? { complete: opts.complete } : {}),
         agendaChanged: (plugin) => agendaChanged(plugin),
+        agents: (plugin, event) => agents(plugin, event),
         budget: (name) => {
           const b = (opts.pluginConfig?.(name) as { budget?: { decisions_per_hour?: number; tokens_per_hour?: number } } | undefined)?.budget
           return b === undefined ? undefined : { decisionsPerHour: b.decisions_per_hour ?? 20_000, tokensPerHour: b.tokens_per_hour ?? 2_000_000 }
