@@ -1,5 +1,7 @@
 # Rehearse: testers roleplay the journeys, the driver triages
 
+> Moved into `@zarg/plugin-rehearse`; the developer picks which findings to apply. See `docs/superpowers/specs/2026-09-27-service-plugins-rehearse-design.md`.
+
 Date: 2026-09-27
 Status: design approved in conversation, pending written review
 Intent: `intent/zarg.md` (the rehearse phase: "features to refined features: testers roleplay the flows"; Next goal 4)
