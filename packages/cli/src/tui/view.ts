@@ -1,4 +1,5 @@
 import type { Answer, Inquiry, RlmNode, SessionState } from "@zarg/client"
+import { lintSlashInput, parseSlashInput, SLASH_COMMANDS, type SlashCycle, type SlashInputState, stepCompletion } from "./commands"
 
 /** UI-only state: what is focused and selected. Everything else comes from the session. */
 export interface Ui {
@@ -11,6 +12,8 @@ export interface Ui {
   readonly other: boolean
   /** The inquiry already answered: further Enters wait for the core to move on. */
   readonly answered?: string
+  /** The slash-command box: the highlighted row and the Tab cycle. */
+  readonly slash?: { readonly sel: number | null; readonly cycle: SlashCycle | null }
   /** When Ctrl-C was last pressed (ms); a second press within `EXIT_WINDOW_MS` exits. */
   readonly lastCtrlC?: number
 }
@@ -111,11 +114,64 @@ export type Action =
   | { readonly type: "exit" }
 
 /** What a key press does: the next UI state and, maybe, an action for the session. */
-export const onKey = (ui: Ui, s: SessionState, key: Key, now: number): { readonly ui: Ui; readonly action?: Action } => {
+export interface SlashBox {
+  readonly title: string
+  readonly rows: ReadonlyArray<{ readonly label: string; readonly desc: string; readonly selected: boolean }>
+  /** The argument's ghost hint (or the params still accepted) when there is nothing to list. */
+  readonly hint?: string
+  readonly lint?: string
+}
+
+const slashRows = (state: SlashInputState) =>
+  state.mode === "command" ? state.matches.map((c) => ({ label: c.cmd, desc: c.desc })) : state.candidates.map((c) => ({ label: c, desc: "" }))
+
+/** The suggestions box for the draft, or undefined when the draft is not a slash command. */
+export const slashBox = (draft: string, ui: Ui): SlashBox | undefined => {
+  const state = parseSlashInput(draft)
+  const lint = lintSlashInput(draft)
+  if (state === null && lint === null) return undefined
+  const rows = state ? slashRows(state).map((r, i) => ({ ...r, selected: i === ui.slash?.sel })) : []
+  return {
+    title: state === null || state.mode === "command" ? "commands" : `args for ${state.command.cmd}`,
+    rows,
+    ...(state !== null && state.mode !== "command" && rows.length === 0 ? { hint: state.hint } : {}),
+    ...(lint ? { lint: lint.message } : {}),
+  }
+}
+
+/** Tab, arrows and Escape while the draft is a slash command. Returns undefined when the keys are not the box's. */
+const onSlashKey = (ui: Ui, key: Key, draft: string): { readonly ui: Ui; readonly draft?: string } | undefined => {
+  const state = parseSlashInput(draft)
+  if (state === null && lintSlashInput(draft) === null) return undefined
+  if (key.name === "escape") return { ui: withoutSlash(ui), draft: "" }
+  if (state === null) return undefined
+  if (key.name === "tab") {
+    const step = stepCompletion(draft, state, ui.slash?.cycle ?? null)
+    return step ? { ui: { ...ui, slash: { sel: null, cycle: step.cycle } }, draft: step.text } : { ui }
+  }
+  const n = slashRows(state).length
+  if (n > 0 && (key.name === "down" || key.name === "up")) {
+    const sel = ui.slash?.sel
+    const next = key.name === "down" ? (sel === null || sel === undefined ? 0 : (sel + 1) % n) : sel === null || sel === undefined ? n - 1 : (sel - 1 + n) % n
+    return { ui: { ...ui, slash: { sel: next, cycle: null } } }
+  }
+  return undefined
+}
+
+const withoutSlash = (ui: Ui): Ui => {
+  const { slash: _, ...rest } = ui
+  return rest
+}
+
+export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: string): { readonly ui: Ui; readonly action?: Action; readonly draft?: string } => {
   if (key.ctrl && key.name === "d") return { ui, action: { type: "exit" } }
   if (key.ctrl && key.name === "c") {
     if (ui.lastCtrlC !== undefined && now - ui.lastCtrlC < EXIT_WINDOW_MS) return { ui, action: { type: "exit" } }
     return { ui: { ...ui, lastCtrlC: now }, action: { type: "stop" } }
+  }
+  if (draft !== undefined && inputFocused(ui, s)) {
+    const slash = onSlashKey(ui, key, draft)
+    if (slash !== undefined) return slash
   }
   if (key.name === "tab") return { ui: { ...ui, focus: ui.focus === "conversation" ? "agents" : "conversation" } }
   const inquiry = s.thread.pendingInquiry
@@ -137,11 +193,29 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number): { readonl
 const COMMAND = /^\/[a-z][a-z0-9-]*(\s|$)/
 
 /** Enter in the text field: the "Something else…" answer, or a message (an interjection while the driver works). */
-export const onSubmit = (ui: Ui, s: SessionState, text: string): { readonly ui: Ui; readonly action?: Action } => {
+export const onSubmit = (ui: Ui, s: SessionState, text: string): { readonly ui: Ui; readonly action?: Action; readonly draft?: string } => {
   if (text.trim().length === 0) return { ui }
   const inquiry = s.thread.pendingInquiry
-  // A command is "/name" as the first word; a path ("/api/v2 …") or an answer to "Something else…" is text.
-  if (!(ui.other && inquiry !== undefined) && COMMAND.test(text.trim())) return { ui, action: { type: "command", text: text.trim() } }
+  // A command is "/name" as the first word (or a bare "/" with a row highlighted); a path ("/api/v2 …")
+  // or an answer to "Something else…" is text.
+  const t = text.trim()
+  if (!(ui.other && inquiry !== undefined) && (COMMAND.test(t) || t === "/")) {
+    // An invalid command stays in the input; the box shows why.
+    if (lintSlashInput(t) !== null) return { ui }
+    const state = parseSlashInput(t)
+    const sel = ui.slash?.sel ?? null
+    // The highlighted row, else the command the next Tab would pick, else what was typed.
+    const chosen =
+      state?.mode === "command"
+        ? (state.matches[sel ?? 0]?.cmd ?? t)
+        : state?.mode === "arg" && sel !== null && state.candidates[sel] !== undefined
+          ? `${state.command.cmd} ${state.candidates[sel]}`
+          : t
+    const command = SLASH_COMMANDS.find((c) => c.cmd === chosen.split(/\s+/)[0])
+    if (command?.arg.required && chosen === command.cmd) return { ui: withoutSlash(ui), draft: `${command.cmd} ` }
+    if (t === "/" && state === null) return { ui }
+    return { ui: withoutSlash(ui), action: { type: "command", text: chosen } }
+  }
   if (ui.other && inquiry !== undefined) {
     if (ui.answered === inquiry.id) return { ui }
     return { ui: { ...ui, other: false, answered: inquiry.id }, action: { type: "answer", answer: { other: text } } }

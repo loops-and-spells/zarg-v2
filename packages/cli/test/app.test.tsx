@@ -150,4 +150,28 @@ describe("tui frames", () => {
     await t.waitForVisualIdle()
     expect(t.captureCharFrame()).toContain("research rlm-40")
   })
+
+  test("typing / shows the command box; Tab completes; Enter runs the command", async () => {
+    const t = await render({ thread: { ...initial("main"), status: "idle" }, core: "up" })
+    await t.mockInput.typeText("/re")
+    await t.waitForVisualIdle()
+    const frame = t.captureCharFrame()
+    expect(frame).toContain("commands")
+    expect(frame).toContain("/reconcile  turn plan and implement on for this session")
+    t.mockInput.pressTab()
+    await t.waitForVisualIdle()
+    expect(t.captureCharFrame()).toContain("/reconcile")
+    t.mockInput.pressEnter()
+    await t.waitForVisualIdle()
+    expect(t.calls).toEqual(["command /reconcile"])
+  })
+
+  test("an unknown command shows its lint and is not sent", async () => {
+    const t = await render({ thread: { ...initial("main"), status: "idle" }, core: "up" })
+    await t.mockInput.typeText("/nope")
+    t.mockInput.pressEnter()
+    await t.waitForVisualIdle()
+    expect(t.captureCharFrame()).toContain("✗ unknown command /nope")
+    expect(t.calls).toEqual([])
+  })
 })

@@ -1,7 +1,7 @@
 import { useKeyboard } from "@opentui/react"
 import { useRef, useState, useSyncExternalStore } from "react"
 import type { Session } from "@zarg/client"
-import { type Action, conversation, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, statusLine, syncUi, tree, type Ui } from "./view"
+import { type Action, conversation, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashBox, statusLine, syncUi, tree, type Ui } from "./view"
 
 const COLORS = { you: "#8ab4f8", zarg: "#e8eaed", error: "#f28b82", notice: "#fdd663", dim: "#9aa0a6", accent: "#81c995" }
 
@@ -11,7 +11,13 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   // UI state lives in a ref so several keys in one frame each see the previous key's result.
   const uiRef = useRef<Ui>(initialUi)
   const [, rerender] = useState(0)
-  const [draft, setDraft] = useState("")
+  const [draft, setDraftState] = useState("")
+  // The draft in a ref too: the keyboard handler reads it between renders (Tab completes it).
+  const draftRef = useRef("")
+  const setDraft = (text: string) => {
+    draftRef.current = text
+    setDraftState(text)
+  }
   const latest = () => (uiRef.current = syncUi(uiRef.current, props.session.state()))
   const setUi = (next: Ui) => {
     uiRef.current = next
@@ -29,12 +35,15 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   }
 
   useKeyboard((key) => {
-    const r = onKey(latest(), props.session.state(), { name: key.name, ctrl: key.ctrl }, Date.now())
+    const r = onKey(latest(), props.session.state(), { name: key.name, ctrl: key.ctrl }, Date.now(), draftRef.current)
     setUi(r.ui)
+    if (r.draft !== undefined) setDraft(r.draft)
     act(r.action)
   })
 
   const inquiry = s.thread.pendingInquiry
+  const box = inputFocused(ui, s) ? slashBox(draft, ui) : undefined
+  const width = Math.max(0, ...(box?.rows ?? []).map((r) => r.label.length))
   const lines = conversation(s)
   const agents = tree(s.thread.rlms)
   return (
@@ -71,17 +80,34 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           ))}
         </box>
       ) : null}
+      {box !== undefined ? (
+        <box title={box.title} style={{ border: true, borderColor: box.lint ? COLORS.error : COLORS.dim, flexDirection: "column", flexShrink: 0 }}>
+          {box.rows.map((r) => (
+            <text key={r.label} fg={r.selected ? COLORS.accent : COLORS.zarg}>
+              {`${r.selected ? "›" : " "}${r.label.padEnd(width)}  ${r.desc}`}
+            </text>
+          ))}
+          {box.hint !== undefined ? <text fg={COLORS.dim}>{` ${box.hint}`}</text> : null}
+          {box.lint !== undefined ? <text fg={COLORS.error}>{`✗ ${box.lint}`}</text> : null}
+        </box>
+      ) : null}
       <box title={ui.other ? "Your answer" : "Message"} style={{ border: true, height: 3, flexShrink: 0 }}>
         <input
           focused={inputFocused(ui, s)}
           value={draft}
           placeholder={inquiry !== undefined && !ui.other ? "choose above, or pick Something else…" : "type a message, Enter to send"}
-          onInput={setDraft}
+          onInput={(text: string) => {
+            setDraft(text)
+            // Typing picks the box afresh: no highlighted row.
+            const u = latest()
+            if (u.slash?.sel !== null && u.slash?.sel !== undefined) setUi({ ...u, slash: { sel: null, cycle: u.slash.cycle } })
+          }}
           // The input passes its value; the prop's type also admits DOM's SubmitEvent, hence `unknown`.
           onSubmit={(value: unknown) => {
             const r = onSubmit(latest(), props.session.state(), String(value))
             setUi(r.ui)
-            if (r.action !== undefined) setDraft("")
+            if (r.draft !== undefined) setDraft(r.draft)
+            else if (r.action !== undefined) setDraft("")
             act(r.action)
           }}
         />

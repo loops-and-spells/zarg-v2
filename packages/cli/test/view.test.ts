@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
-import { conversation, EXIT_WINDOW_MS, initialUi, inputFocused, OTHER, onKey, onSubmit, pickerRows, statusLine, syncUi, tree } from "../src/tui/view"
+import { conversation, EXIT_WINDOW_MS, initialUi, inputFocused, OTHER, onKey, onSubmit, pickerRows, slashBox, statusLine, syncUi, tree } from "../src/tui/view"
 
 const inquiry: Inquiry = {
   id: "inq-1",
@@ -70,7 +70,8 @@ describe("keys and input", () => {
 
   test("input starting with / is a command, not a message", () => {
     expect(onSubmit(initialUi, running, "/reconcile").action).toEqual({ type: "command", text: "/reconcile" })
-    expect(onSubmit(initialUi, running, " /nope ").action).toEqual({ type: "command", text: "/nope" })
+    // An unknown command is not sent: it stays in the input with the box's lint.
+    expect(onSubmit(initialUi, running, " /nope ").action).toBeUndefined()
   })
 
   test("typing while the driver works sends the message (an interjection)", () => {
@@ -118,5 +119,32 @@ describe("conversation, agents and status", () => {
       { depth: 1, kind: "rlm", text: "research rlm-2  2/25  done" },
       { depth: 1, kind: "rlm", text: "research rlm-10  2/25  failed: budget" },
     ])
+  })
+})
+
+describe("slash commands in the input", () => {
+  const idle: SessionState = { thread: { ...initial("main"), status: "idle" }, core: "up" }
+  const press = (ui: typeof initialUi, draft: string, name: string) => onKey(ui, idle, { name }, 0, draft)
+
+  test("typing / shows the commands; Tab completes; Esc clears", () => {
+    expect(slashBox("/", initialUi)).toMatchObject({ title: "commands", rows: [{ label: "/reconcile", desc: "turn plan and implement on for this session", selected: false }] })
+    const tab = press(initialUi, "/re", "tab")
+    expect(tab.draft).toBe("/reconcile")
+    expect(press(initialUi, "/re", "escape").draft).toBe("")
+    expect(slashBox("hello", initialUi)).toBeUndefined()
+    expect(slashBox("/api/v2 is slow", initialUi)).toBeUndefined()
+  })
+
+  test("arrows highlight a row; Enter runs the highlighted command", () => {
+    const down = press(initialUi, "/", "down")
+    expect(slashBox("/", down.ui)?.rows[0]?.selected).toBe(true)
+    expect(onSubmit(down.ui, idle, "/").action).toEqual({ type: "command", text: "/reconcile" })
+  })
+
+  test("a lint error shows in the box and Enter keeps the draft instead of running", () => {
+    expect(slashBox("/reconcile now", initialUi)?.lint).toBe("/reconcile takes no arguments")
+    expect(slashBox("/nope", initialUi)?.lint).toBe("unknown command /nope")
+    expect(onSubmit(initialUi, idle, "/nope")).toEqual({ ui: initialUi })
+    expect(onSubmit(initialUi, idle, "/rec").action).toEqual({ type: "command", text: "/reconcile" })
   })
 })
