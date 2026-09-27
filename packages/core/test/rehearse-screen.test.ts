@@ -58,4 +58,10 @@ describe("rehearse screen", () => {
     const people = await Effect.runPromise(personasOf(md, () => Effect.succeed({ person: noul(0.9) })))
     expect(people.map((p) => p.name)).toEqual(["Shoppers", "Shoppers (2)"])
   })
+
+  test("a person the decision model is only fairly sure of is still a tester (measured: the developer 0.45, systems at most 0.26)", async () => {
+    const md = "## Affected users and systems\n\n- The developer, through the zarg TUI.\n- The project's git repository.\n"
+    const decide = (req: DecisionRequest) => Effect.succeed({ person: noul(req.state.includes("developer") ? 0.45 : 0.26) })
+    expect((await Effect.runPromise(personasOf(md, decide))).map((p) => p.name)).toEqual(["The developer"])
+  })
 })

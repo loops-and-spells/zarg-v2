@@ -174,7 +174,9 @@ export const makeRehearse = (deps: RehearseDeps) =>
         Effect.gen(function* () {
           if (active !== undefined) return { refused: `run ${active.run} is still going` }
           const strategy = opts.strategy ?? "edge-pair"
-          const planned = yield* deps.stories(strategy, opts.focus !== undefined ? new Set(opts.focus) : undefined).pipe(Effect.orElseSucceed(() => ({ stories: [], unreachable: 0 })))
+          // No focus, or an empty one, is every story.
+          const focus = opts.focus !== undefined && opts.focus.length > 0 ? new Set(opts.focus) : undefined
+          const planned = yield* deps.stories(strategy, focus).pipe(Effect.orElseSucceed(() => ({ stories: [], unreachable: 0 })))
           const all = yield* personasOf(deps.intent(), deps.decide)
           const personas = opts.personas !== undefined ? all.filter((p) => opts.personas!.includes(p.name)) : all
           if (personas.length === 0) {

@@ -45,6 +45,10 @@ export const screenStep = (decide: Decide, persona: Persona, prior: ReadonlyArra
     return { feel, fail, arrive, ...(fork !== undefined ? { fork } : {}), flags } satisfies Screened
   }).pipe(Effect.orElseSucceed(() => undefined))
 
+// jevk5 on zarg's intent (2026-09-27): "The developer, through the zarg TUI" 0.45, "Shoppers, on mobile" 0.69;
+// the git repository 0.26, model providers 0.18, a payments API 0.23. People rank above systems, below 0.5.
+const PERSON_AT = 0.4
+
 /** One tester per person under "Affected users" in the intent; systems in that list are not testers. */
 export const personasOf = (markdown: string, decide: Decide) =>
   Effect.gen(function* () {
@@ -59,7 +63,7 @@ export const personasOf = (markdown: string, decide: Decide) =>
     }
     const people = yield* Effect.forEach(bullets, (text) =>
       decide({ state: `An entry in a product's list of affected users and systems: ${text}`, questions: { person: { type: "noul", instructions: "Is this a person who uses the product (not a system or a store)?" } } }).pipe(
-        Effect.map((a) => (a.person?.type === "noul" && a.person.probability >= 0.5 ? [text] : [])),
+        Effect.map((a) => (a.person?.type === "noul" && a.person.probability >= PERSON_AT ? [text] : [])),
         Effect.orElseSucceed(() => [] as Array<string>),
       ),
     )

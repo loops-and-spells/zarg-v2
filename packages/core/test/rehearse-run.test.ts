@@ -38,11 +38,12 @@ const setup = (opts: { down?: boolean; dir?: string; slowDecide?: number; slowMo
     const decisions: Array<DecisionRequest> = []
     const llm = { n: 0 }
     const said: Array<string> = []
+    const focuses: Array<ReadonlySet<string> | undefined> = []
     let woke = 0
     const deps: RehearseDeps = {
       dir: join(dir, "rehearse"),
       log,
-      stories: () => Effect.succeed({ stories: [["A", "B", "C"], ["A", "B", "D"]], unreachable: opts.unreachable ?? 0 }),
+      stories: (_s, focus) => Effect.sync(() => (focuses.push(focus), { stories: [["A", "B", "C"], ["A", "B", "D"]], unreachable: opts.unreachable ?? 0 })),
       step: (card) => Effect.succeed(view(card)),
       decide: decide(decisions, opts.down, opts.slowDecide ?? 0),
       model: model(llm, opts.slowModel ?? 0, opts.note),
@@ -53,7 +54,7 @@ const setup = (opts: { down?: boolean; dir?: string; slowDecide?: number; slowMo
       wake: Effect.sync(() => void woke++),
     }
     const r = yield* makeRehearse(deps)
-    return { r, dir, decisions, llm, said, woke: () => woke }
+    return { r, dir, decisions, llm, said, focuses, woke: () => woke }
   })
 const until = (check: () => boolean) =>
   Effect.gen(function* () {
@@ -153,6 +154,15 @@ describe("rehearse run", () => {
       return t.r.findingOf("R-00000001")
     })))
     expect(hit).toMatchObject({ run: "r-a", f: { route: "drop" } })
+  })
+
+  test("an empty focus means every story", async () => {
+    const t = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
+      const t = yield* setup()
+      yield* t.r.start({ focus: [] })
+      return t
+    })))
+    expect(t.focuses).toEqual([undefined])
   })
 
   test("a second run is refused while one is going", async () => {

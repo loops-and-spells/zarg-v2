@@ -83,7 +83,7 @@ export default definePlugin({
       suggest: () => Effect.map(snap, suggest),
       render: ({ focus }: { focus?: ReadonlyArray<string> }) => Effect.map(snap, (s) => render(s, focus === undefined ? undefined : new Set(focus))),
       stories: ({ strategy, focus }: { strategy: "edge-pair" | "teleport"; focus?: ReadonlyArray<string> }) =>
-        Effect.map(snap, (s) => planStories(s, strategy, focus === undefined ? undefined : new Set(focus))),
+        Effect.map(snap, (s) => planStories(s, strategy, focus === undefined || focus.length === 0 ? undefined : new Set(focus))),
       step: ({ card, via }: { card: string; via?: string }) => Effect.map(snap, (s) => stepView(s, card, via) ?? null),
       affected: ({ before, after }: { before: { nodes: ReadonlyArray<unknown> }; after: { nodes: ReadonlyArray<unknown> } }) =>
         Effect.sync(() => affectedCards(snapshotOf(before), snapshotOf(after))),
