@@ -14,6 +14,8 @@ export interface ThreadsDeps {
   readonly makeRlm: (asker: Asker, observe: (e: Rlm.RlmEvent) => void) => Effect.Effect<Rlm.Rlm>
   /** Threads that exist from the start besides `main` (the `plan` and `implement` views). */
   readonly extra?: ReadonlyArray<Thread>
+  /** Stopping main also stops this (a rehearse run: the developer's stop is for everything). */
+  readonly alsoStop?: Effect.Effect<void>
 }
 
 /** Threads by id, created on first use. `main` exists from the start. */
@@ -31,7 +33,8 @@ export const makeThreads = (deps: ThreadsDeps) =>
         ...(deps.whatNext !== undefined ? { whatNext: deps.whatNext } : {}),
         driver: (spec, asker, observe) => Effect.flatMap(deps.makeRlm(asker, observe), (rlm) => rlm.exec(spec)),
       })
-    threads.set("main", yield* create("main", []))
+    const main = yield* create("main", [])
+    threads.set("main", deps.alsoStop === undefined ? main : { ...main, stop: Effect.andThen(main.stop, deps.alsoStop) })
     for (const t of deps.extra ?? []) threads.set(t.id, t)
     const registry: Threads["Service"] = {
       get: (id, focus) =>

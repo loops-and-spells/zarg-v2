@@ -63,4 +63,15 @@ describe("ask before writing", () => {
     await Effect.runPromise(guard.asker.choose!({ question: "inq-9", choice: "add", why: "they said it looks right" }))
     expect(await Effect.runPromise(gated.handlers.addCard!({}))).toBe("created UX-0001")
   })
+
+  test("openFor opens writes for a finding until the next question; the gate remembers what the writes touched", async () => {
+    const tracked: Bound = { def: { name: "Gherkin" } as never, handlers: { addCard: () => Effect.succeed({ message: "ok", added: ["UX-0009"], changed: ["S-0001"], removed: [], warnings: [] }) } }
+    const guard = askFirst({ ask: () => Effect.succeed({ choice: "a" }) })
+    const gated = guard.gate(tracked)!
+    guard.openFor()
+    await Effect.runPromise(gated.handlers.addCard!({}))
+    expect([...guard.touched()].sort()).toEqual(["S-0001", "UX-0009"])
+    await Effect.runPromise(guard.asker.ask({ question: "q", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }] }))
+    expect(await Effect.runPromise(Effect.flip(gated.handlers.addCard!({})))).toMatchObject({ _tag: "AskFirst" })
+  })
 })

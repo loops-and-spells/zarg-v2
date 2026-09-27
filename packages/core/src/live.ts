@@ -2,7 +2,7 @@ import { BunServices } from "@effect/platform-bun"
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { Cause, Effect, Layer, Scope as EffectScope, Semaphore } from "effect"
+import { Cause, Effect, Layer, Scope as EffectScope, Semaphore, Stream } from "effect"
 import { Decisions, layer as decisionsLayer } from "@zarg/decisions"
 import { GraphStore, layer as graphLayer } from "@zarg/graph"
 import { type Bound } from "@zarg/kernel"
@@ -20,10 +20,15 @@ import { makeLog } from "./log"
 import { makeYolo, PluginControl, pluginHostLayer, USER_DIR, vaultFrom } from "./plugins"
 import { STUB_MODEL, stubLayer } from "./stub"
 import { reasonOf, reconcileGate, type ReconcileSettings } from "./phases"
-import { checkoutProblem } from "@zarg/reconcile"
+import { checkoutProblem, gitRun } from "@zarg/reconcile"
 import { makeReconcile } from "./reconcile"
 import type { ReconcileAnswer } from "./server"
 import { makeThreads } from "./threads"
+import * as E from "./events"
+import { makeRehearse, type Rehearse } from "./rehearse/run"
+import { commitGraph, rehearseService } from "./rehearse/service"
+import { rehearseSettings } from "./rehearse/settings"
+import type { AgendaItem } from "@zarg/plugin/server"
 
 /**
  * Everything a real core needs for a project: the 2a runtime, the thread log and the threads.
@@ -47,6 +52,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
 
     // Agents may read outside the repository (porting from another project) once the developer allows it.
     const agentGrants = yield* makeGrants({ file: join(USER_DIR, "grants.json"), project: root })
+    // Rehearse is made after the threads (it wakes main); the driver's service and the agenda reach it through this.
+    const rehearseRef: { current?: Rehearse } = {}
     const makeRlm = (asker: Asker, observe: (e: Rlm.RlmEvent) => void) => {
       // One driver item: graph writes wait for an answered question.
       const guard = askFirst(asker)
@@ -60,6 +67,15 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         if (name === "Fs:read") return fsRead({ root, scope, sensitive, outside })
         if (name === "Inquire") return inquire(guard.asker)
         if (name === "Decisions") return decisionsService(decisions as never)
+        if (name === "Rehearse")
+          return rehearseRef.current === undefined
+            ? undefined
+            : rehearseService({
+                rehearse: rehearseRef.current,
+                guard,
+                stepNow: (card) => host.step(card).pipe(Effect.orElseSucceed(() => undefined)),
+                commit: (ids, message) => host.exclusive(commitGraph(root, ids, message)),
+              })
         return undefined
       }
       return Rlm.make({ settings: rlmSettings, services: factory, roles, decisions, observe }).pipe(
@@ -88,7 +104,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     if (!gate.on) yield* Effect.sync(() => console.error(`zarg-core: ${gate.reason}`))
     let reconcile = gate.on ? yield* startReconcile(gate.settings) : undefined
     const agenda = (focus: ReadonlySet<string> | undefined) =>
-      Effect.map(host.agenda(focus), (items) => [...(reconcile?.agenda(focus) ?? []), ...items])
+      Effect.map(host.agenda(focus), (items): ReadonlyArray<AgendaItem> => [...(reconcile?.agenda(focus) ?? []), ...(rehearseRef.current?.agenda(focus) ?? []), ...items])
     // The same scope filter the driver's Graph.render applies.
     const render = (ids: ReadonlyArray<string>, scope: Scope) => Effect.map(graph({ host, snapshot, scope }).handlers.render!({ focus: ids }), String)
     // What next: failure candidates a decision model judges real.
@@ -105,9 +121,39 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
           .filter((n) => n.type === "gherkin/state" && n.props.entry === true && (focus === undefined || focus.has(n.id)))
           .map((n): NextOption => ({ id: n.id, label: String(n.props.text ?? n.id), task: `Work on the journey that starts at "${String(n.props.text ?? n.id)}" (${n.id}).` }))
       })
-    const threads = yield* makeThreads({ log, agenda, render, suggest, whatNext, makeRlm, extra: reconcile?.threads ?? [] })
+    const threads = yield* makeThreads({
+      log,
+      agenda,
+      render,
+      suggest,
+      whatNext,
+      makeRlm,
+      extra: reconcile?.threads ?? [],
+      alsoStop: Effect.suspend(() => rehearseRef.current?.stop ?? Effect.void),
+    })
     // A plugin's grant question is asked on main, like any driver question.
     const main = yield* threads.get("main", [])
+    const intentText = () => {
+      const dir = join(root, "intent")
+      return existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".md")).sort().map((f) => readFileSync(join(dir, f), "utf8")).join("\n\n") : ""
+    }
+    const rehearse = yield* makeRehearse({
+      dir: join(root, ".zarg", "rehearse"),
+      log,
+      stories: (strategy, focus) => host.stories(strategy, focus),
+      step: (card, via) => host.step(card, via),
+      decide: (req) => decisions.decide(req),
+      model,
+      settings: rehearseSettings(config.extra, roles),
+      intent: intentText,
+      built: (card) => Effect.map(gitRun(root, ["grep", "-q", "-w", "-e", `@card ${card}`]), (r) => r.code === 0),
+      announce: (text) => Effect.asVoid(Effect.forEach(E.textMessage(`main-${crypto.randomUUID()}`, "assistant", text), (d) => log.append("main", d))),
+      // Wake the driver only when it waits on nothing: a question on screen keeps its turn.
+      wake: Effect.suspend(() => (main.status() === "waiting" ? Effect.void : Effect.asVoid(Effect.forkDetach(Stream.runDrain(main.run({ runId: `rehearse-${crypto.randomUUID().slice(0, 8)}` })))))),
+    })
+    rehearseRef.current = rehearse
+    threads.add(rehearse.thread)
+    yield* rehearse.resume
     const control = yield* PluginControl
     const yolo = makeYolo(log, control.yolo)
     // Started with --yolo: say so on main, so the status line shows it.
@@ -144,7 +190,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       Effect.uninterruptible,
       Semaphore.withPermits(turnOnLock, 1),
     )
-    return { log, threads, driver: roles.driver, turnOn, yolo }
+    return { log, threads, driver: roles.driver, turnOn, yolo, rehearse }
   })
 
 /** The project's plugin host options from its environment and config (`[plugins.<name>]` tables). */

@@ -15,6 +15,7 @@ const ASK_FIRST: ServiceFailure = {
  */
 export const askFirst = (asker: Asker) => {
   let open = false
+  const touched = new Set<string>()
   // Confirm questions under discussion: choosing "add" on one of them opens writes.
   const confirms = new Set<string>()
   return {
@@ -34,13 +35,28 @@ export const askFirst = (asker: Asker) => {
         ? { choose: (c) => Effect.tap(asker.choose!(c), () => Effect.sync(() => void (open = confirms.has(c.question) && c.choice === "add"))) }
         : {}),
     } satisfies Asker,
+    /** Open graph writes for one rehearse finding (the core checked it), until the next question. */
+    openFor: () => void (open = true),
+    /** Node ids the gated writes added, changed or removed in this item. */
+    touched: (): ReadonlySet<string> => touched,
     gate: (bound: Bound | undefined): Bound | undefined =>
       bound === undefined
         ? undefined
         : {
             def: bound.def,
             handlers: Object.fromEntries(
-              Object.entries(bound.handlers).map(([name, h]) => [name, (params: unknown) => (open ? h(params) : Effect.fail(ASK_FIRST))]),
+              Object.entries(bound.handlers).map(([name, h]) => [
+                name,
+                (params: unknown) =>
+                  open
+                    ? Effect.tap(h(params), (r) =>
+                        Effect.sync(() => {
+                          const c = r as { added?: ReadonlyArray<string>; changed?: ReadonlyArray<string>; removed?: ReadonlyArray<string> }
+                          for (const id of [...(c?.added ?? []), ...(c?.changed ?? []), ...(c?.removed ?? [])]) touched.add(id)
+                        }),
+                      )
+                    : Effect.fail(ASK_FIRST),
+              ]),
             ),
           },
   }

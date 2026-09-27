@@ -69,7 +69,7 @@ max_depth = 4
 max_concurrent = 8
 
 [rlm.presets.driver]
-layer  = ["Graph", "Gherkin", "Inquire", "Fs:read", "Decisions", "Rlm"]
+layer  = ["Graph", "Gherkin", "Inquire", "Fs:read", "Decisions", "Rehearse", "Rlm"]
 spawns = ["research"]
 role   = "driver"
 budget = { turns = 25 }
