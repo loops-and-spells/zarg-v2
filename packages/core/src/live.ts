@@ -6,14 +6,16 @@ import { Decisions, layer as decisionsLayer } from "@zarg/decisions"
 import { GraphStore, layer as graphLayer } from "@zarg/graph"
 import { type Bound } from "@zarg/kernel"
 import { Config, Env, layer as envLayer, Model, redact, type SensitiveValue } from "@zarg/model"
+import { makeGrants } from "@zarg/plugin/runtime"
 import { PluginHost } from "@zarg/plugin/server"
 import { openrouter } from "@zarg/provider-openrouter"
 import { zargRouter } from "@zarg/provider-zarg-router"
 import { type Asker, decisionsService, fsRead, graph, inquire, pluginService, Rlm, type Scope, settings } from "@zarg/rlm"
 import { askFirst } from "./driver"
 import { judgeGaps } from "./gaps"
+import { outsideReads } from "./outside"
 import { makeLog } from "./log"
-import { makeYolo, PluginControl, pluginHostLayer, vaultFrom } from "./plugins"
+import { makeYolo, PluginControl, pluginHostLayer, USER_DIR, vaultFrom } from "./plugins"
 import { STUB_MODEL, stubLayer } from "./stub"
 import { reasonOf, reconcileGate, type ReconcileSettings } from "./phases"
 import { checkoutProblem } from "@zarg/reconcile"
@@ -41,16 +43,19 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     const log = yield* makeLog(join(root, ".zarg", "threads"), (t) => redact(t, sensitive))
     const snapshot = store.snapshot.pipe(Effect.mapError((e) => ({ _tag: e._tag, message: e.message })))
 
+    // Agents may read outside the repository (porting from another project) once the developer allows it.
+    const agentGrants = yield* makeGrants({ file: join(USER_DIR, "grants.json"), project: root })
     const makeRlm = (asker: Asker, observe: (e: Rlm.RlmEvent) => void) => {
       // One driver item: graph writes wait for an answered question.
       const guard = askFirst(asker)
+      const outside = outsideReads({ grants: agentGrants, userDir: USER_DIR, ask: asker.ask })
       const factory = (name: string, scope: Scope): Bound | undefined => {
         const ctx = { host, snapshot, scope }
         if (name === "Graph") return graph(ctx)
         // A plugin's agent methods, by the service name its manifest declares; graph writes wait for an answer.
         const plugin = host.manifests.find((m) => m.service === name)
         if (plugin !== undefined) return guard.gate(pluginService(plugin, ctx))
-        if (name === "Fs:read") return fsRead({ root, scope, sensitive })
+        if (name === "Fs:read") return fsRead({ root, scope, sensitive, outside })
         if (name === "Inquire") return inquire(guard.asker)
         if (name === "Decisions") return decisionsService(decisions as never)
         return undefined

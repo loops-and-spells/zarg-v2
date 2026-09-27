@@ -113,6 +113,7 @@ The RLM's runtime is built from its layer narrowed to its scope:
 
 - `Graph` returns only nodes within `k` hops of `scope.graph.focus`.
 - `Fs` and `Sh` resolve only paths under `scope.paths`.
+- `Fs:read` in the core's driver threads may also read outside the repository (an absolute or `~/` path, e.g. porting from another project). The developer is asked per real path: Allow once, Always allow the path's repository folder (saved in `~/.config/zarg/grants.json` under `zarg:agents`), or Deny. zarg's own state, git internals, `.ssh` and `.env*` files are never readable, as for plugins.
 - Plugin services refuse writes to nodes outside the scope. The refusal message tells the RLM to hand the work up or out with `Rlm.exec`.
 
 ### How one RLM runs

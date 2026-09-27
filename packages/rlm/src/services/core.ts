@@ -1,5 +1,5 @@
 import { existsSync, realpathSync } from "node:fs"
-import { dirname, join, relative } from "node:path"
+import { dirname, isAbsolute, join, relative, resolve } from "node:path"
 import { Effect, Schema } from "effect"
 import { bind, type Bound, defineService, type ServiceFailure } from "@zarg/kernel"
 import { redact, scrubEnv, type SensitiveValue } from "@zarg/model"
@@ -9,6 +9,11 @@ export interface CoreContext {
   readonly root: string
   readonly scope: Scope
   readonly sensitive: ReadonlyArray<SensitiveValue>
+  /**
+   * Reads outside the repository (an absolute or `~/` path): allowed only when this says so for the real
+   * path (the host asks the developer). Without it, nothing outside the repository is readable.
+   */
+  readonly outside?: (path: string) => Effect.Effect<void, ServiceFailure>
 }
 
 const fail = (_tag: string, message: string): ServiceFailure => ({ _tag, message })
@@ -40,10 +45,36 @@ const check = (ctx: CoreContext, path: string): string => {
 const resolvePath = (ctx: CoreContext, path: string) =>
   Effect.try({ try: () => check(ctx, path), catch: (e) => fail("OutOfScope", e instanceof Error ? e.message : String(e)) })
 
+const expandHome = (p: string) => (p.startsWith("~/") && process.env.HOME !== undefined ? `${process.env.HOME}${p.slice(1)}` : p)
+
+/** An absolute (or `~/`) path outside the repository, when outside reads are possible; else undefined. */
+const outsideOf = (ctx: CoreContext, path: string): string | undefined => {
+  if (ctx.outside === undefined || !(isAbsolute(path) || path.startsWith("~/"))) return undefined
+  const abs = resolve(expandHome(path))
+  const rel = relative(realpathSync(ctx.root), existsSync(abs) ? realpathSync(abs) : abs)
+  return rel.startsWith("..") || isAbsolute(rel) ? abs : undefined
+}
+
+/** The real path of an outside path, once the host allows it. */
+const allowOutside = (ctx: CoreContext, abs: string) =>
+  Effect.gen(function* () {
+    const real = yield* Effect.try({ try: () => realpathSync(abs), catch: () => fail("NotFound", `${abs} does not exist`) })
+    if (isEnvSecretFile(real)) return yield* Effect.fail(fail("OutOfScope", `${real} holds secrets; agents cannot read it`))
+    yield* ctx.outside!(real)
+    return real
+  })
+
+// Where a glob's fixed part ends: the folder a listing is allowed for.
+const globBase = (glob: string) => {
+  const parts = glob.split("/")
+  const at = parts.findIndex((p) => /[*?[{]/.test(p))
+  return at < 0 ? { base: dirname(glob), pattern: parts.at(-1)! } : { base: parts.slice(0, at).join("/") || "/", pattern: parts.slice(at).join("/") }
+}
+
 const FsRead = {
-  read: { doc: "Read a text file (repo-relative path inside your scope).", params: Schema.Struct({ path: Schema.String }), success: Schema.String },
+  read: { doc: "Read a text file: a repo-relative path inside your scope, or an absolute or ~/ path outside the repository (the developer is asked first).", params: Schema.Struct({ path: Schema.String }), success: Schema.String },
   list: {
-    doc: "List files matching a glob, limited to your scope.",
+    doc: "List files matching a glob, limited to your scope; an absolute or ~/ glob lists outside the repository (the developer is asked first).",
     params: Schema.Struct({ glob: Schema.String }),
     success: Schema.Array(Schema.String),
   },
@@ -60,15 +91,35 @@ export const FsDef = defineService("Fs", "Files in your scope.", {
 })
 
 const fsHandlers = (ctx: CoreContext) => ({
-  read: ({ path }: { path: string }) =>
-    Effect.flatMap(resolvePath(ctx, path), (rel) =>
+  read: ({ path }: { path: string }) => {
+    const outside = outsideOf(ctx, path)
+    const file =
+      outside !== undefined
+        ? allowOutside(ctx, outside)
+        : Effect.map(resolvePath(ctx, path), (rel) => `${ctx.root}/${rel}`)
+    return Effect.flatMap(file, (f) =>
       Effect.tryPromise({
-        try: () => Bun.file(`${ctx.root}/${rel}`).text(),
-        catch: () => fail("NotFound", `${rel} does not exist or is not readable`),
+        try: () => Bun.file(f).text(),
+        catch: () => fail("NotFound", `${path} does not exist or is not readable`),
       }),
-    ).pipe(Effect.map((t) => clip(redact(t, ctx.sensitive)))),
-  list: ({ glob }: { glob: string }) =>
-    Effect.promise(async () => {
+    ).pipe(Effect.map((t) => clip(redact(t, ctx.sensitive))))
+  },
+  list: ({ glob }: { glob: string }) => {
+    const { base, pattern } = globBase(expandHome(glob))
+    const outside = outsideOf(ctx, base)
+    if (outside !== undefined)
+      return Effect.flatMap(allowOutside(ctx, outside), (real) =>
+        Effect.promise(async () => {
+          const out: Array<string> = []
+          for await (const f of new Bun.Glob(pattern).scan({ cwd: real, onlyFiles: true })) {
+            if (f.split("/").some((p) => p === "node_modules" || p === ".git") || isEnvSecretFile(f)) continue
+            out.push(join(real, f))
+            if (out.length >= 2000) break
+          }
+          return out.sort()
+        }),
+      )
+    return Effect.promise(async () => {
       const out: Array<string> = []
       for await (const f of new Bun.Glob(glob).scan({ cwd: ctx.root, onlyFiles: true })) {
         if (f.startsWith("node_modules/") || f.includes("/node_modules/")) continue
@@ -80,7 +131,8 @@ const fsHandlers = (ctx: CoreContext) => ({
         if (out.length >= 2000) break
       }
       return out.sort()
-    }),
+    })
+  },
 })
 
 export const fsRead = (ctx: CoreContext): Bound => bind(FsReadDef, fsHandlers(ctx))

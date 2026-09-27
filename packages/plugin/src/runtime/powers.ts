@@ -62,9 +62,9 @@ export const warnings = (scopes: ManifestScopes, optional: ManifestScopes): Read
 /**
  * Never reachable, whatever was granted: zarg's own trust state (grants, installed plugins), the project's
  * config, git internals, and files that make tools run code or hold secrets. A grant cannot hand a plugin
- * the keys to other plugins or to the developer's shell.
+ * the keys to other plugins or to the developer's shell. Agents reading outside the repository obey it too.
  */
-const deniedPath = (path: string, userDir: string) => {
+export const deniedPath = (path: string, userDir: string) => {
   const parts = path.split(sep)
   const name = basename(path)
   return (

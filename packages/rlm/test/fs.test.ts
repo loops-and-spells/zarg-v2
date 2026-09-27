@@ -92,3 +92,30 @@ describe("Sh deadlines", () => {
     expect(alive).toBe(false)
   })
 })
+
+describe("Fs reads outside the repo only through the host's say", () => {
+  const handlers = (outside?: (path: string) => Effect.Effect<void, { _tag: string; message: string }>) =>
+    fs({ root, scope: { paths: ["**"] }, sensitive: [], ...(outside !== undefined ? { outside } : {}) }).handlers
+  const read = (h: ReturnType<typeof handlers>, path: string) => Effect.runPromise(Effect.result(h.read!({ path }) as Effect.Effect<string, { _tag: string }>))
+
+  test("an absolute path outside the repo is read once the host allows its real path", async () => {
+    const asked: Array<string> = []
+    const r = await read(handlers((p) => Effect.sync(() => void asked.push(p))), join(base, "outside.txt"))
+    expect(r).toMatchObject({ _tag: "Success", success: "outside contents\n" })
+    expect(asked).toEqual([join(base, "outside.txt")])
+  })
+
+  test("the host's refusal is the read's failure; with no host, outside stays out of bounds", async () => {
+    const refused = await read(handlers(() => Effect.fail({ _tag: "NotAllowed", message: "denied" })), join(base, "outside.txt"))
+    expect(refused).toMatchObject({ _tag: "Failure", failure: { _tag: "NotAllowed" } })
+    expect(await read(handlers(), join(base, "outside.txt"))).toMatchObject({ _tag: "Failure", failure: { _tag: "OutOfScope" } })
+  })
+
+  test("a glob outside the repo lists absolute paths, once its folder is allowed", async () => {
+    const asked: Array<string> = []
+    const h = handlers((p) => Effect.sync(() => void asked.push(p)))
+    const out = await Effect.runPromise(h.list!({ glob: `${base}/outdir/**/*.txt` }) as Effect.Effect<ReadonlyArray<string>>)
+    expect(out).toEqual([join(base, "outdir", "f.txt")])
+    expect(asked).toEqual([join(base, "outdir")])
+  })
+})
