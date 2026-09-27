@@ -54,9 +54,9 @@ zarg's conversation as a sheet over the whole tile area, down to the bar (the ag
 
 ## Popovers and the queue
 
-- **One FIFO queue of popovers** in the shell. Only its head shows, centred over the whole screen (the agents list included), with `N of M · next: <title>` in its header.
+- **One shared FIFO queue of popovers**, kept by the core: every popover (grants now, plugins' popover surfaces later) joins it in arrival order, and every client shows the same head. Strict first in, first out: nothing reorders it. Only its head shows, centred over the whole screen (the agents list included), with `N of M · next: <title>` in its header.
 - **Grants are popovers.** A question with `kind: "grant"` (plugin load grants, powers asked on demand, outside reads) never goes to zarg's bar or sheet: the client puts it in the queue. The core lets grant questions wait side by side with zarg's own question (a grant never blocks zarg's question, nor zarg's question a grant) and answers each by its id.
-- **Keys:** ←→ or ↑↓ pick, Enter chooses, Esc sends the head to the back of the queue ("later"; it stays asked). Global keys still work over a popover.
+- **Keys:** ←→ or ↑↓ pick, Enter chooses. A grant has no Esc: it stays until answered. Esc closes a plugin popover (that closes it on every client). Global keys still work over a popover.
 - **A plugin's popover surface** (below) joins the same queue when opened.
 - YOLO unchanged: YOLO never asks, so no grant popover appears under YOLO.
 
@@ -70,13 +70,13 @@ A view is content (sections, actions, keys). A **surface** is where a view is sh
 type Surface =
   | { kind: "tile";    name: string; view: string }
   | { kind: "panel";   name: string; view: string; scope: "agent" | "shell"; edge: "top" | "bottom" | "right"; size: number | `${number}%`; input: "none" | "onFocus" }
-  | { kind: "popover"; name: string; view: string; dismiss: "later" | "close" }
+  | { kind: "popover"; name: string; view: string }
   | { kind: "sheet";   name: string; view: string }
 ```
 
 - `tile`: the tile area's main content while its agent is open.
 - `panel`: docked to an edge of the tile area. `scope: "agent"`: shown only while its agent is open. `scope: "shell"`: shown whatever is open (a status bar, `size: 1`). `input: "none"`: never takes focus (a pure status bar); `onFocus`: takes keys while focused.
-- `popover`: joins the popover queue; owns the keyboard while it is the head. `dismiss: "later"` sends it to the back, `"close"` closes it.
+- `popover`: joins the shared popover queue (the core's, first in first out); owns the keyboard while it is the head; Esc or its own actions close it.
 - `sheet`: covers the tile area down to the bottom panels; owns the tile area's keys while open. One sheet open at a time.
 - The SDK's `defineSurface` and the host at load refuse: a surface naming a view the plugin does not declare, a duplicate surface name, a config that does not fit its kind.
 
@@ -143,7 +143,7 @@ Everything else in the input-layers spec stands: agents own their key mappings p
 - Client: grant interrupts land in the popover queue in arrival order, never in zarg's conversation; answering one leaves the others; zarg's question and a grant pending together.
 - SDK and host: surfaces naming unknown views or duplicated names refused at build and load; `Surfaces.open` of a tile, sheet or popover refused outside a developer call, allowed inside `act`, `answer`, `message`; panels open any time; duplicate instances with their own data; `opens` on an action opens surfaces before the handler runs, and never another plugin's agent.
 - Core: a grant question and zarg's question pending at the same time, each answered by id; outside reads and plugin grants no longer wait on zarg's question.
-- TUI (`testRender` at 130×22 and 80×24): the layout (list full height, bar under the tile area only); the bar in each state; the sheet opening and closing on each trigger; the popover queue (head only, count, Esc to the back); shell-scope status bars shown with any agent open, agent-scope panels only with theirs, the per-edge cap; a status bar action opening an agent's tile and panel together; attention blinking until opened, then steady; hotkey letters in titles; narrow strip and `alt+a`.
+- TUI (`testRender` at 130×22 and 80×24): the layout (list full height, bar under the tile area only); the bar in each state; the sheet opening and closing on each trigger; the popover queue (head only, count, strict arrival order); shell-scope status bars shown with any agent open, agent-scope panels only with theirs, the per-edge cap; a status bar action opening an agent's tile and panel together; attention blinking until opened, then steady; hotkey letters in titles; narrow strip and `alt+a`.
 - Regressions carried over: arrows never reach two owners; a question arriving while another panel has focus takes no keys; the slash box takes ↑↓ only while open.
 
 ## Scope
