@@ -85,6 +85,17 @@ describe("zarg-core process", () => {
     await proc.exited
   }, 20_000)
 
+  test("without agent-zarg the core serves and main says why", async () => {
+    const proc = Bun.spawn([process.execPath, main, "--root", root, "--mode", "child"], { stdin: "pipe", stdout: "pipe", stderr: "pipe", env: { ...process.env, ZARG_TRUSTED_AGENTS: "none" } })
+    await proc.stdout.getReader().read()
+    const info = readInfo(root)!
+    const events = await Effect.runPromise(Stream.runCollect(makeClient(info).run({ threadId: "main" })).pipe(Effect.map((c) => [...c])))
+    const text = events.filter((e) => e.type === "TEXT_MESSAGE_CONTENT").map((e) => String((e as { delta?: unknown }).delta)).join("")
+    expect(text).toStartWith("zarg is not loaded:")
+    proc.stdin.end()
+    await proc.exited
+  }, 20_000)
+
   test("a core with a client following its event stream still stops within 2s", async () => {
     const { proc } = await start("headless")
     const info = readInfo(root)!

@@ -1,0 +1,26 @@
+{
+  "name": "@zarg/agent-zarg",
+  "private": true,
+  "type": "module",
+  "zarg": { "runtime": "trusted" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@ag-ui/core": "1.0.0",
+    "@zarg/agent-host": "workspace:*",
+    "@zarg/core": "workspace:*",
+    "@zarg/decisions": "workspace:*",
+    "@zarg/graph": "workspace:*",
+    "@zarg/kernel": "workspace:*",
+    "@zarg/model": "workspace:*",
+    "@zarg/plugin": "workspace:*",
+    "@zarg/reconcile": "workspace:*",
+    "@zarg/rlm": "workspace:*",
+    "effect": "^4.0.0-rc.117"
+  },
+  "devDependencies": {
+    "@effect/platform-bun": "^4.0.0-rc.117",
+    "@zarg/client": "workspace:*"
+  }
+}

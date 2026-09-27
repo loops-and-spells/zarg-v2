@@ -7,7 +7,8 @@ import { EventSchemas } from "@ag-ui/core/schemas"
 import { Model, type ChatMessage, type StreamEvent } from "@zarg/model"
 import { type Asker, inquire, Rlm, settings } from "@zarg/rlm"
 import { HttpRouter } from "effect/unstable/http"
-import { Actions, api, Heartbeat, PluginCommands, Log, makeLog, makeThreads, ReconcileControl, Threads, Token, YoloControl } from "../src"
+import { Actions, api, Heartbeat, PluginCommands, Log, makeLog, makeThreads, ReconcileControl, Threads, Token, YoloControl } from "@zarg/core"
+import { makeThread } from "../src/thread"
 
 /** A stub model: the driver asks one question, then finishes with the answer. */
 const stub = Layer.succeed(Model.Model, {
@@ -42,7 +43,9 @@ const handler = async (heartbeat: Duration.Input = "5 seconds") => {
       const s = yield* settings({ presets: { driver: { layer: ["Inquire", "Rlm"], role: "driver", result: "text", verify: "none" } } })
       const makeRlm = (asker: Asker, observe: (e: Rlm.RlmEvent) => void) =>
         Rlm.make({ settings: s, services: (n) => (n === "Inquire" ? inquire(asker) : undefined), roles: { driver: "stub:m" }, observe }).pipe(Effect.provideService(Model.Model, model))
-      const threads = yield* makeThreads({ log, agenda: () => Effect.succeed([]), makeRlm })
+      const threads = yield* makeThreads({
+        makeThread: (id, focus) => makeThread({ id, focus, log, agenda: () => Effect.succeed([]), driver: (spec, asker, observe) => Effect.flatMap(makeRlm(asker, observe), (rlm) => rlm.exec(spec)) }),
+      })
       return { threads, log }
     }).pipe(Effect.provide(stub)),
   )

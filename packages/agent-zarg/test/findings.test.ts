@@ -5,7 +5,8 @@ import { join } from "node:path"
 import { Effect } from "effect"
 import type { Bound } from "@zarg/kernel"
 import { askFirst } from "../src/driver"
-import { chosenFindings, commitGraph, findingsService } from "../src/findings"
+import { chosenFindings } from "@zarg/core"
+import { commitGraph, findingsService } from "../src/findings"
 
 const answer = (over: Partial<{ chosen: boolean; stale: boolean }> = {}) => ({ run: "r-1", card: "UX-1", chosen: true, stale: false, notes: ["n"], ...over })
 const setup = (found: ReturnType<typeof answer> | null = answer(), dir = mkdtempSync(join(tmpdir(), "zarg-findings-")), trusted = true) => {

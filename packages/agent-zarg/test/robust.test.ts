@@ -5,8 +5,8 @@ import { join } from "node:path"
 import { Effect, Fiber, Stream } from "effect"
 import { initial, reduce } from "@zarg/client"
 import type { Asker, Rlm } from "@zarg/rlm"
-import type { WireEvent } from "../src/events"
-import { makeLog } from "../src/log"
+import type { WireEvent } from "@zarg/core"
+import { makeLog } from "@zarg/core"
 import { makeThread } from "../src/thread"
 
 type Driver = (spec: Rlm.RlmSpec, asker: Asker, observe: (e: Rlm.RlmEvent) => void) => Effect.Effect<Rlm.RlmOutcome, Rlm.RlmError>

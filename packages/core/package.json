@@ -21,7 +21,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./plugins": "./src/plugins.ts",
-    "./live": "./src/live.ts"
+    "./live": "./src/live.ts",
+    "./events": "./src/events.ts"
   },
   "private": true,
   "type": "module"

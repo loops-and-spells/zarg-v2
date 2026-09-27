@@ -16,9 +16,6 @@
         "@zarg/rlm": "workspace:*",
         "effect": "^4.0.0-rc.117",
       },
-      "devDependencies": {
-        "@zarg/core": "workspace:*",
-      },
     },
     "packages/agent-rehearse": {
       "name": "@zarg/agent-rehearse",
@@ -33,6 +30,26 @@
         "@zarg/decisions": "workspace:*",
         "@zarg/graph": "workspace:*",
         "@zarg/plugin": "workspace:*",
+      },
+    },
+    "packages/agent-zarg": {
+      "name": "@zarg/agent-zarg",
+      "dependencies": {
+        "@ag-ui/core": "1.0.0",
+        "@zarg/agent-host": "workspace:*",
+        "@zarg/core": "workspace:*",
+        "@zarg/decisions": "workspace:*",
+        "@zarg/graph": "workspace:*",
+        "@zarg/kernel": "workspace:*",
+        "@zarg/model": "workspace:*",
+        "@zarg/plugin": "workspace:*",
+        "@zarg/reconcile": "workspace:*",
+        "@zarg/rlm": "workspace:*",
+        "effect": "^4.0.0-rc.117",
+      },
+      "devDependencies": {
+        "@effect/platform-bun": "^4.0.0-rc.117",
+        "@zarg/client": "workspace:*",
       },
     },
     "packages/cli": {
@@ -316,6 +333,8 @@
     "@zarg/agent-host": ["@zarg/agent-host@workspace:packages/agent-host"],
 
     "@zarg/agent-rehearse": ["@zarg/agent-rehearse@workspace:packages/agent-rehearse"],
+
+    "@zarg/agent-zarg": ["@zarg/agent-zarg@workspace:packages/agent-zarg"],
 
     "@zarg/cli": ["@zarg/cli@workspace:packages/cli"],
 

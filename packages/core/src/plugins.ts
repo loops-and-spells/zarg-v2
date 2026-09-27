@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
+import type { TrustedAgent } from "@zarg/agent-host"
 import { Context, Effect, Layer, Redacted } from "effect"
 import type { GraphStore } from "@zarg/graph"
 import * as E from "./events"
@@ -229,6 +230,23 @@ export const makeYolo = (log: ThreadLog, control: PluginControl["Service"]["yolo
 
 /** The agenda the driver works from: the host's own plugin items (grants, failures) are the developer's, not requirements work. */
 export const forDriver = <A extends { readonly id: string }>(items: ReadonlyArray<A>): ReadonlyArray<A> => items.filter((i) => !i.id.startsWith("plugin-"))
+
+/**
+ * zarg's own trusted agents: packages under its packages/ whose package.json says `"zarg": { "runtime": "trusted" }`,
+ * imported by path (they run the RLM kernel, which a sandboxed bundle cannot). Only zarg's checkout is trusted this way.
+ */
+export const trustedAgents = (zargRoot: string): Effect.Effect<ReadonlyArray<TrustedAgent>> =>
+  Effect.promise(async () => {
+    // Tests start a core without zarg, to see it serve and say why.
+    if (process.env.ZARG_TRUSTED_AGENTS === "none") return []
+    const dir = join(zargRoot, "packages")
+    const found = readdirSync(dir).filter((p) => {
+      const pkg = join(dir, p, "package.json")
+      return p.startsWith("agent-") && existsSync(pkg) && (JSON.parse(readFileSync(pkg, "utf8")) as { zarg?: { runtime?: string } }).zarg?.runtime === "trusted"
+    })
+    const mods = await Promise.all(found.map((p) => import(join(dir, p, "src", "index.ts")) as Promise<{ default: TrustedAgent }>))
+    return mods.map((m) => m.default)
+  })
 
 /** A plugin by name: first-party, or installed by `zarg plugin add` (its current version). */
 export const findPlugin = (name: string, opts: { readonly zargRoot?: string; readonly userDir?: string } = {}) =>

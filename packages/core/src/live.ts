@@ -12,17 +12,17 @@ import { makeGrants } from "@zarg/plugin/runtime"
 import { PluginHost } from "@zarg/plugin/server"
 import { openrouter } from "@zarg/provider-openrouter"
 import { zargRouter } from "@zarg/provider-zarg-router"
-import { type Asker, decisionsService, fsRead, graph, inquire, pluginService, Rlm, type Scope, settings } from "@zarg/rlm"
-import { closeStale } from "./activity"
-import { askFirst } from "./driver"
-import { judgeGaps } from "./gaps"
+import { decisionsService, Rlm, settings } from "@zarg/rlm"
+import type { AgentHost } from "@zarg/agent-host"
+import { closeStale, makeActivity } from "./activity"
+import { threadViews } from "./views"
+import { notLoaded } from "./not-loaded"
 import { outsideReads } from "./outside"
-import { nextGoals, type NextOption } from "./intent"
 import { makeActions } from "./actions"
-import { chosenFindings, commitGraph as commitGraphFindings, findingsService } from "./findings"
+import { chosenFindings } from "./chosen"
 import { makeLog } from "./log"
 import { pluginAgents } from "./plugin-agents"
-import { forDriver, makeYolo, PluginControl, pluginHostLayer, USER_DIR, vaultFrom } from "./plugins"
+import { forDriver, makeYolo, PluginControl, pluginHostLayer, trustedAgents, USER_DIR, vaultFrom, ZARG_ROOT } from "./plugins"
 import { STUB_MODEL, stubLayer } from "./stub"
 import { reasonOf, reconcileGate, type ReconcileSettings } from "./phases"
 import { checkoutProblem, gitRun } from "@zarg/reconcile"
@@ -63,36 +63,6 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     const chosen = chosenFindings(join(root, ".zarg", "findings"))
     // A child's graph focus must name real nodes.
     const unknownIds = (ids: ReadonlyArray<string>) => Effect.map(store.snapshot, (snap) => ids.filter((id) => !snap.nodes.has(id))).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>))
-    const makeRlm = (asker: Asker, observe: (e: Rlm.RlmEvent) => void) => {
-      // One driver item: graph writes wait for an answered question.
-      const guard = askFirst(asker)
-      const outside = outsideReads({ grants: agentGrants, userDir: USER_DIR, ask: asker.ask, yolo: () => yoloControl.on("zarg:agents") })
-      const factory = (name: string, scope: Scope): Bound | undefined => {
-        const ctx = { host, snapshot, scope }
-        if (name === "Graph") return graph(ctx)
-        // A plugin's agent methods, by the service name its manifest declares; graph writes wait for an answer.
-        const plugin = host.manifests.find((m) => m.service === name)
-        // Graph writes wait for the developer; a service plugin's tools (Rehearse.run) do not write the graph.
-        if (plugin !== undefined) return plugin.archetype === "service" ? pluginService(plugin, ctx) : guard.gate(pluginService(plugin, ctx))
-        if (name === "Fs:read") return fsRead({ root, scope, sensitive, outside })
-        if (name === "Inquire") return inquire(guard.asker)
-        if (name === "Decisions") return decisionsService(decisions as never)
-        if (name === "Findings")
-          return findingsService({
-            dir: join(root, ".zarg", "findings"),
-            invoke: (plugin, method, params) => host.invoke(plugin, method, params),
-            guard,
-            chosen,
-            trusted: (plugin) => control.firstParty(plugin),
-            neighbors: (card) => Effect.map(store.snapshot, (snap) => (snap.nodes.get(card)?.edges ?? []).map((e) => e.to)).pipe(Effect.orElseSucceed(() => [])),
-            commit: (ids, message) => host.exclusive(commitGraphFindings(root, ids, message)),
-          })
-        return undefined
-      }
-      return Rlm.make({ settings: rlmSettings, services: factory, roles, decisions, observe, unknownIds }).pipe(
-        Effect.provideService(Model.Model, model),
-      )
-    }
     // Plan and implement: the reconcile loop, unless `[reconcile] enabled = false`.
     // The core's own scope: reconcile started later (by /reconcile) closes with the core.
     const scope = yield* Effect.scope
@@ -116,29 +86,31 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     let reconcile = gate.on ? yield* startReconcile(gate.settings) : undefined
     const agenda = (focus: ReadonlySet<string> | undefined) =>
       Effect.map(host.agenda(focus), (items): ReadonlyArray<AgendaItem> => [...(reconcile?.agenda(focus) ?? []), ...forDriver(items)])
-    // The same scope filter the driver's Graph.render applies.
-    const render = (ids: ReadonlyArray<string>, scope: Scope) => Effect.map(graph({ host, snapshot, scope }).handlers.render!({ focus: ids }), String)
-    // What next: failure candidates a decision model judges real.
-    const suggest = (focus: ReadonlySet<string> | undefined) => Effect.flatMap(host.suggest(focus), (c) => judgeGaps(decisions.decide, c))
-    // What zarg offers when nothing is open: the intent's next goals; without an intent, where journeys start.
-    const whatNext = (focus: ReadonlySet<string> | undefined) =>
-      Effect.gen(function* () {
-        const dir = join(root, "intent")
-        const files = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".md")).sort() : []
-        const goals = files.flatMap((f) => nextGoals(readFileSync(join(dir, f), "utf8"), `intent/${f}`))
-        if (goals.length > 0) return goals
-        const snap = yield* store.snapshot
-        return [...snap.nodes.values()]
-          .filter((n) => n.type === "gherkin/state" && n.props.entry === true && (focus === undefined || focus.has(n.id)))
-          .map((n): NextOption => ({ id: n.id, label: String(n.props.text ?? n.id), task: `Work on the journey that starts at "${String(n.props.text ?? n.id)}" (${n.id}).` }))
-      })
-    const threads = yield* makeThreads({
+    // zarg, the conversational agent, is a trusted agent plugin: it gets what it needs from the core as a host.
+    const agentHost: AgentHost = {
+      root,
+      roles,
+      rlmSettings,
+      model,
+      decisions,
+      plugins: host,
+      store,
       log,
+      sensitive,
       agenda,
-      render,
-      suggest,
-      whatNext,
-      makeRlm,
+      activity: (t) => makeActivity(log, t, undefined, threadViews(log, t)),
+      outsideReads: (ask) => outsideReads({ grants: agentGrants, userDir: USER_DIR, ask: ask as never, yolo: () => yoloControl.on("zarg:agents") }),
+      findings: { chosen, firstParty: control.firstParty },
+      attention: () => {},
+    }
+    const zarg = yield* trustedAgents(ZARG_ROOT).pipe(
+      Effect.map((agents) => agents.find((a) => a.name === "zarg")),
+      Effect.flatMap((a) => (a === undefined ? Effect.fail("agent-zarg is not installed") : a.start(agentHost))),
+      Effect.catchCause((c) => Effect.succeed({ missing: Cause.pretty(c).split("\n")[0] ?? "it failed to start" })),
+    )
+    const makeThread = "makeThread" in zarg ? zarg.makeThread : (id: string, focus: ReadonlyArray<string>) => notLoaded(log, id, focus, zarg.missing)
+    const threads = yield* makeThreads({
+      makeThread,
       extra: reconcile?.threads ?? [],
       // The developer's stop is for everything: service plugins that run in the background stop too.
       alsoStop: Effect.suspend(() =>

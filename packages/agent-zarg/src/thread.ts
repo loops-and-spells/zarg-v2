@@ -2,14 +2,13 @@ import { Cause, Deferred, Effect, Exit, Fiber, Semaphore, Stream } from "effect"
 import type { AgendaItem } from "@zarg/plugin/server"
 import type { ServiceFailure } from "@zarg/kernel"
 import type { Answer, Asker, Choice, Question, Rlm, Scope } from "@zarg/rlm"
-import { makeActivity } from "./activity"
-import { threadViews } from "./views"
-import * as E from "./events"
+import { makeActivity, threadViews } from "@zarg/core"
+import * as E from "@zarg/core/events"
 import type { NextOption } from "./intent"
 import type { Interrupt } from "@ag-ui/core"
-import type { WireEvent } from "./events"
+import type { WireEvent } from "@zarg/core"
 import type { Thread } from "@zarg/agent-host"
-import type { ThreadLog } from "./log"
+import type { ThreadLog } from "@zarg/core"
 
 /** An agenda item for the driver's prompt; a plugin's text is marked as that plugin's, not the developer's or zarg's. */
 export const agendaText = (item: { readonly title: string; readonly detail: string; readonly plugin?: string }) =>
