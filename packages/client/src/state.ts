@@ -19,12 +19,31 @@ export interface Inquiry {
   readonly about: ReadonlyArray<string>
 }
 
-/** A question the core asks itself (a grant): a popover, queued first in first out for every client. */
+/** A popover in the core's queue, first in first out for every client: a grant it asks, or a plugin's view. */
 export interface Prompt {
   readonly id: string
+  /** A grant's question, or a plugin popover's header. */
   readonly question: string
+  /** A grant's answers; a plugin's popover has none (it closes). */
   readonly options: ReadonlyArray<Option>
-  readonly kind: "grant"
+  readonly kind: "grant" | "surface"
+  /** A plugin popover's view (a key of `views`) and the agent its actions go to. */
+  readonly view?: string
+  readonly agent?: string
+}
+
+/** A panel a plugin opened for one of its agents, at an edge of the tile area. */
+export interface Panel {
+  readonly id: string
+  readonly plugin: string
+  readonly agent: string
+  /** The view it shows: a key of `views`. */
+  readonly view: string
+  readonly name: string
+  readonly scope: "agent" | "shell"
+  readonly edge: "top" | "bottom" | "right"
+  readonly size: number
+  readonly input: "none" | "onFocus"
 }
 
 export type Decision =
@@ -73,8 +92,12 @@ export interface ThreadState {
   readonly yolo?: boolean
   /** Each agent's view (zarg.view activities), by agent id. */
   readonly views?: Views
-  /** The core's prompts (grant popovers), in the order asked. */
+  /** The core's popovers (grants, plugins' popovers), in the order asked. */
   readonly prompts?: ReadonlyArray<Prompt>
+  /** The panels plugins have open. */
+  readonly panels?: ReadonlyArray<Panel>
+  /** The last tile or sheet a plugin opened for the developer, with the event's seq and time. */
+  readonly navigate?: { readonly seq: number; readonly kind: "tile" | "sheet"; readonly view: string; readonly at: number }
 }
 
 export const initial = (threadId: string): ThreadState => ({ threadId, messages: [], rlms: {}, status: "idle", seq: 0, trees: 0 })
@@ -100,11 +123,22 @@ const patchRlms = (rlms: ThreadState["rlms"], patch: ReadonlyArray<Patch>) => {
 export const reduce = (s: ThreadState, e: WireEvent): ThreadState => {
   // Prompts are the core's own questions: every client queues them, whatever thread it follows.
   if (e.type === "CUSTOM" && (e.name === "zarg.prompt" || e.name === "zarg.prompt.done") && e.seq > s.seq) {
-    const v = e.value as { id?: unknown; question?: unknown; options?: ReadonlyArray<Option> }
+    const v = e.value as { id?: unknown; question?: unknown; options?: ReadonlyArray<Option>; kind?: unknown; view?: unknown; agent?: unknown }
     const id = String(v.id)
     const rest = (s.prompts ?? []).filter((p) => p.id !== id)
-    const prompts = e.name === "zarg.prompt" ? [...rest, { id, question: String(v.question ?? ""), options: v.options ?? [], kind: "grant" as const }] : rest
-    return { ...s, seq: e.seq, prompts }
+    const prompt: Prompt =
+      v.kind === "surface"
+        ? { id, question: String(v.question ?? ""), options: [], kind: "surface", view: String(v.view), agent: String(v.agent) }
+        : { id, question: String(v.question ?? ""), options: v.options ?? [], kind: "grant" }
+    return { ...s, seq: e.seq, prompts: e.name === "zarg.prompt" ? [...rest, prompt] : rest }
+  }
+  // Panels and navigation are the core's too.
+  if (e.type === "ACTIVITY_SNAPSHOT" && e.activityType === "zarg.panels" && e.seq > s.seq)
+    return { ...s, seq: e.seq, panels: ((e.content as { panels?: ReadonlyArray<Panel> } | undefined)?.panels ?? []) }
+  if (e.type === "CUSTOM" && e.name === "zarg.navigate" && e.seq > s.seq) {
+    const v = e.value as { kind?: unknown; view?: unknown; at?: unknown }
+    if (v.kind !== "tile" && v.kind !== "sheet") return { ...s, seq: e.seq }
+    return { ...s, seq: e.seq, navigate: { seq: e.seq, kind: v.kind, view: String(v.view), at: Number(v.at ?? 0) } }
   }
   if (e.threadId !== s.threadId || e.seq <= s.seq) return s
   const t: ThreadState = { ...s, seq: e.seq }

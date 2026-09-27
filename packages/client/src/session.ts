@@ -36,6 +36,8 @@ export interface Session {
   readonly answerAgent: (agent: string, question: string, answer: { readonly choice?: string; readonly other?: string }) => Promise<void>
   /** Answer one of the core's prompts (a grant popover); its notice shows. */
   readonly answerPrompt: (id: string, choice: string) => Promise<void>
+  /** Close a plugin's popover; its notice shows. */
+  readonly closePrompt: (id: string) => Promise<void>
   /** Stop following the core. */
   readonly close: () => void
 }
@@ -183,6 +185,14 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
     answerPrompt: (id, choice) =>
       Effect.runPromise(
         opts.client.answerPrompt(id, choice).pipe(
+          Effect.map((r) => r.notice),
+          Effect.catch((e) => Effect.succeed(e.message)),
+          Effect.flatMap((notice) => Effect.sync(() => set({ ...state, notice }))),
+        ),
+      ),
+    closePrompt: (id) =>
+      Effect.runPromise(
+        opts.client.closePrompt(id).pipe(
           Effect.map((r) => r.notice),
           Effect.catch((e) => Effect.succeed(e.message)),
           Effect.flatMap((notice) => Effect.sync(() => set({ ...state, notice }))),

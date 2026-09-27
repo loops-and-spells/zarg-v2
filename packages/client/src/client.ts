@@ -102,6 +102,11 @@ export const makeClient = (info: Pick<CoreInfo, "socket" | "token">) => {
       request(`/prompts/${encodeURIComponent(id)}`, { method: "POST", body: JSON.stringify({ choice }) }).pipe(
         Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly notice: string }>)),
       ),
+    /** Close a plugin's popover (Esc). */
+    closePrompt: (id: string) =>
+      request(`/prompts/${encodeURIComponent(id)}`, { method: "POST", body: JSON.stringify({ close: true }) }).pipe(
+        Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly notice: string }>)),
+      ),
     stop: (threadId: string) => request(`/threads/${encodeURIComponent(threadId)}/stop`, { method: "POST", body: "{}" }).pipe(Effect.asVoid),
   }
 }

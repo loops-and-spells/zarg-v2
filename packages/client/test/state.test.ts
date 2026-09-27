@@ -164,3 +164,20 @@ describe("prompts", () => {
     expect([e, e].reduce(reduce, initial("main")).prompts).toHaveLength(1)
   })
 })
+
+describe("surfaces", () => {
+  const panel = { id: "rehearse:status:rehearse:run", plugin: "rehearse", agent: "rehearse:run", view: "rehearse:run@status", name: "status", scope: "shell", edge: "bottom", size: 1, input: "none" } as const
+  test("a panels snapshot sets the panels; a later one replaces them, from any thread", () => {
+    const s = fold([ev("ACTIVITY_SNAPSHOT", { activityType: "zarg.panels", messageId: "main:panels", content: { panels: [panel] } }), ev("ACTIVITY_SNAPSHOT", { activityType: "zarg.panels", messageId: "main:panels", content: { panels: [] } })])
+    expect(s.panels).toEqual([])
+    expect(fold([ev("ACTIVITY_SNAPSHOT", { activityType: "zarg.panels", messageId: "main:panels", content: { panels: [panel] } }, "main")], initial("other")).panels).toEqual([panel])
+  })
+  test("a navigation request keeps its seq and time", () => {
+    const e = ev("CUSTOM", { name: "zarg.navigate", value: { kind: "tile", view: "rehearse:t1", at: 123 } })
+    expect(fold([e]).navigate).toEqual({ seq: e.seq, kind: "tile", view: "rehearse:t1", at: 123 })
+  })
+  test("a plugin's popover queues with its view and agent and no options", () => {
+    const s = fold([ev("CUSTOM", { name: "zarg.prompt", value: { id: "p1", kind: "surface", question: "rehearse ask", options: [], view: "rehearse:t1", agent: "rehearse:t1" } })])
+    expect(s.prompts).toEqual([{ id: "p1", kind: "surface", question: "rehearse ask", options: [], view: "rehearse:t1", agent: "rehearse:t1" }])
+  })
+})
