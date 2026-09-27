@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test"
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { Effect, type Scope, Stream } from "effect"
 import { spawnPlugin } from "../src/runtime"
 import { bundle, crashing, echo, looping } from "./fixtures"
@@ -70,5 +73,53 @@ describe("plugin process", () => {
     const r = await run(Effect.gen(function* () { const p = yield* spawnPlugin({ name: "env", bundle: probe, powers: {} }); return yield* p.call("env", {}) }))
     expect(r).toBe("no process")
     delete process.env.ZT_RUNTIME_LEAK
+  })
+})
+
+describe("review fixes: the process", () => {
+  test("a bundle that never finishes loading fails at the load deadline", async () => {
+    const e = await Effect.runPromise(Effect.scoped(Effect.flip(spawnPlugin({ name: "hang", bundle: "for (;;) {}", powers: {}, loadTimeoutMs: 500 }))))
+    expect(e).toMatchObject({ _tag: "PluginLoadError", name: "hang" })
+    expect(e.message).toContain("did not load")
+  })
+  test("a serve that returns no methods object is refused at load", async () => {
+    const e = await Effect.runPromise(Effect.scoped(Effect.flip(spawnPlugin({ name: "bad", bundle: "module.exports.default = { serve: () => 42 }", powers: {} }))))
+    expect(e.message).toContain("methods")
+  })
+  test("the deadline stops while the plugin waits on the developer", async () => {
+    let open = false
+    const slowAsk = bundle(`{ ask: async () => powers.call("slow", {}) }`)
+    const r = await run(Effect.gen(function* () {
+      const p = yield* spawnPlugin({
+        name: "asker", bundle: slowAsk, deadlineMs: 200, paused: () => open,
+        powers: { slow: async () => { open = true; await Bun.sleep(600); open = false; return "answered" } },
+      })
+      return yield* p.call("ask", {})
+    }))
+    expect(r).toBe("answered")
+  })
+  test("an inherited name is not a power, and the core keeps running", async () => {
+    const probe = bundle(`{ poke: async () => { for (const n of ["hasOwnProperty", "__proto__", "constructor"]) { try { await powers.call(n, {}) } catch (e) { if (e.tag !== "NotGranted") return "wrong: " + e.tag } } return "refused" } }`)
+    const r = await run(Effect.gen(function* () { const p = yield* spawnPlugin({ name: "poke", bundle: probe, powers: { fetch: async () => 1 } }); return yield* p.call("poke", {}) }))
+    expect(r).toBe("refused")
+  })
+  test("the plugin runs in an empty directory: a project's bunfig preload never runs in it", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "zt-cwd-"))
+    const marker = join(dir, "preload-ran")
+    writeFileSync(join(dir, "pre.ts"), `require("node:fs").writeFileSync(${JSON.stringify(marker)}, "x")`)
+    writeFileSync(join(dir, "bunfig.toml"), `preload = ["./pre.ts"]\n[test]\npreload = ["./pre.ts"]\n`)
+    const here = process.cwd()
+    process.chdir(dir)
+    try {
+      await run(Effect.gen(function* () { const p = yield* spawnPlugin({ name: "echo", bundle: echo, powers: {} }); return yield* p.call("echo", {}) }))
+    } finally {
+      process.chdir(here)
+    }
+    expect(existsSync(marker)).toBe(false)
+  })
+  test("the bundle says who it is: loaded identity is reported to the host", async () => {
+    const who = `module.exports.default = { name: "zt-who", service: "ZtWho", archetype: "provider", serve: () => ({}) }`
+    const r = await run(Effect.gen(function* () { const p = yield* spawnPlugin({ name: "zt-who", bundle: who, powers: {} }); return p.identity }))
+    expect(r).toEqual({ name: "zt-who", service: "ZtWho", archetype: "provider" })
   })
 })

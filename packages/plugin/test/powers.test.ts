@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test"
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Redacted } from "effect"
-import { type Ask, makeGrants, makePowers, scopesDigest, secretVar, warnings } from "../src/runtime"
+import { type Ask, isPower, makeGrants, makePowers, scopesDigest, secretVar, served, warnings } from "../src/runtime"
 
 const tmp = () => mkdtempSync(join(tmpdir(), "zt-powers-"))
 const vaultOf = (values: Record<string, string>) => (name: string) => Effect.succeed(values[name] !== undefined ? Redacted.make(values[name]!) : undefined)
 
-const setup = (opts: { scopes?: object; optional?: object; answers?: Array<"once" | "folder" | "always" | "deny">; yolo?: boolean; vault?: Record<string, string>; fetchImpl?: typeof fetch }) =>
+const setup = (opts: { scopes?: object; optional?: object; answers?: Array<"once" | "folder" | "always" | "deny">; yolo?: boolean; vault?: Record<string, string>; fetchImpl?: typeof fetch; userDir?: string }) =>
   Effect.gen(function* () {
     const file = join(tmp(), "grants.json")
     const grants = yield* makeGrants({ file, project: "/p" })
@@ -24,6 +24,7 @@ const setup = (opts: { scopes?: object; optional?: object; answers?: Array<"once
       plugin: "tracker", manifest: { scopes, optional }, grants, digest, vault: vaultOf(opts.vault ?? {}), config: {},
       ask, yolo: () => opts.yolo === true, log: (l) => logs.push(l), redact: (t) => t.replaceAll("zt-secret-value", "<redacted>"),
       ...(opts.fetchImpl ? { fetch: opts.fetchImpl } : {}),
+      ...(opts.userDir ? { userDir: opts.userDir } : {}),
     })
     return { powers, asked, logs, grants, file }
   })
@@ -152,3 +153,112 @@ describe("warnings", () => {
     expect(warnings({ secrets: ["K"] }, { net: "ask" })).toEqual(["holds a secret and may ask to reach any host"])
   })
 })
+
+describe("review fixes: files", () => {
+  test("a write through a symlink leaves the target untouched; a symlinked parent creates nothing outside", async () => {
+    const root = tmp()
+    mkdirSync(join(root, "proj", "out"), { recursive: true })
+    mkdirSync(join(root, "secret"))
+    writeFileSync(join(root, "secret", "keep.txt"), "precious")
+    symlinkSync(join(root, "secret", "keep.txt"), join(root, "proj", "out", "report.md"))
+    symlinkSync(join(root, "secret"), join(root, "proj", "linkdir"))
+    const { powers } = await go(setup({ scopes: { fs: { write: [`${root}/proj/**`] } } }))
+    await expect(powers["fs.write"]!({ path: `${root}/proj/out/report.md`, text: "x" })).rejects.toMatchObject({ tag: "NotGranted" })
+    expect(readFileSync(join(root, "secret", "keep.txt"), "utf8")).toBe("precious")
+    await expect(powers["fs.write"]!({ path: `${root}/proj/linkdir/new.txt`, text: "x" })).rejects.toMatchObject({ tag: "NotGranted" })
+    expect(existsSync(join(root, "secret", "new.txt"))).toBe(false)
+    expect(await powers["fs.write"]!({ path: `${root}/proj/out/fine.md`, text: "ok" })).toBe(null)
+    expect(readFileSync(join(root, "proj", "out", "fine.md"), "utf8")).toBe("ok")
+  })
+  test("zarg's trust state, git internals, bunfig and env files stay out of reach even when granted", async () => {
+    const root = tmp()
+    mkdirSync(join(root, ".git", "hooks"), { recursive: true })
+    const { powers } = await go(setup({ scopes: { fs: { read: [`${root}/**`], write: [`${root}/**`] } }, userDir: join(root, "zuser") }))
+    for (const p of [".git/hooks/pre-commit", "bunfig.toml", ".env.local", ".zarg/config.toml", "zuser/grants.json"]) {
+      await expect(powers["fs.write"]!({ path: join(root, p), text: "x" })).rejects.toMatchObject({ tag: "NotGranted" })
+    }
+  })
+  test("a FIFO or a file over the size cap is refused instead of stalling the core", async () => {
+    const root = tmp()
+    Bun.spawnSync(["mkfifo", join(root, "pipe")])
+    writeFileSync(join(root, "big.txt"), "x".repeat(11 * 1024 * 1024))
+    const { powers } = await go(setup({ scopes: { fs: { read: [`${root}/**`] } } }))
+    await expect(powers["fs.read"]!({ path: join(root, "pipe") })).rejects.toMatchObject({ tag: "PluginError" })
+    await expect(powers["fs.read"]!({ path: join(root, "big.txt") })).rejects.toMatchObject({ tag: "PluginError" })
+  })
+  test("with HOME unset a ~/ grant matches nothing instead of the whole disk", async () => {
+    const home = process.env.HOME
+    delete process.env.HOME
+    try {
+      const { powers } = await go(setup({ scopes: { fs: { read: ["~/**"] } } }))
+      await expect(powers["fs.read"]!({ path: "/etc/hostname" })).rejects.toMatchObject({ tag: "NotGranted" })
+    } finally {
+      process.env.HOME = home
+    }
+  })
+})
+
+describe("review fixes: secrets and questions", () => {
+  test("secret keys cannot collide across namespaces", async () => {
+    const { powers } = await go(setup({ scopes: { secrets: ["SYNC__TOKEN", "_X", "Y_"] } }))
+    for (const name of ["SYNC__TOKEN", "_X", "Y_"]) await expect(powers["secrets.get"]!({ name })).rejects.toMatchObject({ tag: "NotGranted" })
+    expect(() => secretVar("acme--sync", "TOKEN")).toThrow()
+  })
+  test("a late answer still counts: always given after the call timed out is saved", async () => {
+    const f = (async () => new Response("ok")) as unknown as typeof fetch
+    let answer!: (a: "always") => void
+    const file = join(tmp(), "grants.json")
+    const r = await go(Effect.gen(function* () {
+      const grants = yield* makeGrants({ file, project: "/p" })
+      const digest = scopesDigest({}, { net: ["b.test"] })
+      yield* grants.approveLoad("tracker", digest)
+      const powers = makePowers({
+        plugin: "tracker", manifest: { scopes: {}, optional: { net: ["b.test"] } }, grants, digest, vault: vaultOf({}), config: {},
+        ask: () => Effect.promise(() => new Promise<"always">((res) => (answer = res))), askTimeoutMs: 50,
+        yolo: () => false, log: () => {}, redact: (t) => t, fetch: f,
+      })
+      const first = yield* Effect.promise(() => powers.fetch!({ url: "https://b.test/1" }).then(() => "ok", (e) => e.tag))
+      answer("always")
+      yield* Effect.sleep(20)
+      return { first, extra: (yield* grants.of("tracker", digest)).extra }
+    }))
+    expect(r.first).toBe("NotGranted")
+    expect(r.extra).toEqual([{ kind: "net", host: "b.test" }])
+  })
+  test("one plugin has one question open at a time; others fail at once", async () => {
+    const f = (async () => new Response("ok")) as unknown as typeof fetch
+    let asked = 0
+    const file = join(tmp(), "grants.json")
+    const r = await go(Effect.gen(function* () {
+      const grants = yield* makeGrants({ file, project: "/p" })
+      const digest = scopesDigest({}, { net: "ask" })
+      yield* grants.approveLoad("tracker", digest)
+      const powers = makePowers({
+        plugin: "tracker", manifest: { scopes: {}, optional: { net: "ask" } }, grants, digest, vault: vaultOf({}), config: {},
+        ask: () => Effect.andThen(Effect.sync(() => void asked++), Effect.never), askTimeoutMs: 100,
+        yolo: () => false, log: () => {}, redact: (t) => t, fetch: f,
+      })
+      return yield* Effect.promise(() => Promise.allSettled([powers.fetch!({ url: "https://a.test/" }), powers.fetch!({ url: "https://b.test/" }), powers.fetch!({ url: "https://c.test/" })]))
+    }))
+    expect(asked).toBe(1)
+    expect(r.map((x) => x.status)).toEqual(["rejected", "rejected", "rejected"])
+  })
+  test("question text cannot carry control characters", async () => {
+    const root = tmp()
+    const s = await go(setup({ optional: { fs: { read: "ask" } }, answers: ["deny"] }))
+    await s.powers["fs.read"]!({ path: `${root}/a\n\u001b[2Jevil.txt` }).catch(() => {})
+    expect(s.asked[0]).not.toMatch(/[\u0000-\u001f\u007f]/)
+  })
+  test("the host learns every secret value it served, to scrub it from what the plugin returns", async () => {
+    const vault = { [secretVar("tracker", "TOKEN")]: "zt-served-value" }
+    const { powers } = await go(setup({ scopes: { secrets: ["TOKEN"] }, vault }))
+    await powers["secrets.get"]!({ name: "TOKEN" })
+    expect([...served(powers)]).toEqual(["zt-served-value"])
+  })
+  test("a power name that is not a power (inherited ones included) is not one", () => {
+    expect(isPower({ fetch: async () => 1 } as never, "hasOwnProperty")).toBe(false)
+    expect(isPower({ fetch: async () => 1 } as never, "__proto__")).toBe(false)
+    expect(isPower({ fetch: async () => 1 } as never, "fetch")).toBe(true)
+  })
+})
+

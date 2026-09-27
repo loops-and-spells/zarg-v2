@@ -98,10 +98,10 @@ export const manifest = (services: ReadonlyArray<ServiceDef>): string =>
   services
     .map((svc) =>
       [
-        `/** ${svc.doc} */`,
+        `/** ${comment(svc.doc)} */`,
         `declare const ${svc.name}: {`,
         ...Object.entries(svc.methods).map(
-          ([m, def]) => `  /** ${def.doc} */\n  ${m}(params: ${def.json ? docType(def.json.params, "  ") : typeOf(def.params, "  ")}): Eff<${def.json ? docType(def.json.success, "  ") : typeOf(def.success, "  ")}>`,
+          ([m, def]) => `  /** ${comment(def.doc)} */\n  ${m}(params: ${def.json ? docType(def.json.params, "  ") : typeOf(def.params, "  ")}): Eff<${def.json ? docType(def.json.success, "  ") : typeOf(def.success, "  ")}>`,
         ),
         "}",
       ].join("\n"),

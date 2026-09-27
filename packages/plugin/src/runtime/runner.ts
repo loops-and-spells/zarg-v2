@@ -22,7 +22,7 @@ const running = new Map<number, { cancelled: boolean }>()
 const fail = (tag: Failure["tag"], message: string): Failure => ({ tag, message })
 
 const onCall = async (id: number, method: string, params: unknown) => {
-  const fn = methods[method]
+  const fn = Object.hasOwn(methods, method) ? methods[method] : undefined
   if (typeof fn !== "function") return send({ type: "reply", id, ok: false, error: fail("UnknownMethod", `no method "${method}"`) })
   const state = { cancelled: false }
   running.set(id, state)
@@ -47,12 +47,17 @@ process.on("message", (m: ToPlugin) => {
   if (m.type === "load") {
     try {
       const c = new Compartment({ globals: { console: harden({ log: (...a: Array<unknown>) => void powers.call("console.log", a.map(String).join(" ")) }) }, __options__: true })
-      const module = { exports: {} as { default?: { serve?: (p: typeof powers) => Record<string, (p: unknown) => unknown> } } }
+      const module = { exports: {} as { default?: { serve?: (p: typeof powers) => Record<string, (p: unknown) => unknown>; name?: unknown; service?: unknown; archetype?: unknown } } }
       c.evaluate(`(function (module, exports, powers) {\n${m.bundle}\n})`)(module, module.exports, powers)
       const serve = module.exports.default?.serve
       if (typeof serve !== "function") throw new Error("the bundle has no default export with serve(powers)")
-      methods = serve(powers)
-      send({ type: "loaded" })
+      const served = serve(powers) as unknown
+      if (served === null || typeof served !== "object" || Array.isArray(served)) throw new Error("serve(powers) must return an object of methods")
+      methods = served as typeof methods
+      const d = module.exports.default!
+      const str = (v: unknown) => (typeof v === "string" ? v : undefined)
+      const identity = { name: str(d.name), service: str(d.service), archetype: str(d.archetype) }
+      send({ type: "loaded", identity: Object.fromEntries(Object.entries(identity).filter(([, v]) => v !== undefined)) })
     } catch (e) {
       send({ type: "load-failed", message: String((e as Error)?.message ?? e) })
     }

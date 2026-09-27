@@ -2,5 +2,5 @@
 run = "mise x -- bunx tsc"
 
 [tasks.test]
-depends = ["//packages/plugin-gherkin:build"]
+depends = ["//...:build"]
 run = "mise x -- bun test"

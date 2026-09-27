@@ -64,6 +64,13 @@ describe("readable declarations", () => {
 })
 
 describe("manifest", () => {
+  test("a doc with */ or a newline cannot break the declarations every cell is checked against", () => {
+    const Evil = defineService("Evil", "Service doc */ declare const x: number /*\nnext line", {
+      m: { doc: "Method doc */ oops", params: Schema.Struct({}), success: Schema.String },
+    })
+    const text = manifest([Evil])
+    expect(makeChecker(text).check("const r = yield* Evil.m({})\nreturn r").ok).toBe(true)
+  })
   test("a method described by JSON Schema declares its types from it", () => {
     const Plug = defineService("Plug", "A plugin.", {
       hello: {

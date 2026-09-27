@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { findPlugin, USER_DIR } from "@zarg/core/plugins"
 import { type Grant, makeGrants, scopesDigest, warnings } from "@zarg/plugin/runtime"
-import { installPlugin } from "@zarg/plugin/server"
+import { describeScopes, installPlugin } from "@zarg/plugin/server"
 import { buildPlugin } from "@zarg/plugin-sdk/tools"
 import { readClaim, startHeadless, stopCore } from "@zarg/client"
 import { baseTree, CHECKPOINT, git, LEGACY_CHECKPOINT, snapshotAtTree, workingGraphTree } from "@zarg/reconcile"
@@ -189,14 +189,7 @@ const pluginGrant = Command.make(
         yield* Effect.forEach(extra, (g) => grants.add(m.name, g), { discard: true })
         return yield* print({ plugin: m.name, granted: extra })
       }
-      const asks = [
-        m.scopes.graph === "read" ? "read your graph" : m.scopes.graph === "write" ? "change your graph" : undefined,
-        ...(m.scopes.net === "ask" ? ["reach hosts it asks for"] : (m.scopes.net ?? []).map((h) => `reach ${h}`)),
-        ...(m.scopes.secrets ?? []).map((k) => `the secret ${k}`),
-        ...[m.scopes.fs?.read].flatMap((r) => (r === undefined ? [] : r === "ask" ? ["read files it asks for"] : r.map((g) => `read ${g}`))),
-        ...[m.scopes.fs?.write].flatMap((w) => (w === undefined ? [] : w === "ask" ? ["write files it asks for"] : w.map((g) => `write ${g}`))),
-      ].filter((x) => x !== undefined)
-      yield* print(`Plugin ${m.name} asks for: ${asks.join(", ") || "nothing"}`)
+      yield* print(`Plugin ${m.name} asks for: ${describeScopes(m)}`)
       for (const w of warnings(m.scopes, m.optional)) yield* print(`Warning: it ${w}.`)
       if (!(yield* confirm("Approve?"))) return yield* print({ plugin: m.name, approved: false })
       yield* grants.approveLoad(m.name, scopesDigest(m.scopes, m.optional))

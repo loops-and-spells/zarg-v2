@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect } from "effect"
@@ -40,5 +40,17 @@ describe("installPlugin", () => {
   test("a source without a built plugin is refused with what is missing", async () => {
     const e = await Effect.runPromise(Effect.flip(installPlugin(tmp(), tmp())))
     expect(e.message).toContain("zarg-plugin.json")
+  })
+  test("a plugin whose files are symlinks, or whose name could collide, is refused", async () => {
+    const { pkg } = packageDir(join(tmp(), "ran"))
+    const elsewhere = join(tmp(), "real.js")
+    writeFileSync(elsewhere, "module.exports.default = { serve: () => ({}) }")
+    rmSync(join(pkg, "zarg-plugin.js"))
+    symlinkSync(elsewhere, join(pkg, "zarg-plugin.js"))
+    const e = await Effect.runPromise(Effect.flip(installPlugin(pkg, tmp())))
+    expect(e.message).toContain("symlink")
+    const { pkg: other } = packageDir(join(tmp(), "ran"))
+    writeFileSync(join(other, "zarg-plugin.json"), JSON.stringify({ ...manifest, name: "zt--double" }))
+    expect((await Effect.runPromise(Effect.flip(installPlugin(other, tmp())))).message).toContain("zt--double")
   })
 })

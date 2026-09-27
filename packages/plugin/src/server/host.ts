@@ -1,6 +1,6 @@
 import { Context, Data, Effect, Exit, Layer, type Redacted, Scope, Semaphore } from "effect"
 import { diff, type Expect, GraphStore, type GraphError, hash, type IoError, type Loaded, Snapshot } from "@zarg/graph"
-import { type Ask, type Grants, makePowers, type PluginProcess, scopesDigest, spawnPlugin, warnings } from "../runtime"
+import { type Ask, type Grants, type ManifestScopes, makePowers, PLUGIN_NAME, PluginCallError, type PluginProcess, scopesDigest, served, spawnPlugin, warnings } from "../runtime"
 import type { LoadedPlugin, Manifest } from "./loaded"
 import { type AgendaItem, type Finding, ToolError } from "./plugin"
 import { checkStructure, manifestRegistry, PluginConfigError } from "./validate"
@@ -61,6 +61,36 @@ export interface HostOptions {
   readonly idleMs?: number
   /** Items to show on the agenda about plugins the host could not even load (not installed). */
   readonly notices?: ReadonlyArray<AgendaItem>
+  /** zarg's user directory (grants, installed plugins): never reachable by a plugin's file powers. */
+  readonly userDir?: string
+}
+
+/** Names cells already use: a plugin can never take one over (e.g. become `Inquire` and answer for you). */
+const RESERVED_SERVICES = new Set(["Graph", "Fs", "Sh", "Verify", "Agenda", "Inquire", "Decisions", "Rlm", "Effect", "Eff", "Failure", "console"])
+const SERVICE = /^[A-Z][A-Za-z0-9]*$/
+const METHOD = /^[a-z][a-zA-Z0-9]*(-[a-z0-9]+)*$/
+
+/** Why a manifest cannot load, before any of its code runs. */
+const manifestProblem = (m: Manifest): string | undefined => {
+  if (!PLUGIN_NAME.test(String(m.name))) return `name "${m.name}" must be kebab-case (no doubled or trailing dash)`
+  if (!SERVICE.test(String(m.service))) return `service "${m.service}" must be PascalCase`
+  if (RESERVED_SERVICES.has(m.service)) return `service "${m.service}" is zarg's own`
+  if (m.archetype !== "graph" && m.archetype !== "provider") return `archetype "${m.archetype}" is unknown`
+  const bad = Object.keys(m.methods ?? {}).find((k) => !METHOD.test(k))
+  return bad !== undefined ? `method "${bad}" is not a method name` : undefined
+}
+
+/** Replace every secret value the plugin was served, anywhere in what it returns. */
+const scrub = (value: unknown, secrets: ReadonlySet<string>): unknown => {
+  if (secrets.size === 0) return value
+  if (typeof value === "string") {
+    let out = value
+    for (const s of secrets) out = out.replaceAll(s, "<redacted:plugin-secret>")
+    return out
+  }
+  if (Array.isArray(value)) return value.map((v) => scrub(v, secrets))
+  if (value !== null && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [scrub(k, secrets), scrub(v, secrets)]))
+  return value
 }
 
 /** Methods the host calls on graph plugins; never offered as tools. */
@@ -78,17 +108,21 @@ const inFocus = (focus: ReadonlySet<string> | undefined, about: ReadonlyArray<st
 // Reserved ids (files that failed to load) travel too: a plugin must never hand one out again.
 const json = (s: Snapshot.Snapshot) => ({ nodes: [...s.nodes.values()], reserved: [...s.reserved] })
 
-/** What a plugin asks for, in words, for the grant question and its agenda item. */
-const describeScopes = (m: Manifest): string => {
-  const s = m.scopes
-  const parts = [
+const scopeWords = (s: ManifestScopes) =>
+  [
     s.graph === "read" ? "read your graph" : s.graph === "write" ? "change your graph" : undefined,
     ...(s.net === "ask" ? ["reach hosts it asks for"] : (s.net ?? []).map((h) => `reach ${h}`)),
-    ...(s.secrets ?? []).map((k) => `the secret ${k}`),
+    ...(s.secrets ?? []).map((k) => `use the secret ${k}`),
     ...(s.fs?.read === "ask" ? ["read files it asks for"] : (s.fs?.read ?? []).map((g) => `read ${g}`)),
     ...(s.fs?.write === "ask" ? ["write files it asks for"] : (s.fs?.write ?? []).map((g) => `write ${g}`)),
-  ]
-  return parts.filter((p) => p !== undefined).join(", ") || "nothing"
+  ].filter((p) => p !== undefined)
+
+/** What a plugin asks for, in words: what it gets now and what it may ask for later (both are approved). */
+export const describeScopes = (m: { readonly scopes: ManifestScopes; readonly optional: ManifestScopes }): string => {
+  const now = scopeWords(m.scopes)
+  const later = scopeWords(m.optional ?? {})
+  const head = now.length > 0 ? now.join(", ") : later.length > 0 ? "nothing now" : "nothing"
+  return later.length > 0 ? `${head}; may ask to ${later.join(", ")}` : head
 }
 
 /** A plugin with no network, secret or file scope can only touch the graph. */
@@ -101,6 +135,8 @@ interface Running {
   disabled: boolean
   inflight: number
   idle?: ReturnType<typeof setTimeout>
+  /** Secret values the host served this plugin: scrubbed from all it returns. */
+  readonly served: ReadonlySet<string>
 }
 
 export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): Layer.Layer<PluginHost, PluginConfigError, GraphStore> =>
@@ -111,9 +147,15 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
       const scope = yield* Effect.scope
       const hostItems: Array<AgendaItem> = [...(opts.notices ?? [])]
       const running = new Map<string, Running>()
+      const failed = (m: Manifest, why: string) =>
+        void hostItems.push({ id: `plugin-failed:${m.name}`, title: `Plugin ${m.name} failed to load`, detail: why, about: [], priority: 1 })
+      const services = new Set<string>()
 
-      for (const p of plugins) {
+      // Checked and started together (a slow plugin does not hold up the others), kept in their given order.
+      const started = yield* Effect.forEach(plugins, (p) => Effect.gen(function* () {
         const m = p.manifest
+        const problem = manifestProblem(m)
+        if (problem !== undefined) return failed(m, problem)
         const digest = scopesDigest(m.scopes, m.optional)
         const granted = (yield* opts.grants.of(m.name, digest)).loaded
         if (!granted && opts.firstParty(p) && graphOnly(m)) yield* opts.grants.approveLoad(m.name, digest)
@@ -125,9 +167,11 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
             about: [],
             priority: 1,
           })
-          continue
+          return undefined
         }
         const restarts: Array<number> = []
+        // While one of its questions waits on the developer, the plugin's call deadline stops.
+        let asking = 0
         const powers = makePowers({
           plugin: m.name,
           manifest: { scopes: m.scopes, optional: m.optional },
@@ -141,11 +185,14 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           yolo: () => opts.yolo.on(m.name),
           log: opts.log,
           redact: opts.redact,
+          asking: (open) => void (asking += open ? 1 : -1),
+          ...(opts.userDir !== undefined ? { userDir: opts.userDir } : {}),
         })
         const spawned = yield* spawnPlugin({
           name: m.name,
           bundle: p.bundle,
           powers,
+          paused: () => asking > 0,
           onExit: (why) => {
             if (why === "stop") return
             const now = Date.now()
@@ -160,10 +207,26 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         }).pipe(Scope.provide(scope), Effect.exit)
         if (Exit.isFailure(spawned)) {
           const cause = spawned.cause.reasons.find((r) => r._tag === "Fail")?.error as { message?: string } | undefined
-          hostItems.push({ id: `plugin-failed:${m.name}`, title: `Plugin ${m.name} failed to load`, detail: String(cause?.message ?? "unknown error"), about: [], priority: 1 })
+          return failed(m, String(cause?.message ?? "unknown error"))
+        }
+        // The bundle must be the plugin its manifest describes: grants and names come from the manifest.
+        const id = spawned.value.identity
+        if (id.name !== m.name || id.service !== m.service || id.archetype !== m.archetype) {
+          yield* spawned.value.stop
+          return failed(m, `its bundle says it is ${id.name ?? "?"}/${id.service ?? "?"}/${id.archetype ?? "?"}, its manifest ${m.name}/${m.service}/${m.archetype}`)
+        }
+        const r: Running = { manifest: m, process: spawned.value, restarts, disabled: false, inflight: 0, served: served(powers) }
+        return r
+      }), { concurrency: "unbounded" })
+      for (const r of started) {
+        if (r === undefined) continue
+        if (running.has(r.manifest.name) || services.has(r.manifest.service)) {
+          yield* r.process.stop
+          failed(r.manifest, `another plugin already uses the name ${r.manifest.name} or the service ${r.manifest.service}`)
           continue
         }
-        running.set(m.name, { manifest: m, process: spawned.value, restarts, disabled: false, inflight: 0 })
+        services.add(r.manifest.service)
+        running.set(r.manifest.name, r)
       }
 
       yield* Effect.addFinalizer(() => Effect.sync(() => { for (const r of running.values()) if (r.idle !== undefined) clearTimeout(r.idle) }))
@@ -180,6 +243,8 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           if (r.idle !== undefined) clearTimeout(r.idle)
           r.inflight++
           return yield* r.process.call(method, params, r.manifest.methods[method]?.deadlineMs).pipe(
+            Effect.map((v) => scrub(v, r.served)),
+            Effect.mapError((e) => new PluginCallError({ _tag: e._tag, message: scrub(e.message, r.served) as string })),
             Effect.ensuring(Effect.sync(() => {
               r.inflight--
               if (r.inflight === 0) {
@@ -191,7 +256,9 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           )
         })
 
-      const graphPlugins = (method: string) => [...running.values()].filter((r) => r.manifest.archetype === "graph" && r.manifest.methods[method] !== undefined)
+      // Only graph plugins granted graph access are shown the graph (hooks receive it whole).
+      const graphPlugins = (method: string) =>
+        [...running.values()].filter((r) => r.manifest.archetype === "graph" && r.manifest.scopes.graph !== undefined && r.manifest.methods[method] !== undefined)
       const each = <A>(method: string, params: unknown) =>
         Effect.forEach(graphPlugins(method), (r) => invoke(r, method, params).pipe(Effect.map((v) => v as A), Effect.orElseSucceed(() => undefined)))
       const defined = <A>(xs: ReadonlyArray<A | undefined>) => xs.filter((x): x is A => x !== undefined)
@@ -204,12 +271,22 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           const owners = new Set(
             [...d.added, ...d.changed.map((c) => c.after)].map((n) => reg.nodes.get(n.type)).filter((o): o is string => o !== undefined),
           )
+          // A check that cannot run fails the write: never let a change through unchecked.
+          const couldNot = (plugin: string, e: { readonly message: string }): ReadonlyArray<Finding> => [
+            { severity: "error", code: "check-failed", message: `could not check with ${plugin}: ${e.message}`, about: [] },
+          ]
+          const findingsOf = (r: Running, method: string, params: unknown) =>
+            invoke(r, method, params).pipe(
+              Effect.map((v) => (v as { findings?: ReadonlyArray<Finding> }).findings ?? []),
+              Effect.catch((e) => Effect.succeed(couldNot(r.manifest.name, e))),
+            )
           const props = yield* Effect.forEach([...owners], (o) => {
             const r = running.get(o)
-            return r === undefined || r.manifest.methods.validate === undefined ? Effect.succeed([]) : invoke(r, "validate", { changes }).pipe(Effect.map((v) => (v as { findings: ReadonlyArray<Finding> }).findings), Effect.orElseSucceed(() => []))
+            if (r === undefined) return Effect.succeed(couldNot(o, { message: "the plugin that owns these nodes is not running" }))
+            return r.manifest.methods.validate === undefined ? Effect.succeed([]) : findingsOf(r, "validate", { changes })
           })
-          const lints = yield* each<{ findings: ReadonlyArray<Finding> }>("lint", { before: json(before), after: json(after) })
-          return [...structure, ...props.flat(), ...defined(lints).flatMap((l) => l.findings)]
+          const lints = yield* Effect.forEach(graphPlugins("lint"), (r) => findingsOf(r, "lint", { before: json(before), after: json(after) }))
+          return [...structure, ...props.flat(), ...lints.flat()]
         })
 
       // Calls in this process run one at a time: each reads the snapshot its changes are checked
@@ -229,6 +306,9 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           )
           const result = out as { changes?: ReadonlyArray<Snapshot.Change>; message?: string }
           if (!Array.isArray(result?.changes)) return yield* new ToolError({ message: `${name} did not return changes` })
+          if (result.changes.length > 0 && r.manifest.scopes.graph !== "write") {
+            return yield* new ToolError({ message: `${name}: plugin ${plugin} may not change the graph (its graph scope is ${r.manifest.scopes.graph ?? "none"})` })
+          }
           const after = Snapshot.applyChanges(before, result.changes)
           const d = diff(before, after)
           const findings = yield* check(before, after, result.changes)

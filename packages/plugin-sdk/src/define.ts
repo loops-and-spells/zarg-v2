@@ -35,7 +35,8 @@ export interface Plugin<M extends Record<string, MethodSpec> = Record<string, Me
   readonly serve: (raw: RawPowers) => Record<string, (p: unknown) => Promise<unknown> | AsyncIterable<unknown>>
 }
 
-const NAME = /^[a-z][a-z0-9-]*$/
+// Same rule as the host (@zarg/plugin/runtime PLUGIN_NAME): no doubled or trailing dash, so secret namespaces never collide.
+const NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/
 const SERVICE = /^[A-Z][A-Za-z0-9]*$/
 
 export const definePlugin = <const M extends Record<string, MethodSpec>>(def: PluginDef<M>): Plugin<M> => {

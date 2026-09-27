@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { join } from "node:path"
-import { Effect } from "effect"
+import { Effect, Schema } from "effect"
 import { buildPlugin, manifestOf, testPlugin } from "../src/tools"
+import { definePlugin } from "../src"
 import good from "./fixtures/good"
 
 const fixture = (n: string) => join(import.meta.dir, "fixtures", n, "index.ts")
@@ -58,3 +59,12 @@ describe("running a plugin", () => {
     expect(e.message).toContain("who")
   })
 })
+
+describe("names", () => {
+  test("a plugin name that could collide with another's secret namespace is refused", () => {
+    const def = { service: "ZtX", archetype: "provider" as const, config: Schema.Struct({}), scopes: {}, methods: {}, make: Effect.succeed({}) }
+    for (const name of ["zt--x", "zt-", "Zt"]) expect(() => definePlugin({ ...def, name })).toThrow()
+    expect(definePlugin({ ...def, name: "zt-x" }).name).toBe("zt-x")
+  })
+})
+

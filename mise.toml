@@ -11,8 +11,8 @@ description = "Typecheck and test every package. Exit code is the verdict."
 depends = ["//...:typecheck", "//...:test"]
 
 [tasks.zarg]
-description = "Run this repo's zarg CLI: mise run zarg -- agenda"
-depends = ["//packages/plugin-gherkin:build"]
+description = "Run this repo's zarg CLI: mise run zarg -- agenda (builds every plugin in the monorepo first)"
+depends = ["//...:build"]
 run = "mise x -- bun packages/cli/src/main.ts"
 
 

@@ -1,7 +1,8 @@
-import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect } from "effect"
+import { PLUGIN_NAME } from "../runtime"
 import { bundleHash } from "./first-party"
 import { BUNDLE_FILE, loadPluginDir, MANIFEST_FILE } from "./loaded"
 import { PluginConfigError } from "./validate"
@@ -23,13 +24,18 @@ export const installPlugin = (source: string, userDir: string): Effect.Effect<{ 
       root = existsSync(join(unpacked, "package", MANIFEST_FILE)) ? join(unpacked, "package") : unpacked
     }
     try {
+      // The installed copy must be the files themselves: a symlink could change after the hash is taken.
+      for (const f of [MANIFEST_FILE, BUNDLE_FILE]) {
+        const at = join(root, f)
+        if (existsSync(at) && lstatSync(at).isSymbolicLink()) return yield* Effect.fail(new PluginConfigError(`${source}: ${f} is a symlink; a plugin must ship the file itself`))
+      }
       const plugin = yield* loadPluginDir(root)
       const name = plugin.manifest.name
-      if (!/^[a-z][a-z0-9-]*$/.test(String(name))) return yield* Effect.fail(new PluginConfigError(`${source}: plugin name "${name}" must be kebab-case`))
+      if (!PLUGIN_NAME.test(String(name))) return yield* Effect.fail(new PluginConfigError(`${source}: plugin name "${name}" must be kebab-case, with no doubled or trailing dash`))
       const sha = bundleHash(plugin.bundle)
       const dir = join(userDir, "plugins", name, sha)
       mkdirSync(dir, { recursive: true })
-      for (const f of [MANIFEST_FILE, BUNDLE_FILE]) cpSync(join(root, f), join(dir, f))
+      for (const f of [MANIFEST_FILE, BUNDLE_FILE]) copyFileSync(join(root, f), join(dir, f))
       writeFileSync(join(userDir, "plugins", name, "current"), `${sha}\n`)
       return { name, dir }
     } finally {

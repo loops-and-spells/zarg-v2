@@ -9,7 +9,8 @@ export type ToPlugin =
 /** Plugin process → host. */
 export type FromPlugin =
   | { readonly type: "ready" }
-  | { readonly type: "loaded" }
+  /** Loaded; with what the bundle says it is, for the host to compare with the manifest. */
+  | { readonly type: "loaded"; readonly identity: Identity }
   | { readonly type: "load-failed"; readonly message: string }
   | { readonly type: "reply"; readonly id: number; readonly ok: true; readonly value: unknown }
   | { readonly type: "reply"; readonly id: number; readonly ok: false; readonly error: Failure }
@@ -20,4 +21,10 @@ export type FromPlugin =
 export interface Failure {
   readonly tag: "NotGranted" | "PluginError" | "UnknownMethod"
   readonly message: string
+}
+
+export interface Identity {
+  readonly name?: string
+  readonly service?: string
+  readonly archetype?: string
 }

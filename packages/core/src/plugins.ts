@@ -5,7 +5,7 @@ import { Context, Effect, Layer, Redacted } from "effect"
 import type { GraphStore } from "@zarg/graph"
 import * as E from "./events"
 import type { ThreadLog } from "./log"
-import { type Answer as GrantAnswer, type Ask, makeGrants } from "@zarg/plugin/runtime"
+import { type Answer as GrantAnswer, type Ask, makeGrants, PLUGIN_NAME } from "@zarg/plugin/runtime"
 import {
   type AgendaItem,
   isFirstParty,
@@ -46,21 +46,51 @@ const firstParty = (zargRoot: string) =>
     return yield* Effect.forEach(dirs, loadPluginDir)
   })
 
-/** Plugins a project lists (`[plugins.<name>]`) and `zarg plugin add` installed under `<userDir>/plugins/<name>/<sha256>/`. */
-const installed = (userDir: string, names: ReadonlyArray<string>) =>
+const SHA256 = /^[0-9a-f]{64}$/
+
+/**
+ * Plugins a project lists (`[plugins.<name>]`) and `zarg plugin add` installed under
+ * `<userDir>/plugins/<name>/<sha256>/`. Project config is in the repository, so every listed name is
+ * checked: a plugin name (never a path), not a first-party name, installed at a real hash, and its
+ * manifest must call itself that name (grants are by name).
+ */
+export const installedPlugins = (userDir: string, names: ReadonlyArray<string>, firstPartyNames: ReadonlySet<string>) =>
   Effect.gen(function* () {
     const plugins: Array<LoadedPlugin> = []
-    const missing: Array<AgendaItem> = []
+    const notices: Array<AgendaItem> = []
+    const refuse = (name: string, detail: string) =>
+      void notices.push({ id: `plugin-listed:${name}`, title: `Plugin ${String(name).slice(0, 60)} listed in .zarg/config.toml was not loaded`, detail, about: [], priority: 1 })
     for (const name of names) {
+      if (!PLUGIN_NAME.test(name)) {
+        refuse(name, "It is not a plugin name.")
+        continue
+      }
+      if (firstPartyNames.has(name)) {
+        refuse(name, `${name} ships with zarg; the listed one is ignored.`)
+        continue
+      }
       const current = join(userDir, "plugins", name, "current")
       const sha = existsSync(current) ? readFileSync(current, "utf8").trim() : undefined
       if (sha === undefined) {
-        missing.push({ id: `plugin-missing:${name}`, title: `Plugin ${name} is not installed`, detail: `The project lists it. Run \`zarg plugin add <source>\` to install it.`, about: [], priority: 1 })
+        notices.push({ id: `plugin-missing:${name}`, title: `Plugin ${name} is not installed`, detail: `The project lists it. Run \`zarg plugin add <source>\` to install it.`, about: [], priority: 1 })
         continue
       }
-      plugins.push(yield* loadPluginDir(join(userDir, "plugins", name, sha)))
+      if (!SHA256.test(sha)) {
+        refuse(name, "Its installed version is damaged; run `zarg plugin add` again.")
+        continue
+      }
+      const plugin = yield* loadPluginDir(join(userDir, "plugins", name, sha)).pipe(Effect.option)
+      if (plugin._tag === "None") {
+        refuse(name, "Its installed files cannot be read; run `zarg plugin add` again.")
+        continue
+      }
+      if (plugin.value.manifest.name !== name) {
+        refuse(name, `It is installed as ${name} but names itself ${plugin.value.manifest.name}.`)
+        continue
+      }
+      plugins.push(plugin.value)
     }
-    return { plugins, missing }
+    return { plugins, notices }
   })
 
 /**
@@ -99,7 +129,7 @@ export const pluginHostLayer = (opts: {
   const host = Layer.unwrap(
     Effect.gen(function* () {
       const own = yield* firstParty(zargRoot)
-      const theirs = yield* installed(userDir, opts.listed ?? [])
+      const theirs = yield* installedPlugins(userDir, opts.listed ?? [], new Set(own.map((p) => p.manifest.name)))
       const grants = yield* makeGrants({ file: join(userDir, "grants.json"), project: opts.root })
       const redact = opts.redact ?? ((t: string) => t)
       return hostLayer([...own, ...theirs.plugins], {
@@ -111,7 +141,8 @@ export const pluginHostLayer = (opts: {
         log: (line) => console.error(`zarg-plugin: ${redact(line)}`),
         redact,
         firstParty: (p) => isFirstParty(p, zargRoot, KNOWN_FIRST_PARTY),
-        notices: theirs.missing,
+        notices: theirs.notices,
+        userDir,
       })
     }),
   )
@@ -142,12 +173,13 @@ export const makeYolo = (log: ThreadLog, control: PluginControl["Service"]["yolo
 /** A plugin by name: first-party, or installed by `zarg plugin add` (its current version). */
 export const findPlugin = (name: string, opts: { readonly zargRoot?: string; readonly userDir?: string } = {}) =>
   Effect.gen(function* () {
+    if (!PLUGIN_NAME.test(name)) return yield* Effect.fail(new PluginConfigError(`"${name.slice(0, 60)}" is not a plugin name`))
     const own = yield* firstParty(opts.zargRoot ?? ZARG_ROOT)
     const found = own.find((p) => p.manifest.name === name)
     if (found !== undefined) return found
-    const theirs = yield* installed(opts.userDir ?? USER_DIR, [name])
+    const theirs = yield* installedPlugins(opts.userDir ?? USER_DIR, [name], new Set())
     const p = theirs.plugins[0]
-    if (p === undefined) return yield* Effect.fail(new PluginConfigError(`no plugin "${name}": run \`zarg plugin add <source>\` first`))
+    if (p === undefined) return yield* Effect.fail(new PluginConfigError(`no plugin "${name}": ${theirs.notices[0]?.detail ?? "run `zarg plugin add <source>` first"}`))
     return p
   })
 

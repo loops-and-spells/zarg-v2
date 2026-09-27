@@ -3,10 +3,10 @@ import { beforeAll, describe, expect, test } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { Effect, Fiber, FileSystem, Layer } from "effect"
+import { Effect, Fiber, FileSystem, Layer, Redacted } from "effect"
 import { GraphStore, hash, layer as graphLayer } from "@zarg/graph"
 import { buildPlugin } from "@zarg/plugin-sdk/tools"
-import { makeGrants } from "../src/runtime"
+import { makeGrants, scopesDigest } from "../src/runtime"
 import { type HostOptions, isFirstParty, layer as hostLayer, type LoadedPlugin, PluginHost } from "../src/server"
 
 let notes: LoadedPlugin
@@ -260,5 +260,82 @@ describe("plugins in their processes", () => {
     }))
     expect(out.after).toContain("disabled")
     expect(out.agenda).toContain("plugin-disabled:notes")
+  })
+})
+
+describe("review fixes: the host", () => {
+  const raw = (manifest: Record<string, unknown>, methods: string): LoadedPlugin => ({
+    manifest: { config: {}, scopes: {}, optional: {}, archetype: "graph", ...manifest, methods: manifest.methods ?? {} } as never,
+    bundle: `module.exports.default = { name: ${JSON.stringify(manifest.name)}, service: ${JSON.stringify(manifest.service)}, archetype: ${JSON.stringify(manifest.archetype ?? "graph")}, serve: (powers) => (${methods}) }`,
+    origin: "/zt/raw",
+  })
+  const m = (doc = "x", agents = true) => ({ doc, params: {}, success: {}, agents, stream: false })
+  const approved = (plugins: ReadonlyArray<LoadedPlugin>, extra: Partial<HostOptions> = {}) => () => {
+    const o = options({ firstParty: () => false, ...extra })
+    for (const p of plugins) Effect.runSync(o.grants.approveLoad(p.manifest.name, scopesDigest(p.manifest.scopes, p.manifest.optional)))
+    return o
+  }
+
+  test("a secret the plugin was served never comes back out of it, in results or errors", async () => {
+    const leaky = raw({ name: "zt-leak", service: "ZtLeak", scopes: { graph: "write", secrets: ["TOKEN"] }, methods: { leak: m(), boom: m() } }, `{
+      leak: async () => ({ changes: [], message: "token " + await powers.call("secrets.get", { name: "TOKEN" }) }),
+      boom: async () => { throw new Error("failed with " + await powers.call("secrets.get", { name: "TOKEN" })) },
+    }`)
+    const vault = (name: string) => Effect.succeed(name === "ZARG_PLUGIN_ZT_LEAK__TOKEN" ? Redacted.make("zt-leaky-secret") : undefined)
+    const out = await runWith(() => [leaky], approved([leaky], { vault }), Effect.gen(function* () {
+      const h = yield* PluginHost
+      const ok = yield* h.call("zt-leak/leak", {})
+      const err = yield* Effect.flip(h.call("zt-leak/boom", {}))
+      return JSON.stringify([ok, err.message])
+    }))
+    expect(out).not.toContain("zt-leaky-secret")
+    expect(out).toContain("<redacted:plugin-secret>")
+  })
+
+  test("a plugin without graph write cannot change the graph, and one without graph scope is never shown it", async () => {
+    const reader = raw({ name: "zt-reader", service: "ZtReader", scopes: { graph: "read" }, methods: { write: m() } }, `{ write: async () => ({ changes: [{ _tag: "Put", node: { id: "N-9", type: "notes/note", props: { text: "x" }, edges: [] } }], message: "wrote" }) }`)
+    const blind = raw({ name: "zt-blind", service: "ZtBlind", scopes: {}, methods: { agenda: m("agenda", false) } }, `{ agenda: async () => [{ id: "saw-it", title: "saw the graph", detail: "", about: [], priority: 1 }] }`)
+    const out = await runWith(() => [reader, blind], approved([reader, blind]), Effect.gen(function* () {
+      const h = yield* PluginHost
+      const e = yield* Effect.flip(h.call("zt-reader/write", {}))
+      return { e: e.message, agenda: (yield* h.agenda()).map((i) => i.id) }
+    }))
+    expect(out.e).toContain("may not change the graph")
+    expect(out.agenda).not.toContain("saw-it")
+  })
+
+  test("a write whose checks cannot run is refused, not let through", async () => {
+    const broken = raw({ name: "zt-broken", service: "ZtBroken", scopes: { graph: "write" }, methods: { add: m(), lint: m("lint", false) } }, `{
+      add: async () => ({ changes: [], message: "nothing" }),
+      lint: async () => { throw new Error("lint broke") },
+    }`)
+    const e = await runWith(() => [broken], approved([broken]), Effect.flip(PluginHost.use((h) => h.call("zt-broken/add", {}))))
+    expect(e._tag).toBe("LintFailed")
+    expect(JSON.stringify(e)).toContain("could not check")
+  })
+
+  test("the approval request names the optional scopes too", async () => {
+    const asker = raw({ name: "zt-asker", service: "ZtAsker", archetype: "provider", scopes: {}, optional: { net: "ask", fs: { read: "ask" } } }, `{}`)
+    const items = await runWith(() => [asker], () => options({ firstParty: () => false }), PluginHost.use((h) => h.agenda()))
+    expect(items[0]!.title).toBe("Plugin zt-asker asks for: nothing now; may ask to reach hosts it asks for, read files it asks for")
+  })
+
+  test("a manifest that does not match its bundle, a reserved service or a bad method name does not load", async () => {
+    const liar = { ...raw({ name: "zt-liar", service: "ZtLiar", scopes: {} }, `{}`), bundle: `module.exports.default = { name: "gherkin", service: "Gherkin", archetype: "graph", serve: () => ({}) }` }
+    const hijack = raw({ name: "zt-hijack", service: "Inquire", scopes: {} }, `{}`)
+    const badMethod = raw({ name: "zt-bad", service: "ZtBad", scopes: {}, methods: { "Bad Name": m() } }, `{}`)
+    const badDoc = raw({ name: "zt-doc", service: "ZtDoc", scopes: {}, methods: { ok: m("ends */ here") } }, `{}`)
+    const plugins = [liar, hijack, badMethod, badDoc]
+    const out = await runWith(() => plugins, approved(plugins), PluginHost.use((h) => Effect.all([h.agenda(), Effect.succeed(h.manifests.map((x) => x.name))])))
+    expect(out[0].filter((i) => i.id.startsWith("plugin-failed:")).map((i) => i.id).sort()).toEqual(["plugin-failed:zt-bad", "plugin-failed:zt-hijack", "plugin-failed:zt-liar"])
+    expect(out[1]).toEqual(["zt-doc"])
+    expect(out[1].length).toBe(1)
+  })
+
+  test("a call's deadline stops while its grant question waits on the developer", async () => {
+    const asker = raw({ name: "zt-slowask", service: "ZtSlowask", archetype: "provider", scopes: {}, optional: { net: ["b.test"] }, methods: { go: { ...m(), deadlineMs: 300 } } }, `{ go: async () => powers.call("fetch", { url: "https://b.test/" }) }`)
+    const slowDeny = () => Effect.andThen(Effect.sleep(700), Effect.succeed("deny" as const))
+    const e = await runWith(() => [asker], approved([asker], { ask: slowDeny }), Effect.flip(PluginHost.use((h) => h.call("zt-slowask/go", {}))))
+    expect(e.message).toContain("denied")
   })
 })
