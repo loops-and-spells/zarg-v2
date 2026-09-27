@@ -1,4 +1,4 @@
-import { Context, Data, Effect, Exit, Layer, type Redacted, Scope, Semaphore } from "effect"
+import { Cause, Context, Data, Effect, Exit, Layer, type Redacted, Scope, Semaphore } from "effect"
 import { diff, type Expect, GraphStore, type GraphError, hash, type IoError, type Loaded, Snapshot } from "@zarg/graph"
 import { type Ask, type Grants, type ManifestScopes, makePowers, PLUGIN_NAME, PluginCallError, type PluginProcess, scopesDigest, served, spawnPlugin, warnings } from "../runtime"
 import type { LoadedPlugin, Manifest } from "./loaded"
@@ -53,6 +53,11 @@ export class PluginHost extends Context.Service<
     readonly invoke: (plugin: string, method: string, params: unknown) => Effect.Effect<unknown, { readonly _tag: string; readonly message: string }>
     /** Run `effect` with no tool call committing meanwhile (e.g. while landing a commit that writes graph files). */
     readonly exclusive: <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
+    /**
+     * Load plugins that lacked only their load grant: with YOLO on for a plugin it loads as declared (nothing is
+     * saved); otherwise the developer is asked (Allow saves the grant). Dependents follow their dependencies.
+     */
+    readonly loadWaiting: Effect.Effect<void>
   }
 >()("@zarg/plugin/PluginHost") {}
 
@@ -235,24 +240,11 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         return true
       })
 
-      // Checked and started together (a slow plugin does not hold up the others), kept in their given order.
-      const started = yield* Effect.forEach(startable, (p) => Effect.gen(function* () {
+      // Plugins that only lack their load grant: YOLO or the developer can still let them load (`loadWaiting`).
+      const waiting: Array<LoadedPlugin> = []
+      /** Start one plugin's process (its grant already settled); undefined, with an agenda item, when it cannot. */
+      const spawnOne = (p: LoadedPlugin, digest: string) => Effect.gen(function* () {
         const m = p.manifest
-        const problem = manifestProblem(m)
-        if (problem !== undefined) return failed(m, problem)
-        const digest = scopesDigest(m.scopes, m.optional, depsOf(m))
-        const granted = (yield* opts.grants.of(m.name, digest)).loaded
-        if (!granted && opts.firstParty(p) && graphOnly(m)) yield* opts.grants.approveLoad(m.name, digest)
-        else if (!granted) {
-          hostItems.push({
-            id: `plugin-grant:${m.name}`,
-            title: `Plugin ${m.name} asks for: ${describeScopes(m)}`,
-            detail: [...warnings(m.scopes, m.optional, depsOf(m)).map((w) => `It ${w}.`), `Run \`zarg plugin grant ${m.name}\` to approve.`].join(" "),
-            about: [],
-            priority: 1,
-          })
-          return undefined
-        }
         const restarts: Array<number> = []
         // While one of its questions waits on the developer, the plugin's call deadline stops.
         let asking = 0
@@ -325,6 +317,27 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         }
         const r: Running = { manifest: m, process: spawned.value, restarts, disabled: false, inflight: 0, served: served(powers) }
         return r
+      })
+      // Checked and started together (a slow plugin does not hold up the others), kept in their given order.
+      const started = yield* Effect.forEach(startable, (p) => Effect.gen(function* () {
+        const m = p.manifest
+        const problem = manifestProblem(m)
+        if (problem !== undefined) return failed(m, problem)
+        const digest = scopesDigest(m.scopes, m.optional, depsOf(m))
+        const granted = (yield* opts.grants.of(m.name, digest)).loaded
+        if (!granted && opts.firstParty(p) && graphOnly(m)) yield* opts.grants.approveLoad(m.name, digest)
+        else if (!granted) {
+          hostItems.push({
+            id: `plugin-grant:${m.name}`,
+            title: `Plugin ${m.name} asks for: ${describeScopes(m)}`,
+            detail: [...warnings(m.scopes, m.optional, depsOf(m)).map((w) => `It ${w}.`), "zarg asks you to allow it (or /yolo on loads it)."].join(" "),
+            about: [],
+            priority: 1,
+          })
+          waiting.push(p)
+          return undefined
+        }
+        return yield* spawnOne(p, digest)
       }), { concurrency: "unbounded" })
       /** A disabled plugin takes every plugin that needs it (directly or not) with it. */
       const disableDependents = (name: string) => {
@@ -363,7 +376,10 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
             yield* r.process.stop
             running.delete(name)
             services.delete(r.manifest.service)
-            needs(r.manifest, d.name, why)
+            // A dependency waiting on its grant: this plugin waits with it and loads after it.
+            const self = plugins.find((p) => p.manifest.name === name)
+            if (dep === undefined && waiting.some((w) => w.manifest.name === d.name) && self !== undefined) waiting.push(self)
+            else needs(r.manifest, d.name, why)
             changed = true
             break
           }
@@ -371,7 +387,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
       }
 
       yield* Effect.addFinalizer(() => Effect.sync(() => { for (const r of running.values()) if (r.idle !== undefined) clearTimeout(r.idle) }))
-      const loaded = [...running.values()].map((r) => r.manifest)
+      const loaded: Array<Manifest> = [...running.values()].map((r) => r.manifest)
       const reg = yield* Effect.try({
         try: () => manifestRegistry(loaded),
         catch: (e) => (e instanceof PluginConfigError ? e : new PluginConfigError(String(e))),
@@ -511,13 +527,59 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
       const step = (card: string, via?: string) =>
         Effect.map(each<Record<string, unknown> | null>("step", { card, ...(via !== undefined ? { via } : {}) }), (parts) => defined(parts).find((p) => p !== null) ?? undefined)
 
+      const toolsOf = (m: Manifest): ReadonlyArray<ToolInfo> =>
+        Object.entries(m.methods)
+          .filter(([k, spec]) => spec.agents && !RESERVED.has(k))
+          .map(([k, spec]) => ({ name: `${m.name}/${k}`, description: spec.doc, params: spec.params }))
+      const tools: Array<ToolInfo> = loaded.flatMap(toolsOf)
+
+      /** Start a waiting plugin now: its dependencies running with the contract it was built against. */
+      const loadLate = (p: LoadedPlugin) =>
+        Effect.gen(function* () {
+          const m = p.manifest
+          const ready = (m.pluginDependencies ?? []).every((d) => running.get(d.name)?.manifest.contract?.digest === d.digest)
+          if (!ready || running.has(m.name) || services.has(m.service)) return false
+          const r = yield* spawnOne(p, scopesDigest(m.scopes, m.optional, depsOf(m)))
+          if (r === undefined) return false
+          services.add(m.service)
+          running.set(m.name, r)
+          loaded.push(m)
+          tools.push(...toolsOf(m))
+          const at = hostItems.findIndex((i) => i.id === `plugin-grant:${m.name}`)
+          if (at >= 0) hostItems.splice(at, 1)
+          return true
+        })
+      const loadingLock = yield* Semaphore.make(1)
+      const loadWaiting = Effect.gen(function* () {
+        const declined = new Set<string>()
+        for (let progress = true; progress; ) {
+          progress = false
+          for (const p of [...waiting]) {
+            const m = p.manifest
+            if (declined.has(m.name) || !depsOf(m).every((d) => running.has(d))) continue
+            // A graph plugin changes the node types every tool checks against: it loads on the next start.
+            if (m.archetype === "graph") continue
+            const digest = scopesDigest(m.scopes, m.optional, depsOf(m))
+            const granted = (yield* opts.grants.of(m.name, digest).pipe(Effect.orElseSucceed(() => ({ loaded: false })))).loaded
+            if (!granted && !opts.yolo.on(m.name)) {
+              const what = [`load, to ${describeScopes(m)}`, ...warnings(m.scopes, m.optional, depsOf(m)).map((w) => `(it ${w})`)].join(" ")
+              const a = yield* opts.ask({ plugin: m.name, what, options: [{ id: "always", label: "Allow" }, { id: "deny", label: "Not now" }] })
+              if (a !== "always") {
+                declined.add(m.name)
+                continue
+              }
+              yield* opts.grants.approveLoad(m.name, digest).pipe(Effect.ignore)
+            }
+            waiting.splice(waiting.indexOf(p), 1)
+            if (yield* loadLate(p)) progress = true
+          }
+        }
+      }).pipe(Semaphore.withPermits(loadingLock, 1), Effect.catchCause((c) => Effect.sync(() => opts.log(`loading waiting plugins failed: ${Cause.pretty(c)}`))))
+
       return {
-        tools: loaded.flatMap((m) =>
-          Object.entries(m.methods)
-            .filter(([k, spec]) => spec.agents && !RESERVED.has(k))
-            .map(([k, spec]) => ({ name: `${m.name}/${k}`, description: spec.doc, params: spec.params })),
-        ),
+        tools,
         manifests: loaded,
+        loadWaiting,
         call,
         lint,
         agenda,

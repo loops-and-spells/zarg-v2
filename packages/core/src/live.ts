@@ -21,7 +21,7 @@ import { makeActions } from "./actions"
 import { chosenFindings, commitGraph as commitGraphFindings, findingsService } from "./findings"
 import { makeLog } from "./log"
 import { pluginAgents } from "./plugin-agents"
-import { makeYolo, PluginControl, pluginHostLayer, USER_DIR, vaultFrom } from "./plugins"
+import { forDriver, makeYolo, PluginControl, pluginHostLayer, USER_DIR, vaultFrom } from "./plugins"
 import { STUB_MODEL, stubLayer } from "./stub"
 import { reasonOf, reconcileGate, type ReconcileSettings } from "./phases"
 import { checkoutProblem, gitRun } from "@zarg/reconcile"
@@ -112,7 +112,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     if (!gate.on) yield* Effect.sync(() => console.error(`zarg-core: ${gate.reason}`))
     let reconcile = gate.on ? yield* startReconcile(gate.settings) : undefined
     const agenda = (focus: ReadonlySet<string> | undefined) =>
-      Effect.map(host.agenda(focus), (items): ReadonlyArray<AgendaItem> => [...(reconcile?.agenda(focus) ?? []), ...items])
+      Effect.map(host.agenda(focus), (items): ReadonlyArray<AgendaItem> => [...(reconcile?.agenda(focus) ?? []), ...forDriver(items)])
     // The same scope filter the driver's Graph.render applies.
     const render = (ids: ReadonlyArray<string>, scope: Scope) => Effect.map(graph({ host, snapshot, scope }).handlers.render!({ focus: ids }), String)
     // What next: failure candidates a decision model judges real.
@@ -144,7 +144,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     })
     // A plugin's grant question is asked on main, like any driver question.
     const main = yield* threads.get("main", [])
-    const yolo = makeYolo(log, control.yolo)
+    const yolo = makeYolo(log, control.yolo, host.loadWaiting)
     // Started with --yolo: say so on main, so the status line shows it.
     if (control.yolo.any()) yield* yolo.set(true)
     // A plugin's agenda changed (findings to take up): the driver wakes if it waits on nothing.
@@ -165,6 +165,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         })
         .pipe(Effect.map((a) => q.options.find((o) => o.id === a.choice)?.id ?? "deny")),
     )
+    // Plugins that lack only their load grant: asked about now that main can ask (YOLO loads them without asking).
+    yield* Effect.forkDetach(host.loadWaiting)
 
     // @card UX-0058 @card UX-0059
     /** `/reconcile`: turn plan and implement on for this session (the config's section and `enabled` are overridden). */

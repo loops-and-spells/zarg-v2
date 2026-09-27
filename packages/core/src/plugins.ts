@@ -186,15 +186,20 @@ export const vaultFrom = (get: (name: string) => Effect.Effect<string | Redacted
  * `/yolo` and `--yolo`: switch it, and tell every client on `main` (the status line shows YOLO), so a TUI
  * attaching later learns it too. Answers whether any plugin is in YOLO now.
  */
-export const makeYolo = (log: ThreadLog, control: PluginControl["Service"]["yolo"]) => ({
+/** `onYolo`: runs when YOLO turns on (plugins waiting on their grant load then, without a question). */
+export const makeYolo = (log: ThreadLog, control: PluginControl["Service"]["yolo"], onYolo: Effect.Effect<void> = Effect.void) => ({
   set: (on: boolean, plugin?: string) =>
     Effect.gen(function* () {
       control.set(on, plugin)
       const any = control.any()
       yield* log.append("main", E.custom("zarg.yolo", { on: any }))
+      if (on) yield* Effect.forkDetach(onYolo)
       return { on: any }
     }),
 })
+
+/** The agenda the driver works from: the host's own plugin items (grants, failures) are the developer's, not requirements work. */
+export const forDriver = <A extends { readonly id: string }>(items: ReadonlyArray<A>): ReadonlyArray<A> => items.filter((i) => !i.id.startsWith("plugin-"))
 
 /** A plugin by name: first-party, or installed by `zarg plugin add` (its current version). */
 export const findPlugin = (name: string, opts: { readonly zargRoot?: string; readonly userDir?: string } = {}) =>

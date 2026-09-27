@@ -4,10 +4,13 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Fiber, Stream } from "effect"
 import { makeClient, readInfo } from "@zarg/client"
+import { grantFirstParty } from "./plugins-helper"
 
 const main = join(import.meta.dir, "..", "src", "main.ts")
 const root = mkdtempSync(join(tmpdir(), "zarg-proc-"))
 writeFileSync(join(root, ".env.schema"), "# @defaultSensitive=false\n# ---\n")
+// Not about grants: rehearse is allowed already, so no grant question waits on main.
+grantFirstParty(root)
 afterAll(() => rmSync(root, { recursive: true, force: true }))
 
 const start = async (mode: "child" | "headless") => {
