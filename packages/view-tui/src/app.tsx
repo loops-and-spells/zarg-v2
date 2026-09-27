@@ -1,13 +1,13 @@
-import { useKeyboard } from "@opentui/react"
+import { useKeyboard, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
-import type { Body, Session } from "@zarg/client"
+import type { Session } from "@zarg/client"
+import { initialViewUi } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { registerCommands } from "./commands"
-import { type Action, agentDetail, agentRows, animating, conversation, activate, bodyView, messageShown, OTHER, otherFocused, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
+import { AgentView } from "./sections"
+import { type Action, agentDetail, agentRows, animating, conversation, activate, messageShown, OTHER, otherFocused, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
 
 const COLORS = { you: "#8ab4f8", zarg: "#e8eaed", error: "#f28b82", notice: "#fdd663", dim: "#9aa0a6", accent: "#81c995", select: "#3c4043" }
-// An open history refreshes this often while it is shown (the agent may still be working).
-const HISTORY_REFRESH_MS = 1000
 const TONE = { running: COLORS.zarg, done: COLORS.dim, failed: COLORS.error, stopped: COLORS.notice }
 
 /** The zarg TUI: conversation, inline inquiry picker, input line, agents pane and status line. */
@@ -52,13 +52,13 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     else if (action.type === "stop") props.session.stop()
     else if (action.type === "act") {
       const agent = latest().viewing
-      if (agent !== undefined) void props.session.act(agent, action.action, undefined, action.rows).then(() => reloadBody.current())
+      if (agent !== undefined) void props.session.act(agent, action.action, action.section, action.rows)
     }
     else props.onExit()
   }
 
   useKeyboard((key) => {
-    const r = onKey(latest(), props.session.state(), { name: key.name, ctrl: key.ctrl }, Date.now(), draftRef.current, bodyRef.current)
+    const r = onKey(latest(), props.session.state(), { name: key.name, ctrl: key.ctrl, shift: key.shift }, Date.now(), draftRef.current)
     setUi(r.ui)
     if (r.draft !== undefined) {
       // Write into the input now, so a key typed right after Tab lands after the completion.
@@ -68,30 +68,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     act(r.action)
   })
 
-  // The open agent's body (its history, or what its plugin draws), fetched and refreshed while it is shown.
-  const [body, setBody] = useState<Body | undefined>(undefined)
-  const bodyRef = useRef<Body | undefined>(undefined)
-  const reloadBody = useRef<() => void>(() => {})
   const viewing = ui.viewing
-  useEffect(() => {
-    if (viewing === undefined) return
-    let live = true
-    const load = () =>
-      void props.session.body(viewing).then((b) => {
-        if (!live) return
-        bodyRef.current = b
-        setBody(b)
-      })
-    reloadBody.current = load
-    bodyRef.current = undefined
-    setBody(undefined)
-    load()
-    const timer = setInterval(load, HISTORY_REFRESH_MS)
-    return () => {
-      live = false
-      clearInterval(timer)
-    }
-  }, [viewing])
+  const dims = useTerminalDimensions()
 
   const inquiry = s.thread.pendingInquiry
   const box = slashActive(ui, s) ? slashBox(draft, ui) : undefined
@@ -110,14 +88,13 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     <box style={{ flexDirection: "column", width: "100%", height: "100%" }}>
       <box style={{ flexDirection: "row", flexGrow: 1 }}>
         {viewing !== undefined ? (
-          <scrollbox title={`Agent ${viewing} · Esc back`} style={{ flexGrow: 1, border: true, borderColor: COLORS.accent }} stickyScroll stickyStart="bottom">
-            {body === undefined ? <text fg={COLORS.dim}>loading…</text> : null}
-            {(body === undefined ? [] : bodyView(body, ui.body)).map((l, i) => (
-              <text key={i} fg={COLORS[l.kind]}>
-                {l.text}
-              </text>
-            ))}
-          </scrollbox>
+          <box title={`${viewing} · Esc back`} style={{ flexGrow: 1, flexDirection: "column", border: true, borderColor: COLORS.accent }}>
+            {s.thread.views?.[viewing] === undefined ? (
+              <text fg={COLORS.dim}>no view yet</text>
+            ) : (
+              <AgentView view={s.thread.views[viewing]!} ui={ui.view ?? initialViewUi} height={Math.max(8, dims.height - 3)} />
+            )}
+          </box>
         ) : (
         <scrollbox
           title="Conversation"
@@ -225,7 +202,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       </box>
       ) : null}
       <box style={{ height: 1, flexShrink: 0 }}>
-        <text fg={COLORS.dim}>{`${statusLine(s, props.meta)}   ${viewing !== undefined ? "Esc back to the conversation" : ui.focus === "agents" ? "↑↓ move · ←→ fold · Enter open, then history · Tab back" : "^C stop · ^C^C exit · Tab agents"}`}</text>
+        <text fg={COLORS.dim}>{`${statusLine(s, props.meta)}   ${viewing !== undefined ? "Tab sections · [ ] tabs · ↑↓ move · Space select · Esc back" : ui.focus === "agents" ? "↑↓ move · ←→ fold · Enter open, then history · Tab back" : "^C stop · ^C^C exit · Tab agents"}`}</text>
       </box>
     </box>
   )

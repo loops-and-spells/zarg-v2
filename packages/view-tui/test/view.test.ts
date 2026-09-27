@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
-import { activate, bodyView, CHAT, conversation, historyView, openHistory, EXIT_WINDOW_MS, initialUi, inputFocused, messageShown, OTHER, onKey, otherFocused, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/view"
+import { defineView, layoutOf } from "@zarg/view"
+import { activate, CHAT, conversation, openHistory, EXIT_WINDOW_MS, initialUi, inputFocused, messageShown, OTHER, onKey, otherFocused, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/view"
 
 const inquiry: Inquiry = {
   id: "inq-1",
@@ -229,74 +230,6 @@ describe("the agents pane", () => {
     expect(ui.viewing).toBeUndefined()
   })
 
-  test("a plugin agent's body: history, then tables in tabs; arrows move, Space selects, Tab switches, an action key acts on the selection", () => {
-    const body = {
-      parts: [
-        { kind: "history" as const, lines: [{ type: "step", rlm: "rehearse:tester-1", turn: 0, text: "UX-1: feel 1.80", cells: [] }] },
-        {
-          kind: "tabs" as const,
-          tabs: [
-            { title: "Feedback", columns: ["id", "kind", "note"], rows: [{ id: "R-1", cells: ["R-1", "gap", "no error shown"] }, { id: "R-2", cells: ["R-2", "friction", "unclear"] }] },
-            { title: "Likes", columns: ["id", "kind", "note"], rows: [] },
-          ],
-          actions: [{ id: "apply", label: "Apply", key: "a" }, { id: "dismiss", label: "Dismiss", key: "d" }],
-        },
-      ],
-    }
-    let ui: Ui = openHistory({ ...initialUi }, "rehearse:tester-1")
-    const text = () => bodyView(body, ui.body).map((l) => l.text)
-    expect(text()).toEqual([
-      "  UX-1: feel 1.80",
-      "",
-      "[Feedback]  Likes",
-      "      id   kind      note",
-      "▸ [ ] R-1  gap       no error shown",
-      "  [ ] R-2  friction  unclear",
-      "↑↓ move · Space select · Tab tabs · a Apply · d Dismiss",
-    ])
-    const key = (name: string) => {
-      const r = onKey(ui, running, { name }, 0, undefined, body)
-      ui = r.ui
-      return r.action
-    }
-    key("down")
-    key("space")
-    expect(text()[5]).toBe("▸ [x] R-2  friction  unclear")
-    expect(key("a")).toEqual({ type: "act", action: "apply", rows: ["R-2"] })
-    expect(ui.body?.selected).toEqual([])
-    // Nothing selected: the action takes the row under the cursor.
-    key("up")
-    expect(key("d")).toEqual({ type: "act", action: "dismiss", rows: ["R-1"] })
-    key("tab")
-    expect(text()[2]).toBe(" Feedback  [Likes]")
-    expect(text()[3]).toBe("  (none)")
-  })
-
-  test("an agent's history: the task, each turn's model time, calls, and cells with code and output", () => {
-    const lines = historyView([
-      { type: "start", rlm: "rlm-2", preset: "research", task: "Find the VM grid\nmore context" },
-      { type: "model", rlm: "rlm-2", turn: 1, modelMs: 2300, promptTokens: 4206, completionTokens: 83 },
-      { type: "call", rlm: "rlm-2", turn: 1, service: "Graph", method: "show", params: { id: "S-1" }, ok: true, result: {}, ms: 11 },
-      { type: "call", rlm: "rlm-2", turn: 1, service: "Fs", method: "read", params: { path: "x" }, ok: false, failure: { _tag: "NotFound", message: "no x" }, ms: 2 },
-      { type: "tick", rlm: "rlm-2", turn: 1, source: "clock", value: 1 },
-      { type: "step", rlm: "rlm-2", turn: 1, text: "Looking.", cells: [{ code: "const a = 1\nreturn a", ok: true, output: "1", ms: 40 }] },
-      { type: "extend", rlm: "rlm-2", extended: false, turns: 15, confidence: 0.7, reason: "repeated calls 6/6" },
-    ])
-    expect(lines.map((l) => l.text)).toEqual([
-      "research rlm-2: Find the VM grid",
-      "turn 1 · model 2.3s · 4,206 → 83 tokens",
-      '  Graph.show {"id":"S-1"}  11ms',
-      '  Fs.read {"path":"x"}  2ms  failed: NotFound: no x',
-      "  Looking.",
-      "  cell ok 40ms",
-      "    │ const a = 1",
-      "    │ return a",
-      "    → 1",
-      "told to wrap up  0.70  repeated calls 6/6",
-    ])
-    expect(lines.find((l) => l.text.includes("failed"))?.kind).toBe("error")
-  })
-
   test("expansion and the cursor survive live updates; a cursor whose RLM is gone falls back to the root", () => {
     const ui = { ...initialUi, agents: agents({ cursor: "rlm-2", toggled: { "rlm-2": true } }) }
     const more = { ...rlms, "rlm-5": node("rlm-5", "rlm-2", "research") }
@@ -452,3 +385,22 @@ describe("YOLO on the status line", () => {
   })
 })
 
+describe("keys in an agent's view", () => {
+  const layout = layoutOf(defineView("t", { steps: { kind: "log", role: "log" }, review: { kind: "tabs", role: "pinned", tabs: { findings: { kind: "table", columns: [{ id: "id", label: "id" }], selectable: true, actions: [{ id: "apply", label: "Apply", key: "a", on: "selection" }] }, likes: { kind: "table", columns: [] } } } }))
+  const views = { "rehearse:t-1": { agent: "rehearse:t-1", layout, data: { "review.findings": { rows: [{ id: "R-1", cells: {} }, { id: "R-2", cells: {} }] } } } }
+  const s = { ...running, thread: { ...running.thread, views } } as SessionState
+  const open = { ...initialUi, viewing: "rehearse:t-1" }
+  test("Tab moves focus between sections, [ and ] switch tabs, space and a apply the selected rows", () => {
+    let ui = onKey(open, s, { name: "tab" }, 0).ui
+    expect(ui.view?.focus).toBe(1)
+    ui = onKey(ui, s, { name: "down" }, 0).ui
+    ui = onKey(ui, s, { name: "space" }, 0).ui
+    const r = onKey(ui, s, { name: "a" }, 0)
+    expect(r.action).toEqual({ type: "act", section: "review.findings", action: "apply", rows: ["R-2"] })
+    expect(r.ui.view?.selected["review.findings"]).toEqual([])
+    expect(onKey(ui, s, { name: "]" }, 0).ui.view?.tabs.review).toBe(1)
+  })
+  test("Escape goes back to the conversation", () => {
+    expect(onKey(open, s, { name: "escape" }, 0).ui.viewing).toBeUndefined()
+  })
+})

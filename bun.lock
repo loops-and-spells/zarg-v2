@@ -199,6 +199,7 @@
         "@opentui/core": "^0.5.12",
         "@opentui/react": "0.5.12",
         "@zarg/client": "workspace:*",
+        "@zarg/view": "workspace:*",
         "effect": "^4.0.0-rc.117",
         "react": "19",
       },

@@ -1,4 +1,6 @@
-import type { Answer, Body, Inquiry, RlmNode, SessionState } from "@zarg/client"
+import type { Answer, Inquiry, RlmNode, SessionState } from "@zarg/client"
+import { initialViewUi, type ViewUi } from "@zarg/view"
+import { viewKeys } from "./view-keys"
 import { lintSlashInput, parseSlashInput, SLASH_COMMANDS, type SlashCycle, type SlashInputState, stepCompletion } from "./commands"
 
 /** UI-only state: what is focused and selected. Everything else comes from the session. */
@@ -24,14 +26,8 @@ export interface Ui {
   readonly agents: Agents
   /** The agent whose history replaces the conversation (Enter or a click on it); Escape closes it. */
   readonly viewing?: string
-  /** In the open agent's body: the tab, the highlighted row, the selected rows. */
-  readonly body?: BodyUi
-}
-
-export interface BodyUi {
-  readonly tab: number
-  readonly row: number
-  readonly selected: ReadonlyArray<string>
+  /** In the open agent's view: the focused section, tabs, row cursors and selections. */
+  readonly view?: ViewUi
 }
 
 export interface Agents {
@@ -225,106 +221,9 @@ export const agentDetail = (rlms: Readonly<Record<string, RlmNode>>, cursor: str
 
 /** Open an agent's history (Enter on it, or a click); it also becomes the highlighted agent. */
 export const openHistory = (ui: Ui, id: string): Ui => {
-  const { body: _, ...rest } = ui
+  const { view: _, ...rest } = ui
   return { ...rest, viewing: id, agents: { ...ui.agents, cursor: id } }
 }
-
-const tabsOf = (body: Body) => body.parts.find((p) => p.kind === "tabs") as Extract<Body["parts"][number], { kind: "tabs" }> | undefined
-
-/** An agent's body as lines: history, text, then its table (the current tab), with the keys it takes. */
-export const bodyView = (body: Body, b: BodyUi | undefined): ReadonlyArray<HistoryLine> =>
-  body.parts.flatMap((p, i): ReadonlyArray<HistoryLine> => {
-    const gap: ReadonlyArray<HistoryLine> = i > 0 ? [{ kind: "dim", text: "" }] : []
-    if (p.kind === "history") return [...gap, ...historyView(p.lines ?? [])]
-    if (p.kind === "lines") return [...gap, ...p.lines.map((l) => ({ kind: (l.tone ?? "zarg") as HistoryLine["kind"], text: l.text }))]
-    const tab = Math.min(b?.tab ?? 0, p.tabs.length - 1)
-    const t = p.tabs[tab]
-    if (t === undefined) return gap
-    const widths = t.columns.map((c, ci) => Math.max(c.length, ...t.rows.map((r) => (r.cells[ci] ?? "").length)))
-    const cells = (xs: ReadonlyArray<string>) => xs.map((x, ci) => (ci === xs.length - 1 ? x : x.padEnd(widths[ci]!))).join("  ")
-    const row = Math.min(b?.row ?? 0, Math.max(0, t.rows.length - 1))
-    return [
-      ...gap,
-      { kind: "accent", text: p.tabs.map((x, xi) => (xi === tab ? `[${x.title}]` : ` ${x.title} `)).join(" ").trimEnd() },
-      ...(t.rows.length === 0
-        ? [{ kind: "dim" as const, text: "  (none)" }]
-        : [
-            { kind: "dim" as const, text: `      ${cells(t.columns)}` },
-            ...t.rows.map((r, ri) => ({
-              kind: (ri === row ? "accent" : "zarg") as HistoryLine["kind"],
-              text: `${ri === row ? "▸" : " "} [${b?.selected.includes(r.id) ? "x" : " "}] ${cells(r.cells)}`,
-            })),
-          ]),
-      { kind: "dim", text: ["↑↓ move", "Space select", "Tab tabs", ...p.actions.map((a) => `${a.key} ${a.label}`)].join(" · ") },
-    ]
-  })
-
-/** Keys in a body with a table: move, select, switch tabs, act on the selection (or the highlighted row). */
-const bodyKeys = (ui: Ui, body: Body, key: Key): { readonly ui: Ui; readonly action?: Action } => {
-  const p = tabsOf(body)
-  if (p === undefined) return { ui }
-  const b = ui.body ?? { tab: 0, row: 0, selected: [] }
-  const rows = p.tabs[Math.min(b.tab, p.tabs.length - 1)]?.rows ?? []
-  const set = (next: Partial<BodyUi>): Ui => ({ ...ui, body: { ...b, ...next } })
-  if (key.name === "down") return { ui: set({ row: Math.min(rows.length - 1, b.row + 1) }) }
-  if (key.name === "up") return { ui: set({ row: Math.max(0, b.row - 1) }) }
-  if (key.name === "tab") return { ui: set({ tab: (b.tab + 1) % Math.max(1, p.tabs.length), row: 0 }) }
-  const current = rows[Math.min(b.row, rows.length - 1)]
-  if (key.name === "space" && current !== undefined) {
-    return { ui: set({ selected: b.selected.includes(current.id) ? b.selected.filter((x) => x !== current.id) : [...b.selected, current.id] }) }
-  }
-  const act = p.actions.find((a) => a.key === key.name)
-  if (act !== undefined) {
-    const chosen = b.selected.length > 0 ? b.selected : current !== undefined ? [current.id] : []
-    return chosen.length === 0 ? { ui } : { ui: set({ selected: [] }), action: { type: "act", action: act.id, rows: chosen } }
-  }
-  return { ui }
-}
-
-export interface HistoryLine {
-  readonly kind: "zarg" | "dim" | "error" | "accent"
-  readonly text: string
-}
-
-const HISTORY_CODE_LINES = 8
-const HISTORY_OUTPUT_LINES = 6
-const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max)}…` : text)
-const firstLines = (text: string, n: number) => {
-  const all = text.split("\n")
-  return all.length > n ? [...all.slice(0, n), `… ${all.length - n} more lines`] : all
-}
-
-/** An agent's transcript lines (from the core) as what the history view shows. */
-export const historyView = (lines: ReadonlyArray<Record<string, any>>): ReadonlyArray<HistoryLine> =>
-  lines.flatMap((l): ReadonlyArray<HistoryLine> => {
-    switch (l.type) {
-      case "start":
-        return [{ kind: "zarg", text: `${l.preset} ${l.rlm}: ${String(l.task ?? "").split("\n")[0]}` }]
-      case "model":
-        return [{ kind: "accent", text: `turn ${l.turn} · model ${(Number(l.modelMs) / 1000).toFixed(1)}s · ${Number(l.promptTokens).toLocaleString("en-US")} → ${Number(l.completionTokens).toLocaleString("en-US")} tokens` }]
-      case "call": {
-        const head = `  ${l.service}.${l.method} ${clip(JSON.stringify(l.params), 120)}  ${l.ms}ms`
-        return [l.ok ? { kind: "dim", text: head } : { kind: "error", text: `${head}  failed: ${l.failure?._tag}: ${clip(String(l.failure?.message ?? ""), 120)}` }]
-      }
-      case "step":
-        return [
-          ...(String(l.text ?? "").trim().length > 0 ? [{ kind: "zarg" as const, text: `  ${clip(String(l.text).trim().replaceAll("\n", " "), 300)}` }] : []),
-          ...(l.cells ?? []).flatMap((c: { code: string; ok: boolean; output: string; ms: number }) => [
-            { kind: c.ok ? ("dim" as const) : ("error" as const), text: `  cell ${c.ok ? "ok" : "failed"} ${c.ms}ms` },
-            ...firstLines(c.code, HISTORY_CODE_LINES).map((t) => ({ kind: "dim" as const, text: `    │ ${t}` })),
-            ...firstLines(c.output, HISTORY_OUTPUT_LINES).filter((t) => t.length > 0).map((t) => ({ kind: c.ok ? ("zarg" as const) : ("error" as const), text: `    → ${t}` })),
-          ]),
-        ]
-      case "atomize":
-        return [{ kind: "accent", text: l.atomic ? "atomic (runs directly)" : "plan (splits into children)" }]
-      case "plan":
-        return [{ kind: "accent", text: `plan: ${(l.children ?? []).map((c: { id: string; preset: string }) => `${c.id} (${c.preset})`).join(", ")}` }]
-      case "extend":
-        return [{ kind: "accent", text: `${(l.extended ? `extended to ${l.turns} turns` : "told to wrap up").padEnd(15)}  ${Number(l.confidence).toFixed(2)}  ${l.reason}` }]
-      default:
-        return []
-    }
-  })
 
 /** Enter on an agent, or a click: its hidden children open first; an open or childless agent shows its history. */
 export const activate = (ui: Ui, rlms: Readonly<Record<string, RlmNode>>, id: string): Ui => {
@@ -375,6 +274,7 @@ export const statusLine = (s: SessionState, meta: Meta) =>
 export interface Key {
   readonly name: string
   readonly ctrl?: boolean
+  readonly shift?: boolean
 }
 
 export type Action =
@@ -382,8 +282,8 @@ export type Action =
   | { readonly type: "send"; readonly text: string }
   | { readonly type: "command"; readonly text: string }
   | { readonly type: "stop" }
-  /** An action on the open agent's selected rows. */
-  | { readonly type: "act"; readonly action: string; readonly rows: ReadonlyArray<string> }
+  /** An action on rows of a table in the open agent's view. */
+  | { readonly type: "act"; readonly section: string; readonly action: string; readonly rows: ReadonlyArray<string> }
   | { readonly type: "exit" }
 
 /** What a key press does: the next UI state and, maybe, an action for the session. */
@@ -436,7 +336,7 @@ const withoutSlash = (ui: Ui): Ui => {
   return rest
 }
 
-export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: string, body?: Body): { readonly ui: Ui; readonly action?: Action; readonly draft?: string } => {
+export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: string): { readonly ui: Ui; readonly action?: Action; readonly draft?: string } => {
   if (key.ctrl && key.name === "d") return { ui, action: { type: "exit" } }
   if (key.ctrl && key.name === "c") {
     if (ui.lastCtrlC !== undefined && now - ui.lastCtrlC < EXIT_WINDOW_MS) return { ui, action: { type: "exit" } }
@@ -448,8 +348,13 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: st
       const { viewing: _, ...rest } = ui
       return { ui: { ...rest, focus: "conversation" } }
     }
-    // A question on screen still takes its keys (arrows, Enter); otherwise the body's table does.
-    if (s.thread.pendingInquiry === undefined) return body !== undefined ? bodyKeys(ui, body, key) : { ui }
+    // A question on screen still takes its keys (arrows, Enter); otherwise the agent's view does.
+    if (s.thread.pendingInquiry === undefined) {
+      const v = s.thread.views?.[ui.viewing]
+      if (v === undefined) return { ui }
+      const r = viewKeys(v, ui.view ?? initialViewUi, key)
+      return { ui: { ...ui, view: r.ui }, ...(r.act !== undefined ? { action: { type: "act" as const, ...r.act } } : {}) }
+    }
     ui = { ...ui, focus: "conversation" }
   }
   if (draft !== undefined && slashActive(ui, s)) {

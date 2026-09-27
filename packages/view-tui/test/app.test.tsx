@@ -196,8 +196,13 @@ describe("tui frames", () => {
     expect(spinnerAt(t.rawFrame())).not.toBe(spinnerAt(first))
   })
 
-  test("Enter on an agent shows its history in place of the conversation; Escape goes back", async () => {
-    const t = await render(waiting)
+  test("Enter on an agent shows its view in place of the conversation; Escape goes back", async () => {
+    const rlmView = {
+      agent: "rlm-2",
+      layout: { name: "rlm", sections: [{ id: "status", kind: "stats" as const, role: "summary" as const }, { id: "history", kind: "log" as const, role: "log" as const, title: "History" }] },
+      data: { status: { items: [{ label: "turns", value: "2/15" }] }, history: { lines: [{ text: "research rlm-2: Find the VM grid" }, { text: '  Graph.show {"id":"S-1"}  11ms', tone: "dim" as const }] } },
+    }
+    const t = await render({ ...waiting, thread: { ...waiting.thread, views: { "rlm-2": rlmView } } })
     t.mockInput.pressTab()
     t.mockInput.pressArrow("down")
     await settle(t)
@@ -206,7 +211,8 @@ describe("tui frames", () => {
     await Bun.sleep(30)
     await settle(t)
     const open = t.captureCharFrame()
-    expect(open).toContain("Agent rlm-2 · Esc back")
+    expect(open).toContain("rlm-2 · Esc back")
+    expect(open).toContain("2/15 turns")
     expect(open).toContain("research rlm-2: Find the VM grid")
     expect(open).toContain('Graph.show {"id":"S-1"}  11ms')
     expect(t.captureCharFrame()).toContain("research rlm-2: Find the VM grid")
@@ -216,9 +222,20 @@ describe("tui frames", () => {
     expect(t.captureCharFrame()).not.toContain("Esc back")
   })
 
-  test("a plugin agent's body: history, a Feedback table, and a key that acts on the highlighted row", async () => {
+  test("a plugin agent's view: its steps, a Findings table, and a key that acts on the highlighted row", async () => {
     const tester = { id: "rehearse:tester-1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
-    const t = await render({ thread: { ...initial("main"), status: "running", rlms: { "rehearse:tester-1": tester } }, core: "up" })
+    const view = {
+      agent: "rehearse:tester-1",
+      layout: {
+        name: "tester",
+        sections: [
+          { id: "steps", kind: "log" as const, role: "log" as const, title: "Steps" },
+          { id: "review", kind: "tabs" as const, role: "pinned" as const, tabs: [{ id: "findings", kind: "table" as const, title: "Findings", columns: [{ id: "id", label: "id" }, { id: "note", label: "note" }], selectable: true, actions: [{ id: "apply", label: "Apply", key: "a", on: "selection" as const }] }, { id: "likes", kind: "table" as const, title: "Likes", columns: [{ id: "id", label: "id" }] }] },
+        ],
+      },
+      data: { steps: { lines: [{ text: "UX-1: feel 1.80" }] }, "review.findings": { rows: [{ id: "R-1", cells: { id: "R-1", note: "no error shown" } }] } },
+    }
+    const t = await render({ thread: { ...initial("main"), status: "running", rlms: { "rehearse:tester-1": tester }, views: { "rehearse:tester-1": view } }, core: "up" })
     t.mockInput.pressTab()
     await settle(t)
     t.mockInput.pressEnter()
@@ -227,8 +244,11 @@ describe("tui frames", () => {
     await settle(t)
     const frame = t.captureCharFrame()
     expect(frame).toContain("UX-1: feel 1.80")
-    expect(frame).toContain("[Feedback]  Likes")
-    expect(frame).toContain("▸ [ ] R-1  no error shown")
+    expect(frame).toContain("[Findings (1)]  Likes (0)")
+    // Tab moves focus to the pinned table; its highlighted row takes the action.
+    t.mockInput.pressTab()
+    await settle(t)
+    expect(t.captureCharFrame()).toContain("▸ [ ] R-1  no error shown")
     t.mockInput.pressKey("a")
     await settle(t)
     expect(t.calls).toContain("act rehearse:tester-1 apply R-1")

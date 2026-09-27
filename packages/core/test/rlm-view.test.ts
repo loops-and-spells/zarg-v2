@@ -35,4 +35,29 @@ describe("the RLM's view", () => {
     expect(patch.filter((p: { path: string }) => p.path === "/data/history/lines/-").map((p: { value: { text: string } }) => p.value.text)).toContain("  looking")
     expect(patch.findLast((p: { path: string }) => p.path === "/data/status").value.items).toContainEqual({ label: "turns", value: "1/25" })
   })
+
+  test("an agent's history: the task, each turn's model time, calls, and cells with code and output", () => {
+    const lines = [
+      { type: "start", rlm: "rlm-2", preset: "research", task: "Find the VM grid\nmore context" },
+      { type: "model", rlm: "rlm-2", turn: 1, modelMs: 2300, promptTokens: 4206, completionTokens: 83 },
+      { type: "call", rlm: "rlm-2", turn: 1, service: "Graph", method: "show", params: { id: "S-1" }, ok: true, result: {}, ms: 11 },
+      { type: "call", rlm: "rlm-2", turn: 1, service: "Fs", method: "read", params: { path: "x" }, ok: false, failure: { _tag: "NotFound", message: "no x" }, ms: 2 },
+      { type: "tick", rlm: "rlm-2", turn: 1, source: "clock", value: 1 },
+      { type: "step", rlm: "rlm-2", turn: 1, text: "Looking.", cells: [{ code: "const a = 1\nreturn a", ok: true, output: "1", ms: 40 }] },
+      { type: "extend", rlm: "rlm-2", extended: false, turns: 15, confidence: 0.7, reason: "repeated calls 6/6" },
+    ].flatMap(rlmLines)
+    expect(lines.map((l) => l.text)).toEqual([
+      "research rlm-2: Find the VM grid",
+      "turn 1 · model 2.3s · 4,206 → 83 tokens",
+      '  Graph.show {"id":"S-1"}  11ms',
+      '  Fs.read {"path":"x"}  2ms  failed: NotFound: no x',
+      "  Looking.",
+      "  cell ok 40ms",
+      "    │ const a = 1",
+      "    │ return a",
+      "    → 1",
+      "told to wrap up  0.70  repeated calls 6/6",
+    ])
+    expect(lines.find((l) => l.text.includes("failed"))?.tone).toBe("error")
+  })
 })
