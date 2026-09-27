@@ -94,7 +94,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const narrow = dims.width < 100
   const zargTile = (
     <box title="zarg" onMouseDown={() => setUi({ ...latest(), focus: "conversation" })} style={{ ...(viewing !== undefined ? (narrow ? { flexGrow: 1, flexBasis: 0 } : { width: "38%", flexShrink: 0 }) : { flexGrow: 1 }), flexDirection: "column", border: true, borderColor: ui.focus === "conversation" ? COLORS.accent : COLORS.dim }}>
-      <scrollbox style={{ flexGrow: 1, flexShrink: 1, minHeight: 0 }} stickyScroll stickyStart="bottom">
+      {/* Never focusable: the shell's focus alone decides where keys go (a click must not hand a scrollbox the arrows). */}
+      <scrollbox focusable={false} style={{ flexGrow: 1, flexShrink: 1, minHeight: 0 }} stickyScroll stickyStart="bottom">
         {lines.map((l, i) => (
           <text key={i} fg={COLORS[l.kind]}>
             {`${l.kind === "you" ? "you" : l.kind === "zarg" ? "zarg" : "!"}  ${l.text}`}
@@ -186,7 +187,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     )
   const agentsTile = (
     <box onMouseDown={() => setUi({ ...latest(), focus: "agents" })} title={`Agents${agents.some((a) => a.attention) ? ` ◆${agents.filter((a) => a.attention).length}` : ""}`} style={{ ...(narrow ? { flexGrow: 1 } : { width: viewing !== undefined ? 32 : 48 }), flexDirection: "column", border: true, borderColor: ui.focus === "agents" ? COLORS.accent : COLORS.dim }}>
-      <scrollbox ref={agentsRef} style={{ flexGrow: 1 }}>
+      <scrollbox ref={agentsRef} focusable={false} style={{ flexGrow: 1 }}>
         {agents.length === 0 ? <text fg={COLORS.dim}>no agents running</text> : null}
         {agents.map((a) => (
           <text

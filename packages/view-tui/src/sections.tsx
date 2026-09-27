@@ -153,6 +153,7 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
         return (
           <scrollbox
             key={s.id}
+            focusable={false}
             ref={(r: ScrollBoxRenderable | null) => void (r === null ? boxes.current.delete(s.id) : boxes.current.set(s.id, r))}
             title={titleOf(props.view, props.ui, s)}
             // Sections fit their content, capped by role, and shrink to their titled frame when the window is short.

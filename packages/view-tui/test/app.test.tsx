@@ -80,6 +80,21 @@ const settle = async (t: { renderOnce: () => Promise<void>; waitForVisualIdle: (
 }
 
 describe("tui frames", () => {
+  test("a click in zarg's messages never gives them the arrow keys: the agents tile keeps them", async () => {
+    const many = Array.from({ length: 40 }, (_, i) => ({ id: `m${i}`, role: "assistant" as const, text: `message ${i}` }))
+    const { pendingInquiry: _, ...quiet } = waiting.thread
+    const t = await render({ ...waiting, thread: { ...quiet, status: "idle", messages: many } })
+    await t.mockMouse.click(10, 5)
+    await settle(t)
+    t.mockInput.pressTab()
+    await settle(t)
+    const before = t.captureCharFrame().split("\n").slice(1, 4).map((l) => l.slice(0, 60))
+    t.mockInput.pressArrow("up")
+    t.mockInput.pressArrow("up")
+    await settle(t)
+    expect(t.captureCharFrame().split("\n").slice(1, 4).map((l) => l.slice(0, 60))).toEqual(before)
+  })
+
   const testerView = {
     agent: "rehearse:tester-1",
     layout: { name: "tester", sections: [{ id: "steps", kind: "log" as const, role: "log" as const, title: "Steps" }, { id: "review", kind: "tabs" as const, role: "pinned" as const, tabs: [{ id: "findings", kind: "table" as const, title: "Findings", columns: [{ id: "id", label: "id" }], selectable: true, actions: [{ id: "apply", label: "Apply", key: "a", on: "selection" as const }] }] }] },

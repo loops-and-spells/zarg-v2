@@ -58,5 +58,5 @@ export const runTui = (opts: { readonly root: string; readonly threadId: string;
     const opened = yield* openSession(opts)
     // --yolo: switched on through the core, so it also works on a core that was already running.
     if (opts.yolo === true) opened.session.command("/yolo on")
-    yield* Effect.promise(async () => mount(await createCliRenderer({ exitOnCtrlC: false }), opened))
+    yield* Effect.promise(async () => mount(await createCliRenderer({ exitOnCtrlC: false, autoFocus: false }), opened))
   })
