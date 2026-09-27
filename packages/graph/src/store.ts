@@ -1,7 +1,8 @@
 import { Context, Effect, FileSystem, Layer, Path, Schema } from "effect"
 import { diff, type Diff } from "./diff"
 import { DanglingEdge, InvalidNode, IoError, StaleNode, type GraphError } from "./errors"
-import { canonical, hash, Node } from "./node"
+import { hash } from "./hash"
+import { canonical, Node } from "./node"
 import { applyChanges, danglingEdges, make, type Change, type Snapshot } from "./snapshot"
 
 export interface Commit {

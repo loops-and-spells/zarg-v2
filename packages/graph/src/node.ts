@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto"
 import { Schema } from "effect"
 
 export const NodeId = Schema.String.check(Schema.isPattern(/^[A-Za-z0-9._-]+$/))
@@ -32,7 +31,3 @@ const sortKeys = (value: unknown): unknown => {
 
 /** Sorted keys, two-space indent, trailing newline: byte-stable across writers. */
 export const canonical = (node: Node): string => `${JSON.stringify(sortKeys(node), null, 2)}\n`
-
-/** Short content hash of the canonical form. Used as the node's revision. */
-export const hash = (node: Node): string =>
-  createHash("sha256").update(canonical(node)).digest("hex").slice(0, 12)
