@@ -17,6 +17,7 @@ import { judgeGaps } from "./gaps"
 import { outsideReads } from "./outside"
 import { nextGoals, type NextOption } from "./intent"
 import { makeBodies } from "./bodies"
+import { commitGraph as commitGraphFindings, findingsService } from "./findings"
 import { makeLog } from "./log"
 import { pluginAgents } from "./plugin-agents"
 import { makeYolo, PluginControl, pluginHostLayer, USER_DIR, vaultFrom } from "./plugins"
@@ -73,6 +74,14 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         if (name === "Fs:read") return fsRead({ root, scope, sensitive, outside })
         if (name === "Inquire") return inquire(guard.asker)
         if (name === "Decisions") return decisionsService(decisions as never)
+        if (name === "Findings")
+          return findingsService({
+            dir: join(root, ".zarg", "findings"),
+            invoke: (plugin, method, params) => host.invoke(plugin, method, params),
+            guard,
+            neighbors: (card) => Effect.map(store.snapshot, (snap) => (snap.nodes.get(card)?.edges ?? []).map((e) => e.to)).pipe(Effect.orElseSucceed(() => [])),
+            commit: (ids, message) => host.exclusive(commitGraphFindings(root, ids, message)),
+          })
         if (name === "Rehearse")
           return rehearseRef.current === undefined
             ? undefined

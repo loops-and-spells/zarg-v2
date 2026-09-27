@@ -6,3 +6,4 @@ node_modules/
 packages/*/dist/
 .zarg/rehearse/
 packages/plugin/test/fixtures/.gen/
+.zarg/findings/
