@@ -77,7 +77,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     let reconcile = gate.on ? yield* startReconcile(gate.settings) : undefined
     const agenda = (focus: ReadonlySet<string> | undefined) =>
       Effect.map(host.agenda(focus), (items) => [...(reconcile?.agenda(focus) ?? []), ...items])
-    const threads = yield* makeThreads({ log, agenda, makeRlm, extra: reconcile?.threads ?? [] })
+    const render = (focus: ReadonlyArray<string>) => host.render(new Set(focus))
+    const threads = yield* makeThreads({ log, agenda, render, makeRlm, extra: reconcile?.threads ?? [] })
 
     // @card UX-0058 @card UX-0059
     /** `/reconcile`: turn plan and implement on for this session (the config's section and `enabled` are overridden). */

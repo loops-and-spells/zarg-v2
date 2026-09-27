@@ -32,7 +32,12 @@ export interface ThreadDeps {
   readonly agenda: (focus: ReadonlySet<string> | undefined) => Effect.Effect<ReadonlyArray<AgendaItem>, unknown>
   /** Runs one driver RLM; the thread supplies the Asker its Inquire service must use and an observer for activity. */
   readonly driver: (spec: Rlm.RlmSpec, asker: Asker, observe: (e: Rlm.RlmEvent) => void) => Effect.Effect<Rlm.RlmOutcome, Rlm.RlmError>
+  /** Gherkin text for these node ids, put in the driver's task so its first turn need not fetch it. */
+  readonly render?: (focus: ReadonlyArray<string>) => Effect.Effect<string, unknown>
 }
+
+// The agenda the driver sees up front; the rest it can still read with Graph.agenda.
+const AGENDA_SHOWN = 10
 
 interface Pending {
   readonly id: string
@@ -117,6 +122,10 @@ export const makeThread = (deps: ThreadDeps) =>
         lastItem = item?.id ?? ""
         // The same item still open after two passes: ask what next instead of looping on it.
         const stuck = item !== undefined && passes > 2
+        const around =
+          item !== undefined && !stuck && item.about.length > 0 && deps.render !== undefined
+            ? yield* deps.render(item.about).pipe(Effect.orElseSucceed(() => ""))
+            : ""
         const task = [
           said.length > 0
             ? `The developer said: ${said.map((m) => JSON.stringify(m)).join(" then ")}\nAnswer them directly. If a choice is needed, ask with Inquire.ask (options, one recommended).`
@@ -124,6 +133,13 @@ export const makeThread = (deps: ThreadDeps) =>
               ? WHAT_NEXT
               : `${item.title}\n${item.detail}\nPropose how to resolve it and ask the developer with Inquire.ask before changing the graph.`,
           stuck ? `Note: "${item!.title}" is still open after two passes; mention it among the options.` : "",
+          around.length > 0 ? `The cards around it (Graph.render of ${item!.about.join(", ")}):\n${around}` : "",
+          items.length > 0
+            ? `Open agenda (${items.length}):\n${items
+                .slice(0, AGENDA_SHOWN)
+                .map((i) => `- ${i.title}${i.about.length > 0 ? ` [${i.about.join(", ")}]` : ""}`)
+                .join("\n")}`
+            : "",
           recent.length > 0 ? `Recent conversation:\n${recent.join("\n")}` : "",
           REPLY_RULE,
         ]
