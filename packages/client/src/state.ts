@@ -44,9 +44,11 @@ export interface ThreadState {
   readonly error?: { readonly code?: string; readonly message: string }
   /** The last event applied; events at or before it are ignored (replays after a reconnect). */
   readonly seq: number
+  /** How many fresh (empty) RLM trees have started: a new driver item or pass. */
+  readonly trees: number
 }
 
-export const initial = (threadId: string): ThreadState => ({ threadId, messages: [], rlms: {}, status: "idle", seq: 0 })
+export const initial = (threadId: string): ThreadState => ({ threadId, messages: [], rlms: {}, status: "idle", seq: 0, trees: 0 })
 
 type Patch = { readonly op: string; readonly path: string; readonly value?: unknown }
 
@@ -90,8 +92,10 @@ export const reduce = (s: ThreadState, e: WireEvent): ThreadState => {
       return { ...t, messages: [...t.messages, { id: String(e.messageId), role: e.role === "user" ? "user" : "assistant", text: "" }] }
     case "TEXT_MESSAGE_CONTENT":
       return { ...t, messages: t.messages.map((m) => (m.id === e.messageId ? { ...m, text: m.text + String(e.delta) } : m)) }
-    case "ACTIVITY_SNAPSHOT":
-      return { ...t, rlms: ((e.content as { rlms?: ThreadState["rlms"] } | undefined)?.rlms ?? {}) }
+    case "ACTIVITY_SNAPSHOT": {
+      const rlms = (e.content as { rlms?: ThreadState["rlms"] } | undefined)?.rlms ?? {}
+      return { ...t, rlms, trees: Object.keys(rlms).length === 0 ? t.trees + 1 : t.trees }
+    }
     case "ACTIVITY_DELTA":
       return { ...t, rlms: patchRlms(t.rlms, (e.patch as ReadonlyArray<Patch>) ?? []) }
     default:

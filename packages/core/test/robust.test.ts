@@ -175,6 +175,24 @@ describe("transcripts", () => {
     expect(JSON.stringify(out.events)).not.toContain("hmm")
   })
 
+  test("the task headline is redacted before it is cut, so no part of a secret reaches the wire", async () => {
+    const task = `${"x".repeat(195)} zt-secret and more`
+    const driver: Driver = (_s, asker, observe) =>
+      Effect.gen(function* () {
+        observe({ type: "start", id: "rlm-1", parent: undefined, preset: "driver", task, scope: {}, depth: 0, budget: { turns: 25, tokens: 1, wallMs: 1 } })
+        return (yield* asker.ask(question)) as never
+      }) as never
+    const events = await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setup(driver, undefined, (t) => t.replaceAll("zt-secret", "<redacted:ZT>"))
+        return yield* collect(thread.run({ runId: "r1" }))
+      }),
+    )
+    const wire = JSON.stringify(events)
+    expect(wire).not.toContain(" zt-")
+    expect(wire).toContain(" <red")
+  })
+
   test("a restarted core does not read transcripts as events", async () => {
     const dir = mkdtempSync(join(tmpdir(), "zarg-log-"))
     writeFileSync(join(dir, "main.jsonl"), `${JSON.stringify({ type: "RUN_STARTED", threadId: "main", runId: "r", seq: 1 })}\n`)

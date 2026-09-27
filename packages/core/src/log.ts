@@ -66,7 +66,7 @@ export const makeLog = (dir: string, redact: (text: string) => string) =>
     /** End every live stream (shutdown): open SSE responses finish instead of holding the server open. */
     const close = PubSub.shutdown(hub)
 
-    return { append, stream, close, transcript, all: () => events as ReadonlyArray<WireEvent>, exists: (threadId: string) => existsSync(join(dir, `${threadId}.jsonl`)) }
+    return { append, stream, close, transcript, redact, all: () => events as ReadonlyArray<WireEvent>, exists: (threadId: string) => existsSync(join(dir, `${threadId}.jsonl`)) }
   })
 
 export type ThreadLog = Effect.Success<ReturnType<typeof makeLog>>

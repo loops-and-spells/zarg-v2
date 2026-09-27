@@ -71,3 +71,14 @@ describe("reduce", () => {
     expect(replay).toBe(s)
   })
 })
+
+test("an empty activity snapshot starts a fresh tree; a snapshot with nodes (a reconnect) does not", () => {
+  const snap = (seq: number, rlms: object) => ({ type: "ACTIVITY_SNAPSHOT", threadId: "main", seq, messageId: "a", activityType: "rlm", content: { rlms } }) as never
+  const node = { id: "rlm-1", parent: null, preset: "driver", depth: 0, turns: 0, budget: 25, status: "running", decisions: [] }
+  let t = reduce(initial("main"), snap(1, {}))
+  expect(t.trees).toBe(1)
+  t = reduce(t, snap(2, { "rlm-1": node }))
+  expect(t.trees).toBe(1)
+  t = reduce(t, snap(3, {}))
+  expect(t.trees).toBe(2)
+})

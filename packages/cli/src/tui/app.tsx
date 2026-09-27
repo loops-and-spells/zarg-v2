@@ -79,7 +79,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           <scrollbox ref={agentsRef} style={{ flexGrow: 1 }}>
             {agents.length === 0 ? <text fg={COLORS.dim}>no agents running</text> : null}
             {agents.map((a) => (
-              <text key={a.id} id={`agent-${a.id}`} fg={TONE[a.tone]} {...(a.selected && ui.focus === "agents" ? { bg: COLORS.select } : {})}>
+              <text key={a.id} id={`agent-${a.id}`} fg={TONE[a.tone]} truncate {...(a.selected && ui.focus === "agents" ? { bg: COLORS.select } : {})}>
                 {a.text}
               </text>
             ))}

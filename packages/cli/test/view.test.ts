@@ -56,7 +56,7 @@ describe("picker", () => {
 
   test("once the inquiry is answered the picker state clears", () => {
     const ui = { ...syncUi(initialUi, waiting), other: true }
-    expect(syncUi(ui, running)).toEqual({ focus: "conversation", pick: 1, other: false, agents: { toggled: {} } })
+    expect(syncUi(ui, running)).toEqual({ focus: "conversation", pick: 1, other: false, agents: { toggled: {}, tree: 0 } })
   })
 })
 
@@ -179,6 +179,30 @@ describe("the agents pane", () => {
     expect(text(agentRows(more, ui.agents))).toHaveLength(5)
     const next = { "rlm-20": node("rlm-20", null, "driver") }
     expect(agentRows(next, ui.agents).map((r) => [r.id, r.selected])).toEqual([["rlm-20", true]])
+  })
+
+  test("rows fit the pane: long ids are cut with an ellipsis and the bar column stays", () => {
+    const long = {
+      "S-0058:rlm-1": node("S-0058:rlm-1", null, "implementer", { turns: 40, budget: 0 }),
+      "S-0058:rlm-2": node("S-0058:rlm-2", "S-0058:rlm-1", "implementer"),
+      "S-0058:rlm-3": node("S-0058:rlm-3", "S-0058:rlm-2", "implementer"),
+      "S-0058:rlm-4": node("S-0058:rlm-4", "S-0058:rlm-3", "implementer"),
+      "S-0058:rlm-5": node("S-0058:rlm-5", "S-0058:rlm-4", "implementer"),
+    }
+    const toggled = { "S-0058:rlm-2": true, "S-0058:rlm-3": true }
+    const rows = text(agentRows(long, agents({ toggled })))
+    expect(rows).toHaveLength(4)
+    for (const r of rows) expect(r.length).toBeLessThanOrEqual(46)
+    expect(rows[3]).toMatch(/…  ▰▱▱▱▱▱  2\/10  \+1$/)
+    expect(rows[0]).toMatch(/^▾ ● implementer S-0058:rlm-1 +▰▰▰▰▰▰  40\/0$/)
+  })
+
+  test("a fresh tree (a new driver item or pass) forgets the folds and the cursor", () => {
+    const ui = { ...initialUi, agents: { cursor: "rlm-2", toggled: { "rlm-1": false }, tree: 1 } }
+    const same: SessionState = { ...running, thread: { ...running.thread, trees: 1 } }
+    expect(syncUi(ui, same).agents).toBe(ui.agents)
+    const fresh: SessionState = { ...running, thread: { ...running.thread, trees: 2 } }
+    expect(syncUi(ui, fresh).agents).toEqual({ toggled: {}, tree: 2 })
   })
 
   test("the detail card: status, the task's first line, turns and tokens, the verdict per criterion, the error", () => {

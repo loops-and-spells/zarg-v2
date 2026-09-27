@@ -23,12 +23,14 @@ export interface Ui {
 export interface Agents {
   readonly cursor?: string
   readonly toggled: Readonly<Record<string, boolean>>
+  /** The tree these belong to (`ThreadState.trees`); a fresh tree starts over, since RLM ids repeat. */
+  readonly tree?: number
 }
 
 export const EXIT_WINDOW_MS = 2000
 export const OTHER = "__other"
 
-export const initialUi: Ui = { focus: "conversation", pick: 0, other: false, agents: { toggled: {} } }
+export const initialUi: Ui = { focus: "conversation", pick: 0, other: false, agents: { toggled: {}, tree: 0 } }
 
 export interface PickerRow {
   readonly id: string
@@ -48,7 +50,8 @@ export const pickerRows = (inquiry: Inquiry, pick: number): ReadonlyArray<Picker
 }
 
 /** A new inquiry preselects its recommended option (or the first). */
-export const syncUi = (ui: Ui, s: SessionState): Ui => {
+export const syncUi = (ui0: Ui, s: SessionState): Ui => {
+  const ui = ui0.agents.tree === s.thread.trees ? ui0 : { ...ui0, agents: { toggled: {}, tree: s.thread.trees } }
   const inquiry = s.thread.pendingInquiry
   if (inquiry === undefined) {
     if (ui.inquiryId === undefined && !ui.other) return ui
@@ -124,10 +127,16 @@ const cursorOf = (rows: ReadonlyArray<Visible>, agents: Agents) =>
   rows.some((r) => r.node.id === agents.cursor) ? agents.cursor : rows[0]?.node.id
 
 /** The agents tree: one line per visible RLM with its status icon, turn bar and how many descendants it hides. */
-export const agentRows = (rlms: Readonly<Record<string, RlmNode>>, agents: Agents): ReadonlyArray<AgentRow> => {
+export const agentRows = (rlms: Readonly<Record<string, RlmNode>>, agents: Agents, cols = 46): ReadonlyArray<AgentRow> => {
   const rows = visible(rlms, agents)
   const cursor = cursorOf(rows, agents)
-  const lefts = rows.map((r) => `${r.prefix} ${ICON[r.node.status]} ${r.node.preset} ${r.node.id}`)
+  const hiddenWidth = Math.max(0, ...rows.map((r) => (r.hidden.length > 0 ? `  +${r.hidden.length}`.length : 0)))
+  // The left column gives way to the bar, the turns and the hidden count: a long id is cut, never wrapped.
+  const room = Math.max(8, cols - (2 + BAR + 1 + 5) - hiddenWidth)
+  const lefts = rows.map((r) => {
+    const l = `${r.prefix} ${ICON[r.node.status]} ${r.node.preset} ${r.node.id}`
+    return l.length > room ? `${l.slice(0, room - 1)}…` : l
+  })
   const width = Math.max(0, ...lefts.map((l) => l.length))
   return rows.map((r, i) => {
     const n = r.node
@@ -169,7 +178,7 @@ const onAgentsKey = (ui: Ui, rlms: Readonly<Record<string, RlmNode>>, key: Key):
   if (row === undefined) return ui
   const n = row.node
   const move = (id: string | undefined): Ui => (id === undefined ? ui : { ...ui, agents: { ...ui.agents, cursor: id } })
-  const set = (open: boolean): Ui => ({ ...ui, agents: { cursor: n.id, toggled: { ...ui.agents.toggled, [n.id]: open } } })
+  const set = (open: boolean): Ui => ({ ...ui, agents: { ...ui.agents, cursor: n.id, toggled: { ...ui.agents.toggled, [n.id]: open } } })
   const hasKids = childrenOf(rlms)(n.id).length > 0
   const open = isOpen(rlms, ui.agents, n)
   if (key.name === "down") return move(rows[Math.min(rows.length - 1, at + 1)]?.node.id)
