@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { actionFor, defineView, focusNext, initialViewUi, layoutOf, moveRow, nextTab, ordered, startUi, toggleSelect, type ViewState } from "../src"
+import { actionFor, defineView, focusNext, initialViewUi, layoutOf, moveRow, nextTab, ordered, pickRow, startUi, toggleSelect, type ViewState } from "../src"
 
 const layout = layoutOf(
   defineView("tester", {
@@ -64,5 +64,14 @@ describe("view behaviour", () => {
     expect(startUi(view).focus).toBe(2)
     const plain: ViewState = { agent: "p", layout: layoutOf(defineView("plain", { steps: { kind: "log", role: "log" } })), data: {} }
     expect(startUi(plain).focus).toBe(0)
+  })
+
+  test("picking a row (a click or a tap) focuses its section, moves the cursor there and toggles it", () => {
+    let ui = pickRow(view, initialViewUi, "review", 2)
+    expect(ui.focus).toBe(2)
+    expect(ui.rows["review.findings"]).toBe(2)
+    expect(ui.selected["review.findings"]).toEqual(["R-3"])
+    ui = pickRow(view, ui, "review", 2)
+    expect(ui.selected["review.findings"]).toEqual([])
   })
 })

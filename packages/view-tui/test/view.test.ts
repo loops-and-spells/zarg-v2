@@ -224,15 +224,18 @@ describe("the agents pane", () => {
     expect(ui.focus).toBe("conversation")
   })
 
-  test("with a history open, a pending question still takes its keys; only Escape closes the history", () => {
-    const asking: SessionState = { thread: { ...running.thread, status: "waiting", pendingInquiry: { id: "inq-9", question: "Allow?", options: [{ id: "once", label: "Allow once" }, { id: "deny", label: "Deny" }], allowOther: false, about: [] } }, core: "up" }
-    let ui: Ui = syncUi(openHistory({ ...initialUi, focus: "agents" }, "rlm-2"), asking)
+  test("with an agent's view open, its keys are the view's even while a question waits; Escape goes back to answer it", () => {
+    const layout = layoutOf(defineView("t", { review: { kind: "tabs", role: "pinned", tabs: { findings: { kind: "table", columns: [{ id: "id", label: "id" }], selectable: true, actions: [{ id: "apply", label: "Apply", key: "a", on: "selection" }] } } } }))
+    const views = { "rehearse:t-1": { agent: "rehearse:t-1", layout, data: { "review.findings": { rows: [{ id: "R-1", cells: {} }, { id: "R-2", cells: {} }] } } } }
+    const asking: SessionState = { thread: { ...running.thread, status: "waiting", views, pendingInquiry: { id: "inq-9", question: "What next?", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }], allowOther: false, about: [] } }, core: "up" }
+    let ui: Ui = syncUi(openHistory({ ...initialUi }, "rehearse:t-1"), asking)
     const down = onKey(ui, asking, { name: "down" }, 0)
-    expect(down.ui.pick).toBe(1)
-    const enter = onKey(down.ui, asking, { name: "return" }, 0)
-    expect(enter.action).toEqual({ type: "answer", answer: { choice: "deny" } })
+    expect(down.ui.pick).toBe(0)
+    expect(down.ui.view?.rows["review.findings"]).toBe(1)
+    expect(onKey(down.ui, asking, { name: "return" }, 0).action).toBeUndefined()
     ui = onKey(down.ui, asking, { name: "escape" }, 0).ui
     expect(ui.viewing).toBeUndefined()
+    expect(onKey(ui, asking, { name: "down" }, 0).ui.pick).toBe(1)
   })
 
   test("expansion and the cursor survive live updates; a cursor whose RLM is gone falls back to the root", () => {

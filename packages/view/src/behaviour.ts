@@ -90,5 +90,16 @@ export const actionFor = (view: ViewState, ui: ViewUi, key: string): { readonly 
   return a.on !== "none" && rows.length === 0 ? undefined : { section: c.path, action: a.id, rows }
 }
 
+/** A click or tap on a row: its section takes focus, the cursor moves there, and a selectable row toggles. */
+export const pickRow = (view: ViewState, ui: ViewUi, sectionId: string, index: number): ViewUi => {
+  const focus = ordered(view.layout).findIndex((s) => s.id === sectionId)
+  if (focus < 0) return ui
+  const at = { ...ui, focus }
+  const c = leafOf(view, at, sectionId)
+  if (c === undefined) return at
+  const moved = { ...at, rows: { ...at.rows, [c.path]: index } }
+  return c.leaf.kind === "table" && c.leaf.selectable === true ? toggleSelect(view, moved) : moved
+}
+
 /** After an action ran: that table's selection clears. */
 export const afterAction = (ui: ViewUi, section: string): ViewUi => ({ ...ui, selected: { ...ui.selected, [section]: [] } })

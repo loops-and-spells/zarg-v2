@@ -352,14 +352,11 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: st
       const { viewing: _, ...rest } = ui
       return { ui: { ...rest, focus: "conversation" } }
     }
-    // A question on screen still takes its keys (arrows, Enter); otherwise the agent's view does.
-    if (s.thread.pendingInquiry === undefined) {
-      const v = s.thread.views?.[ui.viewing]
-      if (v === undefined) return { ui }
-      const r = viewKeys(v, ui.view ?? startUi(v), key)
-      return { ui: { ...ui, view: r.ui }, ...(r.act !== undefined ? { action: { type: "act" as const, ...r.act } } : r.scroll !== undefined ? { action: { type: "scroll" as const, delta: r.scroll } } : {}) }
-    }
-    ui = { ...ui, focus: "conversation" }
+    // The open view has the keys, even while a question waits: Escape goes back to answer it.
+    const v = s.thread.views?.[ui.viewing]
+    if (v === undefined) return { ui }
+    const r = viewKeys(v, ui.view ?? startUi(v), key)
+    return { ui: { ...ui, view: r.ui }, ...(r.act !== undefined ? { action: { type: "act" as const, ...r.act } } : r.scroll !== undefined ? { action: { type: "scroll" as const, delta: r.scroll } } : {}) }
   }
   if (draft !== undefined && slashActive(ui, s)) {
     const slash = onSlashKey(ui, key, draft)

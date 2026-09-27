@@ -11,7 +11,7 @@ const pad = (s: string, n: number) => (s.length > n ? `${s.slice(0, Math.max(0, 
 const bar = (done: number, total: number, w = 24) => "█".repeat(total > 0 ? Math.round((done / total) * w) : 0).padEnd(w, "░")
 const STATE_MARK = { busy: "●", waiting: "◌", done: "✓", flagged: "⚑" } as const
 
-interface LeafProps { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly leaf: LayoutLeaf; readonly focused: boolean }
+interface LeafProps { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly leaf: LayoutLeaf; readonly focused: boolean; readonly onPick?: (index: number) => void }
 type Leaf = (p: LeafProps) => ReactNode
 
 const Stats: Leaf = ({ view, path }) => {
@@ -39,7 +39,7 @@ const Log: Leaf = ({ view, path }) => (
     ))}
   </>
 )
-const Table: Leaf = ({ view, ui, path, leaf, focused }) => {
+const Table: Leaf = ({ view, ui, path, leaf, focused, onPick }) => {
   const cols = leaf.columns ?? []
   // A cell is one line: breaks in it (a pasted report) become spaces.
   const rows = ((view.data[path] as { rows?: ReadonlyArray<{ id: string; cells: Record<string, string>; tone?: string }> } | undefined)?.rows ?? []).map((r) => ({
@@ -56,7 +56,7 @@ const Table: Leaf = ({ view, ui, path, leaf, focused }) => {
       <text fg={TONES.dim} wrapMode="none">{`  ${" ".repeat(box)}${cells((c) => c.label)}`}</text>
       {rows.length === 0 ? <text fg={TONES.dim}>  (none)</text> : null}
       {rows.map((r, i) => (
-        <text key={r.id} id={`row-${path}-${i}`} wrapMode="none" fg={focused && i === cursor ? TONES.accent : fg(r.tone)} {...(focused && i === cursor ? { bg: SELECT_BG } : {})}>
+        <text key={r.id} id={`row-${path}-${i}`} onMouseDown={() => onPick?.(i)} wrapMode="none" fg={focused && i === cursor ? TONES.accent : fg(r.tone)} {...(focused && i === cursor ? { bg: SELECT_BG } : {})}>
           {`${focused && i === cursor ? "▸" : " "} ${leaf.selectable === true ? `[${sel.includes(r.id) ? "x" : " "}] ` : ""}${cells((c) => r.cells[c.id] ?? "")}`}
         </text>
       ))}
@@ -103,7 +103,7 @@ const SHARE = { primary: "33%", pinned: "40%", aside: "25%" } as const
 export type Scroller = (delta: number) => void
 
 /** An agent's view in the terminal: its sections stacked by role, each in its own scrollbox. */
-export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly scroller?: { current?: Scroller | undefined } }) => {
+export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly scroller?: { current?: Scroller | undefined }; readonly onPick?: (sectionId: string, index: number) => void }) => {
   const all = ordered(props.view.layout)
   const boxes = useRef(new Map<string, ScrollBoxRenderable>())
   if (props.scroller !== undefined) props.scroller.current = (delta) => boxes.current.get(all[props.ui.focus]?.id ?? "")?.scrollBy(delta)
@@ -146,7 +146,7 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
             }}
             {...(leaf.leaf.kind === "log" ? { stickyScroll: true, stickyStart: "bottom" as const } : {})}
           >
-            <Draw view={props.view} ui={props.ui} path={leaf.path} leaf={leaf.leaf} focused={focused} />
+            <Draw view={props.view} ui={props.ui} path={leaf.path} leaf={leaf.leaf} focused={focused} {...(props.onPick !== undefined ? { onPick: (i: number) => props.onPick!(s.id, i) } : {})} />
           </scrollbox>
         )
       })}

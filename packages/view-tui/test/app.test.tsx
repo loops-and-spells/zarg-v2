@@ -241,6 +241,12 @@ describe("tui frames", () => {
     expect(frame).toContain("[Findings (1)]  Likes (0)")
     // The view opens on its table: its highlighted row takes the action at once.
     expect(t.captureCharFrame()).toContain("▸ [ ] R-1  no error shown")
+    // A click on a row's box ticks it.
+    const lines = t.captureCharFrame().split("\n")
+    const y = lines.findIndex((l) => l.includes("[ ] R-1"))
+    await t.mockMouse.click(lines[y]!.indexOf("[ ]") + 1, y)
+    await settle(t)
+    expect(t.captureCharFrame()).toContain("[x] R-1")
     t.mockInput.pressKey("a")
     await settle(t)
     expect(t.calls).toContain("act rehearse:tester-1 apply R-1")
