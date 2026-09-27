@@ -403,4 +403,15 @@ describe("keys in an agent's view", () => {
   test("Escape goes back to the conversation", () => {
     expect(onKey(open, s, { name: "escape" }, 0).ui.viewing).toBeUndefined()
   })
+  test("an open view takes the keys: the message box is not focused, and ctrl letters never trigger actions", () => {
+    const ui = openHistory({ ...initialUi }, "rehearse:t-1")
+    expect(inputFocused(ui, s)).toBe(false)
+    let u = onKey(ui, s, { name: "tab" }, 0).ui
+    expect(onKey(u, s, { name: "a", ctrl: true }, 0).action).toBeUndefined()
+    u = onKey(u, s, { name: "a" }, 0).ui
+  })
+  test("in a focused log, arrows and page keys scroll it", () => {
+    expect(onKey(open, s, { name: "up" }, 0).action).toEqual({ type: "scroll", delta: -1 })
+    expect(onKey(open, s, { name: "pagedown" }, 0).action).toEqual({ type: "scroll", delta: 10 })
+  })
 })

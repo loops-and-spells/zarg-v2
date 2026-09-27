@@ -1,7 +1,7 @@
 import { Effect } from "effect"
 import type { Rlm } from "@zarg/rlm"
 import * as E from "./events"
-import type { ThreadLog } from "./log"
+import { redactValues, type ThreadLog } from "./log"
 import { RLM_LAYOUT, rlmLines } from "./rlm-view"
 import type { ViewStore } from "./views"
 
@@ -12,6 +12,10 @@ import type { ViewStore } from "./views"
 // The agents pane shows what an RLM was asked; the full task (often pages of context) stays in the transcript.
 // Redact before cutting: a cut through a secret would no longer match it.
 const TASK_MAX = 200
+// The RLM view's Task section: the task and its current cell, clipped (it is resent on every step).
+const VIEW_TASK_MAX = 2_000
+const VIEW_CELL_MAX = 4_000
+const clipText = (text: string, max: number) => (text.length > max ? `${text.slice(0, max)}\n… ${text.length - max} more characters` : text)
 const headline = (task: string) => (task.split("\n")[0] ?? "").slice(0, TASK_MAX)
 
 /**
@@ -23,7 +27,8 @@ export const makeActivity = (log: ThreadLog, threadId: string, messageId = `${th
   const tasks = new Map<string, string>()
   const push = (rlm: string, record: Record<string, unknown>) => {
     if (views === undefined || !views.has(rlm)) return
-    const lines = rlmLines(record)
+    // Every value redacted before lines are clipped or JSON-stringified: a cut or escaped secret would slip past.
+    const lines = rlmLines(redactValues(record, log.redact) as Record<string, unknown>)
     if (lines.length > 0) views.append(rlm, "history", lines)
   }
   const status = (rlm: string, n: Record<string, unknown>) => {
@@ -57,7 +62,7 @@ export const makeActivity = (log: ThreadLog, threadId: string, messageId = `${th
       push(id, { type, rlm: id, ...rest })
       // The task section shows the task, then the cell the RLM ran last.
       const last = e.cells.at(-1)
-      if (last !== undefined && views?.has(id)) views.set(id, "task", { markdown: `${tasks.get(id) ?? ""}\n\n\`\`\`ts\n${log.redact(last.code)}\n\`\`\`` })
+      if (last !== undefined && views?.has(id)) views.set(id, "task", { markdown: `${tasks.get(id) ?? ""}\n\n\`\`\`ts\n${clipText(log.redact(last.code), VIEW_CELL_MAX)}\n\`\`\`` })
       return
     }
     if (e.type === "model") {
@@ -75,7 +80,7 @@ export const makeActivity = (log: ThreadLog, threadId: string, messageId = `${th
     if (e.type === "start") {
       Effect.runSync(log.transcript(threadId, { type: "start", rlm: id, parent: e.parent !== undefined ? `${prefix}${e.parent}` : null, preset: e.preset, task: e.task }))
       if (views !== undefined) {
-        const task = log.redact(e.task)
+        const task = clipText(log.redact(e.task), VIEW_TASK_MAX)
         tasks.set(id, task)
         views.start(id, RLM_LAYOUT)
         views.set(id, "task", { markdown: task })

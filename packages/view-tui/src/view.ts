@@ -275,6 +275,7 @@ export interface Key {
   readonly name: string
   readonly ctrl?: boolean
   readonly shift?: boolean
+  readonly meta?: boolean
 }
 
 export type Action =
@@ -284,6 +285,8 @@ export type Action =
   | { readonly type: "stop" }
   /** An action on rows of a table in the open agent's view. */
   | { readonly type: "act"; readonly section: string; readonly action: string; readonly rows: ReadonlyArray<string> }
+  /** Scroll the open agent's focused section by lines. */
+  | { readonly type: "scroll"; readonly delta: number }
   | { readonly type: "exit" }
 
 /** What a key press does: the next UI state and, maybe, an action for the session. */
@@ -353,7 +356,7 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: st
       const v = s.thread.views?.[ui.viewing]
       if (v === undefined) return { ui }
       const r = viewKeys(v, ui.view ?? initialViewUi, key)
-      return { ui: { ...ui, view: r.ui }, ...(r.act !== undefined ? { action: { type: "act" as const, ...r.act } } : {}) }
+      return { ui: { ...ui, view: r.ui }, ...(r.act !== undefined ? { action: { type: "act" as const, ...r.act } } : r.scroll !== undefined ? { action: { type: "scroll" as const, delta: r.scroll } } : {}) }
     }
     ui = { ...ui, focus: "conversation" }
   }
@@ -429,7 +432,8 @@ export const slashActive = (ui: Ui, s: SessionState) => inputFocused(ui, s)
 export const messageShown = (ui: Ui, s: SessionState) => s.thread.pendingInquiry === undefined || ui.chatting === s.thread.pendingInquiry.id
 
 /** The Message box takes keys when it is shown and the conversation side has focus. */
-export const inputFocused = (ui: Ui, s: SessionState) => ui.focus === "conversation" && messageShown(ui, s)
+// An open agent's view takes the keys; typing there must not also go into the message box.
+export const inputFocused = (ui: Ui, s: SessionState) => ui.focus === "conversation" && ui.viewing === undefined && messageShown(ui, s)
 
 /** The picker's Something else… line takes keys while it is highlighted. */
 export const otherFocused = (ui: Ui, s: SessionState) =>

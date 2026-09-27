@@ -107,6 +107,8 @@ export const makeRehearse = (deps: RunDeps) =>
         const toCheck = new Set(rec.stories.flatMap((s) => s.map((_, i) => s.slice(0, i + 1).join(">")))).size
         const all = toCheck * rec.personas.length
         let allChecked = 0
+        // Model calls holding one of the `in_flight` slots right now (across testers).
+        let busySlots = 0
         yield* Effect.forEach(
           rec.personas,
           (persona, pi) =>
@@ -114,6 +116,19 @@ export const makeRehearse = (deps: RunDeps) =>
               const id = `tester-${pi + 1}`
               const checked = new Set<string>()
               let flagged = 0
+              const showProgress = quiet(
+                Effect.suspend(() =>
+                  deps.views.set(id, TesterView, "progress", {
+                    items: [
+                      { label: "steps", value: `${checked.size}/${toCheck}` },
+                      { label: "flagged", value: String(flagged) },
+                      { label: "unreachable", value: String(rec.unreachable) },
+                      { label: "busy", value: `${busySlots}/${deps.settings.inFlight}` },
+                    ],
+                    progress: { done: checked.size, total: toCheck },
+                  }),
+                ),
+              )
               const progress = (key: string, flags: number) =>
                 Effect.gen(function* () {
                   if (checked.has(key)) return
@@ -122,7 +137,7 @@ export const makeRehearse = (deps: RunDeps) =>
                   allChecked++
                   yield* quiet(deps.agents.status({ id, progress: { done: checked.size, total: toCheck }, text: `${checked.size}/${toCheck} steps · ${flagged} flagged` }))
                   yield* quiet(deps.agents.status({ id: "run", progress: { done: allChecked, total: all }, text: `${allChecked}/${all} steps` }))
-                  yield* quiet(deps.views.set(id, TesterView, "progress", { items: [{ label: "steps", value: `${checked.size}/${toCheck}` }, { label: "flagged", value: String(flagged) }, { label: "unreachable", value: String(rec.unreachable) }], progress: { done: checked.size, total: toCheck } }))
+                  yield* showProgress
                   yield* quiet(deps.views.set("run", RunView, "progress", { items: [{ label: "steps", value: `${allChecked}/${all}` }, { label: "testers", value: String(rec.personas.length) }, { label: "unreachable", value: String(rec.unreachable) }], progress: { done: allChecked, total: all } }))
                 })
               yield* quiet(deps.agents.start({ id, parent: "run", title: "tester", task: persona.text, view: "tester" }))
@@ -143,7 +158,7 @@ export const makeRehearse = (deps: RunDeps) =>
                     const pathAt = (i: number) => story.slice(0, i + 1).map((c, ci) => (ci === i ? `[${c}]` : c)).join(" ▸ ")
                     for (let i = 0; i < story.length; i++) {
                       const key = `${persona.name}|${story.slice(0, i + 1).join(">")}`
-                      walking.set(n, { path: pathAt(i), state: "busy", detail: "screening" })
+                      walking.set(n, { path: pathAt(i), state: "waiting", detail: "queued" })
                       yield* showWorkers
                       const step = yield* viewOf(story[i]!, story[i - 1])
                       if (step === undefined) break
@@ -157,12 +172,30 @@ export const makeRehearse = (deps: RunDeps) =>
                       else {
                         const done = yield* Deferred.make<void>()
                         inFlight.set(key, done)
-                        const screened = yield* Semaphore.withPermits(sem, 1)(screenStep(deps.decide, persona, prior, step, deps.settings))
+                        // Busy only while holding a slot: until then the story is queued.
+                        const inSlot = <A, E>(detail: string, work: Effect.Effect<A, E>) =>
+                          Semaphore.withPermits(sem, 1)(
+                            Effect.gen(function* () {
+                              busySlots++
+                              walking.set(n, { path: pathAt(i), state: "busy", detail })
+                              yield* showWorkers
+                              yield* showProgress
+                              return yield* work
+                            }).pipe(
+                              Effect.ensuring(
+                                Effect.sync(() => {
+                                  busySlots--
+                                  walking.set(n, { path: pathAt(i), state: "waiting", detail: "queued" })
+                                }),
+                              ),
+                            ),
+                          )
+                        const screened = yield* inSlot("screening", screenStep(deps.decide, persona, prior, step, deps.settings))
                         if (screened !== undefined && screened.flags.length > 0) {
-                          walking.set(n, { path: pathAt(i), state: "busy", detail: `diagnosing ${screened.flags.join(", ")}` })
+                          walking.set(n, { path: pathAt(i), state: "waiting", detail: "queued" })
                           yield* showWorkers
                         }
-                        const d = screened !== undefined && screened.flags.length > 0 ? yield* Semaphore.withPermits(sem, 1)(diagnose(deps.complete, persona, prior, step, screened.flags)) : undefined
+                        const d = screened !== undefined && screened.flags.length > 0 ? yield* inSlot(`diagnosing ${screened.flags.join(", ")}`, diagnose(deps.complete, persona, prior, step, screened.flags)) : undefined
                         // One write, after the diagnosis: a restart before it screens and diagnoses the step again.
                         yield* update((r) => ({
                           ...r,
@@ -180,7 +213,7 @@ export const makeRehearse = (deps: RunDeps) =>
                         yield* quiet(deps.views.append(id, TesterView, "steps", [{ text: `${step.card}: ${said}`, ...(screened !== undefined && screened.flags.length > 0 ? { tone: "warn" as const } : {}) }]))
                         // This tester's findings, as it diagnoses them (the consolidated ones replace them when the run is done).
                         if (d !== undefined && !("infra" in d) && d.findings.length > 0) {
-                          for (const f of d.findings) found.push({ id: `${persona.name}|${f.card}|${f.kind}`, cells: { id: "", kind: f.kind, card: f.card, severity: f.severity, suggested: "", note: f.note } })
+                          for (const f of d.findings) found.push({ id: `${key}#${found.length}`, cells: { id: "", kind: f.kind, card: f.card, severity: f.severity, suggested: "", note: f.note } })
                           yield* quiet(deps.views.set(id, TesterView, "review.findings", { rows: found.filter((r) => r.cells.kind !== "delight") }))
                           yield* quiet(deps.views.set(id, TesterView, "review.likes", { rows: found.filter((r) => r.cells.kind === "delight") }))
                         }
@@ -281,6 +314,8 @@ export const makeRehearse = (deps: RunDeps) =>
       return Effect.andThen(refresh, left === undefined || active !== undefined ? Effect.void : launch(left))
     })
 
+    /** The run still walking (its record not done yet), if any. */
+    const going = () => (active !== undefined && records.get(active.run)?.status === "running" ? active.run : undefined)
     const isDismissed = (f: Triaged) => dismissed[f.id] !== undefined && dismissed[f.id] === (f.hash ?? "")
     /** The newest finished run: the one the tables show. */
     const latest = () => [...records.values()].filter((r) => r.status === "done").sort((a, b) => b.startedAt - a.startedAt)[0]
@@ -312,7 +347,8 @@ export const makeRehearse = (deps: RunDeps) =>
     /** The review tables of the newest finished run: every finding on the run, each tester's own on it. */
     const refresh = Effect.suspend(() => {
       const r = latest()
-      if (r === undefined) return Effect.void
+      // A run going owns the agents' tables (its raw findings); the last run's would replace them.
+      if (r === undefined || going() !== undefined) return Effect.void
       const shown = r.findings.filter((f) => !isDismissed(f) && !r.resolved.includes(f.id))
       const tables = (fs: ReadonlyArray<Triaged>) => ({ findings: { rows: fs.filter((f) => f.kind !== "delight").map((f) => rowOf(r, f)) }, likes: { rows: fs.filter((f) => f.kind === "delight").map((f) => rowOf(r, f)) } })
       const agents = [{ id: "run", view: RunView as typeof TesterView | typeof RunView, fs: shown }, ...r.personas.map((p, i) => ({ id: `tester-${i + 1}`, view: TesterView as typeof TesterView | typeof RunView, fs: shown.filter((f) => f.personas.includes(p.name)) }))]
@@ -326,10 +362,15 @@ export const makeRehearse = (deps: RunDeps) =>
       )
     })
     /** An action on selected rows: apply (to the driver) or dismiss. */
-    const act = (action: string, _section: string, ids: ReadonlyArray<string>) =>
+    const act = (action: string, _section: string, rows: ReadonlyArray<string>) =>
       Effect.gen(function* () {
+        // The tables show a going run's raw findings: nothing to apply until it is done and consolidated.
+        const g = going()
+        if (g !== undefined) return { notice: `run ${g} is still going: apply or dismiss its findings once it is done` }
         const r = latest()
         if (r === undefined) return { notice: "no finished rehearse run" }
+        const ids = rows.filter((id) => r.findings.some((f) => f.id === id))
+        if (ids.length === 0) return { notice: "no such findings in the last run" }
         if (action === "apply") {
           yield* save({ ...r, applying: [...new Set([...r.applying, ...ids])] })
           yield* quiet(deps.agendaChanged)

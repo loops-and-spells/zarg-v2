@@ -54,4 +54,9 @@ describe("view behaviour", () => {
     expect(actionFor(view, ui, "a")).toBeUndefined()
     expect(nextTab(view, ui, 1).tabs.review).toBe(0)
   })
+
+  test("an action sends only selected rows the table still has", () => {
+    const ui = { ...initialViewUi, focus: 2, selected: { "review.findings": ["R-2", "R-9"] } }
+    expect(actionFor(view, ui, "a")).toEqual({ section: "review.findings", action: "apply", rows: ["R-2"] })
+  })
 })

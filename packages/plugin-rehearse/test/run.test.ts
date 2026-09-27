@@ -7,7 +7,7 @@ import type { Answer, DecisionRequest, StepView } from "../src/types"
 const INTENT = "## Affected users and systems\n\n- The developer, through the zarg TUI.\n"
 const noul = (p: number): Answer => ({ type: "noul", answer: p >= 0.5, probability: p, confidence: 0 })
 
-type Opts = { slowWrite?: number; down?: boolean; slowDecide?: number; auto?: boolean; intent?: string; unreachable?: number; files?: Map<string, string>; cardText?: (card: string) => string }
+type Opts = { inFlight?: number; slowWrite?: number; down?: boolean; slowDecide?: number; auto?: boolean; intent?: string; unreachable?: number; files?: Map<string, string>; cardText?: (card: string) => string }
 const setup = (o: Opts = {}) =>
   Effect.gen(function* () {
     const files = o.files ?? new Map<string, string>([["intent/zarg.md", o.intent ?? INTENT]])
@@ -63,7 +63,7 @@ const setup = (o: Opts = {}) =>
         set: (agent, _v, path, data) => Effect.sync(() => void pushes.push({ agent, path, data })),
         append: (agent, _v, path, lines) => Effect.sync(() => void pushes.push({ agent, path, lines })),
       },
-      settings: rehearseSettings(o.auto ? { auto_apply: true } : {}, "stub:m"),
+      settings: rehearseSettings({ ...(o.auto ? { auto_apply: true } : {}), ...(o.inFlight !== undefined ? { in_flight: o.inFlight } : {}) }, "stub:m"),
     }
     const r = yield* makeRehearse(deps)
     return { r, files, decisions, llm, events, changed: () => changed, overlap, pushes }
@@ -247,5 +247,40 @@ describe("rehearse runs in the plugin", () => {
     expect(await Effect.runPromise(t.r.act("apply", "review.findings", [id]))).toEqual({ notice: "1 finding sent to the driver" })
     const last = t.pushes.filter((p) => p.agent === "run" && p.path === "review.findings").at(-1)!.data as { rows: ReadonlyArray<{ cells: Record<string, string> }> }
     expect(last.rows[0]!.cells.note).toStartWith("✓ ")
+  })
+
+  test("while a run goes, actions are refused and the last run's tables do not replace the live ones", async () => {
+    const t = await finish()
+    const id = t.r.record(t.run)!.findings[0]!.id
+    const out = await Effect.runPromise(
+      Effect.gen(function* () {
+        const s = (yield* t.r.start({})) as { run: string }
+        const before = t.pushes.length
+        const notice = yield* t.r.act("apply", "review.findings", [id])
+        const clobbered = t.pushes.slice(before).some((p) => p.path.startsWith("review.") && ((p.data as { rows?: ReadonlyArray<{ id: string }> }).rows ?? []).some((r) => r.id === id))
+        yield* until(() => t.r.record(s.run)?.status === "done")
+        return { notice, clobbered }
+      }),
+    )
+    expect(out.notice.notice).toContain("still going")
+    expect(out.clobbered).toBe(false)
+    expect(t.r.record(t.run)!.applying).toEqual([])
+  })
+
+  test("an action names only findings the finished run has; raw rows during a run have unique ids", async () => {
+    const t = await finish()
+    expect(await Effect.runPromise(t.r.act("apply", "review.findings", ["The developer|B|friction"]))).toEqual({ notice: "no such findings in the last run" })
+    expect(t.r.record(t.run)!.applying).toEqual([])
+    const raw = t.pushes.filter((p) => p.agent === "tester-1" && p.path === "review.findings").map((p) => (p.data as { rows: ReadonlyArray<{ id: string }> }).rows.map((r) => r.id))
+    for (const ids of raw) expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  test("workers show busy only for stories holding a slot; the rest are queued, and progress says how many slots are busy", async () => {
+    const t = await finish({ inFlight: 1, slowDecide: 3 })
+    const lists = t.pushes.filter((p) => p.agent === "tester-1" && p.path === "workers").map((p) => (p.data as { items: ReadonlyArray<{ state?: string; detail?: string }> }).items)
+    expect(Math.max(...lists.map((l) => l.filter((i) => i.state === "busy").length))).toBe(1)
+    expect(lists.some((l) => l.some((i) => i.detail === "queued"))).toBe(true)
+    const progress = t.pushes.filter((p) => p.agent === "tester-1" && p.path === "progress").map((p) => (p.data as { items: ReadonlyArray<{ label: string; value: string }> }).items)
+    expect(progress.some((items) => items.some((i) => i.label === "busy" && i.value === "1/1"))).toBe(true)
   })
 })

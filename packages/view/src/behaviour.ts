@@ -74,8 +74,10 @@ export const actionFor = (view: ViewState, ui: ViewUi, key: string): { readonly 
   if (c === undefined || c.leaf.kind !== "table") return undefined
   const a = (c.leaf.actions ?? []).find((x) => x.key === key)
   if (a === undefined) return undefined
-  const row = rowsOf(view, c.path)[ui.rows[c.path] ?? 0]
-  const sel = ui.selected[c.path] ?? []
+  const all = rowsOf(view, c.path)
+  const row = all[ui.rows[c.path] ?? 0]
+  // Rows can be replaced under a selection: only ids the table still shows are sent.
+  const sel = (ui.selected[c.path] ?? []).filter((id) => all.some((r) => r.id === id))
   const rows = a.on === "none" ? [] : a.on === "row" ? (row !== undefined ? [row.id] : []) : sel.length > 0 ? sel : row !== undefined ? [row.id] : []
   return a.on !== "none" && rows.length === 0 ? undefined : { section: c.path, action: a.id, rows }
 }

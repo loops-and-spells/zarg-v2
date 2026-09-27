@@ -4,7 +4,7 @@ import type { Session } from "@zarg/client"
 import { initialViewUi } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { registerCommands } from "./commands"
-import { AgentView } from "./sections"
+import { AgentView, type Scroller } from "./sections"
 import { type Action, agentDetail, agentRows, animating, conversation, activate, messageShown, OTHER, otherFocused, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
 
 const COLORS = { you: "#8ab4f8", zarg: "#e8eaed", error: "#f28b82", notice: "#fdd663", dim: "#9aa0a6", accent: "#81c995", select: "#3c4043" }
@@ -50,6 +50,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     else if (action.type === "send") props.session.send(action.text)
     else if (action.type === "command") props.session.command(action.text)
     else if (action.type === "stop") props.session.stop()
+    else if (action.type === "scroll") scroller.current?.(action.delta)
     else if (action.type === "act") {
       const agent = latest().viewing
       if (agent !== undefined) void props.session.act(agent, action.action, action.section, action.rows)
@@ -58,7 +59,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   }
 
   useKeyboard((key) => {
-    const r = onKey(latest(), props.session.state(), { name: key.name, ctrl: key.ctrl, shift: key.shift }, Date.now(), draftRef.current)
+    const r = onKey(latest(), props.session.state(), { name: key.name, ctrl: key.ctrl, shift: key.shift, meta: key.meta }, Date.now(), draftRef.current)
     setUi(r.ui)
     if (r.draft !== undefined) {
       // Write into the input now, so a key typed right after Tab lands after the completion.
@@ -70,6 +71,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
 
   const viewing = ui.viewing
   const dims = useTerminalDimensions()
+  const scroller = useRef<Scroller | undefined>(undefined)
 
   const inquiry = s.thread.pendingInquiry
   const box = slashActive(ui, s) ? slashBox(draft, ui) : undefined
@@ -92,7 +94,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             {s.thread.views?.[viewing] === undefined ? (
               <text fg={COLORS.dim}>no view yet</text>
             ) : (
-              <AgentView view={s.thread.views[viewing]!} ui={ui.view ?? initialViewUi} height={Math.max(8, dims.height - 3)} />
+              <AgentView view={s.thread.views[viewing]!} ui={ui.view ?? initialViewUi} height={Math.max(8, dims.height - 3)} scroller={scroller} />
             )}
           </box>
         ) : (

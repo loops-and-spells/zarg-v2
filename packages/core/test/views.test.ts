@@ -68,4 +68,29 @@ describe("the ViewStore", () => {
     views.append("a", "steps", [{ text: "late" }])
     expect(() => views.flush()).not.toThrow()
   })
+
+  test("a restarted core rebuilds its views from the thread log: later pushes reach the views clients replayed", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "zarg-views-"))
+    const first = await Effect.runPromise(makeLog(dir, (t) => t))
+    const before = makeViews(first, "main", { delayMs: 1 })
+    before.start("rehearse:run", layout)
+    before.append("rehearse:run", "steps", [{ text: "one" }])
+    before.flush()
+    const again = await Effect.runPromise(makeLog(dir, (t) => t))
+    const after = makeViews(again, "main", { delayMs: 1 })
+    expect(after.has("rehearse:run")).toBe(true)
+    expect(() => after.set("rehearse:run", "progress", { items: [] })).not.toThrow()
+    expect(after.layout("rehearse:run")).toEqual(layout)
+  })
+
+  test("sets of one section within a window go out as its last value only", async () => {
+    const { views, events } = await setup()
+    views.start("a", layout)
+    for (let i = 0; i < 50; i++) views.set("a", "progress", { items: [{ label: "n", value: String(i) }] })
+    views.append("a", "steps", [{ text: "x" }])
+    await sleep(40)
+    const patch = (events().find((e) => e.type === "ACTIVITY_DELTA") as unknown as { patch: ReadonlyArray<{ path: string; value: { items?: ReadonlyArray<{ value: string }> } }> }).patch
+    expect(patch.filter((p) => p.path === "/data/progress").map((p) => p.value.items![0]!.value)).toEqual(["49"])
+    expect(patch.filter((p) => p.path === "/data/steps/lines/-")).toHaveLength(1)
+  })
 })

@@ -60,4 +60,26 @@ describe("the RLM's view", () => {
     ])
     expect(lines.find((l) => l.text.includes("failed"))?.tone).toBe("error")
   })
+
+  test("a secret in a call's params never reaches the view, even where a line is clipped or JSON-escaped", async () => {
+    const secret = `tok_${"x".repeat(150)}"quoted`
+    const log = await Effect.runPromise(makeLog(mkdtempSync(join(tmpdir(), "zarg-rlmv-")), (t) => t.replaceAll(secret, "<redacted>")))
+    const views = makeViews(log, "main", { delayMs: 1 })
+    const a = makeActivity(log, "main", undefined, views)
+    a.observe({ type: "start", id: "rlm-1", parent: undefined, preset: "driver", task: "t", scope: {}, depth: 0, budget: { turns: 5, tokens: 0, wallMs: 0 } } as never)
+    a.observe({ type: "record", id: "rlm-1", turn: 1, record: { kind: "call", service: "Sh", method: "run", params: { cmd: `curl -H ${secret}` }, ok: true, ms: 3 } } as never)
+    views.flush()
+    expect(JSON.stringify(log.all())).not.toContain("tok_xxxxxxxxxx")
+  })
+
+  test("the task section is clipped: a huge cell does not travel whole on every step", async () => {
+    const log = await Effect.runPromise(makeLog(mkdtempSync(join(tmpdir(), "zarg-rlmv-")), (t) => t))
+    const views = makeViews(log, "main", { delayMs: 1 })
+    const a = makeActivity(log, "main", undefined, views)
+    a.observe({ type: "start", id: "rlm-1", parent: undefined, preset: "driver", task: "t".repeat(10_000), scope: {}, depth: 0, budget: { turns: 5, tokens: 0, wallMs: 0 } } as never)
+    a.observe({ type: "step", id: "rlm-1", turn: 1, text: "", cells: [{ code: "x".repeat(50_000), ok: true, output: "", ms: 1 }] } as never)
+    views.flush()
+    const tasks = log.all().flatMap((e) => ((e as { patch?: ReadonlyArray<{ path: string; value: { markdown: string } }> }).patch ?? []).filter((p) => p.path === "/data/task"))
+    for (const t of tasks) expect(t.value.markdown.length).toBeLessThanOrEqual(8_000)
+  })
 })

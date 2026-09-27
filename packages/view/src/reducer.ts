@@ -36,14 +36,28 @@ export const reduceView = (views: Views, e: ViewEvent): Views => {
   const v = views[agent]
   if (v === undefined) return views
   const data: Record<string, unknown> = { ...v.data }
+  // A log's appended lines are gathered per key and joined once (a delta can carry thousands).
+  const added = new Map<string, Array<unknown>>()
+  const join = (key: string) => {
+    const more = added.get(key)
+    if (more === undefined) return
+    added.delete(key)
+    const lines = [...((data[key] as { lines?: ReadonlyArray<unknown> } | undefined)?.lines ?? []), ...more]
+    data[key] = { lines: lines.length > LOG_KEEP ? lines.slice(lines.length - LOG_KEEP) : lines }
+  }
   for (const p of (e.patch as ReadonlyArray<Op>) ?? []) {
     const m = PATH.exec(p.path)
     if (m === null) continue
     const key = m[1]!.replace(/~1/g, "/").replace(/~0/g, "~")
     if (m[2] !== undefined && p.op === "add") {
-      const lines = [...((data[key] as { lines?: ReadonlyArray<unknown> } | undefined)?.lines ?? []), p.value]
-      data[key] = { lines: lines.length > LOG_KEEP ? lines.slice(lines.length - LOG_KEEP) : lines }
-    } else if (m[2] === undefined && (p.op === "replace" || p.op === "add")) data[key] = p.value
+      const more = added.get(key)
+      if (more === undefined) added.set(key, [p.value])
+      else more.push(p.value)
+    } else if (m[2] === undefined && (p.op === "replace" || p.op === "add")) {
+      added.delete(key)
+      data[key] = p.value
+    }
   }
+  for (const key of [...added.keys()]) join(key)
   return { ...views, [agent]: { ...v, data } }
 }

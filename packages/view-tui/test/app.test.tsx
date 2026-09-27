@@ -345,4 +345,37 @@ describe("tui frames", () => {
     expect(t.captureCharFrame()).toContain("✗ unknown command /nope")
     expect(t.calls).toEqual([])
   })
+
+  test("at 80×20 with a question pending, an open agent's view keeps every section's title on screen", async () => {
+    const tester = { id: "rehearse:tester-1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
+    const view = {
+      agent: "rehearse:tester-1",
+      layout: {
+        name: "tester",
+        sections: [
+          { id: "progress", kind: "stats" as const, role: "summary" as const },
+          { id: "workers", kind: "list" as const, role: "primary" as const, title: "Workers" },
+          { id: "steps", kind: "log" as const, role: "log" as const, title: "Steps" },
+          { id: "review", kind: "tabs" as const, role: "pinned" as const, tabs: [{ id: "findings", kind: "table" as const, title: "Findings", columns: [{ id: "id", label: "id" }] }] },
+        ],
+      },
+      data: {
+        workers: { items: Array.from({ length: 8 }, (_, i) => ({ id: `s${i}`, text: `story ${i}`, state: "busy" as const })) },
+        steps: { lines: Array.from({ length: 30 }, (_, i) => ({ text: `step ${i}` })) },
+        "review.findings": { rows: Array.from({ length: 20 }, (_, i) => ({ id: `R-${i}`, cells: { id: `R-${i}` } })) },
+      },
+    }
+    const t = await render({ ...waiting, thread: { ...waiting.thread, rlms: { "rehearse:tester-1": tester }, views: { "rehearse:tester-1": view } } }, { width: 80, height: 20 })
+    t.mockInput.pressTab()
+    await settle(t)
+    t.mockInput.pressEnter()
+    await settle(t)
+    const f = t.captureCharFrame()
+    for (const title of ["Workers", "Steps", "Findings"]) expect(f).toContain(title)
+    // Nothing of the view spills over the question below it: the view's frame closes above it, the question's rows are its own.
+    const lines = f.split("\n")
+    const q = lines.findIndex((l) => l.startsWith("┌─Question"))
+    expect(lines[q - 1]!.startsWith("└─")).toBe(true)
+    expect(lines[q + 1]!.trimEnd()).toMatch(/^│Which card first\?\s*│$/)
+  })
 })

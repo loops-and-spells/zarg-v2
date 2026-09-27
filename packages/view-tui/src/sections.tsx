@@ -80,22 +80,29 @@ const titleOf = (view: ViewState, ui: ViewUi, s: LayoutSection) =>
     ? s.tabs.map((t, i) => { const label = `${t.title ?? t.id} (${count(view, `${s.id}.${t.id}`)})`; return i === (ui.tabs[s.id] ?? 0) ? `[${label}]` : label }).join("  ")
     : s.title ?? ""
 
-/** Heights by role: summary fits its content, primary up to a third, pinned up to 40%, log takes the rest. */
-const heightOf = (view: ViewState, ui: ViewUi, s: LayoutSection, total: number): number | undefined => {
+/** How tall a section would like to be: its content plus its frame (text counts its lines). */
+const wantedOf = (view: ViewState, ui: ViewUi, s: LayoutSection): number => {
   const leaf = leafOf(view, ui, s.id)
-  const content = leaf === undefined ? 1 : leaf.leaf.kind === "stats" || leaf.leaf.kind === "text" ? 1 : rowsOf(view, leaf.path).length + (leaf.leaf.kind === "table" ? 2 + ((leaf.leaf.actions ?? []).length > 0 ? 1 : 0) : 0)
-  const framed = content + 2
-  if (s.role === "summary") return s.kind === "stats" ? 1 : Math.min(framed, 6)
-  if (s.role === "primary") return Math.max(3, Math.min(framed, Math.floor(total / 3)))
-  if (s.role === "pinned") return Math.max(3, Math.min(framed, Math.floor(total * 0.4)))
-  if (s.role === "aside") return Math.max(3, Math.min(framed, Math.floor(total / 4)))
-  return undefined
+  if (leaf === undefined) return 3
+  const k = leaf.leaf.kind
+  const content =
+    k === "stats" ? 1
+    : k === "text" ? ((view.data[leaf.path] as { markdown?: string } | undefined)?.markdown ?? "").split("\n").length
+    : k === "keyvalue" ? ((view.data[leaf.path] as { pairs?: ReadonlyArray<unknown> } | undefined)?.pairs ?? []).length
+    : rowsOf(view, leaf.path).length + (k === "table" ? 2 + ((leaf.leaf.actions ?? []).length > 0 ? 1 : 0) : 0)
+  return Math.max(1, content) + 2
 }
+/** The largest share of the view each role may take; the log takes what is left. */
+const SHARE = { primary: "33%", pinned: "40%", aside: "25%" } as const
+
+/** Scrolls the focused section by lines (the shell calls it for keys in a log or text). */
+export type Scroller = (delta: number) => void
 
 /** An agent's view in the terminal: its sections stacked by role, each in its own scrollbox. */
-export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number }) => {
+export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly scroller?: { current?: Scroller | undefined } }) => {
   const all = ordered(props.view.layout)
   const boxes = useRef(new Map<string, ScrollBoxRenderable>())
+  if (props.scroller !== undefined) props.scroller.current = (delta) => boxes.current.get(all[props.ui.focus]?.id ?? "")?.scrollBy(delta)
   // The focused table's highlighted row stays on screen as the cursor moves.
   const focusedSection = all[props.ui.focus]
   const current = focusedSection === undefined ? undefined : leafOf(props.view, props.ui, focusedSection.id)
@@ -107,13 +114,12 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
     return () => clearTimeout(t)
   }, [focusedSection?.id, current?.path, cursor])
   return (
-    <box style={{ flexDirection: "column", flexGrow: 1 }}>
+    <box style={{ flexDirection: "column", flexGrow: 1, overflow: "hidden" }}>
       {all.map((s, i) => {
         const leaf = leafOf(props.view, props.ui, s.id)
         if (leaf === undefined) return null
         const Draw = renderers[leaf.leaf.kind]
         const focused = props.ui.focus === i
-        const h = heightOf(props.view, props.ui, s, props.height)
         if (s.role === "summary" && s.kind === "stats")
           return (
             <box key={s.id} style={{ flexShrink: 0, height: 1, paddingLeft: 1 }}>
@@ -125,7 +131,15 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
             key={s.id}
             ref={(r: ScrollBoxRenderable | null) => void (r === null ? boxes.current.delete(s.id) : boxes.current.set(s.id, r))}
             title={titleOf(props.view, props.ui, s)}
-            style={{ border: true, borderColor: focused ? TONES.accent : TONES.dim, paddingLeft: 1, ...(h === undefined ? { flexGrow: 1, minHeight: 3 } : { height: h, flexShrink: 0 }) }}
+            // Sections fit their content, capped by role, and shrink to their titled frame when the window is short.
+            style={{
+              border: true,
+              borderColor: focused ? TONES.accent : TONES.dim,
+              paddingLeft: 1,
+              minHeight: 2,
+              flexShrink: 1,
+              ...(s.role === "log" ? { flexGrow: 1 } : { height: wantedOf(props.view, props.ui, s), maxHeight: s.role === "summary" ? 6 : SHARE[s.role as keyof typeof SHARE] }),
+            }}
             {...(leaf.leaf.kind === "log" ? { stickyScroll: true, stickyStart: "bottom" as const } : {})}
           >
             <Draw view={props.view} ui={props.ui} path={leaf.path} leaf={leaf.leaf} focused={focused} />

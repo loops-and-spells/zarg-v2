@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { testRender } from "@opentui/react/test-utils"
 import { defineView, initialViewUi, layoutOf, type ViewState } from "@zarg/view"
-import { AgentView } from "../src/sections"
+import { AgentView, type Scroller } from "../src/sections"
 
 const tester = layoutOf(
   defineView("tester", {
@@ -74,5 +74,26 @@ describe("the terminal draws an agent's view", () => {
   test("the highlighted row of a long table stays on screen", async () => {
     const f = await frame(view(30), { ...initialViewUi, focus: 3, rows: { "review.findings": 25 } }, { width: 80, height: 20 })
     expect(f).toContain("▸ [ ] R-25")
+  })
+
+  test("the focused section scrolls when the shell asks", async () => {
+    const scroller: { current?: Scroller } = {}
+    const t = await testRender(<AgentView view={view(3)} ui={{ ...initialViewUi, focus: 2 }} height={30} scroller={scroller} />, { width: 100, height: 30, exitOnCtrlC: false, exitSignals: [] })
+    destroy = () => t.renderer.destroy()
+    await t.renderOnce()
+    expect(t.captureCharFrame()).not.toContain("step 20 ")
+    scroller.current?.(-12)
+    await t.renderOnce()
+    expect(t.captureCharFrame()).toContain("step 20")
+  })
+
+  test("a text section shows as many lines as its role's share allows", async () => {
+    const rlm: ViewState = {
+      agent: "rlm-1",
+      layout: { name: "rlm", sections: [{ id: "task", kind: "text", role: "primary", title: "Task" }, { id: "history", kind: "log", role: "log", title: "History" }] },
+      data: { task: { markdown: ["Fix S-1", "", "```ts", "yield* Graph.show({ id: \"S-1\" })", "```"].join("\n") } },
+    }
+    const f = await frame(rlm)
+    expect(f).toContain('yield* Graph.show({ id: "S-1" })')
   })
 })

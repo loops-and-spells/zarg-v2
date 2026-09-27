@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { checkAppend, checkSet, type Layout, LOG_KEEP, VIEW_ACTIVITY, viewMessageId } from "@zarg/view"
+import { checkAppend, checkSet, type Layout, LOG_KEEP, reduceView, VIEW_ACTIVITY, viewMessageId, type Views } from "@zarg/view"
 import * as E from "./events"
 import type { ThreadLog } from "./log"
 
@@ -16,19 +16,29 @@ const seg = (path: string) => path.replaceAll("~", "~0").replaceAll("/", "~1")
  * coalesced per agent within `delayMs`). Views live here, so they outlive the process that drew them.
  */
 export const makeViews = (log: ThreadLog, threadId: string, opts: { readonly delayMs?: number } = {}) => {
-  const states = new Map<string, { layout: Layout; data: Record<string, unknown> }>()
+  // A restarted core starts from what its clients replay: the thread log's view events, folded.
+  const replayed = log.all().filter((e) => e.threadId === threadId).reduce((v: Views, e) => reduceView(v, e as never), {})
+  const states = new Map<string, { layout: Layout; data: Record<string, unknown> }>(Object.values(replayed).map((v) => [v.agent, { layout: v.layout, data: { ...v.data } }]))
   const pending = new Map<string, Array<Record<string, unknown>>>()
   let timer: ReturnType<typeof setTimeout> | undefined
   const send = (agent: string) => {
     const patch = pending.get(agent)
     pending.delete(agent)
     if (patch === undefined || patch.length === 0) return
-    // A log's lines beyond what the view keeps would be dropped by every client anyway.
+    // Newest first: a section's last replace wins (earlier ones and the adds it overwrites are dead weight),
+    // and a log's lines beyond what the view keeps would be dropped by every client anyway.
+    const replaced = new Set<string>()
     const kept = new Map<string, number>()
     const trimmed = [...patch].reverse().filter((p) => {
-      if (!String(p.path).endsWith("/lines/-")) return true
-      const n = (kept.get(String(p.path)) ?? 0) + 1
-      kept.set(String(p.path), n)
+      const path = String(p.path)
+      if (!path.endsWith("/lines/-")) {
+        if (replaced.has(path)) return false
+        replaced.add(path)
+        return true
+      }
+      if (replaced.has(path.slice(0, -"/lines/-".length))) return false
+      const n = (kept.get(path) ?? 0) + 1
+      kept.set(path, n)
       return n <= LOG_KEEP
     }).reverse()
     // Sent from a timer: a thread log already closed (the core shutting down) drops the delta instead of throwing.
@@ -40,7 +50,9 @@ export const makeViews = (log: ThreadLog, threadId: string, opts: { readonly del
     for (const agent of [...pending.keys()]) send(agent)
   }
   const queue = (agent: string, ops: ReadonlyArray<Record<string, unknown>>) => {
-    pending.set(agent, [...(pending.get(agent) ?? []), ...ops])
+    const q = pending.get(agent)
+    if (q === undefined) pending.set(agent, [...ops])
+    else q.push(...ops)
     if (timer === undefined) {
       timer = setTimeout(flush, opts.delayMs ?? DELAY_MS)
       timer.unref?.()
