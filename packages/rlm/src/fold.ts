@@ -21,12 +21,16 @@ export interface Atomized {
 }
 
 /** Ask Decisions whether a task is atomic. If Decisions cannot answer, treat the task as atomic. */
+// The decision model reads the state once per question: judge the task's head, not its pages of context.
+const ATOMIZE_TASK_MAX = 600
+
 export const atomize = (decisions: Decisions["Service"], task: string, scope: string, minConfidence: number) =>
   Effect.gen(function* () {
     const questions = Object.fromEntries(
       Object.entries(ATOMIC_CRITERIA).map(([k, v]) => [k, { type: "noul" as const, instructions: v }]),
     )
-    const req: DecisionRequest = { state: `Task: ${task}\nScope: ${scope}`, questions }
+    const head = task.length > ATOMIZE_TASK_MAX ? `${task.slice(0, ATOMIZE_TASK_MAX)}\n… (task cut for this judgment)` : task
+    const req: DecisionRequest = { state: `Task: ${head}\nScope: ${scope}`, questions }
     const answers = yield* decisions.decide(req).pipe(Effect.option)
     if (answers._tag === "None") return { atomic: true, reason: "decisions unavailable; executing directly", criteria: [] } satisfies Atomized
     const notes = Object.entries(answers.value).map(([k, a]: [string, Answer]) =>
