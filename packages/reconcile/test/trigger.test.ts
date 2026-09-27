@@ -62,9 +62,10 @@ describe("reconciler", () => {
     const { rec, results } = start(r)
     writeNode(r, state("S-0001", "home"))
     writeNode(r, card("UX-0001", "S-0001", "S-0001"))
-    await until(() => results.length > 0)
+    // Under load the two files may land in separate quiet periods: an early pass then finds nothing to do.
+    await until(() => results.includes("landed"))
     rec.close()
-    expect(results).toEqual(["landed"])
+    expect(results.filter((x) => x !== "nothing")).toEqual(["landed"])
     expect(sh(r, "git log -1 --format=%s")).toBe("feat: implement UX-0001")
   }, 20_000)
 
