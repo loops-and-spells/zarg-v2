@@ -150,7 +150,7 @@ describe("/yolo", () => {
     const session = makeSession({ client: f.client, threadId: "main" })
     session.command("/yolo on")
     await tick()
-    expect(session.state().notice).toBe("YOLO is on: plugins use every scope they declare, and agents read outside the repository, without asking. Nothing is saved; /yolo off asks again.")
+    expect(session.state().notice).toBe("YOLO is on: plugins use every scope they declare, and agents read outside the repository, without asking. Kept for this project until /yolo off.")
     session.command("/yolo off plugin=tracker")
     await tick()
     session.command("/yolo")

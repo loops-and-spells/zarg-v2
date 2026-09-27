@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs"
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { Context, Effect, Layer, Redacted } from "effect"
@@ -122,25 +122,14 @@ export const pluginHostLayer = (opts: {
   let ask: Ask | undefined
   let agendaChanged: (plugin: string) => void = () => {}
   let agents: (plugin: string, event: unknown) => void = () => {}
-  const yoloAll = { on: opts.yolo === true }
-  const yoloPlugins = new Set<string>()
+  const yolo = yoloState(userDir, opts.root, opts.yolo === true)
   const own = new Set<string>()
   const control = PluginControl.of({
     firstParty: (plugin) => own.has(plugin),
     setAsk: (a) => void (ask = a),
     setAgendaChanged: (f) => void (agendaChanged = f),
     setAgents: (f) => void (agents = f),
-    yolo: {
-      on: (plugin) => yoloAll.on || yoloPlugins.has(plugin),
-      set: (on, plugin) => {
-        if (plugin === undefined) {
-          yoloAll.on = on
-          if (!on) yoloPlugins.clear()
-        } else if (on) yoloPlugins.add(plugin)
-        else yoloPlugins.delete(plugin)
-      },
-      any: () => yoloAll.on || yoloPlugins.size > 0,
-    },
+    yolo,
   })
   const host = Layer.unwrap(
     Effect.gen(function* () {
@@ -186,6 +175,44 @@ export const vaultFrom = (get: (name: string) => Effect.Effect<string | Redacted
  * `/yolo` and `--yolo`: switch it, and tell every client on `main` (the status line shows YOLO), so a TUI
  * attaching later learns it too. Answers whether any plugin is in YOLO now.
  */
+/**
+ * YOLO for one project, kept in the user folder (`yolo.json`, by project) so it survives restarts: the developer's own
+ * trust choice, never in the repository. `--yolo` (`flag`) turns it on for this run only; /yolo off clears both.
+ */
+export const yoloState = (userDir: string, project: string, flag: boolean) => {
+  const file = join(userDir, "yolo.json")
+  const read = (): Record<string, { all?: boolean; plugins?: ReadonlyArray<string> }> => {
+    try {
+      return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {}
+    } catch {
+      return {}
+    }
+  }
+  const saved = read()[project] ?? {}
+  let all = saved.all === true
+  let forRun = flag
+  const plugins = new Set(saved.plugins ?? [])
+  const save = () => {
+    mkdirSync(userDir, { recursive: true })
+    writeFileSync(file, `${JSON.stringify({ ...read(), [project]: { all, plugins: [...plugins] } }, null, 2)}\n`, { mode: 0o600 })
+  }
+  return {
+    on: (plugin: string) => forRun || all || plugins.has(plugin),
+    set: (on: boolean, plugin?: string) => {
+      if (plugin === undefined) {
+        all = on
+        if (!on) {
+          forRun = false
+          plugins.clear()
+        }
+      } else if (on) plugins.add(plugin)
+      else plugins.delete(plugin)
+      save()
+    },
+    any: () => forRun || all || plugins.size > 0,
+  }
+}
+
 /** `onYolo`: runs when YOLO turns on (plugins waiting on their grant load then, without a question). */
 export const makeYolo = (log: ThreadLog, control: PluginControl["Service"]["yolo"], onYolo: Effect.Effect<void> = Effect.void) => ({
   set: (on: boolean, plugin?: string) =>

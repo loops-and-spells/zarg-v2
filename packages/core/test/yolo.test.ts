@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect } from "effect"
 import { makeLog } from "../src/log"
-import { forDriver, makeYolo } from "../src/plugins"
+import { forDriver, makeYolo, yoloState } from "../src/plugins"
 
 describe("YOLO control", () => {
   test("turning YOLO on or off tells every client on main, and answers whether any plugin is in YOLO", async () => {
@@ -58,5 +58,24 @@ describe("YOLO control", () => {
       return log.all().filter((e) => (e as { name?: string }).name === "zarg.yolo").map((e) => (e as unknown as { value: unknown }).value)
     }))
     expect(events).toEqual([{ on: true }, { on: false }])
+  })
+
+  test("YOLO is kept per project across restarts, in the user folder; /yolo off clears it", () => {
+    const user = mkdtempSync(join(tmpdir(), "zt-yolo-user-"))
+    const first = yoloState(user, "/p/one", false)
+    first.set(true)
+    first.set(true, "rehearse")
+    const again = yoloState(user, "/p/one", false)
+    expect(again.on("anything")).toBe(true)
+    // Another project is not affected; --yolo turns it on for one run without saving.
+    expect(yoloState(user, "/p/two", false).any()).toBe(false)
+    expect(yoloState(user, "/p/two", true).any()).toBe(true)
+    expect(yoloState(user, "/p/two", false).any()).toBe(false)
+    again.set(false)
+    expect(yoloState(user, "/p/one", false).any()).toBe(false)
+    const one = yoloState(user, "/p/one", false)
+    one.set(true, "rehearse")
+    expect(yoloState(user, "/p/one", false).on("rehearse")).toBe(true)
+    expect(yoloState(user, "/p/one", false).on("other")).toBe(false)
   })
 })

@@ -51,7 +51,7 @@ const table: Array<SlashCommand> = [...decodeCommands([
   { cmd: "/reconcile", desc: "turn plan and implement on for this session", arg: { kind: "none" } },
   {
     cmd: "/yolo",
-    desc: "plugins use every scope they declare without asking (nothing saved)",
+    desc: "plugins use every scope they declare without asking (kept for this project)",
     arg: { kind: "choice", choices: ["on", "off"], hint: "on|off", params: { keys: ["plugin"] } },
   },
 ])]
