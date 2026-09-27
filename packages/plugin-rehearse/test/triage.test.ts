@@ -1,12 +1,12 @@
 // packages/core/test/rehearse-triage.test.ts
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import type { Answer } from "@zarg/decisions"
-import { rehearseSettings } from "../src/rehearse/settings"
-import { triage } from "../src/rehearse/triage"
-import type { Finding } from "../src/rehearse/types"
+import type { Answer } from "../src/types"
+import { rehearseSettings } from "../src/settings"
+import { triage } from "../src/triage"
+import type { Finding } from "../src/types"
 
-const s = rehearseSettings({}, { driver: "d" })
+const s = rehearseSettings({}, "rehearse")
 const f: Finding = { id: "R-00000001", kind: "gap", card: "UX-1", severity: "high", notes: ["payment can fail silently"], count: 1, personas: ["developer"] }
 const step = { card: "UX-1", title: "Pay", given: "the payment form is shown", when: "the visitor pays", thens: ["the order is placed"], fork: [], hasFailure: false }
 const answers = (real: number, route: string) => () =>

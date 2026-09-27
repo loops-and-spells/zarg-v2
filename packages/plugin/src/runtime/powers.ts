@@ -1,4 +1,4 @@
-import { constants, promises as fsp, realpathSync } from "node:fs"
+import { constants, existsSync, mkdirSync, promises as fsp, realpathSync } from "node:fs"
 import { homedir } from "node:os"
 import { basename, dirname, join, resolve, sep } from "node:path"
 import { Effect, Redacted } from "effect"
@@ -40,12 +40,14 @@ const expandHome = (p: string) => {
 }
 
 type Kind = "net" | "secret" | "fs-read" | "fs-write"
-const declared = (s: ManifestScopes, kind: Kind, target: string): boolean | "ask" => {
+const declared = (s: ManifestScopes, kind: Kind, target: string, root?: string): boolean | "ask" => {
   const list = kind === "net" ? s.net : kind === "secret" ? s.secrets : kind === "fs-read" ? s.fs?.read : s.fs?.write
   if (list === "ask") return "ask"
   if (list === undefined) return false
-  return kind === "net" || kind === "secret" ? list.includes(target) : list.some((g) => globMatch(expandHome(g), target))
+  return kind === "net" || kind === "secret" ? list.includes(target) : list.some((g) => globMatch(inProject(g, root), target))
 }
+/** A glob in a manifest: absolute or `~/` as written, otherwise under the project. */
+const inProject = (g: string, root?: string) => (root !== undefined && !g.startsWith("/") && !g.startsWith("~/") ? join(root, g) : expandHome(g))
 const grantMatches = (g: Grant, kind: Kind, target: string) =>
   g.kind === kind && (g.kind === "net" ? g.host === target : g.kind === "secret" ? g.name === target : globMatch(expandHome(g.glob), target))
 
@@ -108,6 +110,10 @@ export const makePowers = (opts: {
   readonly userDir?: string
   /** The plugins this one depends on and the contract methods it may call on each. */
   readonly dependencies?: ReadonlyArray<{ readonly name: string; readonly methods: ReadonlyArray<string> }>
+  /** Relative paths and relative fs globs are the project's (a plugin process has no usable working directory). */
+  readonly projectRoot?: string
+  /** Called on every power call: a plugin busy in the background is not idle. */
+  readonly active?: () => void
   /** Call a dependency's method (the host's invoke). */
   readonly callPlugin?: (name: string, method: string, params: unknown) => Promise<unknown>
   /** The decision model, the model roles, and the agenda hook, served by the core. */
@@ -134,9 +140,9 @@ export const makePowers = (opts: {
   /** Allowed when granted; else ask (optional scopes), pass (YOLO) or refuse. */
   const allow = async (kind: Kind, target: string, what: string, folder?: string) => {
     const granted = await Effect.runPromise(opts.grants.of(opts.plugin, opts.digest))
-    if (granted.loaded && declared(opts.manifest.scopes, kind, target) === true) return
+    if (granted.loaded && declared(opts.manifest.scopes, kind, target, opts.projectRoot) === true) return
     if (granted.extra.some((g) => grantMatches(g, kind, target))) return
-    const optional = declared(opts.manifest.optional, kind, target)
+    const optional = declared(opts.manifest.optional, kind, target, opts.projectRoot)
     if (optional === false) throw notGranted(`${opts.plugin}: ${printable(what)} is not declared in its manifest`)
     if (opts.yolo()) return void opts.log(`yolo: ${opts.plugin} ${kind} ${printable(target)}`)
     const key = `${kind}\u0000${target}`
@@ -165,11 +171,13 @@ export const makePowers = (opts: {
     if (a === "deny") throw notGranted(`${opts.plugin}: ${printable(what)} was denied`)
   }
 
-  const resolvePath = (raw: string) => resolve(expandHome(String(raw)))
+  const resolvePath = (raw: string) => (opts.projectRoot !== undefined ? resolve(opts.projectRoot, expandHome(String(raw))) : resolve(expandHome(String(raw))))
   const checkedPath = async (kind: "fs-read" | "fs-write", raw: string) => {
     const path = resolvePath(raw)
     if (deniedPath(path, userDir)) throw notGranted(`${opts.plugin}: ${printable(path)} is never reachable by plugins`)
     await allow(kind, path, `${kind === "fs-read" ? "read" : "write"} ${path}`, `${dirname(path)}/**`)
+    // A write the grant allows may need its folders: create them (the realpath check below still guards symlinks).
+    if (kind === "fs-write" && !existsSync(dirname(path))) mkdirSync(dirname(path), { recursive: true })
     // The directory must be what it says: no symlinked parent can move the file outside its grant.
     let dirReal: string
     try {
@@ -299,5 +307,11 @@ export const makePowers = (opts: {
     return out
   }
   Object.defineProperty(powers, SERVED, { value: servedValues, enumerable: false })
+  if (opts.active !== undefined) {
+    for (const k of Object.keys(powers)) {
+      const f = powers[k]!
+      ;(powers as Record<string, (a: unknown) => Promise<unknown>>)[k] = (args) => (opts.active!(), f(args))
+    }
+  }
   return powers
 }

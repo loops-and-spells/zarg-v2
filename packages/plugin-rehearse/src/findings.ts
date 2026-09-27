@@ -1,9 +1,8 @@
 // packages/core/src/rehearse/findings.ts
-import { createHash } from "node:crypto"
-import { Effect, Stream } from "effect"
-import type { Model } from "@zarg/model"
+import { hash } from "./hash"
+import { Effect } from "effect"
 import { stepText, storyText } from "./screen"
-import type { Finding, Kind, Persona, Reason, StepView } from "./types"
+import type { Complete, Finding, Kind, Persona, Reason, StepView } from "./types"
 
 const KINDS: ReadonlyArray<Kind> = ["friction", "gap", "contradiction", "transition", "feature", "delight"]
 const SEVERITIES = ["high", "medium", "low"] as const
@@ -40,18 +39,15 @@ const WHY: Record<Reason, string> = {
   seam: "the Given may not follow from how you got here",
 }
 
-const textOf = (model: Model.Model["Service"], ref: string, system: string, user: string, outputSchema?: Record<string, unknown>) =>
-  Stream.runCollect(model.stream({ model: ref, messages: [{ role: "system", content: system }, { role: "user", content: user }], ...(outputSchema ? { outputSchema } : {}), maxTokens: 2048 })).pipe(
-    Effect.map((events) => [...events].flatMap((e) => (e.type === "text" ? [e.delta] : [])).join("")),
-  )
+const textOf = (complete: Complete, system: string, user: string, outputSchema?: Record<string, unknown>) =>
+  Effect.map(complete({ messages: [{ role: "system", content: system }, { role: "user", content: user }], ...(outputSchema ? { outputSchema } : {}), maxTokens: 2048 }), (r) => r.text)
 
 type Raw = { readonly kind: Kind; readonly card: string; readonly edge?: { from: string; to: string }; readonly severity: "high" | "medium" | "low"; readonly note: string; readonly op?: unknown }
 
 /** A flagged step, looked at by a large-model tester in the persona's shoes. */
-export const diagnose = (model: Model.Model["Service"], ref: string, persona: Persona, prior: ReadonlyArray<StepView>, step: StepView, flags: ReadonlyArray<Reason>) =>
+export const diagnose = (complete: Complete, persona: Persona, prior: ReadonlyArray<StepView>, step: StepView, flags: ReadonlyArray<Reason>) =>
   textOf(
-    model,
-    ref,
+    complete,
     `You ARE ${persona.text}. You are walking a product's specified journey, one step at a time, and report what is wrong with this step for you: friction (unclear), gap (something missing, like a failure you must handle), contradiction, transition (the step does not follow from the one before), feature (something you would want), delight. At most ${MAX_PER_STEP}; notes of two sentences at most. Suggest a graph change in op when you can. Most steps are fine: report nothing then.`,
     `So far: ${storyText(prior) || "you just started"}.\nThis step:\n${stepText(step)}\nIt was flagged because ${flags.map((f) => WHY[f]).join(" and ")}.`,
     FINDINGS_SCHEMA,
@@ -74,7 +70,7 @@ export const diagnose = (model: Model.Model["Service"], ref: string, persona: Pe
   )
 
 export const findingId = (kind: Kind, card: string, edge?: { from: string; to: string }) =>
-  `R-${createHash("sha256").update(`${kind}|${card}|${edge ? `${edge.from}>${edge.to}` : ""}`).digest("hex").slice(0, 8)}`
+  `R-${hash(`${kind}|${card}|${edge ? `${edge.from}>${edge.to}` : ""}`).slice(0, 8)}`
 
 const RANK = { high: 3, medium: 2, low: 1 } as const
 
@@ -102,10 +98,9 @@ export const consolidate = (raw: ReadonlyArray<Raw & { readonly persona: string 
 }
 
 /** A few sentences for the driver: what the testers met. */
-export const report = (model: Model.Model["Service"], ref: string, findings: ReadonlyArray<Finding>, stats: { steps: number; flagged: number; unscreened: number }) =>
+export const report = (complete: Complete, findings: ReadonlyArray<Finding>, stats: { steps: number; flagged: number; unscreened: number }) =>
   textOf(
-    model,
-    ref,
+    complete,
     "Summarise a rehearsal of a product's journeys for the product's driver in three to five sentences: where testers stalled, what is missing, what they liked. No lists.",
     `${stats.steps} steps walked, ${stats.flagged} flagged, ${stats.unscreened} unscreened.\nFindings:\n${findings.map((f) => `- ${f.kind} (${f.severity}) on ${f.card}: ${f.notes.join(" / ")}`).join("\n") || "none"}`,
   ).pipe(Effect.catch((e: { readonly message?: string }) => Effect.succeed(`(report unavailable: ${e.message ?? String(e)})`)))

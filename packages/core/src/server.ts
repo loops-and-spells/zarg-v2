@@ -30,12 +30,6 @@ export interface ReconcileAnswer {
 /** Turn plan and implement on for this session (`POST /reconcile`), even when the config leaves them off. */
 export class ReconcileControl extends Context.Service<ReconcileControl, { readonly turnOn: Effect.Effect<ReconcileAnswer> }>()("@zarg/core/ReconcileControl") {}
 
-/** Start a rehearsal (`POST /rehearse`): answers at once with the run, or why it did not start. */
-export class RehearseControl extends Context.Service<
-  RehearseControl,
-  { readonly start: (opts: { readonly strategy?: "edge-pair" | "teleport"; readonly focus?: ReadonlyArray<string> }) => Effect.Effect<unknown> }
->()("@zarg/core/RehearseControl") {}
-
 /** Slash commands plugins add (`GET /commands`, `POST /plugins/:name/commands/:cmd`). */
 export class PluginCommands extends Context.Service<
   PluginCommands,
@@ -103,7 +97,6 @@ const routes = HttpRouter.addAll(
     const threads = yield* Threads
     const control = yield* ReconcileControl
     const yolo = yield* YoloControl
-    const rehearse = yield* RehearseControl
     const bodies = yield* Bodies
     const commands = yield* PluginCommands
     const heartbeat = yield* Heartbeat
@@ -136,17 +129,6 @@ const routes = HttpRouter.addAll(
         "GET",
         "/stream",
         Effect.map(HttpServerRequest.HttpServerRequest, (req) => sse(log.stream(Number(searchParam(req, "since") ?? 0)), heartbeat)),
-      ),
-      HttpRouter.route(
-        "POST",
-        "/rehearse",
-        Effect.gen(function* () {
-          const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as { strategy?: unknown; focus?: unknown }
-          if (body.strategy !== undefined && body.strategy !== "edge-pair" && body.strategy !== "teleport") return error(400, `/rehearse "strategy" is edge-pair or teleport`)
-          if (body.focus !== undefined && !(Array.isArray(body.focus) && body.focus.every((f) => typeof f === "string"))) return error(400, `/rehearse "focus" is a list of ids`)
-          const opts = { ...(body.strategy !== undefined ? { strategy: body.strategy as "edge-pair" | "teleport" } : {}), ...(body.focus !== undefined ? { focus: body.focus as ReadonlyArray<string> } : {}) }
-          return HttpServerResponse.jsonUnsafe(yield* rehearse.start(opts))
-        }),
       ),
       HttpRouter.route("POST", "/reconcile", Effect.map(control.turnOn, (answer) => HttpServerResponse.jsonUnsafe(answer))),
       HttpRouter.route(
@@ -219,7 +201,6 @@ const routes = HttpRouter.addAll(
  *   GET  /stream?since=<seq>   every thread's events after seq, then live (SSE)
  *   GET  /threads              [{ id, focus, status }]
  *   POST /threads/:id/stop     stop the thread's current work
- *   POST /rehearse             { strategy?, focus? } → the started run, or { refused }
  *   GET  /commands              slash commands plugins add
  *   POST /plugins/:name/commands/:cmd  { args } → { notice }
  *   GET  /threads/:id/agents/:agent/body          the agent's body (parts)

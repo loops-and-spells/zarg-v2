@@ -71,6 +71,8 @@ export interface HostOptions {
   readonly notices?: ReadonlyArray<AgendaItem>
   /** zarg's user directory (grants, installed plugins): never reachable by a plugin's file powers. */
   readonly userDir?: string
+  /** The project: plugins' relative paths and fs globs are under it. */
+  readonly projectRoot?: string
   /** The decision model for plugins with the decisions scope. */
   readonly decide?: (req: unknown) => Effect.Effect<unknown, unknown>
   /** A model role for plugins with the models scope. */
@@ -247,6 +249,16 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           ...(opts.complete !== undefined ? { complete: (req: Parameters<NonNullable<HostOptions["complete"]>>[0]) => Effect.runPromise(opts.complete!(req).pipe(Effect.mapError((e) => ({ tag: "ModelError", message: String((e as { message?: string }).message ?? e) })))) } : {}),
           agendaChanged: () => opts.agendaChanged?.(m.name),
           agents: (e: unknown) => opts.agents?.(m.name, e),
+          ...(opts.projectRoot !== undefined ? { projectRoot: opts.projectRoot } : {}),
+          // A plugin working in the background (calling powers) is not idle.
+          active: () => {
+            const r = running.get(m.name)
+            if (r !== undefined && r.idle !== undefined && r.inflight === 0) {
+              clearTimeout(r.idle)
+              r.idle = setTimeout(() => { if (r.inflight === 0) Effect.runFork(r.process.stop) }, opts.idleMs ?? IDLE_MS)
+              r.idle.unref()
+            }
+          },
           ...(opts.budget?.(m.name) !== undefined ? { budget: opts.budget(m.name)! } : {}),
           dependencies: (m.pluginDependencies ?? []).map((d) => ({ name: d.name, methods: byName.get(d.name)?.contract?.methods ?? [] })),
           // Looked up at call time: the dependency is running by then (checked below), or the call fails typed.

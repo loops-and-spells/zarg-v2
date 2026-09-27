@@ -97,11 +97,11 @@ const RESERVED = new Set(["validate", "lint", "agenda", "suggest", "render", "af
 export const pluginService = (manifest: Manifest, ctx: GraphContext): Bound | undefined => {
   const tools = Object.entries(manifest.methods)
     .filter(([name, spec]) => spec.agents && !RESERVED.has(name))
-    .map(([name, spec]) => ({ name, description: spec.doc, params: spec.params }))
+    .map(([name, spec]) => ({ name, description: spec.doc, params: spec.params, success: spec.success }))
   if (tools.length === 0) return undefined
   const result = Schema.toJsonSchemaDocument(CallResult)
   const methods = Object.fromEntries(
-    tools.map((t) => [camel(t.name), { doc: t.description, params: Schema.Unknown, success: Schema.Unknown, json: { params: t.params, success: result } }]),
+    tools.map((t) => [camel(t.name), { doc: t.description, params: Schema.Unknown, success: Schema.Unknown, json: { params: t.params, success: manifest.archetype === "service" ? t.success : result } }]),
   )
   const def = defineService(manifest.service, `Graph writes for the ${manifest.name} plugin (through lints and the write pipeline).`, methods)
   const handlers = Object.fromEntries(
@@ -115,6 +115,10 @@ export const pluginService = (manifest: Manifest, ctx: GraphContext): Bound | un
           const touched = (JSON.stringify(params).match(/\b[A-Za-z]+-\d{4,}\b/g) ?? []).filter((id) => snap.nodes.has(id))
           const outside = visible === undefined ? [] : touched.filter((id) => !visible.has(id))
           if (outside.length > 0) return yield* Effect.fail(outOfScope(outside.join(", ")))
+          // A service plugin's tools are plain calls; a graph plugin's go through the write pipeline.
+          if (manifest.archetype === "service") {
+            return yield* ctx.host.invoke(manifest.name, t.name, params).pipe(Effect.mapError((e): ServiceFailure => ({ _tag: e._tag, message: e.message })))
+          }
           return yield* ctx.host.call(`${manifest.name}/${t.name}`, params).pipe(
             Effect.mapError((e): ServiceFailure => {
               if (e._tag === "LintFailed") return { _tag: "LintFailed", message: e.findings.map((f) => f.message).join("; ") }

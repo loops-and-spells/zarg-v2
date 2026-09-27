@@ -365,7 +365,7 @@ describe("slash commands in the input", () => {
   const press = (ui: typeof initialUi, draft: string, name: string) => onKey(ui, idle, { name }, 0, draft)
 
   test("typing / shows the commands; Tab completes; Esc clears", () => {
-    expect(slashBox("/", initialUi)).toMatchObject({ title: "commands", rows: [{ label: "/reconcile", desc: "turn plan and implement on for this session", selected: false }, { label: "/yolo" }, { label: "/rehearse" }] })
+    expect(slashBox("/", initialUi)).toMatchObject({ title: "commands", rows: [{ label: "/reconcile", desc: "turn plan and implement on for this session", selected: false }, { label: "/yolo" }] })
     const tab = press(initialUi, "/re", "tab")
     expect(tab.draft).toBe("/reconcile")
     expect(press(initialUi, "/re", "escape").draft).toBe("")

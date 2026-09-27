@@ -155,6 +155,7 @@ export const pluginHostLayer = (opts: {
         firstParty: (p) => isFirstParty(p, zargRoot, KNOWN_FIRST_PARTY),
         notices: theirs.notices,
         userDir,
+        projectRoot: opts.root,
         ...(opts.decide !== undefined ? { decide: opts.decide } : {}),
         ...(opts.complete !== undefined ? { complete: opts.complete } : {}),
         agendaChanged: (plugin) => agendaChanged(plugin),

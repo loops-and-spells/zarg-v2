@@ -132,24 +132,8 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
         )
         return
       }
-      if (name === "/rehearse") {
-        const strategy = args.find((a) => a === "edge-pair" || a === "teleport") as "edge-pair" | "teleport" | undefined
-        const focus = args.find((a) => a.startsWith("focus="))?.slice("focus=".length).split(",").filter((x) => x.length > 0)
-        fork(
-          opts.client.rehearse(strategy, focus).pipe(
-            Effect.map((a) =>
-              a.refused !== undefined
-                ? `Rehearse did not start: ${a.refused}`
-                : `Rehearse run ${a.run} started: ${a.stories} stories, ${a.steps} steps, testers: ${(a.personas ?? []).join(", ") || "none"}. Watch it in the agents pane (Tab).`,
-            ),
-            Effect.catch((e) => Effect.succeed(e.message)),
-            Effect.flatMap((notice) => Effect.sync(() => set({ ...state, notice }))),
-          ),
-        )
-        return
-      }
       if (name !== "/reconcile") {
-        set({ ...state, notice: `unknown command: ${name} (try /reconcile, /rehearse or /yolo)` })
+        set({ ...state, notice: `unknown command: ${name} (try /reconcile or /yolo)` })
         return
       }
       fork(

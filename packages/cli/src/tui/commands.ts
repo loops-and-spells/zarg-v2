@@ -54,11 +54,6 @@ const table: Array<SlashCommand> = [...decodeCommands([
     desc: "plugins use every scope they declare without asking (nothing saved)",
     arg: { kind: "choice", choices: ["on", "off"], hint: "on|off", params: { keys: ["plugin"] } },
   },
-  {
-    cmd: "/rehearse",
-    desc: "testers walk the journeys and report findings to the driver",
-    arg: { kind: "choice", choices: ["edge-pair", "teleport"], hint: "edge-pair|teleport", params: { keys: ["focus"] } },
-  },
 ])]
 /** The input's commands: zarg's own, then those loaded plugins add (`registerCommands`). */
 export const SLASH_COMMANDS: ReadonlyArray<SlashCommand> = table

@@ -1,0 +1,75 @@
+import { describe, expect, test } from "bun:test"
+import { BunServices } from "@effect/platform-bun"
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { Effect, Layer } from "effect"
+import { layer as graphLayer } from "@zarg/graph"
+import { makeGrants, scopesDigest } from "@zarg/plugin/runtime"
+import { layer as hostLayer, type LoadedPlugin, PluginHost } from "@zarg/plugin/server"
+import { buildPlugin } from "@zarg/plugin-sdk/tools"
+
+const build = async (entry: string, origin: string): Promise<LoadedPlugin> => {
+  const r = await buildPlugin(entry)
+  if (!r.ok) throw new Error(r.errors.join("\n"))
+  return { manifest: r.manifest as never, bundle: r.bundle, origin }
+}
+const noul = (p: number) => ({ type: "noul", answer: p >= 0.5, probability: p, confidence: 0 })
+
+describe("rehearse as a loaded plugin", () => {
+  test("/rehearse walks gherkin's stories through the host and leaves findings for the developer", async () => {
+    const root = mkdtempSync(join(tmpdir(), "zt-rehearse-"))
+    mkdirSync(join(root, "intent"))
+    writeFileSync(join(root, "intent/zarg.md"), "## Affected users and systems\n\n- The developer, through the zarg TUI.\n")
+    const plugins = await Promise.all([
+      build(join(import.meta.dir, "../../plugin-gherkin/src/index.ts"), join(import.meta.dir, "../../plugin-gherkin")),
+      build(join(import.meta.dir, "../src/index.ts"), join(import.meta.dir, "..")),
+    ])
+    const events: Array<{ plugin: string; event: { event: string; id: string; text?: string } }> = []
+    const out = await Effect.gen(function* () {
+      const grants = yield* makeGrants({ file: join(mkdtempSync(join(tmpdir(), "zt-rehearse-g-")), "grants.json"), project: root })
+      // Rehearse asks for more than the graph: the developer grants it once (`zarg plugin grant rehearse`).
+      const m = plugins[1]!.manifest
+      yield* grants.approveLoad(m.name, scopesDigest(m.scopes, m.optional))
+      const host = hostLayer(plugins, {
+        grants,
+        vault: () => Effect.succeed(undefined),
+        config: () => ({}),
+        ask: () => Effect.succeed("deny"),
+        yolo: { on: () => false },
+        log: () => {},
+        redact: (t) => t,
+        firstParty: () => true,
+        projectRoot: root,
+        decide: (req) =>
+          Effect.succeed(
+            (req as { questions: Record<string, unknown> }).questions.person !== undefined
+              ? { person: noul(0.9) }
+              : (req as { questions: Record<string, unknown> }).questions.real !== undefined
+                ? { real: noul(0.9), route: { type: "choice", choice: "fix", probabilities: { fix: 1 }, confidence: 1 } }
+                : { feel: { type: "score", score: 1.0, level: "poor", probabilities: [], confidence: 0 }, fail: noul(0.3), arrive: noul(0.7) },
+          ),
+        complete: (req) =>
+          Effect.succeed({ text: req.outputSchema !== undefined ? JSON.stringify({ findings: [{ kind: "friction", severity: "medium", note: "unclear" }] }) : "Report.", promptTokens: 1, completionTokens: 1 }),
+        agents: (plugin, event) => void events.push({ plugin, event: event as never }),
+      })
+      return yield* Effect.gen(function* () {
+        const h = yield* PluginHost
+        yield* h.call("gherkin/add-card", { title: "Visitor opens the cart", when: "the visitor opens the cart", arrives: { text: "the shop is open" }, then: [{ text: "the cart is shown" }] })
+        yield* h.call("gherkin/add-card", { title: "Visitor pays", when: "the visitor pays", arrives: { text: "the cart is shown" }, then: [{ text: "the receipt is shown" }] })
+        const started = yield* h.invoke("rehearse", "command", { args: [] })
+        for (let i = 0; i < 500 && !events.some((e) => e.event.id === "run" && e.event.event === "end"); i++) yield* Effect.sleep(20)
+        const body = yield* h.invoke("rehearse", "body", { agent: "run" })
+        return { started, body }
+      }).pipe(Effect.provide(Layer.provideMerge(host, graphLayer(join(root, ".zarg/graph")))))
+    }).pipe(Effect.scoped, Effect.provide(BunServices.layer), Effect.runPromise)
+
+    expect(out.started).toMatchObject({ notice: expect.stringContaining("started") })
+    expect(events.every((e) => e.plugin === "rehearse")).toBe(true)
+    expect(events.map((e) => e.event.id)).toContain("tester-1")
+    const tabs = (out.body as { parts: ReadonlyArray<{ kind: string; tabs?: ReadonlyArray<{ title: string; rows: ReadonlyArray<unknown> }> }> }).parts.find((p) => p.kind === "tabs")!.tabs!
+    expect(tabs[0]!.rows.length).toBeGreaterThan(0)
+    const index = JSON.parse(readFileSync(join(root, ".zarg/rehearse/index.json"), "utf8")) as ReadonlyArray<string>
+    expect(index).toHaveLength(1)
+  }, 30_000)
+})

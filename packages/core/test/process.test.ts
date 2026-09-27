@@ -26,7 +26,7 @@ describe("zarg-core process", () => {
     expect(info).toMatchObject({ pid: proc.pid, mode: "child" })
 
     // No [reconcile] section in this project: plan and implement are off, so only the driver thread.
-    expect(await Effect.runPromise(makeClient(info).threads())).toEqual([{ id: "main", focus: [], status: "idle" }, { id: "rehearse", focus: [], status: "idle" }])
+    expect(await Effect.runPromise(makeClient(info).threads())).toEqual([{ id: "main", focus: [], status: "idle" }])
     const denied = await Effect.runPromise(Effect.flip(makeClient({ socket: info.socket, token: "wrong" }).threads()))
     expect(denied.status).toBe(401)
 
@@ -45,7 +45,7 @@ describe("zarg-core process", () => {
     await first.proc.exited
     const second = await start("child")
     expect(second.first.startsWith("ready ")).toBe(true)
-    expect(await Effect.runPromise(makeClient(readInfo(root)!).threads())).toHaveLength(2)
+    expect(await Effect.runPromise(makeClient(readInfo(root)!).threads())).toHaveLength(1)
     second.proc.stdin.end()
     await second.proc.exited
   }, 20_000)
@@ -154,11 +154,11 @@ describe("zarg-core process", () => {
     const proc = Bun.spawn([process.execPath, main, "--root", project, "--mode", "child"], { stdin: "pipe", stdout: "pipe", stderr: "pipe", env: { ...process.env, ZARG_CORE_STUB: stub } })
     await proc.stdout.getReader().read()
     const client = makeClient(readInfo(project)!)
-    expect((await Effect.runPromise(client.threads())).map((t) => t.id)).toEqual(["main", "rehearse"])
+    expect((await Effect.runPromise(client.threads())).map((t) => t.id)).toEqual(["main"])
     // Pressed twice at once: still one reconciler, one pass.
     const [first, second] = await Promise.all([Effect.runPromise(client.reconcile()), Effect.runPromise(client.reconcile())])
     expect([first.on, second.on]).toEqual([true, true])
-    expect((await Effect.runPromise(client.threads())).map((t) => t.id)).toEqual(["main", "rehearse", "plan", "implement"])
+    expect((await Effect.runPromise(client.threads())).map((t) => t.id)).toEqual(["main", "plan", "implement"])
     const until = Date.now() + 30_000
     while (git("git log -1 --format=%s") !== "feat: implement UX-0001" && Date.now() < until) await Bun.sleep(200)
     expect(git("git log -1 --format=%s")).toBe("feat: implement UX-0001")

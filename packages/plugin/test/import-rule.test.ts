@@ -13,7 +13,7 @@ const files = (dir: string): Array<string> =>
 test("only the runtime and a plugin's own package import plugin code", () => {
   const offenders = readdirSync(root)
     .filter((pkg) => pkg !== "plugin-gherkin")
-    .flatMap((pkg) => files(join(root, pkg)).filter((f) => /from ["']@zarg\/plugin-gherkin/.test(readFileSync(f, "utf8"))))
+    .flatMap((pkg) => files(join(root, pkg)).filter((f) => /from ["']@zarg\/plugin-gherkin(?!\/contract["'])/.test(readFileSync(f, "utf8"))))
   expect(offenders).toEqual([])
 })
 

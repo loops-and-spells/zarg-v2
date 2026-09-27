@@ -1,5 +1,5 @@
 // packages/core/src/rehearse/screen.ts
-import { createHash } from "node:crypto"
+import { hash } from "./hash"
 import { Effect } from "effect"
 import type { Decide, Persona, Reason, Screened, StepView } from "./types"
 import type { RehearseSettings } from "./settings"
@@ -13,7 +13,7 @@ export const storyText = (prior: ReadonlyArray<StepView>) =>
 export const stepText = (step: StepView) => `Given ${step.given}\nWhen ${step.when}\nThen ${step.thens.join("; and ")}`
 
 /** The card as the testers saw it: a fix is stale once this changes. */
-export const stepHash = (step: StepView) => createHash("sha256").update(stepText(step)).digest("hex").slice(0, 12)
+export const stepHash = (step: StepView) => hash(stepText(step)).slice(0, 12)
 
 /**
  * One decision-model request per step (calibrated 2026-09-27: feel, fail, choose and arrive separate good

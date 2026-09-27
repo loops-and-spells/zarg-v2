@@ -76,13 +76,6 @@ export const makeClient = (info: Pick<CoreInfo, "socket" | "token">) => {
       request("/reconcile", { method: "POST", body: "{}" }).pipe(
         Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly on: boolean; readonly reason?: string; readonly pending?: number }>)),
       ),
-    /** Start a rehearsal; answers with the run, or `{ refused }`. */
-    rehearse: (strategy?: "edge-pair" | "teleport", focus?: ReadonlyArray<string>) =>
-      request("/rehearse", { method: "POST", body: JSON.stringify({ ...(strategy ? { strategy } : {}), ...(focus && focus.length > 0 ? { focus } : {}) }) }).pipe(
-        Effect.flatMap((res) =>
-          Effect.promise(() => res.json() as Promise<{ readonly run?: string; readonly stories?: number; readonly steps?: number; readonly personas?: ReadonlyArray<string>; readonly refused?: string }>),
-        ),
-      ),
     /** YOLO on or off, for every plugin or one; answers whether any plugin is in YOLO now. */
     yolo: (on: boolean, plugin?: string) =>
       request("/yolo", { method: "POST", body: JSON.stringify({ on, ...(plugin !== undefined ? { plugin } : {}) }) }).pipe(

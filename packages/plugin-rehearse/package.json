@@ -1,0 +1,20 @@
+{
+  "name": "@zarg/plugin-rehearse",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@zarg/plugin-gherkin": "workspace:*",
+    "@zarg/plugin-sdk": "workspace:*",
+    "effect": "^4.0.0-rc.117"
+  },
+  "devDependencies": {
+    "@effect/platform-bun": "^4.0.0-rc.117",
+    "@zarg/core": "workspace:*",
+    "@zarg/decisions": "workspace:*",
+    "@zarg/graph": "workspace:*",
+    "@zarg/plugin": "workspace:*"
+  }
+}

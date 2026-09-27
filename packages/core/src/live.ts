@@ -28,9 +28,6 @@ import { makeReconcile } from "./reconcile"
 import type { ReconcileAnswer } from "./server"
 import { makeThreads } from "./threads"
 import * as E from "./events"
-import { makeRehearse, type Rehearse } from "./rehearse/run"
-import { commitGraph, rehearseService } from "./rehearse/service"
-import { rehearseSettings } from "./rehearse/settings"
 import type { AgendaItem } from "@zarg/plugin/server"
 
 /**
@@ -57,8 +54,6 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     const agentGrants = yield* makeGrants({ file: join(USER_DIR, "grants.json"), project: root })
     // /yolo (for every plugin) also lets agents' reads outside the repository through without asking.
     const yoloControl = (yield* PluginControl).yolo
-    // Rehearse is made after the threads (it wakes main); the driver's service and the agenda reach it through this.
-    const rehearseRef: { current?: Rehearse } = {}
     // A child's graph focus must name real nodes.
     const unknownIds = (ids: ReadonlyArray<string>) => Effect.map(store.snapshot, (snap) => ids.filter((id) => !snap.nodes.has(id))).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>))
     const makeRlm = (asker: Asker, observe: (e: Rlm.RlmEvent) => void) => {
@@ -70,7 +65,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         if (name === "Graph") return graph(ctx)
         // A plugin's agent methods, by the service name its manifest declares; graph writes wait for an answer.
         const plugin = host.manifests.find((m) => m.service === name)
-        if (plugin !== undefined) return guard.gate(pluginService(plugin, ctx))
+        // Graph writes wait for the developer; a service plugin's tools (Rehearse.run) do not write the graph.
+        if (plugin !== undefined) return plugin.archetype === "service" ? pluginService(plugin, ctx) : guard.gate(pluginService(plugin, ctx))
         if (name === "Fs:read") return fsRead({ root, scope, sensitive, outside })
         if (name === "Inquire") return inquire(guard.asker)
         if (name === "Decisions") return decisionsService(decisions as never)
@@ -82,16 +78,6 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
             neighbors: (card) => Effect.map(store.snapshot, (snap) => (snap.nodes.get(card)?.edges ?? []).map((e) => e.to)).pipe(Effect.orElseSucceed(() => [])),
             commit: (ids, message) => host.exclusive(commitGraphFindings(root, ids, message)),
           })
-        if (name === "Rehearse")
-          return rehearseRef.current === undefined
-            ? undefined
-            : rehearseService({
-                rehearse: rehearseRef.current,
-                guard,
-                stepNow: (card) => host.step(card).pipe(Effect.orElseSucceed(() => undefined)),
-                neighbors: (card) => Effect.map(store.snapshot, (snap) => (snap.nodes.get(card)?.edges ?? []).map((e) => e.to)).pipe(Effect.orElseSucceed(() => [])),
-                commit: (ids, message) => host.exclusive(commitGraph(root, ids, message)),
-              })
         return undefined
       }
       return Rlm.make({ settings: rlmSettings, services: factory, roles, decisions, observe, unknownIds }).pipe(
@@ -120,7 +106,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     if (!gate.on) yield* Effect.sync(() => console.error(`zarg-core: ${gate.reason}`))
     let reconcile = gate.on ? yield* startReconcile(gate.settings) : undefined
     const agenda = (focus: ReadonlySet<string> | undefined) =>
-      Effect.map(host.agenda(focus), (items): ReadonlyArray<AgendaItem> => [...(reconcile?.agenda(focus) ?? []), ...(rehearseRef.current?.agenda(focus) ?? []), ...items])
+      Effect.map(host.agenda(focus), (items): ReadonlyArray<AgendaItem> => [...(reconcile?.agenda(focus) ?? []), ...items])
     // The same scope filter the driver's Graph.render applies.
     const render = (ids: ReadonlyArray<string>, scope: Scope) => Effect.map(graph({ host, snapshot, scope }).handlers.render!({ focus: ids }), String)
     // What next: failure candidates a decision model judges real.
@@ -145,31 +131,13 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       whatNext,
       makeRlm,
       extra: reconcile?.threads ?? [],
-      alsoStop: Effect.suspend(() => rehearseRef.current?.stop ?? Effect.void),
+      // The developer's stop is for everything: service plugins that run in the background stop too.
+      alsoStop: Effect.suspend(() =>
+        Effect.forEach(host.manifests.filter((m) => m.archetype === "service" && m.methods.stop !== undefined), (m) => Effect.ignore(host.invoke(m.name, "stop", {})), { discard: true }),
+      ),
     })
     // A plugin's grant question is asked on main, like any driver question.
     const main = yield* threads.get("main", [])
-    const intentText = () => {
-      const dir = join(root, "intent")
-      return existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".md")).sort().map((f) => readFileSync(join(dir, f), "utf8")).join("\n\n") : ""
-    }
-    const rehearse = yield* makeRehearse({
-      dir: join(root, ".zarg", "rehearse"),
-      log,
-      stories: (strategy, focus) => host.stories(strategy, focus),
-      step: (card, via) => host.step(card, via),
-      decide: (req) => decisions.decide(req),
-      model,
-      settings: rehearseSettings(config.extra, roles),
-      intent: intentText,
-      built: (card) => Effect.map(gitRun(root, ["grep", "-q", "-w", "-e", `@card ${card}`]), (r) => r.code === 0),
-      announce: (text) => Effect.asVoid(Effect.forEach(E.textMessage(`main-${crypto.randomUUID()}`, "assistant", text), (d) => log.append("main", d))),
-      // Wake the driver only when it waits on nothing: a question on screen keeps its turn.
-      wake: Effect.suspend(() => main.wake),
-    })
-    rehearseRef.current = rehearse
-    threads.add(rehearse.thread)
-    yield* rehearse.resume
     const control = yield* PluginControl
     const yolo = makeYolo(log, control.yolo)
     // Started with --yolo: say so on main, so the status line shows it.
@@ -223,7 +191,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         )
       },
     }
-    return { log, threads, driver: roles.driver, turnOn, yolo, rehearse, bodies, commands }
+    return { log, threads, driver: roles.driver, turnOn, yolo, bodies, commands }
   })
 
 /** The project's plugin host options from its environment and config (`[plugins.<name>]` tables). */

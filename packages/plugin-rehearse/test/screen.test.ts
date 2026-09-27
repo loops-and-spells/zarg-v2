@@ -1,12 +1,12 @@
 // packages/core/test/rehearse-screen.test.ts
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import type { Answer, DecisionRequest } from "@zarg/decisions"
-import { rehearseSettings } from "../src/rehearse/settings"
-import { personasOf, screenStep } from "../src/rehearse/screen"
-import type { StepView } from "../src/rehearse/types"
+import type { Answer, DecisionRequest } from "../src/types"
+import { rehearseSettings } from "../src/settings"
+import { personasOf, screenStep } from "../src/screen"
+import type { StepView } from "../src/types"
 
-const s = rehearseSettings({}, { driver: "stub:d" })
+const s = rehearseSettings({}, "rehearse")
 const noul = (p: number): Answer => ({ type: "noul", answer: p >= 0.5, probability: p, confidence: 0 })
 const score = (score: number): Answer => ({ type: "score", score, level: "fine", probabilities: [], confidence: 0 })
 const choice = (ps: Record<string, number>): Answer => ({ type: "choice", choice: Object.keys(ps)[0]!, probabilities: ps, confidence: 0 })
@@ -15,9 +15,9 @@ const persona = { name: "developer", text: "The developer, through the zarg TUI"
 const decideWith = (answers: Record<string, Answer>, seen: Array<DecisionRequest> = []) => (req: DecisionRequest) => Effect.sync(() => (seen.push(req), answers))
 
 describe("rehearse screen", () => {
-  test("settings default to the calibrated thresholds; the role falls back to the driver's", () => {
-    expect(s).toEqual({ feelBelow: 1.45, failAt: 0.8, forkBelow: 0.8, seamBelow: 0.3, realKeep: 0.75, realDrop: 0.25, inFlight: 8, role: "stub:d" })
-    expect(rehearseSettings({ rehearse: { feel_below: 1.2 } }, { driver: "d", rehearse: "r" })).toMatchObject({ feelBelow: 1.2, role: "r" })
+  test("settings default to the calibrated thresholds and auto_apply off", () => {
+    expect(s).toEqual({ feelBelow: 1.45, failAt: 0.8, forkBelow: 0.8, seamBelow: 0.3, realKeep: 0.75, realDrop: 0.25, inFlight: 8, autoApply: false, role: "rehearse" })
+    expect(rehearseSettings({ feel_below: 1.2, auto_apply: true }, "rehearse")).toMatchObject({ feelBelow: 1.2, autoApply: true })
   })
 
   test("one request per step: persona, story so far and card; a fine step raises no flag", async () => {

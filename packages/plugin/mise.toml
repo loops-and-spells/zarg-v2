@@ -3,3 +3,7 @@ run = "mise x -- bunx tsc"
 
 [tasks.test]
 run = "mise x -- bun test"
+
+# Every first-party plugin (one build: they share the hash file).
+[tasks.build]
+run = "mise x -- bun scripts/build-plugins.ts"

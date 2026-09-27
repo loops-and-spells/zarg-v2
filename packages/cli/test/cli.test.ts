@@ -65,7 +65,7 @@ describe("zarg cli", () => {
   // @card UX-0001
   test("agenda and focus", () => {
     const ids = json("agenda").map((i: { id: string }) => i.id)
-    expect(ids).toEqual(["gherkin:dead-end:S-0002"])
+    expect(ids).toEqual(["plugin-grant:rehearse", "gherkin:dead-end:S-0002"])
     expect(json("query", "neighbors", "S-0001", "--k", "1")).toEqual(["S-0001", "UX-0001"])
   })
 

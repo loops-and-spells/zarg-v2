@@ -113,6 +113,21 @@
         "@zarg/plugin": "workspace:*",
       },
     },
+    "packages/plugin-rehearse": {
+      "name": "@zarg/plugin-rehearse",
+      "dependencies": {
+        "@zarg/plugin-gherkin": "workspace:*",
+        "@zarg/plugin-sdk": "workspace:*",
+        "effect": "^4.0.0-rc.117",
+      },
+      "devDependencies": {
+        "@effect/platform-bun": "^4.0.0-rc.117",
+        "@zarg/core": "workspace:*",
+        "@zarg/decisions": "workspace:*",
+        "@zarg/graph": "workspace:*",
+        "@zarg/plugin": "workspace:*",
+      },
+    },
     "packages/plugin-sdk": {
       "name": "@zarg/plugin-sdk",
       "dependencies": {
@@ -269,6 +284,8 @@
     "@zarg/plugin": ["@zarg/plugin@workspace:packages/plugin"],
 
     "@zarg/plugin-gherkin": ["@zarg/plugin-gherkin@workspace:packages/plugin-gherkin"],
+
+    "@zarg/plugin-rehearse": ["@zarg/plugin-rehearse@workspace:packages/plugin-rehearse"],
 
     "@zarg/plugin-sdk": ["@zarg/plugin-sdk@workspace:packages/plugin-sdk"],
 

@@ -1,0 +1,197 @@
+import { describe, expect, test } from "bun:test"
+import { Effect } from "effect"
+import { makeRehearse, type RunDeps } from "../src/run"
+import { rehearseSettings } from "../src/settings"
+import type { Answer, DecisionRequest, StepView } from "../src/types"
+
+const INTENT = "## Affected users and systems\n\n- The developer, through the zarg TUI.\n"
+const noul = (p: number): Answer => ({ type: "noul", answer: p >= 0.5, probability: p, confidence: 0 })
+
+type Opts = { down?: boolean; slowDecide?: number; auto?: boolean; intent?: string; unreachable?: number; files?: Map<string, string>; cardText?: (card: string) => string }
+const setup = (o: Opts = {}) =>
+  Effect.gen(function* () {
+    const files = o.files ?? new Map<string, string>([["intent/zarg.md", o.intent ?? INTENT]])
+    const decisions: Array<DecisionRequest> = []
+    const llm = { n: 0 }
+    const events: Array<{ event: string; id: string; text?: string; progress?: { done: number; total: number } }> = []
+    let changed = 0
+    let ids = 0
+    const view = (card: string): StepView => ({ card, title: card, given: `before ${card}`, when: o.cardText?.(card) ?? `do ${card}`, thens: [`after ${card}`], fork: [], hasFailure: false })
+    const deps: RunDeps = {
+      stories: () => Effect.succeed({ stories: [["A", "B", "C"], ["A", "B", "D"]], unreachable: o.unreachable ?? 0 }),
+      step: (card) => Effect.succeed(view(card)),
+      decide: (req) =>
+        Effect.andThen(
+          Effect.sleep(o.slowDecide ?? 0),
+          Effect.suspend((): Effect.Effect<Readonly<Record<string, Answer>>, string> => {
+            decisions.push(req)
+            if (req.questions.person) return Effect.succeed({ person: noul(0.9) })
+            if (req.questions.real) return Effect.succeed({ real: noul(0.9), route: { type: "choice", choice: "fix", probabilities: { fix: 1 }, confidence: 1 } })
+            if (o.down) return Effect.fail("down")
+            return Effect.succeed({ feel: { type: "score", score: req.state.includes("When do B") ? 1.0 : 1.8, level: "fine", probabilities: [], confidence: 0 }, fail: noul(0.3), arrive: noul(0.7) })
+          }),
+        ),
+      complete: (req) =>
+        Effect.sync(() => {
+          llm.n++
+          return { text: req.outputSchema ? JSON.stringify({ findings: [{ kind: "friction", severity: "medium", note: "B is unclear" }] }) : "Testers stalled at B." }
+        }),
+      agents: {
+        start: (a) => Effect.sync(() => void events.push({ event: "start", id: a.id })),
+        status: (a) => Effect.sync(() => void events.push({ event: "status", id: a.id, ...(a.text !== undefined ? { text: a.text } : {}), ...(a.progress !== undefined ? { progress: a.progress } : {}) })),
+        step: (a) => Effect.sync(() => void events.push({ event: "step", id: a.id, text: a.text })),
+        end: (a) => Effect.sync(() => void events.push({ event: "end", id: a.id })),
+      },
+      now: Effect.sync(() => 1_000 + ids),
+      uuid: Effect.sync(() => `0000000${++ids}-uuid`),
+      read: (path) => (files.has(path) ? Effect.succeed(files.get(path)!) : Effect.fail("missing")),
+      write: (path, text) => Effect.sync(() => void files.set(path, text)),
+      list: (dir) => Effect.succeed([...files.keys()].filter((k) => k.startsWith(`${dir}/`)).map((k) => k.slice(dir.length + 1))),
+      agendaChanged: Effect.sync(() => void changed++),
+      settings: rehearseSettings(o.auto ? { auto_apply: true } : {}, "stub:m"),
+    }
+    const r = yield* makeRehearse(deps)
+    return { r, files, decisions, llm, events, changed: () => changed }
+  })
+const until = (check: () => boolean) =>
+  Effect.gen(function* () {
+    for (let i = 0; i < 300 && !check(); i++) yield* Effect.sleep(10)
+  })
+const finish = (o: Opts = {}) =>
+  Effect.runPromise(
+    Effect.gen(function* () {
+      const t = yield* setup(o)
+      const s = (yield* t.r.start({})) as { run: string }
+      yield* until(() => t.r.record(s.run)?.status === "done")
+      return { ...t, run: s.run }
+    }),
+  )
+type Tabs = { parts: ReadonlyArray<{ kind: string; tabs?: ReadonlyArray<{ title: string; rows: ReadonlyArray<{ id: string }> }> }> }
+const tabs = (b: unknown) => (b as Tabs).parts.find((p) => p.kind === "tabs")!.tabs!
+
+describe("rehearse runs in the plugin", () => {
+  test("a run screens shared prefixes once, diagnoses only flagged steps, and by default applies nothing", async () => {
+    const t = await finish()
+    expect(t.decisions.filter((d) => d.questions.feel).length).toBe(4)
+    expect(t.llm.n).toBe(2)
+    const rec = t.r.record(t.run)!
+    expect(rec.findings.map((f) => [f.kind, f.card, f.route])).toEqual([["friction", "B", "fix"]])
+    expect(rec.report).toBe("Testers stalled at B.")
+    expect(t.r.agenda()).toEqual([])
+    expect(t.changed()).toBe(0)
+    expect(t.events.filter((e) => e.id === "run" && e.event === "status").at(-1)?.text).toBe("1 finding to review")
+  })
+
+  test("the tables list the findings; apply sends only the chosen ones to the agenda and says so to the host", async () => {
+    const t = await finish()
+    const id = t.r.record(t.run)!.findings[0]!.id
+    expect(tabs(t.r.body("run")).map((x) => [x.title, x.rows.map((r) => r.id)])).toEqual([["Feedback", [id]], ["Likes", []]])
+    expect((t.r.body("tester-1") as Tabs).parts.map((p) => p.kind)).toEqual(["history", "tabs"])
+    expect(t.r.body("nobody")).toBeNull()
+    expect(await Effect.runPromise(t.r.finding(id))).toMatchObject({ chosen: false, stale: false })
+    expect(await Effect.runPromise(t.r.act("apply", [id]))).toEqual({ notice: "1 finding sent to the driver" })
+    expect(t.r.agenda()).toEqual([expect.objectContaining({ title: expect.stringContaining("1 finding the developer chose to apply") })])
+    expect(t.changed()).toBe(1)
+    expect(await Effect.runPromise(t.r.finding(id))).toMatchObject({ chosen: true })
+  })
+
+  test("chosen findings survive a restart", async () => {
+    const t = await finish()
+    const id = t.r.record(t.run)!.findings[0]!.id
+    await Effect.runPromise(t.r.act("apply", [id]))
+    const again = await Effect.runPromise(setup({ files: t.files }))
+    expect(again.r.agenda().length).toBe(1)
+  })
+
+  test("dismissed findings stay dismissed on a rerun while the card is unchanged", async () => {
+    const t = await finish()
+    await Effect.runPromise(t.r.act("dismiss", [t.r.record(t.run)!.findings[0]!.id]))
+    const again = await Effect.runPromise(
+      Effect.gen(function* () {
+        const s = (yield* t.r.start({})) as { run: string }
+        yield* until(() => t.r.record(s.run)?.status === "done")
+        return t.r.body("run")
+      }),
+    )
+    expect(tabs(again)[0]!.rows).toEqual([])
+  })
+
+  test("a finding whose card changed since the run is stale", async () => {
+    let text = "do B"
+    const t = await finish({ cardText: (c) => (c === "B" ? text : `do ${c}`) })
+    text = "do B differently"
+    expect(await Effect.runPromise(t.r.finding(t.r.record(t.run)!.findings[0]!.id))).toMatchObject({ stale: true })
+  })
+
+  test("auto_apply sends the decision model's local fixes to the agenda on its own", async () => {
+    const t = await finish({ auto: true })
+    expect(t.r.agenda().length).toBe(1)
+    expect(t.changed()).toBe(1)
+  })
+
+  test("a second run is refused while one is going; with no testers a run does not start", async () => {
+    const out = await Effect.runPromise(
+      Effect.gen(function* () {
+        const t = yield* setup()
+        yield* t.r.start({})
+        const second = yield* t.r.start({})
+        const none = yield* (yield* setup({ intent: "# Intent\n" })).r.start({})
+        return { second, none }
+      }),
+    )
+    expect(out.second).toMatchObject({ refused: expect.stringContaining("is still going") })
+    expect(out.none).toMatchObject({ refused: expect.stringContaining("no testers") })
+  })
+
+  test("a decision-model outage leaves steps unscreened and counted; only the report reaches the model", async () => {
+    const t = await finish({ down: true })
+    expect(Object.values(t.r.record(t.run)!.screened).every((v) => v === null)).toBe(true)
+    expect(t.r.record(t.run)!.findings).toEqual([])
+    expect(t.llm.n).toBe(1)
+  })
+
+  test("a run left running resumes from its record without screening finished steps again", async () => {
+    const files = new Map<string, string>([["intent/zarg.md", INTENT]])
+    const run = "r-resume"
+    files.set(".zarg/rehearse/index.json", JSON.stringify([run]))
+    files.set(
+      `.zarg/rehearse/${run}.json`,
+      JSON.stringify({
+        run, startedAt: 1, status: "running", strategy: "edge-pair", focus: [], personas: [{ name: "The developer", text: "The developer, through the zarg TUI." }],
+        stories: [["A", "B", "C"], ["A", "B", "D"]], unreachable: 0,
+        screened: { "The developer|A": { feel: 1.8, fail: 0.3, arrive: 0.7, flags: [] }, "The developer|A>B": { feel: 1.0, fail: 0.3, arrive: 0.7, flags: ["feel"] } },
+        raw: [], infra: [], findings: [], applying: [], resolved: [],
+      }),
+    )
+    const t = await Effect.runPromise(
+      Effect.gen(function* () {
+        const t = yield* setup({ files })
+        yield* t.r.resume
+        yield* until(() => t.r.record(run)?.status === "done")
+        return t
+      }),
+    )
+    expect(t.decisions.filter((d) => d.questions.feel).length).toBe(2)
+  })
+
+  test("stop keeps the partial record, marked stopped", async () => {
+    const t = await Effect.runPromise(
+      Effect.gen(function* () {
+        const t = yield* setup({ slowDecide: 20 })
+        const s = (yield* t.r.start({})) as { run: string }
+        yield* t.r.stop
+        return { ...t, run: s.run }
+      }),
+    )
+    expect(t.r.record(t.run)!.status).toBe("stopped")
+  })
+
+  test("a tester's progress only goes up, to distinct steps checked out of those to check", async () => {
+    const t = await finish({ slowDecide: 3, unreachable: 2 })
+    const rows = t.events.filter((e) => e.id === "tester-1" && e.event === "status").map((e) => e.progress!)
+    expect(rows.map((r) => r.done)).toEqual([...rows.map((r) => r.done)].sort((a, b) => a - b))
+    expect(rows.at(-1)).toEqual({ done: 4, total: 4 })
+    expect(t.events.filter((e) => e.id === "tester-1" && e.event === "step").map((e) => e.text)).toContain("B: feel 1.00, fail 0.30 → flagged feel → 1 finding")
+    expect(t.events.filter((e) => e.id === "run" && e.event === "status").at(-1)?.text).toBe("1 finding to review · 2 unreachable")
+  })
+})

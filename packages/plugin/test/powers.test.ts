@@ -278,3 +278,24 @@ describe("plugins.call", () => {
     expect(calls).toEqual(["base.hello"])
   })
 })
+
+describe("project-relative files", () => {
+  test("relative paths and globs are the project's; a write creates missing folders inside its grant; outside stays refused", async () => {
+    const project = tmp()
+    writeFileSync(join(project, "notes.md"), "hello")
+    const grants = Effect.runSync(makeGrants({ file: join(tmp(), "g.json"), project }))
+    // A granted load: declared scopes pass without a question.
+    await Effect.runPromise(grants.approveLoad("svc", "d"))
+    const powers = makePowers({
+      plugin: "svc", manifest: { scopes: { fs: { read: ["intent/**", ".zarg/out/**", "notes.md"], write: [".zarg/out/**"] } } as never, optional: {} as never },
+      grants, digest: "d",
+      vault: () => Effect.succeed(undefined), config: {}, ask: () => Effect.succeed("deny"), yolo: () => false, log: () => {}, redact: (t) => t,
+      projectRoot: project,
+    })
+    expect(await powers["fs.read"]!({ path: "notes.md" }).catch((e: Error) => e.message)).toBe("hello")
+    await powers["fs.write"]!({ path: ".zarg/out/run/r-1.json", text: "{}" })
+    expect(readFileSync(join(project, ".zarg/out/run/r-1.json"), "utf8")).toBe("{}")
+    expect(await powers["fs.list"]!({ dir: ".zarg/out/run" })).toEqual(["r-1.json"])
+    await expect(powers["fs.write"]!({ path: "elsewhere.txt", text: "x" })).rejects.toThrow()
+  })
+})

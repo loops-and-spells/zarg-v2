@@ -1,7 +1,7 @@
 // packages/core/test/rehearse-calibration.test.ts
 import { expect, test } from "bun:test"
 import cases from "../calibration/rehearse.json"
-import { scoreCalibration, type CalibrationCase } from "../src/rehearse/calibration"
+import { scoreCalibration, type CalibrationCase } from "../src/calibration"
 
 test("the calibration set has good and bad steps for every flag", () => {
   const set = cases as ReadonlyArray<CalibrationCase>

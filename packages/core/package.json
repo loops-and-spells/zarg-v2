@@ -18,7 +18,8 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./plugins": "./src/plugins.ts"
+    "./plugins": "./src/plugins.ts",
+    "./live": "./src/live.ts"
   },
   "private": true,
   "type": "module"
