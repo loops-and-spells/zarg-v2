@@ -78,6 +78,27 @@ describe("pricing example", () => {
   })
 })
 
+describe("rehearse", () => {
+  test("stories and steps come from the graph plugin", async () => {
+    const out = await run(
+      Effect.gen(function* () {
+        yield* pricing
+        const teleport = yield* PluginHost.use((h) => h.stories("teleport"))
+        const edge = yield* PluginHost.use((h) => h.stories("edge-pair"))
+        const first = teleport.stories[0]![0]!
+        const step = yield* PluginHost.use((h) => h.step(first))
+        const none = yield* PluginHost.use((h) => h.step("UX-9999"))
+        return { teleport, edge, step, none }
+      }),
+    )
+    expect(out.teleport.stories.length).toBeGreaterThan(0)
+    expect(out.teleport.stories.every((s) => s.length === 1)).toBe(true)
+    expect(out.edge.stories.length).toBeGreaterThan(0)
+    expect(out.step).toMatchObject({ card: out.teleport.stories[0]![0], when: expect.any(String), thens: expect.any(Array) })
+    expect(out.none).toBeUndefined()
+  })
+})
+
 describe("gherkin rules", () => {
   test("an empty graph asks for the first requirement", async () => {
     const items = await run(PluginHost.use((h) => h.agenda()))

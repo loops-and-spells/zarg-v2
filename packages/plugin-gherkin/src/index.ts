@@ -7,6 +7,7 @@ import type { Finding } from "./kit"
 import { clauseShape, stateText } from "./lints"
 import { CARD, CardProps, STATE, StateProps } from "./model"
 import { render } from "./render"
+import { planStories, stepView } from "./stories"
 import { tools } from "./tools"
 
 const SnapshotJson = Schema.Struct({ nodes: Schema.Array(Schema.Unknown) })
@@ -53,6 +54,12 @@ export default definePlugin({
     agenda: { doc: "Open items.", params: Schema.Struct({}), success: Items },
     suggest: { doc: "What next when the agenda is empty.", params: Schema.Struct({}), success: Items },
     render: { doc: "Gherkin text.", params: Schema.Struct({ focus: Schema.optionalKey(Schema.Array(Schema.String)) }), success: Schema.String },
+    stories: {
+      doc: "Stories for testers to walk.",
+      params: Schema.Struct({ strategy: Schema.Literals(["edge-pair", "teleport"]), focus: Schema.optionalKey(Schema.Array(Schema.String)) }),
+      success: Schema.Struct({ stories: Schema.Array(Schema.Array(Schema.String)), unreachable: Schema.Number }),
+    },
+    step: { doc: "What a tester sees at a step.", params: Schema.Struct({ card: Schema.String, via: Schema.optionalKey(Schema.String) }), success: Schema.Unknown },
     affected: {
       doc: "Cards a change affects.",
       params: Schema.Struct({ before: SnapshotJson, after: SnapshotJson }),
@@ -75,6 +82,9 @@ export default definePlugin({
       agenda: () => Effect.map(snap, agenda),
       suggest: () => Effect.map(snap, suggest),
       render: ({ focus }: { focus?: ReadonlyArray<string> }) => Effect.map(snap, (s) => render(s, focus === undefined ? undefined : new Set(focus))),
+      stories: ({ strategy, focus }: { strategy: "edge-pair" | "teleport"; focus?: ReadonlyArray<string> }) =>
+        Effect.map(snap, (s) => planStories(s, strategy, focus === undefined ? undefined : new Set(focus))),
+      step: ({ card, via }: { card: string; via?: string }) => Effect.map(snap, (s) => stepView(s, card, via) ?? null),
       affected: ({ before, after }: { before: { nodes: ReadonlyArray<unknown> }; after: { nodes: ReadonlyArray<unknown> } }) =>
         Effect.sync(() => affectedCards(snapshotOf(before), snapshotOf(after))),
     } as never

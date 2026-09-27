@@ -43,6 +43,10 @@ export class PluginHost extends Context.Service<
     readonly render: (focus?: ReadonlySet<string>) => Effect.Effect<string, IoError>
     /** Cards (or other items) a graph change affects, over every graph plugin that answers it. */
     readonly affected: (before: Snapshot.Snapshot, after: Snapshot.Snapshot) => Effect.Effect<Affected, IoError>
+    /** Stories for testers over every graph plugin that plans them (rehearse). */
+    readonly stories: (strategy: "edge-pair" | "teleport", focus?: ReadonlySet<string>) => Effect.Effect<{ readonly stories: ReadonlyArray<ReadonlyArray<string>>; readonly unreachable: number }, IoError>
+    /** What a tester sees at a card, from the plugin that owns it; undefined for an unknown card. */
+    readonly step: (card: string, via?: string) => Effect.Effect<Record<string, unknown> | undefined, IoError>
     /** Run `effect` with no tool call committing meanwhile (e.g. while landing a commit that writes graph files). */
     readonly exclusive: <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
   }
@@ -94,7 +98,7 @@ const scrub = (value: unknown, secrets: ReadonlySet<string>): unknown => {
 }
 
 /** Methods the host calls on graph plugins; never offered as tools. */
-const RESERVED = new Set(["validate", "lint", "agenda", "suggest", "render", "affected"])
+const RESERVED = new Set(["validate", "lint", "agenda", "suggest", "render", "affected", "stories", "step"])
 const IDLE_MS = 10 * 60_000
 const RESTART_WINDOW_MS = 10 * 60_000
 const MAX_RESTARTS = 3
@@ -358,6 +362,14 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           removed: [...new Set(defined(parts).flatMap((p) => p.removed))].sort(),
         }))
 
+      const stories = (strategy: "edge-pair" | "teleport", focus?: ReadonlySet<string>) =>
+        Effect.map(each<{ stories: ReadonlyArray<ReadonlyArray<string>>; unreachable: number }>("stories", { strategy, ...(focus !== undefined ? { focus: [...focus] } : {}) }), (parts) => ({
+          stories: defined(parts).flatMap((p) => p.stories),
+          unreachable: defined(parts).reduce((n, p) => n + p.unreachable, 0),
+        }))
+      const step = (card: string, via?: string) =>
+        Effect.map(each<Record<string, unknown> | null>("step", { card, ...(via !== undefined ? { via } : {}) }), (parts) => defined(parts).find((p) => p !== null) ?? undefined)
+
       return {
         tools: loaded.flatMap((m) =>
           Object.entries(m.methods)
@@ -371,6 +383,8 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         suggest,
         render,
         affected,
+        stories,
+        step,
         exclusive: Semaphore.withPermits(lock, 1),
       }
     }),
