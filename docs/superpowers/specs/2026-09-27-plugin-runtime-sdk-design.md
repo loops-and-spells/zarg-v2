@@ -33,10 +33,11 @@ Every plugin runs locked down: it can do only what you granted it, and nothing e
     - `net`: hosts (`["openrouter.ai"]`), https only
     - `secrets`: key names within its namespace
     - `graph`: `"read"` or `"write"` (write = its tools may propose changes)
-    - `fs`: `{ read?: [globs], write?: [globs] }`, paths under the project or `~/.config/zarg/<name>/`
-  - `optional`: scopes in the same shape, asked for on first use instead of at load (see "Grants on demand"). The manifest is the ceiling: a scope in neither `scopes` nor `optional` can never be granted.
+    - `fs`: `{ read?: [globs], write?: [globs] }`, any absolute or `~/` path; broad globs (`~/**`, `/**`) are flagged when you are asked
+  - `optional`: scopes in the same shape, asked for on first use instead of at load (see "Grants on demand"). A kind may be `"ask"` instead of a list (`optional: { fs: { read: "ask" }, net: "ask" }`): the plugin does not know the paths or hosts ahead of time, and you are asked about the concrete one when it is used. A plugin may prompt only for what `scopes` or `optional` declare.
   - `methods`: each method's `doc`, params and result as JSON Schema, and `agents: true|false` (whether you may grant it to agents; used by sub-project 4).
   - `graph` archetype extras: node types and edge specs (data), and which hooks it implements (`lint`, `agenda`, `suggest`, `render`, `affected`).
+- **Grants you start**: `zarg plugin grant <name> --fs-read <path> | --fs-write <path> | --net <host> | --secret <KEY>` adds a grant the manifest never asked for (a path you set in the plugin's config, a new data drive). Because you start it, it is not bounded by the manifest; it is still bounded by the plugin's own secret namespace.
 - **Grant**: your approval of a plugin's scopes. Stored per user in `~/.config/zarg/grants.json`, keyed by project root, plugin name and a digest of the scopes. Never in the repository: a cloned repo cannot grant its own plugins. A plugin whose scopes change needs a new grant; a new version with the same scopes does not.
 
 ## Runtime
@@ -62,7 +63,10 @@ core process (lockdown() first)                 plugin Worker (lockdown() first)
 - **Grants on demand**: a power call that needs a scope declared in `optional` but not yet granted pauses (its deadline clock stops) while the core asks you on the `main` thread, as an inquiry like the driver's: "Plugin `tracker` wants to reach `api.github.com`" with options allow once, always allow, deny.
   - Always allow updates `grants.json`; deny, or no answer within 10 minutes, fails the call with `NotGranted`. The question stays open after a timeout so you can still answer it for next time.
   - Concurrent calls needing the same scope share one question.
-  - A scope not declared in the manifest fails at once with `NotGranted`; it is never asked for.
+  - A scope not declared in the manifest (and not granted by you) fails at once with `NotGranted`; it is never asked for.
+  - For an `"ask"` kind the question names the concrete path or host, with options: allow this one, allow its folder (`/mnt/data/**`) or domain, always allow, deny.
+  - Paths from a plugin's config are not granted automatically (project config is in the repository, so a cloned repo could point a plugin at `~/.ssh`); their first use is asked like any other.
+- **YOLO**: a switch (per plugin or for the project; `zarg plugin yolo on|off [<name>]`) that lets every declared scope through without asking. It saves no grants: when it is turned off, anything not granted before is asked again. The status line shows `YOLO` while it is on, and every call it let through is logged with the scope it used. YOLO never passes an undeclared scope, never reaches another plugin's secret namespace, and never takes a plugin out of its Compartment.
 - **Snapshot mirror**: the Worker holds one copy of the graph snapshot for plugins with `graph` scope. The host sends it at load and a diff after each write, so a lint or tool call does not copy the graph.
 - **Protocol**: `call` / `reply` / `stream` / `end` / `cancel` messages, JSON only. Values are encoded with the method's JSON Schema on the way out and decoded by the plugin with its own Schema on the way in. Typed failures travel as `{ _tag, message }`, as the kernel does today.
 - **Only one loader**: a test fails if any package other than `@zarg/plugin` and `@zarg/plugin-sdk` imports a plugin package (`@zarg/plugin-gherkin*`).
@@ -122,6 +126,9 @@ No real model in `verify`.
 - Secrets: a plugin reads its own granted key; another plugin's key, an ungranted key of its own, and the raw vault are unreachable; a secret value never appears in a reply, the log or an error.
 - Net and fs: a scoped fetch reaches a granted host (local test server) and fails for others, including by redirect; fs globs refuse `..` and symlink escapes.
 - Grants on demand: an optional scope's first use raises one inquiry; allow once lets that call through only; always allow persists and later calls do not ask; deny and the 10-minute timeout fail with `NotGranted`; an undeclared scope never asks; two concurrent calls raise one inquiry.
+- `"ask"` kinds: a read of an undeclared-in-advance path under `fs: { read: "ask" }` asks with that path; "allow its folder" grants the directory glob; a plugin without an `"ask"` kind gets `NotGranted` without a question.
+- Grants you start: a path granted with `zarg plugin grant --fs-read` is readable though the manifest never listed it; another plugin's secret cannot be granted this way.
+- YOLO: with it on, declared scopes pass without a question and each pass is logged; nothing is written to `grants.json`; after it is turned off the same call asks again; an undeclared scope and another plugin's secret still fail.
 - Liveness: a plugin that loops forever fails its call at the deadline, the Worker restarts, other plugins keep working; three restarts disable the plugin.
 - Loader: the import rule test; an ungranted plugin does not load and raises an agenda item.
 - Gherkin: the existing Gherkin, plugin host, rlm graph and core suites pass with Gherkin running in the runtime.
