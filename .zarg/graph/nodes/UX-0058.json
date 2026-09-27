@@ -1,0 +1,22 @@
+{
+  "edges": [
+    {
+      "to": "S-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0058",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0056",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0058",
+  "props": {
+    "title": "Developer turns reconcile on",
+    "when": "the developer types /reconcile"
+  },
+  "type": "gherkin/card"
+}

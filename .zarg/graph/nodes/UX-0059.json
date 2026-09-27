@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0059",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0059",
+  "props": {
+    "title": "Reconcile cannot turn on",
+    "when": "the developer types /reconcile without plan or implement models"
+  },
+  "type": "gherkin/card"
+}
