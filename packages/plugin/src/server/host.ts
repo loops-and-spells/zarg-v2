@@ -189,6 +189,8 @@ interface Running {
   readonly restarts: Array<number>
   disabled: boolean
   inflight: number
+  /** Questions it waits on the developer for (grants, its agents' conversations): it is not idle then. */
+  readonly asking: () => number
   idle?: ReturnType<typeof setTimeout>
   /** Secret values the host served this plugin: scrubbed from all it returns. */
   readonly served: ReadonlySet<string>
@@ -275,7 +277,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
             if (r?.disabled === true) throw { tag: "PluginError", message: `${m.name} is disabled` }
             if (r !== undefined && r.idle !== undefined && r.inflight === 0) {
               clearTimeout(r.idle)
-              r.idle = setTimeout(() => { if (r.inflight === 0) Effect.runFork(r.process.stop) }, opts.idleMs ?? IDLE_MS)
+              r.idle = setTimeout(() => { if (r.inflight === 0 && r.asking() === 0) Effect.runFork(r.process.stop) }, opts.idleMs ?? IDLE_MS)
               r.idle.unref()
             }
           },
@@ -317,7 +319,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           yield* spawned.value.stop
           return failed(m, `its bundle says it is ${id.name ?? "?"}/${id.service ?? "?"}/${id.archetype ?? "?"}, its manifest ${m.name}/${m.service}/${m.archetype}`)
         }
-        const r: Running = { manifest: m, process: spawned.value, restarts, disabled: false, inflight: 0, served: served(powers) }
+        const r: Running = { manifest: m, process: spawned.value, restarts, disabled: false, inflight: 0, served: served(powers), asking: () => asking }
         // A service plugin's services start now, not on its first call: a run a restart cut short resumes.
         if (m.archetype === "service" || m.archetype === "agent") yield* Effect.forkDetach(Effect.ignore(spawned.value.call("$start", {})))
         return r
@@ -409,7 +411,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
             Effect.ensuring(Effect.sync(() => {
               r.inflight--
               if (r.inflight === 0) {
-                r.idle = setTimeout(() => { if (r.inflight === 0) Effect.runFork(r.process.stop) }, opts.idleMs ?? IDLE_MS)
+                r.idle = setTimeout(() => { if (r.inflight === 0 && r.asking() === 0) Effect.runFork(r.process.stop) }, opts.idleMs ?? IDLE_MS)
                 // An idle timer must never keep a finished command (or the core) alive.
                 r.idle.unref()
               }

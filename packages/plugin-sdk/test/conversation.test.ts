@@ -49,7 +49,7 @@ test("say and ask fill the agent's conversation; the developer's answer complete
 test("a restarted agent's open question is withdrawn: an answer to it is refused and the question leaves the view", async () => {
   const pushes: Array<{ section: string; data: { question?: unknown } }> = []
   const methods = plugin([]).serve({ call: async (name: string, args: unknown) => (name === "agents.event" && (args as { event: string }).event === "set" && pushes.push(args as never), null) })
-  expect(await methods.$answer!({ agent: "a-1", question: "q-from-before", answer: { choice: "y" } })).toEqual({ notice: "that question is no longer open" })
-  expect(pushes.at(-1)!.section).toBe("talk")
-  expect(pushes.at(-1)!.data.question).toBeUndefined()
+  expect(await methods.$answer!({ agent: "a-1", question: "q-from-before", answer: { choice: "y" } })).toEqual({ notice: "that question is no longer open", withdrawn: true })
+  // A new process knows nothing of the conversation: it pushes nothing (the core withdraws the question, keeping the messages).
+  expect(pushes).toEqual([])
 })

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { Effect } from "effect"
+import { Effect, Fiber } from "effect"
 import { makeGrants, scopesDigest } from "../src/runtime"
 import { fixturePlugin, hostWith } from "./fixtures"
 
@@ -108,5 +108,33 @@ export default definePlugin({ name: "walker", service: "Walker", archetype: "age
   test("a bundle that claims the trusted runtime is refused: trusted agents are zarg's own packages", async () => {
     const out = await Effect.runPromise(hostWith([await fixturePlugin(agent("trusted"))], (h) => Effect.map(h.agenda(), (a) => a.map((i) => i.detail).join(" "))))
     expect(out).toContain("trusted")
+  })
+})
+
+describe("a sandboxed agent's conversation", () => {
+  test("a question the developer takes a while to answer does not trip the call's deadline", async () => {
+    const src = `
+import { Effect, Schema } from "effect"
+import { Conversation, definePlugin, defineView } from "@zarg/plugin-sdk"
+const Talk = defineView("talk", { talk: { kind: "conversation", role: "primary" } })
+export default definePlugin({ name: "asker", service: "Asker", archetype: "agent", config: Schema.Struct({}), scopes: { agents: true }, views: [Talk],
+  methods: { go: { doc: "go", params: Schema.Struct({}), success: Schema.String, deadlineMs: 100 } },
+  make: Effect.gen(function* () { const c = yield* Conversation; return { go: () => Effect.map(c.ask("a-1", { question: "Go?", options: [{ id: "y", label: "Yes" }] }), (a) => a.choice ?? "") } }) })`
+    const pushes: Array<{ event: string; data?: { question?: { id: string } } }> = []
+    const out = await Effect.runPromise(
+      hostWith(
+        [await fixturePlugin(src)],
+        (h) =>
+          Effect.gen(function* () {
+            const going = yield* Effect.forkChild(h.invoke("asker", "go", {}))
+            yield* Effect.sleep(400)
+            const q = pushes.findLast((p) => p.event === "set")?.data?.question?.id ?? ""
+            yield* h.invoke("asker", "$answer", { agent: "a-1", question: q, answer: { choice: "y" } })
+            return yield* Fiber.join(going)
+          }),
+        { agents: (_p, e) => void pushes.push(e as never) },
+      ),
+    )
+    expect(out).toBe("y")
   })
 })

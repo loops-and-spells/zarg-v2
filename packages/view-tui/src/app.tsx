@@ -5,7 +5,7 @@ import { pickRow, startUi } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { registerCommands } from "./commands"
 import { AgentView, type Scroller } from "./sections"
-import { type Action, agentDetail, agentRows, animating, attentionLine, conversation, activate, messageShown, OTHER, otherFocused, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
+import { type Action, agentDetail, agentRows, animating, attentionLine, attentionOf, conversation, activate, messageShown, OTHER, otherFocused, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
 
 const COLORS = { you: "#8ab4f8", zarg: "#e8eaed", error: "#f28b82", notice: "#fdd663", dim: "#9aa0a6", accent: "#81c995", select: "#3c4043" }
 const TONE = { running: COLORS.zarg, done: COLORS.dim, failed: COLORS.error, stopped: COLORS.notice }
@@ -93,8 +93,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   // The tiles: zarg's conversation always, the open agent's view, the agents tree (Alt+arrows between them).
   const narrow = dims.width < 100
   const zargTile = (
-    <box title="zarg" style={{ ...(viewing !== undefined ? (narrow ? { height: "45%", flexShrink: 0 } : { width: "38%", flexShrink: 0 }) : { flexGrow: 1 }), flexDirection: "column", border: true, borderColor: ui.focus === "conversation" ? COLORS.accent : COLORS.dim }}>
-      <scrollbox style={{ flexGrow: 1 }} stickyScroll stickyStart="bottom">
+    <box title="zarg" onMouseDown={() => setUi({ ...latest(), focus: "conversation" })} style={{ ...(viewing !== undefined ? (narrow ? { flexGrow: 1, flexBasis: 0 } : { width: "38%", flexShrink: 0 }) : { flexGrow: 1 }), flexDirection: "column", border: true, borderColor: ui.focus === "conversation" ? COLORS.accent : COLORS.dim }}>
+      <scrollbox style={{ flexGrow: 1, flexShrink: 1, minHeight: 0 }} stickyScroll stickyStart="bottom">
         {lines.map((l, i) => (
           <text key={i} fg={COLORS[l.kind]}>
             {`${l.kind === "you" ? "you" : l.kind === "zarg" ? "zarg" : "!"}  ${l.text}`}
@@ -170,7 +170,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   )
   const viewTile =
     viewing === undefined ? null : (
-      <box title={`${viewing} · Esc back`} style={{ flexGrow: 1, flexDirection: "column", border: true, borderColor: ui.focus === "view" ? COLORS.accent : COLORS.dim }}>
+      <box title={`${viewing} · Esc back`} onMouseDown={() => setUi({ ...latest(), focus: "view" })} style={{ flexGrow: 1, flexBasis: 0, flexDirection: "column", border: true, borderColor: ui.focus === "view" ? COLORS.accent : COLORS.dim }}>
         {s.thread.views?.[viewing] === undefined ? (
           <text fg={COLORS.dim}>no view yet</text>
         ) : (
@@ -185,14 +185,14 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       </box>
     )
   const agentsTile = (
-    <box title={`Agents${agents.some((a) => a.attention) ? ` ◆${agents.filter((a) => a.attention).length}` : ""}`} style={{ ...(narrow ? { flexGrow: 1 } : { width: viewing !== undefined ? 32 : 48 }), flexDirection: "column", border: true, borderColor: ui.focus === "agents" ? COLORS.accent : COLORS.dim }}>
+    <box onMouseDown={() => setUi({ ...latest(), focus: "agents" })} title={`Agents${agents.some((a) => a.attention) ? ` ◆${agents.filter((a) => a.attention).length}` : ""}`} style={{ ...(narrow ? { flexGrow: 1 } : { width: viewing !== undefined ? 32 : 48 }), flexDirection: "column", border: true, borderColor: ui.focus === "agents" ? COLORS.accent : COLORS.dim }}>
       <scrollbox ref={agentsRef} style={{ flexGrow: 1 }}>
         {agents.length === 0 ? <text fg={COLORS.dim}>no agents running</text> : null}
         {agents.map((a) => (
           <text
             key={a.id}
             id={`agent-${a.id}`}
-            fg={TONE[a.tone]}
+            fg={a.attention ? COLORS.notice : TONE[a.tone]}
             truncate
             onMouseDown={() => setUi(activate(latest(), props.session.state().thread.rlms, a.id))}
             {...((a.selected && ui.focus === "agents") || a.id === viewing ? { bg: COLORS.select } : {})}
@@ -213,7 +213,10 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     </box>
   )
   // Narrow: the agents tree folds to one line of its rows, attention first.
-  const strip = agents.map((a) => a.text.trim().replace(/\s{2,}.*$/, "")).join(" │ ")
+  const asking = attentionOf(s.thread.rlms)
+  const rest = agents.filter((a) => !a.attention).map((a) => a.text.trim().replace(/\s{2,}.*$/, ""))
+  const stripText = [asking.length > 0 ? `◆${asking.length} ${asking.map((a) => a.id).join(", ")}` : "", ...rest].filter((x) => x.length > 0).join(" │ ")
+  const strip = stripText.length > dims.width - 8 ? `${stripText.slice(0, dims.width - 9)}…` : stripText
   return (
     <box style={{ flexDirection: "column", width: "100%", height: "100%" }}>
       {narrow ? (

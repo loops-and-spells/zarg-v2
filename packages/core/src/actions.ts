@@ -9,7 +9,12 @@ const owner = (agent: string) => {
 }
 
 /** Actions on an agent's view go to its plugin's `act`; the core records what the developer applied (the findings gate). */
-export const makeActions = (deps: { readonly invoke: Invoke; readonly onApply?: (plugin: string, rows: ReadonlyArray<string>) => void }) => ({
+export const makeActions = (deps: {
+  readonly invoke: Invoke
+  readonly onApply?: (plugin: string, rows: ReadonlyArray<string>) => void
+  /** Take a question the agent no longer waits for out of its view (its messages stay). */
+  readonly withdraw?: (thread: string, agent: string) => void
+}) => ({
   act: (_thread: string, agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>): Effect.Effect<{ readonly notice: string }> => {
     const o = owner(agent)
     if (o === undefined) return Effect.succeed({ notice: `${agent} has no actions` })
@@ -20,10 +25,11 @@ export const makeActions = (deps: { readonly invoke: Invoke; readonly onApply?: 
     )
   },
   /** The developer answered a question in a plugin agent's conversation. */
-  answer: (_thread: string, agent: string, question: string, answer: { readonly choice?: string; readonly other?: string }): Effect.Effect<{ readonly notice: string }> => {
+  answer: (thread: string, agent: string, question: string, answer: { readonly choice?: string; readonly other?: string }): Effect.Effect<{ readonly notice: string }> => {
     const o = owner(agent)
     if (o === undefined) return Effect.succeed({ notice: `${agent} has no conversation of its own` })
     return deps.invoke(o.plugin, "$answer", { agent: o.id, question, answer }).pipe(
+      Effect.tap((r) => Effect.sync(() => ((r as { withdrawn?: unknown } | null)?.withdrawn === true ? deps.withdraw?.(thread, agent) : undefined))),
       Effect.map((r) => ({ notice: String((r as { notice?: unknown } | null)?.notice ?? "answered") })),
       Effect.catch((e) => Effect.succeed({ notice: e.message })),
     )

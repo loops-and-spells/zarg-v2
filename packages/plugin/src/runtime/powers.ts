@@ -287,6 +287,12 @@ export const makePowers = (opts: {
       spend("tokens", out.promptTokens + out.completionTokens, Infinity)
       return out
     },
+    // An agent's conversation waits on the developer: its call's deadline and the idle timer stop meanwhile.
+    "conversation.asking": async (a) => {
+      if (opts.manifest.scopes.agents !== true) throw notGranted(`${opts.plugin}: it has no agents scope`)
+      opts.asking?.((a as { open?: unknown }).open === true)
+      return null
+    },
     "agents.event": async (e) => {
       if (opts.manifest.scopes.agents !== true) throw notGranted(`${opts.plugin}: it has no agents scope`)
       // The core checks ids and shapes; a bad event fails this call, never the core.

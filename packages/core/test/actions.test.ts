@@ -32,3 +32,13 @@ test("the developer's answer and message to a plugin agent reach its conversatio
   expect(calls.at(-1)).toEqual(["rehearse", "$message", { agent: "tester-1", text: "hi" }])
   expect(await Effect.runPromise(actions.message("main", "rlm-1", "hi"))).toEqual({ notice: "rlm-1 has no conversation of its own" })
 })
+
+test("an answer the agent no longer waits for is withdrawn from its view, its messages kept", async () => {
+  const withdrawn: Array<[string, string]> = []
+  const actions = makeActions({
+    invoke: () => Effect.succeed({ notice: "that question is no longer open", withdrawn: true }),
+    withdraw: (thread, agent) => void withdrawn.push([thread, agent]),
+  })
+  expect(await Effect.runPromise(actions.answer("main", "p:a-1", "q1", { choice: "y" }))).toEqual({ notice: "that question is no longer open" })
+  expect(withdrawn).toEqual([["main", "p:a-1"]])
+})

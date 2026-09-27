@@ -134,6 +134,34 @@ describe("tui frames", () => {
     expect(view).toBeGreaterThan(zarg)
   })
 
+  test("at 80×24 with many agents, a four-option question and a long table: the strip keeps attention, zarg keeps its question", async () => {
+    const node = (i: number) => ({ id: `rehearse:tester-${i}`, parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [], ...(i === 6 ? { attention: { reason: "3 findings to review", since: 1 } } : {}) })
+    const rlms = Object.fromEntries([1, 2, 3, 4, 5, 6, 7].map((i) => [`rehearse:tester-${i}`, node(i)]))
+    const four = { ...inquiry, options: [{ id: "a", label: "Alpha" }, { id: "b", label: "Beta" }, { id: "c", label: "Gamma" }, { id: "d", label: "Delta" }] }
+    const rows = Array.from({ length: 30 }, (_, i) => ({ id: `R-${i}`, cells: { id: `R-${i}` } }))
+    const big = { ...testerView, agent: "rehearse:tester-1", data: { ...testerView.data, "review.findings": { rows } } }
+    const t = await render({ ...waiting, thread: { ...waiting.thread, pendingInquiry: four, rlms, views: { "rehearse:tester-1": big } } }, { width: 80, height: 24 })
+    t.mockInput.pressTab()
+    await settle(t)
+    t.mockInput.pressEnter()
+    await settle(t)
+    const lines = t.captureCharFrame().split("\n")
+    expect(lines[0]).toStartWith("Agents ◆1")
+    expect(lines[0]).toContain("tester-6")
+    for (const o of ["Alpha", "Beta", "Gamma", "Delta"]) expect(t.captureCharFrame()).toContain(o)
+    expect(t.captureCharFrame()).toContain("R-1")
+  })
+
+  test("a click on a tile gives it the keys", async () => {
+    const t = await openTester({ width: 130, height: 22 })
+    // The view has the keys; a click inside zarg's tile gives them to zarg: arrows then move its question.
+    await t.mockMouse.click(5, 3)
+    await settle(t)
+    t.mockInput.pressArrow("up")
+    await settle(t)
+    expect(t.captureCharFrame()).toContain("› Login")
+  })
+
   test("Escape in the view tile closes it and gives the keys back to zarg", async () => {
     const t = await openTester({ width: 130, height: 22 })
     t.mockInput.pressEscape()

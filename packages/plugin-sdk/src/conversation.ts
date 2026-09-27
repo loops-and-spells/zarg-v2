@@ -39,21 +39,23 @@ export const conversations = (raw: RawPowers) => {
         t.question = { id: `q${++n}`, question: q.question, options: q.options, allowOther: q.allowOther ?? false }
         t.waiting = waiting
         yield* push(agent)
-        return yield* Deferred.await(waiting)
+        // The host stops this call's deadline while the developer thinks.
+        const asking = (open: boolean) => Effect.ignore(Effect.tryPromise(() => raw.call("conversation.asking", { open })))
+        yield* asking(true)
+        return yield* Deferred.await(waiting).pipe(Effect.ensuring(asking(false)))
       }),
   })
   return {
     service,
     /** The developer answered a question in an agent's conversation. */
     answer: async (p: { agent: string; question: string; answer: Answer }) => {
-      const t = talkOf(p.agent)
-      const open = t.question !== undefined && t.question.id === p.question && t.waiting !== undefined
-      const waiting = t.waiting
+      const t = talks.get(p.agent)
+      const waiting = t?.question?.id === p.question ? t.waiting : undefined
+      // A question from before a restart has no one waiting: the core withdraws it from the view (this process never knew it).
+      if (t === undefined || waiting === undefined) return { notice: "that question is no longer open", withdrawn: true }
       delete t.question
       delete t.waiting
       await Effect.runPromise(Effect.ignore(push(p.agent)))
-      // A question from before a restart has no one waiting: it leaves the view, and the developer is told.
-      if (!open || waiting === undefined) return { notice: "that question is no longer open" }
       await Effect.runPromise(Deferred.succeed(waiting, p.answer))
       return { notice: "answered" }
     },

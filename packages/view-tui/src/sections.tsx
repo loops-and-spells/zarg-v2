@@ -112,6 +112,7 @@ const wantedOf = (view: ViewState, ui: ViewUi, s: LayoutSection): number => {
     k === "stats" ? 1
     : k === "text" ? ((view.data[leaf.path] as { markdown?: string } | undefined)?.markdown ?? "").split("\n").length
     : k === "keyvalue" ? ((view.data[leaf.path] as { pairs?: ReadonlyArray<unknown> } | undefined)?.pairs ?? []).length
+    : k === "log" ? ((view.data[leaf.path] as { lines?: ReadonlyArray<unknown> } | undefined)?.lines ?? []).length
     : rowsOf(view, leaf.path).length + (k === "table" ? 2 + ((leaf.leaf.actions ?? []).length > 0 ? 1 : 0) : 0)
   return Math.max(1, content) + 2
 }
@@ -161,7 +162,10 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
               paddingLeft: 1,
               minHeight: 2,
               flexShrink: 1,
-              ...(s.role === "log" ? { flexGrow: 1 } : { height: wantedOf(props.view, props.ui, s), maxHeight: s.role === "summary" ? 6 : SHARE[s.role as keyof typeof SHARE] }),
+              // The log and the pinned section share what is left, each up to what it needs; primary and aside keep their share.
+              ...(s.role === "log" || s.role === "pinned"
+                ? { flexGrow: 1, flexBasis: 0, maxHeight: wantedOf(props.view, props.ui, s) }
+                : { height: wantedOf(props.view, props.ui, s), maxHeight: s.role === "summary" ? 6 : SHARE[s.role as keyof typeof SHARE] }),
             }}
             {...(leaf.leaf.kind === "log" ? { stickyScroll: true, stickyStart: "bottom" as const } : {})}
           >

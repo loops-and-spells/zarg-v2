@@ -462,3 +462,24 @@ describe("a plugin agent's conversation in its view", () => {
     expect(onKey(down.ui, s, { name: "return" }, 0).action).toEqual({ type: "answer-agent", question: "q1", answer: { choice: "n" } })
   })
 })
+
+describe("zarg's row", () => {
+  const zarg = { id: "zarg", parent: null, preset: "zarg", depth: 0, turns: 0, budget: 0, status: "running" as const, decisions: [] }
+  const driver = { id: "rlm-1", parent: "zarg", preset: "driver", depth: 1, turns: 3, budget: 25, status: "running" as const, decisions: [] }
+  test("the busy line and the detail card talk about the driver, not zarg's own row", () => {
+    const s = { ...running, thread: { ...running.thread, status: "running", rlms: { zarg, "rlm-1": driver } } } as SessionState
+    expect(working({ ...initialUi, runningSince: 0 }, s, 1000)).toContain("turn 3/25")
+    expect(agentDetail(s.thread.rlms, undefined)[0]).toBe("driver rlm-1 · running")
+  })
+  test("zarg's row alone does not keep the screen redrawing", () => {
+    const s = { ...running, thread: { ...running.thread, status: "idle", rlms: { zarg } } } as SessionState
+    expect(animating(initialUi, s)).toBe(false)
+  })
+})
+
+test("an attention reason is cut to the room its row has", () => {
+  const rlms = { "p:t": { id: "p:t", parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [], attention: { reason: "a very long reason that would never fit on one row of the tree", since: 1 } } }
+  const rows = agentRows(rlms, { toggled: {} }, 46)
+  expect(rows[0]!.text.length).toBeLessThanOrEqual(46)
+  expect(rows[0]!.text).toEndWith("…")
+})

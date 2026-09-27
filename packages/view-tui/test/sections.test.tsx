@@ -57,12 +57,15 @@ describe("the terminal draws an agent's view", () => {
     expect(f).toContain("step 39")
   })
 
-  test("at 80×20 every section keeps its title and the pinned table stays within 40%", async () => {
+  test("at 80×20 every section keeps its title; the log and the pinned table share what is left", async () => {
     const f = await frame(view(30), initialViewUi, { width: 80, height: 20 })
     for (const t of ["Workers", "Steps", "Findings"]) expect(f).toContain(t)
     const lines = f.split("\n")
-    const pinnedFrom = lines.findIndex((l) => l.includes("Findings"))
-    expect(lines.length - pinnedFrom).toBeLessThanOrEqual(Math.ceil(20 * 0.4) + 1)
+    const steps = lines.findIndex((l) => l.includes("Steps"))
+    const pinned = lines.findIndex((l) => l.includes("Findings"))
+    // Both get rows: neither swallows the other.
+    expect(pinned - steps).toBeGreaterThanOrEqual(4)
+    expect(lines.filter((l) => /R-\d/.test(l)).length).toBeGreaterThanOrEqual(2)
   })
 
   test("the focused section is marked, the highlighted row shows, selected rows are ticked", async () => {

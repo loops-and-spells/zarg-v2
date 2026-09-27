@@ -51,13 +51,9 @@ export interface AgentHost {
   readonly sensitive: ReadonlyArray<unknown>
   /** The agenda for the driver: reconcile's items and the plugins' items (the host's own plugin-* items left out). */
   readonly agenda: (focus: ReadonlySet<string> | undefined) => Effect.Effect<ReadonlyArray<AgendaEntry>, unknown>
-  /** Activity and views for RLM runs on a thread. */
-  readonly activity: (threadId: string) => unknown
   /** Reads outside the repository, asking with `ask`. */
   readonly outsideReads: (ask: (q: Question) => Effect.Effect<Answer, unknown>) => unknown
   readonly findings: { readonly chosen: unknown; readonly firstParty: (plugin: string) => boolean }
-  /** Ask for the developer's attention on one of the agent's rows (`undefined` clears it). */
-  readonly attention: (threadId: string, agent: string, reason: string | undefined) => void
 }
 
 /** A trusted agent: imported into the core by path from zarg's own packages, started once. */

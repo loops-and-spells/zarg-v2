@@ -98,16 +98,16 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       log,
       sensitive,
       agenda,
-      activity: (t) => makeActivity(log, t, undefined, threadViews(log, t)),
       outsideReads: (ask) => outsideReads({ grants: agentGrants, userDir: USER_DIR, ask: ask as never, yolo: () => yoloControl.on("zarg:agents") }),
       findings: { chosen, firstParty: control.firstParty },
-      attention: () => {},
     }
     const zarg = yield* trustedAgents(ZARG_ROOT).pipe(
       Effect.map((agents) => agents.find((a) => a.name === "zarg")),
       Effect.flatMap((a) => (a === undefined ? Effect.fail("agent-zarg is not installed") : a.start(agentHost))),
       Effect.catchCause((c) => Effect.succeed({ missing: Cause.pretty(c).split("\n")[0] ?? "it failed to start" })),
     )
+    // Without zarg the core still serves; say why where the developer (and a log) can see it.
+    if (!("makeThread" in zarg)) yield* Effect.sync(() => console.error(`zarg-core: zarg is not loaded: ${zarg.missing}`))
     const makeThread = "makeThread" in zarg ? zarg.makeThread : (id: string, focus: ReadonlyArray<string>) => notLoaded(log, id, focus, zarg.missing)
     const threads = yield* makeThreads({
       makeThread,
@@ -168,7 +168,17 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       Effect.uninterruptible,
       Semaphore.withPermits(turnOnLock, 1),
     )
-    const actions = makeActions({ invoke: (plugin, method, params) => host.invoke(plugin, method, params), onApply: (plugin, rows) => chosen.add(plugin, rows) })
+    const actions = makeActions({ invoke: (plugin, method, params) => host.invoke(plugin, method, params), onApply: (plugin, rows) => chosen.add(plugin, rows),
+      withdraw: (thread, agent) => {
+        const views = threadViews(log, thread)
+        const talk = views.data(agent, "talk") as { question?: unknown } | undefined
+        if (talk === undefined) return
+        const { question: _, ...rest } = talk
+        try {
+          views.set(agent, "talk", { ...rest, status: "idle" })
+        } catch {}
+      },
+    })
     // A plugin's slash command calls its method with the words after it; its notice shows.
     const commands = {
       list: () => host.commands(),

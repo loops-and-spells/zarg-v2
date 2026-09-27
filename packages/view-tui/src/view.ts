@@ -87,7 +87,8 @@ const busy = (s: SessionState) => s.core === "up" && s.thread.status === "runnin
 /** Whether anything on screen animates: the driver working, or agents running while no question waits. */
 export const animating = (ui: Ui, s: SessionState) =>
   ui.runningSince !== undefined ||
-  (s.core === "up" && s.thread.pendingInquiry === undefined && Object.values(s.thread.rlms).some((r) => r.status === "running"))
+  // zarg's own row is always there: only agents doing work keep the clock ticking.
+  (s.core === "up" && s.thread.pendingInquiry === undefined && Object.values(s.thread.rlms).some((r) => r.status === "running" && r.preset !== "zarg"))
 
 const withRunClock = (ui: Ui, s: SessionState, now: number): Ui => {
   if (busy(s)) return ui.runningSince === undefined ? { ...ui, runningSince: now } : ui
@@ -103,7 +104,7 @@ const spin = (now: number) => SPINNER[Math.floor(now / 100) % SPINNER.length]!
 export const working = (ui: Ui, s: SessionState, now: number): string | undefined => {
   if (!busy(s) || ui.runningSince === undefined) return undefined
   const secs = Math.max(0, Math.floor((now - ui.runningSince) / 1000))
-  const root = childrenOf(s.thread.rlms)(null)[0]
+  const root = driverRoot(s.thread.rlms)
   const turn = root !== undefined ? ` · turn ${root.turns}/${root.budget}` : ""
   return `${spin(now)} zarg is preparing a reply · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}${turn}`
 }
@@ -139,6 +140,13 @@ const BAR = 6
 const childrenOf = (rlms: Readonly<Record<string, RlmNode>>) => {
   const nodes = Object.values(rlms).sort((a, b) => idNumber(a.id) - idNumber(b.id))
   return (parent: string | null) => nodes.filter((n) => (parent === null ? n.parent === null || rlms[n.parent] === undefined : n.parent === parent))
+}
+
+/** The driver's RLM: the first child of zarg's row, or the first root when zarg has no row. */
+const driverRoot = (rlms: Readonly<Record<string, RlmNode>>): RlmNode | undefined => {
+  const children = childrenOf(rlms)
+  const zarg = children(null).find((n) => n.preset === "zarg")
+  return zarg !== undefined ? (children(zarg.id)[0] ?? undefined) : children(null)[0]
 }
 
 // Roots start open, everything below starts collapsed; `toggled` flips that per id.
@@ -181,7 +189,8 @@ export const agentRows = (rlms: Readonly<Record<string, RlmNode>>, agents: Agent
   // The left column gives way to the bar, the turns and the hidden count: a long id is cut, never wrapped.
   const room = Math.max(8, cols - (2 + BAR + 1 + 5) - hiddenWidth)
   const lefts = rows.map((r) => {
-    const icon = r.node.attention !== undefined ? "◆" : r.node.status === "running" && now !== undefined ? spin(now) : ICON[r.node.status]
+    // zarg's row does not spin: it is there all session, working or not.
+    const icon = r.node.attention !== undefined ? "◆" : r.node.status === "running" && now !== undefined && r.node.preset !== "zarg" ? spin(now) : ICON[r.node.status]
     const l = `${r.prefix} ${icon} ${r.node.preset} ${r.node.id}`
     return l.length > room ? `${l.slice(0, room - 1)}…` : l
   })
@@ -194,7 +203,10 @@ export const agentRows = (rlms: Readonly<Record<string, RlmNode>>, agents: Agent
     const filled = Math.min(BAR, Math.round((done / Math.max(1, total)) * BAR))
     const bar = "▰".repeat(filled) + "▱".repeat(BAR - filled)
     const hidden = r.hidden.length > 0 ? `  +${r.hidden.length}` : ""
-    const count = n.attention?.reason ?? n.row?.text ?? `${done}/${total}`.padStart(5)
+    // A reason gets the room left of the row, and is cut there.
+    const room = Math.max(4, cols - width - 2 - BAR - 1 - hidden.length)
+    const reason = n.attention?.reason
+    const count = reason !== undefined ? (reason.length > room ? `${reason.slice(0, room - 1)}…` : reason) : (n.row?.text ?? `${done}/${total}`.padStart(5))
     return {
       id: n.id,
       text: `${lefts[i]!.padEnd(width)}  ${bar} ${count}${hidden}`,
@@ -227,7 +239,7 @@ export const attentionLine = (rlms: Readonly<Record<string, RlmNode>>) =>
 
 /** The card for the highlighted RLM (the first root when none): status, task, turns, decisions, error. */
 export const agentDetail = (rlms: Readonly<Record<string, RlmNode>>, cursor: string | undefined): ReadonlyArray<string> => {
-  const n = (cursor !== undefined ? rlms[cursor] : undefined) ?? childrenOf(rlms)(null)[0]
+  const n = (cursor !== undefined ? rlms[cursor] : undefined) ?? driverRoot(rlms)
   if (n === undefined) return []
   const task = n.task?.split("\n")[0]
   return [
