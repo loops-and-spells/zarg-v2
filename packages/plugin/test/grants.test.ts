@@ -12,6 +12,9 @@ describe("grants", () => {
     const file = join(dir(), "grants.json")
     const d1 = scopesDigest({ net: ["a.test"] }, {})
     const d2 = scopesDigest({ net: ["a.test", "b.test"] }, {})
+    // Adding a dependency asks again: through it the plugin reaches another plugin's data.
+    expect(scopesDigest({ net: ["a.test"] }, {}, ["gherkin"])).not.toBe(d1)
+    expect(scopesDigest({ net: ["a.test"] }, {}, [])).toBe(d1)
     const r = await Effect.runPromise(Effect.gen(function* () {
       const g = yield* makeGrants({ file, project: "/p/one" })
       yield* g.approveLoad("tracker", d1)

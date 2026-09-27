@@ -7,7 +7,7 @@ import type { Answer, DecisionRequest, StepView } from "../src/types"
 const INTENT = "## Affected users and systems\n\n- The developer, through the zarg TUI.\n"
 const noul = (p: number): Answer => ({ type: "noul", answer: p >= 0.5, probability: p, confidence: 0 })
 
-type Opts = { down?: boolean; slowDecide?: number; auto?: boolean; intent?: string; unreachable?: number; files?: Map<string, string>; cardText?: (card: string) => string }
+type Opts = { slowWrite?: number; down?: boolean; slowDecide?: number; auto?: boolean; intent?: string; unreachable?: number; files?: Map<string, string>; cardText?: (card: string) => string }
 const setup = (o: Opts = {}) =>
   Effect.gen(function* () {
     const files = o.files ?? new Map<string, string>([["intent/zarg.md", o.intent ?? INTENT]])
@@ -15,6 +15,8 @@ const setup = (o: Opts = {}) =>
     const llm = { n: 0 }
     const events: Array<{ event: string; id: string; text?: string; progress?: { done: number; total: number } }> = []
     let changed = 0
+    const writing = new Map<string, number>()
+    const overlap = { max: 0 }
     let ids = 0
     const view = (card: string): StepView => ({ card, title: card, given: `before ${card}`, when: o.cardText?.(card) ?? `do ${card}`, thens: [`after ${card}`], fork: [], hasFailure: false })
     const deps: RunDeps = {
@@ -45,13 +47,21 @@ const setup = (o: Opts = {}) =>
       now: Effect.sync(() => 1_000 + ids),
       uuid: Effect.sync(() => `0000000${++ids}-uuid`),
       read: (path) => (files.has(path) ? Effect.succeed(files.get(path)!) : Effect.fail("missing")),
-      write: (path, text) => Effect.sync(() => void files.set(path, text)),
+      write: (path, text) =>
+        Effect.gen(function* () {
+          const n = (writing.get(path) ?? 0) + 1
+          writing.set(path, n)
+          overlap.max = Math.max(overlap.max, n)
+          yield* Effect.sleep(o.slowWrite ?? 0)
+          files.set(path, text)
+          writing.set(path, n - 1)
+        }),
       list: (dir) => Effect.succeed([...files.keys()].filter((k) => k.startsWith(`${dir}/`)).map((k) => k.slice(dir.length + 1))),
       agendaChanged: Effect.sync(() => void changed++),
       settings: rehearseSettings(o.auto ? { auto_apply: true } : {}, "stub:m"),
     }
     const r = yield* makeRehearse(deps)
-    return { r, files, decisions, llm, events, changed: () => changed }
+    return { r, files, decisions, llm, events, changed: () => changed, overlap }
   })
 const until = (check: () => boolean) =>
   Effect.gen(function* () {
@@ -193,5 +203,23 @@ describe("rehearse runs in the plugin", () => {
     expect(rows.at(-1)).toEqual({ done: 4, total: 4 })
     expect(t.events.filter((e) => e.id === "tester-1" && e.event === "step").map((e) => e.text)).toContain("B: feel 1.00, fail 0.30 → flagged feel → 1 finding")
     expect(t.events.filter((e) => e.id === "run" && e.event === "status").at(-1)?.text).toBe("1 finding to review · 2 unreachable")
+  })
+
+  test("writes of one record never overlap, so a record is never half-written", async () => {
+    const t = await finish({ slowWrite: 2 })
+    expect(t.overlap.max).toBe(1)
+  })
+
+  test("a finding chosen in one run stays takeable after a later run reports it again unchosen", async () => {
+    const t = await finish()
+    const id = t.r.record(t.run)!.findings[0]!.id
+    await Effect.runPromise(t.r.act("apply", [id]))
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const s = (yield* t.r.start({})) as { run: string }
+        yield* until(() => t.r.record(s.run)?.status === "done")
+      }),
+    )
+    expect(await Effect.runPromise(t.r.finding(id))).toMatchObject({ run: t.run, chosen: true })
   })
 })

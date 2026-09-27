@@ -3,6 +3,9 @@ import type { Client, PluginCommandInfo, RunRequest } from "./client"
 import type { Answer } from "./events"
 import { type Body, initial, reduce, type ThreadState } from "./state"
 
+/** Commands the session handles itself. */
+const BUILT_IN = new Set(["/reconcile", "/yolo"])
+
 export interface SessionState {
   readonly thread: ThreadState
   /** "down" once the core stops answering (it exited, or the socket is gone). */
@@ -91,7 +94,8 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
       return () => listeners.delete(l)
     },
     start: () => {
-      fork(opts.client.commands().pipe(Effect.map((c) => void (pluginCommands = c)), Effect.ignore))
+      // zarg's own commands always win: a plugin naming one is dropped.
+      fork(opts.client.commands().pipe(Effect.map((c) => void (pluginCommands = c.filter((x) => !BUILT_IN.has(x.cmd)))), Effect.ignore))
       fork(follow(0))
       post({})
     },

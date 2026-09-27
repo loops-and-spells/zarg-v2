@@ -79,13 +79,15 @@ export const makeRehearse = (deps: RunDeps) =>
       if (r !== undefined) records.set(r.run, r)
     }
     let dismissed = yield* json<Record<string, string>>(DISMISSED, {})
+    // One write at a time: overlapping writes of one file could leave it half old, half new.
+    const writing = yield* Semaphore.make(1)
     const save = (r: RunRecord) =>
       Effect.gen(function* () {
         const isNew = !records.has(r.run)
         records.set(r.run, r)
         yield* quiet(deps.write(`${DIR}/${r.run}.json`, JSON.stringify(r, null, 2)))
         if (isNew) yield* quiet(deps.write(INDEX, JSON.stringify([...records.keys()])))
-      })
+      }).pipe(writing.withPermits(1))
     const lock = yield* Semaphore.make(1)
     let active: { run: string; fiber: Fiber.Fiber<void, unknown> } | undefined
 
@@ -273,7 +275,7 @@ export const makeRehearse = (deps: RunDeps) =>
             `For each: yield* Findings.take({ plugin: "rehearse", finding }), then change the Gherkin graph to resolve it (split an oversize card, never grow it); no question needed, the developer chose these. Finish with yield* Findings.resolve({ plugin: "rehearse", run: "${r.run}", applied, dismissed }).`,
           ].join("\n"),
           about: [...new Set(open.map((f) => f.card))],
-          priority: 0,
+          priority: 1,
         }))
 
     const rowsOf = (fs: ReadonlyArray<Triaged>) =>
@@ -327,11 +329,13 @@ export const makeRehearse = (deps: RunDeps) =>
     /** For the core's findings gate: which run and card, whether the developer chose it, whether its card changed. */
     const finding = (id: string) =>
       Effect.gen(function* () {
-        const hit = [...records.values()]
+        const hits = [...records.values()]
           .filter((r) => r.status === "done")
           .sort((a, b) => b.startedAt - a.startedAt)
           .flatMap((r) => r.findings.map((f) => ({ r, f })))
-          .find((x) => x.f.id === id)
+          .filter((x) => x.f.id === id)
+        // A later run can report a finding again, unchosen: the developer's open choice wins.
+        const hit = hits.find((x) => chosen(x.r, x.f) && !x.r.resolved.includes(id)) ?? hits[0]
         if (hit === undefined) return null
         const now = yield* deps.step(hit.f.card).pipe(Effect.orElseSucceed(() => null))
         const stale = now === null || (hit.f.hash !== undefined && stepHash(now) !== hit.f.hash)

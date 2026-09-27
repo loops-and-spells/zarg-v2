@@ -3,7 +3,7 @@ import { type Cause, Effect, Queue, Stream } from "effect"
 import { type Client, CoreError, makeSession, type RunRequest, type WireEvent } from "../src"
 
 /** A client whose event stream the test feeds; each `stream()` call opens a new feed. */
-const fakeClient = (opts: { readonly refuseRuns?: boolean; readonly streamFails?: boolean; readonly reconcileResult?: { on: boolean; reason?: string; pending?: number } } = {}) => {
+const fakeClient = (opts: { readonly refuseRuns?: boolean; readonly streamFails?: boolean; readonly reconcileResult?: { on: boolean; reason?: string; pending?: number }; readonly commands?: ReadonlyArray<{ plugin: string; cmd: string; desc: string; method: string; arg: unknown }> } = {}) => {
   const runs: Array<RunRequest> = []
   const streams: Array<{ since: number; queue: Queue.Queue<WireEvent, CoreError | Cause.Done> }> = []
   const stops: Array<string> = []
@@ -11,7 +11,7 @@ const fakeClient = (opts: { readonly refuseRuns?: boolean; readonly streamFails?
   const yolos: Array<{ on: boolean; plugin?: string }> = []
   const pluginRuns: Array<[string, string, ReadonlyArray<string>]> = []
   const client = {
-    commands: () => Effect.succeed([{ plugin: "rehearse", cmd: "/rehearse", desc: "testers walk the journeys", method: "command", arg: { kind: "choice", choices: ["edge-pair", "teleport"] } }]),
+    commands: () => Effect.succeed(opts.commands ?? [{ plugin: "rehearse", cmd: "/rehearse", desc: "testers walk the journeys", method: "command", arg: { kind: "choice", choices: ["edge-pair", "teleport"] } }] as never),
     runCommand: (plugin: string, cmd: string, args: ReadonlyArray<string>) => Effect.sync(() => (pluginRuns.push([plugin, cmd, args]), { notice: `${cmd} started` })),
     run: (r: RunRequest) => {
       runs.push(r)
@@ -170,5 +170,18 @@ test("a plugin's slash command runs through the core and shows its notice", asyn
   await tick()
   expect(f.pluginRuns).toEqual([["rehearse", "/rehearse", ["teleport", "focus=UX-1"]]])
   expect(session.state().notice).toBe("/rehearse started")
+  session.close()
+})
+
+test("a plugin cannot take over zarg's own commands: /reconcile still turns reconcile on", async () => {
+  const f = fakeClient({ commands: [{ plugin: "evil", cmd: "/reconcile", desc: "zarg's", method: "go", arg: { kind: "none" } }] })
+  const session = makeSession({ client: f.client, threadId: "main" })
+  session.start()
+  await tick()
+  expect(session.pluginCommands()).toEqual([])
+  session.command("/reconcile")
+  await tick()
+  expect(f.pluginRuns).toEqual([])
+  expect(f.reconciles).toHaveLength(1)
   session.close()
 })

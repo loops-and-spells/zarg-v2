@@ -5,10 +5,10 @@ import { join } from "node:path"
 import { Effect } from "effect"
 import type { Bound } from "@zarg/kernel"
 import { askFirst } from "../src/driver"
-import { commitGraph, findingsService } from "../src/findings"
+import { chosenFindings, commitGraph, findingsService } from "../src/findings"
 
 const answer = (over: Partial<{ chosen: boolean; stale: boolean }> = {}) => ({ run: "r-1", card: "UX-1", chosen: true, stale: false, notes: ["n"], ...over })
-const setup = (found: ReturnType<typeof answer> | null = answer(), dir = mkdtempSync(join(tmpdir(), "zarg-findings-"))) => {
+const setup = (found: ReturnType<typeof answer> | null = answer(), dir = mkdtempSync(join(tmpdir(), "zarg-findings-")), trusted = true) => {
   const calls: Array<[string, string, unknown]> = []
   const commits: Array<[ReadonlyArray<string>, string]> = []
   const guard = askFirst({ ask: () => Effect.succeed({ choice: "a" }) })
@@ -16,6 +16,8 @@ const setup = (found: ReturnType<typeof answer> | null = answer(), dir = mkdtemp
     dir,
     invoke: (plugin, method, params) => Effect.sync(() => (calls.push([plugin, method, params]), method === "finding" ? found : null)),
     guard,
+    chosen: chosenFindings(dir),
+    trusted: () => trusted,
     neighbors: () => Effect.succeed(["S-0001", "S-0002"]),
     commit: (ids, message) => Effect.sync(() => (commits.push([ids, message]), "abc123")),
   })
@@ -37,6 +39,13 @@ describe("the findings gate", () => {
     expect(await refused(setup(answer({ chosen: false })))).toMatchObject({ _tag: "NotChosen" })
     expect(await refused(setup(answer({ stale: true })))).toMatchObject({ _tag: "Stale" })
     expect(await refused(setup(null))).toMatchObject({ _tag: "NotFound" })
+  })
+
+  test("a plugin zarg does not ship cannot open writes by saying chosen: only the developer's recorded apply counts", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "zarg-findings-"))
+    expect(await refused(setup(answer(), dir, false))).toMatchObject({ _tag: "NotChosen" })
+    chosenFindings(dir).add("rehearse", ["R-1"])
+    expect(await take(setup(answer(), dir, false))).toMatchObject({ id: "R-1" })
   })
 
   test("writes open only for the finding's card, its states and what the fix adds", async () => {

@@ -51,9 +51,10 @@ const inProject = (g: string, root?: string) => (root !== undefined && !g.starts
 const grantMatches = (g: Grant, kind: Kind, target: string) =>
   g.kind === kind && (g.kind === "net" ? g.host === target : g.kind === "secret" ? g.name === target : globMatch(expandHome(g.glob), target))
 
-export const warnings = (scopes: ManifestScopes, optional: ManifestScopes): ReadonlyArray<string> => {
+export const warnings = (scopes: ManifestScopes, optional: ManifestScopes, dependencies: ReadonlyArray<string> = []): ReadonlyArray<string> => {
   const hosts = [scopes.net, optional.net].flatMap((n) => (n === undefined ? [] : n === "ask" ? ["any host"] : n))
-  const reads = scopes.graph !== undefined || optional.graph !== undefined
+  // A dependency serves another plugin's data (gherkin's cards): count it as reading the graph.
+  const reads = scopes.graph !== undefined || optional.graph !== undefined || dependencies.length > 0
   const secrets = (scopes.secrets?.length ?? 0) + (optional.secrets?.length ?? 0) > 0
   const out: Array<string> = []
   if (reads && hosts.length > 0) out.push(`can read your graph and send it to ${hosts.join(", ")}`)
@@ -113,6 +114,7 @@ export const makePowers = (opts: {
   /** Relative paths and relative fs globs are the project's (a plugin process has no usable working directory). */
   readonly projectRoot?: string
   /** Called on every power call: a plugin busy in the background is not idle. */
+  /** Called before every power: re-arms the idle timer; throws to refuse the call (a disabled plugin). */
   readonly active?: () => void
   /** Call a dependency's method (the host's invoke). */
   readonly callPlugin?: (name: string, method: string, params: unknown) => Promise<unknown>
@@ -248,17 +250,24 @@ export const makePowers = (opts: {
     "fs.write": async (args) => {
       const a = args as { path: string; text: string }
       const path = await checkedPath("fs-write", a.path)
-      // Never through a symlink, and nothing truncated until the opened file is known to be a regular one.
-      const fh = await fsp.open(path, constants.O_WRONLY | constants.O_CREAT | constants.O_NOFOLLOW | constants.O_NONBLOCK, 0o644).catch((e) => {
-        throw e?.code === "ELOOP" ? notGranted(`${opts.plugin}: ${printable(path)} is a symlink`) : pluginError(`${opts.plugin}: cannot write ${printable(path)}: ${e?.code ?? e}`)
+      // Never through a symlink or onto a non-file: the new text goes to a fresh file beside it, then replaces it whole
+      // (rename replaces a symlink, never follows it), so overlapping writes never leave a mix.
+      const st = await fsp.lstat(path).catch(() => undefined)
+      if (st?.isSymbolicLink()) throw notGranted(`${opts.plugin}: ${printable(path)} is a symlink`)
+      if (st !== undefined && !st.isFile()) throw pluginError(`${opts.plugin}: ${printable(path)} is not a regular file`)
+      const temp = `${path}.${crypto.randomUUID()}.tmp`
+      const fh = await fsp.open(temp, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o644).catch((e) => {
+        throw pluginError(`${opts.plugin}: cannot write ${printable(path)}: ${e?.code ?? e}`)
       })
       try {
-        if (!(await fh.stat()).isFile()) throw pluginError(`${opts.plugin}: ${printable(path)} is not a regular file`)
-        await fh.truncate(0)
         await fh.writeFile(String(a.text))
       } finally {
         await fh.close()
       }
+      await fsp.rename(temp, path).catch(async (e) => {
+        await fsp.rm(temp, { force: true })
+        throw pluginError(`${opts.plugin}: cannot write ${printable(path)}: ${e?.code ?? e}`)
+      })
       return null
     },
     "decisions.decide": async (req) => {
@@ -310,7 +319,7 @@ export const makePowers = (opts: {
   if (opts.active !== undefined) {
     for (const k of Object.keys(powers)) {
       const f = powers[k]!
-      ;(powers as Record<string, (a: unknown) => Promise<unknown>>)[k] = (args) => (opts.active!(), f(args))
+      ;(powers as Record<string, (a: unknown) => Promise<unknown>>)[k] = async (args) => (opts.active!(), f(args))
     }
   }
   return powers

@@ -96,3 +96,10 @@ test("commands a plugin declares join the table", () => {
   remove()
   expect(SLASH_COMMANDS.map((c) => c.cmd)).not.toContain("/p-go")
 })
+
+test("a plugin's malformed command is skipped; the others still register", () => {
+  const remove = registerCommands([{ cmd: "/p-bad", desc: "d", arg: { kind: "bogus" } }, { cmd: "/p-ok", desc: "d", arg: { kind: "none" } }])
+  expect(SLASH_COMMANDS.map((c) => c.cmd)).toContain("/p-ok")
+  expect(SLASH_COMMANDS.map((c) => c.cmd)).not.toContain("/p-bad")
+  remove()
+})

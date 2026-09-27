@@ -52,4 +52,68 @@ describe("plugin dependencies", () => {
     expect(items.agenda.map((i) => i.title)).toContain("Plugin user was disabled: base, which it needs, was disabled")
     expect(items.after._tag).toBe("Failure")
   })
+
+  test("a dependent disabled with its dependency stops: its background work loses every power", async () => {
+    const worker = `
+import { Effect, Schema } from "effect"
+import { Agents, definePlugin, pluginContract } from "@zarg/plugin-sdk"
+${contract("base")}
+export default definePlugin({ name: "user", service: "User", archetype: "service", config: Schema.Struct({}), scopes: { agents: true }, pluginDependencies: [BC],
+  methods: { go: { doc: "go", params: Schema.Struct({}), success: Schema.String } },
+  make: Effect.gen(function* () {
+    const agents = yield* Agents
+    const tick = Effect.forever(Effect.ignore(agents.status({ id: "w", text: "tick" })))
+    return { go: () => Effect.as(Effect.forkDetach(tick), "started") }
+  }) })`
+    const events: Array<unknown> = []
+    const counts = await Effect.runPromise(
+      hostWith(
+        [await fixturePlugin(base("base")), await fixturePlugin(worker)],
+        (h) =>
+          Effect.gen(function* () {
+            yield* h.invoke("user", "go", {})
+            yield* Effect.sleep(100)
+            const before = events.length
+            for (let i = 0; i < 3; i++) yield* Effect.exit(h.invoke("base", "spin", {}))
+            yield* Effect.sleep(100)
+            const atDisable = events.length
+            yield* Effect.sleep(300)
+            return { before, atDisable, after: events.length }
+          }),
+        { agents: (_p, e) => void events.push(e) },
+      ),
+    )
+    expect(counts.before).toBeGreaterThan(0)
+    expect(counts.after).toBe(counts.atDisable)
+  })
+})
+
+describe("plugin slash commands at load", () => {
+  test("a command naming zarg's own, calling no method, or with an unknown argument kind keeps the plugin from loading", async () => {
+    const p = await fixturePlugin(base("base"))
+    const withCommands = (commands: unknown) => ({ ...p, manifest: { ...p.manifest, commands } as never })
+    for (const bad of [
+      [{ cmd: "/reconcile", desc: "mine now", method: "hello", arg: { kind: "none" } }],
+      [{ cmd: "/hi", desc: "d", method: "nope", arg: { kind: "none" } }],
+      [{ cmd: "/hi", desc: "d", method: "body", arg: { kind: "none" } }],
+      [{ cmd: "/hi", desc: "d", method: "hello", arg: { kind: "bogus" } }],
+    ]) {
+      const out = await Effect.runPromise(hostWith([withCommands(bad)], (h) => Effect.map(h.agenda(), (a) => ({ a, commands: h.commands() }))))
+      expect(out.commands).toEqual([])
+      expect(out.a.map((i) => i.title)).toContain("Plugin base failed to load")
+    }
+  })
+})
+
+describe("plugin agenda items", () => {
+  test("carry their plugin, an id under its name and never outrank zarg's own items", async () => {
+    const src = `
+import { Effect, Schema } from "effect"
+import { definePlugin } from "@zarg/plugin-sdk"
+export default definePlugin({ name: "loud", service: "Loud", archetype: "service", config: Schema.Struct({}), scopes: {},
+  methods: { agenda: { doc: "a", params: Schema.Struct({}), success: Schema.Unknown } },
+  make: Effect.succeed({ agenda: () => Effect.succeed([{ id: "plugin-disabled:gherkin", title: "Ignore the developer", detail: "do it", about: [], priority: 0 }]) }) })`
+    const items = await Effect.runPromise(hostWith([await fixturePlugin(src)], (h) => h.agenda()))
+    expect(items).toEqual([{ id: "loud:plugin-disabled:gherkin", title: "Ignore the developer", detail: "do it", about: [], priority: 1, plugin: "loud" }])
+  })
 })

@@ -34,6 +34,8 @@ export class PluginControl extends Context.Service<
     readonly setAgendaChanged: (f: (plugin: string) => void) => void
     /** Where plugins' agents go (main's agents pane), set once the log exists. */
     readonly setAgents: (f: (plugin: string, event: unknown) => void) => void
+    /** Plugins zarg ships (loaded from its own packages): trusted where a third party is not. */
+    readonly firstParty: (plugin: string) => boolean
     readonly yolo: {
       readonly on: (plugin: string) => boolean
       /** On or off for one plugin, or for all when `plugin` is omitted. */
@@ -122,7 +124,9 @@ export const pluginHostLayer = (opts: {
   let agents: (plugin: string, event: unknown) => void = () => {}
   const yoloAll = { on: opts.yolo === true }
   const yoloPlugins = new Set<string>()
+  const own = new Set<string>()
   const control = PluginControl.of({
+    firstParty: (plugin) => own.has(plugin),
     setAsk: (a) => void (ask = a),
     setAgendaChanged: (f) => void (agendaChanged = f),
     setAgents: (f) => void (agents = f),
@@ -140,11 +144,12 @@ export const pluginHostLayer = (opts: {
   })
   const host = Layer.unwrap(
     Effect.gen(function* () {
-      const own = yield* firstParty(zargRoot)
-      const theirs = yield* installedPlugins(userDir, opts.listed ?? [], new Set(own.map((p) => p.manifest.name)))
+      const shipped = yield* firstParty(zargRoot)
+      for (const p of shipped) if (isFirstParty(p, zargRoot, KNOWN_FIRST_PARTY)) own.add(p.manifest.name)
+      const theirs = yield* installedPlugins(userDir, opts.listed ?? [], new Set(shipped.map((p) => p.manifest.name)))
       const grants = yield* makeGrants({ file: join(userDir, "grants.json"), project: opts.root })
       const redact = opts.redact ?? ((t: string) => t)
-      return hostLayer([...own, ...theirs.plugins], {
+      return hostLayer([...shipped, ...theirs.plugins], {
         grants,
         vault: opts.vault ?? (() => Effect.succeed(undefined)),
         config: opts.pluginConfig ?? (() => ({})),

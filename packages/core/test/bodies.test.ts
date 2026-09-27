@@ -19,7 +19,8 @@ const setup = async () => {
       if (method === "body") return Effect.succeed({ parts: [{ kind: "history" }, { kind: "tabs", tabs: [{ title: "Feedback", columns: ["id"], rows: [{ id: "R-1", cells: ["R-1"] }] }], actions: [{ id: "apply", label: "Apply", key: "a" }] }] })
       return Effect.succeed({ notice: "1 finding sent to the driver" })
     })
-  return { bodies: makeBodies({ log, invoke }), calls }
+  const applied: Array<[string, ReadonlyArray<string>]> = []
+  return { bodies: makeBodies({ log, invoke, onApply: (plugin, rows) => void applied.push([plugin, rows]) }), calls, applied }
 }
 
 test("an RLM's body is its history", async () => {
@@ -37,9 +38,22 @@ test("a plugin agent's body comes from its plugin, with its history filled in by
 })
 
 test("an action goes to the plugin with the selected rows; an action on a gone plugin's agent is a notice", async () => {
-  const { bodies, calls } = await setup()
+  const { bodies, calls, applied } = await setup()
   expect(await Effect.runPromise(bodies.act("main", "rehearse:tester-1", "apply", ["R-1"]))).toEqual({ notice: "1 finding sent to the driver" })
   expect(calls.at(-1)).toEqual(["rehearse", "act", { agent: "tester-1", action: "apply", rows: ["R-1"] }])
+  // The core keeps the developer's choice itself: the findings gate trusts it, not the plugin's word.
+  expect(applied).toEqual([["rehearse", ["R-1"]]])
   expect(await Effect.runPromise(bodies.act("main", "gone:t-1", "apply", ["x"]))).toEqual({ notice: "plugin gone is not loaded" })
-  expect(await Effect.runPromise(bodies.body("main", "gone:t-1"))).toBeUndefined()
+  expect(await Effect.runPromise(bodies.body("main", "gone:t-1"))).toEqual({ parts: [{ kind: "lines", lines: [{ text: "plugin gone is not loaded", tone: "error" }] }] })
+})
+
+test("a body a plugin drew wrong is shown as a line saying so, never passed on", async () => {
+  const log = await Effect.runPromise(makeLog(mkdtempSync(join(tmpdir(), "zarg-bodies-")), (t) => t))
+  const bad = [{ parts: [{ kind: "tabs", tabs: [{ title: "T", columns: ["a"], rows: [{ id: "x", cells: [1] }] }], actions: [] }] }, { parts: [{ kind: "lines", lines: "hi" }] }, { parts: "no" }]
+  for (const b of bad) {
+    const bodies = makeBodies({ log, invoke: () => Effect.succeed(b) })
+    const out = (await Effect.runPromise(bodies.body("main", "p:a"))) as { parts: ReadonlyArray<{ kind: string; lines: ReadonlyArray<{ text: string }> }> }
+    expect(out.parts).toHaveLength(1)
+    expect(out.parts[0]!.lines[0]!.text).toStartWith("p drew an invalid body")
+  }
 })

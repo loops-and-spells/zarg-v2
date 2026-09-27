@@ -151,6 +151,8 @@ describe("warnings", () => {
   test("graph read plus a host warns that data can leave", () => {
     expect(warnings({ graph: "read", net: ["x.test"] }, {})).toEqual(["can read your graph and send it to x.test"])
     expect(warnings({ secrets: ["K"] }, { net: "ask" })).toEqual(["holds a secret and may ask to reach any host"])
+    // A dependency on a graph plugin reads the graph through it.
+    expect(warnings({ net: ["x.test"] }, {}, ["gherkin"])).toEqual(["can read your graph and send it to x.test"])
   })
 })
 
@@ -169,6 +171,14 @@ describe("review fixes: files", () => {
     expect(existsSync(join(root, "secret", "new.txt"))).toBe(false)
     expect(await powers["fs.write"]!({ path: `${root}/proj/out/fine.md`, text: "ok" })).toBe(null)
     expect(readFileSync(join(root, "proj", "out", "fine.md"), "utf8")).toBe("ok")
+  })
+  test("concurrent writes of one file leave one whole text, never a mix", async () => {
+    const root = tmp()
+    mkdirSync(join(root, "proj"), { recursive: true })
+    const { powers } = await go(setup({ scopes: { fs: { write: [`${root}/proj/**`] } } }))
+    const texts = Array.from({ length: 40 }, (_, i) => `${i}:`.padEnd(((i * 7919) % 40) * 1000 + 10, String(i % 10)))
+    await Promise.all(texts.map((text) => powers["fs.write"]!({ path: `${root}/proj/r.json`, text })))
+    expect(texts).toContain(readFileSync(join(root, "proj", "r.json"), "utf8"))
   })
   test("zarg's trust state, git internals, bunfig and env files stay out of reach even when granted", async () => {
     const root = tmp()

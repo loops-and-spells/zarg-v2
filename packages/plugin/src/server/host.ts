@@ -97,7 +97,22 @@ const manifestProblem = (m: Manifest): string | undefined => {
   if (RESERVED_SERVICES.has(m.service)) return `service "${m.service}" is zarg's own`
   if (m.archetype !== "graph" && m.archetype !== "provider" && m.archetype !== "service") return `archetype "${m.archetype}" is unknown`
   const bad = Object.keys(m.methods ?? {}).find((k) => !METHOD.test(k))
-  return bad !== undefined ? `method "${bad}" is not a method name` : undefined
+  if (bad !== undefined) return `method "${bad}" is not a method name`
+  return (m.commands ?? []).map(commandProblem(m)).find((p) => p !== undefined)
+}
+
+/** zarg's own slash commands: no plugin may take one. */
+const BUILT_IN_COMMANDS = new Set(["/reconcile", "/yolo"])
+const ARG_KINDS = new Set(["none", "choice", "text", "path"])
+const commandProblem = (m: Manifest) => (c: { readonly cmd: unknown; readonly desc: unknown; readonly method: unknown; readonly arg: unknown }): string | undefined => {
+  const cmd = String(c?.cmd)
+  if (!/^\/[a-z][a-z0-9-]*$/.test(cmd)) return `command "${cmd}" must be /kebab-case`
+  if (BUILT_IN_COMMANDS.has(cmd)) return `command ${cmd} is zarg's own`
+  if (typeof c.desc !== "string") return `command ${cmd} has no description`
+  const method = String(c.method)
+  if (!Object.hasOwn(m.methods ?? {}, method) || RESERVED.has(method)) return `command ${cmd} calls ${method}, which is not one of its methods`
+  const kind = (c.arg as { kind?: unknown } | null)?.kind
+  return typeof kind === "string" && ARG_KINDS.has(kind) ? undefined : `command ${cmd} has an unknown argument kind`
 }
 
 /** Replace every secret value the plugin was served, anywhere in what it returns. */
@@ -122,6 +137,16 @@ const MAX_RESTARTS = 3
 const problemItems = (loaded: Loaded): ReadonlyArray<AgendaItem> =>
   loaded.problems.map((p) => ({ id: `invalid-file:${p.file}`, title: `Fix ${p.file}`, detail: p.message, about: [], priority: 1 }))
 
+/** A plugin's item: marked with its plugin (its text is untrusted), its id under the plugin's name, never above zarg's own. */
+const fromPlugin = (name: string) => (i: AgendaItem): AgendaItem => ({
+  id: String(i.id).startsWith(`${name}:`) ? String(i.id) : `${name}:${i.id}`,
+  title: String(i.title),
+  detail: String(i.detail ?? ""),
+  about: Array.isArray(i.about) ? i.about.map(String) : [],
+  priority: Math.max(1, Number(i.priority) || 1),
+  plugin: name,
+})
+
 const inFocus = (focus: ReadonlySet<string> | undefined, about: ReadonlyArray<string>) =>
   focus === undefined || about.length === 0 || about.some((id) => focus.has(id))
 
@@ -141,8 +166,8 @@ const scopeWords = (s: ManifestScopes) =>
   ].filter((p) => p !== undefined)
 
 /** What a plugin asks for, in words: what it gets now and what it may ask for later (both are approved). */
-export const describeScopes = (m: { readonly scopes: ManifestScopes; readonly optional: ManifestScopes }): string => {
-  const now = scopeWords(m.scopes)
+export const describeScopes = (m: { readonly scopes: ManifestScopes; readonly optional: ManifestScopes; readonly pluginDependencies?: ReadonlyArray<{ readonly name: string }> }): string => {
+  const now = [...scopeWords(m.scopes), ...(m.pluginDependencies ?? []).map((d) => `use ${d.name} (and read what it serves)`)]
   const later = scopeWords(m.optional ?? {})
   const head = now.length > 0 ? now.join(", ") : later.length > 0 ? "nothing now" : "nothing"
   return later.length > 0 ? `${head}; may ask to ${later.join(", ")}` : head
@@ -215,14 +240,14 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         const m = p.manifest
         const problem = manifestProblem(m)
         if (problem !== undefined) return failed(m, problem)
-        const digest = scopesDigest(m.scopes, m.optional)
+        const digest = scopesDigest(m.scopes, m.optional, depsOf(m))
         const granted = (yield* opts.grants.of(m.name, digest)).loaded
         if (!granted && opts.firstParty(p) && graphOnly(m)) yield* opts.grants.approveLoad(m.name, digest)
         else if (!granted) {
           hostItems.push({
             id: `plugin-grant:${m.name}`,
             title: `Plugin ${m.name} asks for: ${describeScopes(m)}`,
-            detail: [...warnings(m.scopes, m.optional).map((w) => `It ${w}.`), `Run \`zarg plugin grant ${m.name}\` to approve.`].join(" "),
+            detail: [...warnings(m.scopes, m.optional, depsOf(m)).map((w) => `It ${w}.`), `Run \`zarg plugin grant ${m.name}\` to approve.`].join(" "),
             about: [],
             priority: 1,
           })
@@ -253,6 +278,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           // A plugin working in the background (calling powers) is not idle.
           active: () => {
             const r = running.get(m.name)
+            if (r?.disabled === true) throw { tag: "PluginError", message: `${m.name} is disabled` }
             if (r !== undefined && r.idle !== undefined && r.inflight === 0) {
               clearTimeout(r.idle)
               r.idle = setTimeout(() => { if (r.inflight === 0) Effect.runFork(r.process.stop) }, opts.idleMs ?? IDLE_MS)
@@ -305,6 +331,8 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         for (const d of running.values()) {
           if (d.disabled || !depsOf(d.manifest).includes(name)) continue
           d.disabled = true
+          // Its background work must not go on without what it needs.
+          Effect.runFork(d.process.stop)
           hostItems.push({ id: `plugin-disabled:${d.manifest.name}`, title: `Plugin ${d.manifest.name} was disabled: ${name}, which it needs, was disabled`, detail: "Restart zarg to try them again.", about: [], priority: 1 })
           disableDependents(d.manifest.name)
         }
@@ -456,7 +484,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           // Every plugin with an agenda: graph plugins and service plugins alike.
           const items = yield* Effect.forEach(
             [...running.values()].filter((r) => r.manifest.methods.agenda !== undefined && (r.manifest.archetype !== "graph" || r.manifest.scopes.graph !== undefined)),
-            (r) => invoke(r, "agenda", {}).pipe(Effect.map((v) => v as ReadonlyArray<AgendaItem>), Effect.orElseSucceed(() => undefined)),
+            (r) => invoke(r, "agenda", {}).pipe(Effect.map((v) => (v as ReadonlyArray<AgendaItem>).map(fromPlugin(r.manifest.name))), Effect.orElseSucceed(() => undefined)),
           )
           return [...hostItems, ...problemItems(loadedGraph), ...defined(items).flat()]
             .filter((item) => inFocus(focus, item.about))

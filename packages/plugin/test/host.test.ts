@@ -149,8 +149,8 @@ describe("PluginHost read side", () => {
         return { all: all.map((i) => i.id), focused: focused.map((i) => i.id) }
       }),
     )
-    expect(out.all).toEqual(["empty:T-0001", "empty:T-0002"])
-    expect(out.focused).toEqual(["empty:T-0002"])
+    expect(out.all).toEqual(["notes:empty:T-0001", "notes:empty:T-0002"])
+    expect(out.focused).toEqual(["notes:empty:T-0002"])
   })
 
   test("render joins plugin views", async () => {

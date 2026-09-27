@@ -17,7 +17,7 @@ import { judgeGaps } from "./gaps"
 import { outsideReads } from "./outside"
 import { nextGoals, type NextOption } from "./intent"
 import { makeBodies } from "./bodies"
-import { commitGraph as commitGraphFindings, findingsService } from "./findings"
+import { chosenFindings, commitGraph as commitGraphFindings, findingsService } from "./findings"
 import { makeLog } from "./log"
 import { pluginAgents } from "./plugin-agents"
 import { makeYolo, PluginControl, pluginHostLayer, USER_DIR, vaultFrom } from "./plugins"
@@ -53,7 +53,10 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // Agents may read outside the repository (porting from another project) once the developer allows it.
     const agentGrants = yield* makeGrants({ file: join(USER_DIR, "grants.json"), project: root })
     // /yolo (for every plugin) also lets agents' reads outside the repository through without asking.
-    const yoloControl = (yield* PluginControl).yolo
+    const control = yield* PluginControl
+    const yoloControl = control.yolo
+    // The developer's applied findings, recorded by the core (the findings gate reads them).
+    const chosen = chosenFindings(join(root, ".zarg", "findings"))
     // A child's graph focus must name real nodes.
     const unknownIds = (ids: ReadonlyArray<string>) => Effect.map(store.snapshot, (snap) => ids.filter((id) => !snap.nodes.has(id))).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>))
     const makeRlm = (asker: Asker, observe: (e: Rlm.RlmEvent) => void) => {
@@ -75,6 +78,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
             dir: join(root, ".zarg", "findings"),
             invoke: (plugin, method, params) => host.invoke(plugin, method, params),
             guard,
+            chosen,
+            trusted: (plugin) => control.firstParty(plugin),
             neighbors: (card) => Effect.map(store.snapshot, (snap) => (snap.nodes.get(card)?.edges ?? []).map((e) => e.to)).pipe(Effect.orElseSucceed(() => [])),
             commit: (ids, message) => host.exclusive(commitGraphFindings(root, ids, message)),
           })
@@ -138,7 +143,6 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     })
     // A plugin's grant question is asked on main, like any driver question.
     const main = yield* threads.get("main", [])
-    const control = yield* PluginControl
     const yolo = makeYolo(log, control.yolo)
     // Started with --yolo: say so on main, so the status line shows it.
     if (control.yolo.any()) yield* yolo.set(true)
@@ -178,7 +182,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       Effect.uninterruptible,
       Semaphore.withPermits(turnOnLock, 1),
     )
-    const bodies = makeBodies({ log, invoke: (plugin, method, params) => host.invoke(plugin, method, params) })
+    const bodies = makeBodies({ log, invoke: (plugin, method, params) => host.invoke(plugin, method, params), onApply: (plugin, rows) => chosen.add(plugin, rows) })
     // A plugin's slash command calls its method with the words after it; its notice shows.
     const commands = {
       list: () => host.commands(),

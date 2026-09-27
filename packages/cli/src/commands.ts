@@ -189,10 +189,11 @@ const pluginGrant = Command.make(
         yield* Effect.forEach(extra, (g) => grants.add(m.name, g), { discard: true })
         return yield* print({ plugin: m.name, granted: extra })
       }
+      const deps = (m.pluginDependencies ?? []).map((d) => d.name)
       yield* print(`Plugin ${m.name} asks for: ${describeScopes(m)}`)
-      for (const w of warnings(m.scopes, m.optional)) yield* print(`Warning: it ${w}.`)
+      for (const w of warnings(m.scopes, m.optional, deps)) yield* print(`Warning: it ${w}.`)
       if (!(yield* confirm("Approve?"))) return yield* print({ plugin: m.name, approved: false })
-      yield* grants.approveLoad(m.name, scopesDigest(m.scopes, m.optional))
+      yield* grants.approveLoad(m.name, scopesDigest(m.scopes, m.optional, deps))
       yield* print({ plugin: m.name, approved: true })
     }),
 )

@@ -58,9 +58,17 @@ const table: Array<SlashCommand> = [...decodeCommands([
 /** The input's commands: zarg's own, then those loaded plugins add (`registerCommands`). */
 export const SLASH_COMMANDS: ReadonlyArray<SlashCommand> = table
 
-/** Add commands a plugin declares (a name already in the table is skipped). A bad entry throws, naming it. */
+/** Add commands a plugin declares. A name already in the table, or an entry that does not decode, is skipped (never a crash in render). */
 export const registerCommands = (raw: ReadonlyArray<unknown>): (() => void) => {
-  const added = decodeCommands(raw).filter((c) => !table.some((t) => t.cmd === c.cmd))
+  const added = raw
+    .flatMap((c) => {
+      try {
+        return [decodeCommand(c)]
+      } catch {
+        return []
+      }
+    })
+    .filter((c) => !table.some((t) => t.cmd === c.cmd))
   table.push(...added)
   // Takes them out again (a test, or a plugin that stopped).
   return () => {

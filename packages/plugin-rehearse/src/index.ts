@@ -10,6 +10,8 @@ const Params = Schema.Struct({
   personas: Schema.optionalKey(Schema.Array(Schema.String)),
 })
 const Notice = Schema.Struct({ notice: Schema.String })
+// Starting asks the decision model once per persona and plans every story: slow on a CPU decision model.
+const START_DEADLINE_MS = 10 * 60_000
 
 /** Testers roleplay the journeys; findings wait for the developer to pick which to apply. */
 export default definePlugin({
@@ -37,8 +39,8 @@ export default definePlugin({
     },
   ],
   methods: {
-    run: { doc: "Start a rehearsal in the background (when the graph is ready, or the developer asks). Findings wait for the developer in the agents pane.", params: Params, success: Schema.Unknown, agents: true },
-    command: { doc: "/rehearse", params: Schema.Struct({ args: Schema.Array(Schema.String) }), success: Notice },
+    run: { doc: "Start a rehearsal in the background (when the graph is ready, or the developer asks). Findings wait for the developer in the agents pane.", params: Params, success: Schema.Unknown, agents: true, deadlineMs: START_DEADLINE_MS },
+    command: { doc: "/rehearse", params: Schema.Struct({ args: Schema.Array(Schema.String) }), success: Notice, deadlineMs: START_DEADLINE_MS },
     agenda: { doc: "Findings the developer chose to apply.", params: Schema.Struct({}), success: Schema.Unknown },
     body: { doc: "A tester's or the run's body.", params: Schema.Struct({ agent: Schema.String }), success: Schema.Unknown },
     act: { doc: "Apply or dismiss selected findings.", params: Schema.Struct({ agent: Schema.String, action: Schema.String, rows: Schema.Array(Schema.String) }), success: Notice },

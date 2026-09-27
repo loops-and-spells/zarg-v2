@@ -37,4 +37,6 @@ export interface AgendaItem {
   readonly about: ReadonlyArray<string>
   /** 1 is most urgent. */
   readonly priority: number
+  /** The plugin that reported it: its title and detail are that plugin's text, not zarg's. */
+  readonly plugin?: string
 }

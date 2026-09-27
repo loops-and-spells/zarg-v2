@@ -19,6 +19,34 @@ export const FindingsDef = defineService("Findings", "Findings plugins reported 
 })
 
 const fail = (_tag: string, message: string): ServiceFailure => ({ _tag, message })
+
+/** Findings the developer applied in the agents pane, per plugin: kept by the core, so a plugin's own word never opens writes. */
+export const chosenFindings = (dir: string) => {
+  const file = join(dir, "chosen.json")
+  const read = (): Record<string, ReadonlyArray<string>> => {
+    try {
+      return existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as Record<string, ReadonlyArray<string>>) : {}
+    } catch {
+      return {}
+    }
+  }
+  const write = (all: Record<string, ReadonlyArray<string>>) => {
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(file, JSON.stringify(all))
+  }
+  return {
+    add: (plugin: string, ids: ReadonlyArray<string>) => {
+      const all = read()
+      write({ ...all, [plugin]: [...new Set([...(all[plugin] ?? []), ...ids])] })
+    },
+    has: (plugin: string, id: string) => (read()[plugin] ?? []).includes(id),
+    drop: (plugin: string, ids: ReadonlyArray<string>) => {
+      const all = read()
+      write({ ...all, [plugin]: (all[plugin] ?? []).filter((x) => !ids.includes(x)) })
+    },
+  }
+}
+export type ChosenFindings = ReturnType<typeof chosenFindings>
 type Invoke = (plugin: string, method: string, params: unknown) => Effect.Effect<unknown, unknown>
 interface Found { readonly run: string; readonly card: string; readonly chosen: boolean; readonly stale: boolean; readonly notes: ReadonlyArray<string> }
 
@@ -31,6 +59,10 @@ export const findingsService = (ctx: {
   readonly dir: string
   readonly invoke: Invoke
   readonly guard: ReturnType<typeof askFirst>
+  /** What the developer applied, as the core recorded it. */
+  readonly chosen: ChosenFindings
+  /** A plugin zarg ships: its own `chosen` (auto_apply) counts too. */
+  readonly trusted: (plugin: string) => boolean
   /** The card's states (its edges' targets): what a fix may change besides the card. */
   readonly neighbors: (card: string) => Effect.Effect<ReadonlyArray<string>>
   readonly commit: (ids: ReadonlyArray<string>, message: string) => Effect.Effect<string | undefined, ServiceFailure>
@@ -52,7 +84,7 @@ export const findingsService = (ctx: {
       Effect.gen(function* () {
         const f = (yield* ctx.invoke(plugin, "finding", { id: finding }).pipe(Effect.mapError((e) => fail("NotFound", String((e as { message?: string }).message ?? e))))) as Found | null
         if (f === null || f === undefined) return yield* Effect.fail(fail("NotFound", `${plugin} has no finding ${finding}`))
-        if (!f.chosen) return yield* Effect.fail(fail("NotChosen", `${finding} was not chosen to apply: the developer picks findings in the agents pane; Inquire.confirm any other change`))
+        if (!f.chosen || !(ctx.trusted(plugin) || ctx.chosen.has(plugin, finding))) return yield* Effect.fail(fail("NotChosen", `${finding} was not chosen to apply: the developer picks findings in the agents pane; Inquire.confirm any other change`))
         if (f.stale) return yield* Effect.fail(fail("Stale", `${f.card} changed or is gone since ${finding} was found; dismiss it in Findings.resolve`))
         ctx.guard.openFor({ allowed: [f.card, ...(yield* ctx.neighbors(f.card))], onTouched: (ids) => markTouched(plugin, f.run, ids) })
         return { id: finding, card: f.card, notes: [...f.notes] }
@@ -63,6 +95,7 @@ export const findingsService = (ctx: {
         const commit = ids.length > 0 ? yield* ctx.commit(ids, `req: ${plugin} ${run}: applied ${applied.join(", ") || "none"}`) : undefined
         yield* ctx.invoke(plugin, "resolved", { run, ids: [...applied, ...dismissed] }).pipe(Effect.ignore)
         rmSync(file(plugin, run), { force: true })
+        ctx.chosen.drop(plugin, [...applied, ...dismissed])
         return commit !== undefined ? { commit } : {}
       }),
   })

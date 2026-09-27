@@ -30,7 +30,7 @@ describe("rehearse as a loaded plugin", () => {
       const grants = yield* makeGrants({ file: join(mkdtempSync(join(tmpdir(), "zt-rehearse-g-")), "grants.json"), project: root })
       // Rehearse asks for more than the graph: the developer grants it once (`zarg plugin grant rehearse`).
       const m = plugins[1]!.manifest
-      yield* grants.approveLoad(m.name, scopesDigest(m.scopes, m.optional))
+      yield* grants.approveLoad(m.name, scopesDigest(m.scopes, m.optional, (m.pluginDependencies ?? []).map((d) => d.name)))
       const host = hostLayer(plugins, {
         grants,
         vault: () => Effect.succeed(undefined),
@@ -72,4 +72,9 @@ describe("rehearse as a loaded plugin", () => {
     const index = JSON.parse(readFileSync(join(root, ".zarg/rehearse/index.json"), "utf8")) as ReadonlyArray<string>
     expect(index).toHaveLength(1)
   }, 30_000)
+
+  test("starting a run outlasts a slow decision model: run and command get a long deadline", async () => {
+    const m = (await build(join(import.meta.dir, "../src/index.ts"), join(import.meta.dir, ".."))).manifest as { methods: Record<string, { deadlineMs?: number }> }
+    for (const k of ["run", "command"]) expect(m.methods[k]!.deadlineMs ?? 0).toBeGreaterThanOrEqual(5 * 60_000)
+  })
 })

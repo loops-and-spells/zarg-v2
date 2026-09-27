@@ -27,7 +27,9 @@ export interface Grants {
 const canonical = (v: unknown): string =>
   Array.isArray(v) ? `[${v.map(canonical).join(",")}]` : v !== null && typeof v === "object" ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonical((v as Record<string, unknown>)[k])}`).join(",")}}` : JSON.stringify(v)
 
-export const scopesDigest = (scopes: ManifestScopes, optional: ManifestScopes) => createHash("sha256").update(canonical({ scopes, optional })).digest("hex")
+/** What a load grant approves: the scopes, and the plugins it depends on (through them it reaches their data). */
+export const scopesDigest = (scopes: ManifestScopes, optional: ManifestScopes, dependencies: ReadonlyArray<string> = []) =>
+  createHash("sha256").update(canonical(dependencies.length > 0 ? { scopes, optional, dependencies: [...dependencies].sort() } : { scopes, optional })).digest("hex")
 
 type File = { readonly [project: string]: { readonly [plugin: string]: { readonly digests?: ReadonlyArray<string>; readonly extra?: ReadonlyArray<Grant> } } }
 
