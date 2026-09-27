@@ -44,14 +44,14 @@ Every plugin runs locked down: it can do only what you granted it, and nothing e
 ## Runtime
 
 ```
-core process (lockdown() first)                 one process per plugin (lockdown() first, empty env)
+core process                                    one process per plugin (lockdown() first, empty env)
   PluginHost ── call{method,params} over IPC ──▶  one Compartment holding the plugin
              ◀─ reply / stream chunk / error ──     endowments: only its granted powers
   powers served here, by the host:                  snapshot mirror (graph plugins)
     secrets (its namespace only), fs (scoped paths), net (scoped fetch)
 ```
 
-- **Lockdown**: `import "@zarg/plugin/lockdown"` is the first import of the core entry (`packages/core/src/main.ts`) and of the CLI entry for graph commands. The TUI process does not lock down and never loads plugins.
+- **Lockdown**: each plugin process runs `lockdown()` before anything else (its runner's first import is `ses`). The core, the CLI and the TUI never evaluate plugin code, so they do not lock down (OpenTUI does not survive lockdown).
 - **One process per plugin**: each plugin runs in its own Bun child process (`process.execPath`), started with an empty environment and a working directory it cannot use (it has no file access), holding one Compartment. A plugin that loops, exhausts memory or crashes the engine takes down only its own process; plugins share no memory, so there is no side channel between them. Every call has a deadline (default 10 s, per method override in the manifest); a call past its deadline fails, and that plugin's process is killed and restarted. A plugin that causes three restarts in ten minutes is disabled and reported on the agenda. Processes start lazily on first use and stop after 10 idle minutes.
 - **Loading**: the host reads the manifest, checks the grant, starts the plugin's process and sends it the bundle; powers are served by the host over the same channel. Ungranted plugins do not load; the agenda gets "Plugin `<name>` asks for: …" (sub-project 5 turns that into a consent question). `zarg plugin grant <name>` shows the scopes and asks yes/no in the terminal until then.
 - **Powers** (the only things a Compartment receives):
