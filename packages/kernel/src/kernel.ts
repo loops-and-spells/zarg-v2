@@ -39,8 +39,23 @@ export interface Tick {
   readonly value: TickValue
 }
 
+/** One service call a cell made: params as the cell sent them, and the result or failure as it came back. */
+export interface RecordedCall {
+  readonly cell: number
+  readonly service: string
+  readonly method: string
+  readonly params: unknown
+  readonly ok: boolean
+  readonly result?: unknown
+  readonly failure?: ServiceFailure
+  readonly ms: number
+}
+
 /** What a kernel records while cells run. */
-export type Recorded = ({ readonly kind: "tick" } & Tick) | { readonly kind: "extra"; readonly cell: number; readonly source: TickSource }
+export type Recorded =
+  | ({ readonly kind: "tick" } & Tick)
+  | ({ readonly kind: "call" } & RecordedCall)
+  | { readonly kind: "extra"; readonly cell: number; readonly source: TickSource }
 
 /** Collects output with a hard cap as it arrives: keeps the head and the tail, counts the rest. */
 const collector = (cap: number) => {
@@ -147,12 +162,24 @@ export const make = (opts: KernelOptions) =>
       const svc = byName.get(m.service)
       const def = svc?.def.methods[m.method]
       const handler = svc?.handlers[m.method]
-      const reply = (r: Exit.Exit<unknown, ServiceFailure>) =>
-        send(
-          Exit.isSuccess(r)
-            ? { type: "reply", callId: m.callId, ok: true, value: r.value }
-            : { type: "reply", callId: m.callId, ok: false, error: toFailure(r.cause.reasons.find((x) => x._tag === "Fail")?.error ?? r.cause) },
-        )
+      const started = Date.now()
+      // The reply as it goes back to the cell is also what is recorded (the wire form, both ways).
+      const reply = (r: Exit.Exit<unknown, ServiceFailure>) => {
+        const answer: ToWorker = Exit.isSuccess(r)
+          ? { type: "reply", callId: m.callId, ok: true, value: r.value }
+          : { type: "reply", callId: m.callId, ok: false, error: toFailure(r.cause.reasons.find((x) => x._tag === "Fail")?.error ?? r.cause) }
+        opts.record?.({
+          kind: "call",
+          cell: m.runId,
+          service: m.service,
+          method: m.method,
+          params: m.params,
+          ok: answer.ok,
+          ...(answer.ok ? { result: answer.value } : { failure: answer.error }),
+          ms: Date.now() - started,
+        })
+        send(answer)
+      }
       if (def === undefined || handler === undefined) {
         reply(Exit.fail({ _tag: "UnknownService", message: `${m.service}.${m.method} is not in this kernel's layer` }))
         return Effect.void
