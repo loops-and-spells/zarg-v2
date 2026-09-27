@@ -3,6 +3,7 @@ import type { AgendaItem } from "@zarg/plugin/server"
 import type { ServiceFailure } from "@zarg/kernel"
 import type { Answer, Asker, Choice, Question, Rlm, Scope } from "@zarg/rlm"
 import { makeActivity } from "./activity"
+import { threadViews } from "./views"
 import * as E from "./events"
 import type { NextOption } from "./intent"
 import type { Interrupt } from "@ag-ui/core"
@@ -160,7 +161,7 @@ export const makeThread = (deps: ThreadDeps) =>
     }
 
     // RLM events become one activity message: the tree of RLMs working for this thread.
-    const activity = makeActivity(log, threadId)
+    const activity = makeActivity(log, threadId, undefined, threadViews(log, threadId))
     const observe = (e: Rlm.RlmEvent) => activity.observe(e)
 
     const scope: Scope = deps.focus.length > 0 ? { graph: { focus: deps.focus, k: 2 } } : {}

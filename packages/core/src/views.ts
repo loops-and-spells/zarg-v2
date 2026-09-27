@@ -31,7 +31,8 @@ export const makeViews = (log: ThreadLog, threadId: string, opts: { readonly del
       kept.set(String(p.path), n)
       return n <= LOG_KEEP
     }).reverse()
-    Effect.runSync(log.append(threadId, E.activityDelta(viewMessageId(threadId, agent), trimmed, VIEW_ACTIVITY, { agent })))
+    // Sent from a timer: a thread log already closed (the core shutting down) drops the delta instead of throwing.
+    Effect.runSync(Effect.ignore(log.append(threadId, E.activityDelta(viewMessageId(threadId, agent), trimmed, VIEW_ACTIVITY, { agent })).pipe(Effect.catchDefect(() => Effect.void))))
   }
   const flush = () => {
     if (timer !== undefined) clearTimeout(timer)

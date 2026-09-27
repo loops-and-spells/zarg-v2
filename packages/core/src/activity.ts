@@ -2,6 +2,8 @@ import { Effect } from "effect"
 import type { Rlm } from "@zarg/rlm"
 import * as E from "./events"
 import type { ThreadLog } from "./log"
+import { RLM_LAYOUT, rlmLines } from "./rlm-view"
+import type { ViewStore } from "./views"
 
 /**
  * The RLM tree a thread shows (ACTIVITY_SNAPSHOT / ACTIVITY_DELTA) and its transcript. `prefix` keeps ids
@@ -12,9 +14,33 @@ import type { ThreadLog } from "./log"
 const TASK_MAX = 200
 const headline = (task: string) => (task.split("\n")[0] ?? "").slice(0, TASK_MAX)
 
-/** `messageId`: the stream these agents travel in; another stream (a rehearsal) shares the thread's pane without resetting it. */
-export const makeActivity = (log: ThreadLog, threadId: string, messageId = `${threadId}-activity`) => {
+/**
+ * `messageId`: the stream these agents travel in; another stream (a rehearsal) shares the thread's pane without
+ * resetting it. `views`: when given, each RLM also draws its view (status, task and current cell, history).
+ */
+export const makeActivity = (log: ThreadLog, threadId: string, messageId = `${threadId}-activity`, views?: ViewStore) => {
   const nodes = new Map<string, Record<string, unknown>>()
+  const tasks = new Map<string, string>()
+  const push = (rlm: string, record: Record<string, unknown>) => {
+    if (views === undefined || !views.has(rlm)) return
+    const lines = rlmLines(record)
+    if (lines.length > 0) views.append(rlm, "history", lines)
+  }
+  const status = (rlm: string, n: Record<string, unknown>) => {
+    if (views === undefined || !views.has(rlm)) return
+    const turns = Number(n.turns ?? 0)
+    const budget = Number(n.budget ?? 0)
+    const state = String(n.status ?? "running")
+    views.set(rlm, "status", {
+      items: [
+        { label: "turns", value: `${turns}/${budget}` },
+        { label: "tokens", value: Number(n.tokens ?? 0).toLocaleString("en-US") },
+        { label: "preset", value: String(n.preset ?? "") },
+        { label: "state", value: state, tone: state === "failed" ? "error" : state === "done" ? "ok" : "normal" },
+      ],
+      progress: { done: turns, total: Math.max(budget, turns) },
+    })
+  }
   const observe = (e: Rlm.RlmEvent, prefix = "") => {
     const id = `${prefix}${e.id}`
     // Transcripts get what each RLM was asked and did; the activity tree gets its shape and status.
@@ -22,23 +48,40 @@ export const makeActivity = (log: ThreadLog, threadId: string, messageId = `${th
     if (e.type === "record") {
       const { kind, ...rest } = e.record
       Effect.runSync(log.transcript(threadId, { type: kind, rlm: id, turn: e.turn, ...rest }))
+      push(id, { type: kind, rlm: id, turn: e.turn, ...rest })
       return
     }
     if (e.type === "step") {
       const { type, id: _, ...rest } = e
       Effect.runSync(log.transcript(threadId, { type, rlm: id, ...rest }))
+      push(id, { type, rlm: id, ...rest })
+      // The task section shows the task, then the cell the RLM ran last.
+      const last = e.cells.at(-1)
+      if (last !== undefined && views?.has(id)) views.set(id, "task", { markdown: `${tasks.get(id) ?? ""}\n\n\`\`\`ts\n${log.redact(last.code)}\n\`\`\`` })
       return
     }
     if (e.type === "model") {
       const { type, id: _, ...rest } = e
       Effect.runSync(log.transcript(threadId, { type, rlm: id, ...rest }))
+      push(id, { type, rlm: id, ...rest })
       return
     }
     if (e.type === "atomize" || e.type === "extend") {
       const { type, id: _, ...rest } = e
       Effect.runSync(log.transcript(threadId, { type, rlm: id, ...rest }))
+      push(id, { type, rlm: id, ...rest })
     }
-    if (e.type === "start") Effect.runSync(log.transcript(threadId, { type: "start", rlm: id, parent: e.parent !== undefined ? `${prefix}${e.parent}` : null, preset: e.preset, task: e.task }))
+    if (e.type === "plan") push(id, { type: "plan", children: e.children })
+    if (e.type === "start") {
+      Effect.runSync(log.transcript(threadId, { type: "start", rlm: id, parent: e.parent !== undefined ? `${prefix}${e.parent}` : null, preset: e.preset, task: e.task }))
+      if (views !== undefined) {
+        const task = log.redact(e.task)
+        tasks.set(id, task)
+        views.start(id, RLM_LAYOUT)
+        views.set(id, "task", { markdown: task })
+        push(id, { type: "start", rlm: id, preset: e.preset, task: e.task })
+      }
+    }
     const prev = nodes.get(id) ?? {}
     if (e.type === "status") {
       // The agent draws its own row: no transcript line, only the pane.
@@ -64,6 +107,7 @@ export const makeActivity = (log: ThreadLog, threadId: string, messageId = `${th
                 ? { ...prev, status: "done", turns: e.turns, tokens: e.tokens }
                 : { ...prev, status: e.kind === "stopped" ? "stopped" : "failed", error: e.message }
     nodes.set(id, next)
+    status(id, next)
     // JSON Pointer: escape "~" and "/" so the id stays one path segment.
     const segment = id.replaceAll("~", "~0").replaceAll("/", "~1")
     Effect.runSync(log.append(threadId, E.activityDelta(messageId, [{ op: "add", path: `/rlms/${segment}`, value: next }])))

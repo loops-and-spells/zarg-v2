@@ -3,6 +3,7 @@ import { Cause, Effect, Layer, ManagedRuntime, Stream } from "effect"
 import type { AgendaItem } from "@zarg/plugin/server"
 import { baseTree, engineLayer, gcPasses, makeFindings, Pass, type PassResult, passLayer, snapshotAtTree, startReconciler, workingGraphTree } from "@zarg/reconcile"
 import { makeActivity } from "./activity"
+import { threadViews } from "./views"
 import * as E from "./events"
 import type { WireEvent } from "./events"
 import type { ThreadLog } from "./log"
@@ -36,7 +37,7 @@ const summary = (r: PassResult) => {
 export const makeReconcile = (deps: ReconcileDeps) =>
   Effect.gen(function* () {
     const findings = makeFindings(deps.repo)
-    const activity = { plan: makeActivity(deps.log, "plan"), implement: makeActivity(deps.log, "implement") }
+    const activity = { plan: makeActivity(deps.log, "plan", undefined, threadViews(deps.log, "plan")), implement: makeActivity(deps.log, "implement", undefined, threadViews(deps.log, "implement")) }
     const emit = (thread: string, d: E.Draft) => Effect.runSync(deps.log.append(thread, d))
     let active: { readonly payload: typeof Pass.payloadSchema.Type; readonly runId: string } | undefined
     // Stop: a flag the pass checks between steps, and a signal running cards race (reset for each pass).

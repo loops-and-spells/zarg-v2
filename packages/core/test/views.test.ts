@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { mkdtempSync } from "node:fs"
+import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect } from "effect"
@@ -57,5 +57,15 @@ describe("the ViewStore", () => {
     views.append("a", "steps", [{ text: "key s3cr3t-view-test" }])
     await sleep(40)
     expect(JSON.stringify(events())).not.toContain("s3cr3t-view-test")
+  })
+
+  test("a batched write after the thread's log is gone (the core shut down) is dropped, never thrown", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "zarg-views-"))
+    const log = await Effect.runPromise(makeLog(dir, (t) => t))
+    const views = makeViews(log, "main", { delayMs: 20 })
+    views.start("a", layout)
+    rmSync(dir, { recursive: true, force: true })
+    views.append("a", "steps", [{ text: "late" }])
+    expect(() => views.flush()).not.toThrow()
   })
 })
