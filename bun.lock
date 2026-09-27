@@ -50,6 +50,7 @@
         "@zarg/plugin-gherkin": "workspace:*",
         "@zarg/provider-openrouter": "workspace:*",
         "@zarg/provider-zarg-router": "workspace:*",
+        "@zarg/reconcile": "workspace:*",
         "@zarg/rlm": "workspace:*",
         "effect": "^4.0.0-rc.117",
         "zod": "3",
