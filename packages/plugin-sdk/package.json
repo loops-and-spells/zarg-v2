@@ -1,0 +1,14 @@
+{
+  "name": "@zarg/plugin-sdk",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tools": "./src/tools.ts"
+  },
+  "dependencies": {
+    "@zarg/graph": "workspace:*",
+    "@zarg/plugin": "workspace:*",
+    "effect": "^4.0.0-rc.117"
+  }
+}

@@ -112,6 +112,14 @@
         "@effect/platform-bun": "^4.0.0-rc.117",
       },
     },
+    "packages/plugin-sdk": {
+      "name": "@zarg/plugin-sdk",
+      "dependencies": {
+        "@zarg/graph": "workspace:*",
+        "@zarg/plugin": "workspace:*",
+        "effect": "^4.0.0-rc.117",
+      },
+    },
     "packages/provider-openrouter": {
       "name": "@zarg/provider-openrouter",
       "dependencies": {
@@ -261,6 +269,8 @@
     "@zarg/plugin": ["@zarg/plugin@workspace:packages/plugin"],
 
     "@zarg/plugin-gherkin": ["@zarg/plugin-gherkin@workspace:packages/plugin-gherkin"],
+
+    "@zarg/plugin-sdk": ["@zarg/plugin-sdk@workspace:packages/plugin-sdk"],
 
     "@zarg/provider-openrouter": ["@zarg/provider-openrouter@workspace:packages/provider-openrouter"],
 
