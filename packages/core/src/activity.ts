@@ -18,6 +18,12 @@ export const makeActivity = (log: ThreadLog, threadId: string) => {
   const observe = (e: Rlm.RlmEvent, prefix = "") => {
     const id = `${prefix}${e.id}`
     // Transcripts get what each RLM was asked and did; the activity tree gets its shape and status.
+    // Records (service calls, clock reads) go to the transcript only, never to the activity tree or the wire.
+    if (e.type === "record") {
+      const { kind, ...rest } = e.record
+      Effect.runSync(log.transcript(threadId, { type: kind, rlm: id, turn: e.turn, ...rest }))
+      return
+    }
     if (e.type === "step") {
       const { type, id: _, ...rest } = e
       Effect.runSync(log.transcript(threadId, { type, rlm: id, ...rest }))

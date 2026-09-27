@@ -136,6 +136,22 @@ describe("observe", () => {
     expect(events.find((e) => e.type === "model")).toMatchObject({ id: "rlm-1", turn: 1, firstTokenMs: expect.any(Number), modelMs: expect.any(Number), promptTokens: expect.any(Number), completionTokens: expect.any(Number) })
   })
 
+  test("service calls and clock reads of every cell are reported as records", async () => {
+    const events: Array<Rlm.RlmEvent> = []
+    const stub = stubModel({ driver: [{ cell: 'const now = Date.now()\nyield* Rlm.done({ value: String(now > 0) })' }] })
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const s = yield* settings({})
+        const rlm = yield* Rlm.make({ settings: s, services: factory, roles: { driver: "stub:m" }, cellTimeoutMs: 5000, observe: (e) => events.push(e) })
+        yield* rlm.exec({ task: "t", preset: "driver", scope: {} })
+      }).pipe(Effect.provide(stub.layer)),
+    )
+    const records = events.flatMap((e) => (e.type === "record" ? [e.record] : []))
+    expect(records.some((r) => r.kind === "tick" && r.source === "date")).toBe(true)
+    expect(records.some((r) => r.kind === "call" && r.service === "Rlm" && r.method === "done")).toBe(true)
+    expect(events.find((e) => e.type === "record")).toMatchObject({ id: "rlm-1", turn: 1 })
+  })
+
   test("a preset with reasoning off asks the model not to think; others leave it to the model", async () => {
     const stub = stubModel({
       driver: [{ cell: 'return yield* Rlm.exec({ task: "find", preset: "research", scope: {} })' }, { cell: 'yield* Rlm.done({ value: "ok" })' }],
@@ -165,7 +181,7 @@ describe("observe", () => {
         yield* rlm.exec({ task: "t", preset: "driver", scope: {} })
       }).pipe(Effect.provide(stub.layer)),
     )
-    expect(events.filter((e) => e.type !== "step" && e.type !== "model").map((e) => `${e.type}:${e.id}`)).toEqual(["start:rlm-1", "turn:rlm-1", "start:rlm-2", "turn:rlm-2", "end:rlm-2", "turn:rlm-1", "end:rlm-1"])
+    expect(events.filter((e) => e.type !== "step" && e.type !== "model" && e.type !== "record").map((e) => `${e.type}:${e.id}`)).toEqual(["start:rlm-1", "turn:rlm-1", "start:rlm-2", "turn:rlm-2", "end:rlm-2", "turn:rlm-1", "end:rlm-1"])
     expect(events.find((e) => e.type === "start" && e.id === "rlm-2")).toMatchObject({ type: "start", id: "rlm-2", parent: "rlm-1", preset: "research", depth: 1 })
     expect(events.at(-1)).toMatchObject({ type: "end", ok: true, turns: 2 })
 

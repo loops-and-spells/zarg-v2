@@ -1,5 +1,5 @@
 import { Data, Effect, Ref, Schema, Semaphore, Stream } from "effect"
-import { bind, type Bound, defineService, Kernel, type ServiceFailure, tsType } from "@zarg/kernel"
+import { bind, type Bound, defineService, Kernel, type Recorded, type ServiceFailure, tsType } from "@zarg/kernel"
 import { Model, type ChatMessage, type ToolCall } from "@zarg/model"
 import type { Decisions } from "@zarg/decisions"
 import { atomize, type Atomized, type ChildResult, preview, requestPlan, scopeOf, waves } from "./fold"
@@ -67,6 +67,8 @@ export type RlmEvent =
       readonly text: string
       readonly cells: ReadonlyArray<{ readonly code: string; readonly ok: boolean; readonly output: string; readonly ms: number }>
     }
+  /** A service call or a read of time or randomness by one of the turn's cells (for transcripts and replay, not the UI). */
+  | { readonly type: "record"; readonly id: string; readonly turn: number; readonly record: Recorded }
   | { readonly type: "atomize"; readonly id: string; readonly atomic: boolean; readonly reason: string; readonly criteria: Atomized["criteria"]; readonly ms: number }
   | { readonly type: "plan"; readonly id: string; readonly children: ReadonlyArray<{ readonly id: string; readonly preset: string; readonly dependsOn: ReadonlyArray<string> }> }
   | { readonly type: "end"; readonly id: string; readonly ok: true; readonly turns: number; readonly tokens: number }
@@ -224,7 +226,13 @@ export const make = (deps: RlmDeps) =>
             const b = deps.services(n, spec.scope)
             return b === undefined ? [] : [b]
           })
-          const kernel = yield* Kernel.make({ services: [...layer, rlmService], env: {}, ...(deps.cellTimeoutMs ? { timeoutMs: deps.cellTimeoutMs } : {}) })
+          let turnCount = 0
+          const kernel = yield* Kernel.make({
+            services: [...layer, rlmService],
+            env: {},
+            record: (record) => emit({ type: "record", id, turn: turnCount, record }),
+            ...(deps.cellTimeoutMs ? { timeoutMs: deps.cellTimeoutMs } : {}),
+          })
 
           const messages: Array<ChatMessage> = [
             {
@@ -249,7 +257,6 @@ export const make = (deps: RlmDeps) =>
           let restarts = 0
           yield* Effect.logInfo("rlm.start").pipe(Effect.annotateLogs({ rlm: id, parent: parent?.id ?? "", preset: spec.preset, depth }))
           emit({ type: "start", id, parent: parent?.id, preset: spec.preset, task: spec.task, scope: spec.scope, depth, budget })
-          let turnCount = 0
 
           const turn = Effect.gen(function* () {
             emit({ type: "turn", id, turn: ++turnCount, tokens })

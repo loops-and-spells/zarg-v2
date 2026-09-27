@@ -175,6 +175,27 @@ describe("transcripts", () => {
     expect(JSON.stringify(out.events)).not.toContain("hmm")
   })
 
+  test("a secret in a recorded call is redacted in the transcript, and records never reach the wire", async () => {
+    const driver: Driver = (_s, asker, observe) =>
+      Effect.gen(function* () {
+        observe({ type: "start", id: "rlm-1", parent: undefined, preset: "driver", task: "t", scope: {}, depth: 0, budget: { turns: 25, tokens: 1, wallMs: 1 } })
+        observe({ type: "record", id: "rlm-1", turn: 1, record: { kind: "call", cell: 1, service: "Fs", method: "read", params: { path: "zt-secret" }, ok: true, result: "zt-secret inside", ms: 3 } })
+        observe({ type: "record", id: "rlm-1", turn: 1, record: { kind: "tick", cell: 1, source: "date", value: 1234 } })
+        return (yield* asker.ask(question)) as never
+      }) as never
+    const out = await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread, dir } = yield* setup(driver, undefined, (t) => t.replaceAll("zt-secret", "<redacted:ZT>"))
+        const events = yield* collect(thread.run({ runId: "r1" }))
+        return { events, dir }
+      }),
+    )
+    const lines = readFileSync(join(out.dir, "main.rlm.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l))
+    expect(lines.find((l) => l.type === "call")).toMatchObject({ rlm: "rlm-1", turn: 1, service: "Fs", method: "read", params: { path: "<redacted:ZT>" }, result: "<redacted:ZT> inside" })
+    expect(lines.find((l) => l.type === "tick")).toMatchObject({ rlm: "rlm-1", source: "date", value: 1234 })
+    expect(JSON.stringify(out.events)).not.toContain("1234")
+  })
+
   test("the task headline is redacted before it is cut, so no part of a secret reaches the wire", async () => {
     const task = `${"x".repeat(195)} zt-secret and more`
     const driver: Driver = (_s, asker, observe) =>
