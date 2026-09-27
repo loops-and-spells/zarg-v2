@@ -22,12 +22,6 @@ const fakeSession = (state: SessionState) => {
     command: (t) => calls.push(`command ${t}`),
     pluginCommands: () => [],
     act: (agent, action, _section, rows) => Promise.resolve(void calls.push(`act ${agent} ${action} ${rows.join(",")}`)),
-    body: (agent) =>
-      Promise.resolve(
-        agent.includes(":")
-          ? { parts: [{ kind: "history" as const, lines: [{ type: "step", rlm: agent, turn: 0, text: "UX-1: feel 1.80", cells: [] }] }, { kind: "tabs" as const, tabs: [{ title: "Feedback", columns: ["id", "note"], rows: [{ id: "R-1", cells: ["R-1", "no error shown"] }] }, { title: "Likes", columns: ["id", "note"], rows: [] }], actions: [{ id: "apply", label: "Apply", key: "a" }] }] }
-          : { parts: [{ kind: "history" as const, lines: [{ type: "start", rlm: agent, preset: "research", task: "Find the VM grid" }, { type: "call", rlm: agent, turn: 1, service: "Graph", method: "show", params: { id: "S-1" }, ok: true, result: {}, ms: 11 }] }] },
-      ),
   }
   const update = (next: SessionState) => {
     current = next

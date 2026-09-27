@@ -138,14 +138,3 @@ export const reduce = (s: ThreadState, e: WireEvent): ThreadState => {
       return t
   }
 }
-
-/** What an agent's body shows: history lines, text lines, and tables in tabs with actions on selected rows. */
-export type BodyPart =
-  | { readonly kind: "history"; readonly lines?: ReadonlyArray<Record<string, unknown>> }
-  | { readonly kind: "lines"; readonly lines: ReadonlyArray<{ readonly text: string; readonly tone?: string }> }
-  | {
-      readonly kind: "tabs"
-      readonly tabs: ReadonlyArray<{ readonly title: string; readonly columns: ReadonlyArray<string>; readonly rows: ReadonlyArray<{ readonly id: string; readonly cells: ReadonlyArray<string> }> }>
-      readonly actions: ReadonlyArray<{ readonly id: string; readonly label: string; readonly key: string }>
-    }
-export interface Body { readonly parts: ReadonlyArray<BodyPart> }

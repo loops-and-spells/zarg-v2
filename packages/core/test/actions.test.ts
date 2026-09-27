@@ -1,0 +1,25 @@
+import { expect, test } from "bun:test"
+import { Effect } from "effect"
+import { makeActions } from "../src/actions"
+
+const setup = () => {
+  const calls: Array<[string, string, unknown]> = []
+  const invoke = (plugin: string, method: string, params: unknown) =>
+    Effect.suspend((): Effect.Effect<unknown, { readonly _tag: string; readonly message: string }> => {
+      calls.push([plugin, method, params])
+      if (plugin !== "rehearse") return Effect.fail({ _tag: "NotLoaded", message: `plugin ${plugin} is not loaded` })
+      return Effect.succeed({ notice: "1 finding sent to the driver" })
+    })
+  const applied: Array<[string, ReadonlyArray<string>]> = []
+  return { actions: makeActions({ invoke, onApply: (plugin, rows) => void applied.push([plugin, rows]) }), calls, applied }
+}
+
+test("an action goes to the plugin with its section and rows; an action on a gone plugin's agent is a notice", async () => {
+  const { actions, calls, applied } = setup()
+  expect(await Effect.runPromise(actions.act("main", "rehearse:tester-1", "apply", "review.findings", ["R-1"]))).toEqual({ notice: "1 finding sent to the driver" })
+  expect(calls.at(-1)).toEqual(["rehearse", "act", { agent: "tester-1", action: "apply", section: "review.findings", rows: ["R-1"] }])
+  // The core keeps the developer's choice itself: the findings gate trusts it, not the plugin's word.
+  expect(applied).toEqual([["rehearse", ["R-1"]]])
+  expect(await Effect.runPromise(actions.act("main", "gone:t-1", "apply", undefined, ["x"]))).toEqual({ notice: "plugin gone is not loaded" })
+  expect(await Effect.runPromise(actions.act("main", "rlm-1", "apply", undefined, ["x"]))).toEqual({ notice: "rlm-1 has no actions" })
+})

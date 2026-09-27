@@ -27,7 +27,7 @@ packages/<name>/
 
 - `packages/graph` (`@zarg/graph`): JSON graph store under `.zarg/graph`: snapshot, queries, diff.
 - `packages/plugin` (`@zarg/plugin/server`, `@zarg/plugin/runtime`): the plugin runtime (each plugin in its own locked-down Bun process with `ses`, powers served by the host), grants (`~/.config/zarg/grants.json`), `PluginHost` and the write pipeline. Plugins load only through it; a test fails if another package imports a plugin.
-- `packages/plugin-sdk` (`@zarg/plugin-sdk`, `@zarg/plugin-sdk/tools`): `definePlugin` and the power services plugins yield (`Secrets`, `Http`, `Files`, `Graph`, `Config`); manifests, the checked build and `testPlugin`.
+- `packages/plugin-sdk` (`@zarg/plugin-sdk`, `@zarg/plugin-sdk/tools`): `definePlugin`, `defineView` and the power services plugins yield (`Secrets`, `Http`, `Files`, `Graph`, `Config`, `Agents`, `Views`, …); manifests, the checked build and `testPlugin`.
 - `packages/plugin-gherkin` (`@zarg/plugin-gherkin`, contract `@zarg/plugin-gherkin/contract`): atomic Gherkin user action graph (states and cards).
 - `packages/plugin-rehearse` (`@zarg/plugin-rehearse`): testers roleplay the Gherkin journeys on the decision model and report findings; the developer picks which to apply (`/rehearse`, a service plugin that depends on gherkin). It needs a grant: `zarg plugin grant rehearse`. `mise run calibrate:rehearse` tunes its thresholds (needs the decision model; ask first).
 - First-party plugins build to their `dist/` with `mise run build:plugins` (also the `build` task of `packages/plugin`, which tests and `mise run zarg` depend on); it records their hashes in `packages/plugin/src/server/first-party-hashes.ts`.
@@ -38,7 +38,9 @@ packages/<name>/
 - `packages/kernel` (`@zarg/kernel`): yieldable service definitions, the manifest they generate, and the Bun Worker kernel that typechecks and runs cells.
 - `packages/rlm` (`@zarg/rlm`): the RLM (unit of agency): presets and spawn graph, scoped core services (`Graph`, `Fs`, `Sh`, `Verify`, `Agenda`, `Inquire`), plugin tools as services, and the turn loop.
 - `packages/core` (`@zarg/core`): `zarg-core`, one per project: driver threads on RLMs, the plan and implement phases on the reconcile loop (`plan` and `implement` threads, findings on the driver's agenda), the AG-UI API on `.zarg/run/core.sock` (token in `.zarg/run/core.json`), thread logs in `.zarg/threads/`.
-- `packages/client` (`@zarg/client`): attach to or start a core, the AG-UI client, and `reduce` (events → thread state). Never imports `@zarg/core` or a `/server` subpath.
+- `packages/client` (`@zarg/client`): attach to or start a core, the AG-UI client, and `reduce` (events → thread state, including each agent's view). Never imports `@zarg/core` or a `/server` subpath.
+- `packages/view` (`@zarg/view`, `@zarg/view/react`): agent views, platform-free: the section schema and `defineView`, the AG-UI view reducer, the view behaviour (focus, tabs, rows, selection) and `useView`. Imports no platform module (a test fails if it does).
+- `packages/view-tui` (`@zarg/view-tui`): the terminal platform: the TUI shell (conversation, agents pane, question picker) and a renderer for every section kind, stacked by role. Never imports `@zarg/core` or a `/server` subpath. Web and native renderers come later as sibling packages.
 - `packages/reconcile` (`@zarg/reconcile`): the reconcile loop every downstream phase runs (see `intent/zarg.md`): affected cards, per-card git worktrees, merge, verify with fixes, one commit per pass landed on your branch, findings; each pass is a durable Effect workflow (`.zarg/run/cluster.db`).
 
 Design: `docs/superpowers/specs/2026-09-25-harness-architecture-design.md`, `docs/superpowers/specs/2026-09-25-agent-runtime-design.md` and `docs/superpowers/specs/2026-09-26-core-driver-tui-design.md`.

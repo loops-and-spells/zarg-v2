@@ -1,7 +1,7 @@
 import { Effect, Fiber, Stream } from "effect"
 import type { Client, PluginCommandInfo, RunRequest } from "./client"
 import type { Answer } from "./events"
-import { type Body, initial, reduce, type ThreadState } from "./state"
+import { initial, reduce, type ThreadState } from "./state"
 
 /** Commands the session handles itself. */
 const BUILT_IN = new Set(["/reconcile", "/yolo"])
@@ -30,8 +30,6 @@ export interface Session {
   readonly stop: () => void
   /** Slash commands the core's plugins add (known once the session started). */
   readonly pluginCommands: () => ReadonlyArray<PluginCommandInfo>
-  /** An agent's body; undefined when the core cannot answer. */
-  readonly body: (agent: string) => Promise<Body | undefined>
   /** An action on an agent's selected rows; its notice shows. */
   readonly act: (agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>) => Promise<void>
   /** Stop following the core. */
@@ -155,7 +153,6 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
       )
     },
     pluginCommands: () => pluginCommands,
-    body: (agent) => Effect.runPromise(opts.client.body(opts.threadId, agent).pipe(Effect.orElseSucceed(() => undefined))),
     act: (agent, action, section, rows) =>
       Effect.runPromise(
         opts.client.act(opts.threadId, agent, action, section, rows).pipe(

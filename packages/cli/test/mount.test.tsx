@@ -14,7 +14,6 @@ const opened = (state: SessionState) => {
     stop: () => {},
     close: () => {},
     command: () => {},
-    body: () => Promise.resolve(undefined),
     pluginCommands: () => [],
     act: () => Promise.resolve(),
   }

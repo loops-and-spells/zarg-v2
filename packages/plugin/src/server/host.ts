@@ -49,7 +49,7 @@ export class PluginHost extends Context.Service<
     readonly step: (card: string, via?: string) => Effect.Effect<Record<string, unknown> | undefined, IoError>
     /** Slash commands the loaded plugins add. */
     readonly commands: () => ReadonlyArray<{ readonly plugin: string; readonly cmd: string; readonly desc: string; readonly method: string; readonly arg: unknown }>
-    /** Call any method of a loaded plugin (the core's reserved calls: body, act, finding, resolved, stop). */
+    /** Call any method of a loaded plugin (the core's reserved calls: act, finding, resolved, stop). */
     readonly invoke: (plugin: string, method: string, params: unknown) => Effect.Effect<unknown, { readonly _tag: string; readonly message: string }>
     /** Run `effect` with no tool call committing meanwhile (e.g. while landing a commit that writes graph files). */
     readonly exclusive: <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
@@ -129,7 +129,7 @@ const scrub = (value: unknown, secrets: ReadonlySet<string>): unknown => {
 }
 
 /** Methods the host calls on graph plugins; never offered as tools. */
-const RESERVED = new Set(["validate", "lint", "agenda", "suggest", "render", "affected", "stories", "step", "body", "act", "finding", "resolved", "stop"])
+const RESERVED = new Set(["validate", "lint", "agenda", "suggest", "render", "affected", "stories", "step", "act", "finding", "resolved", "stop"])
 const IDLE_MS = 10 * 60_000
 const RESTART_WINDOW_MS = 10 * 60_000
 const MAX_RESTARTS = 3

@@ -7,7 +7,7 @@ import { EventSchemas } from "@ag-ui/core/schemas"
 import { Model, type ChatMessage, type StreamEvent } from "@zarg/model"
 import { type Asker, inquire, Rlm, settings } from "@zarg/rlm"
 import { HttpRouter } from "effect/unstable/http"
-import { api, Bodies, Heartbeat, PluginCommands, Log, makeLog, makeThreads, ReconcileControl, Threads, Token, YoloControl } from "../src"
+import { Actions, api, Heartbeat, PluginCommands, Log, makeLog, makeThreads, ReconcileControl, Threads, Token, YoloControl } from "../src"
 
 /** A stub model: the driver asks one question, then finishes with the answer. */
 const stub = Layer.succeed(Model.Model, {
@@ -47,7 +47,7 @@ const handler = async (heartbeat: Duration.Input = "5 seconds") => {
     }).pipe(Effect.provide(stub)),
   )
   const web = HttpRouter.toWebHandler(
-    api.pipe(Layer.provide([Layer.succeed(Threads, threads), Layer.succeed(Log, log), Layer.succeed(Token, TOKEN), Layer.succeed(Heartbeat, heartbeat), Layer.succeed(ReconcileControl, { turnOn: Effect.succeed({ on: true, pending: 3 }) }), Layer.succeed(PluginCommands, { list: () => [{ plugin: "p", cmd: "/p-go", desc: "d", method: "command", arg: { kind: "none" } }], run: (plugin, cmd, args) => Effect.succeed({ notice: `${plugin} ${cmd} ${args.join(" ")}` }) }), Layer.succeed(Bodies, { body: (_t, a) => Effect.succeed(a === "p:x" ? { parts: [{ kind: "lines", lines: [{ text: "hi" }] }] } : undefined), act: (_t, a, action, section, rows) => Effect.succeed({ notice: `${a} ${action} ${section ?? "-"} ${rows.join(",")}` }) }), Layer.succeed(YoloControl, { set: (on, plugin) => Effect.sync(() => (yolos.push({ on, ...(plugin !== undefined ? { plugin } : {}) }), { on })) })])),
+    api.pipe(Layer.provide([Layer.succeed(Threads, threads), Layer.succeed(Log, log), Layer.succeed(Token, TOKEN), Layer.succeed(Heartbeat, heartbeat), Layer.succeed(ReconcileControl, { turnOn: Effect.succeed({ on: true, pending: 3 }) }), Layer.succeed(PluginCommands, { list: () => [{ plugin: "p", cmd: "/p-go", desc: "d", method: "command", arg: { kind: "none" } }], run: (plugin, cmd, args) => Effect.succeed({ notice: `${plugin} ${cmd} ${args.join(" ")}` }) }), Layer.succeed(Actions, { act: (_t, a, action, section, rows) => Effect.succeed({ notice: `${a} ${action} ${section ?? "-"} ${rows.join(",")}` }) }), Layer.succeed(YoloControl, { set: (on, plugin) => Effect.sync(() => (yolos.push({ on, ...(plugin !== undefined ? { plugin } : {}) }), { on })) })])),
     { disableLogger: true },
   )
   handlers.push(web)
@@ -156,11 +156,10 @@ describe("core HTTP API", () => {
     expect((await post(h, "/reconcile", {}, "wrong")).status).toBe(401)
   })
 
-  test("an agent's body and its actions", async () => {
+  test("an agent's actions; bodies are gone (views travel on the event stream)", async () => {
     const h = await handler()
     const get = (path: string) => h(new Request(`http://core${path}`, { headers: { authorization: `Bearer ${TOKEN}` } }))
-    expect(await (await get("/threads/main/agents/p%3Ax/body")).json()).toEqual({ parts: [{ kind: "lines", lines: [{ text: "hi" }] }] })
-    expect((await get("/threads/main/agents/none/body")).status).toBe(404)
+    expect((await get("/threads/main/agents/p%3Ax/body")).status).toBe(404)
     expect(await (await post(h, "/threads/main/agents/p%3Ax/actions/apply", { section: "review.findings", rows: ["R-1", "R-2"] })).json()).toEqual({ notice: "p:x apply review.findings R-1,R-2" })
     expect(await (await post(h, "/threads/main/agents/p%3Ax/actions/apply", { rows: ["R-1"] })).json()).toEqual({ notice: "p:x apply - R-1" })
     expect((await post(h, "/threads/main/agents/p%3Ax/actions/apply", { section: 3, rows: ["R-1"] })).status).toBe(400)

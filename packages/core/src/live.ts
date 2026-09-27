@@ -17,7 +17,7 @@ import { askFirst } from "./driver"
 import { judgeGaps } from "./gaps"
 import { outsideReads } from "./outside"
 import { nextGoals, type NextOption } from "./intent"
-import { makeBodies } from "./bodies"
+import { makeActions } from "./actions"
 import { chosenFindings, commitGraph as commitGraphFindings, findingsService } from "./findings"
 import { makeLog } from "./log"
 import { pluginAgents } from "./plugin-agents"
@@ -188,7 +188,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       Effect.uninterruptible,
       Semaphore.withPermits(turnOnLock, 1),
     )
-    const bodies = makeBodies({ log, invoke: (plugin, method, params) => host.invoke(plugin, method, params), onApply: (plugin, rows) => chosen.add(plugin, rows) })
+    const actions = makeActions({ invoke: (plugin, method, params) => host.invoke(plugin, method, params), onApply: (plugin, rows) => chosen.add(plugin, rows) })
     // A plugin's slash command calls its method with the words after it; its notice shows.
     const commands = {
       list: () => host.commands(),
@@ -201,7 +201,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         )
       },
     }
-    return { log, threads, driver: roles.driver, turnOn, yolo, bodies, commands }
+    return { log, threads, driver: roles.driver, turnOn, yolo, actions, commands }
   })
 
 /** The project's plugin host options from its environment and config (`[plugins.<name>]` tables). */

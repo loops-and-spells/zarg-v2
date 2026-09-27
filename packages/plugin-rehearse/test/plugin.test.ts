@@ -59,16 +59,16 @@ describe("rehearse as a loaded plugin", () => {
         yield* h.call("gherkin/add-card", { title: "Visitor pays", when: "the visitor pays", arrives: { text: "the cart is shown" }, then: [{ text: "the receipt is shown" }] })
         const started = yield* h.invoke("rehearse", "command", { args: [] })
         for (let i = 0; i < 500 && !events.some((e) => e.event.id === "run" && e.event.event === "end"); i++) yield* Effect.sleep(20)
-        const body = yield* h.invoke("rehearse", "body", { agent: "run" })
-        return { started, body }
+        return { started }
       }).pipe(Effect.provide(Layer.provideMerge(host, graphLayer(join(root, ".zarg/graph")))))
     }).pipe(Effect.scoped, Effect.provide(BunServices.layer), Effect.runPromise)
 
     expect(out.started).toMatchObject({ notice: expect.stringContaining("started") })
     expect(events.every((e) => e.plugin === "rehearse")).toBe(true)
     expect(events.map((e) => e.event.id)).toContain("tester-1")
-    const tabs = (out.body as { parts: ReadonlyArray<{ kind: string; tabs?: ReadonlyArray<{ title: string; rows: ReadonlyArray<unknown> }> }> }).parts.find((p) => p.kind === "tabs")!.tabs!
-    expect(tabs[0]!.rows.length).toBeGreaterThan(0)
+    expect(events.find((e) => e.event.event === "start" && e.event.id === "tester-1")?.event).toMatchObject({ view: "tester" })
+    const review = events.filter((e) => e.event.id === "run" && e.event.event === "set" && (e.event as { section?: string }).section === "review.findings").at(-1)
+    expect(((review?.event as { data?: { rows?: ReadonlyArray<unknown> } } | undefined)?.data?.rows ?? []).length).toBeGreaterThan(0)
     const index = JSON.parse(readFileSync(join(root, ".zarg/rehearse/index.json"), "utf8")) as ReadonlyArray<string>
     expect(index).toHaveLength(1)
   }, 30_000)

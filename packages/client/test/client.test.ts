@@ -28,7 +28,6 @@ const server = Bun.serve({
     if (url.pathname === "/commands") return Response.json([{ plugin: "p", cmd: "/p-go", desc: "d", method: "command", arg: { kind: "none" } }])
     if (url.pathname === "/plugins/p/commands/p-go") return Response.json({ notice: "went" })
     if (url.pathname === "/threads/main/rlms/rlm-2") return Response.json([{ type: "start", rlm: "rlm-2" }])
-    if (url.pathname === "/threads/main/agents/rehearse%3At-1/body") return Response.json({ parts: [{ kind: "lines", lines: [{ text: "hi" }] }] })
     if (url.pathname === "/threads/main/agents/rehearse%3At-1/actions/apply") return Response.json({ notice: "applied" })
     // Events split across chunks and with CRLF-free multi-line framing, as a real stream may deliver them.
     return new Response(
@@ -72,8 +71,7 @@ describe("client", () => {
     expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/threads/main/stop" })
   })
 
-  test("an agent's body and an action on its selected rows", async () => {
-    expect(await Effect.runPromise(client.body("main", "rehearse:t-1"))).toEqual({ parts: [{ kind: "lines", lines: [{ text: "hi" }] }] })
+  test("an action on rows of an agent's view", async () => {
     expect(await Effect.runPromise(client.act("main", "rehearse:t-1", "apply", "review.findings", ["R-1"]))).toEqual({ notice: "applied" })
     expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/threads/main/agents/rehearse%3At-1/actions/apply", body: { section: "review.findings", rows: ["R-1"] } })
   })

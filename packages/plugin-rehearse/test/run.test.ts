@@ -17,6 +17,7 @@ const setup = (o: Opts = {}) =>
     let changed = 0
     const writing = new Map<string, number>()
     const overlap = { max: 0 }
+    const pushes: Array<{ agent: string; path: string; data?: unknown; lines?: unknown }> = []
     let ids = 0
     const view = (card: string): StepView => ({ card, title: card, given: `before ${card}`, when: o.cardText?.(card) ?? `do ${card}`, thens: [`after ${card}`], fork: [], hasFailure: false })
     const deps: RunDeps = {
@@ -58,10 +59,14 @@ const setup = (o: Opts = {}) =>
         }),
       list: (dir) => Effect.succeed([...files.keys()].filter((k) => k.startsWith(`${dir}/`)).map((k) => k.slice(dir.length + 1))),
       agendaChanged: Effect.sync(() => void changed++),
+      views: {
+        set: (agent, _v, path, data) => Effect.sync(() => void pushes.push({ agent, path, data })),
+        append: (agent, _v, path, lines) => Effect.sync(() => void pushes.push({ agent, path, lines })),
+      },
       settings: rehearseSettings(o.auto ? { auto_apply: true } : {}, "stub:m"),
     }
     const r = yield* makeRehearse(deps)
-    return { r, files, decisions, llm, events, changed: () => changed, overlap }
+    return { r, files, decisions, llm, events, changed: () => changed, overlap, pushes }
   })
 const until = (check: () => boolean) =>
   Effect.gen(function* () {
@@ -76,8 +81,9 @@ const finish = (o: Opts = {}) =>
       return { ...t, run: s.run }
     }),
   )
-type Tabs = { parts: ReadonlyArray<{ kind: string; tabs?: ReadonlyArray<{ title: string; rows: ReadonlyArray<{ id: string }> }> }> }
-const tabs = (b: unknown) => (b as Tabs).parts.find((p) => p.kind === "tabs")!.tabs!
+type Pushes = ReadonlyArray<{ agent: string; path: string; data?: unknown; lines?: unknown }>
+/** The rows an agent's table shows now: its last push. */
+const rowsNow = (pushes: Pushes, agent: string, path: string) => ((pushes.filter((p) => p.agent === agent && p.path === path).at(-1)?.data as { rows?: ReadonlyArray<{ id: string; cells: Record<string, string> }> } | undefined)?.rows ?? [])
 
 describe("rehearse runs in the plugin", () => {
   test("a run screens shared prefixes once, diagnoses only flagged steps, and by default applies nothing", async () => {
@@ -95,11 +101,10 @@ describe("rehearse runs in the plugin", () => {
   test("the tables list the findings; apply sends only the chosen ones to the agenda and says so to the host", async () => {
     const t = await finish()
     const id = t.r.record(t.run)!.findings[0]!.id
-    expect(tabs(t.r.body("run")).map((x) => [x.title, x.rows.map((r) => r.id)])).toEqual([["Feedback", [id]], ["Likes", []]])
-    expect((t.r.body("tester-1") as Tabs).parts.map((p) => p.kind)).toEqual(["history", "tabs"])
-    expect(t.r.body("nobody")).toBeNull()
+    expect(rowsNow(t.pushes, "run", "review.findings").map((r) => r.id)).toEqual([id])
+    expect(rowsNow(t.pushes, "run", "review.likes")).toEqual([])
     expect(await Effect.runPromise(t.r.finding(id))).toMatchObject({ chosen: false, stale: false })
-    expect(await Effect.runPromise(t.r.act("apply", [id]))).toEqual({ notice: "1 finding sent to the driver" })
+    expect(await Effect.runPromise(t.r.act("apply", "review.findings", [id]))).toEqual({ notice: "1 finding sent to the driver" })
     expect(t.r.agenda()).toEqual([expect.objectContaining({ title: expect.stringContaining("1 finding the developer chose to apply") })])
     expect(t.changed()).toBe(1)
     expect(await Effect.runPromise(t.r.finding(id))).toMatchObject({ chosen: true })
@@ -108,22 +113,21 @@ describe("rehearse runs in the plugin", () => {
   test("chosen findings survive a restart", async () => {
     const t = await finish()
     const id = t.r.record(t.run)!.findings[0]!.id
-    await Effect.runPromise(t.r.act("apply", [id]))
+    await Effect.runPromise(t.r.act("apply", "review.findings", [id]))
     const again = await Effect.runPromise(setup({ files: t.files }))
     expect(again.r.agenda().length).toBe(1)
   })
 
   test("dismissed findings stay dismissed on a rerun while the card is unchanged", async () => {
     const t = await finish()
-    await Effect.runPromise(t.r.act("dismiss", [t.r.record(t.run)!.findings[0]!.id]))
-    const again = await Effect.runPromise(
+    await Effect.runPromise(t.r.act("dismiss", "review.findings", [t.r.record(t.run)!.findings[0]!.id]))
+    await Effect.runPromise(
       Effect.gen(function* () {
         const s = (yield* t.r.start({})) as { run: string }
         yield* until(() => t.r.record(s.run)?.status === "done")
-        return t.r.body("run")
       }),
     )
-    expect(tabs(again)[0]!.rows).toEqual([])
+    expect(rowsNow(t.pushes, "run", "review.findings")).toEqual([])
   })
 
   test("a finding whose card changed since the run is stale", async () => {
@@ -201,7 +205,7 @@ describe("rehearse runs in the plugin", () => {
     const rows = t.events.filter((e) => e.id === "tester-1" && e.event === "status").map((e) => e.progress!)
     expect(rows.map((r) => r.done)).toEqual([...rows.map((r) => r.done)].sort((a, b) => a - b))
     expect(rows.at(-1)).toEqual({ done: 4, total: 4 })
-    expect(t.events.filter((e) => e.id === "tester-1" && e.event === "step").map((e) => e.text)).toContain("B: feel 1.00, fail 0.30 → flagged feel → 1 finding")
+    expect(t.pushes.filter((p) => p.agent === "tester-1" && p.path === "steps").flatMap((p) => p.lines as ReadonlyArray<{ text: string }>).map((l) => l.text)).toContain("B: feel 1.00, fail 0.30 → flagged feel → 1 finding")
     expect(t.events.filter((e) => e.id === "run" && e.event === "status").at(-1)?.text).toBe("1 finding to review · 2 unreachable")
   })
 
@@ -213,7 +217,7 @@ describe("rehearse runs in the plugin", () => {
   test("a finding chosen in one run stays takeable after a later run reports it again unchosen", async () => {
     const t = await finish()
     const id = t.r.record(t.run)!.findings[0]!.id
-    await Effect.runPromise(t.r.act("apply", [id]))
+    await Effect.runPromise(t.r.act("apply", "review.findings", [id]))
     await Effect.runPromise(
       Effect.gen(function* () {
         const s = (yield* t.r.start({})) as { run: string }
@@ -221,5 +225,27 @@ describe("rehearse runs in the plugin", () => {
       }),
     )
     expect(await Effect.runPromise(t.r.finding(id))).toMatchObject({ run: t.run, chosen: true })
+  })
+
+  test("the tester's view: workers follow the walk, steps are logged, its findings fill the review table", async () => {
+    const t = await finish({ slowDecide: 3 })
+    const workers = t.pushes.filter((p) => p.agent === "tester-1" && p.path === "workers").map((p) => p.data as { items: ReadonlyArray<{ state?: string; detail?: string }> })
+    expect(workers.some((w) => w.items.some((i) => i.state === "busy"))).toBe(true)
+    // Both stories start with A, B: one screens the shared step, the other waits for it.
+    expect(workers.some((w) => w.items.some((i) => i.state === "waiting"))).toBe(true)
+    expect(workers.at(-1)!.items).toEqual([])
+    expect(t.pushes.filter((p) => p.agent === "tester-1" && p.path === "steps").flatMap((p) => p.lines as ReadonlyArray<{ text: string }>).map((l) => l.text)).toContain("B: feel 1.00, fail 0.30 → flagged feel → 1 finding")
+    const id = t.r.record(t.run)!.findings[0]!.id
+    const review = t.pushes.filter((p) => p.agent === "tester-1" && p.path === "review.findings").at(-1)!.data as { rows: ReadonlyArray<{ id: string }> }
+    expect(review.rows.map((r) => r.id)).toEqual([id])
+  })
+
+  test("the run's view: progress over all testers, the report, every finding; apply refreshes it", async () => {
+    const t = await finish()
+    const id = t.r.record(t.run)!.findings[0]!.id
+    expect(t.pushes.find((p) => p.agent === "run" && p.path === "report")?.data).toEqual({ markdown: "Testers stalled at B." })
+    expect(await Effect.runPromise(t.r.act("apply", "review.findings", [id]))).toEqual({ notice: "1 finding sent to the driver" })
+    const last = t.pushes.filter((p) => p.agent === "run" && p.path === "review.findings").at(-1)!.data as { rows: ReadonlyArray<{ cells: Record<string, string> }> }
+    expect(last.rows[0]!.cells.note).toStartWith("✓ ")
   })
 })

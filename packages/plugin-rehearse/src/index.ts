@@ -1,8 +1,9 @@
 import { Effect, Schema } from "effect"
 import { Gherkin } from "@zarg/plugin-gherkin/contract"
-import { Agenda, Agents, Clock, Config, Decisions, definePlugin, Files, Models } from "@zarg/plugin-sdk"
+import { Agenda, Agents, Clock, Config, Decisions, definePlugin, Files, Models, Views } from "@zarg/plugin-sdk"
 import { makeRehearse } from "./run"
 import { rehearseSettings } from "./settings"
+import { RunView, TesterView } from "./views"
 
 const Params = Schema.Struct({
   strategy: Schema.optionalKey(Schema.Literals(["edge-pair", "teleport"])).annotate({ description: "edge-pair (default): every journey step and step pair; teleport: each card once, alone (quick)." }),
@@ -29,6 +30,7 @@ export default definePlugin({
     in_flight: Schema.optionalKey(Schema.Number),
   }),
   pluginDependencies: [Gherkin],
+  views: [TesterView, RunView],
   scopes: { decisions: true, models: ["rehearse"], agents: true, fs: { read: [".zarg/rehearse/**", "intent/**"], write: [".zarg/rehearse/**"] } },
   commands: [
     {
@@ -42,8 +44,7 @@ export default definePlugin({
     run: { doc: "Start a rehearsal in the background (when the graph is ready, or the developer asks). Findings wait for the developer in the agents pane.", params: Params, success: Schema.Unknown, agents: true, deadlineMs: START_DEADLINE_MS },
     command: { doc: "/rehearse", params: Schema.Struct({ args: Schema.Array(Schema.String) }), success: Notice, deadlineMs: START_DEADLINE_MS },
     agenda: { doc: "Findings the developer chose to apply.", params: Schema.Struct({}), success: Schema.Unknown },
-    body: { doc: "A tester's or the run's body.", params: Schema.Struct({ agent: Schema.String }), success: Schema.Unknown },
-    act: { doc: "Apply or dismiss selected findings.", params: Schema.Struct({ agent: Schema.String, action: Schema.String, rows: Schema.Array(Schema.String) }), success: Notice },
+    act: { doc: "Apply or dismiss selected findings.", params: Schema.Struct({ agent: Schema.String, action: Schema.String, section: Schema.optionalKey(Schema.String), rows: Schema.Array(Schema.String) }), success: Notice },
     finding: { doc: "A finding for the findings gate.", params: Schema.Struct({ id: Schema.String }), success: Schema.Unknown },
     resolved: { doc: "Findings the driver resolved.", params: Schema.Struct({ run: Schema.String, ids: Schema.Array(Schema.String) }), success: Schema.Null },
     stop: { doc: "Stop the running rehearsal.", params: Schema.Struct({}), success: Schema.Null },
@@ -56,6 +57,7 @@ export default definePlugin({
     const clock = yield* Clock
     const files = yield* Files
     const agenda = yield* Agenda
+    const views = yield* Views
     const config = (yield* Config).value as Record<string, unknown>
     const r = yield* makeRehearse({
       stories: (strategy, focus) => gherkin.stories({ strategy, ...(focus !== undefined ? { focus } : {}) }),
@@ -69,6 +71,7 @@ export default definePlugin({
       write: files.write,
       list: files.list,
       agendaChanged: agenda.changed,
+      views: { set: (a, v, path, data) => views.set(a, v as never, path as never, data as never), append: (a, v, path, lines) => views.append(a, v as never, path as never, lines) },
       settings: rehearseSettings(config ?? {}, "rehearse"),
     })
     // A run a restart cut short continues (the plugin loads on its first call).
@@ -88,8 +91,7 @@ export default definePlugin({
               : { notice: `Rehearse run ${s.run} started: ${s.stories} stories, ${s.steps} steps, testers: ${s.personas.join(", ")}. Watch it in the agents pane (Tab).` },
         ),
       agenda: () => Effect.succeed(r.agenda()),
-      body: ({ agent }: { agent: string }) => Effect.succeed(r.body(agent)),
-      act: ({ action, rows }: { action: string; rows: ReadonlyArray<string> }) => r.act(action, rows),
+      act: ({ action, section, rows }: { action: string; section?: string; rows: ReadonlyArray<string> }) => r.act(action, section ?? "review.findings", rows),
       finding: ({ id }: { id: string }) => r.finding(id),
       resolved: ({ run: id, ids }: { run: string; ids: ReadonlyArray<string> }) => Effect.as(r.resolved(id, ids), null),
       stop: () => Effect.as(r.stop, null),

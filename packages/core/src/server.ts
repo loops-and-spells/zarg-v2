@@ -39,14 +39,13 @@ export class PluginCommands extends Context.Service<
   }
 >()("@zarg/core/PluginCommands") {}
 
-/** Agents' bodies and the actions on their selected rows (`GET …/agents/:agent/body`, `POST …/actions/:action`). */
-export class Bodies extends Context.Service<
-  Bodies,
+/** Actions on rows of an agent's view (`POST …/actions/:action`). */
+export class Actions extends Context.Service<
+  Actions,
   {
-    readonly body: (thread: string, agent: string) => Effect.Effect<unknown>
     readonly act: (thread: string, agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>) => Effect.Effect<{ readonly notice: string }>
   }
->()("@zarg/core/Bodies") {}
+>()("@zarg/core/Actions") {}
 
 /** YOLO on or off (`POST /yolo`): for every plugin, or one; answers whether any plugin is in YOLO now. */
 export class YoloControl extends Context.Service<YoloControl, { readonly set: (on: boolean, plugin?: string) => Effect.Effect<{ readonly on: boolean }> }>()("@zarg/core/YoloControl") {}
@@ -97,7 +96,7 @@ const routes = HttpRouter.addAll(
     const threads = yield* Threads
     const control = yield* ReconcileControl
     const yolo = yield* YoloControl
-    const bodies = yield* Bodies
+    const actions = yield* Actions
     const commands = yield* PluginCommands
     const heartbeat = yield* Heartbeat
     const log = yield* Log
@@ -158,17 +157,6 @@ const routes = HttpRouter.addAll(
         }),
       ),
       HttpRouter.route(
-        "GET",
-        "/threads/:id/agents/:agent/body",
-        Effect.gen(function* () {
-          const { id, agent } = yield* HttpRouter.params
-          const thread = decodeURIComponent(id ?? "")
-          if (!THREAD_ID.test(thread)) return error(400, "invalid thread id")
-          const b = yield* bodies.body(thread, decodeURIComponent(agent ?? ""))
-          return b === undefined ? error(404, "no such agent, or its plugin is not loaded") : HttpServerResponse.jsonUnsafe(b)
-        }),
-      ),
-      HttpRouter.route(
         "POST",
         "/threads/:id/agents/:agent/actions/:action",
         Effect.gen(function* () {
@@ -178,7 +166,7 @@ const routes = HttpRouter.addAll(
           const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as { section?: unknown; rows?: unknown }
           if (!Array.isArray(body.rows) || !body.rows.every((r) => typeof r === "string")) return error(400, `an action needs { "rows": [ids] }`)
           if (body.section !== undefined && typeof body.section !== "string") return error(400, `an action's "section" must be a string`)
-          return HttpServerResponse.jsonUnsafe(yield* bodies.act(thread, decodeURIComponent(agent ?? ""), decodeURIComponent(action ?? ""), body.section as string | undefined, body.rows as ReadonlyArray<string>))
+          return HttpServerResponse.jsonUnsafe(yield* actions.act(thread, decodeURIComponent(agent ?? ""), decodeURIComponent(action ?? ""), body.section as string | undefined, body.rows as ReadonlyArray<string>))
         }),
       ),
       HttpRouter.route(
@@ -204,7 +192,6 @@ const routes = HttpRouter.addAll(
  *   POST /threads/:id/stop     stop the thread's current work
  *   GET  /commands              slash commands plugins add
  *   POST /plugins/:name/commands/:cmd  { args } → { notice }
- *   GET  /threads/:id/agents/:agent/body          the agent's body (parts)
  *   POST /threads/:id/agents/:agent/actions/:action  { rows } → { notice }
  */
 export const api = Layer.mergeAll(routes, auth)
