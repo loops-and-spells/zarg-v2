@@ -5,7 +5,7 @@ Status: approved in conversation, pending written review
 
 ## Intent
 
-zarg is a coding-agent harness. You converse with a driver agent to continuously refine product requirements. The requirements live as an atomic Gherkin user action graph. As a side effect, a continuous sync agent reconciles graph changes into implementation code, like a virtual DOM whose output is generated code instead of DOM patches.
+zarg is a coding-agent harness. You converse with a driver agent to continuously refine product requirements. The requirements live as an atomic Gherkin user action graph. As a side effect, downstream phases (plan, implement) reconcile graph changes into implementation code, like a virtual DOM whose output is generated code instead of DOM patches. The pipeline is set out in `intent/zarg.md`.
 
 Success means: you refine requirements in conversation, and code converges to match without you asking "implement X". The first proof point is Claude Code building zarg through zarg's own graph.
 
@@ -212,7 +212,7 @@ A thread is one continuous conversation line (AG-UI `threadId`). A run is one st
 | Thread | Count | Agent | Scope |
 |---|---|---|---|
 | driver threads | 1..N per project; `main` always exists | driver agent | its focus |
-| `sync` | 1 per project | sync agent | all commits |
+| `plan`, `implement` | 1 each per project | planner, implementer (reconcile passes) | all graph changes |
 
 - Each driver thread has a focus: a subgraph such as "cards reachable from S-0002". The agent proposes the focus by inquiry when you open a thread. Agenda items outside every focus go to `main`.
 - A thread is told about other threads' commits inside its focus.
@@ -237,11 +237,9 @@ loop:
 - You can interject any time. Your message cancels the pending inquiry and is considered before the next item.
 - The driver changes the graph only. It never edits code.
 
-### Sync agent
+### Plan and implement (formerly the sync agent)
 
-- Subscribes to commits, debounced (about 2 seconds of quiet), and dispatches the diff to plugin reactors.
-- Changes code only. It never edits requirements. A requirement it cannot satisfy becomes an agenda finding for a driver thread.
-- What the sync agent owns in code (tagged regions, fully generated output, or a hybrid) is decided in its own spec.
+Superseded by `intent/zarg.md` and `docs/superpowers/specs/2026-09-26-plan-implement-design.md`: downstream work is a pipeline of phases (capture, specify, rehearse, plan, implement), each run by the same reconcile loop. Plan and implement run after the graph is quiet, per card in git worktrees, and land one commit per pass. They change plans and code only, never requirements; what they cannot do becomes a finding on the driver's agenda. What implement owns in code (tagged regions, generated output, or a hybrid) is still its own spec.
 
 ### Conflicts
 

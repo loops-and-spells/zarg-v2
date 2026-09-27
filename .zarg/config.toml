@@ -8,6 +8,12 @@ base_url = "${OPENROUTER_URL}"
 api_key  = "${OPENROUTER_API_KEY:-}"
 
 [roles]
-driver   = "zarg-router:deepseek-v4.1-flash-exl3"
-sync     = "zarg-router:deepseek-v4.1-flash-exl3"
-decision = "zarg-router:jevk5"
+driver    = "zarg-router:deepseek-v4.1-flash-exl3"
+plan      = "zarg-router:deepseek-v4.1-flash-exl3"
+implement = "zarg-router:deepseek-v4.1-flash-exl3"
+decision  = "zarg-router:jevk5"
+
+# Plan and implement (the reconcile loop): passes run while a core runs; `enabled = false` turns them off.
+[reconcile]
+setup  = "mise trust -q && mise x -- bun install"
+verify = "mise run verify"

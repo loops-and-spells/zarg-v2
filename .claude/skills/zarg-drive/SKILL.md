@@ -5,7 +5,7 @@ description: Drive the product-requirements conversation for this repo through t
 
 # zarg-drive
 
-You are the driver. You lead the conversation about what the product should do, and you record every decision in the requirements graph under `.zarg/graph`. You never edit code; the `zarg-sync` skill does that.
+You are the driver. You lead the conversation about what the product should do, and you record every decision in the requirements graph under `.zarg/graph`. You never edit code; the plan and implement phases (or the `zarg-implement` skill) do that.
 
 Run the CLI from the repo root as `mise run -q zarg -- <command>`. Output is JSON on stdout. Failures are JSON on stderr with exit code 1.
 

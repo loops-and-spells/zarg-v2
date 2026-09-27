@@ -19,6 +19,10 @@ run = "mise x -- bun packages/cli/src/main.ts"
 description = "Live chat smoke test: one real driver item through core and the client (needs the configured driver model)"
 run = "mise x -- bun packages/cli/smoke/chat.ts"
 
+[tasks."smoke:implement"]
+description = "Live implement smoke test: one real card through plan and implement, in a scratch clone (needs the configured plan and implement models)"
+run = "mise x -- bun packages/cli/smoke/implement.ts"
+
 [tasks.smoke]
 description = "Live smoke test: one real research RLM on this repo (needs the configured model providers)"
 run = "mise x -- bun packages/rlm/smoke/smoke.ts"

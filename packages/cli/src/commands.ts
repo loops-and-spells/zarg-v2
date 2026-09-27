@@ -2,7 +2,11 @@ import { Console, Effect, Option } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
 import { diff, GraphStore, hash, Snapshot } from "@zarg/graph"
 import { PluginHost } from "@zarg/plugin/server"
+import { rmSync, writeFileSync } from "node:fs"
+import { join } from "node:path"
 import { readClaim, startHeadless, stopCore } from "@zarg/client"
+import { affectedCards } from "@zarg/plugin-gherkin/server"
+import { baseTree, CHECKPOINT, LEGACY_CHECKPOINT, snapshotAtTree, workingGraphTree } from "@zarg/reconcile"
 import { cardRefs, snapshotAt } from "./git"
 import { root } from "./root"
 
@@ -87,6 +91,28 @@ const diffCmd = Command.make("diff", { since: Flag.String("since").pipe(Flag.wit
   }),
 )
 
+// @card UX-0020
+const affected = Command.make("affected", {}, () =>
+  Effect.gen(function* () {
+    const base = yield* baseTree(root)
+    const graph = yield* workingGraphTree(root)
+    const [before, after] = yield* Effect.all([snapshotAtTree(root, base), snapshotAtTree(root, graph)])
+    yield* print({ base, graph, ...affectedCards(before, after) })
+  }),
+)
+
+// @card UX-0022
+const checkpoint = Command.make("checkpoint", {}, () =>
+  Effect.gen(function* () {
+    const graph = yield* workingGraphTree(root)
+    yield* Effect.sync(() => {
+      writeFileSync(join(root, CHECKPOINT), `${JSON.stringify({ graph }, null, 2)}\n`)
+      rmSync(join(root, LEGACY_CHECKPOINT), { force: true })
+    })
+    yield* print({ graph })
+  }),
+)
+
 const coreStart = Command.make(
   "start",
   { headless: Flag.Boolean("headless").pipe(Flag.withDescription("run until `zarg core stop`, detached from this terminal")) },
@@ -117,4 +143,4 @@ export const zarg = Command.make(
     focus: Flag.String("focus").pipe(Flag.atLeast(0), Flag.withDescription("graph node the thread focuses on (repeatable)")),
   },
   ({ thread, focus }) => Effect.flatMap(Effect.promise(() => import("./tui/run")), (m) => m.runTui({ root, threadId: thread, focus })),
-).pipe(Command.withSubcommands([tool, show, render, agenda, lint, query, diffCmd, core]))
+).pipe(Command.withSubcommands([tool, show, render, agenda, lint, query, diffCmd, affected, checkpoint, core]))

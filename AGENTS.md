@@ -34,7 +34,7 @@ packages/<name>/
 - `packages/decisions` (`@zarg/decisions`): `Decisions` service (JEV `/systemone`, structured fallback).
 - `packages/kernel` (`@zarg/kernel`): yieldable service definitions, the manifest they generate, and the Bun Worker kernel that typechecks and runs cells.
 - `packages/rlm` (`@zarg/rlm`): the RLM (unit of agency): presets and spawn graph, scoped core services (`Graph`, `Fs`, `Sh`, `Verify`, `Agenda`, `Inquire`), plugin tools as services, and the turn loop.
-- `packages/core` (`@zarg/core`): `zarg-core`, one per project: driver threads on RLMs, the AG-UI API on `.zarg/run/core.sock` (token in `.zarg/run/core.json`), thread logs in `.zarg/threads/`.
+- `packages/core` (`@zarg/core`): `zarg-core`, one per project: driver threads on RLMs, the plan and implement phases on the reconcile loop (`plan` and `implement` threads, findings on the driver's agenda), the AG-UI API on `.zarg/run/core.sock` (token in `.zarg/run/core.json`), thread logs in `.zarg/threads/`.
 - `packages/client` (`@zarg/client`): attach to or start a core, the AG-UI client, and `reduce` (events → thread state). Never imports `@zarg/core` or a `/server` subpath.
 - `packages/reconcile` (`@zarg/reconcile`): the reconcile loop every downstream phase runs (see `intent/zarg.md`): affected cards, per-card git worktrees, merge, verify with fixes, one commit per pass landed on your branch, findings; each pass is a durable Effect workflow (`.zarg/run/cluster.db`).
 
@@ -50,7 +50,7 @@ Design: `docs/superpowers/specs/2026-09-25-harness-architecture-design.md`, `doc
 This repo's requirements live in its own zarg graph under `.zarg/graph`.
 
 - Use the `zarg-drive` skill (`.claude/skills/zarg-drive/SKILL.md`) to refine requirements. It edits only the graph.
-- Use the `zarg-sync` skill (`.claude/skills/zarg-sync/SKILL.md`) to make code match the graph. It edits only code.
+- Use the `zarg-implement` skill (`.claude/skills/zarg-implement/SKILL.md`) to make code match the graph when no zarg core is running (a running core plans and implements on its own). It edits only code and `.zarg/plans`.
 - Never edit `.zarg/graph` files by hand. Change them through `zarg tool call`.
 - Tag code that implements a card with a `// @card <id>` comment (for example `// @card UX-0003`).
 

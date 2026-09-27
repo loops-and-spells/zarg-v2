@@ -164,3 +164,24 @@ describe("zarg core", () => {
     }
   }, 30_000)
 })
+
+describe("zarg affected and checkpoint", () => {
+  test("affected lists the cards to reconcile; checkpoint records the graph so nothing is left", () => {
+    const root = mkdtempSync(join(tmpdir(), "zarg-affected-"))
+    const g = (...args: Array<string>) => Bun.spawnSync(["git", "-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd: root })
+    g("init", "-q")
+    try {
+      zargIn(root, "tool", "call", "gherkin/add-state", '{"text":"the home page is shown","entry":true}')
+      zargIn(root, "tool", "call", "gherkin/add-card", JSON.stringify({ title: "Open pricing", when: "the user clicks Pricing", arrives: { id: "S-0001" }, then: [{ text: "the plan picker is shown" }] }))
+      const a = JSON.parse(zargIn(root, "affected").out)
+      expect(a).toMatchObject({ cards: ["UX-0001"], removed: [] })
+      const c = JSON.parse(zargIn(root, "checkpoint").out)
+      expect(c.graph).toBe(a.graph)
+      g("add", "-A")
+      g("commit", "-qm", "feat: implement UX-0001")
+      expect(JSON.parse(zargIn(root, "affected").out)).toMatchObject({ cards: [], removed: [] })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
