@@ -124,6 +124,9 @@ const viewProblem = (v: unknown): string | undefined => {
   }
 }
 
+/** Methods the core calls for the developer: while one runs, the plugin may open tiles, sheets and popovers. */
+const GESTURES = new Set(["act", "$answer", "$message"])
+
 /** zarg's own slash commands: no plugin may take one. */
 const BUILT_IN_COMMANDS = new Set(["/reconcile", "/yolo"])
 const ARG_KINDS = new Set(["none", "choice", "text", "path"])
@@ -205,6 +208,8 @@ interface Running {
   readonly restarts: Array<number>
   disabled: boolean
   inflight: number
+  /** Calls it is handling for the developer (an action, an answer, a message, a slash command): its gestures. */
+  gestures: number
   /** Questions it waits on the developer for (grants, its agents' conversations): it is not idle then. */
   readonly asking: () => number
   idle?: ReturnType<typeof setTimeout>
@@ -285,7 +290,8 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           ...(opts.decide !== undefined ? { decide: (req: unknown) => Effect.runPromise(opts.decide!(req).pipe(Effect.mapError((e) => ({ tag: "DecisionError", message: String((e as { message?: string }).message ?? e) })))) } : {}),
           ...(opts.complete !== undefined ? { complete: (req: Parameters<NonNullable<HostOptions["complete"]>>[0]) => Effect.runPromise(opts.complete!(req).pipe(Effect.mapError((e) => ({ tag: "ModelError", message: String((e as { message?: string }).message ?? e) })))) } : {}),
           agendaChanged: () => opts.agendaChanged?.(m.name),
-          agents: (e: unknown) => opts.agents?.(m.name, e),
+          // The host says whether the plugin acts for the developer now; a plugin's own `gesture` field is overwritten.
+          agents: (e: unknown) => opts.agents?.(m.name, { ...(e !== null && typeof e === "object" ? e : {}), gesture: (running.get(m.name)?.gestures ?? 0) > 0 }),
           ...(opts.projectRoot !== undefined ? { projectRoot: opts.projectRoot } : {}),
           // A plugin working in the background (calling powers) is not idle.
           active: () => {
@@ -335,7 +341,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           yield* spawned.value.stop
           return failed(m, `its bundle says it is ${id.name ?? "?"}/${id.service ?? "?"}/${id.archetype ?? "?"}, its manifest ${m.name}/${m.service}/${m.archetype}`)
         }
-        const r: Running = { manifest: m, process: spawned.value, restarts, disabled: false, inflight: 0, served: served(powers), asking: () => asking }
+        const r: Running = { manifest: m, process: spawned.value, restarts, disabled: false, inflight: 0, gestures: 0, served: served(powers), asking: () => asking }
         // A service plugin's services start now, not on its first call: a run a restart cut short resumes.
         if (m.archetype === "service" || m.archetype === "agent") yield* Effect.forkDetach(Effect.ignore(spawned.value.call("$start", {})))
         return r
@@ -421,10 +427,13 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           if (r.disabled) return yield* Effect.fail({ _tag: "PluginCrashed" as const, message: `plugin ${r.manifest.name} is disabled` })
           if (r.idle !== undefined) clearTimeout(r.idle)
           r.inflight++
+          const gesture = GESTURES.has(method) || (r.manifest.commands ?? []).some((c) => c.method === method)
+          if (gesture) r.gestures++
           return yield* r.process.call(method, params, r.manifest.methods[method]?.deadlineMs).pipe(
             Effect.map((v) => scrub(v, r.served)),
             Effect.mapError((e) => new PluginCallError({ _tag: e._tag, message: scrub(e.message, r.served) as string })),
             Effect.ensuring(Effect.sync(() => {
+              if (gesture) r.gestures--
               r.inflight--
               if (r.inflight === 0) {
                 r.idle = setTimeout(() => { if (r.inflight === 0 && r.asking() === 0) Effect.runFork(r.process.stop) }, opts.idleMs ?? IDLE_MS)
