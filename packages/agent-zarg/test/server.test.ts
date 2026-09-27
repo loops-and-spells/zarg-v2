@@ -119,7 +119,8 @@ describe("core HTTP API", () => {
 
   test("a quiet event stream carries heartbeat comments, so idle timeouts never cut it", async () => {
     const h = await handler("50 millis")
-    const res = await h(new Request("http://core/stream?since=0", { headers: { authorization: `Bearer ${TOKEN}` } }))
+    // From the thread's newest event (zarg's row is already there): nothing new, so only heartbeats.
+    const res = await h(new Request("http://core/stream?since=1", { headers: { authorization: `Bearer ${TOKEN}` } }))
     const reader = res.body!.getReader()
     const first = await Promise.race([reader.read(), Bun.sleep(1000).then(() => undefined)])
     await reader.cancel()

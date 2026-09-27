@@ -48,6 +48,11 @@ export interface RunDeps {
   readonly write: (path: string, text: string) => Effect.Effect<void, unknown>
   readonly list: (dir: string) => Effect.Effect<ReadonlyArray<string>, unknown>
   readonly agendaChanged: Effect.Effect<void, unknown>
+  /** The developer's attention (the SDK's `Attention`): a tester with findings to review asks for it. */
+  readonly attention: {
+    readonly request: (agent: string, reason: string) => Effect.Effect<void, unknown>
+    readonly clear: (agent: string) => Effect.Effect<void, unknown>
+  }
   /** The agents' views (the SDK's `Views`): the tester's walk and findings, the run's report and findings. */
   readonly views: {
     readonly set: (agent: string, view: typeof TesterView | typeof RunView, path: any, data: any) => Effect.Effect<void, unknown>
@@ -352,11 +357,15 @@ export const makeRehearse = (deps: RunDeps) =>
       const shown = r.findings.filter((f) => !isDismissed(f) && !r.resolved.includes(f.id))
       const tables = (fs: ReadonlyArray<Triaged>) => ({ findings: { rows: fs.filter((f) => f.kind !== "delight").map((f) => rowOf(r, f)) }, likes: { rows: fs.filter((f) => f.kind === "delight").map((f) => rowOf(r, f)) } })
       const agents = [{ id: "run", view: RunView as typeof TesterView | typeof RunView, fs: shown }, ...r.personas.map((p, i) => ({ id: `tester-${i + 1}`, view: TesterView as typeof TesterView | typeof RunView, fs: shown.filter((f) => f.personas.includes(p.name)) }))]
+      // Findings the developer has not acted on yet (applied, dismissed or resolved).
+      const toReview = (fs: ReadonlyArray<Triaged>) => fs.filter((f) => !r.applying.includes(f.id)).length
       return Effect.forEach(
         agents,
         (a) => {
           const t = tables(a.fs)
-          return Effect.andThen(quiet(deps.views.set(a.id, a.view, "review.findings", t.findings)), quiet(deps.views.set(a.id, a.view, "review.likes", t.likes)))
+          const n = toReview(a.fs)
+          const ask = a.id === "run" ? Effect.void : quiet(n > 0 ? deps.attention.request(a.id, `${plural(n, "finding")} to review`) : deps.attention.clear(a.id))
+          return Effect.andThen(Effect.andThen(quiet(deps.views.set(a.id, a.view, "review.findings", t.findings)), quiet(deps.views.set(a.id, a.view, "review.likes", t.likes))), ask)
         },
         { discard: true },
       )

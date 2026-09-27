@@ -484,7 +484,9 @@ test("a second question waits behind the first and is shown once the first is an
       }) as never
     const events = await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setup(driver); return yield* collect(thread.run({ runId: "r1" })) }))
     const deltas = events.filter((e) => e.type === "ACTIVITY_DELTA") as any[]
-    expect(deltas.at(-1).patch[0]).toMatchObject({ op: "add", path: "/rlms/rlm-1", value: { preset: "driver", task: "t", turns: 1, budget: 25, status: "running" } })
+    // The driver's own rows (zarg's row, the conversation's root, is its parent).
+    const rlm = deltas.filter((d) => d.patch[0].path === "/rlms/rlm-1").at(-1)
+    expect(rlm.patch[0]).toMatchObject({ op: "add", path: "/rlms/rlm-1", value: { parent: "zarg", preset: "driver", task: "t", turns: 1, budget: 25, status: "running" } })
     expect(events.some((e) => e.type === "ACTIVITY_SNAPSHOT")).toBe(true)
   })
 

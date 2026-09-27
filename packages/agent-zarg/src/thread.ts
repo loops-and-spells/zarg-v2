@@ -90,11 +90,18 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
     // Questions in the order asked; only the first is shown, the next once it is answered.
     const queue: Array<Pending> = []
     const pending = (): Pending | undefined => queue[0]
+    // zarg asks for the developer while a question waits, and stops asking when none does.
+    const syncAttention = () => {
+      const head = queue[0]
+      const q = head?.question.question
+      activity.attention("zarg", q === undefined ? undefined : `asks: ${q.length > 60 ? `${q.slice(0, 59)}…` : q}`)
+    }
     // Questions the developer is discussing (a message instead of an answer): open until the driver
     // chooses an option for them (Inquire.choose) or asks again.
     const discussed: Array<Pending> = []
     const dropLoopQuestions = () => {
       for (let i = queue.length - 1; i >= 0; i--) if (queue[i]!.owner === "loop") queue.splice(i, 1)
+      syncAttention()
       discussed.length = 0
     }
     let paused: Deferred.Deferred<void> | undefined
@@ -133,6 +140,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
           yield* locked(
             Effect.gen(function* () {
               queue.push({ id, question, answer, interrupt, owner })
+              syncAttention()
               // Behind another question: shown once that one is answered.
               if (queue.length === 1) yield* emit(E.runInterrupted(threadId, runId, interrupt))
             }),
@@ -162,7 +170,11 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
 
     // RLM events become one activity message: the tree of RLMs working for this thread.
     const activity = makeActivity(log, threadId, undefined, threadViews(log, threadId))
-    const observe = (e: Rlm.RlmEvent) => activity.observe(e)
+    // zarg is the root of its thread's tree: the driver's RLMs are its children.
+    const ZARG = "zarg"
+    const zargRow = () => activity.row(ZARG, { id: ZARG, parent: null, preset: "zarg", task: "the conversation", depth: 0, turns: 0, budget: 0, status: "running", decisions: [] })
+    zargRow()
+    const observe = (e: Rlm.RlmEvent) => activity.observe(e.type === "start" && e.parent === undefined ? { ...e, parent: ZARG } : e)
 
     const scope: Scope = deps.focus.length > 0 ? { graph: { focus: deps.focus, k: 2 } } : {}
     const focusSet = deps.focus.length > 0 ? new Set(deps.focus) : undefined
@@ -234,6 +246,8 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
           .join("\n\n")
         // Each item gets a fresh driver RLM, whose ids start over: start a fresh tree.
         yield* emit(activity.reset())
+        zargRow()
+        syncAttention()
         const outcome = yield* Effect.exit(deps.driver({ task, preset: "driver", scope }, asker, observe))
         if (Exit.isSuccess(outcome)) {
           const reply = String(outcome.value.value)
@@ -296,6 +310,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
           if (resume !== undefined && head !== undefined && resume.interruptId === head.id && wakeUp && head.question.question === OPEN_QUESTION) {
             // zarg's own what-next question, set aside because new work arrived: nothing to say for the developer.
             queue.shift()
+            syncAttention()
             yield* Deferred.succeed(head.answer, { other: "" })
           } else if (resume !== undefined && head !== undefined && resume.interruptId === head.id) {
             const payload = (resume.payload ?? {}) as { choice?: string; other?: string }
@@ -303,6 +318,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
             const answer: Answer = payload.choice !== undefined ? { choice: payload.choice } : { other: String(payload.other ?? "") }
             const p = head
             queue.shift()
+            syncAttention()
             yield* note("user", chosen?.label ?? String(payload.other ?? ""))
             yield* Deferred.succeed(p.answer, answer)
           } else if (input.message !== undefined && head !== undefined) {
@@ -310,6 +326,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
             // Inquire.choose) while the driver replies; its ask returns the message and the question's id.
             const p = head
             queue.shift()
+            syncAttention()
             if (p.owner === "loop") discussed.push(p)
             yield* note("user", input.message)
             yield* note("assistant", `(discussing: ${p.question.question})`)

@@ -129,9 +129,16 @@ export const makeActivity = (log: ThreadLog, threadId: string, messageId = `${th
     const seg = id.replaceAll("~", "~0").replaceAll("/", "~1")
     Effect.runSync(log.append(threadId, E.activityDelta(messageId, [{ op: "add", path: `/rlms/${seg}`, value: next }])))
   }
+  /** A row that is not an RLM (the conversational agent itself): placed as given, no transcript line. */
+  const row = (id: string, value: Record<string, unknown>) => {
+    nodes.set(id, value)
+    const seg = id.replaceAll("~", "~0").replaceAll("/", "~1")
+    Effect.runSync(log.append(threadId, E.activityDelta(messageId, [{ op: "add", path: `/rlms/${seg}`, value }])))
+  }
   return {
     observe,
     attention,
+    row,
     /** The whole tree as a snapshot event (sent at the start of each run). */
     snapshot: () => E.activitySnapshot(messageId, { rlms: Object.fromEntries(nodes) }),
     /** Start a fresh tree (a new driver item, a new pass). */

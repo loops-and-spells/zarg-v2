@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect"
 import { Gherkin } from "@zarg/plugin-gherkin/contract"
-import { Agenda, Agents, Clock, Config, Decisions, definePlugin, Files, Models, Views } from "@zarg/plugin-sdk"
+import { Agenda, Agents, Attention, Clock, Config, Decisions, definePlugin, Files, Models, Views } from "@zarg/plugin-sdk"
 import { makeRehearse } from "./run"
 import { rehearseSettings } from "./settings"
 import { RunView, TesterView } from "./views"
@@ -58,6 +58,7 @@ export default definePlugin({
     const files = yield* Files
     const agenda = yield* Agenda
     const views = yield* Views
+    const attention = yield* Attention
     const config = (yield* Config).value as Record<string, unknown>
     const r = yield* makeRehearse({
       stories: (strategy, focus) => gherkin.stories({ strategy, ...(focus !== undefined ? { focus } : {}) }),
@@ -71,6 +72,7 @@ export default definePlugin({
       write: files.write,
       list: files.list,
       agendaChanged: agenda.changed,
+      attention,
       views: { set: (a, v, path, data) => views.set(a, v as never, path as never, data as never), append: (a, v, path, lines) => views.append(a, v as never, path as never, lines) },
       settings: rehearseSettings(config ?? {}, "rehearse"),
     })

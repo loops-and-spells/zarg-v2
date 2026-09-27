@@ -135,7 +135,7 @@ describe("thread robustness", () => {
       }),
     )
     const state = events.reduce(reduce, initial("main"))
-    expect(Object.keys(state.rlms)).toEqual(["rlm-1"])
+    expect(Object.keys(state.rlms)).toEqual(["zarg", "rlm-1"])
   })
 
   test("message and interrupt ids stay unique across core restarts", async () => {

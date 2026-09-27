@@ -18,6 +18,7 @@ const setup = (o: Opts = {}) =>
     const writing = new Map<string, number>()
     const overlap = { max: 0 }
     const pushes: Array<{ agent: string; path: string; data?: unknown; lines?: unknown }> = []
+    const attention: Array<[string, string | undefined]> = []
     let ids = 0
     const view = (card: string): StepView => ({ card, title: card, given: `before ${card}`, when: o.cardText?.(card) ?? `do ${card}`, thens: [`after ${card}`], fork: [], hasFailure: false })
     const deps: RunDeps = {
@@ -59,6 +60,10 @@ const setup = (o: Opts = {}) =>
         }),
       list: (dir) => Effect.succeed([...files.keys()].filter((k) => k.startsWith(`${dir}/`)).map((k) => k.slice(dir.length + 1))),
       agendaChanged: Effect.sync(() => void changed++),
+      attention: {
+        request: (agent, reason) => Effect.sync(() => void attention.push([agent, reason])),
+        clear: (agent) => Effect.sync(() => void attention.push([agent, undefined])),
+      },
       views: {
         set: (agent, _v, path, data) => Effect.sync(() => void pushes.push({ agent, path, data })),
         append: (agent, _v, path, lines) => Effect.sync(() => void pushes.push({ agent, path, lines })),
@@ -66,7 +71,7 @@ const setup = (o: Opts = {}) =>
       settings: rehearseSettings({ ...(o.auto ? { auto_apply: true } : {}), ...(o.inFlight !== undefined ? { in_flight: o.inFlight } : {}) }, "stub:m"),
     }
     const r = yield* makeRehearse(deps)
-    return { r, files, decisions, llm, events, changed: () => changed, overlap, pushes }
+    return { r, files, decisions, llm, events, changed: () => changed, overlap, pushes, attention }
   })
 const until = (check: () => boolean) =>
   Effect.gen(function* () {
@@ -282,5 +287,13 @@ describe("rehearse runs in the plugin", () => {
     expect(lists.some((l) => l.some((i) => i.detail === "queued"))).toBe(true)
     const progress = t.pushes.filter((p) => p.agent === "tester-1" && p.path === "progress").map((p) => (p.data as { items: ReadonlyArray<{ label: string; value: string }> }).items)
     expect(progress.some((items) => items.some((i) => i.label === "busy" && i.value === "1/1"))).toBe(true)
+  })
+
+  test("a tester with findings to review asks for attention; acting on the last one ends it", async () => {
+    const t = await finish()
+    expect(t.attention.filter(([a]) => a === "tester-1").at(-1)).toEqual(["tester-1", "1 finding to review"])
+    const id = t.r.record(t.run)!.findings[0]!.id
+    await Effect.runPromise(t.r.act("apply", "review.findings", [id]))
+    expect(t.attention.filter(([a]) => a === "tester-1").at(-1)).toEqual(["tester-1", undefined])
   })
 })
