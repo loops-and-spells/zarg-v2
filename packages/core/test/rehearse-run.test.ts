@@ -165,6 +165,20 @@ describe("rehearse run", () => {
     expect(t.focuses).toEqual([undefined])
   })
 
+  test("the run and its testers show in main's agents pane, and each screened step is in the tester's history", async () => {
+    const t = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
+      const t = yield* setup()
+      const s = yield* t.r.start({})
+      yield* until(() => t.r.record((s as { run: string }).run)?.status === "done")
+      return t
+    })))
+    const main = readFileSync(join(t.dir, "threads", "main.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l))
+    const ids = new Set(main.filter((e) => e.type === "ACTIVITY_DELTA" && e.messageId === "main-rehearse-activity").flatMap((e) => e.patch.map((p: { path: string }) => p.path)))
+    expect([...ids].sort()).toEqual(["/rlms/rehearse", "/rlms/tester-1"])
+    const history = readFileSync(join(t.dir, "threads", "main.rlm.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l)).filter((l) => l.rlm === "tester-1" && l.type === "step")
+    expect(history.map((h) => h.text)).toContain("B: feel 1.00, fail 0.30 → flagged feel → 1 finding")
+  })
+
   test("a second run is refused while one is going", async () => {
     const second = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
       const t = yield* setup()

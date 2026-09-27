@@ -12,9 +12,9 @@ import type { ThreadLog } from "./log"
 const TASK_MAX = 200
 const headline = (task: string) => (task.split("\n")[0] ?? "").slice(0, TASK_MAX)
 
-export const makeActivity = (log: ThreadLog, threadId: string) => {
+/** `messageId`: the stream these agents travel in; another stream (a rehearsal) shares the thread's pane without resetting it. */
+export const makeActivity = (log: ThreadLog, threadId: string, messageId = `${threadId}-activity`) => {
   const nodes = new Map<string, Record<string, unknown>>()
-  const messageId = `${threadId}-activity`
   const observe = (e: Rlm.RlmEvent, prefix = "") => {
     const id = `${prefix}${e.id}`
     // Transcripts get what each RLM was asked and did; the activity tree gets its shape and status.

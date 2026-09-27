@@ -62,7 +62,8 @@ const THREAD = "rehearse"
 export const makeRehearse = (deps: RehearseDeps) =>
   Effect.gen(function* () {
     mkdirSync(deps.dir, { recursive: true })
-    const activity = makeActivity(deps.log, THREAD)
+    // Testers show in main's agents pane, in their own stream: a driver item starting over leaves them.
+    const activity = makeActivity(deps.log, "main", "main-rehearse-activity")
     const lock = yield* Semaphore.make(1)
     const records = new Map<string, RunRecord>()
     for (const f of readdirSync(deps.dir).filter((f) => f.endsWith(".json"))) {
@@ -93,7 +94,7 @@ export const makeRehearse = (deps: RehearseDeps) =>
             return views.get(key)
           })
         yield* emit(E.runStarted(THREAD, rec.run))
-        yield* emit(activity.reset())
+        yield* deps.log.append("main", activity.reset())
         activity.observe({ type: "start", id: "rehearse", parent: undefined, preset: "rehearse", task: `run ${rec.run}: ${rec.stories.length} stories × ${rec.personas.length} testers`, scope: {}, depth: 0, budget: { turns: rec.stories.length, tokens: 0, wallMs: 0 } })
         // Screen: every persona walks every story; a prefix already screened (shared, or before a restart) is not asked again.
         const sem = yield* Semaphore.make(deps.settings.inFlight)
@@ -126,6 +127,15 @@ export const makeRehearse = (deps: RehearseDeps) =>
                       screened: { ...r.screened, [key]: screened ?? null },
                       ...(d === undefined ? {} : "infra" in d ? { infra: [...r.infra, d.infra] } : { raw: [...r.raw, ...d.findings.map((f) => ({ persona: persona.name, ...f }))] }),
                     }))
+                    // The tester's history: what it made of this step.
+                    const said =
+                      screened === undefined
+                        ? "unscreened (the decision model did not answer)"
+                        : `feel ${screened.feel.toFixed(2)}, fail ${screened.fail.toFixed(2)}` +
+                          (screened.flags.length === 0
+                            ? ""
+                            : ` → flagged ${screened.flags.join(", ")} → ${d === undefined ? "" : "infra" in d ? "diagnosis failed" : `${d.findings.length} finding${d.findings.length === 1 ? "" : "s"}`}`)
+                    activity.observe({ type: "step", id, turn: si + 1, text: `${step.card}: ${said}`, cells: [] })
                     yield* Deferred.succeed(done, undefined)
                   }
                   prior.push(step)

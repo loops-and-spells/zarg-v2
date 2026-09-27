@@ -123,7 +123,7 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
             Effect.map((a) =>
               a.refused !== undefined
                 ? `Rehearse did not start: ${a.refused}`
-                : `Rehearse run ${a.run} started: ${a.stories} stories, ${a.steps} steps, testers: ${(a.personas ?? []).join(", ") || "none"}. Watch it with zarg --thread rehearse.`,
+                : `Rehearse run ${a.run} started: ${a.stories} stories, ${a.steps} steps, testers: ${(a.personas ?? []).join(", ") || "none"}. Watch it in the agents pane (Tab).`,
             ),
             Effect.catch((e) => Effect.succeed(e.message)),
             Effect.flatMap((notice) => Effect.sync(() => set({ ...state, notice }))),

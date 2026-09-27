@@ -59,6 +59,19 @@ describe("reduce", () => {
     expect(s.pendingInquiry?.otherLabel).toBe("Change it")
   })
 
+  test("agents from several activity streams share the pane; one stream's reset leaves the others", () => {
+    const node = (id: string) => ({ id, parent: null, preset: "p", depth: 0, turns: 0, budget: 1, status: "running", decisions: [] })
+    const s = fold([
+      ev("ACTIVITY_SNAPSHOT", { messageId: "main-activity", content: { rlms: { "rlm-1": node("rlm-1") } } }),
+      ev("ACTIVITY_SNAPSHOT", { messageId: "main-rehearse-activity", content: { rlms: {} } }),
+      ev("ACTIVITY_DELTA", { messageId: "main-rehearse-activity", patch: [{ op: "add", path: "/rlms/tester-1", value: node("tester-1") }] }),
+      ev("ACTIVITY_SNAPSHOT", { messageId: "main-activity", content: { rlms: {} } }),
+    ])
+    expect(Object.keys(s.rlms)).toEqual(["tester-1"])
+    // Only the driver's own tree starting over counts as a new tree.
+    expect(s.trees).toBe(1)
+  })
+
   test("RUN_ERROR shows the error; the next run clears it", () => {
     const failed = fold([ev("RUN_STARTED"), ev("RUN_ERROR", { message: "model unreachable", code: "model" })])
     expect(failed).toMatchObject({ status: "error", error: { code: "model", message: "model unreachable" } })
@@ -90,7 +103,7 @@ describe("reduce", () => {
 })
 
 test("an empty activity snapshot starts a fresh tree; a snapshot with nodes (a reconnect) does not", () => {
-  const snap = (seq: number, rlms: object) => ({ type: "ACTIVITY_SNAPSHOT", threadId: "main", seq, messageId: "a", activityType: "rlm", content: { rlms } }) as never
+  const snap = (seq: number, rlms: object) => ({ type: "ACTIVITY_SNAPSHOT", threadId: "main", seq, messageId: "main-activity", activityType: "rlm", content: { rlms } }) as never
   const node = { id: "rlm-1", parent: null, preset: "driver", depth: 0, turns: 0, budget: 25, status: "running", decisions: [] }
   let t = reduce(initial("main"), snap(1, {}))
   expect(t.trees).toBe(1)
