@@ -40,6 +40,12 @@ export const makeFindings = (repo: string) => {
       write([...read().filter((x) => key(x) !== key(f)), finding])
       return finding
     },
+    /** Close findings about no card in particular (a pass that could not start or failed outright): a later pass worked. */
+    clearGeneral: () => {
+      const all = read()
+      const kept = all.filter((f) => f.about.length > 0)
+      if (kept.length !== all.length) write(kept)
+    },
     /** Close every finding about any of these cards (they landed, or the driver changed them). */
     clearFor: (cards: ReadonlyArray<string>) => {
       const set = new Set(cards)

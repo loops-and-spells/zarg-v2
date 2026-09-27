@@ -5,6 +5,7 @@ import { dirname, join } from "node:path"
 import { Effect, Exit, Layer, Scope, Stream } from "effect"
 import { Model, type StreamEvent } from "@zarg/model"
 import { Rlm, settings } from "@zarg/rlm"
+import { initial, reduce } from "@zarg/client"
 import { makeLog, makeReconcile, reconcileSettings } from "../src"
 
 const roots: Array<string> = []
@@ -81,10 +82,26 @@ describe("reconcile in the core", () => {
     const impl = log.all().filter((e) => e.threadId === "implement")
     expect(String(impl[0]?.type)).toBe("RUN_STARTED")
     expect(impl.filter((e) => e.type === "TEXT_MESSAGE_CONTENT").map((e) => e.delta)).toEqual([expect.stringMatching(/^Landed UX-0001 in [0-9a-f]{7}\.$/)])
-    expect(impl.some((e) => e.type === "ACTIVITY_DELTA" && JSON.stringify(e).includes("UX-0001/rlm-1"))).toBe(true)
+    expect(impl.some((e) => e.type === "ACTIVITY_DELTA" && JSON.stringify(e).includes("UX-0001:rlm-1"))).toBe(true)
     expect(log.all().some((e) => e.threadId === "plan" && e.type === "ACTIVITY_DELTA")).toBe(true)
     expect(reconcile.threads.map((t) => [t.id, t.status()])).toEqual([["plan", "idle"], ["implement", "idle"]])
+    // The client sees each card's RLM tree (ids carry the card, and JSON Pointer paths stay one segment).
+    const state = impl.reduce(reduce, initial("implement"))
+    expect(Object.keys(state.rlms).some((id) => id.includes("UX-0001"))).toBe(true)
   }, 30_000)
+
+  test("a core closed mid-pass leaves no finding; the next start resumes the pass and lands it", async () => {
+    const r = project()
+    const first = await start(r, 20_000)
+    card(r)
+    await until(() => first.reconcile.threads[1]!.status() === "running" && first.log.all().some((e) => e.threadId === "implement" && JSON.stringify(e).includes("implement-card")))
+    await Effect.runPromise(Scope.close(scopes.at(-1)!, Exit.void))
+    expect(first.reconcile.findings.list()).toEqual([])
+    const second = await start(r, 0)
+    await until(() => sh(r, "git log -1 --format=%s") === "feat: implement UX-0001")
+    expect(sh(r, "git log -1 --format=%s")).toBe("feat: implement UX-0001")
+    expect(second.reconcile.findings.list()).toEqual([])
+  }, 60_000)
 
   test("stop on the implement thread interrupts the pass; nothing lands", async () => {
     const r = project()

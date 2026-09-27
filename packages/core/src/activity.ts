@@ -33,7 +33,9 @@ export const makeActivity = (log: ThreadLog, threadId: string) => {
                 ? { ...prev, status: "done", turns: e.turns, tokens: e.tokens }
                 : { ...prev, status: e.kind === "stopped" ? "stopped" : "failed", error: e.message }
     nodes.set(id, next)
-    Effect.runSync(log.append(threadId, E.activityDelta(messageId, [{ op: "add", path: `/rlms/${id}`, value: next }])))
+    // JSON Pointer: escape "~" and "/" so the id stays one path segment.
+    const segment = id.replaceAll("~", "~0").replaceAll("/", "~1")
+    Effect.runSync(log.append(threadId, E.activityDelta(messageId, [{ op: "add", path: `/rlms/${segment}`, value: next }])))
   }
   return {
     observe,

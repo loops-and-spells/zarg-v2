@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, watch } from "node:fs"
 import { join } from "node:path"
-import { Effect } from "effect"
+import { Cause, Effect } from "effect"
 import { baseTree, GRAPH, workingGraphTree } from "./checkpoint"
 import type { Findings } from "./findings"
 import { git } from "./git"
@@ -45,10 +45,17 @@ export const startReconciler = (opts: ReconcilerOptions) => {
     Effect.runPromise(
       once.pipe(
         Effect.catchCause((cause) => {
+          // Interrupted (the core is shutting down): the durable pass resumes on the next start.
+          if (Cause.hasInterruptsOnly(cause)) return Effect.succeed({ status: "skipped" as const, reason: "interrupted" })
           opts.findings.raise({ kind: "pass-error", title: "a reconcile pass failed", detail: String(cause).slice(0, 4000), about: [], pass: "" })
-          return Effect.succeed({ status: "skipped", reason: "error" } as const)
+          return Effect.succeed({ status: "skipped" as const, reason: "error" })
         }),
-        Effect.tap((r) => Effect.sync(() => opts.onResult?.(r))),
+        Effect.tap((r) =>
+          Effect.sync(() => {
+            if (r.status === "landed" || r.status === "nothing" || (r.status === "skipped" && r.reason === "already reconciled")) opts.findings.clearGeneral()
+            opts.onResult?.(r)
+          }),
+        ),
       ),
     ),
   )

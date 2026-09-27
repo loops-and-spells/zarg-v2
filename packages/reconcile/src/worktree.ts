@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { Effect } from "effect"
+import { Effect, Semaphore } from "effect"
 import { git, gitRun } from "./git"
 
 /** Where passes keep their worktrees. A `*` .gitignore inside keeps them out of the repository. */
@@ -11,6 +11,17 @@ export const ensureIgnored = (repo: string) => {
   const dir = join(repo, ".zarg", "reconcile")
   mkdirSync(dir, { recursive: true })
   if (!existsSync(join(dir, ".gitignore"))) writeFileSync(join(dir, ".gitignore"), "*\n")
+}
+
+/** git's worktree bookkeeping (`worktree add`, `prune`, `remove`) is not safe to run concurrently in one repository. */
+const adminLocks = new Map<string, Semaphore.Semaphore>()
+const admin = (repo: string) => {
+  let s = adminLocks.get(repo)
+  if (s === undefined) {
+    s = Semaphore.makeUnsafe(1)
+    adminLocks.set(repo, s)
+  }
+  return Semaphore.withPermits(s, 1)
 }
 
 /**
@@ -26,20 +37,24 @@ export const ensureWorktree = (repo: string, path: string, branch: string, base:
       yield* git(path, ["clean", "-q", "-fd"])
     } else {
       mkdirSync(join(path, ".."), { recursive: true })
-      // A worktree whose directory was deleted (git clean -fdx) is still registered: forget it first.
-      yield* git(repo, ["worktree", "prune"])
-      yield* git(repo, ["worktree", "add", "-q", "-B", branch, path, base])
+      yield* admin(repo)(
+        Effect.gen(function* () {
+          // A worktree whose directory was deleted (git clean -fdx) is still registered: forget it first.
+          yield* git(repo, ["worktree", "prune"])
+          yield* git(repo, ["worktree", "add", "-q", "-B", branch, path, base])
+        }),
+      )
     }
     return path
   })
 
 /** Remove a worktree and its branch; missing ones are fine. */
 export const removeWorktree = (repo: string, path: string, branch: string) =>
-  Effect.gen(function* () {
+  admin(repo)(Effect.gen(function* () {
     yield* gitRun(repo, ["worktree", "remove", "--force", path])
     yield* gitRun(repo, ["branch", "-q", "-D", branch])
     yield* gitRun(repo, ["worktree", "prune"])
-  })
+  }))
 
 /** Remove all but the newest `keep` pass directories under the worktree root (failed passes kept for inspection). */
 export const gcPasses = (repo: string, keep: number, branchOf: (pass: string, name: string) => string) =>

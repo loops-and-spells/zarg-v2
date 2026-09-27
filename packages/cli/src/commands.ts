@@ -6,7 +6,7 @@ import { rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { readClaim, startHeadless, stopCore } from "@zarg/client"
 import { affectedCards } from "@zarg/plugin-gherkin/server"
-import { baseTree, CHECKPOINT, LEGACY_CHECKPOINT, snapshotAtTree, workingGraphTree } from "@zarg/reconcile"
+import { baseTree, CHECKPOINT, git, LEGACY_CHECKPOINT, snapshotAtTree, workingGraphTree } from "@zarg/reconcile"
 import { cardRefs, snapshotAt } from "./git"
 import { root } from "./root"
 
@@ -109,6 +109,9 @@ const checkpoint = Command.make("checkpoint", {}, () =>
       writeFileSync(join(root, CHECKPOINT), `${JSON.stringify({ graph }, null, 2)}\n`)
       rmSync(join(root, LEGACY_CHECKPOINT), { force: true })
     })
+    // Stage the graph and the checkpoint together (and the legacy file's removal), ready for the commit.
+    yield* git(root, ["add", "-A", "--", ".zarg/graph", CHECKPOINT])
+    yield* git(root, ["rm", "-q", "--cached", "--ignore-unmatch", "--", LEGACY_CHECKPOINT])
     yield* print({ graph })
   }),
 )

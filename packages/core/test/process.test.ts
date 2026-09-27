@@ -25,11 +25,8 @@ describe("zarg-core process", () => {
     const info = readInfo(root)!
     expect(info).toMatchObject({ pid: proc.pid, mode: "child" })
 
-    expect(await Effect.runPromise(makeClient(info).threads())).toEqual([
-      { id: "main", focus: [], status: "idle" },
-      { id: "plan", focus: [], status: "idle" },
-      { id: "implement", focus: [], status: "idle" },
-    ])
+    // No [reconcile] section in this project: plan and implement are off, so only the driver thread.
+    expect(await Effect.runPromise(makeClient(info).threads())).toEqual([{ id: "main", focus: [], status: "idle" }])
     const denied = await Effect.runPromise(Effect.flip(makeClient({ socket: info.socket, token: "wrong" }).threads()))
     expect(denied.status).toBe(401)
 
@@ -48,7 +45,7 @@ describe("zarg-core process", () => {
     await first.proc.exited
     const second = await start("child")
     expect(second.first.startsWith("ready ")).toBe(true)
-    expect(await Effect.runPromise(makeClient(readInfo(root)!).threads())).toHaveLength(3)
+    expect(await Effect.runPromise(makeClient(readInfo(root)!).threads())).toHaveLength(1)
     second.proc.stdin.end()
     await second.proc.exited
   }, 20_000)

@@ -5,7 +5,7 @@ import type { Snapshot } from "@zarg/graph"
 import { Activity, DurableClock, Workflow } from "effect/unstable/workflow"
 import { baseTree, CHECKPOINT, GRAPH, LEGACY_CHECKPOINT, snapshotAtTree } from "./checkpoint"
 import type { FindingKind, Findings } from "./findings"
-import { git, gitRun } from "./git"
+import { git, gitRun, zPaths } from "./git"
 import { land, rebaseOnto } from "./land"
 import { mergeBranches } from "./merge"
 import { ensureWorktree, removeWorktree, worktreeRoot } from "./worktree"
@@ -23,6 +23,8 @@ export interface Phase {
   readonly setup: boolean
   /** A failure or defect here fails this item only. */
   readonly run: (item: string, cwd: string) => Effect.Effect<ItemOutcome, unknown>
+  /** Paths this phase may not change (even by committing): restored to the pass's state after each item. */
+  readonly protect?: ReadonlyArray<string>
 }
 
 export interface ReconcileSpec {
@@ -78,6 +80,13 @@ const Outcome = Schema.Union([
   Schema.Struct({ ok: Schema.Literal(false), kind: Schema.String, title: Schema.String, detail: Schema.String }),
 ])
 const Strings = Schema.Array(Schema.String)
+
+/** Make `path` in the worktree at `cwd` exactly what it was at `ref`, whatever was edited or committed since. */
+const restorePath = (cwd: string, ref: string, path: string) =>
+  Effect.gen(function* () {
+    for (const added of zPaths(yield* git(cwd, ["diff", "--name-only", "-z", "--no-renames", "--diff-filter=A", ref, "--", path]))) rmSync(join(cwd, added), { force: true })
+    if ((yield* gitRun(cwd, ["cat-file", "-e", `${ref}:${path}`])).code === 0) yield* git(cwd, ["checkout", "-q", ref, "--", path])
+  })
 
 const commitAll = (cwd: string, message: string) =>
   Effect.gen(function* () {
@@ -180,6 +189,7 @@ const body = (
                   Effect.succeed({ ok: false, kind: "pass-error", title: `${phase.name} failed for ${item}`, detail: String(cause).slice(0, 4000) } as ItemOutcome),
                 ),
               )
+              for (const p of phase.protect ?? []) yield* restorePath(wt, passHead, p)
               if (out.ok) yield* commitAll(wt, `${phase.name}: ${item}`)
               return out
             }),
@@ -240,6 +250,10 @@ const body = (
       const squash = (base: string, graph: string) =>
         Effect.gen(function* () {
           yield* git(main, ["reset", "-q", "--soft", base])
+          // The requirements in the commit are exactly the graph this pass reconciled, whatever a phase did.
+          yield* gitRun(main, ["rm", "-r", "-q", "--cached", "--ignore-unmatch", GRAPH])
+          rmSync(join(main, GRAPH), { recursive: true, force: true })
+          yield* git(main, ["read-tree", `--prefix=${GRAPH}/`, "-u", graph])
           yield* Effect.sync(() => Bun.write(join(main, CHECKPOINT), `${JSON.stringify({ graph }, null, 2)}\n`))
           yield* gitRun(main, ["rm", "-q", "--cached", "--ignore-unmatch", LEGACY_CHECKPOINT])
           rmSync(join(main, LEGACY_CHECKPOINT), { force: true })
@@ -288,6 +302,7 @@ const body = (
         }
         if (yield* isStopped(`stopped:land:${attempt}`)) return stoppedResult
         yield* DurableClock.sleep({ name: `land-wait:${attempt}`, duration: spec.landRetry })
+        if (yield* isStopped(`stopped:land-waited:${attempt}`)) return stoppedResult
       }
 
       yield* act(

@@ -1,5 +1,5 @@
 import { join } from "node:path"
-import { Effect, Layer, ManagedRuntime, Stream } from "effect"
+import { Cause, Effect, Layer, ManagedRuntime, Stream } from "effect"
 import type { AgendaItem } from "@zarg/plugin/server"
 import { engineLayer, gcPasses, makeFindings, Pass, type PassResult, passLayer, startReconciler } from "@zarg/reconcile"
 import { makeActivity } from "./activity"
@@ -40,7 +40,7 @@ export const makeReconcile = (deps: ReconcileDeps) =>
     // Stop: a flag the pass checks between steps, and a signal running cards race (reset for each pass).
     let stopRequested = false
     let release = () => {}
-    let signal = Promise.resolve()
+    let signal = new Promise<void>(() => {})
     const armStop = () => {
       stopRequested = false
       signal = new Promise<void>((resolve) => (release = resolve))
@@ -54,7 +54,7 @@ export const makeReconcile = (deps: ReconcileDeps) =>
       makeRlm: deps.makeRlm,
       ...(deps.extra ? { extra: deps.extra } : {}),
       ...(deps.withGraphLock ? { withGraphLock: deps.withGraphLock } : {}),
-      observe: (phase, item, e) => (phase === "plan" ? activity.plan : activity.implement).observe(e, `${item}/`),
+      observe: (phase, item, e) => (phase === "plan" ? activity.plan : activity.implement).observe(e, `${item}:`),
       stop: { requested: () => stopRequested, wait: Effect.suspend(() => Effect.promise(() => signal)) },
     })
     const engine = passLayer(spec).pipe(Layer.provideMerge(engineLayer(deps.dbFile ?? join(deps.repo, ".zarg", "reconcile", "cluster.db"))))
@@ -74,10 +74,19 @@ export const makeReconcile = (deps: ReconcileDeps) =>
           emit(t, activity[t].reset())
         }
         return yield* Effect.tryPromise(() => runtime.runPromise(Pass.execute(payload))).pipe(
+          // Shutting down: the durable pass is not failed, only interrupted; it resumes on the next start.
+          Effect.catch((e) => (closing ? Effect.interrupt : Effect.fail(e))),
           Effect.onExit((exit) =>
             Effect.sync(() => {
               active = undefined
-              const text = stopRequested ? "The pass stopped." : exit._tag === "Success" ? summary(exit.value) : "The pass failed; see the driver's agenda."
+              const text =
+                exit._tag === "Success"
+                  ? exit.value.status === "failed" && stopRequested
+                    ? "The pass stopped."
+                    : summary(exit.value)
+                  : Cause.hasInterruptsOnly(exit.cause)
+                    ? "The pass was interrupted; zarg resumes it on its next start."
+                    : "The pass failed; see the driver's agenda."
               if (text !== undefined) for (const d of E.textMessage(`implement-${crypto.randomUUID()}`, "assistant", text)) emit("implement", d)
               for (const t of ["plan", "implement"] as const) emit(t, E.runFinished(t, runId))
             }),
@@ -85,8 +94,16 @@ export const makeReconcile = (deps: ReconcileDeps) =>
         )
       })
 
+    let closing = false
     const reconciler = startReconciler({ repo: deps.repo, quietMs: deps.settings.quietMs, findings, execute })
-    yield* Effect.addFinalizer(() => Effect.sync(() => reconciler.close()))
+    yield* Effect.addFinalizer(() =>
+      Effect.sync(() => {
+        closing = true
+        reconciler.close()
+      }),
+    )
+    // A pass interrupted by the last shutdown (or changes made while zarg was off) are picked up now.
+    reconciler.notify()
 
     /** Stop the running pass: its cards are cut short, nothing lands, its worktrees stay; the next graph change starts a new pass. */
     const stop = Effect.sync(() => {

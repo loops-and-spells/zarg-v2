@@ -180,6 +180,13 @@ describe("zarg affected and checkpoint", () => {
       g("add", "-A")
       g("commit", "-qm", "feat: implement UX-0001")
       expect(JSON.parse(zargIn(root, "affected").out)).toMatchObject({ cards: [], removed: [] })
+      // checkpoint stages what it wrote, and retires a legacy sync.json in the index too.
+      Bun.write(join(root, ".zarg/sync.json"), "{}")
+      g("add", "-A")
+      g("commit", "-qm", "legacy")
+      zargIn(root, "checkpoint")
+      const status = Bun.spawnSync(["git", "status", "--porcelain"], { cwd: root }).stdout.toString()
+      expect(status).toContain("D  .zarg/sync.json")
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

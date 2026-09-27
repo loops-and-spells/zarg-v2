@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { BunServices } from "@effect/platform-bun"
 import { Context, Effect, Layer, Schema } from "effect"
@@ -47,6 +47,24 @@ export const reconcileSettings = (raw: unknown) =>
       landAttempts: c.land_attempts ?? 10,
     }),
   )
+
+/**
+ * Whether plan and implement run for a project: only with a `[reconcile]` section (not `enabled = false`),
+ * models for `roles.plan` and `roles.implement`, and the project at the top of a git repository.
+ */
+export const reconcileGate = (root: string, extra: Readonly<Record<string, unknown>>, roles: Readonly<Record<string, string>>) =>
+  Effect.gen(function* () {
+    if (extra.reconcile === undefined) return { on: false, reason: "plan and implement are off: add a [reconcile] section to .zarg/config.toml to turn them on" } as const
+    const settings = yield* reconcileSettings(extra.reconcile)
+    if (!settings.enabled) return { on: false, reason: "plan and implement are off ([reconcile] enabled = false)" } as const
+    const missing = ["plan", "implement"].filter((r) => roles[r] === undefined)
+    if (missing.length > 0) return { on: false, reason: `plan and implement are off: set ${missing.map((r) => `roles.${r}`).join(" and ")} in .zarg/config.toml` } as const
+    const top = yield* gitRun(root, ["rev-parse", "--show-toplevel"])
+    if (top.code !== 0 || realpathSync(top.stdout.trim()) !== realpathSync(root)) {
+      return { on: false, reason: `plan and implement are off: ${root} is not the top of a git repository` } as const
+    }
+    return { on: true, settings } as const
+  })
 
 export interface PhaseDeps {
   readonly repo: string
@@ -150,6 +168,7 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
       {
         name: "plan",
         setup: false,
+        protect: [".zarg/graph"],
         run: (item, cwd) =>
           Effect.gen(function* () {
             const c = yield* card(cwd, item)
@@ -166,6 +185,7 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
       {
         name: "implement",
         setup: true,
+        protect: [".zarg"],
         run: (item, cwd) =>
           Effect.gen(function* () {
             const c = yield* card(cwd, item)

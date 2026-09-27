@@ -33,5 +33,5 @@ Run the CLI from the repo root as `mise run -q zarg -- <command>`.
    - If the card contradicts another card or cannot be implemented as written, do not guess and do not edit the graph: stop and tell the user which card and why, and suggest running `zarg-drive` on it.
 4. Implement each plan test-first. Tag the implementation and its tests with `// @card <id>`. Never edit `.zarg/graph` or another card's plan.
 5. Run `mise run verify`. It must pass; fix what fails (at most two attempts before you stop and report).
-6. Record the checkpoint: `mise run -q zarg -- checkpoint` (writes `.zarg/reconciled.json` with the graph you implemented; it also retires a legacy `.zarg/sync.json`).
-7. Commit the cards, plans, code and checkpoint together: `git add .zarg/graph .zarg/plans .zarg/reconciled.json <code paths> && git commit -m "feat: implement <card ids>"`.
+6. Record the checkpoint: `mise run -q zarg -- checkpoint`. It writes `.zarg/reconciled.json` with the graph you implemented and stages it with `.zarg/graph` (and the removal of a legacy `.zarg/sync.json`).
+7. Stage the plans and code, then commit everything together: `git add -A -- .zarg/plans <code paths> && git commit -m "feat: implement <card ids>"`.

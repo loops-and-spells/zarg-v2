@@ -13,7 +13,7 @@ import { zargRouter } from "@zarg/provider-zarg-router"
 import { type Asker, decisionsService, fsRead, graph, inquire, pluginService, Rlm, type Scope, settings } from "@zarg/rlm"
 import { makeLog } from "./log"
 import { STUB_MODEL, stubLayer } from "./stub"
-import { reconcileSettings } from "./phases"
+import { reconcileGate } from "./phases"
 import { makeReconcile } from "./reconcile"
 import { makeThreads } from "./threads"
 
@@ -52,11 +52,13 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       )
     }
     // Plan and implement: the reconcile loop, unless `[reconcile] enabled = false`.
-    const reconcileConfig = yield* reconcileSettings(config.extra.reconcile)
-    const reconcile = reconcileConfig.enabled
+    const gate = yield* reconcileGate(root, config.extra, roles)
+    // stderr: stdout carries the `ready` handshake a starting client waits for.
+    if (!gate.on) yield* Effect.sync(() => console.error(`zarg-core: ${gate.reason}`))
+    const reconcile = gate.on
       ? yield* makeReconcile({
           repo: root,
-          settings: reconcileConfig,
+          settings: gate.settings,
           log,
           sensitive,
           makeRlm: (services, observe) =>

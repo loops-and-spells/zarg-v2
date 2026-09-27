@@ -26,6 +26,18 @@ describe("worktrees", () => {
   })
 })
 
+describe("concurrent worktrees", () => {
+  test("many worktrees created at once in one repository all succeed", async () => {
+    const r = repo()
+    const base = sh(r, "git rev-parse HEAD")
+    for (let round = 0; round < 3; round++) {
+      const names = Array.from({ length: 8 }, (_, i) => `r${round}-${i}`)
+      await run(Effect.all(names.map((n) => ensureWorktree(r, join(worktreeRoot(r), "c", n), `zarg/c/${n}`, base)), { concurrency: "unbounded" }))
+      for (const n of names) expect(existsSync(join(worktreeRoot(r), "c", n, "README.md"))).toBe(true)
+    }
+  }, 30_000)
+})
+
 describe("gcPasses", () => {
   test("keeps the newest passes' worktrees and removes the rest with their branches", async () => {
     const r = repo()

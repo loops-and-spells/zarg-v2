@@ -6,7 +6,7 @@ import { Effect, Layer, Stream } from "effect"
 import { Model, type StreamEvent } from "@zarg/model"
 import { engineLayer, makeFindings, Pass, passLayer, workingGraphTree } from "@zarg/reconcile"
 import { Rlm, settings } from "@zarg/rlm"
-import { reconcileSettings, reconcileSpec } from "../src/phases"
+import { reconcileGate, reconcileSettings, reconcileSpec } from "../src/phases"
 
 const roots: Array<string> = []
 afterAll(() => roots.forEach((r) => rmSync(r, { recursive: true, force: true })))
@@ -104,4 +104,19 @@ describe("plan and implement phases", () => {
     expect(findings.map((f) => [f.kind, f.about])).toEqual([["unplannable", ["UX-0002"]]])
     expect(existsSync(join(r, ".zarg/plans/UX-0002.md"))).toBe(false)
   }, 60_000)
+})
+
+describe("when reconcile runs", () => {
+  const roles = { driver: "a:b", plan: "a:b", implement: "a:b" }
+  test("only with a [reconcile] section, both roles and a git repository top", async () => {
+    const r = project([])
+    const gate = (extra: Record<string, unknown>, rs: Record<string, string>, root = r) => Effect.runPromise(reconcileGate(root, extra, rs))
+    expect(await gate({}, roles)).toMatchObject({ on: false, reason: expect.stringContaining("[reconcile]") })
+    expect(await gate({ reconcile: {} }, { driver: "a:b" })).toMatchObject({ on: false, reason: expect.stringContaining("roles.plan") })
+    expect(await gate({ reconcile: { enabled: false } }, roles)).toMatchObject({ on: false })
+    const sub = join(r, "app")
+    mkdirSync(sub)
+    expect(await gate({ reconcile: {} }, roles, sub)).toMatchObject({ on: false, reason: expect.stringContaining("top of a git repository") })
+    expect(await gate({ reconcile: { quiet_ms: 500 } }, roles)).toMatchObject({ on: true, settings: { quietMs: 500 } })
+  })
 })

@@ -210,6 +210,53 @@ describe("reconcile pass", () => {
     expect(await runPass(stoppable, file)).toMatchObject({ status: "failed" })
   }, 20_000)
 
+  test("a phase that edits and commits requirements or plans cannot change them in the landed commit", async () => {
+    const r = repo()
+    graph(r, ["UX-0001"])
+    const original = readFileSync(join(r, ".zarg/graph/nodes/S-0001.json"), "utf8")
+    const spec = stubSpec(r)
+    const tamper = {
+      ...spec,
+      phases: spec.phases.map((p) =>
+        p.name === "implement"
+          ? {
+              ...p,
+              protect: [".zarg"],
+              run: (item: string, cwd: string) =>
+                Effect.andThen(p.run(item, cwd), Effect.sync(() => {
+                  write(cwd, ".zarg/graph/nodes/S-0001.json", "tampered\n")
+                  write(cwd, `.zarg/plans/${item}.md`, "tampered\n")
+                  write(cwd, ".zarg/graph/nodes/UX-9999.json", "new\n")
+                  sh(cwd, "git add -A && git commit -qm sneaky")
+                  return { ok: true } as const
+                })),
+            }
+          : p,
+      ),
+    }
+    expect(await runPass(tamper, db())).toMatchObject({ status: "landed" })
+    expect(sh(r, "git show HEAD:.zarg/graph/nodes/S-0001.json")).toBe(original.trim())
+    expect(sh(r, "git show HEAD:.zarg/plans/UX-0001.md")).toBe("# UX-0001")
+    expect(sh(r, "git ls-tree -r --name-only HEAD -- .zarg/graph")).not.toContain("UX-9999")
+  })
+
+  test("a stop while landing waits on your edits ends the pass even after your edits go away", async () => {
+    const r = repo()
+    graph(r, ["UX-0001"])
+    write(r, "src/UX-0001.ts", "mine\n")
+    const spec = stubSpec(r, { landAttempts: 50 })
+    let requested = false
+    let release: () => void = () => {}
+    const signal = new Promise<void>((resolve) => (release = resolve))
+    const running = runPass({ ...spec, landRetry: "300 millis", stop: { requested: () => requested, wait: Effect.promise(() => signal) } }, db())
+    await Bun.sleep(1500)
+    requested = true
+    release()
+    sh(r, "rm src/UX-0001.ts")
+    expect(await running).toMatchObject({ status: "failed" })
+    expect(sh(r, "git log --format=%s")).toBe("init")
+  }, 20_000)
+
   test("a removed card's plan and code are deleted in the next pass", async () => {
     const r = repo()
     graph(r, ["UX-0001", "UX-0002"])

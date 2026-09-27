@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test"
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync, existsSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { Effect } from "effect"
+import { Effect, Fiber } from "effect"
 import { Kernel } from "@zarg/kernel"
-import { fs, sh } from "../src"
+import { fs, runCommand, sh } from "../src"
 
 let base = ""
 let root = ""
@@ -70,5 +70,25 @@ describe("Sh deadlines", () => {
   test("a command that kills itself is not reported as a timeout", async () => {
     const [out] = await run(['return yield* Sh.run({ command: "kill -9 $$", timeoutMs: 5000 })'])
     expect(out).toContain('"timedOut": false')
+  })
+  test("an interrupted command takes the processes it started with it", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "zarg-kill-"))
+    const pidFile = join(dir, "pid")
+    const fiber = Effect.runFork(runCommand({ root: dir, scope: {}, sensitive: [] }, ["bash", "-c", `sleep 30 & echo $! > ${pidFile}; wait`], 60_000))
+    const until = Date.now() + 5000
+    while (!existsSync(pidFile) && Date.now() < until) await Bun.sleep(20)
+    const pid = Number(readFileSync(pidFile, "utf8"))
+    await Effect.runPromise(Fiber.interrupt(fiber))
+    await Bun.sleep(200)
+    const alive = (() => {
+      try {
+        process.kill(pid, 0)
+        return true
+      } catch {
+        return false
+      }
+    })()
+    rmSync(dir, { recursive: true, force: true })
+    expect(alive).toBe(false)
   })
 })

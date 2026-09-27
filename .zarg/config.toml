@@ -14,6 +14,8 @@ implement = "zarg-router:deepseek-v4.1-flash-exl3"
 decision  = "zarg-router:jevk5"
 
 # Plan and implement (the reconcile loop): passes run while a core runs; `enabled = false` turns them off.
+# Off in this repo until its existing cards are checkpointed (otherwise the first pass would take up ~50 cards).
 [reconcile]
+enabled = false
 setup  = "mise trust -q && mise x -- bun install"
 verify = "mise run verify"

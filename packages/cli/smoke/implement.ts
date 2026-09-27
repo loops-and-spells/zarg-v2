@@ -1,7 +1,7 @@
 // Live smoke test (outside `mise run verify`): one real card through plan and implement. It runs in a scratch
 // clone of this repo (your checkout is never touched): a core starts there, a small card is added to the graph,
 // and the run passes when a pass lands "feat: implement <card>" (or fails with the findings it raised).
-import { existsSync, mkdtempSync, readFileSync } from "node:fs"
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { Effect } from "effect"
@@ -20,6 +20,11 @@ const run = (cwd: string, argv: ReadonlyArray<string>, env: Record<string, strin
 const scratch = mkdtempSync(join(tmpdir(), "zarg-smoke-implement-"))
 run(tmpdir(), ["git", "clone", "-q", "--no-hardlinks", repo, scratch])
 run(scratch, ["mise", "trust", "-q"])
+// Only the new card may be taken up: turn reconcile on in the clone and mark its existing graph reconciled.
+const configFile = join(scratch, ".zarg/config.toml")
+writeFileSync(configFile, readFileSync(configFile, "utf8").replace(/^enabled = false$/m, "enabled = true"))
+run(scratch, [process.execPath, cli, "checkpoint"], { ZARG_ROOT: scratch })
+run(scratch, ["git", "-c", "user.name=zarg smoke", "-c", "user.email=smoke@zarg", "commit", "-qam", "smoke: checkpoint"])
 console.log(`scratch ${scratch}`)
 
 const conn = await Effect.runPromise(connect({ root: scratch, command: coreCommand() }))
@@ -36,7 +41,7 @@ const deadline = Date.now() + TIMEOUT_MS
 let verdict: { ok: boolean; why: string } | undefined
 while (verdict === undefined) {
   const subject = run(scratch, ["git", "log", "-1", "--format=%s"])
-  if (subject.includes(card)) verdict = { ok: true, why: `landed: ${subject} (${run(scratch, ["git", "rev-parse", "--short", "HEAD"])})` }
+  if (subject === `feat: implement ${card}`) verdict = { ok: true, why: `landed: ${subject} (${run(scratch, ["git", "rev-parse", "--short", "HEAD"])})` }
   else if (findings().length > 0) verdict = { ok: false, why: findings().map((f) => `${f.kind}: ${f.title} — ${f.detail.slice(0, 300)}`).join("\n") }
   else if (Date.now() > deadline) verdict = { ok: false, why: "no pass landed in time" }
   else await Bun.sleep(5000)

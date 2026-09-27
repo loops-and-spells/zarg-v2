@@ -110,6 +110,12 @@ export const runCommand = (ctx: CoreContext, argv: ReadonlyArray<string>, timeou
         stderr: "pipe",
         signal,
       })
+      // Interrupted (a stop): take down everything the command started, not only the command itself.
+      signal.addEventListener("abort", () => {
+        try {
+          process.kill(-proc.pid, "SIGKILL")
+        } catch {}
+      })
       let timedOut = false
       const timer = setTimeout(() => {
         timedOut = true
