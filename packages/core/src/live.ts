@@ -114,7 +114,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       extra: reconcile?.threads ?? [],
       // The developer's stop is for everything: service plugins that run in the background stop too.
       alsoStop: Effect.suspend(() =>
-        Effect.forEach(host.manifests.filter((m) => m.archetype === "service" && m.methods.stop !== undefined), (m) => Effect.ignore(host.invoke(m.name, "stop", {})), { discard: true }),
+        Effect.forEach(host.manifests.filter((m) => (m.archetype === "service" || m.archetype === "agent") && m.methods.stop !== undefined), (m) => Effect.ignore(host.invoke(m.name, "stop", {})), { discard: true }),
       ),
     })
     // A plugin's grant question is asked on main, like any driver question.

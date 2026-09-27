@@ -89,3 +89,24 @@ export default definePlugin({ name: "resumer", service: "Resumer", archetype: "s
     expect(events).toContainEqual(expect.objectContaining({ event: "start", id: "resumed" }))
   })
 })
+
+describe("agent plugins", () => {
+  const agent = (runtime?: string) => `
+import { Effect, Schema } from "effect"
+import { Agents, definePlugin } from "@zarg/plugin-sdk"
+export default definePlugin({ name: "walker", service: "Walker", archetype: "agent", ${runtime !== undefined ? `runtime: "${runtime}",` : ""} config: Schema.Struct({}), scopes: { agents: true },
+  methods: { go: { doc: "go", params: Schema.Struct({}), success: Schema.String } },
+  make: Effect.gen(function* () { yield* (yield* Agents).start({ id: "w", title: "walker", task: "walks" }); return { go: () => Effect.succeed("walking") } }) })`
+
+  test("a sandboxed agent loads, starts at load and answers calls", async () => {
+    const events: Array<unknown> = []
+    const out = await Effect.runPromise(hostWith([await fixturePlugin(agent())], (h) => Effect.andThen(Effect.sleep(200), h.invoke("walker", "go", {})), { agents: (_p, e) => void events.push(e) }))
+    expect(out).toBe("walking")
+    expect(events).toContainEqual(expect.objectContaining({ event: "start", id: "w" }))
+  })
+
+  test("a bundle that claims the trusted runtime is refused: trusted agents are zarg's own packages", async () => {
+    const out = await Effect.runPromise(hostWith([await fixturePlugin(agent("trusted"))], (h) => Effect.map(h.agenda(), (a) => a.map((i) => i.detail).join(" "))))
+    expect(out).toContain("trusted")
+  })
+})

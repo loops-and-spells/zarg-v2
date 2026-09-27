@@ -100,7 +100,9 @@ const manifestProblem = (m: Manifest): string | undefined => {
   if (!PLUGIN_NAME.test(String(m.name))) return `name "${m.name}" must be kebab-case (no doubled or trailing dash)`
   if (!SERVICE.test(String(m.service))) return `service "${m.service}" must be PascalCase`
   if (RESERVED_SERVICES.has(m.service)) return `service "${m.service}" is zarg's own`
-  if (m.archetype !== "graph" && m.archetype !== "provider" && m.archetype !== "service") return `archetype "${m.archetype}" is unknown`
+  if (m.archetype !== "graph" && m.archetype !== "provider" && m.archetype !== "service" && m.archetype !== "agent") return `archetype "${m.archetype}" is unknown`
+  // A bundle runs sandboxed; trusted agents are zarg's own packages, which the core loads itself.
+  if (m.runtime === "trusted") return "a plugin bundle cannot run trusted: trusted agents are zarg's own packages, loaded by the core"
   const bad = Object.keys(m.methods ?? {}).find((k) => !METHOD.test(k))
   if (bad !== undefined) return `method "${bad}" is not a method name`
   return (m.commands ?? []).map(commandProblem(m)).find((p) => p !== undefined)
@@ -317,7 +319,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         }
         const r: Running = { manifest: m, process: spawned.value, restarts, disabled: false, inflight: 0, served: served(powers) }
         // A service plugin's services start now, not on its first call: a run a restart cut short resumes.
-        if (m.archetype === "service") yield* Effect.forkDetach(Effect.ignore(spawned.value.call("$start", {})))
+        if (m.archetype === "service" || m.archetype === "agent") yield* Effect.forkDetach(Effect.ignore(spawned.value.call("$start", {})))
         return r
       })
       // Checked and started together (a slow plugin does not hold up the others), kept in their given order.

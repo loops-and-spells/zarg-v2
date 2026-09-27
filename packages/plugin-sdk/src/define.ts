@@ -44,7 +44,9 @@ type Handlers<M extends Record<string, MethodSpec>> = {
 export interface PluginDef<M extends Record<string, MethodSpec>> {
   readonly name: string
   readonly service: string
-  readonly archetype: "graph" | "provider" | "service"
+  readonly archetype: "graph" | "provider" | "service" | "agent"
+  /** Agents only: where it runs. A bundle is always sandboxed; `trusted` agents are zarg's own packages, loaded by the core. */
+  readonly runtime?: "sandboxed" | "trusted"
   readonly config: Schema.Codec<any, any>
   /** The contract this plugin serves to plugins that depend on it (its public read methods). */
   readonly implements?: Contract

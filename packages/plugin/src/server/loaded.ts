@@ -9,7 +9,8 @@ import { PluginConfigError } from "./validate"
 export interface Manifest {
   readonly name: string
   readonly service: string
-  readonly archetype: "graph" | "provider" | "service"
+  readonly archetype: "graph" | "provider" | "service" | "agent"
+  readonly runtime?: "sandboxed" | "trusted"
   readonly config: unknown
   /** The contract it serves to dependents: digest and callable methods. */
   readonly contract?: { readonly name: string; readonly digest: string; readonly methods: ReadonlyArray<string> }

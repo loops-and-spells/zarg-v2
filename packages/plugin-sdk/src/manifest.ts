@@ -6,7 +6,8 @@ import type { EdgeSpec, Plugin, PluginCommand, Scopes } from "./define"
 export interface Manifest {
   readonly name: string
   readonly service: string
-  readonly archetype: "graph" | "provider" | "service"
+  readonly archetype: "graph" | "provider" | "service" | "agent"
+  readonly runtime?: "sandboxed" | "trusted"
   readonly config: unknown
   /** The contract this plugin implements: its digest and the methods dependents may call. */
   readonly contract?: { readonly name: string; readonly digest: string; readonly methods: ReadonlyArray<string> }
@@ -27,6 +28,7 @@ export const manifestOf = (p: Plugin): Manifest => ({
   name: p.name,
   service: p.service,
   archetype: p.archetype,
+  ...(p.runtime !== undefined ? { runtime: p.runtime } : {}),
   config: json(p.config),
   scopes: p.scopes,
   optional: p.optional ?? {},

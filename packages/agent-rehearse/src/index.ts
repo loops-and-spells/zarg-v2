@@ -18,7 +18,7 @@ const START_DEADLINE_MS = 10 * 60_000
 export default definePlugin({
   name: "rehearse",
   service: "Rehearse",
-  archetype: "service",
+  archetype: "agent",
   config: Schema.Struct({
     auto_apply: Schema.optionalKey(Schema.Boolean),
     feel_below: Schema.optionalKey(Schema.Number),
