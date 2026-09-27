@@ -3,7 +3,7 @@ import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstab
 import { RunAgentInputSchema } from "@ag-ui/core/schemas"
 import type { WireEvent } from "./events"
 import type { ThreadLog } from "./log"
-import type { Thread } from "./thread"
+import type { Thread } from "@zarg/agent-host"
 
 /** Driver threads by id. */
 export class Threads extends Context.Service<

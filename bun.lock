@@ -9,6 +9,17 @@
         "typescript": "^7.0.2",
       },
     },
+    "packages/agent-host": {
+      "name": "@zarg/agent-host",
+      "dependencies": {
+        "@ag-ui/core": "1.0.0",
+        "@zarg/rlm": "workspace:*",
+        "effect": "^4.0.0-rc.117",
+      },
+      "devDependencies": {
+        "@zarg/core": "workspace:*",
+      },
+    },
     "packages/agent-rehearse": {
       "name": "@zarg/agent-rehearse",
       "dependencies": {
@@ -59,6 +70,7 @@
       "dependencies": {
         "@ag-ui/core": "1.0.0",
         "@effect/platform-bun": "^4.0.0-rc.117",
+        "@zarg/agent-host": "workspace:*",
         "@zarg/client": "workspace:*",
         "@zarg/decisions": "workspace:*",
         "@zarg/graph": "workspace:*",
@@ -300,6 +312,8 @@
     "@varlock/native-helper-linux-x64": ["@varlock/native-helper-linux-x64@1.20.0", "", { "os": "linux", "cpu": "x64" }, "sha512-6N6w87D4ByujoVRz0hxFH/VXNOmr9rXnp+WDdzxHa2FZirmy31wW3LoiPjIXrmriNZ9p2C5JseECEDBKsnwQcg=="],
 
     "@varlock/native-helper-win32-x64": ["@varlock/native-helper-win32-x64@1.20.0", "", { "os": [ "linux", "win32", ] }, "sha512-mDH00lx2h+dWmbARTnfmRu321SuZigKslUdX7dAn0/7+psShiFCx6QEWLjjyZgDPSCGVNbIM3JArC40vCTXJjw=="],
+
+    "@zarg/agent-host": ["@zarg/agent-host@workspace:packages/agent-host"],
 
     "@zarg/agent-rehearse": ["@zarg/agent-rehearse@workspace:packages/agent-rehearse"],
 

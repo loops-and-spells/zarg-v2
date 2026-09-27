@@ -1,0 +1,69 @@
+import type { BaseEvent } from "@ag-ui/core"
+import type { Effect, Stream } from "effect"
+import type { Answer, Question } from "@zarg/rlm"
+
+/** An AG-UI event as the core sends it on a thread. */
+export type WireEvent = BaseEvent & { readonly threadId: string; readonly seq: number; readonly [key: string]: unknown }
+
+/** A resume or a typed message, as a run brings it in. */
+export interface RunInput {
+  readonly runId: string
+  /** The newest user message, when the developer typed something. */
+  readonly message?: string
+  readonly resume?: ReadonlyArray<{ readonly interruptId: string; readonly payload?: unknown }>
+}
+
+/** A conversation thread the core serves (`/runs`, `/threads/:id/stop`); a trusted agent makes them. */
+export interface Thread {
+  readonly id: string
+  readonly focus: ReadonlyArray<string>
+  readonly run: (input: RunInput) => Stream.Stream<WireEvent>
+  /** New work arrived: a paused loop takes up the agenda again. */
+  readonly wake: Effect.Effect<void>
+  readonly stop: Effect.Effect<void>
+  /** Ask the developer on this thread from outside the agent (grant questions); answered in order. */
+  readonly ask: (q: Question) => Effect.Effect<Answer>
+  readonly status: () => "idle" | "running" | "waiting"
+}
+
+export interface AgendaEntry {
+  readonly id: string
+  readonly title: string
+  readonly detail: string
+  readonly about: ReadonlyArray<string>
+  readonly priority: number
+  readonly plugin?: string
+}
+
+/**
+ * What the core gives a trusted agent. Services are the core's own; they are typed loosely here so this package
+ * stays light, and the agent narrows each to the type it imports itself.
+ */
+export interface AgentHost {
+  readonly root: string
+  readonly roles: Readonly<Record<string, string>>
+  readonly rlmSettings: unknown
+  readonly model: unknown
+  readonly decisions: unknown
+  readonly plugins: unknown
+  readonly store: unknown
+  readonly log: unknown
+  readonly sensitive: ReadonlyArray<unknown>
+  /** The agenda for the driver: reconcile's items and the plugins' items (the host's own plugin-* items left out). */
+  readonly agenda: (focus: ReadonlySet<string> | undefined) => Effect.Effect<ReadonlyArray<AgendaEntry>, unknown>
+  /** Activity and views for RLM runs on a thread. */
+  readonly activity: (threadId: string) => unknown
+  /** Reads outside the repository, asking with `ask`. */
+  readonly outsideReads: (ask: (q: Question) => Effect.Effect<Answer, unknown>) => unknown
+  readonly findings: { readonly chosen: unknown; readonly firstParty: (plugin: string) => boolean }
+  /** Ask for the developer's attention on one of the agent's rows (`undefined` clears it). */
+  readonly attention: (threadId: string, agent: string, reason: string | undefined) => void
+}
+
+/** A trusted agent: imported into the core by path from zarg's own packages, started once. */
+export interface TrustedAgent {
+  readonly name: string
+  readonly start: (host: AgentHost) => Effect.Effect<{ readonly makeThread: (id: string, focus: ReadonlyArray<string>) => Effect.Effect<Thread> }, unknown>
+}
+
+export const defineTrustedAgent = (a: TrustedAgent): TrustedAgent => a

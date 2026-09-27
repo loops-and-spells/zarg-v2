@@ -8,6 +8,7 @@ import * as E from "./events"
 import type { NextOption } from "./intent"
 import type { Interrupt } from "@ag-ui/core"
 import type { WireEvent } from "./events"
+import type { Thread } from "@zarg/agent-host"
 import type { ThreadLog } from "./log"
 
 /** An agenda item for the driver's prompt; a plugin's text is marked as that plugin's, not the developer's or zarg's. */
@@ -76,7 +77,7 @@ interface Pending {
 }
 
 /** One driver thread: a loop of driver RLMs, one per agenda item, paused at inquiries. */
-export const makeThread = (deps: ThreadDeps) =>
+export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
   Effect.gen(function* () {
     const { log, id: threadId } = deps
     let runId = ""
@@ -383,4 +384,5 @@ export const makeThread = (deps: ThreadDeps) =>
     }
   })
 
-export type Thread = Effect.Success<ReturnType<typeof makeThread>>
+/** The thread every agent serves: the core's driver thread is one. */
+export type { Thread } from "@zarg/agent-host"

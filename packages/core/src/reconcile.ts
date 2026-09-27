@@ -8,7 +8,7 @@ import * as E from "./events"
 import type { WireEvent } from "./events"
 import type { ThreadLog } from "./log"
 import { type PhaseDeps, type ReconcileSettings, reconcileSpec } from "./phases"
-import type { Thread } from "./thread"
+import type { Thread } from "@zarg/agent-host"
 
 export interface ReconcileDeps {
   readonly repo: string
