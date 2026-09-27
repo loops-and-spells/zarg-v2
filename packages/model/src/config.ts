@@ -16,7 +16,7 @@ export interface ZargConfig {
 
 export class Config extends Context.Service<Config, ZargConfig>()("@zarg/model/Config") {}
 
-const KNOWN = new Set(["providers", "roles", "rlm"])
+const KNOWN = new Set(["providers", "roles", "rlm", "reconcile"])
 const VAR = /\$\$\{|\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}/g
 
 /** Expand `${VAR}` / `${VAR:-default}` in one string; `$${` stays a literal `${`. */

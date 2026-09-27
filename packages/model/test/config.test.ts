@@ -63,6 +63,11 @@ describe("config loader", () => {
     expect(e.key).toBe("providers.o.api_key")
   })
 
+  test("[reconcile] is passed through for the core", async () => {
+    const c = await load(undefined, "[reconcile]\nquiet_ms = 500\n")
+    expect(c.extra.reconcile).toEqual({ quiet_ms: 500 })
+  })
+
   test("unknown sections and malformed roles are errors", async () => {
     expect((await fail(undefined, "[nonsense]\na = 1\n")).message).toBe('unknown config section "nonsense"')
     expect((await fail(undefined, '[roles]\ndriver = "no-colon"\n')).key).toBe("roles.driver")

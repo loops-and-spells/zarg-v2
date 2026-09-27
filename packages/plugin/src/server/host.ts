@@ -42,6 +42,8 @@ export class PluginHost extends Context.Service<
     readonly lint: Effect.Effect<ReadonlyArray<Finding>, IoError>
     readonly agenda: (focus?: ReadonlySet<string>) => Effect.Effect<ReadonlyArray<AgendaItem>, IoError>
     readonly render: (focus?: ReadonlySet<string>) => Effect.Effect<string, IoError>
+    /** Run `effect` with no tool call committing meanwhile (e.g. while landing a commit that writes graph files). */
+    readonly exclusive: <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
   }
 >()("@zarg/plugin/PluginHost") {}
 
@@ -138,6 +140,7 @@ export const layer = (
         lint,
         agenda,
         render,
+        exclusive: Semaphore.withPermits(lock, 1),
       }
     }),
   )

@@ -1,6 +1,6 @@
 import { BunServices } from "@effect/platform-bun"
 import { describe, expect, test } from "bun:test"
-import { Effect, FileSystem, Layer } from "effect"
+import { Effect, Fiber, FileSystem, Layer } from "effect"
 import { GraphStore, hash, layer as graphLayer } from "@zarg/graph"
 import { layer as hostLayer, PluginHost } from "../src/server"
 import { notes } from "./fixture-plugin"
@@ -40,6 +40,22 @@ describe("PluginHost.call", () => {
     )
     expect(out.added.sort()).toEqual(["T-0001", "T-0002", "T-0003", "T-0004"])
     expect(out.ids).toEqual(["T-0001", "T-0002", "T-0003", "T-0004"])
+  })
+
+  test("exclusive holds tool calls until it finishes (landing uses it)", async () => {
+    const order = await run(
+      Effect.gen(function* () {
+        const host = yield* PluginHost
+        const log: Array<string> = []
+        const fiber = yield* Effect.forkChild(host.exclusive(Effect.andThen(Effect.sleep(100), Effect.sync(() => log.push("exclusive done")))))
+        yield* Effect.sleep(10)
+        yield* host.call("notes/add-topic", { name: "x" })
+        log.push("call done")
+        yield* Fiber.join(fiber)
+        return log
+      }),
+    )
+    expect(order).toEqual(["exclusive done", "call done"])
   })
 
   test("unknown tool and invalid params are ToolErrors", async () => {
