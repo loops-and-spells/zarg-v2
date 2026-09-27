@@ -57,6 +57,8 @@ interface Pending {
   readonly answer: Deferred.Deferred<Answer>
   /** The AG-UI interrupt, kept to send again to a run that brings no answer. */
   readonly interrupt: Interrupt
+  /** The driver loop's own question (dropped when the loop stops), or one asked from outside (a plugin's grant). */
+  readonly owner: "loop" | "system"
 }
 
 /** One driver thread: a loop of driver RLMs, one per agenda item, paused at inquiries. */
@@ -71,7 +73,12 @@ export const makeThread = (deps: ThreadDeps) =>
     // run, stop and a new question change the same state; one at a time.
     const lock = yield* Semaphore.make(1)
     const locked = Semaphore.withPermits(lock, 1)
-    let pending: Pending | undefined
+    // Questions in the order asked; only the first is shown, the next once it is answered.
+    const queue: Array<Pending> = []
+    const pending = (): Pending | undefined => queue[0]
+    const dropLoopQuestions = () => {
+      for (let i = queue.length - 1; i >= 0; i--) if (queue[i]!.owner === "loop") queue.splice(i, 1)
+    }
     let paused: Deferred.Deferred<void> | undefined
     const recent: Array<string> = []
     // Messages the developer sent while the driver worked: the next item answers them, before the agenda.
@@ -89,8 +96,7 @@ export const makeThread = (deps: ThreadDeps) =>
     }
 
     // Inquire: park the cell and end the current run with an interrupt; a later run's resume answers it.
-    const asker: Asker = {
-      ask: (question) =>
+    const askAs = (owner: Pending["owner"]) => (question: Question) =>
         Effect.gen(function* () {
           const answer = yield* Deferred.make<Answer>()
           const id = `inq-${crypto.randomUUID()}`
@@ -108,13 +114,14 @@ export const makeThread = (deps: ThreadDeps) =>
             } as unknown as Interrupt
           yield* locked(
             Effect.gen(function* () {
-              pending = { id, question, answer, interrupt }
-              yield* emit(E.runInterrupted(threadId, runId, interrupt))
+              queue.push({ id, question, answer, interrupt, owner })
+              // Behind another question: shown once that one is answered.
+              if (queue.length === 1) yield* emit(E.runInterrupted(threadId, runId, interrupt))
             }),
           )
           return yield* Deferred.await(answer)
-        }),
-    }
+        })
+    const asker: Asker = { ask: askAs("loop") }
 
     // RLM events become one activity message: the tree of RLMs working for this thread.
     const activity = makeActivity(log, threadId)
@@ -196,7 +203,7 @@ export const makeThread = (deps: ThreadDeps) =>
           Effect.gen(function* () {
             if (loopGen !== gen) return
             loop = undefined
-            pending = undefined
+            dropLoopQuestions()
             paused = undefined
             if (Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)) {
               const e = Cause.squash(exit.cause)
@@ -219,18 +226,19 @@ export const makeThread = (deps: ThreadDeps) =>
           yield* emit(E.runStarted(threadId, runId))
           yield* emit(activity.snapshot())
           const resume = input.resume?.[0]
-          if (resume !== undefined && pending !== undefined && resume.interruptId === pending.id) {
+          const head = pending()
+          if (resume !== undefined && head !== undefined && resume.interruptId === head.id) {
             const payload = (resume.payload ?? {}) as { choice?: string; other?: string }
-            const chosen = pending.question.options.find((o) => o.id === payload.choice)
+            const chosen = head.question.options.find((o) => o.id === payload.choice)
             const answer: Answer = payload.choice !== undefined ? { choice: payload.choice } : { other: String(payload.other ?? "") }
-            const p = pending
-            pending = undefined
+            const p = head
+            queue.shift()
             yield* note("user", chosen?.label ?? String(payload.other ?? ""))
             yield* Deferred.succeed(p.answer, answer)
-          } else if (input.message !== undefined && pending !== undefined) {
+          } else if (input.message !== undefined && head !== undefined) {
             // Interjection: the message answers the pending question; the question is recorded as dropped.
-            const p = pending
-            pending = undefined
+            const p = head
+            queue.shift()
             yield* note("user", input.message)
             yield* note("assistant", `(dropped question: ${p.question.question})`)
             yield* Deferred.succeed(p.answer, { other: input.message, interjected: true } as Answer)
@@ -248,7 +256,8 @@ export const makeThread = (deps: ThreadDeps) =>
             yield* Deferred.succeed(p, undefined)
           }
           // Still waiting on a question this run did not answer (a client that just attached): ask it again.
-          if (pending !== undefined) yield* emit(E.runInterrupted(threadId, runId, pending.interrupt))
+          const next = pending()
+          if (next !== undefined) yield* emit(E.runInterrupted(threadId, runId, next.interrupt))
           yield* startLoop
           const mine = runId
           return log.stream(from, threadId).pipe(
@@ -262,7 +271,7 @@ export const makeThread = (deps: ThreadDeps) =>
       Effect.gen(function* () {
         const f = loop
         loopGen++
-        pending = undefined
+        dropLoopQuestions()
         paused = undefined
         if (f !== undefined) yield* Fiber.interrupt(f)
         loop = undefined
@@ -277,7 +286,15 @@ export const makeThread = (deps: ThreadDeps) =>
       }),
     )
 
-    return { id: threadId, focus: deps.focus, run, stop, status: () => (pending ? "waiting" : loop ? "running" : "idle") }
+    return {
+      id: threadId,
+      focus: deps.focus,
+      run,
+      stop,
+      /** Ask the developer on this thread from outside the driver (a plugin's grant question); answered in order. */
+      ask: askAs("system"),
+      status: () => (pending() ? "waiting" : loop ? "running" : "idle"),
+    }
   })
 
 export type Thread = Effect.Success<ReturnType<typeof makeThread>>
