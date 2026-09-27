@@ -1,7 +1,7 @@
 # Input layers: one owner for every key
 
 Date: 2026-09-27
-Status: direction approved in conversation (own layer stack, not @opentui/keymap), pending written review
+Status: approved; its layer table is replaced by `2026-09-27-shell-sheet-design.md`, the rest stands
 Parents: `docs/superpowers/specs/2026-09-27-agents-tiled-shell-design.md` (tiles), `docs/superpowers/specs/2026-09-27-agent-views-design.md` (views, platforms)
 Research: opencode's TUI (anomalyco/opencode, packages/tui) routes keys through priority layers gated by a mode stack; focus follows state; scrollboxes are never focused.
 
