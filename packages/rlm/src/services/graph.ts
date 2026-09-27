@@ -15,10 +15,10 @@ const NodeView = Schema.Struct({
 })
 
 export const GraphDef = defineService("Graph", "The requirements graph, limited to your scope (read only).", {
-  render: { doc: "Gherkin text for the cards in scope (optionally narrowed to ids).", params: Schema.Struct({ focus: Schema.optionalKey(Schema.Array(Schema.String)) }), success: Schema.String },
+  render: { doc: "Gherkin text for the cards in scope (optionally narrowed to ids).", params: Schema.Struct({ focus: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Only these node ids and their cards; omit for everything in scope (large)." }) }), success: Schema.String },
   agenda: { doc: "Open items in scope, most urgent first.", params: Schema.Struct({}), success: Schema.Array(Item) },
   show: { doc: "One node with its hash (for expectations) and inbound edges.", params: Schema.Struct({ id: Schema.String }), success: NodeView },
-  neighbors: { doc: "Node ids within k hops, both directions.", params: Schema.Struct({ id: Schema.String, k: Schema.Number }), success: Schema.Array(Schema.String) },
+  neighbors: { doc: "Node ids within k hops, both directions.", params: Schema.Struct({ id: Schema.String, k: Schema.Number.annotate({ description: "Hops; 1 or 2 is usually enough." }) }), success: Schema.Array(Schema.String) },
 })
 
 const outOfScope = (id: string): ServiceFailure => ({ _tag: "OutOfScope", message: `${id} is outside this RLM's graph scope; hand the work to a child RLM` })

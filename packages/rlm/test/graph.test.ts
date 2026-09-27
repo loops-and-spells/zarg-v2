@@ -5,10 +5,10 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Layer } from "effect"
 import { GraphStore, layer as graphLayer } from "@zarg/graph"
-import { Kernel } from "@zarg/kernel"
+import { Kernel, manifest } from "@zarg/kernel"
 import { layer as hostLayer, PluginHost } from "@zarg/plugin/server"
 import { gherkin } from "@zarg/plugin-gherkin/server"
-import { agenda, decisionsService, graph, inquire, pluginService, type Scope, verify } from "../src"
+import { agenda, AgendaDef, DecisionsDef, decisionsService, graph, GraphDef, inquire, InquireDef, pluginService, type Scope, verify } from "../src"
 
 /** A real graph with the gherkin plugin: S-0001 → UX-0001 → S-0002, plus an unrelated S-0003. */
 const withGraph = <A>(scope: Scope, body: (k: Kernel.Kernel) => Effect.Effect<A>) =>
@@ -114,5 +114,18 @@ describe("Inquire, Agenda and Verify", () => {
     })
     const out = await kernel([svc], (k) => k.run('const a = yield* Decisions.decide({ state: "s", questions: { ok: { type: "noul", instructions: "fine?" } } })\nreturn a.ok.answer'))
     expect(out.output).toBe("true")
+  })
+})
+
+describe("the manifest explains the fields a model gets wrong", () => {
+  const text = manifest([InquireDef, DecisionsDef, GraphDef, AgendaDef, pluginService(gherkin, { host: undefined as never, snapshot: undefined as never, scope: {} })!.def])
+  test("Inquire: `about` belongs to the question, `id` is what the answer returns", () => {
+    expect(text).toMatch(/\/\*\* Card or state ids the whole question is about[^\n]*\*\/\n\s+about\?: ReadonlyArray<string>\n\s+\}\): Eff/)
+    expect(text).toMatch(/\/\*\* Returned as the answer's `choice`[^\n]*\*\/\n\s+id: string/)
+  })
+  test("Decisions, Graph and Gherkin fields carry their meaning", () => {
+    expect(text).toMatch(/\/\*\* What the questions are about[^\n]*\*\/\n\s+state: string/)
+    expect(text).toMatch(/\/\*\* Only these node ids[^\n]*\*\/\n\s+focus\?: ReadonlyArray<string>/)
+    expect(text).toMatch(/\/\*\* The state the user is in before the action[^\n]*\*\/\n\s+arrives:/)
   })
 })

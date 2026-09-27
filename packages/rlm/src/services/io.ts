@@ -1,7 +1,11 @@
 import { Effect, Schema } from "effect"
 import { bind, type Bound, defineService, type ServiceFailure } from "@zarg/kernel"
 
-const Raised = Schema.Struct({ title: Schema.String, detail: Schema.String, about: Schema.Array(Schema.String) })
+const Raised = Schema.Struct({
+  title: Schema.String,
+  detail: Schema.String,
+  about: Schema.Array(Schema.String).annotate({ description: "Card or state ids the item is about." }),
+})
 export type Raised = typeof Raised.Type
 
 export const AgendaDef = defineService("Agenda", "Raise items for a driver thread to take up.", {
@@ -16,16 +20,16 @@ export interface AgendaInbox {
 export const agenda = (inbox: AgendaInbox): Bound => bind(AgendaDef, { raise: (item) => Effect.map(inbox.raise(item), (id) => ({ id })) })
 
 const Option = Schema.Struct({
-  id: Schema.String,
-  label: Schema.String,
-  recommended: Schema.optionalKey(Schema.Boolean),
-  why: Schema.optionalKey(Schema.String),
+  id: Schema.String.annotate({ description: "Returned as the answer's `choice` when the developer picks this option." }),
+  label: Schema.String.annotate({ description: "What the developer reads: a few words." }),
+  recommended: Schema.optionalKey(Schema.Boolean).annotate({ description: "Mark exactly one option as your recommendation." }),
+  why: Schema.optionalKey(Schema.String).annotate({ description: "One short reason, shown next to the option." }),
 })
 const Question = Schema.Struct({
-  question: Schema.String,
-  options: Schema.Array(Option),
-  allowOther: Schema.optionalKey(Schema.Boolean),
-  about: Schema.optionalKey(Schema.Array(Schema.String)),
+  question: Schema.String.annotate({ description: "One question, in a sentence or two." }),
+  options: Schema.Array(Option).annotate({ description: "2 to 4 options." }),
+  allowOther: Schema.optionalKey(Schema.Boolean).annotate({ description: "Offer \"Something else…\" for a free-text answer (the answer's `other`)." }),
+  about: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Card or state ids the whole question is about (not per option)." }),
 })
 export type Question = typeof Question.Type
 /** An option id, or free text; `interjected` when the developer wrote a message instead of answering. */
@@ -50,9 +54,17 @@ export const inquire = (asker: Asker): Bound =>
   })
 
 const DQuestion = Schema.Union([
-  Schema.Struct({ type: Schema.Literal("choice"), instructions: Schema.String, criteria: Schema.Record(Schema.String, Schema.String) }),
-  Schema.Struct({ type: Schema.Literal("noul"), instructions: Schema.String }),
-  Schema.Struct({ type: Schema.Literal("score"), instructions: Schema.String, levels: Schema.Array(Schema.String) }),
+  Schema.Struct({
+    type: Schema.Literal("choice"),
+    instructions: Schema.String.annotate({ description: "What to pick." }),
+    criteria: Schema.Record(Schema.String, Schema.String).annotate({ description: "Choice key to what it means; the answer's `choice` is a key." }),
+  }),
+  Schema.Struct({ type: Schema.Literal("noul"), instructions: Schema.String.annotate({ description: "A yes/no question; the answer is `answer`." }) }),
+  Schema.Struct({
+    type: Schema.Literal("score"),
+    instructions: Schema.String.annotate({ description: "What to score." }),
+    levels: Schema.Array(Schema.String).annotate({ description: "Levels from lowest to highest; the answer's `level` is one of them." }),
+  }),
 ])
 const DAnswer = Schema.Struct({
   type: Schema.String,
@@ -67,7 +79,10 @@ const DAnswer = Schema.Struct({
 export const DecisionsDef = defineService("Decisions", "Fast judgments by a small decision model: choice, yes/no (noul), or score, each with a confidence.", {
   decide: {
     doc: "Answer 1-8 questions about a state. Use it to classify work or check a result before acting on it.",
-    params: Schema.Struct({ state: Schema.String, questions: Schema.Record(Schema.String, DQuestion) }),
+    params: Schema.Struct({
+      state: Schema.String.annotate({ description: "What the questions are about: the situation in plain text, short." }),
+      questions: Schema.Record(Schema.String, DQuestion).annotate({ description: "1-8 questions by name; the result has the same names." }),
+    }),
     success: Schema.Record(Schema.String, DAnswer),
   },
 })

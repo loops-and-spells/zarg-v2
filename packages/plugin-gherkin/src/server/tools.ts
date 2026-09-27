@@ -4,7 +4,9 @@ import { tool, ToolError } from "@zarg/plugin/server"
 import { ARRIVES, CARD, findStateByText, GIVEN, STATE, THEN } from "./model"
 
 /** Point at an existing state by id, or describe one by text (reused if the text already exists). */
-const StateRef = Schema.Union([Schema.Struct({ id: Schema.String }), Schema.Struct({ text: Schema.NonEmptyString })])
+const StateRef = Schema.Union([Schema.Struct({ id: Schema.String }), Schema.Struct({ text: Schema.NonEmptyString })]).annotate({
+  description: "An existing state by {id}, or a sentence by {text} (existing text is reused).",
+})
 type StateRef = typeof StateRef.Type
 
 const EdgeName = Schema.Literals(["arrives", "given", "then"])
@@ -41,9 +43,9 @@ export const addState = tool({
   name: "add-state",
   description: "Add a state (a Given/Then sentence). Fails if a state with the same text exists.",
   params: Schema.Struct({
-    text: Schema.NonEmptyString,
-    entry: Schema.optionalKey(Schema.Boolean),
-    terminal: Schema.optionalKey(Schema.Boolean),
+    text: Schema.NonEmptyString.annotate({ description: "One Given/Then sentence, at most 15 words, no \"if\"." }),
+    entry: Schema.optionalKey(Schema.Boolean).annotate({ description: "The user can start here." }),
+    terminal: Schema.optionalKey(Schema.Boolean).annotate({ description: "Nothing needs to follow this state." }),
   }),
   run: (p, snap) =>
     Effect.gen(function* () {
@@ -76,11 +78,11 @@ export const addCard = tool({
   name: "add-card",
   description: "Add a card: one arrival Given, up to 3 extra Givens, one When, 1-5 Thens. States by {id} or {text}.",
   params: Schema.Struct({
-    title: Schema.NonEmptyString,
-    when: Schema.NonEmptyString,
-    arrives: StateRef,
-    given: Schema.optionalKey(Schema.Array(StateRef)),
-    then: Schema.Array(StateRef),
+    title: Schema.NonEmptyString.annotate({ description: "Short: who does what." }),
+    when: Schema.NonEmptyString.annotate({ description: "The one user action." }),
+    arrives: StateRef.annotate({ description: "The state the user is in before the action (the Given)." }),
+    given: Schema.optionalKey(Schema.Array(StateRef)).annotate({ description: "Up to 3 extra context states (And)." }),
+    then: Schema.Array(StateRef).annotate({ description: "1-5 states the action leads to." }),
   }),
   run: (p, snap) =>
     Effect.gen(function* () {

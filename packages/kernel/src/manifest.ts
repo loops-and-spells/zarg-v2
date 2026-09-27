@@ -9,14 +9,22 @@ const isNumberEncoding = (s: any) =>
 
 const key = (k: string) => (/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(k) ? k : JSON.stringify(k))
 
-/** JSON Schema (as Effect emits it) → a TypeScript type, for the model to read and the checker to enforce. */
-export const tsType = (s: any, defs: Record<string, any> = {}, refs: ReadonlySet<string> = new Set()): string => {
-  const recur = (x: any) => tsType(x, defs, refs)
+// An object type fits on one line up to this width, unless a field has a description.
+const INLINE_MAX = 72
+
+const comment = (text: string) => text.replace(/\s+/g, " ").replaceAll("*/", "*\\/")
+
+/**
+ * JSON Schema (as Effect emits it) → a TypeScript type, for the model to read and the checker to enforce.
+ * A field's `description` annotation becomes a doc comment above it; `indent` is where the type starts.
+ */
+export const tsType = (s: any, defs: Record<string, any> = {}, refs: ReadonlySet<string> = new Set(), indent = ""): string => {
+  const recur = (x: any) => tsType(x, defs, refs, indent)
   if (s === undefined || s === true || (typeof s === "object" && Object.keys(s).length === 0)) return "unknown"
   if (s.$ref !== undefined) {
     // A recursive schema refers back to itself; the inner occurrence is typed as unknown.
     const name = String(s.$ref).split("/").pop()!
-    return refs.has(name) ? "unknown" : tsType(defs[name], defs, new Set([...refs, name]))
+    return refs.has(name) ? "unknown" : tsType(defs[name], defs, new Set([...refs, name]), indent)
   }
   // Effect encodes an empty struct as "anything but null", which TypeScript spells {}.
   if (s.not?.type === "null" && Object.keys(s).length === 1) return "{}"
@@ -43,19 +51,26 @@ export const tsType = (s: any, defs: Record<string, any> = {}, refs: ReadonlySet
     case "object": {
       const props = Object.entries(s.properties ?? {})
       const required = new Set<string>(s.required ?? [])
-      const fields = props.map(([k, v]) => `${key(k)}${required.has(k) ? "" : "?"}: ${recur(v)}`)
       if (props.length === 0 && typeof s.additionalProperties === "object") {
         return `Readonly<Record<string, ${recur(s.additionalProperties)}>>`
       }
-      return fields.length === 0 ? "{}" : `{ ${fields.join("; ")} }`
+      if (props.length === 0) return "{}"
+      const inner = `${indent}  `
+      const fields = props.map(([k, v]: [string, any]) => ({
+        doc: typeof v?.description === "string" ? v.description : undefined,
+        decl: `${key(k)}${required.has(k) ? "" : "?"}: ${tsType(v, defs, refs, inner)}`,
+      }))
+      const inline = `{ ${fields.map((f) => f.decl).join("; ")} }`
+      if (fields.every((f) => f.doc === undefined) && inline.length <= INLINE_MAX && !inline.includes("\n")) return inline
+      return `{\n${fields.map((f) => `${f.doc !== undefined ? `${inner}/** ${comment(f.doc)} */\n` : ""}${inner}${f.decl}`).join("\n")}\n${indent}}`
     }
   }
   return "unknown"
 }
 
-const typeOf = (schema: Schema.Top) => {
+const typeOf = (schema: Schema.Top, indent: string) => {
   const doc = Schema.toJsonSchemaDocument(schema) as { schema: unknown; definitions?: Record<string, unknown> }
-  return tsType(doc.schema, doc.definitions ?? {})
+  return tsType(doc.schema, doc.definitions ?? {}, new Set(), indent)
 }
 
 /** Declarations every cell is checked against: a minimal Effect shape, failures, and console. */
@@ -82,7 +97,7 @@ export const manifest = (services: ReadonlyArray<ServiceDef>): string =>
         `/** ${svc.doc} */`,
         `declare const ${svc.name}: {`,
         ...Object.entries(svc.methods).map(
-          ([m, def]) => `  /** ${def.doc} */\n  ${m}(params: ${typeOf(def.params)}): Eff<${typeOf(def.success)}>`,
+          ([m, def]) => `  /** ${def.doc} */\n  ${m}(params: ${typeOf(def.params, "  ")}): Eff<${typeOf(def.success, "  ")}>`,
         ),
         "}",
       ].join("\n"),
