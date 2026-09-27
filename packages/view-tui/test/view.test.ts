@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
 import { defineView, layoutOf } from "@zarg/view"
-import { activate, attentionOf, attentionLine, CHAT, conversation, openHistory, EXIT_WINDOW_MS, initialUi, inputFocused, messageShown, OTHER, onKey, otherFocused, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/view"
+import { activate, answeringOther, attentionOf, attentionLine, CHAT, conversation, openAgent, EXIT_WINDOW_MS, initialUi, inputFocused, typing, OTHER, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/view"
+import { onKey } from "../src/layers"
 
 const inquiry: Inquiry = {
   id: "inq-1",
@@ -46,33 +47,32 @@ describe("picker", () => {
     expect(pickerRows(q, 0).map((r) => r.label)).toEqual(["Add it", "Skip", "Change it…", "Chat about this"])
   })
 
-  test("Something else… is an input line in the picker: highlighting it takes the typing; Enter answers with the text", () => {
+  test("Something else…: highlighting it moves the typing to the bar; Enter answers with the text", () => {
     let ui = onKey(syncUi(initialUi, waiting), waiting, { name: "down" }, 0).ui
     expect(pickerRows(inquiry, ui.pick)[ui.pick]!.id).toBe(OTHER)
     expect(ui.other).toBe(true)
-    expect(otherFocused(ui, waiting)).toBe(true)
-    expect(inputFocused(ui, waiting)).toBe(false)
-    expect(messageShown(ui, waiting)).toBe(false)
+    expect(answeringOther(ui, waiting)).toBe(true)
+    expect(inputFocused(ui, waiting)).toBe(true)
     expect(onSubmit(ui, waiting, "do payments first")).toEqual({ ui: { ...ui, other: false, answered: "inq-1" }, action: { type: "answer", answer: { other: "do payments first" } } })
     ui = onKey(ui, waiting, { name: "up" }, 0).ui
     expect(ui.other).toBe(false)
     expect(onKey({ ...ui, pick: 2, other: true }, waiting, { name: "escape" }, 0).ui).toMatchObject({ other: false, pick: 1 })
   })
 
-  test("Chat about this: the Message box takes over, a message there discusses the question, Escape goes back to the picker", () => {
+  test("Chat about this: the bar takes the typing, a message there discusses the question, Escape goes back to the picker", () => {
     let ui = { ...syncUi(initialUi, waiting), pick: 3 }
-    expect(messageShown(ui, waiting)).toBe(false)
+    expect(typing(ui, waiting)).toBe(false)
     ui = onKey(ui, waiting, { name: "return" }, 0).ui
     expect(ui.chatting).toBe("inq-1")
-    expect(messageShown(ui, waiting)).toBe(true)
+    expect(typing(ui, waiting)).toBe(true)
     expect(inputFocused(ui, waiting)).toBe(true)
     expect(onSubmit(ui, waiting, "why is Checkout recommended?").action).toEqual({ type: "send", text: "why is Checkout recommended?" })
     expect(onKey(ui, waiting, { name: "escape" }, 0).ui.chatting).toBeUndefined()
   })
 
-  test("the Message box shows only when no question is up, or while chatting about it", () => {
-    expect(messageShown(initialUi, running)).toBe(true)
-    expect(messageShown(syncUi(initialUi, waiting), waiting)).toBe(false)
+  test("the bar types only when no question is up, or while chatting about it or answering in words", () => {
+    expect(typing(initialUi, running)).toBe(true)
+    expect(typing(syncUi(initialUi, waiting), waiting)).toBe(false)
   })
 
   test("a second Enter on the same inquiry does nothing (the answer is on its way)", () => {
@@ -86,7 +86,7 @@ describe("picker", () => {
 
   test("once the inquiry is answered the picker state clears", () => {
     const ui = { ...syncUi(initialUi, waiting), other: true, chatting: "inq-1" }
-    expect(syncUi(ui, running, 0)).toEqual({ focus: "conversation", pick: 1, other: false, agents: { toggled: {}, tree: 0 }, runningSince: 0 })
+    expect(syncUi(ui, running, 0)).toEqual({ ...initialUi, pick: 1, runningSince: 0 })
   })
 })
 
@@ -110,13 +110,12 @@ describe("keys and input", () => {
     expect(onSubmit(initialUi, running, "  ").action).toBeUndefined()
   })
 
-  test("Ctrl-C once stops; twice within the window exits; Ctrl-D exits; Tab switches focus", () => {
+  test("Ctrl-C once stops; twice within the window exits; Ctrl-D exits", () => {
     const first = onKey(initialUi, running, { name: "c", ctrl: true }, 1000)
     expect(first.action).toEqual({ type: "stop" })
     expect(onKey(first.ui, running, { name: "c", ctrl: true }, 1000 + EXIT_WINDOW_MS - 1).action).toEqual({ type: "exit" })
     expect(onKey(first.ui, running, { name: "c", ctrl: true }, 1000 + EXIT_WINDOW_MS + 1).action).toEqual({ type: "stop" })
     expect(onKey(initialUi, running, { name: "d", ctrl: true }, 0).action).toEqual({ type: "exit" })
-    expect(onKey(initialUi, running, { name: "tab" }, 0).ui.focus).toBe("agents")
   })
 })
 
@@ -207,7 +206,7 @@ describe("the agents pane", () => {
     expect(text(agentRows(rlms, ui.agents))).toEqual(["▸ ● driver rlm-1  ▰▱▱▱▱▱  2/10  +4"])
   })
 
-  test("Enter (or a click) opens an agent's hidden children first, then its history; Escape goes back to the conversation", () => {
+  test("Enter (or a click) opens an agent's hidden children first, then its view; Escape closes it and zarg's sheet shows", () => {
     let ui: Ui = { ...initialUi, focus: "agents" }
     ui = press(ui, "down").ui
     ui = press(ui, "return").ui
@@ -216,19 +215,18 @@ describe("the agents pane", () => {
     ui = press(ui, "return").ui
     expect(ui.viewing).toBe("rlm-2")
     // A click does the same: a collapsed parent opens, a leaf shows its history.
-    expect(activate({ ...initialUi }, rlms, "rlm-2").agents.toggled["rlm-2"]).toBe(true)
-    expect(activate({ ...initialUi }, rlms, "rlm-10").viewing).toBe("rlm-10")
-    // The history takes the keys: Tab does not wander off while it is open.
+    expect(activate({ ...initialUi }, running, "rlm-2").agents.toggled["rlm-2"]).toBe(true)
+    expect(activate({ ...initialUi }, running, "rlm-10").viewing).toBe("rlm-10")
     ui = press(ui, "escape").ui
     expect(ui.viewing).toBeUndefined()
-    expect(ui.focus).toBe("conversation")
+    expect(ui.focus).toBe("tile")
   })
 
-  test("with an agent's view open, its keys are the view's even while a question waits; Escape goes back to answer it", () => {
+  test("with an agent's view open, its keys are the view's even while a question waits; Escape closes it and the sheet takes the question", () => {
     const layout = layoutOf(defineView("t", { review: { kind: "tabs", role: "pinned", tabs: { findings: { kind: "table", columns: [{ id: "id", label: "id" }], selectable: true, actions: [{ id: "apply", label: "Apply", key: "a", on: "selection" }] } } } }))
     const views = { "rehearse:t-1": { agent: "rehearse:t-1", layout, data: { "review.findings": { rows: [{ id: "R-1", cells: {} }, { id: "R-2", cells: {} }] } } } }
     const asking: SessionState = { thread: { ...running.thread, status: "waiting", views, pendingInquiry: { id: "inq-9", question: "What next?", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }], allowOther: false, about: [] } }, core: "up" }
-    let ui: Ui = syncUi(openHistory({ ...initialUi }, "rehearse:t-1"), asking)
+    let ui: Ui = syncUi(openAgent({ ...initialUi }, asking, "rehearse:t-1"), asking)
     const down = onKey(ui, asking, { name: "down" }, 0)
     expect(down.ui.pick).toBe(0)
     expect(down.ui.view?.rows["review.findings"]).toBe(1)
@@ -397,7 +395,7 @@ describe("keys in an agent's view", () => {
   const layout = layoutOf(defineView("t", { steps: { kind: "log", role: "log" }, review: { kind: "tabs", role: "pinned", tabs: { findings: { kind: "table", columns: [{ id: "id", label: "id" }], selectable: true, actions: [{ id: "apply", label: "Apply", key: "a", on: "selection" }] }, likes: { kind: "table", columns: [] } } } }))
   const views = { "rehearse:t-1": { agent: "rehearse:t-1", layout, data: { "review.findings": { rows: [{ id: "R-1", cells: {} }, { id: "R-2", cells: {} }] } } } }
   const s = { ...running, thread: { ...running.thread, views } } as SessionState
-  const open = { ...initialUi, viewing: "rehearse:t-1", focus: "view" as const }
+  const open = { ...initialUi, viewing: "rehearse:t-1", focus: "tile" as const }
   test("the view opens on its table: space and a apply the selected rows, [ and ] switch tabs, Tab moves to the log", () => {
     let ui = onKey(open, s, { name: "down" }, 0).ui
     expect(ui.view?.focus).toBe(1)
@@ -408,11 +406,11 @@ describe("keys in an agent's view", () => {
     expect(onKey(ui, s, { name: "]" }, 0).ui.view?.tabs.review).toBe(1)
     expect(onKey(ui, s, { name: "tab" }, 0).ui.view?.focus).toBe(0)
   })
-  test("Escape goes back to the conversation", () => {
+  test("Escape closes the view", () => {
     expect(onKey(open, s, { name: "escape" }, 0).ui.viewing).toBeUndefined()
   })
   test("an open view takes the keys: the message box is not focused, and ctrl letters never trigger actions", () => {
-    const ui = openHistory({ ...initialUi }, "rehearse:t-1")
+    const ui = openAgent({ ...initialUi }, s, "rehearse:t-1")
     expect(inputFocused(ui, s)).toBe(false)
     let u = ui
     expect(onKey(u, s, { name: "a", ctrl: true }, 0).action).toBeUndefined()
@@ -442,13 +440,13 @@ describe("attention", () => {
     expect(attentionLine(rlms)).toBe("◆ zarg: asks: What next?   ◆ rehearse:tester-1: 2 findings to review")
   })
 
-  test("g opens the next agent that needs the developer, zarg by giving it the keys", () => {
+  test("g opens the next agent that needs the developer, zarg by opening its sheet", () => {
     const s = { ...running, thread: { ...running.thread, rlms } } as SessionState
     let ui = onKey({ ...initialUi, focus: "agents" }, s, { name: "g" }, 0).ui
-    expect(ui.focus).toBe("conversation")
+    expect(ui).toMatchObject({ focus: "tile", sheet: true })
     ui = onKey({ ...ui, focus: "agents" }, s, { name: "g" }, 0).ui
     expect(ui.viewing).toBe("rehearse:tester-1")
-    expect(ui.focus).toBe("view")
+    expect(ui).toMatchObject({ focus: "tile", sheet: false })
   })
 })
 
@@ -457,7 +455,7 @@ describe("a plugin agent's conversation in its view", () => {
   const views = { "p:a": { agent: "p:a", layout, data: { talk: { messages: [], question: { id: "q1", question: "Go on?", options: [{ id: "y", label: "Yes" }, { id: "n", label: "No" }], allowOther: false } } } } }
   const s = { ...running, thread: { ...running.thread, views } } as SessionState
   test("arrows pick an option and Enter answers the agent", () => {
-    const open = openHistory({ ...initialUi }, "p:a")
+    const open = openAgent({ ...initialUi }, s, "p:a")
     const down = onKey(open, s, { name: "down" }, 0)
     expect(onKey(down.ui, s, { name: "return" }, 0).action).toEqual({ type: "answer-agent", question: "q1", answer: { choice: "n" } })
   })

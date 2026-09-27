@@ -5,7 +5,8 @@ import { pickRow, startUi } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { registerCommands } from "./commands"
 import { AgentView, type Scroller } from "./sections"
-import { type Action, agentDetail, agentRows, animating, attentionLine, attentionOf, conversation, activate, messageShown, OTHER, otherFocused, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
+import { onKey } from "./layers"
+import { type Action, agentDetail, agentRows, animating, attentionLine, attentionOf, conversation, activate, typing, OTHER, answeringOther, working, initialUi, inputFocused, type Meta, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
 
 const COLORS = { you: "#8ab4f8", zarg: "#e8eaed", error: "#f28b82", notice: "#fdd663", dim: "#9aa0a6", accent: "#81c995", select: "#3c4043" }
 const TONE = { running: COLORS.zarg, done: COLORS.dim, failed: COLORS.error, stopped: COLORS.notice }
@@ -23,6 +24,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   // The picker's Something else… line has its own text.
   const [otherDraft, setOtherDraft] = useState("")
   const agentsRef = useRef<ScrollBoxRenderable | null>(null)
+  const talkRef = useRef<ScrollBoxRenderable | null>(null)
   const setDraft = (text: string) => {
     draftRef.current = text
     setDraftState(text)
@@ -51,6 +53,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     else if (action.type === "command") props.session.command(action.text)
     else if (action.type === "stop") props.session.stop()
     else if (action.type === "scroll") scroller.current?.(action.delta)
+    else if (action.type === "answer-prompt") void props.session.answerPrompt(action.id, action.choice)
+    else if (action.type === "scroll-talk") talkRef.current?.scrollBy(action.delta)
     else if (action.type === "answer-agent") {
       const agent = latest().viewing
       if (agent !== undefined) void props.session.answerAgent(agent, action.question, action.answer)
@@ -59,7 +63,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       const agent = latest().viewing
       if (agent !== undefined) void props.session.act(agent, action.action, action.section, action.rows)
     }
-    else props.onExit()
+    else if (action.type === "exit") props.onExit()
   }
 
   useKeyboard((key) => {
@@ -93,9 +97,9 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   // The tiles: zarg's conversation always, the open agent's view, the agents tree (Alt+arrows between them).
   const narrow = dims.width < 100
   const zargTile = (
-    <box title="zarg" onMouseDown={() => setUi({ ...latest(), focus: "conversation" })} style={{ ...(viewing !== undefined ? (narrow ? { flexGrow: 1, flexBasis: 0 } : { width: "38%", flexShrink: 0 }) : { flexGrow: 1 }), flexDirection: "column", border: true, borderColor: ui.focus === "conversation" ? COLORS.accent : COLORS.dim }}>
+    <box title="zarg" onMouseDown={() => setUi({ ...latest(), focus: "bar" })} style={{ ...(viewing !== undefined ? (narrow ? { flexGrow: 1, flexBasis: 0 } : { width: "38%", flexShrink: 0 }) : { flexGrow: 1 }), flexDirection: "column", border: true, borderColor: ui.focus === "bar" ? COLORS.accent : COLORS.dim }}>
       {/* Never focusable: the shell's focus alone decides where keys go (a click must not hand a scrollbox the arrows). */}
-      <scrollbox focusable={false} style={{ flexGrow: 1, flexShrink: 1, minHeight: 0 }} stickyScroll stickyStart="bottom">
+      <scrollbox ref={talkRef} focusable={false} style={{ flexGrow: 1, flexShrink: 1, minHeight: 0 }} stickyScroll stickyStart="bottom">
         {lines.map((l, i) => (
           <text key={i} fg={COLORS[l.kind]}>
             {`${l.kind === "you" ? "you" : l.kind === "zarg" ? "zarg" : "!"}  ${l.text}`}
@@ -103,7 +107,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         ))}
         {busyLine !== undefined ? <text fg={COLORS.accent}>{busyLine}</text> : null}
       </scrollbox>
-    {inquiry !== undefined && !messageShown(ui, s) ? (
+    {inquiry !== undefined && !typing(ui, s) ? (
       <box title="Question" style={{ border: true, borderColor: COLORS.accent, flexDirection: "column", flexShrink: 0 }}>
         <text fg={COLORS.zarg}>{inquiry.question}</text>
         {pickerRows(inquiry, ui.pick).map((r) =>
@@ -111,7 +115,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             <box key={r.id} style={{ flexDirection: "row", height: 1 }}>
               <text fg={r.selected ? COLORS.accent : COLORS.zarg}>{`${r.selected ? "›" : " "} ${r.label.replace(/…$/, "")}: `}</text>
               <input
-                focused={otherFocused(ui, s)}
+                focused={(answeringOther(ui, s) && inputFocused(ui, s))}
                 value={otherDraft}
                 placeholder={r.selected ? "type your answer, Enter to send" : ""}
                 style={{ flexGrow: 1 }}
@@ -143,7 +147,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         {box.lint !== undefined ? <text fg={COLORS.error}>{`✗ ${box.lint}`}</text> : null}
       </box>
     ) : null}
-    {messageShown(ui, s) ? (
+    {typing(ui, s) ? (
     <box title={inquiry !== undefined ? `Chat about: ${inquiry.question}` : "Message"} style={{ border: true, height: 3, flexShrink: 0 }}>
       <input
         ref={inputRef}
@@ -171,7 +175,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   )
   const viewTile =
     viewing === undefined ? null : (
-      <box title={`${viewing} · Esc back`} onMouseDown={() => setUi({ ...latest(), focus: "view" })} style={{ flexGrow: 1, flexBasis: 0, flexDirection: "column", border: true, borderColor: ui.focus === "view" ? COLORS.accent : COLORS.dim }}>
+      <box title={`${viewing} · Esc back`} onMouseDown={() => setUi({ ...latest(), focus: "tile" })} style={{ flexGrow: 1, flexBasis: 0, flexDirection: "column", border: true, borderColor: ui.focus === "tile" ? COLORS.accent : COLORS.dim }}>
         {s.thread.views?.[viewing] === undefined ? (
           <text fg={COLORS.dim}>no view yet</text>
         ) : (
@@ -195,7 +199,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             id={`agent-${a.id}`}
             fg={a.attention ? COLORS.notice : TONE[a.tone]}
             truncate
-            onMouseDown={() => setUi(activate(latest(), props.session.state().thread.rlms, a.id))}
+            onMouseDown={() => setUi(activate(latest(), props.session.state(), a.id))}
             {...((a.selected && ui.focus === "agents") || a.id === viewing ? { bg: COLORS.select } : {})}
           >
             {a.text}

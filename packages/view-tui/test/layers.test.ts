@@ -1,0 +1,76 @@
+import { describe, expect, test } from "bun:test"
+import { initial, type Inquiry, type SessionState } from "@zarg/client"
+import { onKey } from "../src/layers"
+import { initialUi, type Ui } from "../src/view"
+
+const inquiry: Inquiry = { id: "inq-1", question: "Which card first?", options: [{ id: "a", label: "Login" }, { id: "b", label: "Checkout", recommended: true }], allowOther: true, about: [] }
+const grant = (id: string) => ({ id, question: `Plugin ${id} wants to load.`, options: [{ id: "always", label: "Allow" }, { id: "deny", label: "Not now" }], kind: "grant" as const })
+const idle: SessionState = { thread: { ...initial("main") }, core: "up" }
+const asking: SessionState = { thread: { ...initial("main"), status: "waiting", pendingInquiry: inquiry }, core: "up" }
+const withView: SessionState = { ...idle, thread: { ...idle.thread, views: { "rehearse:t1": { agent: "rehearse:t1", layout: { name: "t", sections: [{ id: "findings", kind: "table", role: "primary", columns: [{ id: "c", label: "C" }], actions: [{ id: "apply", label: "Apply", key: "a", on: "row" }] }] }, data: { findings: { rows: [{ id: "r1", cells: { c: "x" } }] } } } } } }
+const key = (name: string, mods: { ctrl?: boolean; meta?: boolean; shift?: boolean } = {}) => ({ name, ...mods })
+const at = (ui: Partial<Ui>): Ui => ({ ...initialUi, ...ui })
+
+describe("the shell's layers", () => {
+  test("the bar owns printable keys while typing", () => {
+    for (const k of ["g", "x", "/", "[", "a", "space", "backspace"]) {
+      const r = onKey(at({ focus: "bar" }), withView, key(k), 0, "hello")
+      expect([k, r.by, r.action]).toEqual([k, "bar", undefined])
+    }
+  })
+  test("Alt keys work while typing: Alt+left goes to the agents, alt+v to the view", () => {
+    expect(onKey(at({ focus: "bar" }), idle, key("left", { meta: true }), 0).ui.focus).toBe("agents")
+    expect(onKey(at({ focus: "bar", viewing: "rehearse:t1" }), withView, key("v", { meta: true }), 0).ui).toMatchObject({ focus: "tile", sheet: false })
+  })
+  test("alt+m focuses the bar; a second alt+m opens the sheet; while zarg asks, focusing the bar opens it at once", () => {
+    const once = onKey(at({ focus: "agents", viewing: "rehearse:t1" }), withView, key("m", { meta: true }), 0).ui
+    expect(once).toMatchObject({ focus: "bar", sheet: false })
+    expect(onKey(once, withView, key("m", { meta: true }), 0).ui.sheet).toBe(true)
+    expect(onKey(at({ focus: "agents", viewing: "rehearse:t1" }), asking, key("m", { meta: true }), 0).ui).toMatchObject({ focus: "bar", sheet: true })
+  })
+  test("/ from the agents list opens the bar with the slash typed", () => {
+    expect(onKey(at({ focus: "agents" }), idle, key("/"), 0)).toMatchObject({ ui: { focus: "bar" }, draft: "/", by: "agents" })
+  })
+  test("the slash box takes ↑↓ only while open", () => {
+    expect(onKey(at({ focus: "bar" }), idle, key("down"), 0, "/re").by).toBe("slash")
+    expect(onKey(at({ focus: "bar" }), asking, key("down"), 0, "").by).toBe("picker")
+  })
+  test("a question never takes keys from another panel", () => {
+    expect(onKey(at({ focus: "tile", viewing: "rehearse:t1" }), { ...withView, thread: { ...withView.thread, pendingInquiry: inquiry } }, key("down"), 0).by).toBe("view")
+    expect(onKey(at({ focus: "agents" }), asking, key("down"), 0).by).toBe("agents")
+  })
+  test("a popover takes every key but the global ones", () => {
+    const s = { ...idle, thread: { ...idle.thread, prompts: [grant("p1")] } }
+    expect(onKey(at({ focus: "bar" }), s, key("a"), 0, "").by).toBe("popover")
+    expect(onKey(at({ focus: "bar" }), s, key("left", { meta: true }), 0).by).toBe("global")
+    expect(onKey(at({ focus: "bar" }), s, key("return"), 0).action).toEqual({ type: "answer-prompt", id: "p1", choice: "always" })
+  })
+  test("the queue is strictly first in, first out: Esc never reorders it", () => {
+    const s = { ...idle, thread: { ...idle.thread, prompts: [grant("p1"), grant("p2")] } }
+    const r = onKey(at({}), s, key("escape"), 0)
+    expect(r.by).toBe("popover")
+    expect(onKey(r.ui, s, key("return"), 0).action).toEqual({ type: "answer-prompt", id: "p1", choice: "always" })
+  })
+  test("PgUp scrolls zarg's sheet; Esc collapses it back to the view", () => {
+    const ui = at({ focus: "tile", sheet: true, viewing: "rehearse:t1" })
+    expect(onKey(ui, withView, key("pageup"), 0).action).toEqual({ type: "scroll-talk", delta: -10 })
+    expect(onKey(ui, withView, key("escape"), 0).ui).toMatchObject({ sheet: false, viewing: "rehearse:t1" })
+  })
+  test("Enter on zarg's row opens the sheet; on another agent it opens its view and closes the sheet", () => {
+    const rlms = { zarg: { id: "zarg", parent: null, preset: "zarg", depth: 0, turns: 0, budget: 0, status: "running" as const, decisions: [] }, "rehearse:t1": { id: "rehearse:t1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 0, status: "running" as const, decisions: [] } }
+    const s = { ...withView, thread: { ...withView.thread, rlms } }
+    expect(onKey(at({ focus: "agents", agents: { cursor: "zarg", toggled: {}, tree: 0 } }), s, key("return"), 0).ui).toMatchObject({ sheet: true, focus: "tile" })
+    expect(onKey(at({ focus: "agents", sheet: true, agents: { cursor: "rehearse:t1", toggled: {}, tree: 0 } }), s, key("return"), 0).ui).toMatchObject({ sheet: false, focus: "tile", viewing: "rehearse:t1" })
+  })
+  test("an agent's action key works only in its view", () => {
+    const ui = at({ focus: "tile", viewing: "rehearse:t1" })
+    expect(onKey(ui, withView, key("a"), 0).action).toMatchObject({ type: "act", action: "apply" })
+    expect(onKey({ ...ui, focus: "agents" }, withView, key("a"), 0).action).toBeUndefined()
+  })
+  test("Ctrl-C once stops, twice exits; Ctrl-D exits", () => {
+    const r = onKey(at({}), idle, key("c", { ctrl: true }), 1000)
+    expect(r.action).toEqual({ type: "stop" })
+    expect(onKey(r.ui, idle, key("c", { ctrl: true }), 1500).action).toEqual({ type: "exit" })
+    expect(onKey(at({}), idle, key("d", { ctrl: true }), 0).action).toEqual({ type: "exit" })
+  })
+})

@@ -1,19 +1,22 @@
-import { type Answer, type Inquiry, type RlmNode, type SessionState, zargConversation } from "@zarg/client"
+import { type Answer, type Inquiry, type Prompt, type RlmNode, type SessionState, zargConversation } from "@zarg/client"
 import { CHAT, type ConversationQuestion, conversationRows, OTHER, startUi, type ViewUi } from "@zarg/view"
-import { viewKeys } from "./view-keys"
 import { lintSlashInput, parseSlashInput, SLASH_COMMANDS, type SlashCycle, type SlashInputState, stepCompletion } from "./commands"
+
+/** Where the keys go: the agents list, the tile area (the open agent's view, or zarg's sheet), or the message bar. */
+export type Focus = "agents" | "tile" | "bar"
 
 /** UI-only state: what is focused and selected. Everything else comes from the session. */
 export interface Ui {
-  /** The tile with the keys: zarg's conversation, the open agent's view, or the agents tree (Alt+arrows move between them). */
-  readonly focus: "conversation" | "agents" | "view"
+  readonly focus: Focus
+  /** zarg's sheet covers the tile area (it also shows while no agent is open). */
+  readonly sheet: boolean
   /** The selected picker row. */
   readonly pick: number
   /** The inquiry `pick` belongs to; a new inquiry resets the selection. */
   readonly inquiryId?: string
-  /** True while "Something else…" is highlighted: its input line in the picker takes the typing. */
+  /** True while "Something else…" is highlighted: the bar takes the typing. */
   readonly other: boolean
-  /** The inquiry the developer is chatting about (Chat about this): the Message box is back, the picker hidden. */
+  /** The inquiry the developer is chatting about (Chat about this): the bar takes the typing, the options wait. */
   readonly chatting?: string
   /** The inquiry already answered: further Enters wait for the core to move on. */
   readonly answered?: string
@@ -23,14 +26,20 @@ export interface Ui {
   readonly lastCtrlC?: number
   /** When the thread started running (ms), for the working indicator; unset while it waits or idles. */
   readonly runningSince?: number
-  /** The agents pane: the highlighted RLM and the nodes opened or closed against their default. */
+  /** The agents list: the highlighted agent and the nodes opened or closed against their default. */
   readonly agents: Agents
-  /** The agent whose history replaces the conversation (Enter or a click on it); Escape closes it. */
+  /** The agent open in the tile area (Enter or a click on it); Escape closes it. */
   readonly viewing?: string
   /** In the open agent's view: the focused section, tabs, row cursors and selections. */
   readonly view?: ViewUi
   /** The agent `g` went to last: the next `g` goes on from it. */
   readonly attentionAt?: string
+  /** The popover queue's head (the core keeps the queue, strictly first in first out) and its highlighted option. */
+  readonly popover: { readonly id?: string; readonly pick: number }
+  /** Agents the developer opened since they asked, by the `since` of the attention they saw. */
+  readonly seen: Readonly<Record<string, number>>
+  /** zarg's last reply the developer has seen; newer ones preview in the bar. */
+  readonly readUpTo?: string
 }
 
 export interface Agents {
@@ -43,7 +52,7 @@ export interface Agents {
 export const EXIT_WINDOW_MS = 2000
 export { CHAT, OTHER }
 
-export const initialUi: Ui = { focus: "conversation", pick: 0, other: false, agents: { toggled: {}, tree: 0 } }
+export const initialUi: Ui = { focus: "bar", sheet: false, pick: 0, other: false, agents: { toggled: {}, tree: 0 }, popover: { pick: 0 }, seen: {} }
 
 export interface PickerRow {
   readonly id: string
@@ -65,11 +74,11 @@ const questionOf = (i: Inquiry): ConversationQuestion => ({
   ...(i.kind !== undefined ? { kind: i.kind } : {}),
 })
 
-const preselect = (inquiry: Inquiry) => Math.max(0, inquiry.options.findIndex((o) => o.recommended === true))
+export const preselect = (inquiry: Inquiry) => Math.max(0, inquiry.options.findIndex((o) => o.recommended === true))
 
-/** A new inquiry preselects its recommended option (or the first). */
+/** A new inquiry preselects its recommended option (or the first); a new popover its recommended option; a shown sheet reads zarg's replies. */
 export const syncUi = (ui0: Ui, s: SessionState, now = Date.now()): Ui => {
-  const ui = withRunClock(ui0.agents.tree === s.thread.trees ? ui0 : { ...ui0, agents: { toggled: {}, tree: s.thread.trees } }, s, now)
+  const ui = withPopover(withRead(withRunClock(ui0.agents.tree === s.thread.trees ? ui0 : { ...ui0, agents: { toggled: {}, tree: s.thread.trees } }, s, now), s), s)
   const inquiry = s.thread.pendingInquiry
   if (inquiry === undefined) {
     if (ui.inquiryId === undefined && !ui.other && ui.chatting === undefined) return ui
@@ -79,6 +88,49 @@ export const syncUi = (ui0: Ui, s: SessionState, now = Date.now()): Ui => {
   if (inquiry.id === ui.inquiryId) return ui
   const { chatting: _, ...rest } = ui
   return { ...rest, inquiryId: inquiry.id, pick: preselect(inquiry), other: false }
+}
+
+const lastReply = (s: SessionState) => s.thread.messages.filter((m) => m.role === "assistant").at(-1)
+const withRead = (ui: Ui, s: SessionState): Ui => {
+  const last = lastReply(s)?.id
+  return sheetShown(ui) && last !== undefined && last !== ui.readUpTo ? { ...ui, readUpTo: last } : ui
+}
+const withPopover = (ui: Ui, s: SessionState): Ui => {
+  const head = queueOf(ui, s)[0]
+  if (head === undefined) return ui.popover.id === undefined ? ui : { ...ui, popover: { pick: 0 } }
+  if (head.id === ui.popover.id) return ui
+  return { ...ui, popover: { id: head.id, pick: Math.max(0, head.options.findIndex((o) => o.recommended === true)) } }
+}
+
+const question = (s: SessionState) => s.thread.pendingInquiry
+/** zarg's sheet covers the tile area: opened, or no agent is open. */
+export const sheetShown = (ui: Ui) => ui.sheet || ui.viewing === undefined
+/** Typing "Something else…" in the bar: the highlighted row is the free-text one. */
+export const answeringOther = (ui: Ui, s: SessionState) => {
+  const q = question(s)
+  return q !== undefined && ui.other && ui.chatting !== q.id && ui.answered !== q.id
+}
+/** The bar takes text: it has focus, and nothing is asked, or the developer chats about the question or types their own answer. */
+export const typing = (ui: Ui, s: SessionState) => {
+  const q = question(s)
+  return ui.focus === "bar" && (q === undefined || ui.chatting === q.id || answeringOther(ui, s))
+}
+/** The shared popover queue, in the order the core asked: nothing on the client reorders it. */
+export const queueOf = (_ui: Ui, s: SessionState): ReadonlyArray<Prompt> => s.thread.prompts ?? []
+/** The bar's input has the keys: it takes text and no popover is up. */
+export const inputFocused = (ui: Ui, s: SessionState) => typing(ui, s) && queueOf(ui, s).length === 0
+/** The bar takes focus; while zarg asks, the sheet opens with the question. */
+export const focusBar = (ui: Ui, s: SessionState): Ui => ({ ...ui, focus: "bar", sheet: ui.sheet || question(s) !== undefined })
+const seenNow = (ui: Ui, s: SessionState, id: string): Ui => {
+  const since = s.thread.rlms[id]?.attention?.since
+  return since === undefined ? ui : { ...ui, seen: { ...ui.seen, [id]: since } }
+}
+/** Open an agent: zarg's sheet for zarg, the agent's view otherwise; either way its attention counts as seen. */
+export const openAgent = (ui: Ui, s: SessionState, id: string): Ui => {
+  const at = seenNow({ ...ui, agents: { ...ui.agents, cursor: id } }, s, id)
+  if (id === "zarg") return { ...at, sheet: true, focus: "tile" }
+  const { view: _, ...rest } = at
+  return { ...rest, viewing: id, sheet: false, focus: "tile" }
 }
 
 // The thread's status is stale once the core is down: nothing is working then.
@@ -258,23 +310,19 @@ export const agentDetail = (rlms: Readonly<Record<string, RlmNode>>, cursor: str
   ]
 }
 
-/** Open an agent's history (Enter on it, or a click); it also becomes the highlighted agent. */
-export const openHistory = (ui: Ui, id: string): Ui => {
-  const { view: _, ...rest } = ui
-  return { ...rest, viewing: id, focus: "view", agents: { ...ui.agents, cursor: id } }
-}
-
-/** Enter on an agent, or a click: its hidden children open first; an open or childless agent shows its history. */
-export const activate = (ui: Ui, rlms: Readonly<Record<string, RlmNode>>, id: string): Ui => {
+/** Enter on an agent, or a click: its hidden children open first; an open or childless agent opens. */
+export const activate = (ui: Ui, s: SessionState, id: string): Ui => {
+  const rlms = s.thread.rlms
   const n = rlms[id]
   if (n !== undefined && childrenOf(rlms)(id).length > 0 && !isOpen(rlms, ui.agents, n)) {
     return { ...ui, agents: { ...ui.agents, cursor: id, toggled: { ...ui.agents.toggled, [id]: true } } }
   }
-  return openHistory(ui, id)
+  return openAgent(ui, s, id)
 }
 
-/** Arrows and Enter on the agents pane: move the highlight, open and close nodes, jump to the parent. */
-const onAgentsKey = (ui: Ui, rlms: Readonly<Record<string, RlmNode>>, key: Key): Ui => {
+/** Arrows and Enter on the agents list: move the highlight, open and close nodes, jump to the parent. */
+export const onAgentsKey = (ui: Ui, s: SessionState, key: Key): Ui => {
+  const rlms = s.thread.rlms
   const rows = visible(rlms, ui.agents)
   const cursor = cursorOf(rows, ui.agents)
   const at = rows.findIndex((r) => r.node.id === cursor)
@@ -287,7 +335,7 @@ const onAgentsKey = (ui: Ui, rlms: Readonly<Record<string, RlmNode>>, key: Key):
   const open = isOpen(rlms, ui.agents, n)
   if (key.name === "down") return move(rows[Math.min(rows.length - 1, at + 1)]?.node.id)
   if (key.name === "up") return move(rows[Math.max(0, at - 1)]?.node.id)
-  if (key.name === "return") return activate(ui, rlms, n.id)
+  if (key.name === "return") return activate(ui, s, n.id)
   if (key.name === "right") return hasKids && !open ? set(true) : ui
   if (key.name === "left") return hasKids && open ? set(false) : n.parent !== null && rlms[n.parent] !== undefined ? move(n.parent) : ui
   return ui
@@ -328,6 +376,10 @@ export type Action =
   | { readonly type: "answer-agent"; readonly question: string; readonly answer: { readonly choice?: string; readonly other?: string } }
   /** Scroll the open agent's focused section by lines. */
   | { readonly type: "scroll"; readonly delta: number }
+  /** Scroll zarg's sheet by lines. */
+  | { readonly type: "scroll-talk"; readonly delta: number }
+  /** Answer the popover at the head of the queue (a grant). */
+  | { readonly type: "answer-prompt"; readonly id: string; readonly choice: string }
   | { readonly type: "exit" }
 
 /** What a key press does: the next UI state and, maybe, an action for the session. */
@@ -357,7 +409,7 @@ export const slashBox = (draft: string, ui: Ui): SlashBox | undefined => {
 }
 
 /** Tab, arrows and Escape while the draft is a slash command. Returns undefined when the keys are not the box's. */
-const onSlashKey = (ui: Ui, key: Key, draft: string): { readonly ui: Ui; readonly draft?: string } | undefined => {
+export const onSlashKey = (ui: Ui, key: Key, draft: string): { readonly ui: Ui; readonly draft?: string } | undefined => {
   const state = parseSlashInput(draft)
   if (state === null && lintSlashInput(draft) === null) return undefined
   if (key.name === "escape") return { ui: withoutSlash(ui), draft: "" }
@@ -380,63 +432,10 @@ const withoutSlash = (ui: Ui): Ui => {
   return rest
 }
 
-export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: string): { readonly ui: Ui; readonly action?: Action; readonly draft?: string } => {
-  if (key.ctrl && key.name === "d") return { ui, action: { type: "exit" } }
-  if (key.ctrl && key.name === "c") {
-    if (ui.lastCtrlC !== undefined && now - ui.lastCtrlC < EXIT_WINDOW_MS) return { ui, action: { type: "exit" } }
-    return { ui: { ...ui, lastCtrlC: now }, action: { type: "stop" } }
-  }
-  // g: the next agent asking for the developer (zarg: its tile takes the keys), unless g is being typed.
-  if (key.name === "g" && key.ctrl !== true && !inputFocused(ui, s) && !otherFocused(ui, s)) {
-    const asking = attentionOf(s.thread.rlms)
-    if (asking.length === 0) return { ui }
-    const next = asking[(asking.findIndex((a) => a.id === ui.attentionAt) + 1) % asking.length]!
-    const to = next.id === "zarg" ? { ...ui, focus: "conversation" as const } : openHistory(ui, next.id)
-    return { ui: { ...to, attentionAt: next.id } }
-  }
-  // Alt+arrows move between tiles: zarg's conversation, the open view, the agents tree.
-  if (key.meta === true && ["left", "right", "up", "down"].includes(key.name)) {
-    const tiles: ReadonlyArray<Ui["focus"]> = ui.viewing !== undefined ? ["conversation", "view", "agents"] : ["conversation", "agents"]
-    const at = Math.max(0, tiles.indexOf(ui.focus))
-    const to = key.name === "left" || key.name === "up" ? Math.max(0, at - 1) : Math.min(tiles.length - 1, at + 1)
-    return { ui: { ...ui, focus: tiles[to]! } }
-  }
-  // The open view has the keys while its tile is focused: Escape closes it and gives zarg the keys.
-  if (ui.viewing !== undefined && ui.focus === "view") {
-    if (key.name === "escape") {
-      const { viewing: _, ...rest } = ui
-      return { ui: { ...rest, focus: "conversation" } }
-    }
-    // The open view has the keys, even while a question waits: Escape goes back to answer it.
-    const v = s.thread.views?.[ui.viewing]
-    if (v === undefined) return { ui }
-    const r = viewKeys(v, ui.view ?? startUi(v), key)
-    return {
-      ui: { ...ui, view: r.ui },
-      ...(r.act !== undefined
-        ? { action: { type: "act" as const, ...r.act } }
-        : r.answer !== undefined
-          ? { action: { type: "answer-agent" as const, ...r.answer } }
-          : r.scroll !== undefined
-            ? { action: { type: "scroll" as const, delta: r.scroll } }
-            : {}),
-    }
-  }
-  if (draft !== undefined && slashActive(ui, s)) {
-    const slash = onSlashKey(ui, key, draft)
-    if (slash !== undefined) return slash
-  }
-  if (key.name === "tab") return { ui: { ...ui, focus: ui.focus === "conversation" ? "agents" : "conversation" } }
-  if (ui.focus === "agents") return { ui: onAgentsKey(ui, s.thread.rlms, key) }
+/** Keys on zarg's question: arrows pick, Enter answers or moves the typing to the bar (Something else…, Chat about this). */
+export const pickerKey = (ui: Ui, s: SessionState, key: Key): { readonly ui: Ui; readonly action?: Action } | "pass" => {
   const inquiry = s.thread.pendingInquiry
-  // The picker takes keys only while the conversation side has focus.
-  if (inquiry === undefined || ui.focus !== "conversation" || ui.answered === inquiry.id) return { ui }
-  // Chatting: the Message box has the keys; Escape goes back to the picker.
-  if (ui.chatting === inquiry.id) {
-    if (key.name !== "escape") return { ui }
-    const { chatting: _, ...rest } = ui
-    return { ui: rest }
-  }
+  if (inquiry === undefined) return "pass"
   const rows = pickerRows(inquiry, ui.pick)
   const moveTo = (pick: number): Ui => ({ ...ui, pick, other: rows[pick]?.id === OTHER })
   if (key.name === "up") return { ui: moveTo(Math.max(0, ui.pick - 1)) }
@@ -444,12 +443,13 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: st
   if (key.name === "escape" && ui.other) return { ui: moveTo(preselect(inquiry)) }
   if (key.name === "return") {
     const row = rows[ui.pick]
-    // Something else… answers from its own input line (onSubmit).
-    if (row === undefined || row.id === OTHER) return { ui }
-    if (row.id === CHAT) return { ui: { ...ui, other: false, chatting: inquiry.id } }
+    if (row === undefined) return { ui }
+    // Something else… is typed in the bar and answers from there (onSubmit).
+    if (row.id === OTHER) return { ui: { ...ui, other: true, focus: "bar" } }
+    if (row.id === CHAT) return { ui: { ...ui, other: false, chatting: inquiry.id, focus: "bar" } }
     return { ui: { ...ui, answered: inquiry.id }, action: { type: "answer", answer: { choice: row.id } } }
   }
-  return { ui }
+  return "pass"
 }
 
 const COMMAND = /^\/[a-z][a-z0-9-]*(\s|$)/
@@ -461,7 +461,7 @@ export const onSubmit = (ui: Ui, s: SessionState, text: string): { readonly ui: 
   // A command is "/name" as the first word (or a bare "/" with a row highlighted); a path ("/api/v2 …")
   // or an answer to "Something else…" is text.
   const t = text.trim()
-  const answering = ui.other && inquiry !== undefined && ui.chatting !== inquiry.id
+  const answering = inquiry !== undefined && ui.other && ui.chatting !== inquiry.id
   if (!answering && (COMMAND.test(t) || t === "/")) {
     // An invalid command stays in the input; the box shows why.
     if (lintSlashInput(t) !== null) return { ui }
@@ -483,20 +483,9 @@ export const onSubmit = (ui: Ui, s: SessionState, text: string): { readonly ui: 
     if (ui.answered === inquiry.id) return { ui }
     return { ui: { ...ui, other: false, answered: inquiry.id }, action: { type: "answer", answer: { other: text } } }
   }
-  // A message; while chatting about a question, the core takes it as discussion of that question.
-  return { ui, action: { type: "send", text } }
+  // A message; while chatting about a question, the core takes it as discussion of that question. The sheet opens for the reply.
+  return { ui: { ...ui, sheet: true }, action: { type: "send", text } }
 }
 
-/** Slash commands work in the Message box, never in the picker's Something else… line (that is text). */
-export const slashActive = (ui: Ui, s: SessionState) => inputFocused(ui, s)
-
-/** The Message box: shown when no question is up, or while chatting about the one that is. */
-export const messageShown = (ui: Ui, s: SessionState) => s.thread.pendingInquiry === undefined || ui.chatting === s.thread.pendingInquiry.id
-
-/** The Message box takes keys when it is shown and the conversation side has focus. */
-// An open agent's view takes the keys; typing there must not also go into the message box.
-export const inputFocused = (ui: Ui, s: SessionState) => ui.focus === "conversation" && messageShown(ui, s)
-
-/** The picker's Something else… line takes keys while it is highlighted. */
-export const otherFocused = (ui: Ui, s: SessionState) =>
-  ui.focus === "conversation" && ui.other && s.thread.pendingInquiry !== undefined && !messageShown(ui, s) && ui.answered !== s.thread.pendingInquiry.id
+/** Slash commands work in the bar, never while typing an answer to Something else… (that is text). */
+export const slashActive = (ui: Ui, s: SessionState) => typing(ui, s) && !answeringOther(ui, s)
