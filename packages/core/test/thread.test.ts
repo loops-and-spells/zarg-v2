@@ -6,7 +6,7 @@ import { Effect, Fiber, Stream } from "effect"
 import type { AgendaItem } from "@zarg/plugin/server"
 import type { Asker, Rlm } from "@zarg/rlm"
 import { makeLog } from "../src/log"
-import { makeThread, WHAT_NEXT } from "../src/thread"
+import { makeThread, type ThreadDeps, WHAT_NEXT } from "../src/thread"
 import type { WireEvent } from "../src/events"
 
 type Driver = (spec: Rlm.RlmSpec, asker: Asker, observe: (e: Rlm.RlmEvent) => void) => Effect.Effect<Rlm.RlmOutcome, Rlm.RlmError>
@@ -14,10 +14,10 @@ type Driver = (spec: Rlm.RlmSpec, asker: Asker, observe: (e: Rlm.RlmEvent) => vo
 const outcome = (value: unknown): Rlm.RlmOutcome => ({ id: "rlm-x", value, turns: 1, tokens: 1 })
 
 /** A thread over a fresh log with a scripted driver; `agenda` answers with the given items each time. */
-const setup = (driver: Driver, agenda: () => ReadonlyArray<AgendaItem> = () => [], render?: (focus: ReadonlyArray<string>) => Effect.Effect<string, unknown>) =>
+const setup = (driver: Driver, agenda: () => ReadonlyArray<AgendaItem> = () => [], render?: ThreadDeps["render"], focus: ReadonlyArray<string> = []) =>
   Effect.gen(function* () {
     const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zarg-thread-")), (t) => t.replaceAll("zt-secret", "<redacted:ZT>"))
-    const thread = yield* makeThread({ id: "main", focus: [], log, agenda: () => Effect.succeed(agenda()), driver, ...(render !== undefined ? { render } : {}) })
+    const thread = yield* makeThread({ id: "main", focus, log, agenda: () => Effect.succeed(agenda()), driver, ...(render !== undefined ? { render } : {}) })
     return { log, thread }
   })
 
@@ -44,6 +44,34 @@ describe("thread runs", () => {
     expect(rendered).toEqual([["S-0059"]])
     expect(tasks[0]).toContain("Open agenda (2):\n- What follows S-0059? [S-0059]\n- UX-0002 has an if [UX-0002]")
     expect(tasks[0]).toContain("The cards around it (Graph.render of S-0059):\nRENDER OF S-0059")
+  })
+
+  test("the seeded render is asked within the thread's scope, and a huge render is cut", async () => {
+    const tasks: Array<string> = []
+    const driver: Driver = (spec, asker) =>
+      Effect.gen(function* () {
+        tasks.push(spec.task)
+        return (yield* asker.ask(question)) as never
+      }) as never
+    const items: ReadonlyArray<AgendaItem> = [{ id: "x", title: "T", detail: "D", about: ["UX-0001", "UX-0099"], priority: 1 }]
+    const scopes: Array<unknown> = []
+    const render: ThreadDeps["render"] = (_ids, scope) => Effect.sync(() => (scopes.push(scope), "y".repeat(10_000)))
+    await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setup(driver, () => items, render, ["UX-0001"]); return yield* collect(thread.run({ runId: "r1" })) }))
+    expect(scopes).toEqual([{ graph: { focus: ["UX-0001"], k: 2 } }])
+    expect(tasks[0]).toContain("y".repeat(4_000) + "\n… (cut; Graph.render({ focus }) shows the rest)")
+    expect(tasks[0]).not.toContain("y".repeat(4_001))
+  })
+
+  test("a render that dies leaves the cards out; the driver still runs", async () => {
+    const tasks: Array<string> = []
+    const driver: Driver = (spec, asker) =>
+      Effect.gen(function* () {
+        tasks.push(spec.task)
+        return (yield* asker.ask(question)) as never
+      }) as never
+    const items: ReadonlyArray<AgendaItem> = [{ id: "x", title: "T", detail: "D", about: ["S-1"], priority: 1 }]
+    await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setup(driver, () => items, () => Effect.die("plugin bug")); return yield* collect(thread.run({ runId: "r1" })) }))
+    expect(tasks[0]).toContain("T\nD")
   })
 
   test("a render that fails leaves the cards out of the task; the driver still runs", async () => {

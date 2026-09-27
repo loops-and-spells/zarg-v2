@@ -38,10 +38,9 @@ describe("readable declarations", () => {
     )
   })
 
-  test("a long struct goes over several lines even without descriptions; short ones stay inline", () => {
+  test("a struct without descriptions stays on one line however long (it is in every prompt)", () => {
     const long = Schema.Struct({ first: Schema.String, second: Schema.String, third: Schema.String, fourth: Schema.String, fifth: Schema.String })
-    expect(ts(long)).toBe("{\n  first: string\n  second: string\n  third: string\n  fourth: string\n  fifth: string\n}")
-    expect(ts(Schema.Struct({ id: Schema.String, label: Schema.String }))).toBe("{ id: string; label: string }")
+    expect(ts(long)).toBe("{ first: string; second: string; third: string; fourth: string; fifth: string }")
   })
 
   test("nested layouts indent under the method, and the checker still rejects a field in the wrong place", () => {

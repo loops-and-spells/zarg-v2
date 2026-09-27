@@ -65,7 +65,13 @@ export const syncUi = (ui0: Ui, s: SessionState, now = Date.now()): Ui => {
   return { ...ui, inquiryId: inquiry.id, pick: recommended >= 0 ? recommended : 0, other: false }
 }
 
-const busy = (s: SessionState) => s.thread.status === "running" && s.thread.pendingInquiry === undefined
+// The thread's status is stale once the core is down: nothing is working then.
+const busy = (s: SessionState) => s.core === "up" && s.thread.status === "running" && s.thread.pendingInquiry === undefined
+
+/** Whether anything on screen animates: the driver working, or agents running while no question waits. */
+export const animating = (ui: Ui, s: SessionState) =>
+  ui.runningSince !== undefined ||
+  (s.core === "up" && s.thread.pendingInquiry === undefined && Object.values(s.thread.rlms).some((r) => r.status === "running"))
 
 const withRunClock = (ui: Ui, s: SessionState, now: number): Ui => {
   if (busy(s)) return ui.runningSince === undefined ? { ...ui, runningSince: now } : ui

@@ -2,7 +2,7 @@ import { useKeyboard } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Session } from "@zarg/client"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
-import { type Action, agentDetail, agentRows, conversation, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
+import { type Action, agentDetail, agentRows, animating, conversation, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
 
 const COLORS = { you: "#8ab4f8", zarg: "#e8eaed", error: "#f28b82", notice: "#fdd663", dim: "#9aa0a6", accent: "#81c995", select: "#3c4043" }
 const TONE = { running: COLORS.zarg, done: COLORS.dim, failed: COLORS.error, stopped: COLORS.notice }
@@ -30,12 +30,12 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const ui = latest()
   // One clock for every animation; it ticks only while something is running.
   const [now, setNow] = useState(Date.now())
-  const animating = ui.runningSince !== undefined || Object.values(s.thread.rlms).some((r) => r.status === "running")
+  const moving = animating(ui, s)
   useEffect(() => {
-    if (!animating) return
+    if (!moving) return
     const timer = setInterval(() => setNow(Date.now()), 100)
     return () => clearInterval(timer)
-  }, [animating])
+  }, [moving])
 
   const act = (action: Action | undefined) => {
     if (action === undefined) return
@@ -61,7 +61,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const box = slashActive(ui, s) ? slashBox(draft, ui) : undefined
   const width = Math.max(0, ...(box?.rows ?? []).map((r) => r.label.length))
   const lines = conversation(s)
-  const agents = agentRows(s.thread.rlms, ui.agents, 46, now)
+  // Agents spin only while the clock runs (not while a question waits on you).
+  const agents = agentRows(s.thread.rlms, ui.agents, 46, moving ? now : undefined)
   const busyLine = working(ui, s, now)
   const cursor = agents.find((a) => a.selected)?.id
   const detail = agentDetail(s.thread.rlms, cursor)

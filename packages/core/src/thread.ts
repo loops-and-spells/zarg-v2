@@ -32,12 +32,15 @@ export interface ThreadDeps {
   readonly agenda: (focus: ReadonlySet<string> | undefined) => Effect.Effect<ReadonlyArray<AgendaItem>, unknown>
   /** Runs one driver RLM; the thread supplies the Asker its Inquire service must use and an observer for activity. */
   readonly driver: (spec: Rlm.RlmSpec, asker: Asker, observe: (e: Rlm.RlmEvent) => void) => Effect.Effect<Rlm.RlmOutcome, Rlm.RlmError>
-  /** Gherkin text for these node ids, put in the driver's task so its first turn need not fetch it. */
-  readonly render?: (focus: ReadonlyArray<string>) => Effect.Effect<string, unknown>
+  /** Gherkin text for these node ids within the driver's scope, put in its task so its first turn need not fetch it. */
+  readonly render?: (ids: ReadonlyArray<string>, scope: Scope) => Effect.Effect<string, unknown>
 }
 
 // The agenda the driver sees up front; the rest it can still read with Graph.agenda.
 const AGENDA_SHOWN = 10
+// A hub state can touch many cards: the seeded render is cut, and the driver can ask for the rest.
+const RENDER_MAX = 4_000
+const cut = (text: string) => (text.length > RENDER_MAX ? `${text.slice(0, RENDER_MAX)}\n… (cut; Graph.render({ focus }) shows the rest)` : text)
 
 interface Pending {
   readonly id: string
@@ -124,7 +127,11 @@ export const makeThread = (deps: ThreadDeps) =>
         const stuck = item !== undefined && passes > 2
         const around =
           item !== undefined && !stuck && item.about.length > 0 && deps.render !== undefined
-            ? yield* deps.render(item.about).pipe(Effect.orElseSucceed(() => ""))
+            ? yield* deps.render(item.about, scope).pipe(
+                Effect.map(cut),
+                // Seeding is a shortcut: any failure, even a plugin defect, just leaves the cards out.
+                Effect.catchCause(() => Effect.succeed("")),
+              )
             : ""
         const task = [
           said.length > 0

@@ -9,14 +9,13 @@ const isNumberEncoding = (s: any) =>
 
 const key = (k: string) => (/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(k) ? k : JSON.stringify(k))
 
-// An object type fits on one line up to this width, unless a field has a description.
-const INLINE_MAX = 72
-
 const comment = (text: string) => text.replace(/\s+/g, " ").replaceAll("*/", "*\\/")
 
 /**
  * JSON Schema (as Effect emits it) → a TypeScript type, for the model to read and the checker to enforce.
- * A field's `description` annotation becomes a doc comment above it; `indent` is where the type starts.
+ * A field's `description` annotation becomes a doc comment above it, and its object is laid out one field per
+ * line (`indent` is where the type starts). Objects without descriptions stay on one line: this text is in
+ * every prompt.
  */
 export const tsType = (s: any, defs: Record<string, any> = {}, refs: ReadonlySet<string> = new Set(), indent = ""): string => {
   const recur = (x: any) => tsType(x, defs, refs, indent)
@@ -61,7 +60,7 @@ export const tsType = (s: any, defs: Record<string, any> = {}, refs: ReadonlySet
         decl: `${key(k)}${required.has(k) ? "" : "?"}: ${tsType(v, defs, refs, inner)}`,
       }))
       const inline = `{ ${fields.map((f) => f.decl).join("; ")} }`
-      if (fields.every((f) => f.doc === undefined) && inline.length <= INLINE_MAX && !inline.includes("\n")) return inline
+      if (fields.every((f) => f.doc === undefined) && !inline.includes("\n")) return inline
       return `{\n${fields.map((f) => `${f.doc !== undefined ? `${inner}/** ${comment(f.doc)} */\n` : ""}${inner}${f.decl}`).join("\n")}\n${indent}}`
     }
   }

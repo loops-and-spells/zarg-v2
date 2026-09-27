@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
-import { conversation, EXIT_WINDOW_MS, initialUi, inputFocused, OTHER, onKey, onSubmit, pickerRows, agentDetail, agentRows, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/tui/view"
+import { conversation, EXIT_WINDOW_MS, initialUi, inputFocused, OTHER, onKey, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/tui/view"
 
 const inquiry: Inquiry = {
   id: "inq-1",
@@ -278,6 +278,21 @@ describe("the working indicator", () => {
     const ui = syncUi(initialUi, running, 1_000)
     expect(working(ui, running, 73_000)).toBe(`${SPINNER[(73_000 / 100) % SPINNER.length]} zarg is preparing a reply · 1:12 · turn 4/25`)
     expect(working(ui, running, 73_100)!.at(0)).not.toBe(working(ui, running, 73_000)!.at(0))
+  })
+
+  test("no line and no clock once the core is down, even if the thread last said running", () => {
+    const down: SessionState = { ...running, core: "down" }
+    const ui = syncUi(syncUi(initialUi, running, 0), down, 1_000)
+    expect(ui.runningSince).toBeUndefined()
+    expect(working(ui, down, 2_000)).toBeUndefined()
+    expect(animating(ui, down)).toBe(false)
+  })
+
+  test("the clock animates while the driver works or agents run, not while a question waits", () => {
+    const ui = syncUi(initialUi, running, 0)
+    expect(animating(ui, running)).toBe(true)
+    expect(animating(syncUi(ui, waiting, 0), { ...waiting, thread: { ...waiting.thread, rlms: { "rlm-1": root } } })).toBe(false)
+    expect(animating(syncUi(ui, idle, 0), idle)).toBe(false)
   })
 
   test("no line while a question waits or the thread is idle", () => {

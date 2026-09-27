@@ -77,7 +77,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     let reconcile = gate.on ? yield* startReconcile(gate.settings) : undefined
     const agenda = (focus: ReadonlySet<string> | undefined) =>
       Effect.map(host.agenda(focus), (items) => [...(reconcile?.agenda(focus) ?? []), ...items])
-    const render = (focus: ReadonlyArray<string>) => host.render(new Set(focus))
+    // The same scope filter the driver's Graph.render applies.
+    const render = (ids: ReadonlyArray<string>, scope: Scope) => Effect.map(graph({ host, snapshot, scope }).handlers.render!({ focus: ids }), String)
     const threads = yield* makeThreads({ log, agenda, render, makeRlm, extra: reconcile?.threads ?? [] })
 
     // @card UX-0058 @card UX-0059
