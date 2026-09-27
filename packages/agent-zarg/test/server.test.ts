@@ -50,7 +50,7 @@ const handler = async (heartbeat: Duration.Input = "5 seconds") => {
     }).pipe(Effect.provide(stub)),
   )
   const web = HttpRouter.toWebHandler(
-    api.pipe(Layer.provide([Layer.succeed(Threads, threads), Layer.succeed(Log, log), Layer.succeed(Token, TOKEN), Layer.succeed(Heartbeat, heartbeat), Layer.succeed(ReconcileControl, { turnOn: Effect.succeed({ on: true, pending: 3 }) }), Layer.succeed(PluginCommands, { list: () => [{ plugin: "p", cmd: "/p-go", desc: "d", method: "command", arg: { kind: "none" } }], run: (plugin, cmd, args) => Effect.succeed({ notice: `${plugin} ${cmd} ${args.join(" ")}` }) }), Layer.succeed(Actions, { act: (_t, a, action, section, rows) => Effect.succeed({ notice: `${a} ${action} ${section ?? "-"} ${rows.join(",")}` }), answer: (_t, a, q, ans) => Effect.succeed({ notice: `${a} ${q} ${ans.choice ?? ans.other}` }), message: (_t, a, text) => Effect.succeed({ notice: `${a} ${text}` }) }), Layer.succeed(Prompts, { answer: (id, a) => Effect.succeed({ notice: `${id} ${a.choice}` }) }), Layer.succeed(YoloControl, { set: (on, plugin) => Effect.sync(() => (yolos.push({ on, ...(plugin !== undefined ? { plugin } : {}) }), { on })) })])),
+    api.pipe(Layer.provide([Layer.succeed(Threads, threads), Layer.succeed(Log, log), Layer.succeed(Token, TOKEN), Layer.succeed(Heartbeat, heartbeat), Layer.succeed(ReconcileControl, { turnOn: Effect.succeed({ on: true, pending: 3 }) }), Layer.succeed(PluginCommands, { list: () => [{ plugin: "p", cmd: "/p-go", desc: "d", method: "command", arg: { kind: "none" } }], run: (plugin, cmd, args) => Effect.succeed({ notice: `${plugin} ${cmd} ${args.join(" ")}` }) }), Layer.succeed(Actions, { act: (_t, a, action, section, rows) => Effect.succeed({ notice: `${a} ${action} ${section ?? "-"} ${rows.join(",")}` }), answer: (_t, a, q, ans) => Effect.succeed({ notice: `${a} ${q} ${ans.choice ?? ans.other}` }), message: (_t, a, text) => Effect.succeed({ notice: `${a} ${text}` }) }), Layer.succeed(Prompts, { answer: (id, a) => Effect.succeed({ notice: `${id} ${a.choice}` }), close: (id) => Effect.succeed({ notice: `closed ${id}` }) }), Layer.succeed(YoloControl, { set: (on, plugin) => Effect.sync(() => (yolos.push({ on, ...(plugin !== undefined ? { plugin } : {}) }), { on })) })])),
     { disableLogger: true },
   )
   handlers.push(web)
@@ -182,6 +182,7 @@ describe("core HTTP API", () => {
     const h = await handler()
     expect(await (await post(h, "/prompts/prompt-1", { choice: "once" })).json()).toEqual({ notice: "prompt-1 once" })
     expect((await post(h, "/prompts/prompt-1", {})).status).toBe(400)
+    expect(await (await post(h, "/prompts/prompt-1", { close: true })).json()).toEqual({ notice: "closed prompt-1" })
   })
 
   test("plugin slash commands are listed and run", async () => {

@@ -44,3 +44,20 @@ describe("prompts", () => {
     expect(customs(log).at(-1)).toEqual({ name: PROMPT_DONE, value: { id, withdrawn: true } })
   })
 })
+
+describe("plugin popovers", () => {
+  test("a popover joins the queue with its view; closing it, or its agent's end, takes it out", async () => {
+    const log = await open()
+    const p = makePrompts(log)
+    const a = await Effect.runPromise(p.show({ plugin: "rehearse", agent: "rehearse:t1", view: "rehearse:t1", title: "rehearse ask" }))
+    const b = await Effect.runPromise(p.show({ plugin: "rehearse", agent: "rehearse:t2", view: "rehearse:t2", title: "rehearse ask" }))
+    expect(customs(log).filter((c) => c.name === PROMPT).map((c) => c.value)).toEqual([
+      { id: a, kind: "surface", question: "rehearse ask", options: [], view: "rehearse:t1", agent: "rehearse:t1" },
+      { id: b, kind: "surface", question: "rehearse ask", options: [], view: "rehearse:t2", agent: "rehearse:t2" },
+    ])
+    expect(await Effect.runPromise(p.close(a))).toEqual({ notice: "closed" })
+    await Effect.runPromise(p.closeAgent("rehearse:t2"))
+    expect(customs(log).filter((c) => c.name === PROMPT_DONE).map((c) => c.value.id)).toEqual([a, b])
+    expect(await Effect.runPromise(p.close(a))).toEqual({ notice: "that question is no longer open" })
+  })
+})

@@ -69,3 +69,62 @@ test("an agent asks for attention on its row; clearing or ending takes it away",
   on("rehearse", { event: "end", id: "tester-1", ok: true })
   expect(row()?.attention).toBeUndefined()
 })
+
+import { makeSurfaces, NAVIGATE, PANELS } from "../src/surfaces"
+import { makePrompts, PROMPT, PROMPT_DONE } from "../src/prompts"
+import type { Surface } from "@zarg/view"
+
+const surfaceSetup = async (surfaces: ReadonlyArray<Surface>) => {
+  const log = await Effect.runPromise(makeLog(mkdtempSync(join(tmpdir(), "zarg-pa-")), (t) => t))
+  const layouts: Record<string, ReturnType<typeof layoutOf>> = {
+    tester: layoutOf(defineView("tester", { progress: { kind: "stats", role: "summary" } })),
+    status: layoutOf(defineView("status", { line: { kind: "stats", role: "summary" } })),
+  }
+  const on = pluginAgents(
+    log,
+    "main",
+    (plugin, view) => (plugin === "rehearse" ? layouts[view] : undefined),
+    (plugin, name) => (plugin === "rehearse" ? surfaces.find((s) => s.name === name) : undefined),
+    makeSurfaces(log, "main"),
+    makePrompts(log),
+  )
+  const panels = () => ((log.all().filter((e) => e.type === "ACTIVITY_SNAPSHOT" && e.activityType === PANELS).at(-1)?.content ?? { panels: [] }) as { panels: ReadonlyArray<{ id: string }> }).panels.map((p) => p.id)
+  return { log, on, panels }
+}
+const status: Surface = { kind: "panel", name: "status", view: "status", scope: "shell", edge: "bottom", size: 1, input: "none" }
+
+test("an open outside any developer call is refused for a tile; a panel opens any time", async () => {
+  const { on, log, panels } = await surfaceSetup([{ kind: "tile", name: "main", view: "tester" }, status])
+  on("rehearse", { event: "start", id: "t1", title: "tester", task: "t", view: "tester" })
+  expect(() => on("rehearse", { event: "open", surfaces: [{ surface: "main", agent: "t1" }], gesture: false })).toThrow(/opens only while you handle the developer's call/)
+  expect(() => on("rehearse", { event: "open", surfaces: [{ surface: "nope", agent: "t1" }], gesture: true })).toThrow(/declares no surface nope/)
+  on("rehearse", { event: "open", surfaces: [{ surface: "status", agent: "t1" }], gesture: false })
+  expect(panels()).toEqual(["rehearse:status:rehearse:t1"])
+  on("rehearse", { event: "open", surfaces: [{ surface: "main", agent: "t1" }], gesture: true })
+  expect(log.all().at(-1)).toMatchObject({ type: "CUSTOM", name: NAVIGATE, value: { kind: "tile", view: "rehearse:t1" } })
+})
+
+test("an agent's end closes its panels and withdraws its popovers", async () => {
+  const { on, log, panels } = await surfaceSetup([{ kind: "popover", name: "ask", view: "tester" }, status])
+  on("rehearse", { event: "start", id: "t1", title: "tester", task: "t", view: "tester" })
+  on("rehearse", { event: "open", surfaces: [{ surface: "status", agent: "t1" }, { surface: "ask", agent: "t1" }], gesture: true })
+  await Bun.sleep(10)
+  const asked = log.all().find((e) => e.type === "CUSTOM" && e.name === PROMPT)!.value as { id: string; kind: string; view: string; options: unknown[] }
+  expect(asked).toMatchObject({ kind: "surface", view: "rehearse:t1", options: [] })
+  expect(panels()).toEqual(["rehearse:status:rehearse:t1"])
+  on("rehearse", { event: "end", id: "t1", ok: true })
+  await Bun.sleep(10)
+  expect(panels()).toEqual([])
+  expect(log.all().some((e) => e.type === "CUSTOM" && e.name === PROMPT_DONE && (e.value as { id: string }).id === asked.id)).toBe(true)
+})
+
+test("a view other than the one the agent started with keeps its own data", async () => {
+  const { on, log } = await surfaceSetup([status])
+  on("rehearse", { event: "start", id: "t1", title: "tester", task: "t", view: "tester" })
+  on("rehearse", { event: "set", id: "t1", view: "status", section: "line", data: { items: [{ label: "stories", value: "1/3" }] } })
+  on("rehearse", { event: "set", id: "t1", view: "tester", section: "progress", data: { items: [] } })
+  const views = threadViews(log, "main")
+  expect(views.data("rehearse:t1@status", "line")).toEqual({ items: [{ label: "stories", value: "1/3" }] })
+  expect(views.data("rehearse:t1", "line")).toBeUndefined()
+  expect(views.data("rehearse:t1", "progress")).toEqual({ items: [] })
+})

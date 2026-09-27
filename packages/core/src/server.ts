@@ -50,7 +50,11 @@ export class Actions extends Context.Service<
 >()("@zarg/core/Actions") {}
 
 /** Answers to the core's own prompts (grant popovers): `POST /prompts/:id`. */
-export class Prompts extends Context.Service<Prompts, { readonly answer: (id: string, answer: { readonly choice: string }) => Effect.Effect<{ readonly notice: string }> }>()("@zarg/core/Prompts") {}
+export class Prompts extends Context.Service<Prompts, {
+  readonly answer: (id: string, answer: { readonly choice: string }) => Effect.Effect<{ readonly notice: string }>
+  /** Close a plugin's popover (Esc). */
+  readonly close: (id: string) => Effect.Effect<{ readonly notice: string }>
+}>()("@zarg/core/Prompts") {}
 
 /** YOLO on or off (`POST /yolo`): for every plugin, or one; answers whether any plugin is in YOLO now. */
 export class YoloControl extends Context.Service<YoloControl, { readonly set: (on: boolean, plugin?: string) => Effect.Effect<{ readonly on: boolean }> }>()("@zarg/core/YoloControl") {}
@@ -156,8 +160,9 @@ const routes = HttpRouter.addAll(
         "/prompts/:id",
         Effect.gen(function* () {
           const { id } = yield* HttpRouter.params
-          const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as { choice?: unknown }
-          if (typeof body.choice !== "string") return error(400, `an answer needs { "choice" }`)
+          const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as { choice?: unknown; close?: unknown }
+          if (body.close === true) return HttpServerResponse.jsonUnsafe(yield* prompts.close(decodeURIComponent(id ?? "")))
+          if (typeof body.choice !== "string") return error(400, `an answer needs { "choice" } or { "close": true }`)
           return HttpServerResponse.jsonUnsafe(yield* prompts.answer(decodeURIComponent(id ?? ""), { choice: body.choice }))
         }),
       ),
@@ -235,6 +240,6 @@ const routes = HttpRouter.addAll(
  *   GET  /commands              slash commands plugins add
  *   POST /plugins/:name/commands/:cmd  { args } → { notice }
  *   POST /threads/:id/agents/:agent/actions/:action  { rows } → { notice }
- *   POST /prompts/:id          { choice } → { notice } (a grant popover's answer)
+ *   POST /prompts/:id          { choice } → { notice } (a grant popover's answer); { close: true } closes a plugin's popover
  */
 export const api = Layer.mergeAll(routes, auth)

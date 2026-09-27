@@ -12,6 +12,8 @@ export const PROMPT_DONE = "zarg.prompt.done"
  */
 export const makePrompts = (log: ThreadLog, threadId = "main") => {
   const open = new Map<string, Deferred.Deferred<Answer>>()
+  // Plugins' popovers in the same queue: nothing waits on them, they close.
+  const shown = new Map<string, { readonly agent: string; readonly view: string }>()
   const done = (id: string, withdrawn: boolean) => log.append(threadId, E.custom(PROMPT_DONE, withdrawn ? { id, withdrawn: true } : { id }))
   return {
     ask: (q: Question): Effect.Effect<Answer> =>
@@ -32,6 +34,30 @@ export const makePrompts = (log: ThreadLog, threadId = "main") => {
         yield* Deferred.succeed(waiting, { choice: a.choice })
         return { notice: "answered" }
       }),
+    /** A plugin's popover joins the queue (its view shown, its agent's actions), until it closes. */
+    show: (item: { readonly plugin: string; readonly agent: string; readonly view: string; readonly title: string }) =>
+      Effect.gen(function* () {
+        const id = `prompt-${crypto.randomUUID()}`
+        shown.set(id, { agent: item.agent, view: item.view })
+        yield* log.append(threadId, E.custom(PROMPT, { id, kind: "surface", question: item.title, options: [], view: item.view, agent: item.agent }))
+        return id
+      }),
+    /** The developer closed a popover (Esc), or its plugin did. */
+    close: (id: string) =>
+      Effect.gen(function* () {
+        if (!shown.delete(id)) return { notice: "that question is no longer open" }
+        yield* Effect.ignore(done(id, false))
+        return { notice: "closed" }
+      }),
+    /** The popover showing this agent's view, if one is up. */
+    shownFor: (agent: string, view: string) => [...shown.entries()].find(([, v]) => v.agent === agent && v.view === view)?.[0],
+    /** An agent that ended takes its popovers with it. */
+    closeAgent: (agent: string) =>
+      Effect.forEach(
+        [...shown.entries()].filter(([, v]) => v.agent === agent).map(([id]) => id),
+        (id) => Effect.andThen(Effect.sync(() => shown.delete(id)), Effect.ignore(done(id, true))),
+        { discard: true },
+      ),
     /** Prompts the last core left open have no one waiting: withdraw them. */
     closeStale: Effect.suspend(() => {
       const asked = new Set<string>()
@@ -41,7 +67,7 @@ export const makePrompts = (log: ThreadLog, threadId = "main") => {
         if (e.name === PROMPT) asked.add(id)
         if (e.name === PROMPT_DONE) asked.delete(id)
       }
-      return Effect.forEach([...asked].filter((id) => !open.has(id)), (id) => Effect.ignore(done(id, true)), { discard: true })
+      return Effect.forEach([...asked].filter((id) => !open.has(id) && !shown.has(id)), (id) => Effect.ignore(done(id, true)), { discard: true })
     }),
   }
 }

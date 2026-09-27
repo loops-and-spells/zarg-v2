@@ -42,3 +42,16 @@ test("an answer the agent no longer waits for is withdrawn from its view, its me
   expect(await Effect.runPromise(actions.answer("main", "p:a-1", "q1", { choice: "y" }))).toEqual({ notice: "that question is no longer open" })
   expect(withdrawn).toEqual([["main", "p:a-1"]])
 })
+
+test("an action that declares opens opens its surfaces and never calls the plugin", async () => {
+  const calls: Array<string> = []
+  const opened: Array<[string, unknown]> = []
+  const actions = makeActions({
+    invoke: (plugin, method) => Effect.sync(() => void calls.push(`${plugin}.${method}`)),
+    opensOf: (agent, action) => (agent === "rehearse:run" && action === "show" ? [{ surface: "main", agent: "t1" }, { surface: "status" }] : undefined),
+    open: (plugin, surfaces) => void opened.push([plugin, surfaces]),
+  })
+  expect(await Effect.runPromise(actions.act("main", "rehearse:run", "show", undefined, []))).toEqual({ notice: "opened" })
+  expect(opened).toEqual([["rehearse", [{ surface: "main", agent: "t1" }, { surface: "status", agent: "run" }]]])
+  expect(calls).toEqual([])
+})

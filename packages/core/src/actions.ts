@@ -14,10 +14,27 @@ export const makeActions = (deps: {
   readonly onApply?: (plugin: string, rows: ReadonlyArray<string>) => void
   /** Take a question the agent no longer waits for out of its view (its messages stay). */
   readonly withdraw?: (thread: string, agent: string) => void
+  /** The surfaces an action on this agent's view declares it opens (`opens`), if any. */
+  readonly opensOf?: (agent: string, action: string) => ReadonlyArray<{ readonly surface: string; readonly agent?: string }> | undefined
+  /** Open a plugin's surfaces for its agents (local ids), as the developer's own gesture. */
+  readonly open?: (plugin: string, surfaces: ReadonlyArray<{ readonly surface: string; readonly agent: string }>) => void
 }) => ({
   act: (_thread: string, agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>): Effect.Effect<{ readonly notice: string }> => {
     const o = owner(agent)
     if (o === undefined) return Effect.succeed({ notice: `${agent} has no actions` })
+    // An action that opens surfaces is the shell's to carry out: the plugin is not called.
+    const opens = deps.opensOf?.(agent, action)
+    if (opens !== undefined && deps.open !== undefined) {
+      const open = deps.open
+      return Effect.sync(() => {
+        try {
+          open(o.plugin, opens.map((x) => ({ surface: x.surface, agent: x.agent ?? o.id })))
+          return { notice: "opened" }
+        } catch (e) {
+          return { notice: e instanceof Error ? e.message : String(e) }
+        }
+      })
+    }
     return deps.invoke(o.plugin, "act", { agent: o.id, action, ...(section !== undefined ? { section } : {}), rows }).pipe(
       Effect.tap(() => Effect.sync(() => (action === "apply" ? deps.onApply?.(o.plugin, rows) : undefined))),
       Effect.map((r) => ({ notice: String((r as { notice?: unknown } | null)?.notice ?? "done") })),

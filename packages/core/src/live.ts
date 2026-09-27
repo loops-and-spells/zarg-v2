@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { Cause, Effect, Layer, Schema, Scope as EffectScope, Semaphore, Stream } from "effect"
-import { LayoutSchema } from "@zarg/view"
+import { LayoutSchema, Surface } from "@zarg/view"
 import { Decisions, layer as decisionsLayer } from "@zarg/decisions"
 import { GraphStore, layer as graphLayer } from "@zarg/graph"
 import { type Bound } from "@zarg/kernel"
@@ -19,6 +19,7 @@ import { threadViews } from "./views"
 import { notLoaded } from "./not-loaded"
 import { outsideReads } from "./outside"
 import { makePrompts } from "./prompts"
+import { makeSurfaces } from "./surfaces"
 import { makeActions } from "./actions"
 import { chosenFindings } from "./chosen"
 import { makeLog } from "./log"
@@ -56,6 +57,9 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // Grants are the core's own questions: popovers on every client, never in zarg's conversation.
     const prompts = makePrompts(log)
     yield* prompts.closeStale
+    // Panels, tiles and sheets plugins open; a new core starts with none (the last core's agents are over).
+    const surfaces = makeSurfaces(log, "main")
+    yield* surfaces.announce
     const snapshot = store.snapshot.pipe(Effect.mapError((e) => ({ _tag: e._tag, message: e.message })))
 
     // Agents may read outside the repository (porting from another project) once the developer allows it.
@@ -136,7 +140,14 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       const l = host.manifests.find((m) => m.name === plugin)?.views?.find((v) => v.name === view)
       return l === undefined ? undefined : Schema.decodeUnknownSync(LayoutSchema)(l)
     }
-    control.setAgents(pluginAgents(log, "main", layoutOf) as (plugin: string, event: unknown) => void)
+    // A plugin's surfaces are the ones its manifest declares (checked at load).
+    const surfaceOf = (plugin: string, name: string) => {
+      const list = host.manifests.find((m) => m.name === plugin)?.surfaces
+      const raw = Array.isArray(list) ? list.find((x: { name?: unknown } | null) => x?.name === name) : undefined
+      return raw === undefined ? undefined : Schema.decodeUnknownSync(Surface)(raw)
+    }
+    const agentEvents = pluginAgents(log, "main", layoutOf, surfaceOf, surfaces, prompts) as (plugin: string, event: unknown) => void
+    control.setAgents(agentEvents)
     control.setAsk((q) =>
       prompts
         .ask({ question: `Plugin ${q.plugin} wants to ${q.what}.`, options: q.options.map((o) => ({ id: o.id, label: o.label, ...(o.id === "once" ? { recommended: true } : {}) })), allowOther: false, kind: "grant" })
@@ -168,6 +179,14 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       Semaphore.withPermits(turnOnLock, 1),
     )
     const actions = makeActions({ invoke: (plugin, method, params) => host.invoke(plugin, method, params), onApply: (plugin, rows) => chosen.add(plugin, rows),
+      // An action's `opens`, from the layout its view has now: the developer's own gesture opens them.
+      opensOf: (agent, action) => {
+        const layout = threadViews(log, "main").layout(agent)
+        if (layout === undefined) return undefined
+        const leaves = layout.sections.flatMap((x) => (x.kind === "tabs" ? x.tabs : [x]))
+        return [...leaves.flatMap((l) => l.actions ?? []), ...(layout.actions ?? [])].find((a) => a.id === action)?.opens
+      },
+      open: (plugin, list) => agentEvents(plugin, { event: "open", surfaces: list, gesture: true }),
       withdraw: (thread, agent) => {
         const views = threadViews(log, thread)
         const talk = views.data(agent, "talk") as { question?: unknown } | undefined
