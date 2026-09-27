@@ -165,3 +165,19 @@ describe("zarg's bar", () => {
     expect(panelsShown(at({}), s).bottom).toEqual([])
   })
 })
+
+describe("surface fixes", () => {
+  const table = { name: "t", sections: [{ id: "rows", kind: "table" as const, role: "primary" as const, columns: [], actions: [{ id: "apply", label: "Apply", key: "a", on: "row" as const }] }] }
+  const views = { "two:t1@x": { agent: "two:t1@x", layout: table, data: { rows: { rows: [{ id: "r1", cells: {} }] } } } }
+  test("an action from a tile of another view acts on the agent the view belongs to", () => {
+    const s: SessionState = { ...idle, thread: { ...idle.thread, views } }
+    expect(onKey(at({ focus: "tile", viewing: "two:t1@x" }), s, key("a"), 0).action).toMatchObject({ type: "act", action: "apply", agent: "two:t1", view: "two:t1@x" })
+  })
+  test("a plugin popover that just showed takes no keys for a moment; its hints are its own", () => {
+    const s: SessionState = { ...idle, thread: { ...idle.thread, views, prompts: [{ id: "p1", kind: "surface", question: "two ask", options: [], view: "two:t1@x", agent: "two:t1" }] } }
+    const ui = syncUi(at({}), s, 1000)
+    expect(onKey(ui, s, key("a"), 1100).action).toBeUndefined()
+    expect(onKey(ui, s, key("a"), 1000 + POPOVER_GUARD_MS).action).toMatchObject({ type: "act", action: "apply" })
+    expect(hintsOf(SHELL, ui, { s, now: 0, draft: "" }).map((h) => h.keys)).toEqual(["Esc", "a"])
+  })
+})

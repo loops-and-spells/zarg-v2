@@ -308,3 +308,4 @@ describe("rehearse runs in the plugin", () => {
     expect(t.attention.filter(([a]) => a === "tester-1").at(-1)).toEqual(["tester-1", undefined])
   })
 })
+

@@ -1,5 +1,5 @@
 import { Cause, Context, Data, Effect, Exit, Layer, type Redacted, Scope, Semaphore } from "effect"
-import { keysProblem, type Layout, surfacesProblem } from "@zarg/view"
+import { keysProblem, type Layout, opensProblem, surfacesProblem } from "@zarg/view"
 import { diff, type Expect, GraphStore, type GraphError, hash, type IoError, type Loaded, Snapshot } from "@zarg/graph"
 import { type Ask, type Grants, type ManifestScopes, makePowers, PLUGIN_NAME, PluginCallError, type PluginProcess, scopesDigest, served, spawnPlugin, warnings } from "../runtime"
 import type { LoadedPlugin, Manifest } from "./loaded"
@@ -112,7 +112,9 @@ const manifestProblem = (m: Manifest): string | undefined => {
   const views = Array.isArray(m.views) ? m.views : []
   const view = views.map(viewProblem).find((p) => p !== undefined)
   if (view !== undefined) return view
-  return surfacesProblem(m.surfaces, views.map((v) => String((v as { name?: unknown } | null)?.name)))
+  const surfaces = surfacesProblem(m.surfaces, views.map((v) => String((v as { name?: unknown } | null)?.name)))
+  if (surfaces !== undefined) return surfaces
+  return opensProblem(views as ReadonlyArray<Layout>, Array.isArray(m.surfaces) ? (m.surfaces as ReadonlyArray<{ name: string }>) : [])
 }
 
 /** A view's key mappings, checked; a manifest is untrusted, so a view that is not even a layout is refused too. */

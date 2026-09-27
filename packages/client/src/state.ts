@@ -44,6 +44,8 @@ export interface Panel {
   readonly edge: "top" | "bottom" | "right"
   readonly size: number
   readonly input: "none" | "onFocus"
+  /** When it was (re)opened. */
+  readonly at?: number
 }
 
 export type Decision =
@@ -128,7 +130,7 @@ export const reduce = (s: ThreadState, e: WireEvent): ThreadState => {
     const rest = (s.prompts ?? []).filter((p) => p.id !== id)
     const prompt: Prompt =
       v.kind === "surface"
-        ? { id, question: String(v.question ?? ""), options: [], kind: "surface", view: String(v.view), agent: String(v.agent) }
+        ? { id, question: String(v.question ?? ""), options: [], kind: "surface", ...(typeof v.view === "string" ? { view: v.view } : {}), ...(typeof v.agent === "string" ? { agent: v.agent } : {}) }
         : { id, question: String(v.question ?? ""), options: v.options ?? [], kind: "grant" }
     return { ...s, seq: e.seq, prompts: e.name === "zarg.prompt" ? [...rest, prompt] : rest }
   }

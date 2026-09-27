@@ -52,7 +52,8 @@ export const pluginAgents = (
   }
   const open = (plugin: string, e: Extract<AgentEvent, { event: "open" }>) => {
     if (surfaces === undefined || prompts === undefined) throw new Error("this thread shows no surfaces")
-    for (const o of Array.isArray(e.surfaces) ? e.surfaces : []) {
+    // Every surface is checked before any shows: an open of several is one change, or none.
+    const checked = (Array.isArray(e.surfaces) ? e.surfaces : []).map((o) => {
       checkId(o.agent)
       const s = surfaceOf(plugin, String(o.surface))
       if (s === undefined) throw new Error(`plugin ${plugin} declares no surface ${String(o.surface)}`)
@@ -62,6 +63,10 @@ export const pluginAgents = (
       // Only for its own agents that exist: no surfaces for ids it made up.
       if (!views.has(id)) throw new Error(`plugin ${plugin} has not started an agent ${o.agent}`)
       if (s.kind === "popover" && prompts.shownFor(id, viewKey(views, id, s.view)) === undefined && prompts.shownBy(plugin)) throw new Error(`plugin ${plugin} already has a popover up: one at a time`)
+      return { s, id }
+    })
+    if (checked.filter((c) => c.s.kind === "popover").length > 1) throw new Error(`plugin ${plugin} already has a popover up: one at a time`)
+    for (const { s, id } of checked) {
       const key = keyFor(plugin, id, s.view)
       if (s.kind === "panel") surfaces.openPanel({ id: `${plugin}:${s.name}:${id}`, plugin, agent: id, view: key, name: s.name, scope: s.scope, edge: s.edge, size: s.size, input: s.input })
       else if (s.kind === "popover") {
@@ -97,6 +102,8 @@ export const pluginAgents = (
       const layout = e.view === undefined ? DEFAULT_LAYOUT : layoutOf(plugin, e.view)
       if (layout === undefined) throw new Error(`plugin ${plugin} declares no view ${e.view}`)
       views.start(id, layout)
+      // Its other views start afresh too: a new run's panel never shows the last run's numbers.
+      for (const key of views.keys().filter((k) => k.startsWith(`${id}@`))) views.start(key, views.layout(key)!)
     }
     if (e.event === "step") {
       const first = views.layout(id)?.sections.find((s) => s.kind === "log")

@@ -137,3 +137,18 @@ test("surfaces open only for agents the plugin started, and one popover per plug
   on("rehearse", { event: "open", surfaces: [{ surface: "ask", agent: "t1" }], gesture: true })
   expect(() => on("rehearse", { event: "open", surfaces: [{ surface: "ask", agent: "t2" }], gesture: true })).toThrow(/already has a popover up/)
 })
+
+test("a restarted agent starts its other views afresh too (no last run's numbers in its panel)", async () => {
+  const { on, log } = await surfaceSetup([status])
+  on("rehearse", { event: "start", id: "run", title: "rehearse", task: "t", view: "tester" })
+  on("rehearse", { event: "set", id: "run", view: "status", section: "line", data: { items: [{ label: "rehearse", value: "40/40 steps" }] } })
+  on("rehearse", { event: "start", id: "run", title: "rehearse", task: "t2", view: "tester" })
+  expect(threadViews(log, "main").data("rehearse:run@status", "line")).toBeUndefined()
+})
+
+test("a multi-surface open is all or nothing", async () => {
+  const { on, panels } = await surfaceSetup([status])
+  on("rehearse", { event: "start", id: "t1", title: "tester", task: "t", view: "tester" })
+  expect(() => on("rehearse", { event: "open", surfaces: [{ surface: "status", agent: "t1" }, { surface: "nope", agent: "t1" }], gesture: true })).toThrow(/nope/)
+  expect(panels()).toEqual([])
+})

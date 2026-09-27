@@ -86,6 +86,8 @@ export const makeViews = (log: ThreadLog, threadId: string, opts: { readonly del
       queue(agent, r.lines.map((l) => ({ op: "add", path: `/data/${seg(path)}/lines/-`, value: l })))
     },
     has: (agent: string) => states.has(agent),
+    /** Every key in the store (an agent's start view, and its other views `${agent}@${view}`). */
+    keys: () => [...states.keys()],
     /** A section's data as the view holds it now. */
     data: (agent: string, path: string) => states.get(agent)?.data[path],
     layout: (agent: string) => states.get(agent)?.layout,

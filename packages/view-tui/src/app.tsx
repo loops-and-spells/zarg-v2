@@ -16,6 +16,7 @@ import {
   attentionOf,
   barLine,
   conversation,
+  closedKey,
   focusBar,
   panelsShown,
   initialUi,
@@ -105,7 +106,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     else if (action.type === "answer-prompt") void props.session.answerPrompt(action.id, action.choice)
     else if (action.type === "close-prompt") void props.session.closePrompt(action.id)
     else if (action.type === "answer-agent") {
-      const agent = action.agent ?? latest().viewing
+      const agent = action.agent ?? latest().viewing?.split("@")[0]
       if (agent !== undefined) void props.session.answerAgent(agent, action.question, action.answer)
     } else if (action.type === "act") {
       // A panel, a popover or a plugin sheet names its agent; the open view's agent is the one it started with.
@@ -354,7 +355,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             onMouseDown={(e: { stopPropagation: () => void }) => {
               e.stopPropagation()
               const u = latest()
-              setUi({ ...u, closedPanels: [...u.closedPanels, p.id], ...(u.panel === p.id ? { focus: "tile" as const } : {}) })
+              setUi({ ...u, closedPanels: [...u.closedPanels, closedKey(p)], ...(u.panel === p.id ? { focus: "tile" as const } : {}) })
             }}
           >
             ×
@@ -368,7 +369,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const sheetViewState = ui.sheetOf !== undefined ? s.thread.views?.[ui.sheetOf] : undefined
   const pluginSheet = (
     <box style={{ flexGrow: 1, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: ui.focus === "tile" ? COLORS.accent : COLORS.dim }}>
-      <text fg={COLORS.dim} wrapMode="none" truncate>{`${ui.sheetOf ?? ""}   Esc close`}</text>
+      <text fg={COLORS.dim} wrapMode="none" truncate>{`${sheetViewState?.layout.name ?? "sheet"} · ${(ui.sheetOf ?? "").split("@")[0]}   Esc close`}</text>
       {sheetViewState === undefined ? <text fg={COLORS.dim}>no view yet</text> : <AgentView view={sheetViewState} ui={ui.sheetView ?? startUi(sheetViewState)} height={Math.max(6, dims.height - 8)} />}
     </box>
   )

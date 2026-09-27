@@ -541,3 +541,19 @@ describe("panels", () => {
     expect(syncUi(initialUi, s, 1001)).toMatchObject({ sheet: true, sheetOf: "two:t1@status", focus: "tile" })
   })
 })
+
+describe("surface fixes", () => {
+  const idle: SessionState = { thread: { ...initial("main") }, core: "up" }
+  const panel = (at: number) => ({ id: "a", plugin: "one", agent: "one:run", view: "one:run", name: "a", scope: "shell" as const, edge: "bottom" as const, size: 1, input: "none" as const, at })
+  test("a panel the plugin opens again after the developer closed it shows again", () => {
+    const closed = { ...initialUi, closedPanels: ["a#1"] }
+    expect(panelsShown(closed, { ...idle, thread: { ...idle.thread, panels: [panel(1)] } }).bottom).toEqual([])
+    expect(panelsShown(closed, { ...idle, thread: { ...idle.thread, panels: [panel(2)] } }).bottom.map((p) => p.id)).toEqual(["a"])
+  })
+  test("a new plugin sheet starts with its own view state, not the last one's", () => {
+    const s: SessionState = { ...idle, thread: { ...idle.thread, navigate: { seq: 4, kind: "sheet", view: "two:t2", at: 1000 } } }
+    const ui = syncUi({ ...initialUi, sheet: true, sheetOf: "two:t1", sheetView: { focus: 2, tabs: {}, rows: {}, selected: {} } }, s, 1001)
+    expect(ui.sheetOf).toBe("two:t2")
+    expect(ui.sheetView).toBeUndefined()
+  })
+})

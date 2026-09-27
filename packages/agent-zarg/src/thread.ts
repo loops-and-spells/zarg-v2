@@ -391,7 +391,6 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
       run,
       wake,
       stop,
-      /** Ask the developer on this thread from outside the driver (a plugin's grant question); answered in order. */
       status: () => (pending() ? "waiting" : loop ? "running" : "idle"),
     }
   })

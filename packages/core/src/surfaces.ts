@@ -20,6 +20,8 @@ export interface PanelInstance {
   readonly edge: "top" | "bottom" | "right"
   readonly size: number
   readonly input: "none" | "onFocus"
+  /** When it was (re)opened: a panel the developer closed shows again once the plugin opens it again. */
+  readonly at?: number
 }
 
 /**
@@ -32,7 +34,7 @@ export const makeSurfaces = (log: ThreadLog, threadId: string) => {
   const changed = () => Effect.runSync(send())
   return {
     openPanel: (p: PanelInstance) => {
-      panels.set(p.id, p)
+      panels.set(p.id, { ...p, at: Date.now() })
       changed()
     },
     closePanel: (id: string) => {

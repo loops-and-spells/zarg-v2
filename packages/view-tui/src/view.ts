@@ -52,7 +52,7 @@ export interface Ui {
   /** The focused panel's id (focus "panel") and its view's state. */
   readonly panel?: string
   readonly panelView?: ViewUi
-  /** Panels the developer closed; forgotten once the core drops them (so a reopened one shows). */
+  /** Panels the developer closed, by `closedKey`: one the plugin opens again (a new `at`) shows again. */
   readonly closedPanels: ReadonlyArray<string>
   /** The seq of the last navigation request followed. */
   readonly navigated?: number
@@ -131,13 +131,16 @@ const withNavigate = (ui: Ui, s: SessionState, now: number): Ui => {
   if (n === undefined || (ui.navigated !== undefined && n.seq <= ui.navigated)) return ui
   const at: Ui = { ...ui, navigated: n.seq }
   if (now - n.at >= NAVIGATE_FRESH_MS) return at
-  if (n.kind === "sheet") return { ...at, sheet: true, sheetOf: n.view, focus: "tile" }
+  if (n.kind === "sheet") {
+    const { sheetView: _, ...fresh } = at
+    return { ...fresh, sheet: true, sheetOf: n.view, focus: "tile" }
+  }
   const { view: _, sheetOf: __, ...rest } = at
   return { ...rest, viewing: n.view, sheet: false, focus: "tile" }
 }
 /** Closed panels the core dropped are forgotten; a focused panel that went gives the tile the keys. */
 const withPanels = (ui: Ui, s: SessionState): Ui => {
-  const ids = new Set((s.thread.panels ?? []).map((p) => p.id))
+  const ids = new Set((s.thread.panels ?? []).map(closedKey))
   const closedPanels = ui.closedPanels.filter((id) => ids.has(id))
   const next = closedPanels.length === ui.closedPanels.length ? ui : { ...ui, closedPanels }
   if (next.focus !== "panel" || focusedPanel(next, s) !== undefined) return next
@@ -145,9 +148,12 @@ const withPanels = (ui: Ui, s: SessionState): Ui => {
   return { ...rest, focus: "tile" }
 }
 
+/** How a closed panel is remembered: its id and when it was opened, so opening it again shows it. */
+export const closedKey = (p: Panel) => (p.at === undefined ? p.id : `${p.id}#${p.at}`)
+
 /** Panels on screen, by edge, in opening order: agent-scope ones only while their agent is open; shell-scope ones one per plugin and two per edge; closed ones left out. */
 export const panelsShown = (ui: Ui, s: SessionState): Readonly<Record<"top" | "bottom" | "right", ReadonlyArray<Panel>>> => {
-  const open = (s.thread.panels ?? []).filter((p) => p.id !== ZARG_BAR && !ui.closedPanels.includes(p.id))
+  const open = (s.thread.panels ?? []).filter((p) => p.id !== ZARG_BAR && !ui.closedPanels.includes(closedKey(p)))
   const plugins = new Set<string>()
   const shell = open.filter((p) => p.scope === "shell" && !plugins.has(p.plugin) && (plugins.add(p.plugin), true))
   const mine = open.filter((p) => p.scope === "agent" && ui.viewing !== undefined && (ui.viewing === p.agent || ui.viewing.startsWith(`${p.agent}@`)))

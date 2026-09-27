@@ -8,6 +8,8 @@ import {
   EXIT_WINDOW_MS,
   focusedPanel,
   panelsShown,
+  closedKey,
+  POPOVER_GUARD_MS as GUARD_MS,
   POPOVER_GUARD_MS,
   focusBar,
   type Key,
@@ -86,11 +88,16 @@ const nextAttention = (ui: Ui, s: SessionState) => {
 /** g and / belong to every panel that is not a text input. */
 const common = (ui: Ui, w: ShellWorld, k: InputKey) => (k.ctrl === true || k.meta === true ? undefined : k.name === "g" ? nextAttention(ui, w.s) : k.name === "/" ? slashFrom(ui, w.s) : undefined)
 
+/** A view keyed `${agent}@${view}` belongs to that agent: its actions and answers go there. */
+const ownerOf = (key: string) => (key.includes("@") ? { agent: key.split("@")[0]! } : {})
+
 /** The open agent's own keys on the terminal: the focused table's actions, then the view's. */
 const agentKeys = (ui: Ui, s: SessionState): ReadonlyArray<KeyHint> => {
   const v = ui.viewing === undefined ? undefined : s.thread.views?.[ui.viewing]
-  if (v === undefined) return []
-  const vu = ui.view ?? startUi(v)
+  return v === undefined ? [] : viewKeyHints(v, ui.view ?? startUi(v))
+}
+/** A view's own keys on the terminal: its focused table's actions, then the view's. */
+const viewKeyHints = (v: ViewState, vu: ViewUi): ReadonlyArray<KeyHint> => {
   const at = focused(v, vu)
   const leaf = at === undefined ? undefined : leafOf(v, vu, at.id)?.leaf
   return [...(leaf?.kind === "table" ? (leaf.actions ?? []) : []), ...(v.layout.actions ?? [])].flatMap((a) => {
@@ -125,12 +132,19 @@ export const SHELL: ReadonlyArray<Layer> = [
     id: "popover",
     exclusive: true,
     when: (ui, w) => queueOf(ui, w.s).length > 0,
-    hints: () => [{ keys: "←→", does: "pick" }, { keys: "Enter", does: "choose" }],
+    hints: (ui, w) => {
+      const head = queueOf(ui, w.s)[0]
+      if (head?.kind !== "surface") return [{ keys: "←→", does: "pick" }, { keys: "Enter", does: "choose" }]
+      const v = head.view === undefined ? undefined : w.s.thread.views?.[head.view]
+      return [{ keys: "Esc", does: "close" }, ...(v === undefined ? [] : viewKeyHints(v, ui.popover.view ?? startUi(v)))]
+    },
     handle: (ui, w, k) => {
       const head = queueOf(ui, w.s)[0]!
       // A plugin's popover: its view takes the keys; Esc closes it (for every client).
       if (head.kind === "surface") {
         if (k.name === "escape") return { ui, action: { type: "close-prompt", id: head.id } }
+        // Like a grant, a popover that just showed takes no keys: a key meant for what was there never acts on it.
+        if (ui.popover.since !== undefined && w.now - ui.popover.since < GUARD_MS) return { ui }
         const v = head.view === undefined ? undefined : w.s.thread.views?.[head.view]
         if (v === undefined || head.agent === undefined) return { ui }
         const r = surfaceKey(v, ui.popover.view ?? startUi(v), k, head.agent)
@@ -198,7 +212,7 @@ export const SHELL: ReadonlyArray<Layer> = [
       const p = focusedPanel(ui, w.s)!
       if (k.name === "escape") {
         const { panel: _, panelView: __, ...rest } = ui
-        return { ui: { ...rest, focus: "tile", closedPanels: [...ui.closedPanels, p.id] } }
+        return { ui: { ...rest, focus: "tile", closedPanels: [...ui.closedPanels, closedKey(p)] } }
       }
       const c = common(ui, w, k)
       if (c !== undefined) return c
@@ -255,9 +269,9 @@ export const SHELL: ReadonlyArray<Layer> = [
       return {
         ui: { ...ui, view: r.ui },
         ...(r.act !== undefined
-          ? { action: { type: "act" as const, ...r.act, view: v.agent } }
+          ? { action: { type: "act" as const, ...r.act, view: v.agent, ...ownerOf(v.agent) } }
           : r.answer !== undefined
-            ? { action: { type: "answer-agent" as const, ...r.answer } }
+            ? { action: { type: "answer-agent" as const, ...r.answer, ...ownerOf(v.agent) } }
             : r.scroll !== undefined
               ? { action: { type: "scroll" as const, delta: r.scroll } }
               : {}),
