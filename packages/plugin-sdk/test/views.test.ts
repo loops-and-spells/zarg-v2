@@ -47,8 +47,8 @@ describe("plugin views", () => {
     const methods = p.serve({ call: async (name: string, args: unknown) => (name === "agents.event" && calls.push([name, args]), null) })
     await methods.go!({})
     expect(calls).toEqual([
-      ["agents.event", { event: "set", id: "t-1", section: "progress", data: { items: [{ label: "steps", value: "1/2" }] } }],
-      ["agents.event", { event: "append", id: "t-1", section: "steps", lines: [{ text: "ok" }] }],
+      ["agents.event", { event: "set", id: "t-1", view: "tester", section: "progress", data: { items: [{ label: "steps", value: "1/2" }] } }],
+      ["agents.event", { event: "append", id: "t-1", view: "tester", section: "steps", lines: [{ text: "ok" }] }],
     ])
     if (false as boolean) {
       const views = null as unknown as Views["Service"]

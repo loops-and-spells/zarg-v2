@@ -50,6 +50,20 @@ export class Views extends Context.Service<Views, {
   readonly set: <S extends ViewSpec, P extends SectionPath<S>>(agent: string, view: ViewDef<S>, path: P, data: DataAt<S, P>) => Effect.Effect<void, PluginFailure>
   readonly append: <S extends ViewSpec, P extends LogPath<S>>(agent: string, view: ViewDef<S>, path: P, lines: ReadonlyArray<LogLine>) => Effect.Effect<void, PluginFailure>
 }>()("@zarg/plugin-sdk/Views") {}
+/** A surface to show for one of this plugin's agents; `focus` gives it the keys. */
+export interface SurfaceOpen {
+  readonly surface: string
+  readonly agent: string
+  readonly focus?: boolean
+}
+/**
+ * Show this plugin's declared surfaces for its agents (scope `agents: true`). Panels open any time; tiles, sheets and
+ * popovers only while the plugin handles the developer's call (an action, an answer, a message, a slash command).
+ */
+export class Surfaces extends Context.Service<Surfaces, {
+  readonly open: (s: SurfaceOpen | ReadonlyArray<SurfaceOpen>) => Effect.Effect<void, PluginFailure>
+  readonly close: (surface: string, agent: string) => Effect.Effect<void, PluginFailure>
+}>()("@zarg/plugin-sdk/Surfaces") {}
 /** Ask for the developer's attention on one of this plugin's agents (scope `agents: true`): a ◆ with the reason. */
 export class Attention extends Context.Service<Attention, {
   readonly request: (agent: string, reason: string) => Effect.Effect<void, PluginFailure>
@@ -97,13 +111,17 @@ export const servicesFrom = (raw: RawPowers) => ({
     step: (a) => Effect.asVoid(power(raw, "agents.event", { event: "step", ...a })),
     end: (a) => Effect.asVoid(power(raw, "agents.event", { event: "end", ...a })),
   }),
+  surfaces: Surfaces.of({
+    open: (s) => Effect.asVoid(power(raw, "agents.event", { event: "open", surfaces: Array.isArray(s) ? s : [s] })),
+    close: (surface, agent) => Effect.asVoid(power(raw, "agents.event", { event: "close", surface, id: agent })),
+  }),
   attention: Attention.of({
     request: (agent, reason) => Effect.asVoid(power(raw, "agents.event", { event: "attention", id: agent, reason })),
     clear: (agent) => Effect.asVoid(power(raw, "agents.event", { event: "attention", id: agent })),
   }),
   views: Views.of({
-    set: (agent, _view, path, data) => Effect.asVoid(power(raw, "agents.event", { event: "set", id: agent, section: path, data })),
-    append: (agent, _view, path, lines) => Effect.asVoid(power(raw, "agents.event", { event: "append", id: agent, section: path, lines })),
+    set: (agent, view, path, data) => Effect.asVoid(power(raw, "agents.event", { event: "set", id: agent, view: view.name, section: path, data })),
+    append: (agent, view, path, lines) => Effect.asVoid(power(raw, "agents.event", { event: "append", id: agent, view: view.name, section: path, lines })),
   }),
   graph: Graph.of({
     snapshot: Effect.map(power<{ nodes: ReadonlyArray<never>; reserved?: ReadonlyArray<string> }>(raw, "graph.snapshot", {}), (s) => Snapshot.make(s.nodes, new Set(s.reserved ?? []))),
