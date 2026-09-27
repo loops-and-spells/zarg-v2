@@ -127,6 +127,17 @@ const routes = HttpRouter.addAll(
         Effect.sync(() => HttpServerResponse.jsonUnsafe(threads.list().map((t) => ({ id: t.id, focus: t.focus, status: t.status() })))),
       ),
       HttpRouter.route(
+        "GET",
+        "/threads/:id/rlms/:rlm",
+        Effect.gen(function* () {
+          const { id, rlm } = yield* HttpRouter.params
+          const thread = decodeURIComponent(id ?? "")
+          // The id names a file: nothing but a thread id reaches the path.
+          if (!THREAD_ID.test(thread)) return error(400, "invalid thread id")
+          return HttpServerResponse.jsonUnsafe(log.history(thread, decodeURIComponent(rlm ?? "")))
+        }),
+      ),
+      HttpRouter.route(
         "POST",
         "/threads/:id/stop",
         Effect.gen(function* () {
@@ -147,5 +158,6 @@ const routes = HttpRouter.addAll(
  *   GET  /stream?since=<seq>   every thread's events after seq, then live (SSE)
  *   GET  /threads              [{ id, focus, status }]
  *   POST /threads/:id/stop     stop the thread's current work
+ *   GET  /threads/:id/rlms/:rlm  one agent's transcript lines (redacted), since it last started
  */
 export const api = Layer.mergeAll(routes, auth)

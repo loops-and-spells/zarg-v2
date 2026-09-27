@@ -14,6 +14,7 @@ const opened = (state: SessionState) => {
     stop: () => {},
     close: () => {},
     command: () => {},
+    history: () => Promise.resolve([]),
   }
   const o: Opened = { session, meta: { threadId: "main", mode: "child" }, close: async () => void (closed = true) }
   return { o, closed: () => closed }

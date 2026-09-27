@@ -156,6 +156,18 @@ describe("core HTTP API", () => {
     expect((await post(h, "/reconcile", {}, "wrong")).status).toBe(401)
   })
 
+  test("GET /threads/:id/rlms/:rlm is that agent's history", async () => {
+    const h = await handler()
+    await events(await post(h, "/runs", input("r1")))
+    const get = (path: string, token = TOKEN) => h(new Request(`http://core${path}`, { headers: { authorization: `Bearer ${token}` } }))
+    const lines = (await (await get("/threads/main/rlms/rlm-1")).json()) as Array<{ type: string; rlm: string }>
+    expect(lines.map((l) => l.type).slice(0, 2)).toEqual(["start", "model"])
+    expect(lines.every((l) => l.rlm === "rlm-1")).toBe(true)
+    expect(await (await get("/threads/main/rlms/rlm-9")).json()).toEqual([])
+    expect((await get("/threads/main/rlms/rlm-1", "wrong")).status).toBe(401)
+    expect((await get("/threads/..%2Fx/rlms/rlm-1")).status).toBe(400)
+  })
+
   test("/threads lists threads; stop stops the current work", async () => {
     const h = await handler()
     await events(await post(h, "/runs", input("r1")))

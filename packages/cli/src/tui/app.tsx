@@ -2,9 +2,11 @@ import { useKeyboard } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Session } from "@zarg/client"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
-import { type Action, agentDetail, agentRows, animating, conversation, messageShown, OTHER, otherFocused, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
+import { type Action, agentDetail, agentRows, animating, conversation, historyView, messageShown, OTHER, openHistory, otherFocused, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
 
 const COLORS = { you: "#8ab4f8", zarg: "#e8eaed", error: "#f28b82", notice: "#fdd663", dim: "#9aa0a6", accent: "#81c995", select: "#3c4043" }
+// An open history refreshes this often while it is shown (the agent may still be working).
+const HISTORY_REFRESH_MS = 1000
 const TONE = { running: COLORS.zarg, done: COLORS.dim, failed: COLORS.error, stopped: COLORS.notice }
 
 /** The zarg TUI: conversation, inline inquiry picker, input line, agents pane and status line. */
@@ -59,6 +61,22 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     act(r.action)
   })
 
+  // The open agent's history, fetched from the core and refreshed while it is shown.
+  const [history, setHistory] = useState<ReadonlyArray<Record<string, unknown>>>([])
+  const viewing = ui.viewing
+  useEffect(() => {
+    if (viewing === undefined) return
+    let live = true
+    const load = () => void props.session.history(viewing).then((h) => live && setHistory(h))
+    setHistory([])
+    load()
+    const timer = setInterval(load, HISTORY_REFRESH_MS)
+    return () => {
+      live = false
+      clearInterval(timer)
+    }
+  }, [viewing])
+
   const inquiry = s.thread.pendingInquiry
   const box = slashActive(ui, s) ? slashBox(draft, ui) : undefined
   const width = Math.max(0, ...(box?.rows ?? []).map((r) => r.label.length))
@@ -75,6 +93,16 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   return (
     <box style={{ flexDirection: "column", width: "100%", height: "100%" }}>
       <box style={{ flexDirection: "row", flexGrow: 1 }}>
+        {viewing !== undefined ? (
+          <scrollbox title={`Agent ${viewing} · Esc back`} style={{ flexGrow: 1, border: true, borderColor: COLORS.accent }} stickyScroll stickyStart="bottom">
+            {history.length === 0 ? <text fg={COLORS.dim}>loading…</text> : null}
+            {historyView(history).map((l, i) => (
+              <text key={i} fg={COLORS[l.kind]}>
+                {l.text}
+              </text>
+            ))}
+          </scrollbox>
+        ) : (
         <scrollbox
           title="Conversation"
           style={{ flexGrow: 1, border: true, borderColor: ui.focus === "conversation" ? COLORS.accent : COLORS.dim }}
@@ -88,11 +116,19 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           ))}
           {busyLine !== undefined ? <text fg={COLORS.accent}>{busyLine}</text> : null}
         </scrollbox>
+        )}
         <box title="Agents" style={{ width: 48, flexDirection: "column", border: true, borderColor: ui.focus === "agents" ? COLORS.accent : COLORS.dim }}>
           <scrollbox ref={agentsRef} style={{ flexGrow: 1 }}>
             {agents.length === 0 ? <text fg={COLORS.dim}>no agents running</text> : null}
             {agents.map((a) => (
-              <text key={a.id} id={`agent-${a.id}`} fg={TONE[a.tone]} truncate {...(a.selected && ui.focus === "agents" ? { bg: COLORS.select } : {})}>
+              <text
+                key={a.id}
+                id={`agent-${a.id}`}
+                fg={TONE[a.tone]}
+                truncate
+                onMouseDown={() => setUi(openHistory(latest(), a.id))}
+                {...((a.selected && ui.focus === "agents") || a.id === viewing ? { bg: COLORS.select } : {})}
+              >
                 {a.text}
               </text>
             ))}
@@ -173,7 +209,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       </box>
       ) : null}
       <box style={{ height: 1, flexShrink: 0 }}>
-        <text fg={COLORS.dim}>{`${statusLine(s, props.meta)}   ${ui.focus === "agents" ? "↑↓ move · ←→ fold · Tab back" : "^C stop · ^C^C exit · Tab agents"}`}</text>
+        <text fg={COLORS.dim}>{`${statusLine(s, props.meta)}   ${viewing !== undefined ? "Esc back to the conversation" : ui.focus === "agents" ? "↑↓ move · ←→ fold · Enter history · Tab back" : "^C stop · ^C^C exit · Tab agents"}`}</text>
       </box>
     </box>
   )

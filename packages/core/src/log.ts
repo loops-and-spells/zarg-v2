@@ -63,10 +63,31 @@ export const makeLog = (dir: string, redact: (text: string) => string) =>
     const transcript = (threadId: string, record: Record<string, unknown>) =>
       Effect.sync(() => appendFileSync(join(dir, `${threadId}${TRANSCRIPT}`), `${JSON.stringify({ ...(redactValues(record, redact) as object), at: new Date().toISOString() })}\n`))
 
+    /**
+     * One agent's transcript lines since it last started: RLM ids start over with each driver item, so the
+     * latest start is the agent the tree shows now.
+     */
+    const history = (threadId: string, rlm: string): ReadonlyArray<Record<string, any>> => {
+      const file = join(dir, `${threadId}${TRANSCRIPT}`)
+      if (!existsSync(file)) return []
+      const needle = `"rlm":${JSON.stringify(rlm)}`
+      const mine: Array<Record<string, any>> = []
+      for (const line of readFileSync(file, "utf8").split("\n")) {
+        if (!line.includes(needle)) continue
+        try {
+          const l = JSON.parse(line) as Record<string, any>
+          if (l.rlm !== rlm) continue
+          if (l.type === "start") mine.length = 0
+          mine.push(l)
+        } catch {}
+      }
+      return mine
+    }
+
     /** End every live stream (shutdown): open SSE responses finish instead of holding the server open. */
     const close = PubSub.shutdown(hub)
 
-    return { append, stream, close, transcript, redact, all: () => events as ReadonlyArray<WireEvent>, exists: (threadId: string) => existsSync(join(dir, `${threadId}.jsonl`)) }
+    return { append, stream, close, transcript, history, redact, all: () => events as ReadonlyArray<WireEvent>, exists: (threadId: string) => existsSync(join(dir, `${threadId}.jsonl`)) }
   })
 
 export type ThreadLog = Effect.Success<ReturnType<typeof makeLog>>

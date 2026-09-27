@@ -25,6 +25,8 @@ export interface Session {
   readonly command: (text: string) => void
   /** Stop the thread's current work. */
   readonly stop: () => void
+  /** One agent's transcript lines, for its history view; empty when the core cannot answer. */
+  readonly history: (rlm: string) => Promise<ReadonlyArray<Record<string, unknown>>>
   /** Stop following the core. */
   readonly close: () => void
 }
@@ -131,6 +133,7 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
         ),
       )
     },
+    history: (rlm) => Effect.runPromise(opts.client.history(opts.threadId, rlm).pipe(Effect.orElseSucceed(() => []))),
     stop: () => fork(opts.client.stop(opts.threadId).pipe(Effect.catch((e) => Effect.sync(() => set({ ...state, notice: e.message }))))),
     close: () => {
       for (const f of fibers) Effect.runFork(Fiber.interrupt(f))

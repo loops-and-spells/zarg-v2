@@ -71,6 +71,11 @@ export const makeClient = (info: Pick<CoreInfo, "socket" | "token">) => {
       request("/yolo", { method: "POST", body: JSON.stringify({ on, ...(plugin !== undefined ? { plugin } : {}) }) }).pipe(
         Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly on: boolean }>)),
       ),
+    /** One agent's transcript lines (redacted), since it last started. */
+    history: (threadId: string, rlm: string) =>
+      request(`/threads/${encodeURIComponent(threadId)}/rlms/${encodeURIComponent(rlm)}`).pipe(
+        Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<ReadonlyArray<Record<string, unknown>>>)),
+      ),
     stop: (threadId: string) => request(`/threads/${encodeURIComponent(threadId)}/stop`, { method: "POST", body: "{}" }).pipe(Effect.asVoid),
   }
 }

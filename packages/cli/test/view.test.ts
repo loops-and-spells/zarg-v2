@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
-import { CHAT, conversation, EXIT_WINDOW_MS, initialUi, inputFocused, messageShown, OTHER, onKey, otherFocused, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/tui/view"
+import { CHAT, conversation, historyView, openHistory, EXIT_WINDOW_MS, initialUi, inputFocused, messageShown, OTHER, onKey, otherFocused, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/tui/view"
 
 const inquiry: Inquiry = {
   id: "inq-1",
@@ -172,7 +172,7 @@ describe("the agents pane", () => {
     ])
   })
 
-  test("keys on the agents pane: down/up move, right and Enter expand, left collapses then jumps to the parent", () => {
+  test("keys on the agents pane: down/up move, right expands, left collapses then jumps to the parent", () => {
     let ui: Ui = { ...initialUi, focus: "agents" }
     ui = press(ui, "down").ui
     expect(ui.agents.cursor).toBe("rlm-2")
@@ -180,7 +180,7 @@ describe("the agents pane", () => {
     expect(text(agentRows(rlms, ui.agents))[2]).toContain("rlm-3")
     ui = press(ui, "down").ui
     expect(ui.agents.cursor).toBe("rlm-3")
-    ui = press(ui, "return").ui
+    ui = press(ui, "right").ui
     expect(text(agentRows(rlms, ui.agents))[3]).toContain("rlm-4")
     ui = press(ui, "left").ui
     expect(text(agentRows(rlms, ui.agents))).toHaveLength(4)
@@ -194,6 +194,43 @@ describe("the agents pane", () => {
     expect(ui.agents.cursor).toBe("rlm-1")
     ui = press(ui, "left").ui
     expect(text(agentRows(rlms, ui.agents))).toEqual(["▸ ● driver rlm-1  ▰▱▱▱▱▱  2/10  +4"])
+  })
+
+  test("Enter on an agent (or a click) opens its history; Escape goes back to the conversation", () => {
+    let ui: Ui = { ...initialUi, focus: "agents" }
+    ui = press(ui, "down").ui
+    ui = press(ui, "return").ui
+    expect(ui.viewing).toBe("rlm-2")
+    expect(openHistory({ ...initialUi }, "rlm-10").viewing).toBe("rlm-10")
+    // The history takes the keys: Tab does not wander off while it is open.
+    ui = press(ui, "escape").ui
+    expect(ui.viewing).toBeUndefined()
+    expect(ui.focus).toBe("conversation")
+  })
+
+  test("an agent's history: the task, each turn's model time, calls, and cells with code and output", () => {
+    const lines = historyView([
+      { type: "start", rlm: "rlm-2", preset: "research", task: "Find the VM grid\nmore context" },
+      { type: "model", rlm: "rlm-2", turn: 1, modelMs: 2300, promptTokens: 4206, completionTokens: 83 },
+      { type: "call", rlm: "rlm-2", turn: 1, service: "Graph", method: "show", params: { id: "S-1" }, ok: true, result: {}, ms: 11 },
+      { type: "call", rlm: "rlm-2", turn: 1, service: "Fs", method: "read", params: { path: "x" }, ok: false, failure: { _tag: "NotFound", message: "no x" }, ms: 2 },
+      { type: "tick", rlm: "rlm-2", turn: 1, source: "clock", value: 1 },
+      { type: "step", rlm: "rlm-2", turn: 1, text: "Looking.", cells: [{ code: "const a = 1\nreturn a", ok: true, output: "1", ms: 40 }] },
+      { type: "extend", rlm: "rlm-2", extended: false, turns: 15, confidence: 0.7, reason: "repeated calls 6/6" },
+    ])
+    expect(lines.map((l) => l.text)).toEqual([
+      "research rlm-2: Find the VM grid",
+      "turn 1 · model 2.3s · 4,206 → 83 tokens",
+      '  Graph.show {"id":"S-1"}  11ms',
+      '  Fs.read {"path":"x"}  2ms  failed: NotFound: no x',
+      "  Looking.",
+      "  cell ok 40ms",
+      "    │ const a = 1",
+      "    │ return a",
+      "    → 1",
+      "told to wrap up  0.70  repeated calls 6/6",
+    ])
+    expect(lines.find((l) => l.text.includes("failed"))?.kind).toBe("error")
   })
 
   test("expansion and the cursor survive live updates; a cursor whose RLM is gone falls back to the root", () => {

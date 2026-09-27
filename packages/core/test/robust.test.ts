@@ -259,6 +259,22 @@ describe("transcripts", () => {
     expect(state.rlms["rlm-1"]).toMatchObject({ budget: 35, decisions: [{ kind: "extend", extended: true, turns: 35, confidence: 0.8, reason: "r" }] })
   })
 
+  test("an agent's history is its transcript lines since it last started (ids start over with each driver item)", async () => {
+    const lines = await Effect.runPromise(
+      Effect.gen(function* () {
+        const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zarg-hist-")), (t) => t.replaceAll("zt-secret", "<redacted:ZT>"))
+        yield* log.transcript("main", { type: "start", rlm: "rlm-1", task: "old item" })
+        yield* log.transcript("main", { type: "step", rlm: "rlm-1", turn: 1 })
+        yield* log.transcript("main", { type: "start", rlm: "rlm-2", task: "child" })
+        yield* log.transcript("main", { type: "start", rlm: "rlm-1", task: "new item zt-secret" })
+        yield* log.transcript("main", { type: "model", rlm: "rlm-1", turn: 1 })
+        yield* log.transcript("other", { type: "start", rlm: "rlm-1", task: "another thread" })
+        return log.history("main", "rlm-1")
+      }),
+    )
+    expect(lines.map((l) => [l.type, l.task ?? l.turn])).toEqual([["start", "new item <redacted:ZT>"], ["model", 1]])
+  })
+
   test("a restarted core does not read transcripts as events", async () => {
     const dir = mkdtempSync(join(tmpdir(), "zarg-log-"))
     writeFileSync(join(dir, "main.jsonl"), `${JSON.stringify({ type: "RUN_STARTED", threadId: "main", runId: "r", seq: 1 })}\n`)

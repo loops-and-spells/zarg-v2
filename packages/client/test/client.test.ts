@@ -25,6 +25,7 @@ const server = Bun.serve({
     if (url.pathname === "/threads") return Response.json([{ id: "main", focus: [], status: "idle" }])
     if (url.pathname === "/threads/main/stop") return Response.json({ stopped: "main" })
     if (url.pathname === "/reconcile") return Response.json({ on: true, pending: 1 })
+    if (url.pathname === "/threads/main/rlms/rlm-2") return Response.json([{ type: "start", rlm: "rlm-2" }])
     // Events split across chunks and with CRLF-free multi-line framing, as a real stream may deliver them.
     return new Response(
       sseBody(['data: {"type":"RUN_STARTED","threadId":"main","seq":1}\n\n: comment\n\ndata: {"type":"RUN_FIN', 'ISHED","threadId":"main","seq":2}\n\n']),
@@ -65,6 +66,11 @@ describe("client", () => {
     expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/reconcile" })
     await Effect.runPromise(client.stop("main"))
     expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/threads/main/stop" })
+  })
+
+  test("an agent's history comes from the core", async () => {
+    expect(await Effect.runPromise(client.history("main", "rlm-2"))).toEqual([{ type: "start", rlm: "rlm-2" }])
+    expect(seen.at(-1)).toMatchObject({ method: "GET", path: "/threads/main/rlms/rlm-2", auth: "Bearer tok" })
   })
 
   test("a wrong token fails with CoreError 401; a missing socket fails as unreachable", async () => {

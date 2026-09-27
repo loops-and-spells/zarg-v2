@@ -22,6 +22,8 @@ export interface Ui {
   readonly runningSince?: number
   /** The agents pane: the highlighted RLM and the nodes opened or closed against their default. */
   readonly agents: Agents
+  /** The agent whose history replaces the conversation (Enter or a click on it); Escape closes it. */
+  readonly viewing?: string
 }
 
 export interface Agents {
@@ -209,6 +211,54 @@ export const agentDetail = (rlms: Readonly<Record<string, RlmNode>>, cursor: str
   ]
 }
 
+/** Open an agent's history (Enter on it, or a click); it also becomes the highlighted agent. */
+export const openHistory = (ui: Ui, id: string): Ui => ({ ...ui, viewing: id, agents: { ...ui.agents, cursor: id } })
+
+export interface HistoryLine {
+  readonly kind: "zarg" | "dim" | "error" | "accent"
+  readonly text: string
+}
+
+const HISTORY_CODE_LINES = 8
+const HISTORY_OUTPUT_LINES = 6
+const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max)}…` : text)
+const firstLines = (text: string, n: number) => {
+  const all = text.split("\n")
+  return all.length > n ? [...all.slice(0, n), `… ${all.length - n} more lines`] : all
+}
+
+/** An agent's transcript lines (from the core) as what the history view shows. */
+export const historyView = (lines: ReadonlyArray<Record<string, any>>): ReadonlyArray<HistoryLine> =>
+  lines.flatMap((l): ReadonlyArray<HistoryLine> => {
+    switch (l.type) {
+      case "start":
+        return [{ kind: "zarg", text: `${l.preset} ${l.rlm}: ${String(l.task ?? "").split("\n")[0]}` }]
+      case "model":
+        return [{ kind: "accent", text: `turn ${l.turn} · model ${(Number(l.modelMs) / 1000).toFixed(1)}s · ${Number(l.promptTokens).toLocaleString("en-US")} → ${Number(l.completionTokens).toLocaleString("en-US")} tokens` }]
+      case "call": {
+        const head = `  ${l.service}.${l.method} ${clip(JSON.stringify(l.params), 120)}  ${l.ms}ms`
+        return [l.ok ? { kind: "dim", text: head } : { kind: "error", text: `${head}  failed: ${l.failure?._tag}: ${clip(String(l.failure?.message ?? ""), 120)}` }]
+      }
+      case "step":
+        return [
+          ...(String(l.text ?? "").trim().length > 0 ? [{ kind: "zarg" as const, text: `  ${clip(String(l.text).trim().replaceAll("\n", " "), 300)}` }] : []),
+          ...(l.cells ?? []).flatMap((c: { code: string; ok: boolean; output: string; ms: number }) => [
+            { kind: c.ok ? ("dim" as const) : ("error" as const), text: `  cell ${c.ok ? "ok" : "failed"} ${c.ms}ms` },
+            ...firstLines(c.code, HISTORY_CODE_LINES).map((t) => ({ kind: "dim" as const, text: `    │ ${t}` })),
+            ...firstLines(c.output, HISTORY_OUTPUT_LINES).filter((t) => t.length > 0).map((t) => ({ kind: c.ok ? ("zarg" as const) : ("error" as const), text: `    → ${t}` })),
+          ]),
+        ]
+      case "atomize":
+        return [{ kind: "accent", text: l.atomic ? "atomic (runs directly)" : "plan (splits into children)" }]
+      case "plan":
+        return [{ kind: "accent", text: `plan: ${(l.children ?? []).map((c: { id: string; preset: string }) => `${c.id} (${c.preset})`).join(", ")}` }]
+      case "extend":
+        return [{ kind: "accent", text: `${(l.extended ? `extended to ${l.turns} turns` : "told to wrap up").padEnd(15)}  ${Number(l.confidence).toFixed(2)}  ${l.reason}` }]
+      default:
+        return []
+    }
+  })
+
 /** Arrows and Enter on the agents pane: move the highlight, open and close nodes, jump to the parent. */
 const onAgentsKey = (ui: Ui, rlms: Readonly<Record<string, RlmNode>>, key: Key): Ui => {
   const rows = visible(rlms, ui.agents)
@@ -223,7 +273,8 @@ const onAgentsKey = (ui: Ui, rlms: Readonly<Record<string, RlmNode>>, key: Key):
   const open = isOpen(rlms, ui.agents, n)
   if (key.name === "down") return move(rows[Math.min(rows.length - 1, at + 1)]?.node.id)
   if (key.name === "up") return move(rows[Math.max(0, at - 1)]?.node.id)
-  if (key.name === "right" || key.name === "return") return hasKids && !open ? set(true) : ui
+  if (key.name === "return") return openHistory(ui, n.id)
+  if (key.name === "right") return hasKids && !open ? set(true) : ui
   if (key.name === "left") return hasKids && open ? set(false) : n.parent !== null && rlms[n.parent] !== undefined ? move(n.parent) : ui
   return ui
 }
@@ -312,6 +363,12 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: st
   if (key.ctrl && key.name === "c") {
     if (ui.lastCtrlC !== undefined && now - ui.lastCtrlC < EXIT_WINDOW_MS) return { ui, action: { type: "exit" } }
     return { ui: { ...ui, lastCtrlC: now }, action: { type: "stop" } }
+  }
+  // An agent's history is open: Escape goes back to the conversation; other keys wait.
+  if (ui.viewing !== undefined) {
+    if (key.name !== "escape") return { ui }
+    const { viewing: _, ...rest } = ui
+    return { ui: { ...rest, focus: "conversation" } }
   }
   if (draft !== undefined && slashActive(ui, s)) {
     const slash = onSlashKey(ui, key, draft)

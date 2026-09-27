@@ -20,6 +20,13 @@ const fakeSession = (state: SessionState) => {
     stop: () => calls.push("stop"),
     close: () => calls.push("close"),
     command: (t) => calls.push(`command ${t}`),
+    history: (rlm) => {
+      calls.push(`history ${rlm}`)
+      return Promise.resolve([
+        { type: "start", rlm, preset: "research", task: "Find the VM grid" },
+        { type: "call", rlm, turn: 1, service: "Graph", method: "show", params: { id: "S-1" }, ok: true, result: {}, ms: 11 },
+      ])
+    },
   }
   const update = (next: SessionState) => {
     current = next
@@ -186,6 +193,26 @@ describe("tui frames", () => {
     await Bun.sleep(250)
     await settle(t)
     expect(spinnerAt(t.rawFrame())).not.toBe(spinnerAt(first))
+  })
+
+  test("Enter on an agent shows its history in place of the conversation; Escape goes back", async () => {
+    const t = await render(waiting)
+    t.mockInput.pressTab()
+    t.mockInput.pressArrow("down")
+    await settle(t)
+    t.mockInput.pressEnter()
+    await settle(t)
+    await Bun.sleep(30)
+    await settle(t)
+    const open = t.captureCharFrame()
+    expect(open).toContain("Agent rlm-2 · Esc back")
+    expect(open).toContain("research rlm-2: Find the VM grid")
+    expect(open).toContain('Graph.show {"id":"S-1"}  11ms')
+    expect(t.calls).toContain("history rlm-2")
+    t.mockInput.pressEscape()
+    await settle(t)
+    expect(t.captureCharFrame()).toContain("The agenda is empty.")
+    expect(t.captureCharFrame()).not.toContain("Esc back")
   })
 
   test("the agents pane folds: → opens a child's subtree, ← closes it", async () => {
