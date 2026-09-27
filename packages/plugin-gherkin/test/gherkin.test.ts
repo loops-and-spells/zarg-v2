@@ -54,6 +54,28 @@ describe("pricing example", () => {
     ])
     expect(ids.after).toEqual(["gherkin:dead-end:S-0003", "gherkin:dead-end:S-0006"])
   })
+
+  test("suggest: states with only one way on (no failure or other choice), busiest first, within focus", async () => {
+    const out = await run(
+      Effect.gen(function* () {
+        yield* pricing
+        yield* call("add-card", { title: "Visitor submits the account form", when: "the visitor submits the form", arrives: { id: "S-0003" }, then: [{ text: "the account is created" }] })
+        const all = yield* PluginHost.use((h) => h.suggest())
+        const focused = yield* PluginHost.use((h) => h.suggest(new Set(["S-0001"])))
+        yield* call("add-card", { title: "Visitor opens docs", when: 'the visitor clicks "Docs"', arrives: { id: "S-0001" }, then: [{ text: "the docs are shown" }] })
+        const branched = yield* PluginHost.use((h) => h.suggest())
+        return { all, focused, branched }
+      }),
+    )
+    expect(out.all.map((i) => i.id)).toEqual(["gherkin:one-way:S-0003", "gherkin:one-way:S-0001"])
+    expect(out.all[0]).toMatchObject({
+      title: 'Only one thing happens from "the account form is shown": Visitor submits the account form',
+      detail: "UX-0006 is the only card from S-0003 (reached by 2 cards). Add a failure case or another choice?",
+      about: ["S-0003", "UX-0006"],
+    })
+    expect(out.focused.map((i) => i.id)).toEqual(["gherkin:one-way:S-0001"])
+    expect(out.branched.map((i) => i.id)).toEqual(["gherkin:one-way:S-0003"])
+  })
 })
 
 describe("gherkin rules", () => {

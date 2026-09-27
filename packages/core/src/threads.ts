@@ -8,6 +8,7 @@ export interface ThreadsDeps {
   readonly log: ThreadLog
   readonly agenda: ThreadDeps["agenda"]
   readonly render?: ThreadDeps["render"]
+  readonly suggest?: ThreadDeps["suggest"]
   /** An RLM runner whose Inquire uses `asker` and whose events go to `observe`. */
   readonly makeRlm: (asker: Asker, observe: (e: Rlm.RlmEvent) => void) => Effect.Effect<Rlm.Rlm>
   /** Threads that exist from the start besides `main` (the `plan` and `implement` views). */
@@ -25,6 +26,7 @@ export const makeThreads = (deps: ThreadsDeps) =>
         log: deps.log,
         agenda: deps.agenda,
         ...(deps.render !== undefined ? { render: deps.render } : {}),
+        ...(deps.suggest !== undefined ? { suggest: deps.suggest } : {}),
         driver: (spec, asker, observe) => Effect.flatMap(deps.makeRlm(asker, observe), (rlm) => rlm.exec(spec)),
       })
     threads.set("main", yield* create("main", []))

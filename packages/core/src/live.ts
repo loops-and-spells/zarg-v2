@@ -79,7 +79,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       Effect.map(host.agenda(focus), (items) => [...(reconcile?.agenda(focus) ?? []), ...items])
     // The same scope filter the driver's Graph.render applies.
     const render = (ids: ReadonlyArray<string>, scope: Scope) => Effect.map(graph({ host, snapshot, scope }).handlers.render!({ focus: ids }), String)
-    const threads = yield* makeThreads({ log, agenda, render, makeRlm, extra: reconcile?.threads ?? [] })
+    const threads = yield* makeThreads({ log, agenda, render, suggest: (focus) => host.suggest(focus), makeRlm, extra: reconcile?.threads ?? [] })
 
     // @card UX-0058 @card UX-0059
     /** `/reconcile`: turn plan and implement on for this session (the config's section and `enabled` are overridden). */

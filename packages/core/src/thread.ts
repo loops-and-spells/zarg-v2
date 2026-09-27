@@ -10,6 +10,13 @@ import type { ThreadLog } from "./log"
 export const WHAT_NEXT =
   "The agenda is empty. Ask the developer what to work on next, with options drawn from the graph (unexplored branches, missing failure cases, the next journey). Decide the options yourself from Graph.render and Graph.agenda; no research children for this."
 
+/** "What next" when code already found the gaps: ask from them in the first turn instead of reading the graph. */
+export const WHAT_NEXT_GAPS =
+  "The agenda is empty. Ask the developer what to work on next now, in your first turn, with Inquire.ask: 2-4 options drawn from the gaps below (or starting a new journey), one recommended. Do not render the whole graph; use Graph.render({ focus }) on a gap's ids only if a label needs it. No research children."
+
+// Enough gaps to choose 2-4 options from.
+const GAPS_SHOWN = 8
+
 /** Appended to every driver task: its result is a message to the developer. */
 export const REPLY_RULE =
   "Finish with `yield* Rlm.done({ value })`, where value is one or two sentences to the developer about what you did or found. No card renders, no ids-only lists."
@@ -34,6 +41,8 @@ export interface ThreadDeps {
   readonly driver: (spec: Rlm.RlmSpec, asker: Asker, observe: (e: Rlm.RlmEvent) => void) => Effect.Effect<Rlm.RlmOutcome, Rlm.RlmError>
   /** Gherkin text for these node ids within the driver's scope, put in its task so its first turn need not fetch it. */
   readonly render?: (ids: ReadonlyArray<string>, scope: Scope) => Effect.Effect<string, unknown>
+  /** Gaps found in code (plugins' suggest), for the "what next" question when the agenda is empty. */
+  readonly suggest?: (focus: ReadonlySet<string> | undefined) => Effect.Effect<ReadonlyArray<AgendaItem>, unknown>
 }
 
 // The agenda the driver sees up front; the rest it can still read with Graph.agenda.
@@ -125,6 +134,10 @@ export const makeThread = (deps: ThreadDeps) =>
         lastItem = item?.id ?? ""
         // The same item still open after two passes: ask what next instead of looping on it.
         const stuck = item !== undefined && passes > 2
+        const gaps =
+          said.length === 0 && (item === undefined || stuck) && deps.suggest !== undefined
+            ? yield* deps.suggest(focusSet).pipe(Effect.catchCause(() => Effect.succeed([] as ReadonlyArray<AgendaItem>)))
+            : []
         const around =
           item !== undefined && !stuck && item.about.length > 0 && deps.render !== undefined
             ? yield* deps.render(item.about, scope).pipe(
@@ -137,7 +150,12 @@ export const makeThread = (deps: ThreadDeps) =>
           said.length > 0
             ? `The developer said: ${said.map((m) => JSON.stringify(m)).join(" then ")}\nAnswer them directly. If a choice is needed, ask with Inquire.ask (options, one recommended).`
             : item === undefined || stuck
-              ? WHAT_NEXT
+              ? gaps.length > 0
+                ? `${WHAT_NEXT_GAPS}\n\nGaps zarg found:\n${gaps
+                    .slice(0, GAPS_SHOWN)
+                    .map((g) => `- ${g.title}${g.about.length > 0 ? ` [${g.about.join(", ")}]` : ""}: ${g.detail}`)
+                    .join("\n")}`
+                : WHAT_NEXT
               : `${item.title}\n${item.detail}\nPropose how to resolve it and ask the developer with Inquire.ask before changing the graph.`,
           stuck ? `Note: "${item!.title}" is still open after two passes; mention it among the options.` : "",
           around.length > 0 ? `The cards around it (Graph.render of ${item!.about.join(", ")}):\n${around}` : "",

@@ -6,7 +6,7 @@ import { Effect, Fiber, Stream } from "effect"
 import type { AgendaItem } from "@zarg/plugin/server"
 import type { Asker, Rlm } from "@zarg/rlm"
 import { makeLog } from "../src/log"
-import { makeThread, type ThreadDeps, WHAT_NEXT } from "../src/thread"
+import { makeThread, type ThreadDeps, WHAT_NEXT, WHAT_NEXT_GAPS } from "../src/thread"
 import type { WireEvent } from "../src/events"
 
 type Driver = (spec: Rlm.RlmSpec, asker: Asker, observe: (e: Rlm.RlmEvent) => void) => Effect.Effect<Rlm.RlmOutcome, Rlm.RlmError>
@@ -14,10 +14,10 @@ type Driver = (spec: Rlm.RlmSpec, asker: Asker, observe: (e: Rlm.RlmEvent) => vo
 const outcome = (value: unknown): Rlm.RlmOutcome => ({ id: "rlm-x", value, turns: 1, tokens: 1 })
 
 /** A thread over a fresh log with a scripted driver; `agenda` answers with the given items each time. */
-const setup = (driver: Driver, agenda: () => ReadonlyArray<AgendaItem> = () => [], render?: ThreadDeps["render"], focus: ReadonlyArray<string> = []) =>
+const setup = (driver: Driver, agenda: () => ReadonlyArray<AgendaItem> = () => [], render?: ThreadDeps["render"], focus: ReadonlyArray<string> = [], suggest?: ThreadDeps["suggest"]) =>
   Effect.gen(function* () {
     const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zarg-thread-")), (t) => t.replaceAll("zt-secret", "<redacted:ZT>"))
-    const thread = yield* makeThread({ id: "main", focus, log, agenda: () => Effect.succeed(agenda()), driver, ...(render !== undefined ? { render } : {}) })
+    const thread = yield* makeThread({ id: "main", focus, log, agenda: () => Effect.succeed(agenda()), driver, ...(render !== undefined ? { render } : {}), ...(suggest !== undefined ? { suggest } : {}) })
     return { log, thread }
   })
 
@@ -60,6 +60,37 @@ describe("thread runs", () => {
     expect(scopes).toEqual([{ graph: { focus: ["UX-0001"], k: 2 } }])
     expect(tasks[0]).toContain("y".repeat(4_000) + "\n… (cut; Graph.render({ focus }) shows the rest)")
     expect(tasks[0]).not.toContain("y".repeat(4_001))
+  })
+
+  test("an empty agenda with gaps found in code: the driver asks from them at once, without reading the whole graph", async () => {
+    const tasks: Array<string> = []
+    const driver: Driver = (spec, asker) =>
+      Effect.gen(function* () {
+        tasks.push(spec.task)
+        return (yield* asker.ask(question)) as never
+      }) as never
+    const gaps: ReadonlyArray<AgendaItem> = [
+      { id: "g1", title: "Only one thing happens from S-3", detail: "Add a failure case?", about: ["S-3", "UX-6"], priority: 1 },
+      { id: "g2", title: "Only one thing happens from S-1", detail: "Add a failure case?", about: ["S-1", "UX-1"], priority: 2 },
+    ]
+    const focuses: Array<unknown> = []
+    const suggest: ThreadDeps["suggest"] = (focus) => Effect.sync(() => (focuses.push(focus), gaps))
+    await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setup(driver, () => [], undefined, ["S-1"], suggest); return yield* collect(thread.run({ runId: "r1" })) }))
+    expect(focuses).toEqual([new Set(["S-1"])])
+    expect(tasks[0]).toStartWith(WHAT_NEXT_GAPS)
+    expect(WHAT_NEXT_GAPS).toContain("Do not render the whole graph")
+    expect(tasks[0]).toContain("Gaps zarg found:\n- Only one thing happens from S-3 [S-3, UX-6]: Add a failure case?\n- Only one thing happens from S-1 [S-1, UX-1]: Add a failure case?")
+  })
+
+  test("an empty agenda and no gaps (or a failing suggest): the driver works out the options itself", async () => {
+    const tasks: Array<string> = []
+    const driver: Driver = (spec, asker) =>
+      Effect.gen(function* () {
+        tasks.push(spec.task)
+        return (yield* asker.ask(question)) as never
+      }) as never
+    await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setup(driver, () => [], undefined, [], () => Effect.die("bug")); return yield* collect(thread.run({ runId: "r1" })) }))
+    expect(tasks[0]).toStartWith(WHAT_NEXT)
   })
 
   test("a render that dies leaves the cards out; the driver still runs", async () => {

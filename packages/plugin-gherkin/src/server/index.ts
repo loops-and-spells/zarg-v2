@@ -1,5 +1,5 @@
 import { server } from "@zarg/plugin/server"
-import { agenda } from "./agenda"
+import { agenda, suggest } from "./agenda"
 import { clauseShape, stateText } from "./lints"
 import { CardProps, StateProps } from "./model"
 import { render } from "./render"
@@ -16,6 +16,7 @@ export const gherkin = server({
   lints: [clauseShape, stateText],
   tools,
   agenda,
+  suggest,
   render,
 })
 

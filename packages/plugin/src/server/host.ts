@@ -41,6 +41,8 @@ export class PluginHost extends Context.Service<
     /** Check the whole graph as if every node were new. */
     readonly lint: Effect.Effect<ReadonlyArray<Finding>, IoError>
     readonly agenda: (focus?: ReadonlySet<string>) => Effect.Effect<ReadonlyArray<AgendaItem>, IoError>
+    /** Every plugin's suggestions within focus, in the order each plugin ranks them. */
+    readonly suggest: (focus?: ReadonlySet<string>) => Effect.Effect<ReadonlyArray<AgendaItem>, IoError>
     readonly render: (focus?: ReadonlySet<string>) => Effect.Effect<string, IoError>
     /** Run `effect` with no tool call committing meanwhile (e.g. while landing a commit that writes graph files). */
     readonly exclusive: <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
@@ -122,6 +124,9 @@ export const layer = (
             .sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id)),
         )
 
+      const suggest = (focus?: ReadonlySet<string>) =>
+        Effect.map(store.snapshot, (snap) => plugins.flatMap((p) => p.suggest?.(snap) ?? []).filter((item) => inFocus(focus, item.about)))
+
       const render = (focus?: ReadonlySet<string>) =>
         Effect.map(store.snapshot, (snap) =>
           plugins
@@ -139,6 +144,7 @@ export const layer = (
         call,
         lint,
         agenda,
+        suggest,
         render,
         exclusive: Semaphore.withPermits(lock, 1),
       }

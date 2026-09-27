@@ -49,3 +49,25 @@ export const agenda = (snap: Snapshot.Snapshot): ReadonlyArray<AgendaItem> => {
   }
   return items
 }
+
+/**
+ * What next, when the agenda is empty: states the user can leave in only one way (no failure case, no other
+ * choice), busiest first (most cards lead there).
+ */
+export const suggest = (snap: Snapshot.Snapshot): ReadonlyArray<AgendaItem> =>
+  states(snap)
+    .flatMap((s) => {
+      const out = Snapshot.inbound(snap, s.id, ARRIVES)
+      if (out.length !== 1) return []
+      const card = snap.nodes.get(out[0]!.from)
+      if (card === undefined) return []
+      return [{ s, card, reached: Snapshot.inbound(snap, s.id, THEN).length }]
+    })
+    .sort((a, b) => b.reached - a.reached || a.s.id.localeCompare(b.s.id))
+    .map(({ s, card, reached }, i) => ({
+      id: `gherkin:one-way:${s.id}`,
+      title: `Only one thing happens from "${text(s)}": ${String(card.props.title ?? card.id)}`,
+      detail: `${card.id} is the only card from ${s.id} (reached by ${reached} card${reached === 1 ? "" : "s"}). Add a failure case or another choice?`,
+      about: [s.id, card.id],
+      priority: i + 1,
+    }))

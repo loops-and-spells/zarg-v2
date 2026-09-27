@@ -60,6 +60,8 @@ export interface ServerPlugin {
   readonly lints?: ReadonlyArray<Lint>
   readonly tools?: ReadonlyArray<Tool>
   readonly agenda?: (snapshot: Snapshot.Snapshot) => ReadonlyArray<AgendaItem>
+  /** Gaps worth working on when the agenda is empty (not problems): what the driver offers as "what next". */
+  readonly suggest?: (snapshot: Snapshot.Snapshot) => ReadonlyArray<AgendaItem>
   /** Human-readable view of the plugin's part of the graph, limited to `focus` ids when given. */
   readonly render?: (snapshot: Snapshot.Snapshot, focus?: ReadonlySet<string>) => string
 }
