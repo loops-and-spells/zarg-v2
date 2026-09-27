@@ -18,7 +18,7 @@ const events = (r: { cell: string } | { text: string }, n: number): ReadonlyArra
  * Records every request so tests can inspect what each RLM saw.
  */
 export const stubModel = (scripts: Readonly<Record<string, ReadonlyArray<Reply>>>) => {
-  const seen: Array<{ preset: string; messages: ReadonlyArray<ChatMessage> }> = []
+  const seen: Array<{ preset: string; messages: ReadonlyArray<ChatMessage>; reasoning?: { readonly effort?: string; readonly enabled?: boolean } }> = []
   const cursor = new Map<string, number>()
   const service: Model.Model["Service"] = {
     client: () => Effect.die("unused"),
@@ -28,7 +28,7 @@ export const stubModel = (scripts: Readonly<Record<string, ReadonlyArray<Reply>>
     stream: (req) => {
       // Structured-output requests are plan requests.
       const preset = req.outputSchema !== undefined ? "plan" : (/zarg (\S+) agent/.exec(String(req.messages[0]?.content))?.[1] ?? "?")
-      seen.push({ preset, messages: [...req.messages] })
+      seen.push({ preset, messages: [...req.messages], ...(req.reasoning !== undefined ? { reasoning: req.reasoning } : {}) })
       const i = cursor.get(preset) ?? 0
       cursor.set(preset, i + 1)
       const script = scripts[preset] ?? []

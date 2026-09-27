@@ -13,6 +13,8 @@ const Preset = Schema.Struct({
   spawns: Schema.optionalKey(Schema.Array(Schema.String)),
   /** false: never ask Decisions whether to split the task (the RLM can still spawn children itself). */
   atomize: Schema.optionalKey(Schema.Boolean),
+  /** false: ask the model not to think before answering (faster; for light turns such as asking the developer). */
+  reasoning: Schema.optionalKey(Schema.Boolean),
   role: Schema.String,
   budget: Schema.optionalKey(Schema.Struct({ turns: Schema.optionalKey(Schema.Number), tokens: Schema.optionalKey(Schema.Number), wallMs: Schema.optionalKey(Schema.Number) })),
   result: Schema.optionalKey(Schema.String),
@@ -41,7 +43,8 @@ export const DEFAULT_BUDGET: Budget = { turns: 25, tokens: 400_000, wallMs: 30 *
 /** The presets from the spec; `[rlm.presets.*]` in config overrides them by name. */
 export const DEFAULT_PRESETS: Readonly<Record<string, Preset>> = {
   // The driver asks the developer; it never splits its task, so atomize would only add a Decisions round trip.
-  driver: { layer: ["Graph", "Gherkin", "Inquire", "Fs:read", "Decisions", "Rlm"], spawns: ["research", "driver"], atomize: false, role: "driver", budget: { turns: 25 }, result: "text", verify: "none" },
+  // Its turns are light (pick options, ask, reply), and thinking was ~80% of each turn's time.
+  driver: { layer: ["Graph", "Gherkin", "Inquire", "Fs:read", "Decisions", "Rlm"], spawns: ["research", "driver"], atomize: false, reasoning: false, role: "driver", budget: { turns: 25 }, result: "text", verify: "none" },
   // Plan and implement phases (the reconcile loop): each runs per card in its own worktree.
   plan: { layer: ["Graph", "Fs:read", "Decisions", "Rlm"], spawns: ["research"], role: "plan", budget: { turns: 20 }, result: "plan", verify: "none" },
   "implement-card": { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: ["research"], role: "implement", budget: { turns: 25 }, result: "implement-card", verify: "gate" },

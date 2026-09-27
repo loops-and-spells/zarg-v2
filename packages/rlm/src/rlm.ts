@@ -259,7 +259,7 @@ export const make = (deps: RlmDeps) =>
             const events = yield* Semaphore.withPermits(turns, 1)(
               Effect.suspend(() => {
                 started = Date.now()
-                return Stream.runCollect(model.stream({ model: ref, messages, tools: [EXEC_TOOL] }).pipe(Stream.tap(() => Effect.sync(() => void (first ??= Date.now())))))
+                return Stream.runCollect(model.stream({ model: ref, messages, tools: [EXEC_TOOL], ...(preset.reasoning === false ? { reasoning: { enabled: false } } : {}) }).pipe(Stream.tap(() => Effect.sync(() => void (first ??= Date.now())))))
               }),
             ).pipe(Effect.mapError((e) => new RlmError({ kind: "model", message: e.message })))
             const modelMs = Date.now() - started

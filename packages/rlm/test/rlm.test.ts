@@ -136,6 +136,22 @@ describe("observe", () => {
     expect(events.find((e) => e.type === "model")).toMatchObject({ id: "rlm-1", turn: 1, firstTokenMs: expect.any(Number), modelMs: expect.any(Number), promptTokens: expect.any(Number), completionTokens: expect.any(Number) })
   })
 
+  test("a preset with reasoning off asks the model not to think; others leave it to the model", async () => {
+    const stub = stubModel({
+      driver: [{ cell: 'return yield* Rlm.exec({ task: "find", preset: "research", scope: {} })' }, { cell: 'yield* Rlm.done({ value: "ok" })' }],
+      research: [{ cell: 'yield* Rlm.done({ value: { findings: [], sources: [] } })' }],
+    })
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const s = yield* settings({})
+        const rlm = yield* Rlm.make({ settings: s, services: factory, roles: { driver: "stub:m" }, cellTimeoutMs: 5000 })
+        yield* rlm.exec({ task: "t", preset: "driver", scope: {} })
+      }).pipe(Effect.provide(stub.layer)),
+    )
+    expect(stub.seen.filter((r) => r.preset === "driver").map((r) => r.reasoning)).toEqual([{ enabled: false }, { enabled: false }])
+    expect(stub.seen.filter((r) => r.preset === "research").map((r) => r.reasoning)).toEqual([undefined])
+  })
+
   test("reports start, turns and end for each RLM, including children and failures", async () => {
     const events: Array<Rlm.RlmEvent> = []
     const stub = stubModel({
