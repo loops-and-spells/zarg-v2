@@ -36,6 +36,11 @@ describe("picker", () => {
     expect(pickerRows(inquiry, ui.pick)[ui.pick]!.id).toBe(CHAT)
   })
 
+  test("a grant question offers only its answers: no Something else, no Chat about this", () => {
+    const q = { id: "inq-g", question: "Plugin rehearse wants to load", options: [{ id: "always", label: "Allow" }, { id: "deny", label: "Not now" }], allowOther: false, about: [], kind: "grant" as const }
+    expect(pickerRows(q, 0).map((r) => r.label)).toEqual(["Allow", "Not now"])
+  })
+
   test("a question can name its free-text row (Change it… on a proposed change)", () => {
     const q = { id: "inq-c", question: "Add this?", options: [{ id: "add", label: "Add it", recommended: true }, { id: "skip", label: "Skip" }], allowOther: true, otherLabel: "Change it", about: [] }
     expect(pickerRows(q, 0).map((r) => r.label)).toEqual(["Add it", "Skip", "Change it…", "Chat about this"])

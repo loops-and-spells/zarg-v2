@@ -32,7 +32,8 @@ const Question = Schema.Struct({
   otherLabel: Schema.optionalKey(Schema.String).annotate({ description: "The free-text row's label, when not \"Something else\"." }),
   about: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Card or state ids the whole question is about (not per option)." }),
 })
-export type Question = typeof Question.Type
+/** `kind: "grant"`: a permission question zarg itself asks (never a cell: the schema has no such field); only its options are offered. */
+export type Question = typeof Question.Type & { readonly kind?: "grant" }
 /** An option id, or free text; `interjected` when the developer wrote a message instead of answering. */
 const Answer = Schema.Struct({
   choice: Schema.optionalKey(Schema.String).annotate({ description: "The option the developer picked." }),

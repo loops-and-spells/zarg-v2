@@ -162,6 +162,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
           question: `Plugin ${q.plugin} wants to ${q.what}.`,
           options: q.options.map((o) => ({ id: o.id, label: o.label, ...(o.id === "once" ? { recommended: true } : {}) })),
           allowOther: false,
+          kind: "grant",
         })
         .pipe(Effect.map((a) => q.options.find((o) => o.id === a.choice)?.id ?? "deny")),
     )

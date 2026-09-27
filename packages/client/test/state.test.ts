@@ -54,6 +54,11 @@ describe("reduce", () => {
     expect(still.pendingInquiry?.id).toBe("inq-1")
   })
 
+  test("a grant question keeps its kind", () => {
+    const s = fold([ev("RUN_STARTED", { runId: "r8" }), ev("RUN_FINISHED", { runId: "r8", outcome: { type: "interrupt", interrupts: [{ ...inquiry, metadata: { ...inquiry.metadata, kind: "grant" } }] } })])
+    expect(s.pendingInquiry?.kind).toBe("grant")
+  })
+
   test("an inquiry's own label for its free-text row is kept", () => {
     const s = fold([ev("RUN_STARTED", { runId: "r9" }), ev("RUN_FINISHED", { runId: "r9", outcome: { type: "interrupt", interrupts: [{ ...inquiry, metadata: { ...inquiry.metadata, otherLabel: "Change it" } }] } })])
     expect(s.pendingInquiry?.otherLabel).toBe("Change it")

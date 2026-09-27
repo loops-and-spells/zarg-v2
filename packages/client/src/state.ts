@@ -14,6 +14,8 @@ export interface Inquiry {
   readonly allowOther: boolean
   /** The free-text row's label, when not "Something else". */
   readonly otherLabel?: string
+  /** "grant": a permission question zarg asks; only its options are offered (no free text, no chat). */
+  readonly kind?: "grant"
   readonly about: ReadonlyArray<string>
 }
 
@@ -100,7 +102,7 @@ export const reduce = (s: ThreadState, e: WireEvent): ThreadState => {
       const i = outcome?.type === "interrupt" ? outcome.interrupts?.[0] : undefined
       const { pendingInquiry: _, ...rest } = t
       if (i === undefined) return { ...rest, status: "idle" }
-      const meta = (i.metadata ?? {}) as { options?: ReadonlyArray<Option>; allowOther?: boolean; otherLabel?: string; about?: ReadonlyArray<string> }
+      const meta = (i.metadata ?? {}) as { options?: ReadonlyArray<Option>; allowOther?: boolean; otherLabel?: string; about?: ReadonlyArray<string>; kind?: unknown }
       return {
         ...rest,
         status: "waiting",
@@ -110,6 +112,7 @@ export const reduce = (s: ThreadState, e: WireEvent): ThreadState => {
           options: meta.options ?? [],
           allowOther: meta.allowOther ?? true,
           ...(meta.otherLabel !== undefined ? { otherLabel: meta.otherLabel } : {}),
+          ...(meta.kind === "grant" ? { kind: "grant" as const } : {}),
           about: meta.about ?? [],
         },
       }

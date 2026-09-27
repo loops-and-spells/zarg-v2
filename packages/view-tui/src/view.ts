@@ -55,8 +55,9 @@ export interface PickerRow {
 export const pickerRows = (inquiry: Inquiry, pick: number): ReadonlyArray<PickerRow> => {
   const rows = [
     ...inquiry.options.map((o) => ({ id: o.id, label: o.label, ...(o.why !== undefined ? { why: o.why } : {}), recommended: o.recommended === true })),
-    ...(inquiry.allowOther ? [{ id: OTHER, label: `${inquiry.otherLabel ?? "Something else"}…`, recommended: false }] : []),
-    { id: CHAT, label: "Chat about this", recommended: false },
+    // A grant question is answered with one of its options: nothing to type, nothing to discuss with the driver.
+    ...(inquiry.allowOther && inquiry.kind !== "grant" ? [{ id: OTHER, label: `${inquiry.otherLabel ?? "Something else"}…`, recommended: false }] : []),
+    ...(inquiry.kind !== "grant" ? [{ id: CHAT, label: "Chat about this", recommended: false }] : []),
   ]
   return rows.map((r, i) => ({ ...r, selected: i === pick }))
 }

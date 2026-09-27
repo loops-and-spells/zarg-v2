@@ -27,6 +27,8 @@ describe("agents reading outside the repository", () => {
     expect(await t.read(join(t.other, "src", "vm", "grid.ts"))).toMatchObject({ _tag: "Success" })
     expect(t.asked[0]!.question).toContain(join(t.other, "src", "vm", "grid.ts"))
     expect(t.asked[0]!.options.map((o) => o.label)).toEqual(["Allow once", `Always allow ${t.other}`, "Deny"])
+    // A permission question: the picker shows only its answers.
+    expect((t.asked[0] as { kind?: string }).kind).toBe("grant")
     expect(await t.read(join(t.other, "src"))).toMatchObject({ _tag: "Success" })
     expect(t.asked.length).toBe(1)
   })

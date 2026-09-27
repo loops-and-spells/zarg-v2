@@ -57,6 +57,7 @@ export const outsideReads = (opts: {
             question: `An agent wants to read ${path}, outside this repository.`,
             options: [{ id: "once", label: "Allow once" }, ...always, { id: "deny", label: "Deny" }],
             allowOther: false,
+            kind: "grant",
           })
           if (a.choice === "always") return yield* opts.grants.add(AGENTS, { kind: "fs-read", glob: `${folder}/**` })
           if (a.choice !== "once") return yield* Effect.fail(notAllowed(`the developer did not allow reading ${path}`))
