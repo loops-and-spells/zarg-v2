@@ -29,3 +29,14 @@ test("a starting core marks agents the previous core left running as stopped; fi
   await Effect.runPromise(closeStale(log))
   expect(log.all().length).toBe(n)
 })
+
+test("attention from the previous core is cleared at start", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "zarg-restart-"))
+  const before = await Effect.runPromise(makeLog(dir, (t) => t))
+  await Effect.runPromise(before.append("main", E.activitySnapshot("main-p-agents", { rlms: {} })))
+  await Effect.runPromise(before.append("main", E.activityDelta("main-p-agents", [{ op: "add", path: "/rlms/p:t", value: { id: "p:t", parent: null, preset: "tester", depth: 0, turns: 1, budget: 1, status: "done", decisions: [], attention: { reason: "look", since: 1 } } }])))
+  const log = await Effect.runPromise(makeLog(dir, (t) => t))
+  await Effect.runPromise(closeStale(log))
+  const main = log.all().filter((e) => e.threadId === "main").reduce(reduce, initial("main"))
+  expect(main.rlms["p:t"]!.attention).toBeUndefined()
+})

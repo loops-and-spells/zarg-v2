@@ -12,6 +12,8 @@ export type AgentEvent =
   /** Data for a section of the agent's view (checked by the core against the declared layout). */
   | { readonly event: "set"; readonly id: string; readonly section: string; readonly data: unknown }
   | { readonly event: "append"; readonly id: string; readonly section: string; readonly lines: unknown }
+  /** Ask for the developer's attention (a reason) or stop asking (no reason). */
+  | { readonly event: "attention"; readonly id: string; readonly reason?: string }
 
 const ID = /^[A-Za-z0-9._-]{1,64}$/
 
@@ -28,6 +30,7 @@ export const pluginAgents = (log: ThreadLog, threadId: string, layoutOf: (plugin
     if (a === undefined) streams.set(plugin, (a = makeActivity(log, threadId, `${threadId}-${plugin}-agents`)))
     const id = `${plugin}:${e.id}`
     if (e.event === "set") return views.set(id, e.section, e.data)
+    if (e.event === "attention") return a.attention(id, typeof e.reason === "string" && e.reason.length > 0 ? e.reason.slice(0, 80) : undefined)
     if (e.event === "append") return views.append(id, e.section, e.lines)
     if (e.event === "start") {
       const layout = e.view === undefined ? DEFAULT_LAYOUT : layoutOf(plugin, e.view)

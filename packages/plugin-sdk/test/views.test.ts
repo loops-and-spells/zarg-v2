@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
-import { defineView, definePlugin, Views } from "../src"
+import { Attention, defineView, definePlugin, Views } from "../src"
 import { manifestOf } from "../src/manifest"
 
 const Tester = defineView("tester", { steps: { kind: "log", role: "log" }, progress: { kind: "stats", role: "summary" } })
@@ -51,4 +51,22 @@ describe("plugin views", () => {
       views.set("t", Tester, "workers", { items: [] })
     }
   })
+})
+
+test("Attention asks for the developer on an agent's row, and stops asking", async () => {
+  const calls: Array<unknown> = []
+  const p = definePlugin({
+    name: "demo",
+    service: "Demo",
+    archetype: "service",
+    config: Schema.Struct({}),
+    scopes: { agents: true },
+    methods: { go: { doc: "go", params: Schema.Struct({}), success: Schema.Null } },
+    make: Effect.gen(function* () {
+      const attention = yield* Attention
+      return { go: () => Effect.as(Effect.andThen(attention.request("t-1", "4 findings to review"), attention.clear("t-1")), null) }
+    }),
+  })
+  await p.serve({ call: async (name: string, args: unknown) => (name === "agents.event" && calls.push(args), null) }).go!({})
+  expect(calls).toEqual([{ event: "attention", id: "t-1", reason: "4 findings to review" }, { event: "attention", id: "t-1" }])
 })

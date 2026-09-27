@@ -5,6 +5,7 @@ import { join } from "node:path"
 import { Effect } from "effect"
 import { makeLog } from "../src/log"
 import { defineView, layoutOf } from "@zarg/view"
+import { initial, reduce } from "@zarg/client"
 import { pluginAgents } from "../src/plugin-agents"
 import { DEFAULT_LAYOUT, threadViews } from "../src/views"
 
@@ -53,4 +54,18 @@ test("an agent started without a view gets the default: its step lines in one lo
   threadViews(log, "main").flush()
   const snap = log.all().find((e) => e.type === "ACTIVITY_SNAPSHOT" && (e as { activityType?: string }).activityType === "zarg.view") as Record<string, any>
   expect(snap.content.layout).toEqual(DEFAULT_LAYOUT)
+})
+
+test("an agent asks for attention on its row; clearing or ending takes it away", async () => {
+  const log = await Effect.runPromise(makeLog(mkdtempSync(join(tmpdir(), "zarg-pa-")), (t) => t))
+  const on = pluginAgents(log, "main", () => undefined)
+  const row = () => log.all().filter((e) => e.threadId === "main").reduce(reduce, initial("main")).rlms["rehearse:tester-1"]
+  on("rehearse", { event: "start", id: "tester-1", title: "tester", task: "t" })
+  on("rehearse", { event: "attention", id: "tester-1", reason: "4 findings to review" })
+  expect(row()?.attention?.reason).toBe("4 findings to review")
+  on("rehearse", { event: "attention", id: "tester-1" })
+  expect(row()?.attention).toBeUndefined()
+  on("rehearse", { event: "attention", id: "tester-1", reason: "again" })
+  on("rehearse", { event: "end", id: "tester-1", ok: true })
+  expect(row()?.attention).toBeUndefined()
 })

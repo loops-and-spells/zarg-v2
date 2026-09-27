@@ -1,7 +1,7 @@
 import { Effect, Layer, Schema, Stream } from "effect"
 import type { Contract } from "./contract"
 import type { ViewDef } from "@zarg/view"
-import { Agenda, Agents, Clock, Config, Decisions, Files, Graph, Http, Models, PluginFailure, type RawPowers, Secrets, servicesFrom, Views } from "./services"
+import { Agenda, Agents, Attention, Clock, Config, Decisions, Files, Graph, Http, Models, PluginFailure, type RawPowers, Secrets, servicesFrom, Views } from "./services"
 
 export interface Scopes {
   readonly net?: ReadonlyArray<string> | "ask"
@@ -101,7 +101,7 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
     )
     const layer = Layer.mergeAll(
       Layer.succeed(Secrets, s.secrets), Layer.succeed(Http, s.http), Layer.succeed(Files, s.files), Layer.succeed(Graph, s.graph),
-      Layer.succeed(Decisions, s.decisions), Layer.succeed(Models, s.models), Layer.succeed(Clock, s.clock), Layer.succeed(Agenda, s.agenda), Layer.succeed(Agents, s.agents), Layer.succeed(Views, s.views),
+      Layer.succeed(Decisions, s.decisions), Layer.succeed(Models, s.models), Layer.succeed(Clock, s.clock), Layer.succeed(Agenda, s.agenda), Layer.succeed(Agents, s.agents), Layer.succeed(Views, s.views), Layer.succeed(Attention, s.attention),
       Layer.effect(Config, Effect.map(Effect.promise(() => raw.call("config.get", {})), (value) => Config.of({ value }))),
       ...deps,
     )

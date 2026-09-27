@@ -43,6 +43,8 @@ export interface RlmNode {
   readonly error?: string
   /** A row the agent draws itself (agents that are not RLMs): progress fills the bar, text replaces the turns. */
   readonly row?: { readonly progress?: { readonly done: number; readonly total: number }; readonly text?: string }
+  /** The agent asks for the developer: why, and since when (ms). */
+  readonly attention?: { readonly reason: string; readonly since: number }
 }
 
 export interface ThreadState {

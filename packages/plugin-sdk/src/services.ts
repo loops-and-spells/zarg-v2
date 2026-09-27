@@ -50,6 +50,11 @@ export class Views extends Context.Service<Views, {
   readonly set: <S extends ViewSpec, P extends SectionPath<S>>(agent: string, view: ViewDef<S>, path: P, data: DataAt<S, P>) => Effect.Effect<void, PluginFailure>
   readonly append: <S extends ViewSpec, P extends LogPath<S>>(agent: string, view: ViewDef<S>, path: P, lines: ReadonlyArray<LogLine>) => Effect.Effect<void, PluginFailure>
 }>()("@zarg/plugin-sdk/Views") {}
+/** Ask for the developer's attention on one of this plugin's agents (scope `agents: true`): a ◆ with the reason. */
+export class Attention extends Context.Service<Attention, {
+  readonly request: (agent: string, reason: string) => Effect.Effect<void, PluginFailure>
+  readonly clear: (agent: string) => Effect.Effect<void, PluginFailure>
+}>()("@zarg/plugin-sdk/Attention") {}
 /** Tell the host this plugin's agenda changed (the driver may take it up). */
 export class Agenda extends Context.Service<Agenda, { readonly changed: Effect.Effect<void, PluginFailure> }>()("@zarg/plugin-sdk/Agenda") {}
 
@@ -77,6 +82,10 @@ export const servicesFrom = (raw: RawPowers) => ({
     status: (a) => Effect.asVoid(power(raw, "agents.event", { event: "status", ...a })),
     step: (a) => Effect.asVoid(power(raw, "agents.event", { event: "step", ...a })),
     end: (a) => Effect.asVoid(power(raw, "agents.event", { event: "end", ...a })),
+  }),
+  attention: Attention.of({
+    request: (agent, reason) => Effect.asVoid(power(raw, "agents.event", { event: "attention", id: agent, reason })),
+    clear: (agent) => Effect.asVoid(power(raw, "agents.event", { event: "attention", id: agent })),
   }),
   views: Views.of({
     set: (agent, _view, path, data) => Effect.asVoid(power(raw, "agents.event", { event: "set", id: agent, section: path, data })),

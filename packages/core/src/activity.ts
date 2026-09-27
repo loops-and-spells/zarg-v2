@@ -111,14 +111,27 @@ export const makeActivity = (log: ThreadLog, threadId: string, messageId = `${th
               : e.ok
                 ? { ...prev, status: "done", turns: e.turns, tokens: e.tokens }
                 : { ...prev, status: e.kind === "stopped" ? "stopped" : "failed", error: e.message }
+    // An agent that ended needs nobody's attention.
+    if (e.type === "end") delete next.attention
     nodes.set(id, next)
     status(id, next)
     // JSON Pointer: escape "~" and "/" so the id stays one path segment.
     const segment = id.replaceAll("~", "~0").replaceAll("/", "~1")
     Effect.runSync(log.append(threadId, E.activityDelta(messageId, [{ op: "add", path: `/rlms/${segment}`, value: next }])))
   }
+  /** An agent asks for the developer's attention (a reason) or stops asking (undefined). */
+  const attention = (id: string, reason: string | undefined) => {
+    const prev = nodes.get(id)
+    if (prev === undefined) return
+    const { attention: _, ...rest } = prev
+    const next = reason === undefined ? rest : { ...rest, attention: { reason: log.redact(reason), since: Date.now() } }
+    nodes.set(id, next)
+    const seg = id.replaceAll("~", "~0").replaceAll("/", "~1")
+    Effect.runSync(log.append(threadId, E.activityDelta(messageId, [{ op: "add", path: `/rlms/${seg}`, value: next }])))
+  }
   return {
     observe,
+    attention,
     /** The whole tree as a snapshot event (sent at the start of each run). */
     snapshot: () => E.activitySnapshot(messageId, { rlms: Object.fromEntries(nodes) }),
     /** Start a fresh tree (a new driver item, a new pass). */
@@ -155,9 +168,13 @@ export const closeStale = (log: ThreadLog) =>
       }
     }
     for (const [key, s] of streams) {
+      // Running agents are over, and no agent of the previous core still needs the developer.
       const patch = [...s.nodes.entries()]
-        .filter(([, n]) => n.status === "running")
-        .map(([id, n]) => ({ op: "add", path: `/rlms/${id.replaceAll("~", "~0").replaceAll("/", "~1")}`, value: { ...n, status: "stopped", error: "zarg restarted" } }))
+        .filter(([, n]) => n.status === "running" || n.attention !== undefined)
+        .map(([id, n]) => {
+          const { attention: _, ...rest } = n
+          return { op: "add", path: `/rlms/${id.replaceAll("~", "~0").replaceAll("/", "~1")}`, value: n.status === "running" ? { ...rest, status: "stopped", error: "zarg restarted" } : rest }
+        })
       if (patch.length > 0) Effect.runSync(log.append(s.threadId, E.activityDelta(key.split("\u0000")[1]!, patch)))
     }
   })
