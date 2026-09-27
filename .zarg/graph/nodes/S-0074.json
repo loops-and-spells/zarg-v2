@@ -1,9 +1,9 @@
 {
   "edges": [],
-  "id": "S-0012",
+  "id": "S-0074",
   "props": {
     "terminal": true,
-    "text": "the question stays open for discussion"
+    "text": "the options come from gaps found in the graph"
   },
   "type": "gherkin/state"
 }

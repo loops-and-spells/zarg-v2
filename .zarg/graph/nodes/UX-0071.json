@@ -1,22 +1,22 @@
 {
   "edges": [
     {
-      "to": "S-0011",
+      "to": "S-0012",
       "type": "gherkin/arrives"
     },
     {
-      "to": "S-0014",
+      "to": "S-0073",
       "type": "gherkin/then"
     },
     {
-      "to": "S-0074",
+      "to": "S-0011",
       "type": "gherkin/then"
     }
   ],
-  "id": "UX-0014",
+  "id": "UX-0071",
   "props": {
-    "title": "Driver asks what next",
-    "when": "the driver finds the agenda empty"
+    "title": "Driver chooses for the developer",
+    "when": "the conversation settles on one option"
   },
   "type": "gherkin/card"
 }

@@ -1,9 +1,9 @@
 {
   "edges": [],
-  "id": "S-0012",
+  "id": "S-0073",
   "props": {
     "terminal": true,
-    "text": "the question stays open for discussion"
+    "text": "the chosen option is shown with its reason"
   },
   "type": "gherkin/state"
 }

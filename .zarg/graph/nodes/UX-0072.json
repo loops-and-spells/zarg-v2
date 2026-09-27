@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0075",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0072",
+  "props": {
+    "title": "Developer sees zarg working",
+    "when": "the driver prepares a reply"
+  },
+  "type": "gherkin/card"
+}

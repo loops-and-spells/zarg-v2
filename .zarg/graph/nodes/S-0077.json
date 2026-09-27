@@ -1,9 +1,9 @@
 {
   "edges": [],
-  "id": "S-0012",
+  "id": "S-0077",
   "props": {
     "terminal": true,
-    "text": "the question stays open for discussion"
+    "text": "its children fold into a count"
   },
   "type": "gherkin/state"
 }

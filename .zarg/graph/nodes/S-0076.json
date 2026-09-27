@@ -1,9 +1,9 @@
 {
   "edges": [],
-  "id": "S-0012",
+  "id": "S-0076",
   "props": {
     "terminal": true,
-    "text": "the question stays open for discussion"
+    "text": "the agent's task, turns, decisions are shown"
   },
   "type": "gherkin/state"
 }

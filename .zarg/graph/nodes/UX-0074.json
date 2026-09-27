@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0043",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0077",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0074",
+  "props": {
+    "title": "Developer folds an agent's children",
+    "when": "the developer collapses an agent"
+  },
+  "type": "gherkin/card"
+}

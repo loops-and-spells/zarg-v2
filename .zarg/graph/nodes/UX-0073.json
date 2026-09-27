@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0043",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0076",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0073",
+  "props": {
+    "title": "Developer inspects an agent",
+    "when": "the developer highlights an agent"
+  },
+  "type": "gherkin/card"
+}

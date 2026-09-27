@@ -15,8 +15,8 @@
   ],
   "id": "UX-0012",
   "props": {
-    "title": "Developer interjects",
-    "when": "the developer writes a message instead of answering"
+    "title": "Developer chats about the question",
+    "when": "the developer picks Chat about this"
   },
   "type": "gherkin/card"
 }
