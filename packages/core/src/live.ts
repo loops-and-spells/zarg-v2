@@ -74,6 +74,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
                 rehearse: rehearseRef.current,
                 guard,
                 stepNow: (card) => host.step(card).pipe(Effect.orElseSucceed(() => undefined)),
+                neighbors: (card) => Effect.map(store.snapshot, (snap) => (snap.nodes.get(card)?.edges ?? []).map((e) => e.to)).pipe(Effect.orElseSucceed(() => [])),
                 commit: (ids, message) => host.exclusive(commitGraph(root, ids, message)),
               })
         return undefined
@@ -149,7 +150,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       built: (card) => Effect.map(gitRun(root, ["grep", "-q", "-w", "-e", `@card ${card}`]), (r) => r.code === 0),
       announce: (text) => Effect.asVoid(Effect.forEach(E.textMessage(`main-${crypto.randomUUID()}`, "assistant", text), (d) => log.append("main", d))),
       // Wake the driver only when it waits on nothing: a question on screen keeps its turn.
-      wake: Effect.suspend(() => (main.status() === "waiting" ? Effect.void : Effect.asVoid(Effect.forkDetach(Stream.runDrain(main.run({ runId: `rehearse-${crypto.randomUUID().slice(0, 8)}` })))))),
+      wake: Effect.suspend(() => main.wake),
     })
     rehearseRef.current = rehearse
     threads.add(rehearse.thread)

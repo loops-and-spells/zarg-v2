@@ -285,7 +285,12 @@ export const makeThread = (deps: ThreadDeps) =>
           yield* emit(activity.snapshot())
           const resume = input.resume?.[0]
           const head = pending()
-          if (resume !== undefined && head !== undefined && resume.interruptId === head.id) {
+          const wakeUp = (resume?.payload as { wake?: unknown } | undefined)?.wake === true
+          if (resume !== undefined && head !== undefined && resume.interruptId === head.id && wakeUp && head.question.question === OPEN_QUESTION) {
+            // zarg's own what-next question, set aside because new work arrived: nothing to say for the developer.
+            queue.shift()
+            yield* Deferred.succeed(head.answer, { other: "" })
+          } else if (resume !== undefined && head !== undefined && resume.interruptId === head.id) {
             const payload = (resume.payload ?? {}) as { choice?: string; other?: string }
             const chosen = head.question.options.find((o) => o.id === payload.choice)
             const answer: Answer = payload.choice !== undefined ? { choice: payload.choice } : { other: String(payload.other ?? "") }
@@ -346,10 +351,24 @@ export const makeThread = (deps: ThreadDeps) =>
       }),
     )
 
+    /**
+     * New work arrived (a rehearse run finished): a loop paused after what next, or parked on zarg's own
+     * what-next question, takes up the agenda again. A question the developer still owes keeps its turn.
+     */
+    const wake = Effect.suspend(() => {
+      const head = pending()
+      if (head !== undefined && head.question.question !== OPEN_QUESTION) return Effect.void
+      const runId = `wake-${crypto.randomUUID().slice(0, 8)}`
+      return Effect.asVoid(
+        Effect.forkDetach(Stream.runDrain(run(head !== undefined ? { runId, resume: [{ interruptId: head.id, payload: { wake: true } }] } : { runId }))),
+      )
+    })
+
     return {
       id: threadId,
       focus: deps.focus,
       run,
+      wake,
       stop,
       /** Ask the developer on this thread from outside the driver (a plugin's grant question); answered in order. */
       ask: askAs("system"),

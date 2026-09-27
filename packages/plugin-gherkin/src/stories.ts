@@ -46,7 +46,8 @@ export const planStories = (snap: Snapshot.Snapshot, strategy: "edge-pair" | "te
     state.set(c, "done")
   }
   for (const r of roots) if (!state.has(r)) visit(r)
-  const need = new Set<string>()
+  // Requirements: every card a root reaches (so a lone card is walked too), every step, every step pair.
+  const need = new Set<string>([...next.keys()])
   for (const [c, ns] of next) for (const n of ns) {
     need.add(`${c}>${n}`)
     for (const m of next.get(n) ?? []) need.add(`${c}>${n}>${m}`)
@@ -59,11 +60,12 @@ export const planStories = (snap: Snapshot.Snapshot, strategy: "edge-pair" | "te
       const key = `${p ?? ""}|${c}`
       const hit = memo.get(key)
       if (hit !== undefined) return hit
-      let best = { gain: 0, path: [c] }
+      const own = need.has(c) ? 1 : 0
+      let best = { gain: own, path: [c] }
       let first = true
       for (const n of next.get(c) ?? []) {
         const rest = f(c, n)
-        const gain = (need.has(`${c}>${n}`) ? 1 : 0) + (p !== undefined && need.has(`${p}>${c}>${n}`) ? 1 : 0) + rest.gain
+        const gain = own + (need.has(`${c}>${n}`) ? 1 : 0) + (p !== undefined && need.has(`${p}>${c}>${n}`) ? 1 : 0) + rest.gain
         if (first || gain > best.gain) best = { gain, path: [c, ...rest.path] }
         first = false
       }
@@ -74,11 +76,14 @@ export const planStories = (snap: Snapshot.Snapshot, strategy: "edge-pair" | "te
     if (pick === undefined || pick.gain === 0) break
     stories.push(pick.path)
     pick.path.forEach((c, i) => {
+      need.delete(c)
       if (i > 0) need.delete(`${pick.path[i - 1]}>${c}`)
       if (i > 1) need.delete(`${pick.path[i - 2]}>${pick.path[i - 1]}>${c}`)
     })
   }
-  return { stories: stories.filter((s) => focus === undefined || s.some((c) => focus.has(c))), unreachable: need.size }
+  // Cards no root reaches (a loop nothing enters, a start that is not marked entry) are never walked: counted.
+  const unreached = all.filter((c) => !next.has(c)).length
+  return { stories: stories.filter((s) => focus === undefined || s.some((c) => focus.has(c))), unreachable: unreached + need.size }
 }
 
 /** What a tester sees at one step: the card, how they got here, and what they can do next. */

@@ -1,16 +1,16 @@
 // packages/core/src/rehearse/run.ts
 import { mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { Effect, Fiber, Semaphore, Stream } from "effect"
+import { Deferred, Effect, Fiber, Semaphore, Stream } from "effect"
 import type { Model } from "@zarg/model"
 import type { AgendaItem } from "@zarg/plugin/server"
 import { makeActivity } from "../activity"
 import * as E from "../events"
-import type { ThreadLog } from "../log"
+import { redactValues, type ThreadLog } from "../log"
 import type { Thread } from "../thread"
 import type { WireEvent } from "../events"
 import { consolidate, diagnose, report } from "./findings"
-import { personasOf, screenStep } from "./screen"
+import { personasOf, screenStep, stepHash } from "./screen"
 import type { RehearseSettings } from "./settings"
 import { triage } from "./triage"
 import type { Decide, Kind, Persona, Screened, StepView, Triaged } from "./types"
@@ -18,6 +18,8 @@ import type { Decide, Kind, Persona, Screened, StepView, Triaged } from "./types
 type RawFinding = { readonly kind: Kind; readonly card: string; readonly edge?: { from: string; to: string }; readonly severity: "high" | "medium" | "low"; readonly note: string; readonly op?: unknown }
 export interface RunRecord {
   readonly run: string
+  /** When the run started (ISO): orders runs, since run ids do not. */
+  readonly startedAt: string
   readonly status: "running" | "done" | "stopped"
   readonly strategy: "edge-pair" | "teleport"
   readonly focus: ReadonlyArray<string>
@@ -32,6 +34,8 @@ export interface RunRecord {
   readonly report?: string
   readonly triaged: boolean
   readonly resolved: ReadonlyArray<string>
+  /** Graph nodes the driver's fixes for this run touched, across driver items, until its triage commit. */
+  readonly touched: ReadonlyArray<string>
 }
 export interface Started { readonly run: string; readonly stories: number; readonly steps: number; readonly personas: ReadonlyArray<string> }
 export interface RehearseDeps {
@@ -70,7 +74,8 @@ export const makeRehearse = (deps: RehearseDeps) =>
     const save = (r: RunRecord) => {
       records.set(r.run, r)
       const file = join(deps.dir, `${r.run}.json`)
-      writeFileSync(`${file}.tmp`, JSON.stringify(JSON.parse(deps.log.redact(JSON.stringify(r))), null, 2))
+      // Value by value, like transcripts: a secret with a quote in it is matched as it is, not as escaped JSON.
+      writeFileSync(`${file}.tmp`, JSON.stringify(redactValues(r, deps.log.redact), null, 2))
       renameSync(`${file}.tmp`, file)
     }
     let active: { run: string; fiber: Fiber.Fiber<void, unknown> } | undefined
@@ -92,6 +97,8 @@ export const makeRehearse = (deps: RehearseDeps) =>
         activity.observe({ type: "start", id: "rehearse", parent: undefined, preset: "rehearse", task: `run ${rec.run}: ${rec.stories.length} stories × ${rec.personas.length} testers`, scope: {}, depth: 0, budget: { turns: rec.stories.length, tokens: 0, wallMs: 0 } })
         // Screen: every persona walks every story; a prefix already screened (shared, or before a restart) is not asked again.
         const sem = yield* Semaphore.make(deps.settings.inFlight)
+        // Stories share prefixes and run at once: the first fiber at a prefix screens it, the others wait for it.
+        const inFlight = new Map<string, Deferred.Deferred<void>>()
         yield* Effect.forEach(rec.personas, (persona, pi) =>
           Effect.gen(function* () {
             const id = `tester-${pi + 1}`
@@ -103,13 +110,23 @@ export const makeRehearse = (deps: RehearseDeps) =>
                   const key = `${persona.name}|${story.slice(0, i + 1).join(">")}`
                   const step = yield* viewOf(story[i]!, story[i - 1])
                   if (step === undefined) break
-                  if (!(key in rec.screened)) {
+                  const waiting = inFlight.get(key)
+                  if (waiting !== undefined) yield* Deferred.await(waiting)
+                  else if (!(key in rec.screened)) {
+                    const done = yield* Deferred.make<void>()
+                    inFlight.set(key, done)
                     const screened = yield* Semaphore.withPermits(sem, 1)(screenStep(deps.decide, persona, prior, step, deps.settings))
-                    yield* update((r) => ({ ...r, screened: { ...r.screened, [key]: screened ?? null } }))
-                    if (screened !== undefined && screened.flags.length > 0) {
-                      const d = yield* Semaphore.withPermits(sem, 1)(diagnose(deps.model, deps.settings.role, persona, prior, step, screened.flags))
-                      yield* update((r) => ("infra" in d ? { ...r, infra: [...r.infra, d.infra] } : { ...r, raw: [...r.raw, ...d.findings.map((f) => ({ persona: persona.name, ...f }))] }))
-                    }
+                    const d =
+                      screened !== undefined && screened.flags.length > 0
+                        ? yield* Semaphore.withPermits(sem, 1)(diagnose(deps.model, deps.settings.role, persona, prior, step, screened.flags))
+                        : undefined
+                    // One write, after the diagnosis: a restart before it screens and diagnoses the step again.
+                    yield* update((r) => ({
+                      ...r,
+                      screened: { ...r.screened, [key]: screened ?? null },
+                      ...(d === undefined ? {} : "infra" in d ? { infra: [...r.infra, d.infra] } : { raw: [...r.raw, ...d.findings.map((f) => ({ persona: persona.name, ...f }))] }),
+                    }))
+                    yield* Deferred.succeed(done, undefined)
                   }
                   prior.push(step)
                 }
@@ -124,7 +141,8 @@ export const makeRehearse = (deps: RehearseDeps) =>
         const findings = yield* Effect.forEach(found, (f) =>
           Effect.gen(function* () {
             const step = yield* viewOf(f.card)
-            return yield* triage(deps.decide, f, step, yield* deps.built(f.card), deps.settings)
+            const t = yield* triage(deps.decide, f, step, yield* deps.built(f.card), deps.settings)
+            return step === undefined ? t : { ...t, hash: stepHash(step) }
           }),
         { concurrency: deps.settings.inFlight })
         const screenedValues = Object.values(rec.screened)
@@ -138,7 +156,10 @@ export const makeRehearse = (deps: RehearseDeps) =>
         for (const d of E.textMessage(`${THREAD}-${crypto.randomUUID()}`, "assistant", text)) yield* emit(d)
         yield* emit(E.runFinished(THREAD, rec.run))
         const open = findings.filter((f) => f.route !== "drop").length
-        yield* deps.announce(`Rehearse run ${rec.run} finished: ${open} finding${open === 1 ? "" : "s"} for triage, ${screenedValues.filter((s) => s === null).length} steps unscreened.`)
+        yield* deps.announce(
+          `Rehearse run ${rec.run} finished: ${open} finding${open === 1 ? "" : "s"} for triage, ${screenedValues.filter((s) => s === null).length} steps unscreened` +
+            (rec.unreachable > 0 ? `, ${rec.unreachable} cards or steps no journey reaches (no entry state leads there).` : "."),
+        )
         if (open > 0) yield* deps.wake
       })
 
@@ -156,8 +177,11 @@ export const makeRehearse = (deps: RehearseDeps) =>
           const planned = yield* deps.stories(strategy, opts.focus !== undefined ? new Set(opts.focus) : undefined).pipe(Effect.orElseSucceed(() => ({ stories: [], unreachable: 0 })))
           const all = yield* personasOf(deps.intent(), deps.decide)
           const personas = opts.personas !== undefined ? all.filter((p) => opts.personas!.includes(p.name)) : all
+          if (personas.length === 0) {
+            return { refused: "no testers: the intent lists no affected users (a person under \"Affected users\"), or the decision model could not tell" }
+          }
           const run = `r-${new Date().toISOString().slice(0, 10)}-${crypto.randomUUID().slice(0, 6)}`
-          const rec: RunRecord = { run, status: "running", strategy, focus: opts.focus ?? [], personas, stories: planned.stories, unreachable: planned.unreachable, screened: {}, raw: [], infra: [], findings: [], triaged: false, resolved: [] }
+          const rec: RunRecord = { run, startedAt: new Date().toISOString(), touched: [], status: "running", strategy, focus: opts.focus ?? [], personas, stories: planned.stories, unreachable: planned.unreachable, screened: {}, raw: [], infra: [], findings: [], triaged: false, resolved: [] }
           save(rec)
           yield* launch(rec)
           return { run, stories: planned.stories.length, steps: planned.stories.reduce((n, s) => n + s.length, 0), personas: personas.map((p) => p.name) } satisfies Started
@@ -207,14 +231,24 @@ export const makeRehearse = (deps: RehearseDeps) =>
       id: THREAD,
       focus: [],
       run: () => Stream.empty as Stream.Stream<WireEvent>,
+      wake: Effect.void,
       stop,
       ask: () => Effect.die(new Error("the rehearse thread is read-only; ask on main")),
       status: () => (active !== undefined ? "running" : "idle"),
     }
     /** A finding by id, with its run (ids are stable across runs; the newest run's copy wins). */
     const findingOf = (id: string) =>
-      [...records.values()].sort((a, b) => b.run.localeCompare(a.run)).flatMap((r) => r.findings.map((f) => ({ run: r.run, f }))).find((x) => x.f.id === id)
-    return { start, stop, resume, agenda, record: (run: string) => records.get(run), findingOf, markResolved, thread }
+      [...records.values()]
+        .filter((r) => r.status === "done" && !r.triaged)
+        .sort((a, b) => (b.startedAt ?? "").localeCompare(a.startedAt ?? ""))
+        .flatMap((r) => r.findings.map((f) => ({ run: r.run, f })))
+        .find((x) => x.f.id === id)
+    /** Nodes a fix for this run touched: kept on the run, so a triage spread over driver items commits them all. */
+    const markTouched = (run: string, ids: ReadonlyArray<string>) => {
+      const r = records.get(run)
+      if (r !== undefined && ids.some((id) => !(r.touched ?? []).includes(id))) save({ ...r, touched: [...new Set([...(r.touched ?? []), ...ids])] })
+    }
+    return { start, stop, resume, agenda, record: (run: string) => records.get(run), findingOf, markTouched, markResolved, thread }
   })
 
 export type Rehearse = Effect.Success<ReturnType<typeof makeRehearse>>

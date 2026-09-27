@@ -171,6 +171,27 @@ test("a second question waits behind the first and is shown once the first is an
     expect(tasks[0]).toStartWith('The developer said: "Work on the intent\'s next goal: Rehearse: roleplay testers over the graph."')
   })
 
+  test("wake: a thread parked on zarg's what-next question takes up new agenda items; a real question keeps its turn", async () => {
+    const tasks: Array<string> = []
+    const driver: Driver = (spec) => Effect.sync(() => (tasks.push(spec.task), outcome("ok")))
+    let items: ReadonlyArray<AgendaItem> = []
+    const whatNext: ThreadDeps["whatNext"] = () => Effect.succeed([{ id: "g", label: "A goal", task: "Work on the goal." }])
+    const out = await Effect.runPromise(
+      Effect.gen(function* () {
+        const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zarg-thread-")), (t) => t)
+        const thread = yield* makeThread({ id: "main", focus: [], log, agenda: () => Effect.succeed(items), driver, suggest: () => Effect.succeed([]), whatNext })
+        yield* collect(thread.run({ runId: "r1" }))
+        items = [{ id: "rehearse:r-1", title: "Rehearse run r-1: 1 finding", detail: "d", about: [], priority: 0 }]
+        yield* thread.wake
+        yield* Effect.sleep(50)
+        return { log }
+      }),
+    )
+    expect(tasks[0]).toStartWith("Rehearse run r-1: 1 finding")
+    // Nothing was said for the developer: the question just went away.
+    expect(out.log.all().filter((e) => e.type === "TEXT_MESSAGE_CONTENT" && e.delta === "")).toEqual([])
+  })
+
   test("an empty agenda and no gaps (or a failing suggest): the driver works out the options itself", async () => {
     const tasks: Array<string> = []
     const driver: Driver = (spec, asker) =>

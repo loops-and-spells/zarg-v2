@@ -7,7 +7,7 @@ import type { Draft, WireEvent } from "./events"
 const TRANSCRIPT = ".rlm.jsonl"
 
 /** Redact every string value, never keys or the JSON around them (an escaped secret would slip past, a short one could hit a key). */
-const redactValues = (value: unknown, redact: (text: string) => string): unknown =>
+export const redactValues = (value: unknown, redact: (text: string) => string): unknown =>
   typeof value === "string"
     ? redact(value)
     : Array.isArray(value)

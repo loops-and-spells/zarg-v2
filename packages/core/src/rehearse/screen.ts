@@ -1,4 +1,5 @@
 // packages/core/src/rehearse/screen.ts
+import { createHash } from "node:crypto"
 import { Effect } from "effect"
 import type { Decide, Persona, Reason, Screened, StepView } from "./types"
 import type { RehearseSettings } from "./settings"
@@ -10,6 +11,9 @@ export const storyText = (prior: ReadonlyArray<StepView>) =>
   prior.slice(-STORY_STEPS).map((p) => `${p.when}; then ${p.thens.join(", and ")}`).join(". ")
 
 export const stepText = (step: StepView) => `Given ${step.given}\nWhen ${step.when}\nThen ${step.thens.join("; and ")}`
+
+/** The card as the testers saw it: a fix is stale once this changes. */
+export const stepHash = (step: StepView) => createHash("sha256").update(stepText(step)).digest("hex").slice(0, 12)
 
 /**
  * One decision-model request per step (calibrated 2026-09-27: feel, fail, choose and arrive separate good
@@ -59,5 +63,12 @@ export const personasOf = (markdown: string, decide: Decide) =>
         Effect.orElseSucceed(() => [] as Array<string>),
       ),
     )
-    return people.flat().map((text) => ({ name: text.split(",")[0]!.replace(/[.:]$/, ""), text })) as ReadonlyArray<Persona>
+    // Names key each tester's answers: a repeated name gets a number.
+    const seen = new Map<string, number>()
+    return people.flat().map((text) => {
+      const base = text.split(",")[0]!.replace(/[.:]$/, "")
+      const n = (seen.get(base) ?? 0) + 1
+      seen.set(base, n)
+      return { name: n === 1 ? base : `${base} (${n})`, text }
+    }) as ReadonlyArray<Persona>
   })

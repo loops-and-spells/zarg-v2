@@ -27,5 +27,6 @@ export interface Finding {
   readonly count: number
   readonly personas: ReadonlyArray<string>
 }
-export type Triaged = Finding & { readonly real: number; readonly route: "fix" | "ask" | "drop" }
+/** `hash`: the card's text as triaged (`stepHash`), so a fix can tell the card changed since. */
+export type Triaged = Finding & { readonly real: number; readonly route: "fix" | "ask" | "drop"; readonly hash?: string }
 export type Decide = (req: DecisionRequest) => Effect.Effect<Readonly<Record<string, Answer>>, unknown>

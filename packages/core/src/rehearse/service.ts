@@ -1,8 +1,12 @@
 import { Effect, Schema } from "effect"
 import { bind, type Bound, defineService, type ServiceFailure } from "@zarg/kernel"
+import { existsSync } from "node:fs"
+import { join } from "node:path"
 import { git, gitRun } from "@zarg/reconcile"
 import type { askFirst } from "../driver"
 import type { Rehearse } from "./run"
+import { stepHash } from "./screen"
+import type { StepView } from "./types"
 
 export const RehearseDef = defineService("Rehearse", "Rehearsals: testers walk the journeys and report findings for you to triage.", {
   run: {
@@ -28,9 +32,11 @@ export const RehearseDef = defineService("Rehearse", "Rehearsals: testers walk t
 const fail = (_tag: string, message: string): ServiceFailure => ({ _tag, message })
 
 export const rehearseService = (ctx: {
-  readonly rehearse: Pick<Rehearse, "start" | "findingOf" | "markResolved">
+  readonly rehearse: Pick<Rehearse, "start" | "findingOf" | "record" | "markTouched" | "markResolved">
   readonly guard: ReturnType<typeof askFirst>
   readonly stepNow: (card: string) => Effect.Effect<Record<string, unknown> | undefined>
+  /** The card's states (the ids its edges point to): what a fix may change besides the card. */
+  readonly neighbors: (card: string) => Effect.Effect<ReadonlyArray<string>>
   readonly commit: (ids: ReadonlyArray<string>, message: string) => Effect.Effect<string | undefined, ServiceFailure>
 }): Bound =>
   bind(RehearseDef, {
@@ -42,15 +48,20 @@ export const rehearseService = (ctx: {
         if (hit.f.route !== "fix") {
           return yield* Effect.fail(fail("NotAFix", `${finding} is [${hit.f.route}]: ${hit.f.route === "ask" ? "Inquire.confirm the change with the developer" : "dismiss it in Rehearse.resolve"}`))
         }
-        // The card must still be there; a finding about a card gone since the run is stale.
+        // The card must still be as the testers saw it; gone or changed since the run, the finding is stale.
         const now = yield* ctx.stepNow(hit.f.card)
         if (now === undefined) return yield* Effect.fail(fail("Stale", `${hit.f.card} is gone since the run; dismiss ${finding}`))
-        ctx.guard.openFor()
+        if (hit.f.hash !== undefined && stepHash(now as unknown as StepView) !== hit.f.hash) {
+          return yield* Effect.fail(fail("Stale", `${hit.f.card} changed since the run; dismiss ${finding} (a new rehearsal checks it again)`))
+        }
+        const run = hit.run
+        ctx.guard.openFor({ allowed: [hit.f.card, ...(yield* ctx.neighbors(hit.f.card))], onTouched: (ids) => ctx.rehearse.markTouched(run, ids) })
         return { id: hit.f.id, card: hit.f.card, kind: hit.f.kind, notes: [...hit.f.notes] }
       }),
     resolve: ({ run, applied, dismissed }) =>
       Effect.gen(function* () {
-        const ids = [...ctx.guard.touched()]
+        // Everything this run's fixes touched, in this driver item or an earlier one.
+        const ids = [...(ctx.rehearse.record(run)?.touched ?? [])].sort()
         const commit = ids.length > 0 ? yield* ctx.commit(ids, `req: rehearse ${run}: applied ${applied.join(", ") || "none"}`) : undefined
         ctx.rehearse.markResolved(run, [...applied, ...dismissed], true)
         return commit !== undefined ? { commit } : {}
@@ -60,7 +71,10 @@ export const rehearseService = (ctx: {
 /** Commit exactly these graph nodes' files (added, changed or removed); the developer's other edits stay out. */
 export const commitGraph = (root: string, ids: ReadonlyArray<string>, message: string) =>
   Effect.gen(function* () {
-    const paths = ids.map((id) => `.zarg/graph/nodes/${id}.json`)
+    // Only files there now or known to git: a node a fix added and removed again has neither.
+    const tracked = new Set((yield* git(root, ["ls-files", "--", ...ids.map((id) => `:(literal).zarg/graph/nodes/${id}.json`)])).split("\n").filter((l) => l.length > 0))
+    const paths = ids.map((id) => `.zarg/graph/nodes/${id}.json`).filter((p) => existsSync(join(root, p)) || tracked.has(p)).map((p) => `:(literal)${p}`)
+    if (paths.length === 0) return undefined
     yield* git(root, ["add", "-A", "--", ...paths])
     const staged = yield* gitRun(root, ["diff", "--cached", "--quiet", "--", ...paths])
     if (staged.code === 0) return undefined

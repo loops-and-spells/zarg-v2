@@ -52,4 +52,10 @@ describe("rehearse screen", () => {
     const decide = (req: DecisionRequest) => Effect.succeed({ person: noul(req.state.includes("developer") ? 0.9 : 0.1) })
     expect(await Effect.runPromise(personasOf(md, decide))).toEqual([{ name: "The developer", text: "The developer, through the zarg TUI (and any AG-UI client)." }])
   })
+
+  test("two testers never share a name: their answers are kept apart", async () => {
+    const md = "## Affected users\n\n- Shoppers, on mobile.\n- Shoppers, on desktop.\n"
+    const people = await Effect.runPromise(personasOf(md, () => Effect.succeed({ person: noul(0.9) })))
+    expect(people.map((p) => p.name)).toEqual(["Shoppers", "Shoppers (2)"])
+  })
 })

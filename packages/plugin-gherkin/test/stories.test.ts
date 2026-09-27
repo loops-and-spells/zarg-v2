@@ -39,6 +39,16 @@ describe("stories", () => {
     expect(stories.every((s) => new Set(s).size === s.length)).toBe(true)
   })
 
+  test("a root card with nothing after it is a story; cards no root reaches are counted as unreachable", () => {
+    const g = Snapshot.make([
+      st("S1", "the shop is open", { entry: true }), st("S2", "the shop is closed"),
+      st("H", "the hall is shown"), st("P", "the porch is shown"),
+      cd("A", "the visitor closes the shop", "S1", ["S2"]),
+      cd("X", "the visitor steps out", "H", ["P"]), cd("Y", "the visitor steps in", "P", ["H"]),
+    ] as never)
+    expect(planStories(g, "edge-pair")).toEqual({ stories: [["A"]], unreachable: 2 })
+  })
+
   test("teleport visits each card once, alone; focus keeps only stories through it", () => {
     expect(planStories(graph, "teleport").stories).toEqual([["A"], ["B"], ["C"], ["D"], ["E"], ["F"]])
     expect(planStories(graph, "edge-pair", new Set(["E"])).stories.every((s) => s.includes("E"))).toBe(true)

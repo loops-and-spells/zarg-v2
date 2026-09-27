@@ -121,6 +121,7 @@ export const makeReconcile = (deps: ReconcileDeps) =>
       id,
       focus: [],
       run: () => Stream.empty as Stream.Stream<WireEvent>,
+      wake: Effect.void,
       stop,
       // Read-only views: questions go to the main thread.
       ask: () => Effect.die(new Error(`the ${id} thread is read-only; ask on main`)),
