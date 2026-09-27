@@ -9,6 +9,7 @@
   "dependencies": {
     "@zarg/graph": "workspace:*",
     "@zarg/plugin": "workspace:*",
+    "@zarg/view": "workspace:*",
     "effect": "^4.0.0-rc.117"
   }
 }

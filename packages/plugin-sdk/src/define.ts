@@ -1,6 +1,7 @@
 import { Effect, Layer, Schema, Stream } from "effect"
 import type { Contract } from "./contract"
-import { Agenda, Agents, Clock, Config, Decisions, Files, Graph, Http, Models, PluginFailure, type RawPowers, Secrets, servicesFrom } from "./services"
+import type { ViewDef } from "@zarg/view"
+import { Agenda, Agents, Clock, Config, Decisions, Files, Graph, Http, Models, PluginFailure, type RawPowers, Secrets, servicesFrom, Views } from "./services"
 
 export interface Scopes {
   readonly net?: ReadonlyArray<string> | "ask"
@@ -50,6 +51,8 @@ export interface PluginDef<M extends Record<string, MethodSpec>> {
   readonly commands?: ReadonlyArray<PluginCommand>
   /** Contracts of the plugins this one needs: it loads only when they are loaded, and yields them as services. */
   readonly pluginDependencies?: ReadonlyArray<Contract>
+  /** Views its agents draw (`Agents.start({ view })`, then `Views.set` / `Views.append`). */
+  readonly views?: ReadonlyArray<ViewDef<any>>
   readonly scopes: Scopes
   readonly optional?: Scopes
   readonly methods: M
@@ -72,6 +75,9 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
     if (!/^\/[a-z][a-z0-9-]*$/.test(c.cmd)) throw new Error(`plugin command "${c.cmd}" must be /kebab-case`)
     if (!(c.method in def.methods)) throw new Error(`plugin command ${c.cmd} calls ${c.method}, which is not a method`)
   }
+  const names = (def.views ?? []).map((v) => v.name)
+  const twice = names.find((n, i) => names.indexOf(n) !== i)
+  if (twice !== undefined) throw new Error(`plugin ${def.name}: view ${twice} is defined twice`)
   const serve = (raw: RawPowers) => {
     const s = servicesFrom(raw)
     // Each dependency is its contract's service, over the plugins.call power, encoded with the contract's Schemas.
@@ -95,7 +101,7 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
     )
     const layer = Layer.mergeAll(
       Layer.succeed(Secrets, s.secrets), Layer.succeed(Http, s.http), Layer.succeed(Files, s.files), Layer.succeed(Graph, s.graph),
-      Layer.succeed(Decisions, s.decisions), Layer.succeed(Models, s.models), Layer.succeed(Clock, s.clock), Layer.succeed(Agenda, s.agenda), Layer.succeed(Agents, s.agents),
+      Layer.succeed(Decisions, s.decisions), Layer.succeed(Models, s.models), Layer.succeed(Clock, s.clock), Layer.succeed(Agenda, s.agenda), Layer.succeed(Agents, s.agents), Layer.succeed(Views, s.views),
       Layer.effect(Config, Effect.map(Effect.promise(() => raw.call("config.get", {})), (value) => Config.of({ value }))),
       ...deps,
     )
