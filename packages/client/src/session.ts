@@ -65,6 +65,8 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
     return Stream.runForEach(opts.client.stream(state.thread.seq), (e) =>
       Effect.sync(() => {
         received = true
+        // Plugins loaded after this session started (a grant allowed, YOLO on): their commands join.
+        if (e.type === "CUSTOM" && e.name === "zarg.plugins" && e.seq > state.thread.seq) fetchCommands()
         set({ ...state, thread: reduce(state.thread, e), core: "up" })
       }),
     ).pipe(
@@ -77,6 +79,20 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
       }),
     )
   }
+
+  // zarg's own commands always win: a plugin naming one is dropped.
+  const fetchCommands = () =>
+    fork(
+      opts.client.commands().pipe(
+        Effect.map((c) => {
+          const next = c.filter((x) => !BUILT_IN.has(x.cmd))
+          if (JSON.stringify(next) === JSON.stringify(pluginCommands)) return
+          pluginCommands = next
+          set({ ...state })
+        }),
+        Effect.ignore,
+      ),
+    )
 
   const post = (r: Omit<RunRequest, "threadId" | "focus">) =>
     fork(
@@ -92,8 +108,7 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
       return () => listeners.delete(l)
     },
     start: () => {
-      // zarg's own commands always win: a plugin naming one is dropped.
-      fork(opts.client.commands().pipe(Effect.map((c) => void (pluginCommands = c.filter((x) => !BUILT_IN.has(x.cmd)))), Effect.ignore))
+      fetchCommands()
       fork(follow(0))
       post({})
     },

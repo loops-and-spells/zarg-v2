@@ -3,7 +3,7 @@ import { type Cause, Effect, Queue, Stream } from "effect"
 import { type Client, CoreError, makeSession, type RunRequest, type WireEvent } from "../src"
 
 /** A client whose event stream the test feeds; each `stream()` call opens a new feed. */
-const fakeClient = (opts: { readonly refuseRuns?: boolean; readonly streamFails?: boolean; readonly reconcileResult?: { on: boolean; reason?: string; pending?: number }; readonly commands?: ReadonlyArray<{ plugin: string; cmd: string; desc: string; method: string; arg: unknown }> } = {}) => {
+const fakeClient = (opts: { readonly refuseRuns?: boolean; readonly streamFails?: boolean; readonly reconcileResult?: { on: boolean; reason?: string; pending?: number }; readonly commands?: ReadonlyArray<{ plugin: string; cmd: string; desc: string; method: string; arg: unknown }> | (() => ReadonlyArray<{ plugin: string; cmd: string; desc: string; method: string; arg: unknown }>) } = {}) => {
   const runs: Array<RunRequest> = []
   const streams: Array<{ since: number; queue: Queue.Queue<WireEvent, CoreError | Cause.Done> }> = []
   const stops: Array<string> = []
@@ -11,7 +11,7 @@ const fakeClient = (opts: { readonly refuseRuns?: boolean; readonly streamFails?
   const yolos: Array<{ on: boolean; plugin?: string }> = []
   const pluginRuns: Array<[string, string, ReadonlyArray<string>]> = []
   const client = {
-    commands: () => Effect.succeed(opts.commands ?? [{ plugin: "rehearse", cmd: "/rehearse", desc: "testers walk the journeys", method: "command", arg: { kind: "choice", choices: ["edge-pair", "teleport"] } }] as never),
+    commands: () => Effect.succeed((typeof opts.commands === "function" ? opts.commands() : opts.commands) ?? [{ plugin: "rehearse", cmd: "/rehearse", desc: "testers walk the journeys", method: "command", arg: { kind: "choice", choices: ["edge-pair", "teleport"] } }] as never),
     runCommand: (plugin: string, cmd: string, args: ReadonlyArray<string>) => Effect.sync(() => (pluginRuns.push([plugin, cmd, args]), { notice: `${cmd} started` })),
     run: (r: RunRequest) => {
       runs.push(r)
@@ -44,10 +44,12 @@ describe("session", () => {
     await tick()
     expect(f.streams.map((x) => x.since)).toEqual([0])
     expect(f.runs).toEqual([{ threadId: "main", focus: ["S-0002"] }])
+    // The plugin commands arrived: one change, so the TUI registers them.
+    expect(changes).toBe(1)
     f.push({ type: "RUN_STARTED", threadId: "main", seq: 1, runId: "r" })
     await tick()
     expect(s.state().thread.status).toBe("running")
-    expect(changes).toBe(1)
+    expect(changes).toBe(2)
     s.close()
   })
 
@@ -183,5 +185,19 @@ test("a plugin cannot take over zarg's own commands: /reconcile still turns reco
   await tick()
   expect(f.pluginRuns).toEqual([])
   expect(f.reconciles).toHaveLength(1)
+  session.close()
+})
+
+test("plugins that load after the session started bring their commands: the core says so, the session asks again", async () => {
+  let loaded = false
+  const f = fakeClient({ commands: () => (loaded ? [{ plugin: "rehearse", cmd: "/rehearse", desc: "d", method: "command", arg: { kind: "none" } }] : []) })
+  const session = makeSession({ client: f.client, threadId: "main" })
+  session.start()
+  await tick()
+  expect(session.pluginCommands()).toEqual([])
+  loaded = true
+  f.push({ type: "CUSTOM", name: "zarg.plugins", value: {}, threadId: "main", seq: 50 } as never)
+  await tick()
+  expect(session.pluginCommands().map((c) => c.cmd)).toEqual(["/rehearse"])
   session.close()
 })

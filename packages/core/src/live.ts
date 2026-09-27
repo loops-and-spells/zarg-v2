@@ -147,7 +147,9 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     })
     // A plugin's grant question is asked on main, like any driver question.
     const main = yield* threads.get("main", [])
-    const yolo = makeYolo(log, control.yolo, host.loadWaiting)
+    // Plugins waiting on their grant load, then clients fetch their commands again.
+    const loadPlugins = Effect.andThen(host.loadWaiting, log.append("main", E.custom("zarg.plugins", {})))
+    const yolo = makeYolo(log, control.yolo, loadPlugins)
     // This core's YOLO state (on with --yolo, off otherwise): a replayed state from an earlier core must not linger.
     yield* yolo.announce
     // A plugin's agenda changed (findings to take up): the driver wakes if it waits on nothing.
@@ -170,7 +172,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         .pipe(Effect.map((a) => q.options.find((o) => o.id === a.choice)?.id ?? "deny")),
     )
     // Plugins that lack only their load grant: asked about now that main can ask (YOLO loads them without asking).
-    yield* Effect.forkDetach(host.loadWaiting)
+    yield* Effect.forkDetach(loadPlugins)
 
     // @card UX-0058 @card UX-0059
     /** `/reconcile`: turn plan and implement on for this session (the config's section and `enabled` are overridden). */
