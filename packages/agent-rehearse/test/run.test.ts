@@ -17,7 +17,7 @@ const setup = (o: Opts = {}) =>
     let changed = 0
     const writing = new Map<string, number>()
     const overlap = { max: 0 }
-    const pushes: Array<{ agent: string; path: string; data?: unknown; lines?: unknown }> = []
+    const pushes: Array<{ agent: string; path: string; data?: unknown; lines?: unknown; view?: string }> = []
     const attention: Array<[string, string | undefined]> = []
     let ids = 0
     const view = (card: string): StepView => ({ card, title: card, given: `before ${card}`, when: o.cardText?.(card) ?? `do ${card}`, thens: [`after ${card}`], fork: [], hasFailure: false })
@@ -65,9 +65,10 @@ const setup = (o: Opts = {}) =>
         clear: (agent) => Effect.sync(() => void attention.push([agent, undefined])),
       },
       views: {
-        set: (agent, _v, path, data) => Effect.sync(() => void pushes.push({ agent, path, data })),
+        set: (agent, v, path, data) => Effect.sync(() => void pushes.push({ agent, path, data, view: v.name })),
         append: (agent, _v, path, lines) => Effect.sync(() => void pushes.push({ agent, path, lines })),
       },
+      surfaces: { open: (surface, agent) => Effect.sync(() => void events.push({ event: "open", id: agent, text: surface })) },
       settings: rehearseSettings({ ...(o.auto ? { auto_apply: true } : {}), ...(o.inFlight !== undefined ? { in_flight: o.inFlight } : {}) }, "stub:m"),
     }
     const r = yield* makeRehearse(deps)
@@ -91,6 +92,16 @@ type Pushes = ReadonlyArray<{ agent: string; path: string; data?: unknown; lines
 const rowsNow = (pushes: Pushes, agent: string, path: string) => ((pushes.filter((p) => p.agent === agent && p.path === path).at(-1)?.data as { rows?: ReadonlyArray<{ id: string; cells: Record<string, string> }> } | undefined)?.rows ?? [])
 
 describe("rehearse runs in the plugin", () => {
+  test("a run shows its progress in a status panel, opened before the first tester starts", async () => {
+    const t = await finish()
+    const open = t.events.findIndex((e) => e.event === "open")
+    expect(t.events[open]).toEqual({ event: "open", id: "run", text: "status" })
+    expect(open).toBeLessThan(t.events.findIndex((e) => e.event === "start" && e.id === "tester-1"))
+    const line = t.pushes.filter((p) => p.agent === "run" && p.view === "status" && p.path === "line").at(-1)?.data as { items: ReadonlyArray<{ label: string; value: string }> }
+    expect(line.items.map((i) => i.label)).toEqual(["rehearse", "testers"])
+    expect(line.items[0]!.value).toMatch(/^\d+\/\d+ steps$/)
+  })
+
   test("a run screens shared prefixes once, diagnoses only flagged steps, and by default applies nothing", async () => {
     const t = await finish()
     expect(t.decisions.filter((d) => d.questions.feel).length).toBe(4)

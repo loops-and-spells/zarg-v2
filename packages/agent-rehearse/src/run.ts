@@ -2,7 +2,7 @@ import { Deferred, Effect, Fiber, Semaphore } from "effect"
 import { consolidate, diagnose, report } from "./findings"
 import { personasOf, screenStep, stepHash } from "./screen"
 import type { RehearseSettings } from "./settings"
-import { RunView, TesterView } from "./views"
+import { RunView, StatusView, TesterView } from "./views"
 import { triage } from "./triage"
 import type { Complete, Decide, Kind, Persona, Screened, StepView, Triaged } from "./types"
 
@@ -55,9 +55,11 @@ export interface RunDeps {
   }
   /** The agents' views (the SDK's `Views`): the tester's walk and findings, the run's report and findings. */
   readonly views: {
-    readonly set: (agent: string, view: typeof TesterView | typeof RunView, path: any, data: any) => Effect.Effect<void, unknown>
+    readonly set: (agent: string, view: typeof TesterView | typeof RunView | typeof StatusView, path: any, data: any) => Effect.Effect<void, unknown>
     readonly append: (agent: string, view: typeof TesterView | typeof RunView, path: any, lines: ReadonlyArray<{ readonly text: string; readonly tone?: "normal" | "ok" | "warn" | "error" | "dim" | "accent" }>) => Effect.Effect<void, unknown>
   }
+  /** Its surfaces (the SDK's `Surfaces`): the run's status panel. */
+  readonly surfaces: { readonly open: (surface: string, agent: string) => Effect.Effect<void, unknown> }
   readonly settings: RehearseSettings
 }
 
@@ -105,6 +107,8 @@ export const makeRehearse = (deps: RunDeps) =>
             return views.get(key)
           })
         yield* quiet(deps.agents.start({ id: "run", title: "rehearse", view: "run", task: `run ${rec.run}: ${plural(rec.stories.length, "story")} × ${plural(rec.personas.length, "tester")}` }))
+        // The run's status line shows whatever is open; it closes with the run agent.
+        yield* quiet(deps.surfaces.open("status", "run"))
         const sem = yield* Semaphore.make(deps.settings.inFlight)
         // Stories share prefixes and run at once: the first fiber at a prefix screens it, the others wait for it.
         const inFlight = new Map<string, Deferred.Deferred<void>>()
@@ -143,6 +147,7 @@ export const makeRehearse = (deps: RunDeps) =>
                   yield* quiet(deps.agents.status({ id, progress: { done: checked.size, total: toCheck }, text: `${checked.size}/${toCheck} steps · ${flagged} flagged` }))
                   yield* quiet(deps.agents.status({ id: "run", progress: { done: allChecked, total: all }, text: `${allChecked}/${all} steps` }))
                   yield* showProgress
+                  yield* quiet(deps.views.set("run", StatusView, "line", { items: [{ label: "rehearse", value: `${allChecked}/${all} steps` }, { label: "testers", value: String(rec.personas.length) }] }))
                   yield* quiet(deps.views.set("run", RunView, "progress", { items: [{ label: "steps", value: `${allChecked}/${all}` }, { label: "testers", value: String(rec.personas.length) }, { label: "unreachable", value: String(rec.unreachable) }], progress: { done: allChecked, total: all } }))
                 })
               yield* quiet(deps.agents.start({ id, parent: "run", title: "tester", task: persona.text, view: "tester" }))

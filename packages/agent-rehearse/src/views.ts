@@ -35,3 +35,6 @@ export const RunView = defineView("run", {
   report: { kind: "text", role: "primary", title: "Report" },
   review,
 })
+
+/** The run in one line, in a status panel whatever is open. */
+export const StatusView = defineView("status", { line: { kind: "stats", role: "summary" } })

@@ -1,9 +1,9 @@
 import { Effect, Schema } from "effect"
 import { Gherkin } from "@zarg/plugin-gherkin/contract"
-import { Agenda, Agents, Attention, Clock, Config, Decisions, definePlugin, Files, Models, Views } from "@zarg/plugin-sdk"
+import { Agenda, Agents, Attention, Clock, Config, Decisions, definePlugin, Files, Models, Surfaces, Views } from "@zarg/plugin-sdk"
 import { makeRehearse } from "./run"
 import { rehearseSettings } from "./settings"
-import { RunView, TesterView } from "./views"
+import { RunView, StatusView, TesterView } from "./views"
 
 const Params = Schema.Struct({
   strategy: Schema.optionalKey(Schema.Literals(["edge-pair", "teleport"])).annotate({ description: "edge-pair (default): every journey step and step pair; teleport: each card once, alone (quick)." }),
@@ -30,7 +30,8 @@ export default definePlugin({
     in_flight: Schema.optionalKey(Schema.Number),
   }),
   pluginDependencies: [Gherkin],
-  views: [TesterView, RunView],
+  views: [TesterView, RunView, StatusView],
+  surfaces: [{ kind: "panel", name: "status", view: "status", scope: "shell", edge: "bottom", size: 1, input: "none" }],
   scopes: { decisions: true, models: ["rehearse"], agents: true, fs: { read: [".zarg/rehearse/**", "intent/**"], write: [".zarg/rehearse/**"] } },
   commands: [
     {
@@ -58,6 +59,7 @@ export default definePlugin({
     const files = yield* Files
     const agenda = yield* Agenda
     const views = yield* Views
+    const surfaces = yield* Surfaces
     const attention = yield* Attention
     const config = (yield* Config).value as Record<string, unknown>
     const r = yield* makeRehearse({
@@ -74,6 +76,7 @@ export default definePlugin({
       agendaChanged: agenda.changed,
       attention,
       views: { set: (a, v, path, data) => views.set(a, v as never, path as never, data as never), append: (a, v, path, lines) => views.append(a, v as never, path as never, lines) },
+      surfaces: { open: (surface, agent) => surfaces.open({ surface, agent }) },
       settings: rehearseSettings(config ?? {}, "rehearse"),
     })
     // A run a restart cut short continues (the plugin loads on its first call).
