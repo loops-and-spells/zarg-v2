@@ -51,7 +51,11 @@ classify task ◀── procedures (.zarg/procedures/, in git) ◀── improve
   - the value the code returned;
   - any divergence, i.e. a call that differs from the recording (other service, method or params) or a call past its end;
   - calls left unused.
-- Time and randomness inside cells are not recorded. A procedure whose result depends on them fails replay and is not compiled.
+- Time and randomness are inputs too, so they are recorded and mocked:
+  - In a live run, the kernel's worker wraps `Date.now`, `new Date()`, `performance.now`, `Math.random`, `crypto.getRandomValues` and `crypto.randomUUID`. Each read appends its value to the trace, in order (`{ tick, rlm, cell, source, value }`).
+  - Replay serves those values back in the same order.
+  - Reads past the end of the recording continue deterministically: time advances from the last recorded value at the recorded pace, and randomness comes from a seeded generator. They are reported, not failed. The final value and the service calls still decide whether replay passed.
+  - Timers and sleeps run on the recorded clock in replay, so they do not wait.
 
 ### Phase 2: classify and recall
 
@@ -126,7 +130,9 @@ No real model in `verify`; the stub model and scripted Decisions answer everywhe
   - a cell's service calls are recorded in order, redacted;
   - replay of a recorded cell returns the recorded value;
   - a changed param is reported as a divergence at that call;
-  - a cell that reads the clock is flagged non-replayable.
+  - a cell that reads the clock and random numbers replays with the recorded values, and returns the recorded result;
+  - reads past the recording continue deterministically and are reported;
+  - a cell that sleeps replays without waiting.
 - **Phase 2:**
   - a task is classified into the scripted class, and below 0.5 into none;
   - a class's procedures appear typed in the manifest, and cells call them;
