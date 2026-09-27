@@ -1,7 +1,7 @@
 import { BunServices } from "@effect/platform-bun"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { Cause, Effect, Layer, Scope as EffectScope } from "effect"
+import { Cause, Effect, Layer, Scope as EffectScope, Semaphore } from "effect"
 import { Decisions, layer as decisionsLayer } from "@zarg/decisions"
 import { GraphStore, layer as graphLayer } from "@zarg/graph"
 import { type Bound } from "@zarg/kernel"
@@ -13,7 +13,8 @@ import { zargRouter } from "@zarg/provider-zarg-router"
 import { type Asker, decisionsService, fsRead, graph, inquire, pluginService, Rlm, type Scope, settings } from "@zarg/rlm"
 import { makeLog } from "./log"
 import { STUB_MODEL, stubLayer } from "./stub"
-import { reconcileGate, type ReconcileSettings } from "./phases"
+import { reasonOf, reconcileGate, type ReconcileSettings } from "./phases"
+import { checkoutProblem } from "@zarg/reconcile"
 import { makeReconcile } from "./reconcile"
 import type { ReconcileAnswer } from "./server"
 import { makeThreads } from "./threads"
@@ -77,16 +78,26 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
 
     // @card UX-0058 @card UX-0059
     /** `/reconcile`: turn plan and implement on for this session (the config's section and `enabled` are overridden). */
+    // One at a time, and never cut short halfway: two presses must not start two reconcilers.
+    const turnOnLock = yield* Semaphore.make(1)
     const turnOn = Effect.gen(function* () {
-      if (reconcile === undefined) {
-        const forced = yield* reconcileGate(root, config.extra, roles, { force: true })
-        if (!forced.on) return { on: false, reason: forced.reason } satisfies ReconcileAnswer
+      const forced = reconcile === undefined ? yield* reconcileGate(root, config.extra, roles, { force: true }) : undefined
+      if (forced !== undefined && !forced.on) return { on: false, reason: forced.reason } satisfies ReconcileAnswer
+      // A checkout no pass can land on (detached HEAD, a rebase in progress): say so rather than promise a pass.
+      const problem = yield* checkoutProblem(root).pipe(Effect.orElseSucceed(() => undefined))
+      if (problem !== undefined) return { on: false, reason: `no pass can run: ${problem}` } satisfies ReconcileAnswer
+      if (reconcile === undefined && forced?.on) {
         reconcile = yield* startReconcile(forced.settings)
         for (const t of reconcile.threads) threads.add(t)
       }
+      if (reconcile === undefined) return { on: false, reason: "reconcile could not start" } satisfies ReconcileAnswer
       reconcile.notify()
       return { on: true, pending: yield* reconcile.pending } satisfies ReconcileAnswer
-    }).pipe(Effect.catchCause((cause) => Effect.succeed({ on: false, reason: String(Cause.squash(cause)) } satisfies ReconcileAnswer)))
+    }).pipe(
+      Effect.catchCause((cause) => Effect.succeed({ on: false, reason: reasonOf(Cause.squash(cause), sensitive) } satisfies ReconcileAnswer)),
+      Effect.uninterruptible,
+      Semaphore.withPermits(turnOnLock, 1),
+    )
     return { log, threads, driver: roles.driver, turnOn }
   })
 

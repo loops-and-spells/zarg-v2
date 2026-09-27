@@ -2,11 +2,11 @@ import { afterAll, describe, expect, test } from "bun:test"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
-import { Effect, Layer, Stream } from "effect"
+import { Effect, Layer, Redacted, Stream } from "effect"
 import { Model, type StreamEvent } from "@zarg/model"
 import { engineLayer, makeFindings, Pass, passLayer, workingGraphTree } from "@zarg/reconcile"
 import { Rlm, settings } from "@zarg/rlm"
-import { reconcileGate, reconcileSettings, reconcileSpec } from "../src/phases"
+import { reasonOf, reconcileGate, reconcileSettings, reconcileSpec } from "../src/phases"
 
 const roots: Array<string> = []
 afterAll(() => roots.forEach((r) => rmSync(r, { recursive: true, force: true })))
@@ -118,5 +118,14 @@ describe("when reconcile runs", () => {
     mkdirSync(sub)
     expect(await gate({ reconcile: {} }, roles, sub)).toMatchObject({ on: false, reason: expect.stringContaining("top of a git repository") })
     expect(await gate({ reconcile: { quiet_ms: 500 } }, roles)).toMatchObject({ on: true, settings: { quietMs: 500 } })
+  })
+})
+
+describe("reasons sent to the client", () => {
+  test("are redacted, and never [object Object]", () => {
+    const sensitive = [{ name: "ZT_REASON_SECRET", value: Redacted.make("zt-reason-secret-value") }]
+    expect(reasonOf(new Error("verify failed: zt-reason-secret-value"), sensitive)).toBe("verify failed: <redacted:ZT_REASON_SECRET>")
+    expect(reasonOf({ _tag: "ConfigError", message: "bad key" }, sensitive)).toBe("bad key")
+    expect(reasonOf({ weird: true }, sensitive)).toBe('{"weird":true}')
   })
 })

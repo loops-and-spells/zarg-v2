@@ -61,6 +61,13 @@ describe("picker", () => {
 })
 
 describe("keys and input", () => {
+  test("a path or a /-answer is text, not a command", () => {
+    expect(onSubmit(initialUi, running, "/api/v2 should return 404").action).toEqual({ type: "send", text: "/api/v2 should return 404" })
+    expect(onSubmit(initialUi, running, "/etc/hosts is wrong").action).toEqual({ type: "send", text: "/etc/hosts is wrong" })
+    const ui = { ...syncUi(initialUi, waiting), other: true }
+    expect(onSubmit(ui, waiting, "/reconcile please").action).toEqual({ type: "answer", answer: { other: "/reconcile please" } })
+  })
+
   test("input starting with / is a command, not a message", () => {
     expect(onSubmit(initialUi, running, "/reconcile").action).toEqual({ type: "command", text: "/reconcile" })
     expect(onSubmit(initialUi, running, " /nope ").action).toEqual({ type: "command", text: "/nope" })

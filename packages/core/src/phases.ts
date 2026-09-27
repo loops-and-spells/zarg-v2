@@ -4,7 +4,7 @@ import { BunServices } from "@effect/platform-bun"
 import { Context, Effect, Layer, Schema } from "effect"
 import { GraphStore, hash, layer as graphLayer } from "@zarg/graph"
 import type { Bound } from "@zarg/kernel"
-import { ConfigError, type SensitiveValue } from "@zarg/model"
+import { ConfigError, redact, type SensitiveValue } from "@zarg/model"
 import { layer as hostLayer, PluginHost } from "@zarg/plugin/server"
 import { affectedCards, gherkin } from "@zarg/plugin-gherkin/server"
 import { type Findings, GRAPH, gitRun, type ItemOutcome, type ReconcileSpec } from "@zarg/reconcile"
@@ -66,6 +66,19 @@ export const reconcileGate = (root: string, extra: Readonly<Record<string, unkno
     }
     return { on: true, settings } as const
   })
+
+/** A failure as text a client may see: its message (never "[object Object]"), with secrets redacted. */
+export const reasonOf = (cause: unknown, sensitive: ReadonlyArray<SensitiveValue>) => {
+  const text =
+    cause instanceof Error
+      ? cause.message
+      : typeof cause === "object" && cause !== null && typeof (cause as { message?: unknown }).message === "string"
+        ? (cause as { message: string }).message
+        : typeof cause === "string"
+          ? cause
+          : JSON.stringify(cause)
+  return redact(text, sensitive)
+}
 
 export interface PhaseDeps {
   readonly repo: string

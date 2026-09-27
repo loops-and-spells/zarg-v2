@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test"
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Fiber, Stream } from "effect"
@@ -155,12 +155,23 @@ describe("zarg-core process", () => {
     await proc.stdout.getReader().read()
     const client = makeClient(readInfo(project)!)
     expect((await Effect.runPromise(client.threads())).map((t) => t.id)).toEqual(["main"])
-    expect(await Effect.runPromise(client.reconcile())).toEqual({ on: true, pending: 1 })
+    // Pressed twice at once: still one reconciler, one pass.
+    const [first, second] = await Promise.all([Effect.runPromise(client.reconcile()), Effect.runPromise(client.reconcile())])
+    expect([first.on, second.on]).toEqual([true, true])
     expect((await Effect.runPromise(client.threads())).map((t) => t.id)).toEqual(["main", "plan", "implement"])
     const until = Date.now() + 30_000
     while (git("git log -1 --format=%s") !== "feat: implement UX-0001" && Date.now() < until) await Bun.sleep(200)
     expect(git("git log -1 --format=%s")).toBe("feat: implement UX-0001")
+    const passes = new Set(
+      readFileSync(join(project, ".zarg/threads/plan.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l)).filter((e) => e.type === "RUN_STARTED").map((e) => e.runId),
+    )
+    expect(passes.size).toBe(1)
     expect(await Effect.runPromise(client.reconcile())).toEqual({ on: true, pending: 0 })
+    // A checkout it cannot land on: it says why instead of promising a pass.
+    git("git checkout -q --detach")
+    const detached = await Effect.runPromise(client.reconcile())
+    expect(detached.on).toBe(false)
+    expect(detached.reason).toContain("detached")
     proc.stdin.end()
     await proc.exited
     rmSync(project, { recursive: true, force: true })

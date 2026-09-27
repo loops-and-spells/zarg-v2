@@ -134,11 +134,14 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number): { readonl
   return { ui }
 }
 
+const COMMAND = /^\/[a-z][a-z0-9-]*(\s|$)/
+
 /** Enter in the text field: the "Something else…" answer, or a message (an interjection while the driver works). */
 export const onSubmit = (ui: Ui, s: SessionState, text: string): { readonly ui: Ui; readonly action?: Action } => {
   if (text.trim().length === 0) return { ui }
-  if (text.trim().startsWith("/")) return { ui, action: { type: "command", text: text.trim() } }
   const inquiry = s.thread.pendingInquiry
+  // A command is "/name" as the first word; a path ("/api/v2 …") or an answer to "Something else…" is text.
+  if (!(ui.other && inquiry !== undefined) && COMMAND.test(text.trim())) return { ui, action: { type: "command", text: text.trim() } }
   if (ui.other && inquiry !== undefined) {
     if (ui.answered === inquiry.id) return { ui }
     return { ui: { ...ui, other: false, answered: inquiry.id }, action: { type: "answer", answer: { other: text } } }
