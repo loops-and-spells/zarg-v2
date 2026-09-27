@@ -1,7 +1,7 @@
 # The shell: the agents list, the message bar, zarg's sheet and popovers
 
 Date: 2026-09-27
-Status: layout approved in conversation (mockup `packages/view-tui/mockups/sheet.tsx`, never committed), pending written review
+Status: layout (mockup `packages/view-tui/mockups/sheet.tsx`, never committed) and surfaces (a plugin chooses agent or shell scope per panel) approved in conversation, pending written review
 Parents: `docs/superpowers/specs/2026-09-27-agents-tiled-shell-design.md` (agents, attention), `docs/superpowers/specs/2026-09-27-input-layers-design.md` (the layer model and agents' key mappings)
 Replaces: section 4 of the tiled-shell spec (zarg's conversation as an always-visible tile) and the layer table of the input-layers spec
 
@@ -25,6 +25,7 @@ The open agent's view gets the screen. zarg is one line at the bottom, the messa
 - **Agents list:** full height on the left, 30 columns.
 - **Tile area:** everything to the right of the list, above the bar. It shows the open agent's view; with no agent open, zarg's sheet.
 - **Message bar:** one line (three with its border) under the tile area only, never under the agents list.
+- **Panels** dock to the tile area's edges (top, bottom above the bar, right): shell-scope ones (status bars) whatever is open, agent-scope ones with their agent (see Surfaces).
 - **Narrow (under 100 columns):** the agents list folds to a one-line strip above the tile area (rows with their ◆, attention first, as today); `alt+a` unfolds it over the tile area until Enter or Esc.
 
 ## The message bar
@@ -56,16 +57,45 @@ zarg's conversation as a sheet over the whole tile area, down to the bar (the ag
 - **One FIFO queue of popovers** in the shell. Only its head shows, centred over the whole screen (the agents list included), with `N of M · next: <title>` in its header.
 - **Grants are popovers.** A question with `kind: "grant"` (plugin load grants, powers asked on demand, outside reads) never goes to zarg's bar or sheet: the client puts it in the queue. The core lets grant questions wait side by side with zarg's own question (a grant never blocks zarg's question, nor zarg's question a grant) and answers each by its id.
 - **Keys:** ←→ or ↑↓ pick, Enter chooses, Esc sends the head to the back of the queue ("later"; it stays asked). Global keys still work over a popover.
-- **A plugin view may be a popover** (below): it joins the same queue when the developer opens it.
+- **A plugin's popover surface** (below) joins the same queue when opened.
 - YOLO unchanged: YOLO never asks, so no grant popover appears under YOLO.
 
-## Placement of a plugin's view
+## Surfaces: where views are shown
 
-A view's layout declares `placement: "tile" | "popover"` (default `tile`).
+A view is content (sections, actions, keys). A **surface** is where a view is shown. The pattern is Wayland's surface roles (a client opens any number of surfaces, each with a role and its own config; the compositor places them) with VS Code's declared contributions (the manifest lists them, so the host checks them at load) and Emacs' split between a buffer and the window showing it.
 
-- `tile`: opens in the tile area, as today.
-- `popover`: opens in the popover queue when the developer opens the agent (Enter, `g`, a click); it never opens itself. Esc closes it (a plugin popover is not a question, so there is no "later").
-- A platform may show a placement differently (a phone may show a popover as a full sheet); placement is a hint.
+### Declared in the manifest, one typed config per kind
+
+```ts
+type Surface =
+  | { kind: "tile";    name: string; view: string }
+  | { kind: "panel";   name: string; view: string; scope: "agent" | "shell"; edge: "top" | "bottom" | "right"; size: number | `${number}%`; input: "none" | "onFocus" }
+  | { kind: "popover"; name: string; view: string; dismiss: "later" | "close" }
+  | { kind: "sheet";   name: string; view: string }
+```
+
+- `tile`: the tile area's main content while its agent is open.
+- `panel`: docked to an edge of the tile area. `scope: "agent"`: shown only while its agent is open. `scope: "shell"`: shown whatever is open (a status bar, `size: 1`). `input: "none"`: never takes focus (a pure status bar); `onFocus`: takes keys while focused.
+- `popover`: joins the popover queue; owns the keyboard while it is the head. `dismiss: "later"` sends it to the back, `"close"` closes it.
+- `sheet`: covers the tile area down to the bottom panels; owns the tile area's keys while open. One sheet open at a time.
+- The SDK's `defineSurface` and the host at load refuse: a surface naming a view the plugin does not declare, a duplicate surface name, a config that does not fit its kind.
+
+### Opened at run time, as many as wanted
+
+- A surface **instance** is `(plugin, surface, instance key)`. A plugin may open the same surface several times under different keys (a findings panel per tester). Each instance has its own view data: `Views` pushes take the instance key.
+- SDK: `Surfaces.open(surface, { instance?, focus? })` returns a handle with `close`; `Surfaces.close(surface, instance?)`. Several surfaces open together in one call: `Surfaces.open([...])`, so "open the tile and its panel" is one change the shell shows at once.
+- **Actions open surfaces declaratively too:** an action may carry `opens: [{ surface, instance?, agent? }]`. The shell opens them at once, without a round trip to the plugin, then runs the action (if it has a handler). A status bar's "open" action is `opens: [{ surface: "main" }]` with no handler. `agent` may name another of the plugin's agents (a tester's view from the run's status bar); never another plugin's.
+- **Who may open what, when:**
+  - panels (either scope): any time;
+  - tiles, sheets and popovers: only in response to the developer, meaning a declared `opens`, or a `Surfaces.open` made while the plugin handles an `act`, `answer` or `message` call (the host carries the call's gesture and refuses an open outside one). Otherwise the plugin asks for attention and the developer opens it.
+- **The shell has the last word.** It lays surfaces out, may downgrade them on a small screen (panels stacked, a popover as a sheet) and caps shell-scope panels: at most one per plugin, at most two per edge; extras wait in the order they opened, and the developer can close any panel (it stays closed until the plugin opens it again).
+- The developer opening an agent (Enter, `g`, a click) opens its `tile` (or, lacking one, its first `sheet`, then its first `popover`) with its agent-scope panels.
+
+### zarg uses the same surfaces
+
+- zarg's conversation is agent-zarg's `sheet` (`conversation`) and the message bar is its shell-scope `bottom` panel (`size: 1`, `input: "onFocus"`) showing the same conversation section in its compact form (the question or the input on one line). The conversation renderer gains that compact form.
+- Grant popovers are the core's own popover surface, not a plugin's.
+- The shell itself draws only the agents list and the popover queue; everything else is a surface.
 
 ## Attention
 
@@ -90,6 +120,7 @@ The model and dispatch are the input-layers spec's: layers derived from state, t
 | popover | the queue is not empty | ←→ ↑↓ Enter Esc, its own keys; passes nothing else but global |
 | slash box | the bar has focus and its input starts with `/` | ↑↓ Tab Enter Esc |
 | bar (text) | the bar has focus and is typing | printable keys, Backspace, Enter, Esc |
+| panel | a panel with `input: "onFocus"` has focus | its view's keys (as the view layer), `g`, `/` |
 | sheet | the sheet is open and the tile area has focus | ↑↓ Enter (picker), PgUp PgDn (scroll), Esc (close), `g`, `/` |
 | view | an agent view is open in the tile area and has focus | as in the input-layers spec (Tab, ↑↓, PgUp PgDn, `[` `]`, Space, Esc, the agent's own keys), `g`, `/` |
 | agents | the agents list has focus | ↑↓ ←→ Enter, `g`, `/` |
@@ -108,14 +139,15 @@ Everything else in the input-layers spec stands: agents own their key mappings p
 
 ## Testing
 
-- `@zarg/view`: `placement` in the layout schema (default `tile`); input dispatch per layer in the table above; `g` and `/` are letters while the bar types; Alt+letters work while typing.
+- `@zarg/view`: the `Surface` schema (each kind's config refused when it does not fit); the compact conversation form; input dispatch per layer in the table above; `g` and `/` are letters while the bar types; Alt+letters work while typing.
 - Client: grant interrupts land in the popover queue in arrival order, never in zarg's conversation; answering one leaves the others; zarg's question and a grant pending together.
+- SDK and host: surfaces naming unknown views or duplicated names refused at build and load; `Surfaces.open` of a tile, sheet or popover refused outside a developer call, allowed inside `act`, `answer`, `message`; panels open any time; duplicate instances with their own data; `opens` on an action opens surfaces before the handler runs, and never another plugin's agent.
 - Core: a grant question and zarg's question pending at the same time, each answered by id; outside reads and plugin grants no longer wait on zarg's question.
-- TUI (`testRender` at 130×22 and 80×24): the layout (list full height, bar under the tile area only); the bar in each state; the sheet opening and closing on each trigger; the popover queue (head only, count, Esc to the back); attention blinking until opened, then steady; hotkey letters in titles; narrow strip and `alt+a`.
+- TUI (`testRender` at 130×22 and 80×24): the layout (list full height, bar under the tile area only); the bar in each state; the sheet opening and closing on each trigger; the popover queue (head only, count, Esc to the back); shell-scope status bars shown with any agent open, agent-scope panels only with theirs, the per-edge cap; a status bar action opening an agent's tile and panel together; attention blinking until opened, then steady; hotkey letters in titles; narrow strip and `alt+a`.
 - Regressions carried over: arrows never reach two owners; a question arriving while another panel has focus takes no keys; the slash box takes ↑↓ only while open.
 
 ## Scope
 
-In: the layout (agents list, tile area, message bar), zarg's sheet, the popover queue with grants in it, `placement: tile | popover`, the attention pulse, Alt+letter hotkeys, the input layers (from the input-layers spec, with the table above), agents' per-platform key mappings.
+In: the layout (agents list, tile area, message bar), surfaces (`tile`, `panel` with agent and shell scope, `popover`, `sheet`) declared per plugin and opened as many times as wanted, declaratively from actions or from a developer call, zarg's sheet and bar as agent-zarg's surfaces, the popover queue with grants in it, the attention pulse, Alt+letter hotkeys, the input layers (from the input-layers spec, with the table above), agents' per-platform key mappings.
 
-Out: `panel` placement and several tiles side by side in the tile area; archiving agents; a plugin agent's own message input (the bar is zarg's); web and native shells.
+Out: several tiles side by side in the tile area (panels cover the need for now); floating panels; archiving agents; a plugin agent's own message input (the bar is zarg's); web and native shells.
