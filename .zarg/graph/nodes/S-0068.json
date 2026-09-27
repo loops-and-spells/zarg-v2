@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0068",
+  "props": {
+    "text": "YOLO shows on the status line"
+  },
+  "type": "gherkin/state"
+}

@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0060",
+  "props": {
+    "terminal": true,
+    "text": "the plugin is installed without running its scripts"
+  },
+  "type": "gherkin/state"
+}

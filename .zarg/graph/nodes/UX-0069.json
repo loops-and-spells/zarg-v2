@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0062",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0069",
+  "props": {
+    "title": "zarg's own plugins start approved",
+    "when": "zarg loads the plugins it ships with"
+  },
+  "type": "gherkin/card"
+}

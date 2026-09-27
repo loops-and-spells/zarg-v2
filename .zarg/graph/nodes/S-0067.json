@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0067",
+  "props": {
+    "terminal": true,
+    "text": "declared scopes pass without a question"
+  },
+  "type": "gherkin/state"
+}

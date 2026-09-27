@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0063",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0066",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0065",
+  "props": {
+    "title": "Developer denies it",
+    "when": "the developer picks deny"
+  },
+  "type": "gherkin/card"
+}

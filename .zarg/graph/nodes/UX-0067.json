@@ -1,0 +1,22 @@
+{
+  "edges": [
+    {
+      "to": "S-0062",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0067",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0068",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0067",
+  "props": {
+    "title": "Developer turns on YOLO",
+    "when": "the developer runs /yolo on"
+  },
+  "type": "gherkin/card"
+}

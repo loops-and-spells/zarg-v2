@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0065",
+  "props": {
+    "terminal": true,
+    "text": "the grant is saved for next time"
+  },
+  "type": "gherkin/state"
+}

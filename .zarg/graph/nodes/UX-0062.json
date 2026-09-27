@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0062",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0063",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0062",
+  "props": {
+    "title": "A plugin asks for an optional scope",
+    "when": "the plugin needs a scope it may ask for"
+  },
+  "type": "gherkin/card"
+}

@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0063",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0064",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0063",
+  "props": {
+    "title": "Developer allows it once",
+    "when": "the developer picks allow once"
+  },
+  "type": "gherkin/card"
+}
