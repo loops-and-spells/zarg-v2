@@ -92,8 +92,8 @@ export const makeClient = (info: Pick<CoreInfo, "socket" | "token">) => {
     body: (threadId: string, agent: string) =>
       request(`/threads/${encodeURIComponent(threadId)}/agents/${encodeURIComponent(agent)}/body`).pipe(Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<Body>))),
     /** An action on an agent's selected rows; answers a notice for the developer. */
-    act: (threadId: string, agent: string, action: string, rows: ReadonlyArray<string>) =>
-      request(`/threads/${encodeURIComponent(threadId)}/agents/${encodeURIComponent(agent)}/actions/${encodeURIComponent(action)}`, { method: "POST", body: JSON.stringify({ rows }) }).pipe(
+    act: (threadId: string, agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>) =>
+      request(`/threads/${encodeURIComponent(threadId)}/agents/${encodeURIComponent(agent)}/actions/${encodeURIComponent(action)}`, { method: "POST", body: JSON.stringify({ ...(section !== undefined ? { section } : {}), rows }) }).pipe(
         Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly notice: string }>)),
       ),
     stop: (threadId: string) => request(`/threads/${encodeURIComponent(threadId)}/stop`, { method: "POST", body: "{}" }).pipe(Effect.asVoid),

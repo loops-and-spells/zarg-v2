@@ -52,7 +52,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     else if (action.type === "stop") props.session.stop()
     else if (action.type === "act") {
       const agent = latest().viewing
-      if (agent !== undefined) void props.session.act(agent, action.action, action.rows).then(() => reloadBody.current())
+      if (agent !== undefined) void props.session.act(agent, action.action, undefined, action.rows).then(() => reloadBody.current())
     }
     else props.onExit()
   }

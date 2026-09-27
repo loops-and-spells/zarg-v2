@@ -44,10 +44,10 @@ export const makeBodies = (deps: { readonly log: ThreadLog; readonly invoke: Inv
       Effect.catch((e) => Effect.succeed(line(e.message))),
     )
   },
-  act: (_thread: string, agent: string, action: string, rows: ReadonlyArray<string>): Effect.Effect<{ readonly notice: string }> => {
+  act: (_thread: string, agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>): Effect.Effect<{ readonly notice: string }> => {
     const o = owner(agent)
     if (o === undefined) return Effect.succeed({ notice: `${agent} has no actions` })
-    return deps.invoke(o.plugin, "act", { agent: o.id, action, rows }).pipe(
+    return deps.invoke(o.plugin, "act", { agent: o.id, action, ...(section !== undefined ? { section } : {}), rows }).pipe(
       Effect.tap(() => Effect.sync(() => (action === "apply" ? deps.onApply?.(o.plugin, rows) : undefined))),
       Effect.map((r) => ({ notice: String((r as { notice?: unknown } | null)?.notice ?? "done") })),
       Effect.catch((e) => Effect.succeed({ notice: e.message })),

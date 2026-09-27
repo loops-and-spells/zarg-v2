@@ -21,7 +21,7 @@ const fakeSession = (state: SessionState) => {
     close: () => calls.push("close"),
     command: (t) => calls.push(`command ${t}`),
     pluginCommands: () => [],
-    act: (agent, action, rows) => Promise.resolve(void calls.push(`act ${agent} ${action} ${rows.join(",")}`)),
+    act: (agent, action, _section, rows) => Promise.resolve(void calls.push(`act ${agent} ${action} ${rows.join(",")}`)),
     body: (agent) =>
       Promise.resolve(
         agent.includes(":")

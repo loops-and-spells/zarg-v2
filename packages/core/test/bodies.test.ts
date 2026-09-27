@@ -39,11 +39,11 @@ test("a plugin agent's body comes from its plugin, with its history filled in by
 
 test("an action goes to the plugin with the selected rows; an action on a gone plugin's agent is a notice", async () => {
   const { bodies, calls, applied } = await setup()
-  expect(await Effect.runPromise(bodies.act("main", "rehearse:tester-1", "apply", ["R-1"]))).toEqual({ notice: "1 finding sent to the driver" })
-  expect(calls.at(-1)).toEqual(["rehearse", "act", { agent: "tester-1", action: "apply", rows: ["R-1"] }])
+  expect(await Effect.runPromise(bodies.act("main", "rehearse:tester-1", "apply", "review.findings", ["R-1"]))).toEqual({ notice: "1 finding sent to the driver" })
+  expect(calls.at(-1)).toEqual(["rehearse", "act", { agent: "tester-1", action: "apply", section: "review.findings", rows: ["R-1"] }])
   // The core keeps the developer's choice itself: the findings gate trusts it, not the plugin's word.
   expect(applied).toEqual([["rehearse", ["R-1"]]])
-  expect(await Effect.runPromise(bodies.act("main", "gone:t-1", "apply", ["x"]))).toEqual({ notice: "plugin gone is not loaded" })
+  expect(await Effect.runPromise(bodies.act("main", "gone:t-1", "apply", undefined, ["x"]))).toEqual({ notice: "plugin gone is not loaded" })
   expect(await Effect.runPromise(bodies.body("main", "gone:t-1"))).toEqual({ parts: [{ kind: "lines", lines: [{ text: "plugin gone is not loaded", tone: "error" }] }] })
 })
 

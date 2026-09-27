@@ -44,7 +44,7 @@ export class Bodies extends Context.Service<
   Bodies,
   {
     readonly body: (thread: string, agent: string) => Effect.Effect<unknown>
-    readonly act: (thread: string, agent: string, action: string, rows: ReadonlyArray<string>) => Effect.Effect<{ readonly notice: string }>
+    readonly act: (thread: string, agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>) => Effect.Effect<{ readonly notice: string }>
   }
 >()("@zarg/core/Bodies") {}
 
@@ -175,9 +175,10 @@ const routes = HttpRouter.addAll(
           const { id, agent, action } = yield* HttpRouter.params
           const thread = decodeURIComponent(id ?? "")
           if (!THREAD_ID.test(thread)) return error(400, "invalid thread id")
-          const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as { rows?: unknown }
+          const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as { section?: unknown; rows?: unknown }
           if (!Array.isArray(body.rows) || !body.rows.every((r) => typeof r === "string")) return error(400, `an action needs { "rows": [ids] }`)
-          return HttpServerResponse.jsonUnsafe(yield* bodies.act(thread, decodeURIComponent(agent ?? ""), decodeURIComponent(action ?? ""), body.rows as ReadonlyArray<string>))
+          if (body.section !== undefined && typeof body.section !== "string") return error(400, `an action's "section" must be a string`)
+          return HttpServerResponse.jsonUnsafe(yield* bodies.act(thread, decodeURIComponent(agent ?? ""), decodeURIComponent(action ?? ""), body.section as string | undefined, body.rows as ReadonlyArray<string>))
         }),
       ),
       HttpRouter.route(

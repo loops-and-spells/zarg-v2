@@ -74,8 +74,8 @@ describe("client", () => {
 
   test("an agent's body and an action on its selected rows", async () => {
     expect(await Effect.runPromise(client.body("main", "rehearse:t-1"))).toEqual({ parts: [{ kind: "lines", lines: [{ text: "hi" }] }] })
-    expect(await Effect.runPromise(client.act("main", "rehearse:t-1", "apply", ["R-1"]))).toEqual({ notice: "applied" })
-    expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/threads/main/agents/rehearse%3At-1/actions/apply", body: { rows: ["R-1"] } })
+    expect(await Effect.runPromise(client.act("main", "rehearse:t-1", "apply", "review.findings", ["R-1"]))).toEqual({ notice: "applied" })
+    expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/threads/main/agents/rehearse%3At-1/actions/apply", body: { section: "review.findings", rows: ["R-1"] } })
   })
 
   test("plugin commands are listed and run through the core", async () => {

@@ -1,6 +1,7 @@
 {
   "name": "@zarg/client",
   "dependencies": {
+    "@zarg/view": "workspace:*",
     "effect": "^4.0.0-rc.117"
   },
   "exports": {

@@ -1,3 +1,4 @@
+import { isViewEvent, reduceView, type Views } from "@zarg/view"
 import type { Option, WireEvent } from "./events"
 
 export interface Message {
@@ -58,6 +59,8 @@ export interface ThreadState {
   readonly trees: number
   /** YOLO: plugins use every scope they declare without asking (`/yolo`, `zarg --yolo`). */
   readonly yolo?: boolean
+  /** Each agent's view (zarg.view activities), by agent id. */
+  readonly views?: Views
 }
 
 export const initial = (threadId: string): ThreadState => ({ threadId, messages: [], rlms: {}, status: "idle", seq: 0, trees: 0 })
@@ -83,6 +86,8 @@ const patchRlms = (rlms: ThreadState["rlms"], patch: ReadonlyArray<Patch>) => {
 export const reduce = (s: ThreadState, e: WireEvent): ThreadState => {
   if (e.threadId !== s.threadId || e.seq <= s.seq) return s
   const t: ThreadState = { ...s, seq: e.seq }
+  // Views are their own activities: they never reach the agents tree below.
+  if (isViewEvent(e as never)) return { ...t, views: reduceView(t.views ?? {}, e as never) }
   switch (e.type) {
     case "RUN_STARTED": {
       // A new run means the core took the answer (or message): the question goes. One still open comes

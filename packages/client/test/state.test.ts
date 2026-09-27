@@ -121,3 +121,24 @@ describe("YOLO", () => {
   })
 })
 
+test("view activities build the thread's views; they never touch the agents tree", () => {
+  const layout = { name: "tester", sections: [{ id: "steps", kind: "log", role: "log" }] }
+  let s = initial("main")
+  s = reduce(s, { type: "ACTIVITY_SNAPSHOT", threadId: "main", seq: 1, messageId: "main:view:rehearse:t-1", activityType: "zarg.view", content: { agent: "rehearse:t-1", layout, data: {} } } as never)
+  s = reduce(s, { type: "ACTIVITY_DELTA", threadId: "main", seq: 2, messageId: "main:view:rehearse:t-1", activityType: "zarg.view", content: { agent: "rehearse:t-1" }, patch: [{ op: "add", path: "/data/steps/lines/-", value: { text: "ok" } }] } as never)
+  expect(s.views?.["rehearse:t-1"]?.data).toEqual({ steps: { lines: [{ text: "ok" }] } })
+  expect(s.rlms).toEqual({})
+})
+
+test("replaying a view's events gives the view the core holds", () => {
+  const layout = { name: "tester", sections: [{ id: "steps", kind: "log", role: "log" }, { id: "progress", kind: "stats", role: "summary" }] }
+  const events = [
+    { type: "ACTIVITY_SNAPSHOT", threadId: "main", seq: 1, messageId: "m", activityType: "zarg.view", content: { agent: "a", layout, data: {} } },
+    ...Array.from({ length: 300 }, (_, i) => ({ type: "ACTIVITY_DELTA", threadId: "main", seq: i + 2, messageId: "m", activityType: "zarg.view", content: { agent: "a" }, patch: [{ op: "add", path: "/data/steps/lines/-", value: { text: String(i) } }, { op: "replace", path: "/data/progress", value: { items: [{ label: "n", value: String(i) }] } }] })),
+  ]
+  const live = events.reduce((s, e) => reduce(s, e as never), initial("main"))
+  // A client attaching late gets the same events again (seq order); a reconnect replays some twice.
+  const late = [...events, ...events.slice(100)].reduce((s, e) => reduce(s, e as never), initial("main"))
+  expect(late.views).toEqual(live.views)
+  expect((live.views!.a!.data.steps as { lines: unknown[] }).lines).toHaveLength(300)
+})
