@@ -301,7 +301,7 @@ export const make = (deps: RlmDeps) =>
           // Folding: a task that is not atomic is planned into children, run in waves, verified,
           // and handed to this RLM as the `children` global before its first turn.
           const spawnable = depth >= deps.settings.maxDepth ? [] : (preset.spawns ?? [])
-          if (deps.decisions !== undefined && spawnable.length > 0) {
+          if (deps.decisions !== undefined && spawnable.length > 0 && preset.atomize !== false) {
             const minConfidence = deps.minConfidence ?? deps.settings.minConfidence
             const atomizeStart = Date.now()
             const a = yield* atomize(deps.decisions, spec.task, describeScope(spec.scope), minConfidence)

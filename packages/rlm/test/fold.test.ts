@@ -7,7 +7,7 @@ import type { Answer, DecisionRequest } from "@zarg/decisions"
 import { Model, ModelError } from "@zarg/model"
 import { bind, type Bound, defineService } from "@zarg/kernel"
 import { Schema } from "effect"
-import { fs, fsRead, type Plan, planProblems, Rlm, type Scope, settings, waves } from "../src"
+import { DEFAULT_PRESETS, fs, fsRead, type Plan, planProblems, Rlm, type Scope, settings, waves } from "../src"
 import { type Reply, stubModel } from "./stub-model"
 
 const child = (id: string, dependsOn: ReadonlyArray<string> = [], preset = "research") => ({ id, task: `do ${id}`, preset, paths: [], focus: [], dependsOn })
@@ -69,7 +69,9 @@ const run = (scripts: Record<string, ReadonlyArray<Reply>>, spec: Rlm.RlmSpec, d
   const stub = stubModel(scripts)
   return Effect.runPromise(
     Effect.gen(function* () {
-      const s = yield* settings(raw)
+      // These tests fold from the driver preset, which skips atomize by default: turn it back on here.
+      const r = (raw ?? {}) as { presets?: Record<string, unknown> }
+      const s = yield* settings({ ...r, presets: { driver: { ...DEFAULT_PRESETS.driver, atomize: true }, ...r.presets } })
       const rlm = yield* Rlm.make({ settings: s, services: factory, roles: { driver: "stub:m", implement: "stub:m" }, decisions: d.service, cellTimeoutMs: 5000, ...(observe ? { observe } : {}) })
       return yield* Effect.exit(rlm.exec(spec))
     }).pipe(Effect.provide(stub.layer)),
@@ -83,6 +85,23 @@ const planText = (p: Plan) => ({ text: JSON.stringify(p) })
 const researchDone = (finding: string): Reply => ({ cell: `yield* Rlm.done({ value: { findings: [${JSON.stringify(finding)}], sources: [] } })` })
 
 describe("folding", () => {
+  test("the default driver preset skips atomize: it asks the developer, it never splits its task", async () => {
+    const stub = stubModel({ driver: [{ cell: 'yield* Rlm.done({ value: "direct" })' }] })
+    const d = decisions(true)
+    const events: Array<Rlm.RlmEvent> = []
+    const exit = await Effect.runPromise(
+      Effect.gen(function* () {
+        const s = yield* settings({})
+        const rlm = yield* Rlm.make({ settings: s, services: factory, roles: { driver: "stub:m" }, decisions: d.service, cellTimeoutMs: 5000, observe: (e) => events.push(e) })
+        return yield* Effect.exit(rlm.exec({ task: "what next?", preset: "driver", scope: {} }))
+      }).pipe(Effect.provide(stub.layer)),
+    )
+    expect(value({ exit })).toBe("direct")
+    expect(d.calls).toHaveLength(0)
+    expect(events.some((e) => e.type === "atomize")).toBe(false)
+    expect(DEFAULT_PRESETS.research?.atomize).toBeUndefined()
+  })
+
   test("an atomic task runs directly: no plan is requested", async () => {
     const d = decisions(true)
     const r = await run({ driver: [{ cell: 'yield* Rlm.done({ value: "direct" })' }] }, { task: "small", preset: "driver", scope: {} }, d)
@@ -264,7 +283,7 @@ describe("folding", () => {
     const failing = Layer.succeed(Model.Model, { ...stub.service, stream: (req: any) => (req.outputSchema ? Stream.fail(new ModelError({ kind: "transport", message: "router down" })) : stub.service.stream(req)) })
     const exit = await Effect.runPromise(
       Effect.gen(function* () {
-        const s = yield* settings({})
+        const s = yield* settings({ presets: { driver: { ...DEFAULT_PRESETS.driver, atomize: true } } })
         const rlm = yield* Rlm.make({ settings: s, services: factory, roles: { driver: "stub:m" }, decisions: decisions(false).service, cellTimeoutMs: 5000 })
         return yield* Effect.exit(rlm.exec({ task: "big", preset: "driver", scope: {} }))
       }).pipe(Effect.provide(failing)),
