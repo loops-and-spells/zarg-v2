@@ -74,3 +74,8 @@ test("one key in two tables is fine: only the focused table answers it", () => {
   const table = { kind: "table" as const, columns: [{ id: "c", label: "C" }], actions: [{ id: "apply", label: "Apply", key: "a", on: "row" as const }] }
   expect(() => defineView("v", { review: { kind: "tabs", role: "pinned", tabs: { findings: table, likes: table } } })).not.toThrow()
 })
+
+test("keys.terminal wins over key, in the check as at run time: a reserved one hidden behind key is refused", () => {
+  const t = { t: { kind: "table" as const, role: "primary" as const, columns: [], actions: [{ id: "a", label: "A", key: "z", keys: { terminal: "return" }, on: "row" as const }] } }
+  expect(() => defineView("v", t)).toThrow(/return, a key terminal keeps/)
+})

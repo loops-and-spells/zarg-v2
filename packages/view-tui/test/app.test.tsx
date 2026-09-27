@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { testRender } from "@opentui/react/test-utils"
 import { type Answer, initial, type Inquiry, type Session, type SessionState } from "@zarg/client"
 import { App } from "../src/app"
+import { POPOVER_GUARD_MS } from "../src/view"
 
 /** A session with fixed state that records what the UI asks of it. */
 const fakeSession = (state: SessionState) => {
@@ -551,6 +552,8 @@ describe("the shell", () => {
   test("a grant popover shows over everything with its place in the queue; Enter answers it", async () => {
     const t = await render({ ...idleState, thread: { ...idleState.thread, prompts: [grantPrompt("p1"), grantPrompt("p2")] } }, wide)
     expect(t.captureCharFrame()).toContain("grant  1 of 2")
+    // A grant that just showed ignores Enter for a moment: a deliberate press.
+    await Bun.sleep(POPOVER_GUARD_MS)
     t.mockInput.pressEnter()
     await settle(t)
     expect(t.calls).toContain("prompt p1 always")
@@ -585,5 +588,26 @@ describe("the shell", () => {
     t.mockInput.pressKey("a", { meta: true })
     await settle(t)
     expect(t.captureCharFrame()).toContain("driver rlm-1")
+  })
+})
+
+describe("review fixes", () => {
+  test("at 80 columns a click on blank space in the unfolded agents list keeps the list", async () => {
+    const t = await render(viewState, { width: 80, height: 24 })
+    t.mockInput.pressKey("a", { meta: true })
+    await settle(t)
+    await t.mockMouse.click(20, 12)
+    await settle(t)
+    expect(t.captureCharFrame()).toContain("● tester rehearse")
+  })
+  test("a click on an agent's row opens its view with the keys: its action key acts", async () => {
+    const t = await render(viewState, { width: 110, height: 24 })
+    const lines = t.captureCharFrame().split("\n")
+    const y = lines.findIndex((l) => l.includes("● tester rehearse"))
+    await t.mockMouse.click(5, y)
+    await settle(t)
+    t.mockInput.pressKey("a")
+    await settle(t)
+    expect(t.calls).toContain("act rehearse:t1 apply r1")
   })
 })

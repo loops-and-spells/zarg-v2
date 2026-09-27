@@ -35,7 +35,14 @@ export interface Ui {
   /** The agent `g` went to last: the next `g` goes on from it. */
   readonly attentionAt?: string
   /** The popover queue's head (the core keeps the queue, strictly first in first out) and its highlighted option. */
-  readonly popover: { readonly id?: string; readonly pick: number }
+  readonly popover: {
+    readonly id?: string
+    readonly pick: number
+    /** When the head showed (ms): Enter waits `POPOVER_GUARD_MS`, so a fast double Enter never answers the next one unread. */
+    readonly since?: number
+    /** The head already answered: its done event is on its way, a second Enter sends nothing. */
+    readonly answering?: string
+  }
   /** Agents the developer opened since they asked, by the `since` of the attention they saw. */
   readonly seen: Readonly<Record<string, number>>
   /** zarg's last reply the developer has seen; newer ones preview in the bar. */
@@ -50,6 +57,8 @@ export interface Agents {
 }
 
 export const EXIT_WINDOW_MS = 2000
+/** How long a popover that just showed ignores Enter. */
+export const POPOVER_GUARD_MS = 300
 export { CHAT, OTHER }
 
 export const initialUi: Ui = { focus: "bar", sheet: false, pick: 0, other: false, agents: { toggled: {}, tree: 0 }, popover: { pick: 0 }, seen: {} }
@@ -78,7 +87,7 @@ export const preselect = (inquiry: Inquiry) => Math.max(0, inquiry.options.findI
 
 /** A new inquiry preselects its recommended option (or the first); a new popover its recommended option; a shown sheet reads zarg's replies. */
 export const syncUi = (ui0: Ui, s: SessionState, now = Date.now()): Ui => {
-  const ui = withPopover(withRead(withRunClock(ui0.agents.tree === s.thread.trees ? ui0 : { ...ui0, agents: { toggled: {}, tree: s.thread.trees } }, s, now), s), s)
+  const ui = withPopover(withRead(withRunClock(ui0.agents.tree === s.thread.trees ? ui0 : { ...ui0, agents: { toggled: {}, tree: s.thread.trees } }, s, now), s), s, now)
   const inquiry = s.thread.pendingInquiry
   if (inquiry === undefined) {
     if (ui.inquiryId === undefined && !ui.other && ui.chatting === undefined) return ui
@@ -95,11 +104,11 @@ const withRead = (ui: Ui, s: SessionState): Ui => {
   const last = lastReply(s)?.id
   return sheetShown(ui) && last !== undefined && last !== ui.readUpTo ? { ...ui, readUpTo: last } : ui
 }
-const withPopover = (ui: Ui, s: SessionState): Ui => {
+const withPopover = (ui: Ui, s: SessionState, now: number): Ui => {
   const head = queueOf(ui, s)[0]
   if (head === undefined) return ui.popover.id === undefined ? ui : { ...ui, popover: { pick: 0 } }
   if (head.id === ui.popover.id) return ui
-  return { ...ui, popover: { id: head.id, pick: Math.max(0, head.options.findIndex((o) => o.recommended === true)) } }
+  return { ...ui, popover: { id: head.id, pick: Math.max(0, head.options.findIndex((o) => o.recommended === true)), since: now } }
 }
 
 const question = (s: SessionState) => s.thread.pendingInquiry

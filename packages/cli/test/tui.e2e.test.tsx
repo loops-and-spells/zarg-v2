@@ -46,6 +46,8 @@ describe("tui end to end", () => {
       await frameUntil(t, (f) => f.includes("grant") && f.includes("Plugin rehearse wants to load"))
       t.mockInput.pressArrow("right")
       await t.renderOnce()
+      // A grant that just showed ignores Enter for a moment.
+      await Bun.sleep(400)
       t.mockInput.pressEnter()
       // No agent is open: zarg's sheet shows the question with its options.
       await frameUntil(t, (f) => f.includes("› Checkout (recommended) — most used") && !f.includes("Plugin rehearse wants to load"))

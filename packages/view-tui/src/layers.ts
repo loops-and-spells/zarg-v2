@@ -6,6 +6,7 @@ import {
   answeringOther,
   attentionOf,
   EXIT_WINDOW_MS,
+  POPOVER_GUARD_MS,
   focusBar,
   type Key,
   onAgentsKey,
@@ -97,7 +98,12 @@ export const SHELL: ReadonlyArray<Layer> = [
       if (k.name === "left" || k.name === "up") return { ui: { ...ui, popover: { ...ui.popover, pick: Math.max(0, pick - 1) } } }
       if (k.name === "right" || k.name === "down") return { ui: { ...ui, popover: { ...ui.popover, pick: Math.min(n - 1, pick + 1) } } }
       const option = head.options[pick]
-      if (k.name === "return" && option !== undefined) return { ui: { ...ui, popover: { pick: 0 } }, action: { type: "answer-prompt", id: head.id, choice: option.id } }
+      if (k.name === "return") {
+        // A grant is a gate: an answer already on its way, or a head that only just showed, takes no Enter.
+        const fresh = ui.popover.since !== undefined && w.now - ui.popover.since < POPOVER_GUARD_MS
+        if (option === undefined || ui.popover.answering === head.id || fresh) return { ui }
+        return { ui: { ...ui, popover: { ...ui.popover, answering: head.id } }, action: { type: "answer-prompt", id: head.id, choice: option.id } }
+      }
       // Strictly first in, first out: a grant stays until answered (Esc included), and nothing jumps the queue.
       return { ui }
     },

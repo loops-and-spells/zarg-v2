@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
 import { onKey } from "../src/layers"
-import { initialUi, type Ui } from "../src/view"
+import { initialUi, POPOVER_GUARD_MS, syncUi, type Ui } from "../src/view"
 
 const inquiry: Inquiry = { id: "inq-1", question: "Which card first?", options: [{ id: "a", label: "Login" }, { id: "b", label: "Checkout", recommended: true }], allowOther: true, about: [] }
 const grant = (id: string) => ({ id, question: `Plugin ${id} wants to load.`, options: [{ id: "always", label: "Allow" }, { id: "deny", label: "Not now" }], kind: "grant" as const })
@@ -72,5 +72,20 @@ describe("the shell's layers", () => {
     expect(r.action).toEqual({ type: "stop" })
     expect(onKey(r.ui, idle, key("c", { ctrl: true }), 1500).action).toEqual({ type: "exit" })
     expect(onKey(at({}), idle, key("d", { ctrl: true }), 0).action).toEqual({ type: "exit" })
+  })
+})
+
+describe("a grant needs a deliberate press", () => {
+  const two = { ...idle, thread: { ...idle.thread, prompts: [grant("p1"), grant("p2")] } }
+  test("a second Enter on the same grant is not sent again while the answer is on its way", () => {
+    const first = onKey(syncUi(at({}), two, 0), two, key("return"), 1000)
+    expect(first.action).toEqual({ type: "answer-prompt", id: "p1", choice: "always" })
+    expect(onKey(first.ui, two, key("return"), 1010).action).toBeUndefined()
+  })
+  test("Enter on a grant that just appeared waits a moment: a fast double Enter never approves the next one unread", () => {
+    const next = { ...idle, thread: { ...idle.thread, prompts: [grant("p2")] } }
+    const ui = syncUi(at({ popover: { id: "p1", pick: 0, answering: "p1" } }), next, 1000)
+    expect(onKey(ui, next, key("return"), 1100).action).toBeUndefined()
+    expect(onKey(ui, next, key("return"), 1000 + POPOVER_GUARD_MS).action).toEqual({ type: "answer-prompt", id: "p2", choice: "always" })
   })
 })

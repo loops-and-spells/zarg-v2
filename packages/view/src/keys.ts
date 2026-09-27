@@ -11,7 +11,8 @@ export const keyFor = (a: { readonly key?: string; readonly keys?: Readonly<Reco
   a.keys?.[platform] ?? (platform === "terminal" ? a.key : undefined)
 
 type Mapped = { readonly id: string; readonly key?: string; readonly keys?: Readonly<Record<string, string>> }
-const mappings = (a: Mapped) => Object.entries({ ...(a.keys ?? {}), ...(a.key !== undefined ? { terminal: a.key } : {}) })
+// The same precedence as keyFor: a platform's own mapping wins over the `key` shorthand.
+const mappings = (a: Mapped) => Object.entries({ ...(a.key !== undefined ? { terminal: a.key } : {}), ...(a.keys ?? {}) })
 
 /**
  * Why a view's action keys are refused, or undefined: a key its platform keeps, or one key twice where both would

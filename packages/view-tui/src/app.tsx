@@ -141,7 +141,11 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
 
   const agentsList = (
     <box
-      onMouseDown={() => setUi({ ...latest(), focus: "agents" })}
+      // Narrow, the list sits in the tile area: its click must not reach the tile's handler (which would hide it).
+      onMouseDown={(e: { stopPropagation: () => void }) => {
+        e.stopPropagation()
+        setUi({ ...latest(), focus: "agents" })
+      }}
       style={{ ...(narrow ? { flexGrow: 1 } : { width: AGENTS_WIDTH, flexShrink: 0 }), flexDirection: "column", border: true, borderColor: ui.focus === "agents" ? COLORS.accent : COLORS.dim }}
     >
       <Title name={`Agents${asking.length > 0 ? ` ◆${asking.length}` : ""}`} letter="a" focused={ui.focus === "agents"} />
@@ -155,7 +159,11 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             // An unseen request blinks between the attention colour and plain; a seen one stays in the attention colour.
             fg={a.pulse === "off" ? COLORS.zarg : a.attention ? COLORS.notice : TONE[a.tone]}
             truncate
-            onMouseDown={() => setUi(activate(latest(), props.session.state(), a.id))}
+            // The list's own handler (focus the list) must not run after the row gave its view the keys.
+            onMouseDown={(e: { stopPropagation: () => void }) => {
+              e.stopPropagation()
+              setUi(activate(latest(), props.session.state(), a.id))
+            }}
             {...((a.selected && ui.focus === "agents") || a.id === viewing ? { bg: COLORS.select } : {})}
           >
             {a.text}
