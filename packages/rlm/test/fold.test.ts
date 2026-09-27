@@ -279,7 +279,7 @@ describe("folding", () => {
 
   test("time spent in children does not use up the parent's wall budget", async () => {
     const raw = { presets: { driver: { layer: ["Rlm"], spawns: ["research"], role: "driver", result: "text", verify: "none", budget: { wallMs: 300 } }, research: { layer: ["Rlm"], role: "driver", result: "research", verify: "none" } } }
-    const slow: Reply = { cell: 'const end = Date.now() + 400\nwhile (Date.now() < end) {}\nyield* Rlm.done({ value: { findings: ["slow"], sources: [] } })' }
+    const slow: Reply = { cell: 'Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 400)\nyield* Rlm.done({ value: { findings: ["slow"], sources: [] } })' }
     const r = await run(
       { plan: [planText({ children: [child("a"), child("b")] })], research: [slow], driver: [{ cell: "return children.length" }, { cell: 'yield* Rlm.done({ value: "combined" })' }] },
       { task: "big", preset: "driver", scope: {} },

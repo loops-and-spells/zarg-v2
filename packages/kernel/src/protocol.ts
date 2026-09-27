@@ -16,5 +16,6 @@ export type FromWorker =
   | { readonly type: "log"; readonly runId: number; readonly line: string }
   | { readonly type: "tick"; readonly runId: number; readonly source: TickSource; readonly value: TickValue }
   | { readonly type: "extra"; readonly runId: number; readonly source: TickSource }
+  | { readonly type: "truncated"; readonly runId: number; readonly source: TickSource }
   | { readonly type: "done"; readonly id: number; readonly ok: true; readonly value: string | undefined }
   | { readonly type: "done"; readonly id: number; readonly ok: false; readonly error: string }

@@ -91,8 +91,22 @@ declare const Effect: {
   /** Wait: \`yield* Effect.sleep("2 seconds")\` or a number of milliseconds. */
   sleep(duration: string | number): Eff<void>
 }
-declare const performance: { now(): number }
-declare const crypto: { randomUUID(): string; getRandomValues<T extends Uint8Array>(array: T): T }
+/** Time: the only way a cell reads it (\`Date.now()\` and \`new Date()\` are refused, so runs can be replayed). */
+declare const Clock: {
+  /** Now, in milliseconds since the epoch: \`const now = yield* Clock.currentTimeMillis\`. */
+  readonly currentTimeMillis: Eff<number>
+}
+/** Randomness: the only way a cell reads it (\`Math.random()\` is refused, so runs can be replayed). */
+declare const Random: {
+  /** A number in [0, 1): \`const r = yield* Random.next\`. */
+  readonly next: Eff<number>
+  readonly nextInt: Eff<number>
+  /** A number in [min, max). */
+  nextBetween(min: number, max: number): Eff<number>
+  /** An integer in [min, max]. */
+  nextIntBetween(min: number, max: number): Eff<number>
+  shuffle<A>(elements: Iterable<A>): Eff<Array<A>>
+}
 declare const console: { log(...values: unknown[]): void; error(...values: unknown[]): void }
 `
 

@@ -61,16 +61,51 @@ export const makeChecker = (manifest: string) => {
     },
     check: (cell: string): CheckResult => {
       set("/cell.ts", `${HEADER}${cell}\n}\n`)
+      const lineOf = (file: ts.SourceFile, pos: number) => file.getLineAndCharacterOfPosition(pos).line - HEADER_LINES + 1
       const diags = [...service.getSyntacticDiagnostics("/cell.ts"), ...service.getSemanticDiagnostics("/cell.ts")]
       const errors = diags
         .filter((d) => d.category === ts.DiagnosticCategory.Error)
         .map((d) => {
           const msg = ts.flattenDiagnosticMessageText(d.messageText, "\n")
           if (d.file === undefined || d.start === undefined) return msg
-          const line = d.file.getLineAndCharacterOfPosition(d.start).line - HEADER_LINES + 1
-          return `line ${line}: ${msg}`
+          return `line ${lineOf(d.file, d.start)}: ${msg}`
         })
+      const program = service.getProgram()!
+      const file = program.getSourceFile("/cell.ts")!
+      errors.push(...unreplayable(file, program.getTypeChecker()).map((u) => `line ${lineOf(file, u.pos)}: ${u.message}`))
       return { ok: errors.length === 0, errors }
     },
   }
+}
+
+const CLOCK = "use `yield* Clock.currentTimeMillis`"
+const RANDOM = "use `yield* Random.next` (or Random.nextIntBetween, Random.shuffle)"
+
+/**
+ * Reads of real time and randomness, which a replay could not reproduce: cells use the Clock and Random
+ * services instead. Pure date work (`new Date(ms)`, `Date.parse`) is fine. A name the cell declared itself
+ * is not the global.
+ */
+const unreplayable = (file: ts.SourceFile, checker: ts.TypeChecker) => {
+  const found: Array<{ pos: number; message: string }> = []
+  const isGlobal = (id: ts.Expression, name: string) => {
+    if (!ts.isIdentifier(id) || id.text !== name) return false
+    const decls = checker.getSymbolAtLocation(id)?.declarations ?? []
+    return decls.every((d) => { const f = d.getSourceFile().fileName; return f !== "/cell.ts" && f !== "/globals.d.ts" })
+  }
+  const visit = (n: ts.Node) => {
+    if (ts.isPropertyAccessExpression(n)) {
+      if (isGlobal(n.expression, "Date") && n.name.text === "now") found.push({ pos: n.getStart(), message: `Date.now() reads the real clock; ${CLOCK}` })
+      else if (isGlobal(n.expression, "Math") && n.name.text === "random") found.push({ pos: n.getStart(), message: `Math.random() is not replayable; ${RANDOM}` })
+      else if (isGlobal(n.expression, "performance")) found.push({ pos: n.getStart(), message: `performance is not available; ${CLOCK}` })
+      else if (isGlobal(n.expression, "crypto")) found.push({ pos: n.getStart(), message: `crypto is not available; ${RANDOM}` })
+    } else if (ts.isNewExpression(n) && isGlobal(n.expression, "Date") && (n.arguments?.length ?? 0) === 0) {
+      found.push({ pos: n.getStart(), message: `new Date() reads the real clock; ${CLOCK}, then new Date(ms)` })
+    } else if (ts.isCallExpression(n) && isGlobal(n.expression, "Date")) {
+      found.push({ pos: n.getStart(), message: `Date() reads the real clock; ${CLOCK}, then new Date(ms)` })
+    }
+    ts.forEachChild(n, visit)
+  }
+  visit(file)
+  return found
 }

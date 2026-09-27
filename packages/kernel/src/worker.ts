@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
 // Runs inside a Bun Worker. Cells are generator bodies run with Effect.gen; services are RPC stubs to the host.
-import { Cause, Clock, Effect, Exit, Fiber } from "effect"
+import { Cause, Clock, Effect, Exit, Fiber, Random } from "effect"
 import type { FromWorker, ToWorker } from "./protocol"
-import { type ClockMode, makeCellEnv } from "./ticks"
+import { cellDate, cellMath, type ClockMode, makeCellEnv } from "./ticks"
 
 declare const self: Worker
 const post = (m: FromWorker) => self.postMessage(m)
@@ -70,21 +70,24 @@ self.onmessage = (event: MessageEvent<ToWorker>) => {
   }
   // run
   currentRun = m.id
-  // This cell's own time and randomness: recorded live, served from the recording in replay.
-  const env = makeCellEnv(
-    clockMode,
-    (source, value) => post({ type: "tick", runId: m.id, source, value }),
-    (source) => post({ type: "extra", runId: m.id, source }),
-  )
+  // This cell's own time and randomness: recorded live, served from the recording in replay. They are provided
+  // to the cell's fiber, so a function from an earlier cell reads the clock of the cell that runs it.
+  const env = makeCellEnv(clockMode, {
+    tick: (source, value) => post({ type: "tick", runId: m.id, source, value }),
+    extra: (source) => post({ type: "extra", runId: m.id, source }),
+    truncated: (source) => post({ type: "truncated", runId: m.id, source }),
+  })
   let gen: () => Generator<Effect.Effect<any, any, never>, unknown, any>
   try {
-    gen = new Function("console", "Effect", "Date", "Math", "performance", "crypto", ...serviceNames, `return function* () {\n${m.body}\n}`)(
+    gen = new Function("console", "Effect", "Clock", "Random", "Date", "Math", "performance", "crypto", ...serviceNames, `return function* () {\n${m.body}\n}`)(
       { log: log(m.id), error: log(m.id) },
       Effect,
-      env.Date,
-      env.Math,
-      env.performance,
-      env.crypto,
+      Clock,
+      Random,
+      cellDate,
+      cellMath,
+      undefined,
+      undefined,
       ...services,
     )
   } catch (e) {
@@ -94,7 +97,7 @@ self.onmessage = (event: MessageEvent<ToWorker>) => {
   // Hold the iterator: when a yielded call fails, Effect.gen abandons the generator without
   // running its finally, so return() is called here to persist the names declared so far.
   const it = gen()
-  const fiber = Effect.runFork(Effect.gen(() => it).pipe(Effect.provideService(Clock.Clock, env.clock)))
+  const fiber = Effect.runFork(Effect.gen(() => it).pipe(Effect.provideService(Clock.Clock, env.clock), Effect.provideService(Random.Random, env.random)))
   running.set(m.id, fiber)
   fiber.addObserver((exit) => {
     running.delete(m.id)

@@ -13,6 +13,8 @@ export interface CellResult {
   readonly output: string
   /** True when the worker was replaced during this cell; earlier globals are gone. */
   readonly restarted: boolean
+  /** The cell number its records carry; absent when the cell did not run (it failed to typecheck). */
+  readonly cell?: number
 }
 
 export interface KernelOptions {
@@ -56,6 +58,8 @@ export type Recorded =
   | ({ readonly kind: "tick" } & Tick)
   | ({ readonly kind: "call" } & RecordedCall)
   | { readonly kind: "extra"; readonly cell: number; readonly source: TickSource }
+  /** The cell read time or randomness more than TICK_CAP times; later reads are not recorded. */
+  | { readonly kind: "truncated"; readonly cell: number; readonly source: TickSource }
 
 /** Collects output with a hard cap as it arrives: keeps the head and the tail, counts the rest. */
 const collector = (cap: number) => {
@@ -163,6 +167,9 @@ export const make = (opts: KernelOptions) =>
       const def = svc?.def.methods[m.method]
       const handler = svc?.handlers[m.method]
       const started = Date.now()
+      // Recorded as the service decoded them (extra keys dropped, dates canonical), the form replay compares;
+      // params that did not decode are recorded as sent.
+      let params = m.params
       // The reply as it goes back to the cell is also what is recorded (the wire form, both ways).
       const reply = (r: Exit.Exit<unknown, ServiceFailure>) => {
         const answer: ToWorker = Exit.isSuccess(r)
@@ -173,7 +180,7 @@ export const make = (opts: KernelOptions) =>
           cell: m.runId,
           service: m.service,
           method: m.method,
-          params: m.params,
+          params,
           ok: answer.ok,
           ...(answer.ok ? { result: answer.value } : { failure: answer.error }),
           ms: Date.now() - started,
@@ -187,6 +194,15 @@ export const make = (opts: KernelOptions) =>
       // Only JSON crosses the boundary: decode from and encode to each schema's JSON form.
       return Schema.decodeUnknownEffect(Schema.toCodecJson(def.params))(m.params).pipe(
         Effect.mapError((e): ServiceFailure => ({ _tag: "InvalidParams", message: `${m.service}.${m.method}: ${e.message}` })),
+        Effect.tap((decoded) =>
+          Effect.sync(() => {
+            try {
+              params = Schema.encodeUnknownSync(Schema.toCodecJson(def.params))(decoded)
+            } catch {
+              // Keep the params as sent.
+            }
+          }),
+        ),
         Effect.flatMap(handler),
         Effect.flatMap((value) =>
           Schema.encodeEffect(Schema.toCodecJson(def.success))(value).pipe(
@@ -250,6 +266,7 @@ export const make = (opts: KernelOptions) =>
           if (m.type === "log" && m.runId === id) out.push(m.line)
           else if (m.type === "tick" && m.runId === id) opts.record?.({ kind: "tick", cell: id, source: m.source, value: m.value })
           else if (m.type === "extra" && m.runId === id) opts.record?.({ kind: "extra", cell: id, source: m.source })
+          else if (m.type === "truncated" && m.runId === id) opts.record?.({ kind: "truncated", cell: id, source: m.source })
           else if (m.type === "call" && m.runId === id) {
             tick()
             inFlight++
@@ -299,11 +316,11 @@ export const make = (opts: KernelOptions) =>
               ? `cell timed out after ${timeoutMs}ms; the kernel was restarted and earlier globals are gone`
               : `${outcome.text}; the kernel was restarted and earlier globals are gone`,
           )
-          return { ok: false, output: out.text(), restarted: true }
+          return { ok: false, output: out.text(), restarted: true, cell: id }
         }
         checker.declare(names)
         if (outcome.text !== undefined) out.push(outcome.ok ? outcome.text : `error: ${outcome.text}`)
-        return { ok: outcome.ok, output: out.text(), restarted }
+        return { ok: outcome.ok, output: out.text(), restarted, cell: id }
       })
 
     /** Cells run one at a time: a kernel has one set of globals and one worker. */

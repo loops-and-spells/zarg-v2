@@ -16,12 +16,20 @@ const again = (code: string, rec: Awaited<ReturnType<typeof recordRun>>) =>
   Effect.runPromise(replay({ code, defs: [Notes], calls: rec.calls, ticks: rec.ticks }))
 
 describe("replay", () => {
-  const code = `const a = yield* Notes.add({ text: "hi" })\nconst b = yield* Notes.get({ id: a.id })\nreturn [a.id, b, Date.now() > 0]`
+  const code = `const a = yield* Notes.add({ text: "hi" })\nconst b = yield* Notes.get({ id: a.id })\nreturn [a.id, b, (yield* Clock.currentTimeMillis) > 0]`
 
   test("a recorded cell replays to the recorded output with no services behind it", async () => {
     const rec = await recordRun(code)
     const r = await again(code, rec)
     expect(r).toMatchObject({ ok: true, output: rec.out.output, divergences: [], unused: [], extraTicks: [] })
+  })
+
+  test("params the cell sent with extra keys are recorded as the service decoded them, so replay matches", async () => {
+    const loose = `const p = { text: "hi", extra: 1 }\nreturn yield* Notes.add(p)`
+    const rec = await recordRun(loose)
+    expect(rec.calls[0].params).toEqual({ text: "hi" })
+    const r = await again(loose, rec)
+    expect(r).toMatchObject({ ok: true, output: rec.out.output, divergences: [], unused: [] })
   })
 
   test("a changed param is a divergence at that call", async () => {

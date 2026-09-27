@@ -14,7 +14,7 @@ const withKernel = <A>(
 describe("Kernel", () => {
   test("returns the cell's value and its console lines", async () => {
     const r = await withKernel((k) => k.run('console.log("hello", { a: 1 })\nreturn { answer: 42 }'))
-    expect(r).toEqual({ ok: true, output: 'hello {"a":1}\n{\n  "answer": 42\n}', restarted: false })
+    expect(r).toMatchObject({ ok: true, output: 'hello {"a":1}\n{\n  "answer": 42\n}', restarted: false })
   })
 
   test("service calls cross to the host and back, typed", async () => {
@@ -60,7 +60,7 @@ describe("Kernel", () => {
         return { uncaught, caught }
       }),
     )
-    expect(out.uncaught).toEqual({ ok: false, output: "error: Nope: always fails", restarted: false })
+    expect(out.uncaught).toMatchObject({ ok: false, output: "error: Nope: always fails", restarted: false })
     expect(out.caught.output).toBe("caught Nope")
   })
 
@@ -96,12 +96,12 @@ describe("Kernel", () => {
 
   test("time spent yielded on a host call does not count toward the deadline", async () => {
     const out = await withKernel((k) => k.run("return yield* Notes.slow({ ms: 600 })"), { timeoutMs: 200 })
-    expect(out).toEqual({ ok: true, output: "slept", restarted: false })
+    expect(out).toMatchObject({ ok: true, output: "slept", restarted: false })
   })
 
   test("time running in the worker between calls still counts", async () => {
     const out = await withKernel(
-      (k) => k.run('yield* Notes.slow({ ms: 50 })\nconst end = Date.now() + 1000\nwhile (Date.now() < end) {}\nreturn "done"'),
+      (k) => k.run('yield* Notes.slow({ ms: 50 })\nAtomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000)\nreturn "done"'),
       { timeoutMs: 300 },
     )
     expect(out).toMatchObject({ ok: false, restarted: true })
@@ -133,7 +133,7 @@ describe("Kernel", () => {
         return yield* k.run("return e1")
       }),
     )
-    expect(out).toEqual({ ok: true, output: "1", restarted: false })
+    expect(out).toMatchObject({ ok: true, output: "1", restarted: false })
   })
 
   test("a console flood is capped as it arrives and cannot exhaust host memory", async () => {
@@ -198,8 +198,8 @@ describe("Kernel", () => {
     const [a, b] = await withKernel((k) =>
       Effect.all([k.run("return yield* Notes.slow({ ms: 300 })"), k.run("return 2")], { concurrency: 2 }),
     )
-    expect(a).toEqual({ ok: true, output: "slept", restarted: false })
-    expect(b).toEqual({ ok: true, output: "2", restarted: false })
+    expect(a).toMatchObject({ ok: true, output: "slept", restarted: false })
+    expect(b).toMatchObject({ ok: true, output: "2", restarted: false })
   })
 
   test("calls made after a cell finished are refused", async () => {

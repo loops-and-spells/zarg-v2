@@ -52,7 +52,9 @@ classify task ◀── procedures (.zarg/procedures/, in git) ◀── improve
   - any divergence, i.e. a call that differs from the recording (other service, method or params) or a call past its end;
   - calls left unused.
 - Time and randomness are inputs too, so they are recorded and mocked:
-  - In a live run, the kernel's worker wraps `Date.now`, `new Date()`, `performance.now`, `Math.random`, `crypto.getRandomValues` and `crypto.randomUUID`. Each read appends its value to the trace, in order (`{ tick, rlm, cell, source, value }`).
+  - Cells read time and randomness only through injected services: Effect's `Clock` (`yield* Clock.currentTimeMillis`) and `Random` (`yield* Random.next`, `nextIntBetween`, `shuffle`). Each cell's fiber gets its own recorded (or replayed) `Clock` and `Random`, so mocking one is providing another.
+  - The typecheck refuses the globals that read real time or randomness (`Date.now()`, `new Date()`, `Date()`, `Math.random()`, `performance`, `crypto`) and names the service to use; pure date work (`new Date(ms)`, `Date.parse`) stays. At run time the same reads throw, for casts around the typecheck.
+  - In a live run, each read appends its value to the trace, in order (`{ tick, rlm, cell, source, value }`), up to 10 000 per cell, then one `truncated` line.
   - Replay serves those values back in the same order.
   - Reads past the end of the recording continue deterministically: time advances from the last recorded value at the recorded pace, and randomness comes from a seeded generator. They are reported, not failed. The final value and the service calls still decide whether replay passed.
   - Timers and sleeps run on the recorded clock in replay, so they do not wait.

@@ -65,7 +65,8 @@ export type RlmEvent =
       readonly id: string
       readonly turn: number
       readonly text: string
-      readonly cells: ReadonlyArray<{ readonly code: string; readonly ok: boolean; readonly output: string; readonly ms: number }>
+      /** `cell` is the kernel cell number its records carry (absent when the cell did not run). */
+      readonly cells: ReadonlyArray<{ readonly code: string; readonly ok: boolean; readonly output: string; readonly ms: number; readonly cell?: number }>
     }
   /** A service call or a read of time or randomness by one of the turn's cells (for transcripts and replay, not the UI). */
   | { readonly type: "record"; readonly id: string; readonly turn: number; readonly record: Recorded }
@@ -288,7 +289,7 @@ export const make = (deps: RlmDeps) =>
             tokens += promptTokens + completionTokens
             emit({ type: "model", id, turn: turnCount, firstTokenMs, modelMs, promptTokens, completionTokens, reasoningTokens })
             messages.push({ role: "assistant", content: text.length > 0 ? text : null, ...(calls.length > 0 ? { toolCalls: calls } : {}) })
-            const cells: Array<{ code: string; ok: boolean; output: string; ms: number }> = []
+            const cells: Array<{ code: string; ok: boolean; output: string; ms: number; cell?: number }> = []
             const step = () => emit({ type: "step", id, turn: turnCount, text, cells })
             if (calls.length === 0) {
               step()
@@ -306,7 +307,7 @@ export const make = (deps: RlmDeps) =>
               }
               const cellStart = Date.now()
               const r = yield* kernel.run(code)
-              cells.push({ code, ok: r.ok, output: r.output, ms: Date.now() - cellStart })
+              cells.push({ code, ok: r.ok, output: r.output, ms: Date.now() - cellStart, ...(r.cell !== undefined ? { cell: r.cell } : {}) })
               restarts = r.restarted ? restarts + 1 : 0
               if (restarts >= 2) return yield* new RlmError({ kind: "kernel", message: "the kernel died twice in a row" })
               messages.push({ role: "tool", name: "exec", toolCallId: call.id, content: `${r.ok ? "ok" : "failed"}\n${r.output}` })

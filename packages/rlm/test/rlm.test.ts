@@ -113,8 +113,8 @@ describe("observe", () => {
     const ms = expect.any(Number)
     expect(steps).toEqual([
       { type: "step", id: "rlm-1", turn: 1, text: "thinking out loud", cells: [] },
-      { type: "step", id: "rlm-1", turn: 2, text: "", cells: [{ code: 'console.log("hi")', ok: true, output: "hi", ms }] },
-      { type: "step", id: "rlm-1", turn: 3, text: "", cells: [{ code: 'yield* Rlm.done({ value: "ok" })', ok: true, output: "", ms }] },
+      { type: "step", id: "rlm-1", turn: 2, text: "", cells: [{ code: 'console.log("hi")', ok: true, output: "hi", ms, cell: 1 }] },
+      { type: "step", id: "rlm-1", turn: 3, text: "", cells: [{ code: 'yield* Rlm.done({ value: "ok" })', ok: true, output: "", ms, cell: 2 }] },
     ])
     for (const m of events) if (m.type === "model") expect(m.firstTokenMs).toBeLessThanOrEqual(m.modelMs)
   })
@@ -138,7 +138,7 @@ describe("observe", () => {
 
   test("service calls and clock reads of every cell are reported as records", async () => {
     const events: Array<Rlm.RlmEvent> = []
-    const stub = stubModel({ driver: [{ cell: 'const now = Date.now()\nyield* Rlm.done({ value: String(now > 0) })' }] })
+    const stub = stubModel({ driver: [{ cell: 'const now = yield* Clock.currentTimeMillis\nyield* Rlm.done({ value: String(now > 0) })' }] })
     await Effect.runPromise(
       Effect.gen(function* () {
         const s = yield* settings({})
@@ -147,9 +147,12 @@ describe("observe", () => {
       }).pipe(Effect.provide(stub.layer)),
     )
     const records = events.flatMap((e) => (e.type === "record" ? [e.record] : []))
-    expect(records.some((r) => r.kind === "tick" && r.source === "date")).toBe(true)
+    expect(records.some((r) => r.kind === "tick" && r.source === "clock")).toBe(true)
     expect(records.some((r) => r.kind === "call" && r.service === "Rlm" && r.method === "done")).toBe(true)
     expect(events.find((e) => e.type === "record")).toMatchObject({ id: "rlm-1", turn: 1 })
+    // Each step cell names the kernel cell its records carry, so a record ties back to its code.
+    const step = events.find((e) => e.type === "step")
+    expect(step?.type === "step" && step.cells[0]?.cell).toBe(records[0]!.cell)
   })
 
   test("a preset with reasoning off asks the model not to think; others leave it to the model", async () => {
