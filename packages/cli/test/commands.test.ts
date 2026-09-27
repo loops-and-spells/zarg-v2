@@ -11,7 +11,10 @@ const T = decodeCommands([
 
 describe("the command table", () => {
   test("is decoded at load; a malformed entry fails loudly", () => {
-    expect(SLASH_COMMANDS.map((c) => c.cmd)).toEqual(["/reconcile", "/yolo"])
+    expect(SLASH_COMMANDS.map((c) => c.cmd)).toEqual(["/reconcile", "/yolo", "/rehearse"])
+    // /rehearse takes a strategy, then focus=ids.
+    expect(parseSlashInput("/rehearse te")).toMatchObject({ mode: "arg", candidates: ["teleport"] })
+    expect(parseSlashInput("/rehearse teleport ")).toMatchObject({ mode: "param", candidates: ["focus="] })
     expect(() => decodeCommands([{ cmd: "reconcile", desc: "x", arg: { kind: "none" } }])).toThrow(/invalid slash-command entry "reconcile"/)
     expect(() => decodeCommands([{ cmd: "/x", desc: "x", arg: { kind: "maybe" } }])).toThrow()
   })

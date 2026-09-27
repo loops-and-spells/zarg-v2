@@ -118,7 +118,7 @@ describe("session", () => {
     expect(f.reconciles).toHaveLength(1)
     expect(s.state().notice).toBe("Reconcile is on for this session; a pass is starting (2 cards).")
     s.command("/nope")
-    expect(s.state().notice).toBe("unknown command: /nope (try /reconcile or /yolo)")
+    expect(s.state().notice).toBe("unknown command: /nope (try /reconcile, /rehearse or /yolo)")
     const off = fakeClient({ reconcileResult: { on: false, reason: "set roles.plan in .zarg/config.toml" } })
     const s2 = makeSession({ client: off.client, threadId: "main" })
     s2.command("/reconcile")

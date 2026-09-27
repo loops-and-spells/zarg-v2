@@ -25,6 +25,7 @@ const server = Bun.serve({
     if (url.pathname === "/threads") return Response.json([{ id: "main", focus: [], status: "idle" }])
     if (url.pathname === "/threads/main/stop") return Response.json({ stopped: "main" })
     if (url.pathname === "/reconcile") return Response.json({ on: true, pending: 1 })
+    if (url.pathname === "/rehearse") return Response.json({ run: "r-1", stories: 2, steps: 6, personas: ["dev"] })
     if (url.pathname === "/threads/main/rlms/rlm-2") return Response.json([{ type: "start", rlm: "rlm-2" }])
     // Events split across chunks and with CRLF-free multi-line framing, as a real stream may deliver them.
     return new Response(
@@ -71,6 +72,11 @@ describe("client", () => {
   test("an agent's history comes from the core", async () => {
     expect(await Effect.runPromise(client.history("main", "rlm-2"))).toEqual([{ type: "start", rlm: "rlm-2" }])
     expect(seen.at(-1)).toMatchObject({ method: "GET", path: "/threads/main/rlms/rlm-2", auth: "Bearer tok" })
+  })
+
+  test("rehearse posts the strategy and focus", async () => {
+    expect(await Effect.runPromise(client.rehearse("teleport", ["UX-1"]))).toMatchObject({ run: "r-1" })
+    expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/rehearse", body: { strategy: "teleport", focus: ["UX-1"] } })
   })
 
   test("a wrong token fails with CoreError 401; a missing socket fails as unreachable", async () => {

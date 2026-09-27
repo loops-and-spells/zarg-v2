@@ -10,7 +10,7 @@ import { HttpRouter } from "effect/unstable/http"
 import { runDir } from "@zarg/client"
 import { claim, markReady, release } from "./lifecycle"
 import { liveCore, liveLayer } from "./live"
-import { api, Log, ReconcileControl, Threads, Token, YoloControl } from "./server"
+import { api, Log, ReconcileControl, RehearseControl, Threads, Token, YoloControl } from "./server"
 
 const { values } = parseArgs({ options: { root: { type: "string" }, mode: { type: "string" }, yolo: { type: "boolean" } } })
 const root = values.root ?? process.cwd()
@@ -47,7 +47,7 @@ const program = Effect.gen(function* () {
   rmSync(socket, { force: true })
   yield* Layer.build(
     HttpRouter.serve(api, { disableListenLog: true, disableLogger: true }).pipe(
-      Layer.provide([BunHttpServer.layer({ unix: socket }), Layer.succeed(Threads, core.threads), Layer.succeed(Log, core.log), Layer.succeed(Token, token), Layer.succeed(ReconcileControl, { turnOn: core.turnOn }), Layer.succeed(YoloControl, core.yolo)]),
+      Layer.provide([BunHttpServer.layer({ unix: socket }), Layer.succeed(Threads, core.threads), Layer.succeed(Log, core.log), Layer.succeed(Token, token), Layer.succeed(ReconcileControl, { turnOn: core.turnOn }), Layer.succeed(YoloControl, core.yolo), Layer.succeed(RehearseControl, { start: core.rehearse.start })]),
     ),
   )
   // Finalizers run in reverse: live streams end first, so the server's graceful stop does not wait on them.
