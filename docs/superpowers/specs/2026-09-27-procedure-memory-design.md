@@ -66,6 +66,7 @@ classify task ◀── procedures (.zarg/procedures/, in git) ◀── improve
 - **Recall:** the class's procedures, plus the project's general ones, are loaded into the agent's kernel as functions on a `Procedures` global, with typed declarations like any service (`yield* Procedures.addCardFromAgenda({ item })`).
   - A procedure runs inside the calling cell, with that agent's own services and scope. It never has more authority than the agent calling it.
   - The system prompt says: "Use a procedure when one fits; write new code otherwise."
+  - The driver's reply names any procedure its work used, in one line (see Decided).
 - **Roles and `Llm.complete`:** a new core service, `Llm.complete({ task, input, schema? })`, makes a model call from a cell.
   - A Decisions choice picks the role from the role catalog (`[roles.<name>] prompt = …, model = …`) by the call's `task`. The generated code never names a model.
   - Tokens count against the calling agent's budget and show in the agents pane.
@@ -153,8 +154,8 @@ No real model in `verify`; the stub model and scripted Decisions answer everywhe
 - Fine-tuning models from traces.
 - Replaying whole agent runs to evaluate policies, as in Dream-RSI; here replay tests procedures only.
 
-## Open questions
+## Decided
 
-- Whether general procedures (not tied to a class) should exist from the start, or only emerge from classes.
-- How many recorded cases a class needs before its procedures are trusted over generated code (3 is a starting point).
-- Whether the driver should mention in the conversation when it used a procedure (for trust), or only the agents pane.
+- **The driver calls out procedures:** when its work used a procedure, its reply to the developer names it in one line, e.g. "(used procedure add-card-from-agenda v2)". Other agents show procedure calls in the agents pane.
+- **No general procedures at first:** every procedure belongs to a class. If the curator finds the same code recurring across classes, general procedures get their own design then.
+- **Three traces compile a procedure:** it must also pass every recorded case. Procedures are offered, never forced, so a weak one costs a failed call, not a wrong result; demotion handles the rest. The threshold is a setting (`[procedures] min_traces = 3`).
