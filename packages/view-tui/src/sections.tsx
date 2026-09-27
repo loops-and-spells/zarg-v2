@@ -1,6 +1,6 @@
 import type { ScrollBoxRenderable } from "@opentui/core"
 import { type ReactNode, useEffect, useRef } from "react"
-import { leafOf, ordered, rowsOf, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
+import { CHAT, type ConversationQuestion, conversationRows, leafOf, OTHER, ordered, rowsOf, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
 
 /** The terminal's colour for each tone. */
 export const TONES = { normal: "#e8eaed", ok: "#81c995", warn: "#fdd663", error: "#f28b82", dim: "#9aa0a6", accent: "#81c995" } as const
@@ -75,14 +75,24 @@ const KeyValue: Leaf = ({ view, path }) => (
 )
 const Text: Leaf = ({ view, path }) => <text fg={TONES.normal}>{(view.data[path] as { markdown?: string } | undefined)?.markdown ?? ""}</text>
 
-// A conversation's messages; its question and input come with the conversation tile.
-const Conversation: Leaf = ({ view, path }) => (
-  <>
-    {((view.data[path] as { messages?: ReadonlyArray<{ id: string; role: string; text: string }> } | undefined)?.messages ?? []).map((m) => (
-      <text key={m.id} fg={m.role === "user" ? TONES.accent : TONES.normal}>{`${m.role === "user" ? "you " : "    "}  ${m.text}`}</text>
-    ))}
-  </>
-)
+// A plugin agent's conversation: its messages, then its question with the options (arrows and Enter answer it).
+const Conversation: Leaf = ({ view, ui, path }) => {
+  const d = view.data[path] as { messages?: ReadonlyArray<{ id: string; role: string; text: string }>; question?: ConversationQuestion } | undefined
+  const q = d?.question
+  return (
+    <>
+      {(d?.messages ?? []).map((m) => (
+        <text key={m.id} fg={m.role === "user" ? TONES.accent : TONES.normal}>{`${m.role === "user" ? "you " : "    "}  ${m.text}`}</text>
+      ))}
+      {q === undefined ? null : <text fg={TONES.warn}>{q.question}</text>}
+      {q === undefined
+        ? null
+        : conversationRows(q, { pick: ui.rows[path] ?? 0, other: false })
+            .filter((r) => r.id !== OTHER && r.id !== CHAT)
+            .map((r) => <text key={r.id} fg={r.selected ? TONES.accent : TONES.normal}>{`${r.selected ? "›" : " "} ${r.label}${r.recommended ? " (recommended)" : ""}`}</text>)}
+    </>
+  )
+}
 
 /** How the terminal draws each leaf kind; tabs draw their current leaf. Every kind must be here. */
 export const renderers: Record<Exclude<SectionKind, "tabs">, Leaf> = { stats: Stats, list: List, log: Log, table: Table, keyvalue: KeyValue, text: Text, conversation: Conversation }

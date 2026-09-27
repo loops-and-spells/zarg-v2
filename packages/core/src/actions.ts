@@ -19,5 +19,23 @@ export const makeActions = (deps: { readonly invoke: Invoke; readonly onApply?: 
       Effect.catch((e) => Effect.succeed({ notice: e.message })),
     )
   },
+  /** The developer answered a question in a plugin agent's conversation. */
+  answer: (_thread: string, agent: string, question: string, answer: { readonly choice?: string; readonly other?: string }): Effect.Effect<{ readonly notice: string }> => {
+    const o = owner(agent)
+    if (o === undefined) return Effect.succeed({ notice: `${agent} has no conversation of its own` })
+    return deps.invoke(o.plugin, "$answer", { agent: o.id, question, answer }).pipe(
+      Effect.map((r) => ({ notice: String((r as { notice?: unknown } | null)?.notice ?? "answered") })),
+      Effect.catch((e) => Effect.succeed({ notice: e.message })),
+    )
+  },
+  /** The developer wrote to a plugin agent. */
+  message: (_thread: string, agent: string, text: string): Effect.Effect<{ readonly notice: string }> => {
+    const o = owner(agent)
+    if (o === undefined) return Effect.succeed({ notice: `${agent} has no conversation of its own` })
+    return deps.invoke(o.plugin, "$message", { agent: o.id, text }).pipe(
+      Effect.as({ notice: "sent" }),
+      Effect.catch((e) => Effect.succeed({ notice: e.message })),
+    )
+  },
 })
 export type Actions = ReturnType<typeof makeActions>

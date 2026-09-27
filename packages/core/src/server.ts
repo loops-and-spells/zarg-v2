@@ -44,6 +44,8 @@ export class Actions extends Context.Service<
   Actions,
   {
     readonly act: (thread: string, agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>) => Effect.Effect<{ readonly notice: string }>
+    readonly answer: (thread: string, agent: string, question: string, answer: { readonly choice?: string; readonly other?: string }) => Effect.Effect<{ readonly notice: string }>
+    readonly message: (thread: string, agent: string, text: string) => Effect.Effect<{ readonly notice: string }>
   }
 >()("@zarg/core/Actions") {}
 
@@ -154,6 +156,32 @@ const routes = HttpRouter.addAll(
           const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as { args?: unknown }
           if (!Array.isArray(body.args) || !body.args.every((a) => typeof a === "string")) return error(400, `a command needs { "args": [strings] }`)
           return HttpServerResponse.jsonUnsafe(yield* commands.run(decodeURIComponent(name ?? ""), `/${decodeURIComponent(cmd ?? "")}`, body.args as ReadonlyArray<string>))
+        }),
+      ),
+      HttpRouter.route(
+        "POST",
+        "/threads/:id/agents/:agent/answers",
+        Effect.gen(function* () {
+          const { id, agent } = yield* HttpRouter.params
+          const thread = decodeURIComponent(id ?? "")
+          if (!THREAD_ID.test(thread)) return error(400, "invalid thread id")
+          const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as { question?: unknown; answer?: { choice?: unknown; other?: unknown } }
+          const a = body.answer
+          if (typeof body.question !== "string" || a === undefined || (typeof a.choice !== "string" && typeof a.other !== "string")) return error(400, `an answer needs { "question": id, "answer": { "choice" } or { "other" } }`)
+          const answer = typeof a.choice === "string" ? { choice: a.choice } : { other: String(a.other) }
+          return HttpServerResponse.jsonUnsafe(yield* actions.answer(thread, decodeURIComponent(agent ?? ""), body.question, answer))
+        }),
+      ),
+      HttpRouter.route(
+        "POST",
+        "/threads/:id/agents/:agent/messages",
+        Effect.gen(function* () {
+          const { id, agent } = yield* HttpRouter.params
+          const thread = decodeURIComponent(id ?? "")
+          if (!THREAD_ID.test(thread)) return error(400, "invalid thread id")
+          const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as { text?: unknown }
+          if (typeof body.text !== "string" || body.text.trim().length === 0) return error(400, `a message needs { "text" }`)
+          return HttpServerResponse.jsonUnsafe(yield* actions.message(thread, decodeURIComponent(agent ?? ""), body.text))
         }),
       ),
       HttpRouter.route(

@@ -23,3 +23,12 @@ test("an action goes to the plugin with its section and rows; an action on a gon
   expect(await Effect.runPromise(actions.act("main", "gone:t-1", "apply", undefined, ["x"]))).toEqual({ notice: "plugin gone is not loaded" })
   expect(await Effect.runPromise(actions.act("main", "rlm-1", "apply", undefined, ["x"]))).toEqual({ notice: "rlm-1 has no actions" })
 })
+
+test("the developer's answer and message to a plugin agent reach its conversation", async () => {
+  const { actions, calls } = setup()
+  expect(await Effect.runPromise(actions.answer("main", "rehearse:tester-1", "q1", { choice: "y" }))).toEqual({ notice: "1 finding sent to the driver" })
+  expect(calls.at(-1)).toEqual(["rehearse", "$answer", { agent: "tester-1", question: "q1", answer: { choice: "y" } }])
+  await Effect.runPromise(actions.message("main", "rehearse:tester-1", "hi"))
+  expect(calls.at(-1)).toEqual(["rehearse", "$message", { agent: "tester-1", text: "hi" }])
+  expect(await Effect.runPromise(actions.message("main", "rlm-1", "hi"))).toEqual({ notice: "rlm-1 has no conversation of its own" })
+})

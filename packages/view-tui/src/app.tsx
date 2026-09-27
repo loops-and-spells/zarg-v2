@@ -51,6 +51,10 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     else if (action.type === "command") props.session.command(action.text)
     else if (action.type === "stop") props.session.stop()
     else if (action.type === "scroll") scroller.current?.(action.delta)
+    else if (action.type === "answer-agent") {
+      const agent = latest().viewing
+      if (agent !== undefined) void props.session.answerAgent(agent, action.question, action.answer)
+    }
     else if (action.type === "act") {
       const agent = latest().viewing
       if (agent !== undefined) void props.session.act(agent, action.action, action.section, action.rows)

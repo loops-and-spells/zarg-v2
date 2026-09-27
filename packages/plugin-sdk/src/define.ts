@@ -1,7 +1,8 @@
 import { Effect, Layer, Schema, Stream } from "effect"
 import type { Contract } from "./contract"
 import type { ViewDef } from "@zarg/view"
-import { Agenda, Agents, Attention, Clock, Config, Decisions, Files, Graph, Http, Models, PluginFailure, type RawPowers, Secrets, servicesFrom, Views } from "./services"
+import { conversations } from "./conversation"
+import { Agenda, Agents, Attention, Clock, Conversation, Config, Decisions, Files, Graph, Http, Models, PluginFailure, type RawPowers, Secrets, servicesFrom, Views } from "./services"
 
 export interface Scopes {
   readonly net?: ReadonlyArray<string> | "ask"
@@ -80,6 +81,7 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
   if (twice !== undefined) throw new Error(`plugin ${def.name}: view ${twice} is defined twice`)
   const serve = (raw: RawPowers) => {
     const s = servicesFrom(raw)
+    const talks = conversations(raw)
     // Each dependency is its contract's service, over the plugins.call power, encoded with the contract's Schemas.
     const deps = (def.pluginDependencies ?? []).map((dep) =>
       Layer.succeed(
@@ -101,7 +103,7 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
     )
     const layer = Layer.mergeAll(
       Layer.succeed(Secrets, s.secrets), Layer.succeed(Http, s.http), Layer.succeed(Files, s.files), Layer.succeed(Graph, s.graph),
-      Layer.succeed(Decisions, s.decisions), Layer.succeed(Models, s.models), Layer.succeed(Clock, s.clock), Layer.succeed(Agenda, s.agenda), Layer.succeed(Agents, s.agents), Layer.succeed(Views, s.views), Layer.succeed(Attention, s.attention),
+      Layer.succeed(Decisions, s.decisions), Layer.succeed(Models, s.models), Layer.succeed(Clock, s.clock), Layer.succeed(Agenda, s.agenda), Layer.succeed(Agents, s.agents), Layer.succeed(Views, s.views), Layer.succeed(Attention, s.attention), Layer.succeed(Conversation, talks.service),
       Layer.effect(Config, Effect.map(Effect.promise(() => raw.call("config.get", {})), (value) => Config.of({ value }))),
       ...deps,
     )
@@ -112,6 +114,18 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
       // The host calls this when the plugin loads: its services start then (a run a restart cut short resumes).
       // Not a method name a plugin can declare (those start with a letter).
       ["$start", async () => (await handlers(), null)],
+      // The developer answered or wrote to one of its agents (the core routes these; plugins cannot declare `$` names).
+      ["$answer", async (p: unknown) => talks.answer(p as never)],
+      [
+        "$message",
+        async (p: unknown) => {
+          await talks.message(p as never)
+          const h = (await handlers()) as Record<string, (p: unknown) => unknown>
+          const out = h.message?.(p)
+          if (out !== undefined && Effect.isEffect(out)) await Effect.runPromise(out as Effect.Effect<unknown>)
+          return null
+        },
+      ],
       ...Object.entries(def.methods).map(([name, spec]) => [
         name,
         async (raw: unknown) => {

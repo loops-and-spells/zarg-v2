@@ -55,6 +55,20 @@ export class Attention extends Context.Service<Attention, {
   readonly request: (agent: string, reason: string) => Effect.Effect<void, PluginFailure>
   readonly clear: (agent: string) => Effect.Effect<void, PluginFailure>
 }>()("@zarg/plugin-sdk/Attention") {}
+/** A question an agent asks in its conversation. */
+export interface AgentQuestion {
+  readonly question: string
+  readonly options: ReadonlyArray<{ readonly id: string; readonly label: string; readonly why?: string; readonly recommended?: boolean }>
+  readonly allowOther?: boolean
+}
+/**
+ * An agent's conversation (its view's `talk` section, kind `conversation`): say something, ask and wait for the
+ * developer's answer. What the developer sends reaches the plugin's `message({ agent, text })` method.
+ */
+export class Conversation extends Context.Service<Conversation, {
+  readonly say: (agent: string, text: string) => Effect.Effect<void, PluginFailure>
+  readonly ask: (agent: string, q: AgentQuestion) => Effect.Effect<{ readonly choice?: string; readonly other?: string }, PluginFailure>
+}>()("@zarg/plugin-sdk/Conversation") {}
 /** Tell the host this plugin's agenda changed (the driver may take it up). */
 export class Agenda extends Context.Service<Agenda, { readonly changed: Effect.Effect<void, PluginFailure> }>()("@zarg/plugin-sdk/Agenda") {}
 

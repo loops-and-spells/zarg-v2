@@ -312,6 +312,8 @@ export type Action =
   | { readonly type: "stop" }
   /** An action on rows of a table in the open agent's view. */
   | { readonly type: "act"; readonly section: string; readonly action: string; readonly rows: ReadonlyArray<string> }
+  /** Answer a question in the open agent's conversation. */
+  | { readonly type: "answer-agent"; readonly question: string; readonly answer: { readonly choice?: string; readonly other?: string } }
   /** Scroll the open agent's focused section by lines. */
   | { readonly type: "scroll"; readonly delta: number }
   | { readonly type: "exit" }
@@ -397,7 +399,16 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: st
     const v = s.thread.views?.[ui.viewing]
     if (v === undefined) return { ui }
     const r = viewKeys(v, ui.view ?? startUi(v), key)
-    return { ui: { ...ui, view: r.ui }, ...(r.act !== undefined ? { action: { type: "act" as const, ...r.act } } : r.scroll !== undefined ? { action: { type: "scroll" as const, delta: r.scroll } } : {}) }
+    return {
+      ui: { ...ui, view: r.ui },
+      ...(r.act !== undefined
+        ? { action: { type: "act" as const, ...r.act } }
+        : r.answer !== undefined
+          ? { action: { type: "answer-agent" as const, ...r.answer } }
+          : r.scroll !== undefined
+            ? { action: { type: "scroll" as const, delta: r.scroll } }
+            : {}),
+    }
   }
   if (draft !== undefined && slashActive(ui, s)) {
     const slash = onSlashKey(ui, key, draft)

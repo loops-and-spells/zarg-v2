@@ -451,3 +451,14 @@ describe("attention", () => {
     expect(ui.focus).toBe("view")
   })
 })
+
+describe("a plugin agent's conversation in its view", () => {
+  const layout = layoutOf(defineView("talker", { talk: { kind: "conversation", role: "primary" } }))
+  const views = { "p:a": { agent: "p:a", layout, data: { talk: { messages: [], question: { id: "q1", question: "Go on?", options: [{ id: "y", label: "Yes" }, { id: "n", label: "No" }], allowOther: false } } } } }
+  const s = { ...running, thread: { ...running.thread, views } } as SessionState
+  test("arrows pick an option and Enter answers the agent", () => {
+    const open = openHistory({ ...initialUi }, "p:a")
+    const down = onKey(open, s, { name: "down" }, 0)
+    expect(onKey(down.ui, s, { name: "return" }, 0).action).toEqual({ type: "answer-agent", question: "q1", answer: { choice: "n" } })
+  })
+})

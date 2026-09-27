@@ -32,6 +32,8 @@ export interface Session {
   readonly pluginCommands: () => ReadonlyArray<PluginCommandInfo>
   /** An action on an agent's selected rows; its notice shows. */
   readonly act: (agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>) => Promise<void>
+  /** Answer a question in a plugin agent's conversation; its notice shows. */
+  readonly answerAgent: (agent: string, question: string, answer: { readonly choice?: string; readonly other?: string }) => Promise<void>
   /** Stop following the core. */
   readonly close: () => void
 }
@@ -168,6 +170,14 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
       )
     },
     pluginCommands: () => pluginCommands,
+    answerAgent: (agent, question, answer) =>
+      Effect.runPromise(
+        opts.client.answerAgent(opts.threadId, agent, question, answer).pipe(
+          Effect.map((r) => r.notice),
+          Effect.catch((e) => Effect.succeed(e.message)),
+          Effect.flatMap((notice) => Effect.sync(() => set({ ...state, notice }))),
+        ),
+      ),
     act: (agent, action, section, rows) =>
       Effect.runPromise(
         opts.client.act(opts.threadId, agent, action, section, rows).pipe(

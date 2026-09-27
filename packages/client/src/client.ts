@@ -92,6 +92,11 @@ export const makeClient = (info: Pick<CoreInfo, "socket" | "token">) => {
       request(`/threads/${encodeURIComponent(threadId)}/agents/${encodeURIComponent(agent)}/actions/${encodeURIComponent(action)}`, { method: "POST", body: JSON.stringify({ ...(section !== undefined ? { section } : {}), rows }) }).pipe(
         Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly notice: string }>)),
       ),
+    /** The developer's answer to a question in a plugin agent's conversation. */
+    answerAgent: (threadId: string, agent: string, question: string, answer: { readonly choice?: string; readonly other?: string }) =>
+      request(`/threads/${encodeURIComponent(threadId)}/agents/${encodeURIComponent(agent)}/answers`, { method: "POST", body: JSON.stringify({ question, answer }) }).pipe(
+        Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ notice: string }>)),
+      ),
     stop: (threadId: string) => request(`/threads/${encodeURIComponent(threadId)}/stop`, { method: "POST", body: "{}" }).pipe(Effect.asVoid),
   }
 }
