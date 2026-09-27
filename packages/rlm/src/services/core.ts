@@ -70,8 +70,13 @@ const allowOutside = (ctx: CoreContext, abs: string) =>
 const globBase = (glob: string) => {
   const parts = glob.split("/")
   const at = parts.findIndex((p) => /[*?[{]/.test(p))
-  return at < 0 ? { base: dirname(glob), pattern: parts.at(-1)! } : { base: parts.slice(0, at).join("/") || "/", pattern: parts.slice(at).join("/") }
+  if (at < 0) return { base: dirname(glob), pattern: parts.at(-1)! }
+  // "/**" is rooted at /; "**/x" is the repository (relative), never /.
+  return { base: at === 0 ? "." : parts.slice(0, at).join("/") || "/", pattern: parts.slice(at).join("/") }
 }
+
+// A folder the process cannot read (or the like) ends a listing: say so to the cell, never crash it.
+const listFailed = (glob: string) => (e: unknown) => fail("ListFailed", `${glob}: ${e instanceof Error ? e.message : String(e)}; narrow the glob`)
 
 const FsRead = {
   read: { doc: "Read a text file: a repo-relative path inside your scope, or an absolute or ~/ path outside the repository (the developer is asked first).", params: Schema.Struct({ path: Schema.String }), success: Schema.String },
@@ -111,7 +116,7 @@ const fsHandlers = (ctx: CoreContext, readOnly = false) => ({
     const outside = outsideOf(ctx, base)
     if (outside !== undefined)
       return Effect.flatMap(allowOutside(ctx, outside), (real) =>
-        Effect.promise(async () => {
+        Effect.tryPromise({ catch: listFailed(glob), try: async () => {
           const out: Array<string> = []
           for await (const f of new Bun.Glob(pattern).scan({ cwd: real, onlyFiles: true })) {
             if (f.split("/").some((p) => p === "node_modules" || p === ".git") || isEnvSecretFile(f)) continue
@@ -119,9 +124,9 @@ const fsHandlers = (ctx: CoreContext, readOnly = false) => ({
             if (out.length >= 2000) break
           }
           return out.sort()
-        }),
+        } }),
       )
-    return Effect.promise(async () => {
+    return Effect.tryPromise({ catch: listFailed(glob), try: async () => {
       const out: Array<string> = []
       for await (const f of new Bun.Glob(glob).scan({ cwd: ctx.root, onlyFiles: true })) {
         if (f.startsWith("node_modules/") || f.includes("/node_modules/")) continue
@@ -133,7 +138,7 @@ const fsHandlers = (ctx: CoreContext, readOnly = false) => ({
         if (out.length >= 2000) break
       }
       return out.sort()
-    })
+    } })
   },
 })
 

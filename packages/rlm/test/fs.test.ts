@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test"
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Fiber } from "effect"
@@ -111,6 +111,14 @@ describe("Fs reads outside the repo only through the host's say", () => {
     expect(await read(handlers(), join(base, "outside.txt"))).toMatchObject({ _tag: "Failure", failure: { _tag: "OutOfScope" } })
   })
 
+  test("a relative glob starting with a wildcard is the repository, never outside", async () => {
+    const asked: Array<string> = []
+    const h = handlers((p) => Effect.sync(() => void asked.push(p)))
+    const out = await Effect.runPromise(h.list!({ glob: "**/*.ts" }) as Effect.Effect<ReadonlyArray<string>>)
+    expect(out).toContain("src/ok.ts")
+    expect(asked).toEqual([])
+  })
+
   test("a glob outside the repo lists absolute paths, once its folder is allowed", async () => {
     const asked: Array<string> = []
     const h = handlers((p) => Effect.sync(() => void asked.push(p)))
@@ -127,5 +135,19 @@ describe("read-only Fs without paths in scope", () => {
     expect(await Effect.runPromise(Effect.flip(ro.read!({ path: ".env.local" }) as Effect.Effect<string, { _tag: string }>))).toMatchObject({ _tag: "OutOfScope" })
     const rw = fs({ root, scope: {}, sensitive: [] }).handlers
     expect(await Effect.runPromise(Effect.flip(rw.read!({ path: "src/ok.ts" }) as Effect.Effect<string, { _tag: string }>))).toMatchObject({ _tag: "OutOfScope" })
+  })
+})
+
+describe("listing past an unreadable folder", () => {
+  test("is a typed failure (or skips it), never a crash of the cell", async () => {
+    const locked = join(root, "locked")
+    mkdirSync(locked)
+    chmodSync(locked, 0o000)
+    try {
+      const r = await Effect.runPromise(Effect.exit(fsRead({ root, scope: {}, sensitive: [] }).handlers.list!({ glob: "**" }) as Effect.Effect<ReadonlyArray<string>, { _tag: string }>))
+      expect(r._tag === "Success" || (r._tag === "Failure" && JSON.stringify(r.cause).includes("ListFailed"))).toBe(true)
+    } finally {
+      chmodSync(locked, 0o755)
+    }
   })
 })
