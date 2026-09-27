@@ -4,3 +4,4 @@ node_modules/
 .zarg/run/
 .zarg/threads/
 packages/*/dist/
+.zarg/rehearse/
