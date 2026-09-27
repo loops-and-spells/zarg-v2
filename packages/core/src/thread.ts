@@ -9,18 +9,18 @@ import type { WireEvent } from "./events"
 import type { ThreadLog } from "./log"
 
 export const WHAT_NEXT =
-  "The agenda is empty. Ask the developer what to work on next, with options drawn from the graph (unexplored branches, missing failure cases, the next journey). Decide the options yourself from Graph.render and Graph.agenda; no research children for this."
+  "The agenda is empty. Ask the developer what to work on next with Inquire.ask: 2-4 options drawn from the graph where something is missing (a failure the user must handle, a choice the cards do not cover), one recommended, and allowOther: true so they can name their own idea. Never make up a journey or feature yourself. Decide the options from Graph.render and Graph.agenda; no research children for this."
 
 /** "What next" when code already found the gaps: ask from them in the first turn instead of reading the graph. */
 export const WHAT_NEXT_GAPS =
-  "The agenda is empty. Ask the developer what to work on next now, in your first turn, with Inquire.ask: 2-4 options drawn from the gaps below (or starting a new journey), one recommended. Do not render the whole graph; use Graph.render({ focus }) on a gap's ids only if a label needs it. No research children."
+  "The agenda is empty. Ask the developer what to work on next now, in your first turn, with Inquire.ask: 2-4 options drawn from the gaps below, one recommended, and allowOther: true so they can name their own idea. Never make up a journey or feature yourself. Do not render the whole graph; use Graph.render({ focus }) on a gap's ids only if a label needs it. No research children."
 
 // Enough gaps to choose 2-4 options from.
 const GAPS_SHOWN = 8
 
 /** Appended to every driver task: its result is a message to the developer. */
 export const REPLY_RULE =
-  "Finish with `yield* Rlm.done({ value })`, where value is one or two sentences to the developer about what you did or found. No card renders, no ids-only lists."
+  "Before any graph write, show the developer the exact change with Inquire.confirm({ change }) (each card as Given / When / Then lines) and write only what they add. Finish with `yield* Rlm.done({ value })`, where value is one or two sentences to the developer about what you did or found. No card renders, no ids-only lists."
 
 /** The longest reply shown; longer results are cut. */
 const REPLY_MAX = 600
@@ -187,7 +187,7 @@ export const makeThread = (deps: ThreadDeps) =>
                     .map((g) => `- ${g.title}${g.about.length > 0 ? ` [${g.about.join(", ")}]` : ""}: ${g.detail}`)
                     .join("\n")}`
                 : WHAT_NEXT
-              : `${item.title}\n${item.detail}\nPropose how to resolve it and ask the developer with Inquire.ask before changing the graph.`,
+              : `${item.title}\n${item.detail}\nPropose how to resolve it: ask the developer with Inquire.ask when there is a choice, and show the exact change with Inquire.confirm before writing it.`,
           stuck ? `Note: "${item!.title}" is still open after two passes; mention it among the options.` : "",
           around.length > 0 ? `The cards around it (Graph.render of ${item!.about.join(", ")}):\n${around}` : "",
           items.length > 0
@@ -211,6 +211,16 @@ export const makeThread = (deps: ThreadDeps) =>
         if (Exit.isSuccess(outcome)) {
           const reply = String(outcome.value.value)
           yield* note("assistant", reply.length > REPLY_MAX ? `${reply.slice(0, REPLY_MAX)}…` : reply)
+          // What next is the developer's to say: after one round, wait for them rather than ask again.
+          // A message that came in meanwhile is the developer speaking: go on with it.
+          if (said.length === 0 && (item === undefined || stuck) && inbox.length === 0) {
+            const wait = yield* Deferred.make<void>()
+            paused = wait
+            // A question still waiting (asked from outside the driver) ends the run as its interrupt.
+            const next = pending()
+            if (open) yield* emit(next !== undefined ? E.runInterrupted(threadId, runId, next.interrupt) : E.runFinished(threadId, runId))
+            yield* Deferred.await(wait)
+          }
           continue
         }
         const err = outcome.cause.reasons.find((r) => r._tag === "Fail")?.error

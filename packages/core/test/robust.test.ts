@@ -127,7 +127,13 @@ describe("thread robustness", () => {
         }
         return (yield* asker.ask(question)) as never
       }) as never
-    const events = await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setup(driver); return yield* collect(thread.run({ runId: "r1" })) }))
+    const events = await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setup(driver)
+        const first = yield* collect(thread.run({ runId: "r1" }))
+        return [...first, ...(yield* collect(thread.run({ runId: "r2", message: "next" })))]
+      }),
+    )
     const state = events.reduce(reduce, initial("main"))
     expect(Object.keys(state.rlms)).toEqual(["rlm-1"])
   })

@@ -51,7 +51,32 @@ const Choice = Schema.Struct({
 })
 export type Choice = typeof Choice.Type
 
+const Confirm = Schema.Struct({
+  change: Schema.String.annotate({
+    description: "The exact change in the developer's words: each card as Given / When / Then lines (and any state edits), as it will be written.",
+  }),
+  about: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Card or state ids the change touches." }),
+})
+export type Confirm = typeof Confirm.Type
+
+/** The question Inquire.confirm asks: the change itself, with add, change and skip. */
+export const confirmQuestion = (c: Confirm): Question => ({
+  question: `Add this to the requirements?\n\n${c.change}`,
+  options: [
+    { id: "add", label: "Add it", recommended: true, why: "as written" },
+    { id: "change", label: "Change it" },
+    { id: "skip", label: "Skip" },
+  ],
+  allowOther: true,
+  ...(c.about !== undefined ? { about: c.about } : {}),
+})
+
 export const InquireDef = defineService("Inquire", "Ask the developer a question. The cell waits (yielded) until they answer.", {
+  confirm: {
+    doc: "Show the developer the exact change before writing it to the graph: they add it, ask to change it, or skip it. Graph writes are refused until they add it, and closed again by your next question.",
+    params: Confirm,
+    success: Answer,
+  },
   ask: { doc: "Ask with 2-4 options; mark one recommended with why. The answer is an option id or free text.", params: Question, success: Answer },
   choose: {
     doc: "Accept an option of a question under discussion for the developer, when the conversation settled it. They see what you chose and why.",
@@ -65,10 +90,13 @@ export interface Asker {
   readonly ask: (q: Question) => Effect.Effect<Answer, ServiceFailure>
   /** Close a question under discussion with one of its options, for the developer. */
   readonly choose?: (c: Choice) => Effect.Effect<{ readonly choice: string }, ServiceFailure>
+  /** Show a change for the developer to add, change or skip; defaults to `ask` with `confirmQuestion`. */
+  readonly confirm?: (c: Confirm) => Effect.Effect<Answer, ServiceFailure>
 }
 
 export const inquire = (asker: Asker): Bound =>
   bind(InquireDef, {
+    confirm: (c) => (asker.confirm !== undefined ? asker.confirm(c) : asker.ask(confirmQuestion(c))),
     ask: (q) =>
       q.options.length < 2 || q.options.length > 4
         ? Effect.fail({ _tag: "InvalidQuestion", message: `ask with 2 to 4 options, got ${q.options.length}` })
@@ -104,7 +132,7 @@ const DAnswer = Schema.Struct({
 
 export const DecisionsDef = defineService("Decisions", "Fast judgments by a small decision model: choice, yes/no (noul), or score, each with a confidence.", {
   decide: {
-    doc: "Answer 1-8 questions about a state. Use it to classify work or check a result before acting on it.",
+    doc: "Answer 1-8 questions about a state. Use it to classify work or check a result before acting on it. An answer with confidence below 0.5 is a guess: never act on it or choose for the developer with it; ask them instead.",
     params: Schema.Struct({
       state: Schema.String.annotate({ description: "What the questions are about: the situation in plain text, short." }),
       questions: Schema.Record(Schema.String, DQuestion).annotate({ description: "1-8 questions by name; the result has the same names." }),

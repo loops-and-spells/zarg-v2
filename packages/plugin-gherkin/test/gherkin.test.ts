@@ -55,7 +55,7 @@ describe("pricing example", () => {
     expect(ids.after).toEqual(["gherkin:dead-end:S-0003", "gherkin:dead-end:S-0006"])
   })
 
-  test("suggest: states with only one way on (no failure or other choice), busiest first, within focus", async () => {
+  test("suggest: failure candidates for states with only one way on, busiest first, within focus", async () => {
     const out = await run(
       Effect.gen(function* () {
         yield* pricing
@@ -69,8 +69,8 @@ describe("pricing example", () => {
     )
     expect(out.all.map((i) => i.id)).toEqual(["gherkin:one-way:S-0003", "gherkin:one-way:S-0001"])
     expect(out.all[0]).toMatchObject({
-      title: 'Only one thing happens from "the account form is shown": Visitor submits the account form',
-      detail: "UX-0006 is the only card from S-0003 (reached by 2 cards). Add a failure case or another choice?",
+      title: 'A failure case for "Visitor submits the account form"',
+      detail: "UX-0006 is the only way on from S-0003. Given the account form is shown. When the visitor submits the form. Then the account is created. Can it fail or go another way the user must handle?",
       about: ["S-0003", "UX-0006"],
     })
     expect(out.focused.map((i) => i.id)).toEqual(["gherkin:one-way:S-0001"])

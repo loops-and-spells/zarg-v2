@@ -11,6 +11,7 @@ import { openrouter } from "@zarg/provider-openrouter"
 import { zargRouter } from "@zarg/provider-zarg-router"
 import { type Asker, decisionsService, fsRead, graph, inquire, pluginService, Rlm, type Scope, settings } from "@zarg/rlm"
 import { askFirst } from "./driver"
+import { judgeGaps, unbuiltCards } from "./gaps"
 import { makeLog } from "./log"
 import { makeYolo, PluginControl, pluginHostLayer, vaultFrom } from "./plugins"
 import { STUB_MODEL, stubLayer } from "./stub"
@@ -83,7 +84,21 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       Effect.map(host.agenda(focus), (items) => [...(reconcile?.agenda(focus) ?? []), ...items])
     // The same scope filter the driver's Graph.render applies.
     const render = (ids: ReadonlyArray<string>, scope: Scope) => Effect.map(graph({ host, snapshot, scope }).handlers.render!({ focus: ids }), String)
-    const threads = yield* makeThreads({ log, agenda, render, suggest: (focus) => host.suggest(focus), makeRlm, extra: reconcile?.threads ?? [] })
+    // What next: failure candidates a decision model judges real, and cards with no code yet.
+    const suggest = (focus: ReadonlySet<string> | undefined) =>
+      Effect.gen(function* () {
+        const failures = yield* judgeGaps(decisions.decide, yield* host.suggest(focus))
+        const snap = yield* store.snapshot
+        const cards = [...snap.nodes.values()].filter((n) => n.type === "gherkin/card" && (focus === undefined || focus.has(n.id))).map((n) => n.id)
+        const unbuilt = yield* unbuiltCards(root, cards)
+        return [
+          ...failures,
+          ...(unbuilt.length > 0
+            ? [{ id: "code:unbuilt", title: `${unbuilt.length} card${unbuilt.length === 1 ? " has" : "s have"} no code yet`, detail: "/reconcile plans and builds them (the driver does not write code).", about: unbuilt.slice(0, 5), priority: 50 }]
+            : []),
+        ]
+      })
+    const threads = yield* makeThreads({ log, agenda, render, suggest, makeRlm, extra: reconcile?.threads ?? [] })
     // A plugin's grant question is asked on main, like any driver question.
     const main = yield* threads.get("main", [])
     const control = yield* PluginControl

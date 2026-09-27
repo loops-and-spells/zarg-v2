@@ -119,6 +119,30 @@ test("a second question waits behind the first and is shown once the first is an
     expect(tasks[0]).toContain("Gaps zarg found:\n- Only one thing happens from S-3 [S-3, UX-6]: Add a failure case?\n- Only one thing happens from S-1 [S-1, UX-1]: Add a failure case?")
   })
 
+  test("after a what-next item, the driver waits for the developer instead of asking what next again", async () => {
+    const tasks: Array<string> = []
+    const driver: Driver = (spec) => Effect.sync(() => (tasks.push(spec.task), outcome("I added the card you chose.")))
+    const events = await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setup(driver)
+        const first = yield* collect(thread.run({ runId: "r1" })).pipe(Effect.timeoutOrElse({ duration: 2000, orElse: () => Effect.succeed([] as Array<WireEvent>) }))
+        yield* Effect.sleep(50)
+        expect(tasks.length).toBe(1)
+        yield* Effect.forkChild(collect(thread.run({ runId: "r2", message: "now the login journey" })))
+        yield* Effect.sleep(50)
+        return first
+      }),
+    )
+    expect(last(events)).toMatchObject({ type: "RUN_FINISHED", runId: "r1" })
+    expect(tasks[1]).toStartWith('The developer said: "now the login journey"')
+  })
+
+  test("the what-next task offers the developer's own idea, never a journey the driver makes up", () => {
+    expect(WHAT_NEXT_GAPS).toContain("allowOther")
+    expect(WHAT_NEXT_GAPS).not.toContain("new journey")
+    expect(WHAT_NEXT).not.toContain("the next journey")
+  })
+
   test("an empty agenda and no gaps (or a failing suggest): the driver works out the options itself", async () => {
     const tasks: Array<string> = []
     const driver: Driver = (spec, asker) =>
@@ -340,7 +364,7 @@ test("a second question waits behind the first and is shown once the first is an
     )
     expect(tasks[0]).toStartWith('The developer said: "hello"')
     expect(tasks[1]).toContain("What happens after payment?\nNo card continues from S-0004.")
-    expect(tasks[1]).toContain("ask the developer with Inquire.ask before changing the graph")
+    expect(tasks[1]).toContain("show the exact change with Inquire.confirm before writing it")
     expect(tasks[1]).toContain("Recent conversation:\ndeveloper: hello\ndriver: Hello! Let's look at the agenda.")
   })
 

@@ -64,6 +64,9 @@ loop per thread:
 ```
 
 - The driver RLM asks with `yield* Inquire.ask(...)`. `Inquire`'s host implementation parks the cell and ends the current AG-UI run with an interrupt (below). The loop continues when the next run resumes it.
+- **Nothing is written that the developer did not see.** Graph writes open only when the developer adds a change shown with `Inquire.confirm({ change })` (each card as Given / When / Then, with Add it / Change it / Skip), or the driver adds a discussed one for them with `Inquire.choose`. The next question closes writes again.
+- **What next is the developer's to say.** With an empty agenda the driver asks once, from gaps zarg found, with "Something else…" for the developer's own idea; it never makes up a journey. After that round the loop waits for the developer (the run ends) instead of asking again.
+  - Gaps: cards with no `@card` tag yet (built by `/reconcile`), and failure candidates for steps with only one way on, kept only when the decision model finds a failure likely (probability ≥ 0.75, one card per request). Most such steps cannot fail, so usually none are kept.
 - A failing RLM (`RlmError`) ends the run with `RUN_ERROR`; the thread stays usable and the next run starts the loop again.
 - `POST /threads/:id/stop` interrupts the thread's loop fiber, which interrupts the running RLM and its children (kernel interrupts reach host calls). The stop is noted in the thread (UX-0044).
 

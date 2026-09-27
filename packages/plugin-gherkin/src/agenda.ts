@@ -51,8 +51,8 @@ export const agenda = (snap: Snapshot.Snapshot): ReadonlyArray<AgendaItem> => {
 }
 
 /**
- * What next, when the agenda is empty: states the user can leave in only one way (no failure case, no other
- * choice), busiest first (most cards lead there).
+ * Failure candidates, when the agenda is empty: states the user can leave in only one way, busiest first (most
+ * cards lead there). Most such steps cannot fail; the core keeps only those a decision model judges can.
  */
 export const suggest = (snap: Snapshot.Snapshot): ReadonlyArray<AgendaItem> =>
   states(snap)
@@ -64,10 +64,13 @@ export const suggest = (snap: Snapshot.Snapshot): ReadonlyArray<AgendaItem> =>
       return [{ s, card, reached: Snapshot.inbound(snap, s.id, THEN).length }]
     })
     .sort((a, b) => b.reached - a.reached || a.s.id.localeCompare(b.s.id))
-    .map(({ s, card, reached }, i) => ({
+    .map(({ s, card }, i) => ({
       id: `gherkin:one-way:${s.id}`,
-      title: `Only one thing happens from "${text(s)}": ${String(card.props.title ?? card.id)}`,
-      detail: `${card.id} is the only card from ${s.id} (reached by ${reached} card${reached === 1 ? "" : "s"}). Add a failure case or another choice?`,
+      title: `A failure case for "${String(card.props.title ?? card.id)}"`,
+      detail: `${card.id} is the only way on from ${s.id}. Given ${text(s)}. When ${String(card.props.when ?? "")}. Then ${card.edges
+        .filter((e) => e.type === THEN)
+        .map((e) => { const t = snap.nodes.get(e.to); return t === undefined ? e.to : text(t) })
+        .join(", and ")}. Can it fail or go another way the user must handle?`,
       about: [s.id, card.id],
       priority: i + 1,
     }))
