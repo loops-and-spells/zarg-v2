@@ -3,7 +3,7 @@
   "id": "S-0025",
   "props": {
     "terminal": true,
-    "text": "sensitive values are stored encrypted on this device"
+    "text": "secrets are stored in the plugin's own namespace"
   },
   "type": "gherkin/state"
 }

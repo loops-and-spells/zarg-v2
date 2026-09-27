@@ -15,8 +15,8 @@
   ],
   "id": "UX-0026",
   "props": {
-    "title": "Developer starts a provider login",
-    "when": "the developer runs /login for a provider"
+    "title": "Developer sets up a provider plugin",
+    "when": "the developer opens a provider plugin's setup"
   },
   "type": "gherkin/card"
 }

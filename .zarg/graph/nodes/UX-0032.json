@@ -11,8 +11,8 @@
   ],
   "id": "UX-0032",
   "props": {
-    "title": "Developer logs out",
-    "when": "the developer runs /logout for a provider"
+    "title": "Developer removes a provider's key",
+    "when": "the developer clears a provider plugin's secret"
   },
   "type": "gherkin/card"
 }

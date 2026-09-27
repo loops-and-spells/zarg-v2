@@ -11,8 +11,8 @@
   ],
   "id": "UX-0031",
   "props": {
-    "title": "Developer chooses to log in",
-    "when": "the developer chooses to log in"
+    "title": "Developer chooses to set up the provider",
+    "when": "the developer chooses provider setup"
   },
   "type": "gherkin/card"
 }
