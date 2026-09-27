@@ -128,3 +128,12 @@ test("a view other than the one the agent started with keeps its own data", asyn
   expect(views.data("rehearse:t1", "line")).toBeUndefined()
   expect(views.data("rehearse:t1", "progress")).toEqual({ items: [] })
 })
+
+test("surfaces open only for agents the plugin started, and one popover per plugin at a time", async () => {
+  const { on } = await surfaceSetup([{ kind: "popover", name: "ask", view: "tester" }, status])
+  expect(() => on("rehearse", { event: "open", surfaces: [{ surface: "status", agent: "ghost" }], gesture: true })).toThrow(/has not started an agent ghost/)
+  on("rehearse", { event: "start", id: "t1", title: "tester", task: "t", view: "tester" })
+  on("rehearse", { event: "start", id: "t2", title: "tester", task: "t", view: "tester" })
+  on("rehearse", { event: "open", surfaces: [{ surface: "ask", agent: "t1" }], gesture: true })
+  expect(() => on("rehearse", { event: "open", surfaces: [{ surface: "ask", agent: "t2" }], gesture: true })).toThrow(/already has a popover up/)
+})

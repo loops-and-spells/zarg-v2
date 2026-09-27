@@ -61,7 +61,8 @@ const surfaceKey = (v: ViewState, vu: ViewUi, k: InputKey, agent: string): { rea
   const r = viewKeys(v, vu, k)
   return {
     view: r.ui,
-    ...(r.act !== undefined ? { action: { type: "act" as const, ...r.act, agent } } : r.answer !== undefined ? { action: { type: "answer-agent" as const, ...r.answer, agent } } : {}),
+    // The view's key goes along: an action's `opens` is found in the view it came from.
+    ...(r.act !== undefined ? { action: { type: "act" as const, ...r.act, agent, view: v.agent } } : r.answer !== undefined ? { action: { type: "answer-agent" as const, ...r.answer, agent } } : {}),
   }
 }
 
@@ -254,7 +255,7 @@ export const SHELL: ReadonlyArray<Layer> = [
       return {
         ui: { ...ui, view: r.ui },
         ...(r.act !== undefined
-          ? { action: { type: "act" as const, ...r.act } }
+          ? { action: { type: "act" as const, ...r.act, view: v.agent } }
           : r.answer !== undefined
             ? { action: { type: "answer-agent" as const, ...r.answer } }
             : r.scroll !== undefined

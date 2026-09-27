@@ -14,16 +14,17 @@ export const makeActions = (deps: {
   readonly onApply?: (plugin: string, rows: ReadonlyArray<string>) => void
   /** Take a question the agent no longer waits for out of its view (its messages stay). */
   readonly withdraw?: (thread: string, agent: string) => void
-  /** The surfaces an action on this agent's view declares it opens (`opens`), if any. */
-  readonly opensOf?: (agent: string, action: string) => ReadonlyArray<{ readonly surface: string; readonly agent?: string }> | undefined
+  /** The surfaces an action declares it opens (`opens`), looked up in the view (its store key) it came from. */
+  readonly opensOf?: (view: string, action: string) => ReadonlyArray<{ readonly surface: string; readonly agent?: string }> | undefined
   /** Open a plugin's surfaces for its agents (local ids), as the developer's own gesture. */
   readonly open?: (plugin: string, surfaces: ReadonlyArray<{ readonly surface: string; readonly agent: string }>) => void
 }) => ({
-  act: (_thread: string, agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>): Effect.Effect<{ readonly notice: string }> => {
+  /** `view`: the view store key the action came from (a panel, popover or sheet of the agent); the agent's start view when absent. */
+  act: (_thread: string, agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>, view?: string): Effect.Effect<{ readonly notice: string }> => {
     const o = owner(agent)
     if (o === undefined) return Effect.succeed({ notice: `${agent} has no actions` })
     // An action that opens surfaces is the shell's to carry out: the plugin is not called.
-    const opens = deps.opensOf?.(agent, action)
+    const opens = deps.opensOf?.(view ?? agent, action)
     if (opens !== undefined && deps.open !== undefined) {
       const open = deps.open
       return Effect.sync(() => {

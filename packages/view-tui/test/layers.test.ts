@@ -125,7 +125,7 @@ describe("surfaces in the shell", () => {
 
   test("a plugin's popover: its action key acts on its agent; Esc closes it", () => {
     const s = with_({ prompts: [popover] })
-    expect(onKey(at({}), s, key("a"), 0).action).toEqual({ type: "act", section: "rows", action: "apply", rows: ["r1"], agent: "two:t1" })
+    expect(onKey(at({}), s, key("a"), 0).action).toEqual({ type: "act", section: "rows", action: "apply", rows: ["r1"], agent: "two:t1", view: "two:t1" })
     expect(onKey(at({}), s, key("escape"), 0).action).toEqual({ type: "close-prompt", id: "p1" })
   })
   test("Alt+down from the tile reaches a focusable bottom panel before the bar; one that takes no keys is skipped", () => {
@@ -138,7 +138,7 @@ describe("surfaces in the shell", () => {
     const s = with_({ panels: [panel("onFocus")] })
     const ui = at({ focus: "panel", panel: "two:status:two:t1", viewing: "two:t1" })
     expect(onKey(ui, s, key("down"), 0).ui.panelView?.rows.rows).toBe(1)
-    expect(onKey(ui, s, key("a"), 0).action).toMatchObject({ type: "act", action: "apply", agent: "two:t1" })
+    expect(onKey(ui, s, key("a"), 0).action).toMatchObject({ type: "act", action: "apply", agent: "two:t1", view: "two:t1" })
     expect(onKey(ui, s, key("escape"), 0).ui).toMatchObject({ focus: "tile", closedPanels: ["two:status:two:t1"] })
   })
   test("a plugin's sheet takes its view's keys; Esc closes it", () => {

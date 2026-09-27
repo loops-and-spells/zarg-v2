@@ -49,6 +49,8 @@ export const makePrompts = (log: ThreadLog, threadId = "main") => {
         yield* Effect.ignore(done(id, false))
         return { notice: "closed" }
       }),
+    /** Whether one of this plugin's popovers is up (a plugin gets one place in the queue at a time). */
+    shownBy: (plugin: string) => [...shown.values()].some((v) => v.agent.startsWith(`${plugin}:`)),
     /** The popover showing this agent's view, if one is up. */
     shownFor: (agent: string, view: string) => [...shown.entries()].find(([, v]) => v.agent === agent && v.view === view)?.[0],
     /** An agent that ended takes its popovers with it. */

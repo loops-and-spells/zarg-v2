@@ -88,8 +88,8 @@ export const makeClient = (info: Pick<CoreInfo, "socket" | "token">) => {
         Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly notice: string }>)),
       ),
     /** An action on an agent's selected rows; answers a notice for the developer. */
-    act: (threadId: string, agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>) =>
-      request(`/threads/${encodeURIComponent(threadId)}/agents/${encodeURIComponent(agent)}/actions/${encodeURIComponent(action)}`, { method: "POST", body: JSON.stringify({ ...(section !== undefined ? { section } : {}), rows }) }).pipe(
+    act: (threadId: string, agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>, view?: string) =>
+      request(`/threads/${encodeURIComponent(threadId)}/agents/${encodeURIComponent(agent)}/actions/${encodeURIComponent(action)}`, { method: "POST", body: JSON.stringify({ ...(section !== undefined ? { section } : {}), rows, ...(view !== undefined ? { view } : {}) }) }).pipe(
         Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly notice: string }>)),
       ),
     /** The developer's answer to a question in a plugin agent's conversation. */

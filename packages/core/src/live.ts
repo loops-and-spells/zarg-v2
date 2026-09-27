@@ -181,8 +181,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     )
     const actions = makeActions({ invoke: (plugin, method, params) => host.invoke(plugin, method, params), onApply: (plugin, rows) => chosen.add(plugin, rows),
       // An action's `opens`, from the layout its view has now: the developer's own gesture opens them.
-      opensOf: (agent, action) => {
-        const layout = threadViews(log, "main").layout(agent)
+      opensOf: (view, action) => {
+        const layout = threadViews(log, "main").layout(view)
         if (layout === undefined) return undefined
         const leaves = layout.sections.flatMap((x) => (x.kind === "tabs" ? x.tabs : [x]))
         return [...leaves.flatMap((l) => l.actions ?? []), ...(layout.actions ?? [])].find((a) => a.id === action)?.opens

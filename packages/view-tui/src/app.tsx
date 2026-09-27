@@ -110,7 +110,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     } else if (action.type === "act") {
       // A panel, a popover or a plugin sheet names its agent; the open view's agent is the one it started with.
       const agent = action.agent ?? latest().viewing?.split("@")[0]
-      if (agent !== undefined) void props.session.act(agent, action.action, action.section, action.rows)
+      if (agent !== undefined) void props.session.act(agent, action.action, action.section, action.rows, action.view)
     } else if (action.type === "exit") props.onExit()
   }
 

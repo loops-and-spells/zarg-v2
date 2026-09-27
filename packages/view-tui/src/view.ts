@@ -478,7 +478,7 @@ export type Action =
   | { readonly type: "command"; readonly text: string }
   | { readonly type: "stop" }
   /** An action on rows of a table in a view: the open agent's, or `agent`'s (a panel, a popover, a plugin sheet). */
-  | { readonly type: "act"; readonly section: string | undefined; readonly action: string; readonly rows: ReadonlyArray<string>; readonly agent?: string }
+  | { readonly type: "act"; readonly section: string | undefined; readonly action: string; readonly rows: ReadonlyArray<string>; readonly agent?: string; readonly view?: string }
   /** Close a plugin's popover. */
   | { readonly type: "close-prompt"; readonly id: string }
   /** Answer a question in the open agent's conversation (or `agent`'s). */

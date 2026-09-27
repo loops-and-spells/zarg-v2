@@ -55,3 +55,16 @@ test("an action that declares opens opens its surfaces and never calls the plugi
   expect(opened).toEqual([["rehearse", [{ surface: "main", agent: "t1" }, { surface: "status", agent: "run" }]]])
   expect(calls).toEqual([])
 })
+
+test("opens is looked up in the view the action came from, not only the agent's start view", async () => {
+  const opened: Array<[string, unknown]> = []
+  const seen: Array<string> = []
+  const actions = makeActions({
+    invoke: () => Effect.void,
+    opensOf: (key, action) => (seen.push(key), key === "rehearse:run@status" && action === "open" ? [{ surface: "main" }] : undefined),
+    open: (plugin, surfaces) => void opened.push([plugin, surfaces]),
+  })
+  expect(await Effect.runPromise(actions.act("main", "rehearse:run", "open", undefined, [], "rehearse:run@status"))).toEqual({ notice: "opened" })
+  expect(seen).toEqual(["rehearse:run@status"])
+  expect(opened).toEqual([["rehearse", [{ surface: "main", agent: "run" }]]])
+})

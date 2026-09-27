@@ -401,7 +401,7 @@ describe("keys in an agent's view", () => {
     expect(ui.view?.focus).toBe(1)
     ui = onKey(ui, s, { name: "space" }, 0).ui
     const r = onKey(ui, s, { name: "a" }, 0)
-    expect(r.action).toEqual({ type: "act", section: "review.findings", action: "apply", rows: ["R-2"] })
+    expect(r.action).toEqual({ type: "act", section: "review.findings", action: "apply", rows: ["R-2"], view: "rehearse:t-1" })
     expect(r.ui.view?.selected["review.findings"]).toEqual([])
     expect(onKey(ui, s, { name: "]" }, 0).ui.view?.tabs.review).toBe(1)
     expect(onKey(ui, s, { name: "tab" }, 0).ui.view?.focus).toBe(0)
