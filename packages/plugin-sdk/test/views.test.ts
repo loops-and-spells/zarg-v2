@@ -11,6 +11,13 @@ describe("plugin views", () => {
     expect(manifestOf(p).views).toEqual([{ name: "tester", sections: [{ id: "steps", kind: "log", role: "log" }, { id: "progress", kind: "stats", role: "summary" }] }])
   })
 
+  test("a plugin's surfaces travel in its manifest; one showing a view it does not declare is refused", () => {
+    const status = { kind: "panel" as const, name: "status", view: "tester", scope: "shell" as const, edge: "bottom" as const, size: 1, input: "none" as const }
+    const p = definePlugin({ name: "demo", service: "Demo", archetype: "service", config: Schema.Struct({}), scopes: { agents: true }, views: [Tester], surfaces: [status], methods: {}, make: Effect.succeed({}) })
+    expect(manifestOf(p).surfaces).toEqual([status])
+    expect(() => definePlugin({ name: "demo", service: "Demo", archetype: "service", config: Schema.Struct({}), scopes: {}, views: [Tester], surfaces: [{ ...status, view: "nope" }], methods: {}, make: Effect.succeed({}) })).toThrow(/which the plugin does not declare/)
+  })
+
   test("two views with one name are refused", () => {
     expect(() => definePlugin({ name: "demo", service: "Demo", archetype: "service", config: Schema.Struct({}), scopes: {}, views: [Tester, Tester], methods: {}, make: Effect.succeed({}) })).toThrow(/view tester/)
   })

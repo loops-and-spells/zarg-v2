@@ -113,6 +113,12 @@ export default definePlugin({ name: "walker", service: "Walker", archetype: "age
     expect(out).toContain("tab, a key terminal keeps for itself")
   })
 
+  test("the host refuses a surface showing a view the plugin does not declare", async () => {
+    const built = await fixturePlugin(agent())
+    const out = await Effect.runPromise(hostWith([{ ...built, manifest: { ...built.manifest, surfaces: [{ kind: "sheet", name: "s", view: "missing" }] } as never }], (h) => Effect.map(h.agenda(), (a) => a.map((i) => i.detail).join(" "))))
+    expect(out).toMatch(/view missing, which the plugin does not declare/)
+  })
+
   test("a bundle that claims the trusted runtime is refused: trusted agents are zarg's own packages", async () => {
     const out = await Effect.runPromise(hostWith([await fixturePlugin(agent("trusted"))], (h) => Effect.map(h.agenda(), (a) => a.map((i) => i.detail).join(" "))))
     expect(out).toContain("trusted")

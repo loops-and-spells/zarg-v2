@@ -2,4 +2,4 @@
 export * from "./define"
 export * from "./services"
 export * from "./contract"
-export { defineView } from "@zarg/view"
+export { defineView, type Surface } from "@zarg/view"

@@ -1,6 +1,6 @@
 import { Effect, Layer, Schema, Stream } from "effect"
 import type { Contract } from "./contract"
-import type { ViewDef } from "@zarg/view"
+import { type Surface, surfacesProblem, type ViewDef } from "@zarg/view"
 import { conversations } from "./conversation"
 import { Agenda, Agents, Attention, Clock, Conversation, Config, Decisions, Files, Graph, Http, Models, PluginFailure, type RawPowers, Secrets, servicesFrom, Views } from "./services"
 
@@ -56,6 +56,8 @@ export interface PluginDef<M extends Record<string, MethodSpec>> {
   readonly pluginDependencies?: ReadonlyArray<Contract>
   /** Views its agents draw (`Agents.start({ view })`, then `Views.set` / `Views.append`). */
   readonly views?: ReadonlyArray<ViewDef<any>>
+  /** Where its views show (`Surfaces.open`): tiles, panels, popovers, sheets. */
+  readonly surfaces?: ReadonlyArray<Surface>
   readonly scopes: Scopes
   readonly optional?: Scopes
   readonly methods: M
@@ -81,6 +83,8 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
   const names = (def.views ?? []).map((v) => v.name)
   const twice = names.find((n, i) => names.indexOf(n) !== i)
   if (twice !== undefined) throw new Error(`plugin ${def.name}: view ${twice} is defined twice`)
+  const surfaces = surfacesProblem(def.surfaces, names)
+  if (surfaces !== undefined) throw new Error(`plugin ${def.name}: ${surfaces}`)
   const serve = (raw: RawPowers) => {
     const s = servicesFrom(raw)
     const talks = conversations(raw)

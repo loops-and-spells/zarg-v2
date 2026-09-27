@@ -1,5 +1,5 @@
 import { Schema } from "effect"
-import { type Layout, layoutOf } from "@zarg/view"
+import { type Layout, layoutOf, type Surface } from "@zarg/view"
 import { contractDigest } from "./contract-digest"
 import type { EdgeSpec, Plugin, PluginCommand, Scopes } from "./define"
 
@@ -14,6 +14,8 @@ export interface Manifest {
   readonly commands?: ReadonlyArray<PluginCommand>
   /** Views its agents draw, as layouts. */
   readonly views?: ReadonlyArray<Layout>
+  /** Where its views show. */
+  readonly surfaces?: ReadonlyArray<Surface>
   /** What this plugin was built against: each dependency's name and contract digest. */
   readonly pluginDependencies: ReadonlyArray<{ readonly name: string; readonly digest: string }>
   readonly scopes: Scopes
@@ -36,6 +38,7 @@ export const manifestOf = (p: Plugin): Manifest => ({
   pluginDependencies: (p.pluginDependencies ?? []).map((c) => ({ name: c.pluginName, digest: contractDigest(c) })),
   ...(p.commands !== undefined ? { commands: p.commands } : {}),
   ...(p.views !== undefined && p.views.length > 0 ? { views: p.views.map(layoutOf) } : {}),
+  ...(p.surfaces !== undefined && p.surfaces.length > 0 ? { surfaces: p.surfaces } : {}),
   methods: Object.fromEntries(
     Object.entries(p.methods).map(([k, m]) => [k, { doc: m.doc, params: json(m.params), success: json(m.success), agents: m.agents === true, stream: m.stream === true, ...(m.deadlineMs !== undefined ? { deadlineMs: m.deadlineMs } : {}) }]),
   ),

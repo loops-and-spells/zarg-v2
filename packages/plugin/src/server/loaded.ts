@@ -17,6 +17,8 @@ export interface Manifest {
   /** Slash commands it adds: each calls `method` with `{ args }`. */
   /** Views its agents draw (layouts; the core checks them). */
   readonly views?: ReadonlyArray<{ readonly name: string; readonly sections: ReadonlyArray<unknown> }>
+  /** Where its views show; checked at load (`surfacesProblem`). */
+  readonly surfaces?: unknown
   readonly commands?: ReadonlyArray<{ readonly cmd: string; readonly desc: string; readonly method: string; readonly arg: unknown }>
   /** The contracts it was built against. */
   readonly pluginDependencies?: ReadonlyArray<{ readonly name: string; readonly digest: string }>

@@ -2,7 +2,7 @@ import { Schema } from "effect"
 import { keysProblem } from "./keys"
 import { DATA, type Layout, type LayoutLeaf, type LayoutSection, type LeafKind, type LogLine, LogData } from "./schema"
 
-export type ActionSpec = { readonly id: string; readonly label: string; readonly key?: string; readonly keys?: Readonly<Record<string, string>>; readonly on: "selection" | "row" | "none" }
+export type ActionSpec = { readonly id: string; readonly label: string; readonly key?: string; readonly keys?: Readonly<Record<string, string>>; readonly on: "selection" | "row" | "none"; readonly opens?: ReadonlyArray<{ readonly surface: string; readonly agent?: string }> }
 type ColumnSpec = { readonly id: string; readonly label: string }
 type Role = "summary" | "primary" | "log" | "pinned" | "aside"
 export type LeafSpec =

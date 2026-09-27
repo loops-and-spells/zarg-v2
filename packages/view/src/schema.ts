@@ -12,6 +12,8 @@ export const Action = Schema.Struct({
   key: Schema.optionalKey(Schema.String),
   keys: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)),
   on: Schema.Literals(["selection", "row", "none"]),
+  /** Surfaces the action opens (for the acting agent, or another of the plugin's agents), without calling the plugin. */
+  opens: Schema.optionalKey(Schema.Array(Schema.Struct({ surface: Schema.String, agent: Schema.optionalKey(Schema.String) }))),
 })
 export const Column = Schema.Struct({ id: Schema.String, label: Schema.String })
 
@@ -70,3 +72,24 @@ export const LayoutSchema = Schema.Struct({ name: Schema.String, sections: Schem
 export type Layout = typeof LayoutSchema.Type
 export type LayoutSection = typeof LayoutSection.Type
 export type LayoutLeaf = typeof LayoutLeaf.Type
+
+/**
+ * Where a view is shown, as a plugin declares it: the tile area, a panel at one of its edges (with the agent open, or
+ * whatever is open), a popover in the shared queue, or a sheet over the tile area. The shell has the last word.
+ */
+export const Surface = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("tile"), name: Schema.String, view: Schema.String }),
+  Schema.Struct({
+    kind: Schema.Literal("panel"),
+    name: Schema.String,
+    view: Schema.String,
+    scope: Schema.Literals(["agent", "shell"]),
+    edge: Schema.Literals(["top", "bottom", "right"]),
+    /** Rows at the top or bottom, columns at the right. */
+    size: Schema.Number,
+    input: Schema.Literals(["none", "onFocus"]),
+  }),
+  Schema.Struct({ kind: Schema.Literal("popover"), name: Schema.String, view: Schema.String }),
+  Schema.Struct({ kind: Schema.Literal("sheet"), name: Schema.String, view: Schema.String }),
+])
+export type Surface = typeof Surface.Type

@@ -1,5 +1,5 @@
 import { Cause, Context, Data, Effect, Exit, Layer, type Redacted, Scope, Semaphore } from "effect"
-import { keysProblem, type Layout } from "@zarg/view"
+import { keysProblem, type Layout, surfacesProblem } from "@zarg/view"
 import { diff, type Expect, GraphStore, type GraphError, hash, type IoError, type Loaded, Snapshot } from "@zarg/graph"
 import { type Ask, type Grants, type ManifestScopes, makePowers, PLUGIN_NAME, PluginCallError, type PluginProcess, scopesDigest, served, spawnPlugin, warnings } from "../runtime"
 import type { LoadedPlugin, Manifest } from "./loaded"
@@ -109,7 +109,10 @@ const manifestProblem = (m: Manifest): string | undefined => {
   const command = (m.commands ?? []).map(commandProblem(m)).find((p) => p !== undefined)
   if (command !== undefined) return command
   // An action on a key the shell keeps (or one key twice): the SDK refuses it at build, a hand-made manifest here.
-  return (Array.isArray(m.views) ? m.views : []).map(viewProblem).find((p) => p !== undefined)
+  const views = Array.isArray(m.views) ? m.views : []
+  const view = views.map(viewProblem).find((p) => p !== undefined)
+  if (view !== undefined) return view
+  return surfacesProblem(m.surfaces, views.map((v) => String((v as { name?: unknown } | null)?.name)))
 }
 
 /** A view's key mappings, checked; a manifest is untrusted, so a view that is not even a layout is refused too. */
