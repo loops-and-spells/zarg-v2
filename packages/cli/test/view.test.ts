@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
-import { conversation, EXIT_WINDOW_MS, initialUi, inputFocused, OTHER, onKey, onSubmit, pickerRows, agentDetail, agentRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "../src/tui/view"
+import { conversation, EXIT_WINDOW_MS, initialUi, inputFocused, OTHER, onKey, onSubmit, pickerRows, agentDetail, agentRows, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/tui/view"
 
 const inquiry: Inquiry = {
   id: "inq-1",
@@ -56,7 +56,7 @@ describe("picker", () => {
 
   test("once the inquiry is answered the picker state clears", () => {
     const ui = { ...syncUi(initialUi, waiting), other: true }
-    expect(syncUi(ui, running)).toEqual({ focus: "conversation", pick: 1, other: false, agents: { toggled: {}, tree: 0 } })
+    expect(syncUi(ui, running, 0)).toEqual({ focus: "conversation", pick: 1, other: false, agents: { toggled: {}, tree: 0 }, runningSince: 0 })
   })
 })
 
@@ -259,3 +259,37 @@ describe("slash commands in the input", () => {
     expect(onSubmit(initialUi, idle, "/rec").action).toEqual({ type: "command", text: "/reconcile" })
   })
 })
+
+describe("the working indicator", () => {
+  const root = { id: "rlm-1", parent: null, preset: "driver", depth: 0, turns: 4, budget: 25, status: "running" as const, decisions: [] }
+  const running: SessionState = { thread: { ...initial("main"), status: "running", rlms: { "rlm-1": root } }, core: "up" }
+  const waiting: SessionState = { thread: { ...running.thread, status: "waiting", pendingInquiry: inquiry }, core: "up" }
+  const idle: SessionState = { thread: { ...initial("main"), status: "idle" }, core: "up" }
+
+  test("the run's start time is noted when the thread starts running and cleared when it stops", () => {
+    const started = syncUi(initialUi, running, 1_000)
+    expect(started.runningSince).toBe(1_000)
+    expect(syncUi(started, running, 5_000).runningSince).toBe(1_000)
+    expect(syncUi(started, waiting, 5_000).runningSince).toBeUndefined()
+    expect(syncUi(started, idle, 5_000).runningSince).toBeUndefined()
+  })
+
+  test("while the driver works: a spinner, the elapsed time and the driver's turn", () => {
+    const ui = syncUi(initialUi, running, 1_000)
+    expect(working(ui, running, 73_000)).toBe(`${SPINNER[(73_000 / 100) % SPINNER.length]} zarg is preparing a reply · 1:12 · turn 4/25`)
+    expect(working(ui, running, 73_100)!.at(0)).not.toBe(working(ui, running, 73_000)!.at(0))
+  })
+
+  test("no line while a question waits or the thread is idle", () => {
+    expect(working(syncUi(initialUi, waiting, 0), waiting, 1_000)).toBeUndefined()
+    expect(working(syncUi(initialUi, idle, 0), idle, 1_000)).toBeUndefined()
+  })
+
+  test("running agents spin in the tree when a time is given; finished ones keep their icon", () => {
+    const rlms = { "rlm-1": root, "rlm-2": { ...root, id: "rlm-2", parent: "rlm-1", preset: "research", status: "done" as const } }
+    const rows = agentRows(rlms, { toggled: {} }, 46, 300).map((r) => r.text)
+    expect(rows[0]!.startsWith(`▾ ${SPINNER[3]} driver rlm-1`)).toBe(true)
+    expect(rows[1]).toContain("✓ research rlm-2")
+  })
+})
+

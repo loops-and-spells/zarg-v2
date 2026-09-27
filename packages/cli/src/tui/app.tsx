@@ -2,7 +2,7 @@ import { useKeyboard } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Session } from "@zarg/client"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
-import { type Action, agentDetail, agentRows, conversation, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
+import { type Action, agentDetail, agentRows, conversation, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
 
 const COLORS = { you: "#8ab4f8", zarg: "#e8eaed", error: "#f28b82", notice: "#fdd663", dim: "#9aa0a6", accent: "#81c995", select: "#3c4043" }
 const TONE = { running: COLORS.zarg, done: COLORS.dim, failed: COLORS.error, stopped: COLORS.notice }
@@ -28,6 +28,14 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     rerender((n) => n + 1)
   }
   const ui = latest()
+  // One clock for every animation; it ticks only while something is running.
+  const [now, setNow] = useState(Date.now())
+  const animating = ui.runningSince !== undefined || Object.values(s.thread.rlms).some((r) => r.status === "running")
+  useEffect(() => {
+    if (!animating) return
+    const timer = setInterval(() => setNow(Date.now()), 100)
+    return () => clearInterval(timer)
+  }, [animating])
 
   const act = (action: Action | undefined) => {
     if (action === undefined) return
@@ -53,7 +61,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const box = slashActive(ui, s) ? slashBox(draft, ui) : undefined
   const width = Math.max(0, ...(box?.rows ?? []).map((r) => r.label.length))
   const lines = conversation(s)
-  const agents = agentRows(s.thread.rlms, ui.agents)
+  const agents = agentRows(s.thread.rlms, ui.agents, 46, now)
+  const busyLine = working(ui, s, now)
   const cursor = agents.find((a) => a.selected)?.id
   const detail = agentDetail(s.thread.rlms, cursor)
   // Keep the highlighted row on screen as the cursor moves through a tall tree.
@@ -74,6 +83,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
               {`${l.kind === "you" ? "you" : l.kind === "zarg" ? "zarg" : "!"}  ${l.text}`}
             </text>
           ))}
+          {busyLine !== undefined ? <text fg={COLORS.accent}>{busyLine}</text> : null}
         </scrollbox>
         <box title="Agents" style={{ width: 48, flexDirection: "column", border: true, borderColor: ui.focus === "agents" ? COLORS.accent : COLORS.dim }}>
           <scrollbox ref={agentsRef} style={{ flexGrow: 1 }}>

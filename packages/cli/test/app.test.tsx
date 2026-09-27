@@ -61,7 +61,9 @@ const render = async (state: SessionState, size = { width: 110, height: 24 }) =>
   const t = await testRender(<App session={fake.session} meta={meta} onExit={() => (exited = true)} />, size)
   destroy = () => t.renderer.destroy()
   await t.waitForVisualIdle()
-  return { ...t, ...fake, exited: () => exited }
+  // Running agents spin with the clock: frames show the spinner as ● so they compare; rawFrame keeps it.
+  const rawFrame = () => t.captureCharFrame()
+  return { ...t, ...fake, exited: () => exited, rawFrame, captureCharFrame: () => rawFrame().replace(/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/g, "●") }
 }
 
 // Arrow keys arrive as escape sequences the parser holds briefly; let them land, then draw.
@@ -160,6 +162,17 @@ describe("tui frames", () => {
     await settle(t)
     expect(t.captureCharFrame()).toContain("research rlm-40")
     expect(t.captureCharFrame()).toContain("research rlm-40 · done")
+  })
+
+  test("while the driver works, the conversation ends with the animated working line", async () => {
+    const root = { id: "rlm-1", parent: null, preset: "driver", depth: 0, turns: 4, budget: 25, status: "running" as const, decisions: [] }
+    const t = await render({ thread: { ...initial("main"), status: "running", rlms: { "rlm-1": root } }, core: "up" })
+    const first = t.rawFrame()
+    expect(first).toMatch(/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏] zarg is preparing a reply · 0:00 · turn 4\/25/)
+    const spinnerAt = (f: string) => /([⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]) zarg is preparing/.exec(f)?.[1]
+    await Bun.sleep(250)
+    await settle(t)
+    expect(spinnerAt(t.rawFrame())).not.toBe(spinnerAt(first))
   })
 
   test("the agents pane folds: → opens a child's subtree, ← closes it", async () => {

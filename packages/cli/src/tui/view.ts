@@ -16,6 +16,8 @@ export interface Ui {
   readonly slash?: { readonly sel: number | null; readonly cycle: SlashCycle | null }
   /** When Ctrl-C was last pressed (ms); a second press within `EXIT_WINDOW_MS` exits. */
   readonly lastCtrlC?: number
+  /** When the thread started running (ms), for the working indicator; unset while it waits or idles. */
+  readonly runningSince?: number
   /** The agents pane: the highlighted RLM and the nodes opened or closed against their default. */
   readonly agents: Agents
 }
@@ -50,8 +52,8 @@ export const pickerRows = (inquiry: Inquiry, pick: number): ReadonlyArray<Picker
 }
 
 /** A new inquiry preselects its recommended option (or the first). */
-export const syncUi = (ui0: Ui, s: SessionState): Ui => {
-  const ui = ui0.agents.tree === s.thread.trees ? ui0 : { ...ui0, agents: { toggled: {}, tree: s.thread.trees } }
+export const syncUi = (ui0: Ui, s: SessionState, now = Date.now()): Ui => {
+  const ui = withRunClock(ui0.agents.tree === s.thread.trees ? ui0 : { ...ui0, agents: { toggled: {}, tree: s.thread.trees } }, s, now)
   const inquiry = s.thread.pendingInquiry
   if (inquiry === undefined) {
     if (ui.inquiryId === undefined && !ui.other) return ui
@@ -61,6 +63,27 @@ export const syncUi = (ui0: Ui, s: SessionState): Ui => {
   if (inquiry.id === ui.inquiryId) return ui
   const recommended = inquiry.options.findIndex((o) => o.recommended === true)
   return { ...ui, inquiryId: inquiry.id, pick: recommended >= 0 ? recommended : 0, other: false }
+}
+
+const busy = (s: SessionState) => s.thread.status === "running" && s.thread.pendingInquiry === undefined
+
+const withRunClock = (ui: Ui, s: SessionState, now: number): Ui => {
+  if (busy(s)) return ui.runningSince === undefined ? { ...ui, runningSince: now } : ui
+  if (ui.runningSince === undefined) return ui
+  const { runningSince: _, ...rest } = ui
+  return rest
+}
+
+export const SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+const spin = (now: number) => SPINNER[Math.floor(now / 100) % SPINNER.length]!
+
+/** The line under the conversation while zarg works on a reply or a question: spinner, elapsed time, driver turn. */
+export const working = (ui: Ui, s: SessionState, now: number): string | undefined => {
+  if (!busy(s) || ui.runningSince === undefined) return undefined
+  const secs = Math.max(0, Math.floor((now - ui.runningSince) / 1000))
+  const root = childrenOf(s.thread.rlms)(null)[0]
+  const turn = root !== undefined ? ` · turn ${root.turns}/${root.budget}` : ""
+  return `${spin(now)} zarg is preparing a reply · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}${turn}`
 }
 
 export interface Line {
@@ -127,14 +150,15 @@ const cursorOf = (rows: ReadonlyArray<Visible>, agents: Agents) =>
   rows.some((r) => r.node.id === agents.cursor) ? agents.cursor : rows[0]?.node.id
 
 /** The agents tree: one line per visible RLM with its status icon, turn bar and how many descendants it hides. */
-export const agentRows = (rlms: Readonly<Record<string, RlmNode>>, agents: Agents, cols = 46): ReadonlyArray<AgentRow> => {
+export const agentRows = (rlms: Readonly<Record<string, RlmNode>>, agents: Agents, cols = 46, now?: number): ReadonlyArray<AgentRow> => {
   const rows = visible(rlms, agents)
   const cursor = cursorOf(rows, agents)
   const hiddenWidth = Math.max(0, ...rows.map((r) => (r.hidden.length > 0 ? `  +${r.hidden.length}`.length : 0)))
   // The left column gives way to the bar, the turns and the hidden count: a long id is cut, never wrapped.
   const room = Math.max(8, cols - (2 + BAR + 1 + 5) - hiddenWidth)
   const lefts = rows.map((r) => {
-    const l = `${r.prefix} ${ICON[r.node.status]} ${r.node.preset} ${r.node.id}`
+    const icon = r.node.status === "running" && now !== undefined ? spin(now) : ICON[r.node.status]
+    const l = `${r.prefix} ${icon} ${r.node.preset} ${r.node.id}`
     return l.length > room ? `${l.slice(0, room - 1)}…` : l
   })
   const width = Math.max(0, ...lefts.map((l) => l.length))
