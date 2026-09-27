@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
 import { defineView, layoutOf } from "@zarg/view"
-import { activate, answeringOther, attentionOf, attentionLine, CHAT, conversation, openAgent, EXIT_WINDOW_MS, initialUi, inputFocused, typing, OTHER, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/view"
+import { panelsShown, activate, answeringOther, attentionOf, attentionLine, CHAT, conversation, openAgent, EXIT_WINDOW_MS, initialUi, inputFocused, typing, OTHER, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/view"
 import { onKey } from "../src/layers"
 
 const inquiry: Inquiry = {
@@ -506,4 +506,38 @@ test("an attention reason is cut to the room its row has", () => {
   const rows = agentRows(rlms, { toggled: {} }, 46)
   expect(rows[0]!.text.length).toBeLessThanOrEqual(46)
   expect(rows[0]!.text).toEndWith("…")
+})
+
+describe("panels", () => {
+  const idle: SessionState = { thread: { ...initial("main") }, core: "up" }
+  const p = (id: string, plugin: string, edge: "bottom" | "right", scope: "shell" | "agent" = "shell", agent = `${plugin}:run`) => ({ id, plugin, agent, view: agent, name: id, scope, edge, size: 1, input: "none" as const })
+  const withPanels = (panels: ReadonlyArray<ReturnType<typeof p>>): SessionState => ({ ...idle, thread: { ...idle.thread, panels } })
+  test("a third bottom panel waits for a free place", () => {
+    const s = withPanels([p("a", "one", "bottom"), p("b", "two", "bottom"), p("c", "three", "bottom")])
+    expect(panelsShown(initialUi, s).bottom.map((x) => x.id)).toEqual(["a", "b"])
+    expect(panelsShown({ ...initialUi, closedPanels: ["a"] }, s).bottom.map((x) => x.id)).toEqual(["b", "c"])
+  })
+  test("one shell panel per plugin; agent panels only while their agent is open", () => {
+    const s = withPanels([p("a", "one", "bottom"), p("a2", "one", "bottom"), p("t", "two", "right", "agent", "two:t1")])
+    expect(panelsShown(initialUi, s)).toEqual({ top: [], bottom: [expect.objectContaining({ id: "a" })], right: [] })
+    expect(panelsShown({ ...initialUi, viewing: "two:t1" }, s).right.map((x) => x.id)).toEqual(["t"])
+  })
+  test("a closed panel the core drops and opens again shows again", () => {
+    const ui = syncUi({ ...initialUi, closedPanels: ["a"] }, withPanels([]))
+    expect(ui.closedPanels).toEqual([])
+  })
+  test("an old navigation request is not followed; a fresh one opens its tile once", () => {
+    const at = (seqNo: number, when: number): SessionState => ({ ...idle, thread: { ...idle.thread, navigate: { seq: seqNo, kind: "tile", view: "two:t1", at: when } } })
+    const old = syncUi(initialUi, at(5, 0), 60_000)
+    expect(old.viewing).toBeUndefined()
+    expect(old.navigated).toBe(5)
+    const fresh = syncUi(initialUi, at(6, 60_000), 60_001)
+    expect(fresh).toMatchObject({ viewing: "two:t1", focus: "tile", navigated: 6 })
+    const { viewing: _, ...closed } = fresh
+    expect(syncUi(closed, at(6, 60_000), 60_002).viewing).toBeUndefined()
+  })
+  test("a fresh sheet request opens the plugin's sheet", () => {
+    const s: SessionState = { ...idle, thread: { ...idle.thread, navigate: { seq: 3, kind: "sheet", view: "two:t1@status", at: 1000 } } }
+    expect(syncUi(initialUi, s, 1001)).toMatchObject({ sheet: true, sheetOf: "two:t1@status", focus: "tile" })
+  })
 })

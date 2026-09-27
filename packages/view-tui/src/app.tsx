@@ -1,6 +1,6 @@
 import { useKeyboard, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
-import type { Session } from "@zarg/client"
+import type { Panel, Session } from "@zarg/client"
 import { hintsOf, pickRow, startUi } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { registerCommands } from "./commands"
@@ -17,6 +17,7 @@ import {
   barLine,
   conversation,
   focusBar,
+  panelsShown,
   initialUi,
   inputFocused,
   type Meta,
@@ -102,11 +103,13 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     else if (action.type === "scroll") scroller.current?.(action.delta)
     else if (action.type === "scroll-talk") talkRef.current?.scrollBy(action.delta)
     else if (action.type === "answer-prompt") void props.session.answerPrompt(action.id, action.choice)
+    else if (action.type === "close-prompt") void props.session.closePrompt(action.id)
     else if (action.type === "answer-agent") {
-      const agent = latest().viewing
+      const agent = action.agent ?? latest().viewing
       if (agent !== undefined) void props.session.answerAgent(agent, action.question, action.answer)
     } else if (action.type === "act") {
-      const agent = latest().viewing
+      // A panel, a popover or a plugin sheet names its agent; the open view's agent is the one it started with.
+      const agent = action.agent ?? latest().viewing?.split("@")[0]
       if (agent !== undefined) void props.session.act(agent, action.action, action.section, action.rows)
     } else if (action.type === "exit") props.onExit()
   }
@@ -295,8 +298,21 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const queue = queueOf(ui, s)
   const head = queue[0]
   const popWidth = Math.min(60, dims.width - 4)
+  const headView = head?.kind === "surface" && head.view !== undefined ? s.thread.views?.[head.view] : undefined
   const popover =
-    head === undefined ? null : (
+    head === undefined ? null : head.kind === "surface" ? (
+      // A plugin's popover: its view, over everything; Esc closes it.
+      <box
+        style={{ position: "absolute", left: Math.max(0, Math.floor((dims.width - popWidth) / 2)), top: 3, width: popWidth, flexDirection: "column", border: true, borderStyle: "double", borderColor: COLORS.accent, backgroundColor: COLORS.popover, paddingLeft: 1 }}
+      >
+        <text wrapMode="none" truncate>
+          <span fg={COLORS.accent}>{head.question}</span>
+          <span fg={COLORS.dim}>{queue.length > 1 ? `  1 of ${queue.length}` : ""}</span>
+        </text>
+        {headView === undefined ? <text fg={COLORS.dim}>no view yet</text> : <AgentView view={headView} ui={ui.popover.view ?? startUi(headView)} height={Math.max(6, Math.floor(dims.height / 2))} />}
+        <text fg={COLORS.dim}>Esc close</text>
+      </box>
+    ) : (
       <box
         style={{ position: "absolute", left: Math.max(0, Math.floor((dims.width - popWidth) / 2)), top: 3, width: popWidth, flexDirection: "column", border: true, borderStyle: "double", borderColor: COLORS.notice, backgroundColor: COLORS.popover, paddingLeft: 1 }}
       >
@@ -316,6 +332,47 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       </box>
     )
 
+  // Panels at the tile area's edges: a header with its name and a × that closes it, then its view.
+  const shown = panelsShown(ui, s)
+  const panelBox = (p: Panel) => {
+    const v = s.thread.views?.[p.view]
+    const focusedHere = ui.focus === "panel" && ui.panel === p.id
+    const size = p.edge === "right" ? { width: p.size + 2, flexShrink: 0 } : { height: p.size + 3, flexShrink: 0 }
+    return (
+      <box
+        key={p.id}
+        onMouseDown={(e: { stopPropagation: () => void }) => {
+          e.stopPropagation()
+          if (p.input === "onFocus") setUi({ ...latest(), focus: "panel", panel: p.id })
+        }}
+        style={{ ...size, flexDirection: "column", border: true, borderColor: focusedHere ? COLORS.accent : COLORS.dim }}
+      >
+        <box style={{ flexDirection: "row", height: 1, flexShrink: 0 }}>
+          <text fg={COLORS.dim} wrapMode="none">{`${p.name} `}</text>
+          <text
+            fg={COLORS.dim}
+            onMouseDown={(e: { stopPropagation: () => void }) => {
+              e.stopPropagation()
+              const u = latest()
+              setUi({ ...u, closedPanels: [...u.closedPanels, p.id], ...(u.panel === p.id ? { focus: "tile" as const } : {}) })
+            }}
+          >
+            ×
+          </text>
+        </box>
+        {v === undefined ? null : <AgentView view={v} ui={focusedHere ? (ui.panelView ?? startUi(v)) : startUi(v)} height={p.size} />}
+      </box>
+    )
+  }
+  // A plugin's sheet over the tile area: its view, rounded like zarg's.
+  const sheetViewState = ui.sheetOf !== undefined ? s.thread.views?.[ui.sheetOf] : undefined
+  const pluginSheet = (
+    <box style={{ flexGrow: 1, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: ui.focus === "tile" ? COLORS.accent : COLORS.dim }}>
+      <text fg={COLORS.dim} wrapMode="none" truncate>{`${ui.sheetOf ?? ""}   Esc close`}</text>
+      {sheetViewState === undefined ? <text fg={COLORS.dim}>no view yet</text> : <AgentView view={sheetViewState} ui={ui.sheetView ?? startUi(sheetViewState)} height={Math.max(6, dims.height - 8)} />}
+    </box>
+  )
+
   const hints = hintsOf(SHELL, ui, world)
     .map((h) => `${h.keys} ${h.does}`)
     .join(" · ")
@@ -331,7 +388,12 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           </box>
         ) : null}
         <box onMouseDown={() => setUi({ ...latest(), focus: "tile" })} style={{ flexGrow: 1, flexDirection: "column" }}>
-          {narrow && ui.focus === "agents" ? agentsList : sheetShown(ui) ? sheet : view}
+          {shown.top.map(panelBox)}
+          <box style={{ flexGrow: 1, flexDirection: "row" }}>
+            <box style={{ flexGrow: 1, flexDirection: "column" }}>{narrow && ui.focus === "agents" ? agentsList : ui.sheet && ui.sheetOf !== undefined ? pluginSheet : sheetShown(ui) ? sheet : view}</box>
+            {shown.right.map(panelBox)}
+          </box>
+          {shown.bottom.map(panelBox)}
         </box>
         {slash}
         {bar}

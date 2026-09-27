@@ -1,11 +1,13 @@
 import type { SessionState } from "@zarg/client"
-import { dispatch, focused, type InputKey, type InputLayer, keyFor, type KeyHint, leafOf, printable, startUi } from "@zarg/view"
+import { dispatch, focused, type InputKey, type InputLayer, keyFor, type KeyHint, leafOf, printable, startUi, type ViewState, type ViewUi } from "@zarg/view"
 import { viewKeys } from "./view-keys"
 import {
   type Action,
   answeringOther,
   attentionOf,
   EXIT_WINDOW_MS,
+  focusedPanel,
+  panelsShown,
   POPOVER_GUARD_MS,
   focusBar,
   type Key,
@@ -30,12 +32,36 @@ type Layer = InputLayer<Ui, ShellWorld, Action>
 
 const ARROWS = new Set(["left", "right", "up", "down"])
 
-/** Alt+arrows move between the agents list, the tile area and the bar, as they sit on screen. */
+/** Alt+arrows move between the agents list, the tile area, its panels that take keys, and the bar, as they sit on screen. */
 const moveTile = (ui: Ui, s: SessionState, dir: string): Ui => {
-  if (dir === "left") return { ...ui, focus: "agents" }
-  if (dir === "right") return ui.focus === "agents" ? { ...ui, focus: "tile" } : ui
-  if (dir === "down") return ui.focus === "tile" ? focusBar(ui, s) : ui
-  return ui.focus === "bar" ? { ...ui, focus: "tile" } : ui
+  const shown = panelsShown(ui, s)
+  const bottom = shown.bottom.filter((p) => p.input === "onFocus")
+  const right = shown.right.filter((p) => p.input === "onFocus")
+  const toPanel = (id: string): Ui => {
+    const { panelView: _, ...rest } = ui
+    return { ...rest, focus: "panel", panel: id }
+  }
+  const at = ui.focus === "panel" ? ui.panel : undefined
+  const inBottom = bottom.findIndex((p) => p.id === at)
+  if (dir === "left") return ui.focus === "panel" && right.some((p) => p.id === at) ? { ...ui, focus: "tile" } : { ...ui, focus: "agents" }
+  if (dir === "right") return ui.focus === "agents" ? { ...ui, focus: "tile" } : ui.focus === "tile" && right[0] !== undefined ? toPanel(right[0].id) : ui
+  if (dir === "down") {
+    if (ui.focus === "tile") return bottom[0] !== undefined ? toPanel(bottom[0].id) : focusBar(ui, s)
+    if (inBottom >= 0) return bottom[inBottom + 1] !== undefined ? toPanel(bottom[inBottom + 1]!.id) : focusBar(ui, s)
+    return ui
+  }
+  if (ui.focus === "bar") return bottom.at(-1) !== undefined ? toPanel(bottom.at(-1)!.id) : { ...ui, focus: "tile" }
+  if (inBottom > 0) return toPanel(bottom[inBottom - 1]!.id)
+  return ui.focus === "panel" ? { ...ui, focus: "tile" } : ui
+}
+
+/** A key on a view that is not the open agent's: its new state, and its action or answer for `agent`. */
+const surfaceKey = (v: ViewState, vu: ViewUi, k: InputKey, agent: string): { readonly view: ViewUi; readonly action?: Action } => {
+  const r = viewKeys(v, vu, k)
+  return {
+    view: r.ui,
+    ...(r.act !== undefined ? { action: { type: "act" as const, ...r.act, agent } } : r.answer !== undefined ? { action: { type: "answer-agent" as const, ...r.answer, agent } } : {}),
+  }
 }
 
 /** `/` from any panel: the bar opens with the slash typed (while zarg asks, as chat about the question). */
@@ -83,7 +109,12 @@ export const SHELL: ReadonlyArray<Layer> = [
       if (k.meta && ARROWS.has(k.name)) return { ui: moveTile(ui, w.s, k.name) }
       if (k.meta && k.name === "a") return { ui: { ...ui, focus: "agents" } }
       if (k.meta && k.name === "v") return { ui: { ...ui, sheet: false, focus: "tile" } }
-      if (k.meta && k.name === "m") return { ui: ui.focus === "bar" ? { ...ui, sheet: true } : focusBar(ui, w.s) }
+      if (k.meta && k.name === "m") {
+        if (ui.focus !== "bar") return { ui: focusBar(ui, w.s) }
+        // The second alt+m opens zarg's sheet, in place of a plugin's.
+        const { sheetOf: _, ...rest } = ui
+        return { ui: { ...rest, sheet: true } }
+      }
       return "pass"
     },
   },
@@ -94,6 +125,14 @@ export const SHELL: ReadonlyArray<Layer> = [
     hints: () => [{ keys: "←→", does: "pick" }, { keys: "Enter", does: "choose" }],
     handle: (ui, w, k) => {
       const head = queueOf(ui, w.s)[0]!
+      // A plugin's popover: its view takes the keys; Esc closes it (for every client).
+      if (head.kind === "surface") {
+        if (k.name === "escape") return { ui, action: { type: "close-prompt", id: head.id } }
+        const v = head.view === undefined ? undefined : w.s.thread.views?.[head.view]
+        if (v === undefined || head.agent === undefined) return { ui }
+        const r = surfaceKey(v, ui.popover.view ?? startUi(v), k, head.agent)
+        return { ui: { ...ui, popover: { ...ui.popover, view: r.view } }, ...(r.action !== undefined ? { action: r.action } : {}) }
+      }
       const n = head.options.length
       const pick = Math.min(ui.popover.pick, Math.max(0, n - 1))
       if (k.name === "left" || k.name === "up") return { ui: { ...ui, popover: { ...ui.popover, pick: Math.max(0, pick - 1) } } }
@@ -136,7 +175,7 @@ export const SHELL: ReadonlyArray<Layer> = [
     id: "picker",
     when: (ui, w) => {
       const q = w.s.thread.pendingInquiry
-      return q !== undefined && ui.answered !== q.id && ui.chatting !== q.id && (ui.focus === "bar" || (ui.focus === "tile" && sheetShown(ui)))
+      return q !== undefined && ui.answered !== q.id && ui.chatting !== q.id && (ui.focus === "bar" || (ui.focus === "tile" && sheetShown(ui) && ui.sheetOf === undefined))
     },
     hints: () => [{ keys: "↑↓", does: "pick" }, { keys: "Enter", does: "answer" }],
     handle: (ui, w, k) => pickerKey(ui, w.s, k),
@@ -147,6 +186,42 @@ export const SHELL: ReadonlyArray<Layer> = [
     when: (ui, w) => ui.focus === "bar" && !typing(ui, w.s),
     hints: () => [{ keys: "Esc", does: "leave" }],
     handle: (ui, w, k) => (k.name === "escape" ? { ui: { ...ui, focus: "tile" } } : (common(ui, w, k) ?? "pass")),
+  },
+  {
+    id: "panel",
+    when: (ui, w) => ui.focus === "panel" && focusedPanel(ui, w.s) !== undefined,
+    hints: () => [{ keys: "Esc", does: "close" }],
+    handle: (ui, w, k) => {
+      const p = focusedPanel(ui, w.s)!
+      if (k.name === "escape") {
+        const { panel: _, panelView: __, ...rest } = ui
+        return { ui: { ...rest, focus: "tile", closedPanels: [...ui.closedPanels, p.id] } }
+      }
+      const c = common(ui, w, k)
+      if (c !== undefined) return c
+      const v = w.s.thread.views?.[p.view]
+      if (v === undefined) return { ui }
+      const r = surfaceKey(v, ui.panelView ?? startUi(v), k, p.agent)
+      return { ui: { ...ui, panelView: r.view }, ...(r.action !== undefined ? { action: r.action } : {}) }
+    },
+  },
+  {
+    // A plugin's sheet over the tile area: its view takes the keys; Esc closes it.
+    id: "plugin-sheet",
+    when: (ui) => ui.focus === "tile" && ui.sheet && ui.sheetOf !== undefined,
+    hints: () => [{ keys: "Esc", does: "close" }],
+    handle: (ui, w, k) => {
+      if (k.name === "escape") {
+        const { sheetOf: _, sheetView: __, ...rest } = ui
+        return { ui: { ...rest, sheet: false } }
+      }
+      const c = common(ui, w, k)
+      if (c !== undefined) return c
+      const v = w.s.thread.views?.[ui.sheetOf!]
+      if (v === undefined) return { ui }
+      const r = surfaceKey(v, ui.sheetView ?? startUi(v), k, v.agent.split("@")[0]!)
+      return { ui: { ...ui, sheetView: r.view }, ...(r.action !== undefined ? { action: r.action } : {}) }
+    },
   },
   {
     id: "sheet",

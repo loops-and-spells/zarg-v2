@@ -1,9 +1,9 @@
-import { type Answer, type Inquiry, type Prompt, type RlmNode, type SessionState, zargConversation } from "@zarg/client"
+import { type Answer, type Inquiry, type Panel, type Prompt, type RlmNode, type SessionState, zargConversation } from "@zarg/client"
 import { CHAT, type ConversationQuestion, conversationRows, OTHER, startUi, type ViewUi } from "@zarg/view"
 import { lintSlashInput, parseSlashInput, SLASH_COMMANDS, type SlashCycle, type SlashInputState, stepCompletion } from "./commands"
 
-/** Where the keys go: the agents list, the tile area (the open agent's view, or zarg's sheet), or the message bar. */
-export type Focus = "agents" | "tile" | "bar"
+/** Where the keys go: the agents list, the tile area (the open agent's view, or a sheet), the message bar, or a panel. */
+export type Focus = "agents" | "tile" | "bar" | "panel"
 
 /** UI-only state: what is focused and selected. Everything else comes from the session. */
 export interface Ui {
@@ -42,11 +42,23 @@ export interface Ui {
     readonly since?: number
     /** The head already answered: its done event is on its way, a second Enter sends nothing. */
     readonly answering?: string
+    /** A plugin popover's view state (its focused section, rows). */
+    readonly view?: ViewUi
   }
   /** Agents the developer opened since they asked, by the `since` of the attention they saw. */
   readonly seen: Readonly<Record<string, number>>
   /** zarg's last reply the developer has seen; newer ones preview in the bar. */
   readonly readUpTo?: string
+  /** The focused panel's id (focus "panel") and its view's state. */
+  readonly panel?: string
+  readonly panelView?: ViewUi
+  /** Panels the developer closed; forgotten once the core drops them (so a reopened one shows). */
+  readonly closedPanels: ReadonlyArray<string>
+  /** The seq of the last navigation request followed. */
+  readonly navigated?: number
+  /** The view a plugin's sheet shows (with `sheet`); undefined: zarg's sheet. */
+  readonly sheetOf?: string
+  readonly sheetView?: ViewUi
 }
 
 export interface Agents {
@@ -59,9 +71,11 @@ export interface Agents {
 export const EXIT_WINDOW_MS = 2000
 /** How long a popover that just showed ignores Enter. */
 export const POPOVER_GUARD_MS = 300
+/** A navigation request older than this (a replayed log) is not followed. */
+export const NAVIGATE_FRESH_MS = 10_000
 export { CHAT, OTHER }
 
-export const initialUi: Ui = { focus: "bar", sheet: false, pick: 0, other: false, agents: { toggled: {}, tree: 0 }, popover: { pick: 0 }, seen: {} }
+export const initialUi: Ui = { focus: "bar", sheet: false, pick: 0, other: false, agents: { toggled: {}, tree: 0 }, popover: { pick: 0 }, seen: {}, closedPanels: [] }
 
 export interface PickerRow {
   readonly id: string
@@ -87,7 +101,7 @@ export const preselect = (inquiry: Inquiry) => Math.max(0, inquiry.options.findI
 
 /** A new inquiry preselects its recommended option (or the first); a new popover its recommended option; a shown sheet reads zarg's replies. */
 export const syncUi = (ui0: Ui, s: SessionState, now = Date.now()): Ui => {
-  const ui = withPopover(withRead(withRunClock(ui0.agents.tree === s.thread.trees ? ui0 : { ...ui0, agents: { toggled: {}, tree: s.thread.trees } }, s, now), s), s, now)
+  const ui = withPanels(withNavigate(withPopover(withRead(withRunClock(ui0.agents.tree === s.thread.trees ? ui0 : { ...ui0, agents: { toggled: {}, tree: s.thread.trees } }, s, now), s), s, now), s, now), s)
   const inquiry = s.thread.pendingInquiry
   if (inquiry === undefined) {
     if (ui.inquiryId === undefined && !ui.other && ui.chatting === undefined) return ui
@@ -111,6 +125,41 @@ const withPopover = (ui: Ui, s: SessionState, now: number): Ui => {
   return { ...ui, popover: { id: head.id, pick: Math.max(0, head.options.findIndex((o) => o.recommended === true)), since: now } }
 }
 
+/** A plugin opened a tile or sheet during the developer's call: follow it once, unless it is old (a replayed log). */
+const withNavigate = (ui: Ui, s: SessionState, now: number): Ui => {
+  const n = s.thread.navigate
+  if (n === undefined || (ui.navigated !== undefined && n.seq <= ui.navigated)) return ui
+  const at: Ui = { ...ui, navigated: n.seq }
+  if (now - n.at >= NAVIGATE_FRESH_MS) return at
+  if (n.kind === "sheet") return { ...at, sheet: true, sheetOf: n.view, focus: "tile" }
+  const { view: _, sheetOf: __, ...rest } = at
+  return { ...rest, viewing: n.view, sheet: false, focus: "tile" }
+}
+/** Closed panels the core dropped are forgotten; a focused panel that went gives the tile the keys. */
+const withPanels = (ui: Ui, s: SessionState): Ui => {
+  const ids = new Set((s.thread.panels ?? []).map((p) => p.id))
+  const closedPanels = ui.closedPanels.filter((id) => ids.has(id))
+  const next = closedPanels.length === ui.closedPanels.length ? ui : { ...ui, closedPanels }
+  if (next.focus !== "panel" || focusedPanel(next, s) !== undefined) return next
+  const { panel: _, panelView: __, ...rest } = next
+  return { ...rest, focus: "tile" }
+}
+
+/** Panels on screen, by edge, in opening order: agent-scope ones only while their agent is open; shell-scope ones one per plugin and two per edge; closed ones left out. */
+export const panelsShown = (ui: Ui, s: SessionState): Readonly<Record<"top" | "bottom" | "right", ReadonlyArray<Panel>>> => {
+  const open = (s.thread.panels ?? []).filter((p) => !ui.closedPanels.includes(p.id))
+  const plugins = new Set<string>()
+  const shell = open.filter((p) => p.scope === "shell" && !plugins.has(p.plugin) && (plugins.add(p.plugin), true))
+  const mine = open.filter((p) => p.scope === "agent" && ui.viewing !== undefined && (ui.viewing === p.agent || ui.viewing.startsWith(`${p.agent}@`)))
+  const edge = (e: Panel["edge"]) => [...mine.filter((p) => p.edge === e), ...shell.filter((p) => p.edge === e).slice(0, 2)]
+  return { top: edge("top"), bottom: edge("bottom"), right: edge("right") }
+}
+/** The focused panel, while it is on screen. */
+export const focusedPanel = (ui: Ui, s: SessionState): Panel | undefined => {
+  const shown = panelsShown(ui, s)
+  return ui.panel === undefined ? undefined : [...shown.top, ...shown.bottom, ...shown.right].find((p) => p.id === ui.panel)
+}
+
 const question = (s: SessionState) => s.thread.pendingInquiry
 /** zarg's sheet covers the tile area: opened, or no agent is open. */
 export const sheetShown = (ui: Ui) => ui.sheet || ui.viewing === undefined
@@ -126,11 +175,16 @@ export const typing = (ui: Ui, s: SessionState) => {
 }
 /** The shared popover queue, in the order the core asked: nothing on the client reorders it. */
 // A stopped core cannot take an answer, and a prompt without options cannot be answered: neither holds the keys.
-export const queueOf = (_ui: Ui, s: SessionState): ReadonlyArray<Prompt> => (s.core === "down" ? [] : (s.thread.prompts ?? []).filter((p) => p.options.length > 0))
+export const queueOf = (_ui: Ui, s: SessionState): ReadonlyArray<Prompt> => (s.core === "down" ? [] : (s.thread.prompts ?? []).filter((p) => p.kind === "surface" || p.options.length > 0))
 /** The bar's input has the keys: it takes text and no popover is up. */
 export const inputFocused = (ui: Ui, s: SessionState) => typing(ui, s) && queueOf(ui, s).length === 0
 /** The bar takes focus; while zarg asks, the sheet opens with the question. */
-export const focusBar = (ui: Ui, s: SessionState): Ui => ({ ...ui, focus: "bar", sheet: ui.sheet || question(s) !== undefined })
+export const focusBar = (ui: Ui, s: SessionState): Ui => {
+  if (question(s) === undefined) return { ...ui, focus: "bar" }
+  // zarg's question opens zarg's sheet (in place of a plugin's).
+  const { sheetOf: _, ...rest } = ui
+  return { ...rest, focus: "bar", sheet: true }
+}
 const seenNow = (ui: Ui, s: SessionState, id: string): Ui => {
   const since = s.thread.rlms[id]?.attention?.since
   return since === undefined ? ui : { ...ui, seen: { ...ui.seen, [id]: since } }
@@ -138,7 +192,10 @@ const seenNow = (ui: Ui, s: SessionState, id: string): Ui => {
 /** Open an agent: zarg's sheet for zarg, the agent's view otherwise; either way its attention counts as seen. */
 export const openAgent = (ui: Ui, s: SessionState, id: string): Ui => {
   const at = seenNow({ ...ui, agents: { ...ui.agents, cursor: id } }, s, id)
-  if (id === "zarg") return { ...at, sheet: true, focus: "tile" }
+  if (id === "zarg") {
+    const { sheetOf: _, ...rest } = at
+    return { ...rest, sheet: true, focus: "tile" }
+  }
   const { view: _, ...rest } = at
   return { ...rest, viewing: id, sheet: false, focus: "tile" }
 }
@@ -412,10 +469,12 @@ export type Action =
   | { readonly type: "send"; readonly text: string }
   | { readonly type: "command"; readonly text: string }
   | { readonly type: "stop" }
-  /** An action on rows of a table in the open agent's view. */
-  | { readonly type: "act"; readonly section: string | undefined; readonly action: string; readonly rows: ReadonlyArray<string> }
-  /** Answer a question in the open agent's conversation. */
-  | { readonly type: "answer-agent"; readonly question: string; readonly answer: { readonly choice?: string; readonly other?: string } }
+  /** An action on rows of a table in a view: the open agent's, or `agent`'s (a panel, a popover, a plugin sheet). */
+  | { readonly type: "act"; readonly section: string | undefined; readonly action: string; readonly rows: ReadonlyArray<string>; readonly agent?: string }
+  /** Close a plugin's popover. */
+  | { readonly type: "close-prompt"; readonly id: string }
+  /** Answer a question in the open agent's conversation (or `agent`'s). */
+  | { readonly type: "answer-agent"; readonly question: string; readonly answer: { readonly choice?: string; readonly other?: string }; readonly agent?: string }
   /** Scroll the open agent's focused section by lines. */
   | { readonly type: "scroll"; readonly delta: number }
   /** Scroll zarg's sheet by lines. */

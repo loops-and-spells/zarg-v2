@@ -109,3 +109,41 @@ describe("popovers and the core", () => {
     expect(barLine(at({ answered: "inq-1", viewing: "x" }), asking, 0)).toEqual({ text: "sending your answer…", tone: "working" })
   })
 })
+
+describe("surfaces in the shell", () => {
+  const stats = { name: "status", sections: [{ id: "line", kind: "stats" as const, role: "summary" as const }] }
+  const table = { name: "t", sections: [{ id: "rows", kind: "table" as const, role: "primary" as const, columns: [], actions: [{ id: "apply", label: "Apply", key: "a", on: "row" as const }] }] }
+  const views = {
+    "two:t1": { agent: "two:t1", layout: table, data: { rows: { rows: [{ id: "r1", cells: {} }, { id: "r2", cells: {} }] } } },
+    "two:t1@status": { agent: "two:t1@status", layout: stats, data: {} },
+  }
+  const popover = { id: "p1", kind: "surface" as const, question: "two ask", options: [], view: "two:t1", agent: "two:t1" }
+  const panel = (input: "none" | "onFocus", edge: "bottom" | "right" = "bottom") => ({ id: `two:status:two:t1`, plugin: "two", agent: "two:t1", view: "two:t1", name: "status", scope: "shell" as const, edge, size: 2, input })
+  const with_ = (thread: Partial<SessionState["thread"]>): SessionState => ({ ...idle, thread: { ...idle.thread, views, ...thread } })
+
+  test("a plugin's popover: its action key acts on its agent; Esc closes it", () => {
+    const s = with_({ prompts: [popover] })
+    expect(onKey(at({}), s, key("a"), 0).action).toEqual({ type: "act", section: "rows", action: "apply", rows: ["r1"], agent: "two:t1" })
+    expect(onKey(at({}), s, key("escape"), 0).action).toEqual({ type: "close-prompt", id: "p1" })
+  })
+  test("Alt+down from the tile reaches a focusable bottom panel before the bar; one that takes no keys is skipped", () => {
+    const tile = at({ focus: "tile", viewing: "two:t1" })
+    expect(onKey(tile, with_({ panels: [panel("onFocus")] }), key("down", { meta: true }), 0).ui).toMatchObject({ focus: "panel", panel: "two:status:two:t1" })
+    expect(onKey(tile, with_({ panels: [panel("none")] }), key("down", { meta: true }), 0).ui.focus).toBe("bar")
+    expect(onKey(tile, with_({ panels: [panel("onFocus", "right")] }), key("right", { meta: true }), 0).ui).toMatchObject({ focus: "panel" })
+  })
+  test("a focused panel takes its view's keys; Esc closes it and gives the tile the keys", () => {
+    const s = with_({ panels: [panel("onFocus")] })
+    const ui = at({ focus: "panel", panel: "two:status:two:t1", viewing: "two:t1" })
+    expect(onKey(ui, s, key("down"), 0).ui.panelView?.rows.rows).toBe(1)
+    expect(onKey(ui, s, key("a"), 0).action).toMatchObject({ type: "act", action: "apply", agent: "two:t1" })
+    expect(onKey(ui, s, key("escape"), 0).ui).toMatchObject({ focus: "tile", closedPanels: ["two:status:two:t1"] })
+  })
+  test("a plugin's sheet takes its view's keys; Esc closes it", () => {
+    const ui = at({ focus: "tile", sheet: true, sheetOf: "two:t1", viewing: "two:t1" })
+    expect(onKey(ui, with_({}), key("a"), 0).action).toMatchObject({ type: "act", action: "apply", agent: "two:t1" })
+    const closed = onKey(ui, with_({}), key("escape"), 0).ui
+    expect(closed.sheet).toBe(false)
+    expect(closed.sheetOf).toBeUndefined()
+  })
+})

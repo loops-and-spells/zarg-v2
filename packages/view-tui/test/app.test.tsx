@@ -612,3 +612,30 @@ describe("review fixes", () => {
     expect(t.calls).toContain("act rehearse:t1 apply r1")
   })
 })
+
+describe("surfaces", () => {
+  const status = { agent: "rehearse:run@status", layout: { name: "status", sections: [{ id: "line", kind: "stats" as const, role: "summary" as const }] }, data: { line: { items: [{ label: "stories", value: "2/5" }] } } }
+  const panel = { id: "rehearse:status:rehearse:run", plugin: "rehearse", agent: "rehearse:run", view: "rehearse:run@status", name: "status", scope: "shell" as const, edge: "bottom" as const, size: 1, input: "none" as const }
+  const withStatus: SessionState = { ...idleState, thread: { ...idleState.thread, views: { "rehearse:run@status": status }, panels: [panel] } }
+  test("a shell-scope bottom panel shows under the tile area and above the bar; its × hides it", async () => {
+    const t = await render(withStatus, { width: 110, height: 24 })
+    const lines = t.captureCharFrame().split("\n")
+    const at = lines.findIndex((l) => l.includes("2/5"))
+    const bar = lines.findIndex((l) => l.includes("message ›"))
+    expect(at).toBeGreaterThan(0)
+    expect(bar).toBeGreaterThan(at)
+    const head = lines.findIndex((l) => l.includes("status ×"))
+    await t.mockMouse.click(lines[head]!.indexOf("×"), head)
+    await settle(t)
+    expect(t.captureCharFrame()).not.toContain("2/5")
+  })
+  test("a plugin's popover shows its view; Esc closes it", async () => {
+    const t = await render({ ...idleState, thread: { ...idleState.thread, views: { "rehearse:run@status": status }, prompts: [{ id: "p1", kind: "surface", question: "rehearse ask", options: [], view: "rehearse:run@status", agent: "rehearse:run" }] } }, { width: 110, height: 24 })
+    const f = t.captureCharFrame()
+    expect(f).toContain("rehearse ask")
+    expect(f).toContain("2/5")
+    t.mockInput.pressEscape()
+    await settle(t)
+    expect(t.calls).toContain("close p1")
+  })
+})
