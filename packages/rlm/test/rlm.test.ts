@@ -97,6 +97,28 @@ describe("Rlm.exec", () => {
   })
 })
 
+describe("spawning", () => {
+  test("a child whose graph focus names no node is refused, not started", async () => {
+    const events: Array<Rlm.RlmEvent> = []
+    const stub = stubModel({
+      driver: [
+        { cell: 'const r = yield* Effect.catch(Rlm.exec({ task: "find it", preset: "research", scope: { graph: { focus: ["Rehearse", "UX-0001"], k: 2 } } }), (e) => Effect.succeed(e.message))\nreturn r' },
+        { cell: 'yield* Rlm.done({ value: "ok" })' },
+      ],
+    })
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const s = yield* settings({})
+        const rlm = yield* Rlm.make({ settings: s, services: factory, roles: { driver: "stub:m" }, cellTimeoutMs: 5000, observe: (e) => events.push(e), unknownIds: (ids) => Effect.succeed(ids.filter((i) => i !== "UX-0001")) })
+        yield* rlm.exec({ task: "t", preset: "driver", scope: {} })
+      }).pipe(Effect.provide(stub.layer)),
+    )
+    expect(events.filter((e) => e.type === "start").map((e) => e.id)).toEqual(["rlm-1"])
+    const step = events.find((e) => e.type === "step" && e.cells.length > 0)
+    expect(step?.type === "step" && step.cells[0]!.output).toContain("no node Rehearse")
+  })
+})
+
 describe("observe", () => {
   test("reports each turn's text, cells and outputs, and the task an RLM started with", async () => {
     const events: Array<Rlm.RlmEvent> = []

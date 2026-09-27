@@ -37,6 +37,8 @@ export interface RlmDeps {
   readonly decisions?: Decisions["Service"]
   /** Overrides `settings.minConfidence` (atomize and "decision" verification). */
   readonly minConfidence?: number
+  /** Of these graph ids, the ones that are no node: a child's focus must name real nodes. */
+  readonly unknownIds?: (ids: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<string>>
   /** Called synchronously for each RLM event (start, turns, atomize, plan, end). */
   readonly observe?: (event: RlmEvent) => void
 }
@@ -220,10 +222,21 @@ export const make = (deps: RlmDeps) =>
                 Effect.as("done: stop now"),
               ),
             exec: (child) =>
-              exec(child as RlmSpec, me).pipe(
+              Effect.gen(function* () {
+                // A focus of ids that are no node is an empty scope: the child could read nothing and would hand the task on.
+                const focus = child.scope.graph?.focus ?? []
+                const unknown = focus.length > 0 && deps.unknownIds !== undefined ? yield* deps.unknownIds(focus) : []
+                if (unknown.length > 0) {
+                  return yield* Effect.fail<ServiceFailure>({
+                    _tag: "UnknownFocus",
+                    message: `no node ${unknown.join(", ")}: give node ids from Graph.agenda, Graph.render or Graph.neighbors, or no graph focus for the whole graph`,
+                  })
+                }
+                return yield* exec(child as RlmSpec, me).pipe(
                 Effect.flatMap((o) => Schema.encodeEffect(Schema.toCodecJson(results[deps.settings.presets[child.preset]!.result ?? "text"]!))(o.value)),
-                Effect.mapError((e): ServiceFailure => ({ _tag: e._tag === "RlmError" ? "RlmError" : "InvalidResult", message: e.message })),
-              ),
+                  Effect.mapError((e): ServiceFailure => ({ _tag: e._tag === "RlmError" ? "RlmError" : "InvalidResult", message: e.message })),
+                )
+              }),
           })
           const layer = preset.layer.filter((n) => n !== "Rlm").flatMap((n) => {
             const b = deps.services(n, spec.scope)

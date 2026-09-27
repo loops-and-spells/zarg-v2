@@ -259,6 +259,15 @@ export const historyView = (lines: ReadonlyArray<Record<string, any>>): Readonly
     }
   })
 
+/** Enter on an agent, or a click: its hidden children open first; an open or childless agent shows its history. */
+export const activate = (ui: Ui, rlms: Readonly<Record<string, RlmNode>>, id: string): Ui => {
+  const n = rlms[id]
+  if (n !== undefined && childrenOf(rlms)(id).length > 0 && !isOpen(rlms, ui.agents, n)) {
+    return { ...ui, agents: { ...ui.agents, cursor: id, toggled: { ...ui.agents.toggled, [id]: true } } }
+  }
+  return openHistory(ui, id)
+}
+
 /** Arrows and Enter on the agents pane: move the highlight, open and close nodes, jump to the parent. */
 const onAgentsKey = (ui: Ui, rlms: Readonly<Record<string, RlmNode>>, key: Key): Ui => {
   const rows = visible(rlms, ui.agents)
@@ -273,7 +282,7 @@ const onAgentsKey = (ui: Ui, rlms: Readonly<Record<string, RlmNode>>, key: Key):
   const open = isOpen(rlms, ui.agents, n)
   if (key.name === "down") return move(rows[Math.min(rows.length - 1, at + 1)]?.node.id)
   if (key.name === "up") return move(rows[Math.max(0, at - 1)]?.node.id)
-  if (key.name === "return") return openHistory(ui, n.id)
+  if (key.name === "return") return activate(ui, rlms, n.id)
   if (key.name === "right") return hasKids && !open ? set(true) : ui
   if (key.name === "left") return hasKids && open ? set(false) : n.parent !== null && rlms[n.parent] !== undefined ? move(n.parent) : ui
   return ui

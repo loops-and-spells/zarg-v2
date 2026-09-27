@@ -54,6 +54,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     const agentGrants = yield* makeGrants({ file: join(USER_DIR, "grants.json"), project: root })
     // Rehearse is made after the threads (it wakes main); the driver's service and the agenda reach it through this.
     const rehearseRef: { current?: Rehearse } = {}
+    // A child's graph focus must name real nodes.
+    const unknownIds = (ids: ReadonlyArray<string>) => Effect.map(store.snapshot, (snap) => ids.filter((id) => !snap.nodes.has(id))).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>))
     const makeRlm = (asker: Asker, observe: (e: Rlm.RlmEvent) => void) => {
       // One driver item: graph writes wait for an answered question.
       const guard = askFirst(asker)
@@ -79,7 +81,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
               })
         return undefined
       }
-      return Rlm.make({ settings: rlmSettings, services: factory, roles, decisions, observe }).pipe(
+      return Rlm.make({ settings: rlmSettings, services: factory, roles, decisions, observe, unknownIds }).pipe(
         Effect.provideService(Model.Model, model),
       )
     }
@@ -93,7 +95,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         log,
         sensitive,
         makeRlm: (services, observe) =>
-          Rlm.make({ settings: rlmSettings, services, roles, decisions, observe }).pipe(Effect.provideService(Model.Model, model)),
+          Rlm.make({ settings: rlmSettings, services, roles, decisions, observe, unknownIds }).pipe(Effect.provideService(Model.Model, model)),
         extra: (name) => (name === "Decisions" ? decisionsService(decisions as never) : undefined),
         // Landing writes graph files: no driver write may land halfway through it.
         withGraphLock: (effect) => host.exclusive(effect),

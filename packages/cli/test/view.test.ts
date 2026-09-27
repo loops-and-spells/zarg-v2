@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
-import { CHAT, conversation, historyView, openHistory, EXIT_WINDOW_MS, initialUi, inputFocused, messageShown, OTHER, onKey, otherFocused, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/tui/view"
+import { activate, CHAT, conversation, historyView, openHistory, EXIT_WINDOW_MS, initialUi, inputFocused, messageShown, OTHER, onKey, otherFocused, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/tui/view"
 
 const inquiry: Inquiry = {
   id: "inq-1",
@@ -196,12 +196,17 @@ describe("the agents pane", () => {
     expect(text(agentRows(rlms, ui.agents))).toEqual(["▸ ● driver rlm-1  ▰▱▱▱▱▱  2/10  +4"])
   })
 
-  test("Enter on an agent (or a click) opens its history; Escape goes back to the conversation", () => {
+  test("Enter (or a click) opens an agent's hidden children first, then its history; Escape goes back to the conversation", () => {
     let ui: Ui = { ...initialUi, focus: "agents" }
     ui = press(ui, "down").ui
     ui = press(ui, "return").ui
+    expect(ui.viewing).toBeUndefined()
+    expect(text(agentRows(rlms, ui.agents)).some((r) => r.includes("▾ ✓ research rlm-2"))).toBe(true)
+    ui = press(ui, "return").ui
     expect(ui.viewing).toBe("rlm-2")
-    expect(openHistory({ ...initialUi }, "rlm-10").viewing).toBe("rlm-10")
+    // A click does the same: a collapsed parent opens, a leaf shows its history.
+    expect(activate({ ...initialUi }, rlms, "rlm-2").agents.toggled["rlm-2"]).toBe(true)
+    expect(activate({ ...initialUi }, rlms, "rlm-10").viewing).toBe("rlm-10")
     // The history takes the keys: Tab does not wander off while it is open.
     ui = press(ui, "escape").ui
     expect(ui.viewing).toBeUndefined()

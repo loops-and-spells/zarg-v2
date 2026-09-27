@@ -2,7 +2,7 @@ import { useKeyboard } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Session } from "@zarg/client"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
-import { type Action, agentDetail, agentRows, animating, conversation, historyView, messageShown, OTHER, openHistory, otherFocused, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
+import { type Action, agentDetail, agentRows, animating, conversation, activate, historyView, messageShown, OTHER, otherFocused, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
 
 const COLORS = { you: "#8ab4f8", zarg: "#e8eaed", error: "#f28b82", notice: "#fdd663", dim: "#9aa0a6", accent: "#81c995", select: "#3c4043" }
 // An open history refreshes this often while it is shown (the agent may still be working).
@@ -126,7 +126,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
                 id={`agent-${a.id}`}
                 fg={TONE[a.tone]}
                 truncate
-                onMouseDown={() => setUi(openHistory(latest(), a.id))}
+                onMouseDown={() => setUi(activate(latest(), props.session.state().thread.rlms, a.id))}
                 {...((a.selected && ui.focus === "agents") || a.id === viewing ? { bg: COLORS.select } : {})}
               >
                 {a.text}
@@ -209,7 +209,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       </box>
       ) : null}
       <box style={{ height: 1, flexShrink: 0 }}>
-        <text fg={COLORS.dim}>{`${statusLine(s, props.meta)}   ${viewing !== undefined ? "Esc back to the conversation" : ui.focus === "agents" ? "↑↓ move · ←→ fold · Enter history · Tab back" : "^C stop · ^C^C exit · Tab agents"}`}</text>
+        <text fg={COLORS.dim}>{`${statusLine(s, props.meta)}   ${viewing !== undefined ? "Esc back to the conversation" : ui.focus === "agents" ? "↑↓ move · ←→ fold · Enter open, then history · Tab back" : "^C stop · ^C^C exit · Tab agents"}`}</text>
       </box>
     </box>
   )
