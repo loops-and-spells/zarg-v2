@@ -32,8 +32,7 @@ const frameUntil = async (t: Awaited<ReturnType<typeof testRender>>, match: (fra
 }
 
 describe("tui end to end", () => {
-  // Task 8 moves the grant into the popover.
-  test.skip("against a child core on the stub model: answer an inquiry by keys; exiting stops the core", async () => {
+  test("against a child core on the stub model: answer an inquiry by keys; exiting stops the core", async () => {
     const stub = join(root, "stub.json")
     writeFileSync(stub, JSON.stringify({ cells }))
     process.env.ZARG_CORE_STUB = stub
@@ -43,12 +42,13 @@ describe("tui end to end", () => {
     const t = await testRender(<App session={opened.session} meta={opened.meta} onExit={() => (exited = true)} />, { width: 110, height: 26, exitOnCtrlC: false, exitSignals: [] })
     try {
       opened.session.start()
-      // Rehearse has no load grant in this test's user dir: zarg asks first. Not now keeps it unloaded.
-      await frameUntil(t, (f) => f.includes("Plugin rehearse wants to load"))
-      t.mockInput.pressArrow("down")
+      // Rehearse has no load grant in this test's user dir: the core asks in a popover. Not now keeps it unloaded.
+      await frameUntil(t, (f) => f.includes("grant") && f.includes("Plugin rehearse wants to load"))
+      t.mockInput.pressArrow("right")
       await t.renderOnce()
       t.mockInput.pressEnter()
-      await frameUntil(t, (f) => f.includes("› Checkout (recommended) — most used"))
+      // No agent is open: zarg's sheet shows the question with its options.
+      await frameUntil(t, (f) => f.includes("› Checkout (recommended) — most used") && !f.includes("Plugin rehearse wants to load"))
       t.mockInput.pressEnter()
       const frame = await frameUntil(t, (f) => f.includes("What next?"))
       expect(frame).toContain("you  Checkout")
