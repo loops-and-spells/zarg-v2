@@ -7,7 +7,7 @@ import { makeGrants } from "@zarg/plugin/runtime"
 import type { Question } from "@zarg/rlm"
 import { outsideReads } from "../src/outside"
 
-const setup = (answers: Array<string>) =>
+const setup = (answers: Array<string>, yolo = false) =>
   Effect.gen(function* () {
     const base = mkdtempSync(join(tmpdir(), "zarg-outside-"))
     const other = join(base, "zarg")
@@ -16,9 +16,9 @@ const setup = (answers: Array<string>) =>
     writeFileSync(join(other, "src", "vm", "grid.ts"), "export {}\n")
     const grants = yield* makeGrants({ file: join(base, "user", "grants.json"), project: join(base, "project") })
     const asked: Array<Question> = []
-    const allow = outsideReads({ grants, userDir: join(base, "user"), ask: (q) => Effect.sync(() => (asked.push(q), { choice: answers.shift() ?? "deny" })) })
+    const allow = outsideReads({ grants, userDir: join(base, "user"), yolo: () => yolo, ask: (q) => Effect.sync(() => (asked.push(q), { choice: answers.shift() ?? "deny" })) })
     const read = (p: string) => Effect.runPromise(Effect.result(allow(p)))
-    return { base, other, asked, read }
+    return { base, other, asked, read, grants }
   })
 
 describe("agents reading outside the repository", () => {
@@ -60,5 +60,14 @@ describe("agents reading outside the repository", () => {
       expect(await t.read(p)).toMatchObject({ _tag: "Failure", failure: { _tag: "NotAllowed", message: expect.stringContaining("too broad") } })
     }
     expect(t.asked.length).toBe(0)
+  })
+
+  test("YOLO lets reads through without asking and saves nothing; never-readable and too-broad paths stay refused", async () => {
+    const t = await Effect.runPromise(setup([], true))
+    expect(await t.read(join(t.other, "src", "vm", "grid.ts"))).toMatchObject({ _tag: "Success" })
+    expect(await t.read(join(t.other, ".env.local"))).toMatchObject({ _tag: "Failure" })
+    expect(await t.read("/")).toMatchObject({ _tag: "Failure" })
+    expect(t.asked.length).toBe(0)
+    expect((await Effect.runPromise(t.grants.of("zarg:agents", ""))).extra).toEqual([])
   })
 })

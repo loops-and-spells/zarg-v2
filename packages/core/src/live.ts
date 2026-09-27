@@ -52,6 +52,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
 
     // Agents may read outside the repository (porting from another project) once the developer allows it.
     const agentGrants = yield* makeGrants({ file: join(USER_DIR, "grants.json"), project: root })
+    // /yolo (for every plugin) also lets agents' reads outside the repository through without asking.
+    const yoloControl = (yield* PluginControl).yolo
     // Rehearse is made after the threads (it wakes main); the driver's service and the agenda reach it through this.
     const rehearseRef: { current?: Rehearse } = {}
     // A child's graph focus must name real nodes.
@@ -59,7 +61,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     const makeRlm = (asker: Asker, observe: (e: Rlm.RlmEvent) => void) => {
       // One driver item: graph writes wait for an answered question.
       const guard = askFirst(asker)
-      const outside = outsideReads({ grants: agentGrants, userDir: USER_DIR, ask: asker.ask })
+      const outside = outsideReads({ grants: agentGrants, userDir: USER_DIR, ask: asker.ask, yolo: () => yoloControl.on("zarg:agents") })
       const factory = (name: string, scope: Scope): Bound | undefined => {
         const ctx = { host, snapshot, scope }
         if (name === "Graph") return graph(ctx)

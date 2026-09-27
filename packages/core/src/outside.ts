@@ -30,7 +30,13 @@ const tooBroad = (path: string) => {
  * (once, always for the path's repository, or deny). One question at a time: reads that arrive together
  * wait for it, and an "always" answer lets them through.
  */
-export const outsideReads = (opts: { readonly grants: Grants; readonly userDir: string; readonly ask: (q: Question) => Effect.Effect<Answer, ServiceFailure> }) => {
+export const outsideReads = (opts: {
+  readonly grants: Grants
+  readonly userDir: string
+  readonly ask: (q: Question) => Effect.Effect<Answer, ServiceFailure>
+  /** YOLO: reads pass without a question and nothing is saved (never-readable and too-broad paths still refused). */
+  readonly yolo?: () => boolean
+}) => {
   const asking = Semaphore.makeUnsafe(1)
   const allowed = (path: string) =>
     Effect.map(opts.grants.of(AGENTS, ""), (g) => g.extra.some((x) => x.kind === "fs-read" && covers(x.glob.replace(/\/\*\*$/, ""), path)))
@@ -39,6 +45,7 @@ export const outsideReads = (opts: { readonly grants: Grants; readonly userDir: 
       if (deniedPath(path, opts.userDir)) return yield* Effect.fail(notAllowed(`${path} is never readable by agents`))
       if (tooBroad(path)) return yield* Effect.fail(notAllowed(`${path} is too broad: read a file or a project folder inside it`))
       if (yield* allowed(path)) return
+      if (opts.yolo?.() === true) return
       yield* Semaphore.withPermits(asking, 1)(
         Effect.gen(function* () {
           // Asked and answered "always" while this read waited.

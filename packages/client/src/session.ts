@@ -106,7 +106,7 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
           opts.client.yolo(on, plugin).pipe(
             Effect.map(() =>
               on
-                ? `YOLO is on${plugin ? ` for ${plugin}` : ""}: plugins use every scope they declare without asking. Nothing is saved; /yolo off asks again.`
+                ? `YOLO is on${plugin ? ` for ${plugin}` : ""}: ${plugin ? "it uses every scope it declares" : "plugins use every scope they declare, and agents read outside the repository,"} without asking. Nothing is saved; /yolo off asks again.`
                 : `YOLO is off${plugin ? ` for ${plugin}` : ""}: plugins ask before using a scope you have not granted.`,
             ),
             Effect.catch((e) => Effect.succeed(e.message)),
