@@ -1,5 +1,6 @@
 import { Data, Effect, Stream } from "effect"
 import type { Answer, WireEvent } from "./events"
+import type { Body } from "./state"
 import type { CoreInfo } from "./info"
 import { parseSse } from "./sse"
 
@@ -78,10 +79,13 @@ export const makeClient = (info: Pick<CoreInfo, "socket" | "token">) => {
       request("/yolo", { method: "POST", body: JSON.stringify({ on, ...(plugin !== undefined ? { plugin } : {}) }) }).pipe(
         Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly on: boolean }>)),
       ),
-    /** One agent's transcript lines (redacted), since it last started. */
-    history: (threadId: string, rlm: string) =>
-      request(`/threads/${encodeURIComponent(threadId)}/rlms/${encodeURIComponent(rlm)}`).pipe(
-        Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<ReadonlyArray<Record<string, unknown>>>)),
+    /** An agent's body: its history, or what its plugin draws. */
+    body: (threadId: string, agent: string) =>
+      request(`/threads/${encodeURIComponent(threadId)}/agents/${encodeURIComponent(agent)}/body`).pipe(Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<Body>))),
+    /** An action on an agent's selected rows; answers a notice for the developer. */
+    act: (threadId: string, agent: string, action: string, rows: ReadonlyArray<string>) =>
+      request(`/threads/${encodeURIComponent(threadId)}/agents/${encodeURIComponent(agent)}/actions/${encodeURIComponent(action)}`, { method: "POST", body: JSON.stringify({ rows }) }).pipe(
+        Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly notice: string }>)),
       ),
     stop: (threadId: string) => request(`/threads/${encodeURIComponent(threadId)}/stop`, { method: "POST", body: "{}" }).pipe(Effect.asVoid),
   }

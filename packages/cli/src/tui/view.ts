@@ -1,4 +1,4 @@
-import type { Answer, Inquiry, RlmNode, SessionState } from "@zarg/client"
+import type { Answer, Body, Inquiry, RlmNode, SessionState } from "@zarg/client"
 import { lintSlashInput, parseSlashInput, SLASH_COMMANDS, type SlashCycle, type SlashInputState, stepCompletion } from "./commands"
 
 /** UI-only state: what is focused and selected. Everything else comes from the session. */
@@ -24,6 +24,14 @@ export interface Ui {
   readonly agents: Agents
   /** The agent whose history replaces the conversation (Enter or a click on it); Escape closes it. */
   readonly viewing?: string
+  /** In the open agent's body: the tab, the highlighted row, the selected rows. */
+  readonly body?: BodyUi
+}
+
+export interface BodyUi {
+  readonly tab: number
+  readonly row: number
+  readonly selected: ReadonlyArray<string>
 }
 
 export interface Agents {
@@ -216,7 +224,62 @@ export const agentDetail = (rlms: Readonly<Record<string, RlmNode>>, cursor: str
 }
 
 /** Open an agent's history (Enter on it, or a click); it also becomes the highlighted agent. */
-export const openHistory = (ui: Ui, id: string): Ui => ({ ...ui, viewing: id, agents: { ...ui.agents, cursor: id } })
+export const openHistory = (ui: Ui, id: string): Ui => {
+  const { body: _, ...rest } = ui
+  return { ...rest, viewing: id, agents: { ...ui.agents, cursor: id } }
+}
+
+const tabsOf = (body: Body) => body.parts.find((p) => p.kind === "tabs") as Extract<Body["parts"][number], { kind: "tabs" }> | undefined
+
+/** An agent's body as lines: history, text, then its table (the current tab), with the keys it takes. */
+export const bodyView = (body: Body, b: BodyUi | undefined): ReadonlyArray<HistoryLine> =>
+  body.parts.flatMap((p, i): ReadonlyArray<HistoryLine> => {
+    const gap: ReadonlyArray<HistoryLine> = i > 0 ? [{ kind: "dim", text: "" }] : []
+    if (p.kind === "history") return [...gap, ...historyView(p.lines ?? [])]
+    if (p.kind === "lines") return [...gap, ...p.lines.map((l) => ({ kind: (l.tone ?? "zarg") as HistoryLine["kind"], text: l.text }))]
+    const tab = Math.min(b?.tab ?? 0, p.tabs.length - 1)
+    const t = p.tabs[tab]
+    if (t === undefined) return gap
+    const widths = t.columns.map((c, ci) => Math.max(c.length, ...t.rows.map((r) => (r.cells[ci] ?? "").length)))
+    const cells = (xs: ReadonlyArray<string>) => xs.map((x, ci) => (ci === xs.length - 1 ? x : x.padEnd(widths[ci]!))).join("  ")
+    const row = Math.min(b?.row ?? 0, Math.max(0, t.rows.length - 1))
+    return [
+      ...gap,
+      { kind: "accent", text: p.tabs.map((x, xi) => (xi === tab ? `[${x.title}]` : ` ${x.title} `)).join(" ").trimEnd() },
+      ...(t.rows.length === 0
+        ? [{ kind: "dim" as const, text: "  (none)" }]
+        : [
+            { kind: "dim" as const, text: `      ${cells(t.columns)}` },
+            ...t.rows.map((r, ri) => ({
+              kind: (ri === row ? "accent" : "zarg") as HistoryLine["kind"],
+              text: `${ri === row ? "▸" : " "} [${b?.selected.includes(r.id) ? "x" : " "}] ${cells(r.cells)}`,
+            })),
+          ]),
+      { kind: "dim", text: ["↑↓ move", "Space select", "Tab tabs", ...p.actions.map((a) => `${a.key} ${a.label}`)].join(" · ") },
+    ]
+  })
+
+/** Keys in a body with a table: move, select, switch tabs, act on the selection (or the highlighted row). */
+const bodyKeys = (ui: Ui, body: Body, key: Key): { readonly ui: Ui; readonly action?: Action } => {
+  const p = tabsOf(body)
+  if (p === undefined) return { ui }
+  const b = ui.body ?? { tab: 0, row: 0, selected: [] }
+  const rows = p.tabs[Math.min(b.tab, p.tabs.length - 1)]?.rows ?? []
+  const set = (next: Partial<BodyUi>): Ui => ({ ...ui, body: { ...b, ...next } })
+  if (key.name === "down") return { ui: set({ row: Math.min(rows.length - 1, b.row + 1) }) }
+  if (key.name === "up") return { ui: set({ row: Math.max(0, b.row - 1) }) }
+  if (key.name === "tab") return { ui: set({ tab: (b.tab + 1) % Math.max(1, p.tabs.length), row: 0 }) }
+  const current = rows[Math.min(b.row, rows.length - 1)]
+  if (key.name === "space" && current !== undefined) {
+    return { ui: set({ selected: b.selected.includes(current.id) ? b.selected.filter((x) => x !== current.id) : [...b.selected, current.id] }) }
+  }
+  const act = p.actions.find((a) => a.key === key.name)
+  if (act !== undefined) {
+    const chosen = b.selected.length > 0 ? b.selected : current !== undefined ? [current.id] : []
+    return chosen.length === 0 ? { ui } : { ui: set({ selected: [] }), action: { type: "act", action: act.id, rows: chosen } }
+  }
+  return { ui }
+}
 
 export interface HistoryLine {
   readonly kind: "zarg" | "dim" | "error" | "accent"
@@ -319,6 +382,8 @@ export type Action =
   | { readonly type: "send"; readonly text: string }
   | { readonly type: "command"; readonly text: string }
   | { readonly type: "stop" }
+  /** An action on the open agent's selected rows. */
+  | { readonly type: "act"; readonly action: string; readonly rows: ReadonlyArray<string> }
   | { readonly type: "exit" }
 
 /** What a key press does: the next UI state and, maybe, an action for the session. */
@@ -371,7 +436,7 @@ const withoutSlash = (ui: Ui): Ui => {
   return rest
 }
 
-export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: string): { readonly ui: Ui; readonly action?: Action; readonly draft?: string } => {
+export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: string, body?: Body): { readonly ui: Ui; readonly action?: Action; readonly draft?: string } => {
   if (key.ctrl && key.name === "d") return { ui, action: { type: "exit" } }
   if (key.ctrl && key.name === "c") {
     if (ui.lastCtrlC !== undefined && now - ui.lastCtrlC < EXIT_WINDOW_MS) return { ui, action: { type: "exit" } }
@@ -383,8 +448,8 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: st
       const { viewing: _, ...rest } = ui
       return { ui: { ...rest, focus: "conversation" } }
     }
-    // A question on screen still takes its keys (arrows, Enter); anything else waits for Escape.
-    if (s.thread.pendingInquiry === undefined) return { ui }
+    // A question on screen still takes its keys (arrows, Enter); otherwise the body's table does.
+    if (s.thread.pendingInquiry === undefined) return body !== undefined ? bodyKeys(ui, body, key) : { ui }
     ui = { ...ui, focus: "conversation" }
   }
   if (draft !== undefined && slashActive(ui, s)) {

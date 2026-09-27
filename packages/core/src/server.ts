@@ -36,6 +36,15 @@ export class RehearseControl extends Context.Service<
   { readonly start: (opts: { readonly strategy?: "edge-pair" | "teleport"; readonly focus?: ReadonlyArray<string> }) => Effect.Effect<unknown> }
 >()("@zarg/core/RehearseControl") {}
 
+/** Agents' bodies and the actions on their selected rows (`GET …/agents/:agent/body`, `POST …/actions/:action`). */
+export class Bodies extends Context.Service<
+  Bodies,
+  {
+    readonly body: (thread: string, agent: string) => Effect.Effect<unknown>
+    readonly act: (thread: string, agent: string, action: string, rows: ReadonlyArray<string>) => Effect.Effect<{ readonly notice: string }>
+  }
+>()("@zarg/core/Bodies") {}
+
 /** YOLO on or off (`POST /yolo`): for every plugin, or one; answers whether any plugin is in YOLO now. */
 export class YoloControl extends Context.Service<YoloControl, { readonly set: (on: boolean, plugin?: string) => Effect.Effect<{ readonly on: boolean }> }>()("@zarg/core/YoloControl") {}
 
@@ -86,6 +95,7 @@ const routes = HttpRouter.addAll(
     const control = yield* ReconcileControl
     const yolo = yield* YoloControl
     const rehearse = yield* RehearseControl
+    const bodies = yield* Bodies
     const heartbeat = yield* Heartbeat
     const log = yield* Log
     // Only a user message this core has not seen yet counts as new input.
@@ -146,13 +156,25 @@ const routes = HttpRouter.addAll(
       ),
       HttpRouter.route(
         "GET",
-        "/threads/:id/rlms/:rlm",
+        "/threads/:id/agents/:agent/body",
         Effect.gen(function* () {
-          const { id, rlm } = yield* HttpRouter.params
+          const { id, agent } = yield* HttpRouter.params
           const thread = decodeURIComponent(id ?? "")
-          // The id names a file: nothing but a thread id reaches the path.
           if (!THREAD_ID.test(thread)) return error(400, "invalid thread id")
-          return HttpServerResponse.jsonUnsafe(log.history(thread, decodeURIComponent(rlm ?? "")))
+          const b = yield* bodies.body(thread, decodeURIComponent(agent ?? ""))
+          return b === undefined ? error(404, "no such agent, or its plugin is not loaded") : HttpServerResponse.jsonUnsafe(b)
+        }),
+      ),
+      HttpRouter.route(
+        "POST",
+        "/threads/:id/agents/:agent/actions/:action",
+        Effect.gen(function* () {
+          const { id, agent, action } = yield* HttpRouter.params
+          const thread = decodeURIComponent(id ?? "")
+          if (!THREAD_ID.test(thread)) return error(400, "invalid thread id")
+          const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as { rows?: unknown }
+          if (!Array.isArray(body.rows) || !body.rows.every((r) => typeof r === "string")) return error(400, `an action needs { "rows": [ids] }`)
+          return HttpServerResponse.jsonUnsafe(yield* bodies.act(thread, decodeURIComponent(agent ?? ""), decodeURIComponent(action ?? ""), body.rows as ReadonlyArray<string>))
         }),
       ),
       HttpRouter.route(
@@ -176,7 +198,8 @@ const routes = HttpRouter.addAll(
  *   GET  /stream?since=<seq>   every thread's events after seq, then live (SSE)
  *   GET  /threads              [{ id, focus, status }]
  *   POST /threads/:id/stop     stop the thread's current work
- *   GET  /threads/:id/rlms/:rlm  one agent's transcript lines (redacted), since it last started
  *   POST /rehearse             { strategy?, focus? } → the started run, or { refused }
+ *   GET  /threads/:id/agents/:agent/body          the agent's body (parts)
+ *   POST /threads/:id/agents/:agent/actions/:action  { rows } → { notice }
  */
 export const api = Layer.mergeAll(routes, auth)

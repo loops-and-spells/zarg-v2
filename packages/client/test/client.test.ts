@@ -27,6 +27,8 @@ const server = Bun.serve({
     if (url.pathname === "/reconcile") return Response.json({ on: true, pending: 1 })
     if (url.pathname === "/rehearse") return Response.json({ run: "r-1", stories: 2, steps: 6, personas: ["dev"] })
     if (url.pathname === "/threads/main/rlms/rlm-2") return Response.json([{ type: "start", rlm: "rlm-2" }])
+    if (url.pathname === "/threads/main/agents/rehearse%3At-1/body") return Response.json({ parts: [{ kind: "lines", lines: [{ text: "hi" }] }] })
+    if (url.pathname === "/threads/main/agents/rehearse%3At-1/actions/apply") return Response.json({ notice: "applied" })
     // Events split across chunks and with CRLF-free multi-line framing, as a real stream may deliver them.
     return new Response(
       sseBody(['data: {"type":"RUN_STARTED","threadId":"main","seq":1}\n\n: comment\n\ndata: {"type":"RUN_FIN', 'ISHED","threadId":"main","seq":2}\n\n']),
@@ -69,14 +71,15 @@ describe("client", () => {
     expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/threads/main/stop" })
   })
 
-  test("an agent's history comes from the core", async () => {
-    expect(await Effect.runPromise(client.history("main", "rlm-2"))).toEqual([{ type: "start", rlm: "rlm-2" }])
-    expect(seen.at(-1)).toMatchObject({ method: "GET", path: "/threads/main/rlms/rlm-2", auth: "Bearer tok" })
-  })
-
   test("rehearse posts the strategy and focus", async () => {
     expect(await Effect.runPromise(client.rehearse("teleport", ["UX-1"]))).toMatchObject({ run: "r-1" })
     expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/rehearse", body: { strategy: "teleport", focus: ["UX-1"] } })
+  })
+
+  test("an agent's body and an action on its selected rows", async () => {
+    expect(await Effect.runPromise(client.body("main", "rehearse:t-1"))).toEqual({ parts: [{ kind: "lines", lines: [{ text: "hi" }] }] })
+    expect(await Effect.runPromise(client.act("main", "rehearse:t-1", "apply", ["R-1"]))).toEqual({ notice: "applied" })
+    expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/threads/main/agents/rehearse%3At-1/actions/apply", body: { rows: ["R-1"] } })
   })
 
   test("a wrong token fails with CoreError 401; a missing socket fails as unreachable", async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
-import { activate, CHAT, conversation, historyView, openHistory, EXIT_WINDOW_MS, initialUi, inputFocused, messageShown, OTHER, onKey, otherFocused, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/tui/view"
+import { activate, bodyView, CHAT, conversation, historyView, openHistory, EXIT_WINDOW_MS, initialUi, inputFocused, messageShown, OTHER, onKey, otherFocused, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/tui/view"
 
 const inquiry: Inquiry = {
   id: "inq-1",
@@ -227,6 +227,49 @@ describe("the agents pane", () => {
     expect(enter.action).toEqual({ type: "answer", answer: { choice: "deny" } })
     ui = onKey(down.ui, asking, { name: "escape" }, 0).ui
     expect(ui.viewing).toBeUndefined()
+  })
+
+  test("a plugin agent's body: history, then tables in tabs; arrows move, Space selects, Tab switches, an action key acts on the selection", () => {
+    const body = {
+      parts: [
+        { kind: "history" as const, lines: [{ type: "step", rlm: "rehearse:tester-1", turn: 0, text: "UX-1: feel 1.80", cells: [] }] },
+        {
+          kind: "tabs" as const,
+          tabs: [
+            { title: "Feedback", columns: ["id", "kind", "note"], rows: [{ id: "R-1", cells: ["R-1", "gap", "no error shown"] }, { id: "R-2", cells: ["R-2", "friction", "unclear"] }] },
+            { title: "Likes", columns: ["id", "kind", "note"], rows: [] },
+          ],
+          actions: [{ id: "apply", label: "Apply", key: "a" }, { id: "dismiss", label: "Dismiss", key: "d" }],
+        },
+      ],
+    }
+    let ui: Ui = openHistory({ ...initialUi }, "rehearse:tester-1")
+    const text = () => bodyView(body, ui.body).map((l) => l.text)
+    expect(text()).toEqual([
+      "  UX-1: feel 1.80",
+      "",
+      "[Feedback]  Likes",
+      "      id   kind      note",
+      "▸ [ ] R-1  gap       no error shown",
+      "  [ ] R-2  friction  unclear",
+      "↑↓ move · Space select · Tab tabs · a Apply · d Dismiss",
+    ])
+    const key = (name: string) => {
+      const r = onKey(ui, running, { name }, 0, undefined, body)
+      ui = r.ui
+      return r.action
+    }
+    key("down")
+    key("space")
+    expect(text()[5]).toBe("▸ [x] R-2  friction  unclear")
+    expect(key("a")).toEqual({ type: "act", action: "apply", rows: ["R-2"] })
+    expect(ui.body?.selected).toEqual([])
+    // Nothing selected: the action takes the row under the cursor.
+    key("up")
+    expect(key("d")).toEqual({ type: "act", action: "dismiss", rows: ["R-1"] })
+    key("tab")
+    expect(text()[2]).toBe(" Feedback  [Likes]")
+    expect(text()[3]).toBe("  (none)")
   })
 
   test("an agent's history: the task, each turn's model time, calls, and cells with code and output", () => {

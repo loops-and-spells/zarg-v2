@@ -16,6 +16,7 @@ import { askFirst } from "./driver"
 import { judgeGaps } from "./gaps"
 import { outsideReads } from "./outside"
 import { nextGoals, type NextOption } from "./intent"
+import { makeBodies } from "./bodies"
 import { makeLog } from "./log"
 import { pluginAgents } from "./plugin-agents"
 import { makeYolo, PluginControl, pluginHostLayer, USER_DIR, vaultFrom } from "./plugins"
@@ -200,7 +201,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       Effect.uninterruptible,
       Semaphore.withPermits(turnOnLock, 1),
     )
-    return { log, threads, driver: roles.driver, turnOn, yolo, rehearse }
+    const bodies = makeBodies({ log, invoke: (plugin, method, params) => host.invoke(plugin, method, params) })
+    return { log, threads, driver: roles.driver, turnOn, yolo, rehearse, bodies }
   })
 
 /** The project's plugin host options from its environment and config (`[plugins.<name>]` tables). */

@@ -1,7 +1,7 @@
 import { Effect, Fiber, Stream } from "effect"
 import type { Client, RunRequest } from "./client"
 import type { Answer } from "./events"
-import { initial, reduce, type ThreadState } from "./state"
+import { type Body, initial, reduce, type ThreadState } from "./state"
 
 export interface SessionState {
   readonly thread: ThreadState
@@ -25,8 +25,10 @@ export interface Session {
   readonly command: (text: string) => void
   /** Stop the thread's current work. */
   readonly stop: () => void
-  /** One agent's transcript lines, for its history view; empty when the core cannot answer. */
-  readonly history: (rlm: string) => Promise<ReadonlyArray<Record<string, unknown>>>
+  /** An agent's body; undefined when the core cannot answer. */
+  readonly body: (agent: string) => Promise<Body | undefined>
+  /** An action on an agent's selected rows; its notice shows. */
+  readonly act: (agent: string, action: string, rows: ReadonlyArray<string>) => Promise<void>
   /** Stop following the core. */
   readonly close: () => void
 }
@@ -149,7 +151,15 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
         ),
       )
     },
-    history: (rlm) => Effect.runPromise(opts.client.history(opts.threadId, rlm).pipe(Effect.orElseSucceed(() => []))),
+    body: (agent) => Effect.runPromise(opts.client.body(opts.threadId, agent).pipe(Effect.orElseSucceed(() => undefined))),
+    act: (agent, action, rows) =>
+      Effect.runPromise(
+        opts.client.act(opts.threadId, agent, action, rows).pipe(
+          Effect.map((r) => r.notice),
+          Effect.catch((e) => Effect.succeed(e.message)),
+          Effect.flatMap((notice) => Effect.sync(() => set({ ...state, notice }))),
+        ),
+      ),
     stop: () => fork(opts.client.stop(opts.threadId).pipe(Effect.catch((e) => Effect.sync(() => set({ ...state, notice: e.message }))))),
     close: () => {
       for (const f of fibers) Effect.runFork(Fiber.interrupt(f))

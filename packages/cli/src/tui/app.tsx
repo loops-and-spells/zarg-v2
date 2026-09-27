@@ -1,8 +1,8 @@
 import { useKeyboard } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
-import type { Session } from "@zarg/client"
+import type { Body, Session } from "@zarg/client"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
-import { type Action, agentDetail, agentRows, animating, conversation, activate, historyView, messageShown, OTHER, otherFocused, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
+import { type Action, agentDetail, agentRows, animating, conversation, activate, bodyView, messageShown, OTHER, otherFocused, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
 
 const COLORS = { you: "#8ab4f8", zarg: "#e8eaed", error: "#f28b82", notice: "#fdd663", dim: "#9aa0a6", accent: "#81c995", select: "#3c4043" }
 // An open history refreshes this often while it is shown (the agent may still be working).
@@ -47,11 +47,15 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     else if (action.type === "send") props.session.send(action.text)
     else if (action.type === "command") props.session.command(action.text)
     else if (action.type === "stop") props.session.stop()
+    else if (action.type === "act") {
+      const agent = latest().viewing
+      if (agent !== undefined) void props.session.act(agent, action.action, action.rows).then(() => reloadBody.current())
+    }
     else props.onExit()
   }
 
   useKeyboard((key) => {
-    const r = onKey(latest(), props.session.state(), { name: key.name, ctrl: key.ctrl }, Date.now(), draftRef.current)
+    const r = onKey(latest(), props.session.state(), { name: key.name, ctrl: key.ctrl }, Date.now(), draftRef.current, bodyRef.current)
     setUi(r.ui)
     if (r.draft !== undefined) {
       // Write into the input now, so a key typed right after Tab lands after the completion.
@@ -61,14 +65,23 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     act(r.action)
   })
 
-  // The open agent's history, fetched from the core and refreshed while it is shown.
-  const [history, setHistory] = useState<ReadonlyArray<Record<string, unknown>>>([])
+  // The open agent's body (its history, or what its plugin draws), fetched and refreshed while it is shown.
+  const [body, setBody] = useState<Body | undefined>(undefined)
+  const bodyRef = useRef<Body | undefined>(undefined)
+  const reloadBody = useRef<() => void>(() => {})
   const viewing = ui.viewing
   useEffect(() => {
     if (viewing === undefined) return
     let live = true
-    const load = () => void props.session.history(viewing).then((h) => live && setHistory(h))
-    setHistory([])
+    const load = () =>
+      void props.session.body(viewing).then((b) => {
+        if (!live) return
+        bodyRef.current = b
+        setBody(b)
+      })
+    reloadBody.current = load
+    bodyRef.current = undefined
+    setBody(undefined)
     load()
     const timer = setInterval(load, HISTORY_REFRESH_MS)
     return () => {
@@ -95,8 +108,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       <box style={{ flexDirection: "row", flexGrow: 1 }}>
         {viewing !== undefined ? (
           <scrollbox title={`Agent ${viewing} · Esc back`} style={{ flexGrow: 1, border: true, borderColor: COLORS.accent }} stickyScroll stickyStart="bottom">
-            {history.length === 0 ? <text fg={COLORS.dim}>loading…</text> : null}
-            {historyView(history).map((l, i) => (
+            {body === undefined ? <text fg={COLORS.dim}>loading…</text> : null}
+            {(body === undefined ? [] : bodyView(body, ui.body)).map((l, i) => (
               <text key={i} fg={COLORS[l.kind]}>
                 {l.text}
               </text>

@@ -20,13 +20,13 @@ const fakeSession = (state: SessionState) => {
     stop: () => calls.push("stop"),
     close: () => calls.push("close"),
     command: (t) => calls.push(`command ${t}`),
-    history: (rlm) => {
-      calls.push(`history ${rlm}`)
-      return Promise.resolve([
-        { type: "start", rlm, preset: "research", task: "Find the VM grid" },
-        { type: "call", rlm, turn: 1, service: "Graph", method: "show", params: { id: "S-1" }, ok: true, result: {}, ms: 11 },
-      ])
-    },
+    act: (agent, action, rows) => Promise.resolve(void calls.push(`act ${agent} ${action} ${rows.join(",")}`)),
+    body: (agent) =>
+      Promise.resolve(
+        agent.includes(":")
+          ? { parts: [{ kind: "history" as const, lines: [{ type: "step", rlm: agent, turn: 0, text: "UX-1: feel 1.80", cells: [] }] }, { kind: "tabs" as const, tabs: [{ title: "Feedback", columns: ["id", "note"], rows: [{ id: "R-1", cells: ["R-1", "no error shown"] }] }, { title: "Likes", columns: ["id", "note"], rows: [] }], actions: [{ id: "apply", label: "Apply", key: "a" }] }] }
+          : { parts: [{ kind: "history" as const, lines: [{ type: "start", rlm: agent, preset: "research", task: "Find the VM grid" }, { type: "call", rlm: agent, turn: 1, service: "Graph", method: "show", params: { id: "S-1" }, ok: true, result: {}, ms: 11 }] }] },
+      ),
   }
   const update = (next: SessionState) => {
     current = next
@@ -208,11 +208,29 @@ describe("tui frames", () => {
     expect(open).toContain("Agent rlm-2 · Esc back")
     expect(open).toContain("research rlm-2: Find the VM grid")
     expect(open).toContain('Graph.show {"id":"S-1"}  11ms')
-    expect(t.calls).toContain("history rlm-2")
+    expect(t.captureCharFrame()).toContain("research rlm-2: Find the VM grid")
     t.mockInput.pressEscape()
     await settle(t)
     expect(t.captureCharFrame()).toContain("The agenda is empty.")
     expect(t.captureCharFrame()).not.toContain("Esc back")
+  })
+
+  test("a plugin agent's body: history, a Feedback table, and a key that acts on the highlighted row", async () => {
+    const tester = { id: "rehearse:tester-1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
+    const t = await render({ thread: { ...initial("main"), status: "running", rlms: { "rehearse:tester-1": tester } }, core: "up" })
+    t.mockInput.pressTab()
+    await settle(t)
+    t.mockInput.pressEnter()
+    await settle(t)
+    await Bun.sleep(30)
+    await settle(t)
+    const frame = t.captureCharFrame()
+    expect(frame).toContain("UX-1: feel 1.80")
+    expect(frame).toContain("[Feedback]  Likes")
+    expect(frame).toContain("▸ [ ] R-1  no error shown")
+    t.mockInput.pressKey("a")
+    await settle(t)
+    expect(t.calls).toContain("act rehearse:tester-1 apply R-1")
   })
 
   test("the agents pane folds: → opens a child's subtree, ← closes it", async () => {
