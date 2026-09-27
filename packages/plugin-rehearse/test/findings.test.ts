@@ -16,6 +16,14 @@ describe("rehearse findings", () => {
     expect("findings" in out && out.findings[0]).toEqual({ kind: "gap", card: "UX-1", severity: "medium", note: "n0" })
   })
 
+  test("JSON in a fence or with words around it is read; JSON cut short is an infrastructure note, never raw JSON in a finding", async () => {
+    const body = JSON.stringify({ findings: [{ kind: "gap", severity: "high", note: "no failure path" }] })
+    for (const text of ["```json\n" + body + "\n```", `Here you go:\n${body}\nThat is all.`]) {
+      expect(await Effect.runPromise(diagnose(replying(text), persona, [], step, ["fail"]))).toEqual({ findings: [{ kind: "gap", card: "UX-1", severity: "high", note: "no failure path" }] })
+    }
+    expect(await Effect.runPromise(diagnose(replying('{\n  "f'), persona, [], step, ["fail"]))).toEqual({ infra: "UX-1: the tester's answer was cut short" })
+  })
+
   test("prose becomes one low friction; a model failure is an infrastructure note, never a finding", async () => {
     expect(await Effect.runPromise(diagnose(replying("I think it is fine"), persona, [], step, ["feel"]))).toEqual({
       findings: [{ kind: "friction", card: "UX-1", severity: "low", note: "the tester answered in prose: I think it is fine" }],

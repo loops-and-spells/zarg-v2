@@ -1,5 +1,5 @@
 import type { Answer, Inquiry, RlmNode, SessionState } from "@zarg/client"
-import { initialViewUi, type ViewUi } from "@zarg/view"
+import { startUi, type ViewUi } from "@zarg/view"
 import { viewKeys } from "./view-keys"
 import { lintSlashInput, parseSlashInput, SLASH_COMMANDS, type SlashCycle, type SlashInputState, stepCompletion } from "./commands"
 
@@ -356,7 +356,7 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: st
     if (s.thread.pendingInquiry === undefined) {
       const v = s.thread.views?.[ui.viewing]
       if (v === undefined) return { ui }
-      const r = viewKeys(v, ui.view ?? initialViewUi, key)
+      const r = viewKeys(v, ui.view ?? startUi(v), key)
       return { ui: { ...ui, view: r.ui }, ...(r.act !== undefined ? { action: { type: "act" as const, ...r.act } } : r.scroll !== undefined ? { action: { type: "scroll" as const, delta: r.scroll } } : {}) }
     }
     ui = { ...ui, focus: "conversation" }

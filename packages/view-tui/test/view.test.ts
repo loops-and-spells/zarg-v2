@@ -395,15 +395,15 @@ describe("keys in an agent's view", () => {
   const views = { "rehearse:t-1": { agent: "rehearse:t-1", layout, data: { "review.findings": { rows: [{ id: "R-1", cells: {} }, { id: "R-2", cells: {} }] } } } }
   const s = { ...running, thread: { ...running.thread, views } } as SessionState
   const open = { ...initialUi, viewing: "rehearse:t-1" }
-  test("Tab moves focus between sections, [ and ] switch tabs, space and a apply the selected rows", () => {
-    let ui = onKey(open, s, { name: "tab" }, 0).ui
+  test("the view opens on its table: space and a apply the selected rows, [ and ] switch tabs, Tab moves to the log", () => {
+    let ui = onKey(open, s, { name: "down" }, 0).ui
     expect(ui.view?.focus).toBe(1)
-    ui = onKey(ui, s, { name: "down" }, 0).ui
     ui = onKey(ui, s, { name: "space" }, 0).ui
     const r = onKey(ui, s, { name: "a" }, 0)
     expect(r.action).toEqual({ type: "act", section: "review.findings", action: "apply", rows: ["R-2"] })
     expect(r.ui.view?.selected["review.findings"]).toEqual([])
     expect(onKey(ui, s, { name: "]" }, 0).ui.view?.tabs.review).toBe(1)
+    expect(onKey(ui, s, { name: "tab" }, 0).ui.view?.focus).toBe(0)
   })
   test("Escape goes back to the conversation", () => {
     expect(onKey(open, s, { name: "escape" }, 0).ui.viewing).toBeUndefined()
@@ -411,12 +411,13 @@ describe("keys in an agent's view", () => {
   test("an open view takes the keys: the message box is not focused, and ctrl letters never trigger actions", () => {
     const ui = openHistory({ ...initialUi }, "rehearse:t-1")
     expect(inputFocused(ui, s)).toBe(false)
-    let u = onKey(ui, s, { name: "tab" }, 0).ui
+    let u = ui
     expect(onKey(u, s, { name: "a", ctrl: true }, 0).action).toBeUndefined()
     u = onKey(u, s, { name: "a" }, 0).ui
   })
   test("in a focused log, arrows and page keys scroll it", () => {
-    expect(onKey(open, s, { name: "up" }, 0).action).toEqual({ type: "scroll", delta: -1 })
-    expect(onKey(open, s, { name: "pagedown" }, 0).action).toEqual({ type: "scroll", delta: 10 })
+    const log = onKey(open, s, { name: "tab" }, 0).ui
+    expect(onKey(log, s, { name: "up" }, 0).action).toEqual({ type: "scroll", delta: -1 })
+    expect(onKey(log, s, { name: "pagedown" }, 0).action).toEqual({ type: "scroll", delta: 10 })
   })
 })

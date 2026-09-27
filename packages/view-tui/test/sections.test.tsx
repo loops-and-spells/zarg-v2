@@ -96,4 +96,11 @@ describe("the terminal draws an agent's view", () => {
     const f = await frame(rlm)
     expect(f).toContain('yield* Graph.show({ id: "S-1" })')
   })
+
+  test("a cell with line breaks stays on its row", async () => {
+    const v = view(1)
+    const withBreaks: ViewState = { ...v, data: { ...v.data, "review.findings": { rows: [{ id: "R-0", cells: { id: "R-0", note: "first line\nsecond line" } }] } } }
+    const f = await frame(withBreaks, { ...initialViewUi, focus: 3 })
+    expect(f).toContain("R-0  first line second line")
+  })
 })

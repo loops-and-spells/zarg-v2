@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { actionFor, defineView, focusNext, initialViewUi, layoutOf, moveRow, nextTab, ordered, toggleSelect, type ViewState } from "../src"
+import { actionFor, defineView, focusNext, initialViewUi, layoutOf, moveRow, nextTab, ordered, startUi, toggleSelect, type ViewState } from "../src"
 
 const layout = layoutOf(
   defineView("tester", {
@@ -58,5 +58,11 @@ describe("view behaviour", () => {
   test("an action sends only selected rows the table still has", () => {
     const ui = { ...initialViewUi, focus: 2, selected: { "review.findings": ["R-2", "R-9"] } }
     expect(actionFor(view, ui, "a")).toEqual({ section: "review.findings", action: "apply", rows: ["R-2"] })
+  })
+
+  test("a view opens with its first table that has actions focused, so rows can be picked at once", () => {
+    expect(startUi(view).focus).toBe(2)
+    const plain: ViewState = { agent: "p", layout: layoutOf(defineView("plain", { steps: { kind: "log", role: "log" } })), data: {} }
+    expect(startUi(plain).focus).toBe(0)
   })
 })

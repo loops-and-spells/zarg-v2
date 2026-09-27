@@ -1,7 +1,7 @@
 import { useKeyboard, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Session } from "@zarg/client"
-import { initialViewUi } from "@zarg/view"
+import { startUi } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { registerCommands } from "./commands"
 import { AgentView, type Scroller } from "./sections"
@@ -94,7 +94,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             {s.thread.views?.[viewing] === undefined ? (
               <text fg={COLORS.dim}>no view yet</text>
             ) : (
-              <AgentView view={s.thread.views[viewing]!} ui={ui.view ?? initialViewUi} height={Math.max(8, dims.height - 3)} scroller={scroller} />
+              <AgentView view={s.thread.views[viewing]!} ui={ui.view ?? startUi(s.thread.views[viewing]!)} height={Math.max(8, dims.height - 3)} scroller={scroller} />
             )}
           </box>
         ) : (

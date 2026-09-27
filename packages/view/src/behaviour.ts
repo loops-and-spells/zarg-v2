@@ -16,6 +16,14 @@ const ROLE_ORDER = ["summary", "primary", "log", "aside", "pinned"] as const
 export const ordered = (layout: ViewState["layout"]): ReadonlyArray<LayoutSection> =>
   ROLE_ORDER.flatMap((role) => layout.sections.filter((s) => s.role === role))
 
+/** How a view opens: its first table with actions focused (rows can be picked at once), else its first section. */
+export const startUi = (view: ViewState): ViewUi => {
+  const at = ordered(view.layout).findIndex((s) =>
+    s.kind === "tabs" ? s.tabs.some((t) => t.kind === "table" && (t.actions ?? []).length > 0) : s.kind === "table" && (s.actions ?? []).length > 0,
+  )
+  return { ...initialViewUi, focus: Math.max(0, at) }
+}
+
 export const focused = (view: ViewState, ui: ViewUi): LayoutSection | undefined => {
   const all = ordered(view.layout)
   return all[Math.min(ui.focus, all.length - 1)]

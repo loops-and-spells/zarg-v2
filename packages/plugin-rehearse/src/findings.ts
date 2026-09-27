@@ -40,7 +40,7 @@ const WHY: Record<Reason, string> = {
 }
 
 const textOf = (complete: Complete, system: string, user: string, outputSchema?: Record<string, unknown>) =>
-  Effect.map(complete({ messages: [{ role: "system", content: system }, { role: "user", content: user }], ...(outputSchema ? { outputSchema } : {}), maxTokens: 2048 }), (r) => r.text)
+  Effect.map(complete({ messages: [{ role: "system", content: system }, { role: "user", content: user }], ...(outputSchema ? { outputSchema } : {}), maxTokens: 8192 }), (r) => r.text)
 
 type Raw = { readonly kind: Kind; readonly card: string; readonly edge?: { from: string; to: string }; readonly severity: "high" | "medium" | "low"; readonly note: string; readonly op?: unknown }
 
@@ -53,8 +53,13 @@ export const diagnose = (complete: Complete, persona: Persona, prior: ReadonlyAr
     FINDINGS_SCHEMA,
   ).pipe(
     Effect.map((text) => {
+      // The JSON may come fenced or with words around it; an answer that starts JSON but never closes was cut short.
+      const from = text.indexOf("{")
+      const to = text.lastIndexOf("}")
+      const json = from >= 0 && to > from ? text.slice(from, to + 1) : undefined
       try {
-        const j = JSON.parse(text) as { findings?: ReadonlyArray<Partial<Raw>> }
+        if (json === undefined) throw new Error("prose")
+        const j = JSON.parse(json) as { findings?: ReadonlyArray<Partial<Raw>> }
         const findings = (j.findings ?? []).slice(0, MAX_PER_STEP).flatMap((f) =>
           KINDS.includes(f.kind as Kind) && SEVERITIES.includes(f.severity as never) && typeof f.note === "string"
             ? [{ kind: f.kind as Kind, card: step.card, ...(f.edge ? { edge: f.edge } : {}), severity: f.severity as Raw["severity"], note: f.note, ...(f.op !== undefined ? { op: f.op } : {}) }]
@@ -62,6 +67,8 @@ export const diagnose = (complete: Complete, persona: Persona, prior: ReadonlyAr
         )
         return { findings }
       } catch {
+        // Never a finding made of broken JSON: noted for the run instead.
+        if (from >= 0) return { infra: `${step.card}: the tester's answer was cut short` }
         return { findings: [{ kind: "friction" as const, card: step.card, severity: "low" as const, note: `the tester answered in prose: ${text.slice(0, 300)}` }] }
       }
     }),

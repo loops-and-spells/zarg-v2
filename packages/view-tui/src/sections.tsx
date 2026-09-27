@@ -41,7 +41,11 @@ const Log: Leaf = ({ view, path }) => (
 )
 const Table: Leaf = ({ view, ui, path, leaf, focused }) => {
   const cols = leaf.columns ?? []
-  const rows = (view.data[path] as { rows?: ReadonlyArray<{ id: string; cells: Record<string, string>; tone?: string }> } | undefined)?.rows ?? []
+  // A cell is one line: breaks in it (a pasted report) become spaces.
+  const rows = ((view.data[path] as { rows?: ReadonlyArray<{ id: string; cells: Record<string, string>; tone?: string }> } | undefined)?.rows ?? []).map((r) => ({
+    ...r,
+    cells: Object.fromEntries(Object.entries(r.cells).map(([k, v]) => [k, v.replace(/\s*\n\s*/g, " ")])),
+  }))
   const widths = cols.map((c, ci) => (ci === cols.length - 1 ? 0 : Math.min(24, Math.max(c.label.length, ...rows.map((r) => (r.cells[c.id] ?? "").length)))))
   const cells = (get: (c: { id: string; label: string }) => string) => cols.map((c, ci) => (widths[ci] === 0 ? get(c) : pad(get(c), widths[ci]!))).join("  ")
   const cursor = ui.rows[path] ?? 0

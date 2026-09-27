@@ -239,9 +239,7 @@ describe("tui frames", () => {
     const frame = t.captureCharFrame()
     expect(frame).toContain("UX-1: feel 1.80")
     expect(frame).toContain("[Findings (1)]  Likes (0)")
-    // Tab moves focus to the pinned table; its highlighted row takes the action.
-    t.mockInput.pressTab()
-    await settle(t)
+    // The view opens on its table: its highlighted row takes the action at once.
     expect(t.captureCharFrame()).toContain("▸ [ ] R-1  no error shown")
     t.mockInput.pressKey("a")
     await settle(t)
