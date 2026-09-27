@@ -2,6 +2,7 @@
   "edges": [],
   "id": "S-0058",
   "props": {
+    "terminal": true,
     "text": "reconcile runs for this session"
   },
   "type": "gherkin/state"
