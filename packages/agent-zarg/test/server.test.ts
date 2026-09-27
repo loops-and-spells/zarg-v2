@@ -7,7 +7,7 @@ import { EventSchemas } from "@ag-ui/core/schemas"
 import { Model, type ChatMessage, type StreamEvent } from "@zarg/model"
 import { type Asker, inquire, Rlm, settings } from "@zarg/rlm"
 import { HttpRouter } from "effect/unstable/http"
-import { Actions, api, Heartbeat, PluginCommands, Prompts, Log, makeLog, makeThreads, ReconcileControl, Threads, Token, YoloControl } from "@zarg/core"
+import { Actions, api, ArchiveControl, Heartbeat, PluginCommands, Prompts, Log, makeLog, makeThreads, ReconcileControl, Threads, Token, YoloControl } from "@zarg/core"
 import { makeThread } from "../src/thread"
 
 /** A stub model: the driver asks one question, then finishes with the answer. */
@@ -50,7 +50,7 @@ const handler = async (heartbeat: Duration.Input = "5 seconds") => {
     }).pipe(Effect.provide(stub)),
   )
   const web = HttpRouter.toWebHandler(
-    api.pipe(Layer.provide([Layer.succeed(Threads, threads), Layer.succeed(Log, log), Layer.succeed(Token, TOKEN), Layer.succeed(Heartbeat, heartbeat), Layer.succeed(ReconcileControl, { turnOn: Effect.succeed({ on: true, pending: 3 }) }), Layer.succeed(PluginCommands, { list: () => [{ plugin: "p", cmd: "/p-go", desc: "d", method: "command", arg: { kind: "none" } }], run: (plugin, cmd, args) => Effect.succeed({ notice: `${plugin} ${cmd} ${args.join(" ")}` }) }), Layer.succeed(Actions, { act: (_t, a, action, section, rows) => Effect.succeed({ notice: `${a} ${action} ${section ?? "-"} ${rows.join(",")}` }), answer: (_t, a, q, ans) => Effect.succeed({ notice: `${a} ${q} ${ans.choice ?? ans.other}` }), message: (_t, a, text) => Effect.succeed({ notice: `${a} ${text}` }) }), Layer.succeed(Prompts, { answer: (id, a) => Effect.succeed({ notice: `${id} ${a.choice}` }), close: (id) => Effect.succeed({ notice: `closed ${id}` }) }), Layer.succeed(YoloControl, { set: (on, plugin) => Effect.sync(() => (yolos.push({ on, ...(plugin !== undefined ? { plugin } : {}) }), { on })) })])),
+    api.pipe(Layer.provide([Layer.succeed(Threads, threads), Layer.succeed(Log, log), Layer.succeed(Token, TOKEN), Layer.succeed(Heartbeat, heartbeat), Layer.succeed(ReconcileControl, { turnOn: Effect.succeed({ on: true, pending: 3 }) }), Layer.succeed(PluginCommands, { list: () => [{ plugin: "p", cmd: "/p-go", desc: "d", method: "command", arg: { kind: "none" } }], run: (plugin, cmd, args) => Effect.succeed({ notice: `${plugin} ${cmd} ${args.join(" ")}` }) }), Layer.succeed(Actions, { act: (_t, a, action, section, rows) => Effect.succeed({ notice: `${a} ${action} ${section ?? "-"} ${rows.join(",")}` }), answer: (_t, a, q, ans) => Effect.succeed({ notice: `${a} ${q} ${ans.choice ?? ans.other}` }), message: (_t, a, text) => Effect.succeed({ notice: `${a} ${text}` }) }), Layer.succeed(Prompts, { answer: (id, a) => Effect.succeed({ notice: `${id} ${a.choice}` }), close: (id) => Effect.succeed({ notice: `closed ${id}` }) }), Layer.succeed(ArchiveControl, { apply: (t, c) => Effect.succeed({ notice: `${t} ${JSON.stringify(c)}` }) }), Layer.succeed(YoloControl, { set: (on, plugin) => Effect.sync(() => (yolos.push({ on, ...(plugin !== undefined ? { plugin } : {}) }), { on })) })])),
     { disableLogger: true },
   )
   handlers.push(web)
@@ -183,6 +183,12 @@ describe("core HTTP API", () => {
     expect(await (await post(h, "/prompts/prompt-1", { choice: "once" })).json()).toEqual({ notice: "prompt-1 once" })
     expect((await post(h, "/prompts/prompt-1", {})).status).toBe(400)
     expect(await (await post(h, "/prompts/prompt-1", { close: true })).json()).toEqual({ notice: "closed prompt-1" })
+  })
+
+  test("POST /threads/:id/archive archives, restores or deletes agents", async () => {
+    const h = await handler()
+    expect(await (await post(h, "/threads/main/archive", { archive: ["rehearse:t1"] })).json()).toEqual({ notice: 'main {"archive":["rehearse:t1"]}' })
+    expect((await post(h, "/threads/main/archive", { archive: [1] })).status).toBe(400)
   })
 
   test("plugin slash commands are listed and run", async () => {

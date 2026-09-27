@@ -15,6 +15,7 @@ import { zargRouter } from "@zarg/provider-zarg-router"
 import { decisionsService, Rlm, settings } from "@zarg/rlm"
 import type { AgentHost } from "@zarg/agent-host"
 import { closeStale, makeActivity } from "./activity"
+import { type Archive, makeArchive, parseTtl } from "./archive"
 import { threadViews } from "./views"
 import { notLoaded } from "./not-loaded"
 import { outsideReads } from "./outside"
@@ -53,7 +54,19 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     const rlmSettings = yield* settings(config.extra.rlm)
     const log = yield* makeLog(join(root, ".zarg", "threads"), (t) => redact(t, sensitive))
     // Agents the last core left running are over: clients replaying the log must not show them as live.
-    yield* closeStale(log)
+    const stopped = yield* closeStale(log)
+    // Agents a restart stopped leave the tree at once (restorable); finished ones after `[agents] ttl`.
+    const archives = new Map<string, Archive>()
+    const archiveOf = (thread: string) => {
+      let a = archives.get(thread)
+      if (a === undefined) archives.set(thread, (a = makeArchive(log, thread)))
+      return a
+    }
+    for (const s of stopped) archiveOf(s.threadId).archive(s.ids, "stopped at start")
+    const ttl = yield* Effect.try(() => parseTtl((config.extra.agents as { ttl?: unknown } | undefined)?.ttl)).pipe(
+      Effect.catch((e) => Effect.andThen(Effect.sync(() => console.error(`zarg-core: ${String((e as Error).message ?? e)}; using 24h`)), Effect.succeed(parseTtl(undefined)))),
+    )
+    if (ttl !== undefined) yield* Effect.forkDetach(Effect.forever(Effect.andThen(Effect.sync(() => archiveOf("main").sweep(ttl, Date.now())), Effect.sleep("1 minute"))))
     // Grants are the core's own questions: popovers on every client, never in zarg's conversation.
     const prompts = makePrompts(log)
     yield* prompts.closeStale
@@ -210,7 +223,18 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         )
       },
     }
-    return { log, threads, driver: roles.driver, turnOn, yolo, actions, commands, prompts }
+    const archive = {
+      apply: (thread: string, change: { readonly archive?: ReadonlyArray<string>; readonly restore?: ReadonlyArray<string>; readonly delete?: ReadonlyArray<string> }) =>
+        Effect.sync(() => {
+          const a = archiveOf(thread)
+          a.archive(change.archive ?? [], "archived by you")
+          a.restore(change.restore ?? [])
+          a.remove(change.delete ?? [])
+          const n = (change.archive ?? []).length + (change.restore ?? []).length + (change.delete ?? []).length
+          return { notice: change.delete !== undefined ? `deleted ${n}` : change.restore !== undefined ? `restored ${n}` : `archived ${n}` }
+        }),
+    }
+    return { log, threads, driver: roles.driver, turnOn, yolo, actions, commands, prompts, archive }
   })
 
 /** The project's plugin host options from its environment and config (`[plugins.<name>]` tables). */

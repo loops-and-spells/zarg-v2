@@ -56,6 +56,11 @@ export class Prompts extends Context.Service<Prompts, {
   readonly close: (id: string) => Effect.Effect<{ readonly notice: string }>
 }>()("@zarg/core/Prompts") {}
 
+/** Archive, restore or delete agents of a thread's tree (`POST /threads/:id/archive`). */
+export class ArchiveControl extends Context.Service<ArchiveControl, {
+  readonly apply: (thread: string, change: { readonly archive?: ReadonlyArray<string>; readonly restore?: ReadonlyArray<string>; readonly delete?: ReadonlyArray<string> }) => Effect.Effect<{ readonly notice: string }>
+}>()("@zarg/core/ArchiveControl") {}
+
 /** YOLO on or off (`POST /yolo`): for every plugin, or one; answers whether any plugin is in YOLO now. */
 export class YoloControl extends Context.Service<YoloControl, { readonly set: (on: boolean, plugin?: string) => Effect.Effect<{ readonly on: boolean }> }>()("@zarg/core/YoloControl") {}
 
@@ -108,6 +113,7 @@ const routes = HttpRouter.addAll(
     const actions = yield* Actions
     const commands = yield* PluginCommands
     const prompts = yield* Prompts
+    const archive = yield* ArchiveControl
     const heartbeat = yield* Heartbeat
     const log = yield* Log
     // Only a user message this core has not seen yet counts as new input.
@@ -219,6 +225,20 @@ const routes = HttpRouter.addAll(
       ),
       HttpRouter.route(
         "POST",
+        "/threads/:id/archive",
+        Effect.gen(function* () {
+          const { id } = yield* HttpRouter.params
+          const thread = decodeURIComponent(id ?? "")
+          if (!THREAD_ID.test(thread)) return error(400, "invalid thread id")
+          const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as Record<string, unknown>
+          const ids = (k: string) => (Array.isArray(body[k]) && (body[k] as Array<unknown>).every((x) => typeof x === "string") ? (body[k] as ReadonlyArray<string>) : undefined)
+          const change = { ...(ids("archive") ? { archive: ids("archive")! } : {}), ...(ids("restore") ? { restore: ids("restore")! } : {}), ...(ids("delete") ? { delete: ids("delete")! } : {}) }
+          if (Object.keys(change).length === 0) return error(400, `archive needs { "archive" | "restore" | "delete": [agent ids] }`)
+          return HttpServerResponse.jsonUnsafe(yield* archive.apply(thread, change))
+        }),
+      ),
+      HttpRouter.route(
+        "POST",
         "/threads/:id/stop",
         Effect.gen(function* () {
           const { id } = yield* HttpRouter.params
@@ -241,6 +261,7 @@ const routes = HttpRouter.addAll(
  *   GET  /commands              slash commands plugins add
  *   POST /plugins/:name/commands/:cmd  { args } → { notice }
  *   POST /threads/:id/agents/:agent/actions/:action  { rows } → { notice }
+ *   POST /threads/:id/archive  { archive | restore | delete: [ids] } → { notice }
  *   POST /prompts/:id          { choice } → { notice } (a grant popover's answer); { close: true } closes a plugin's popover
  */
 export const api = Layer.mergeAll(routes, auth)

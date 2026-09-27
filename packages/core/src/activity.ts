@@ -109,8 +109,8 @@ export const makeActivity = (log: ThreadLog, threadId: string, messageId = `${th
               : e.type === "plan"
               ? { ...prev, plan: e.children }
               : e.ok
-                ? { ...prev, status: "done", turns: e.turns, tokens: e.tokens }
-                : { ...prev, status: e.kind === "stopped" ? "stopped" : "failed", error: e.message }
+                ? { ...prev, status: "done", turns: e.turns, tokens: e.tokens, endedAt: Date.now() }
+                : { ...prev, status: e.kind === "stopped" ? "stopped" : "failed", error: e.message, endedAt: Date.now() }
     // An agent that ended needs nobody's attention.
     if (e.type === "end") delete next.attention
     nodes.set(id, next)
@@ -149,39 +149,48 @@ export const makeActivity = (log: ThreadLog, threadId: string, messageId = `${th
   }
 }
 
+/** Every agents stream in the log as it stands: its thread, and each agent's row by id. */
+export const agentNodes = (log: ThreadLog) => {
+  const streams = new Map<string, { threadId: string; messageId: string; nodes: Map<string, Record<string, unknown>> }>()
+  for (const e of log.all()) {
+    if ((e.type !== "ACTIVITY_SNAPSHOT" && e.type !== "ACTIVITY_DELTA") || e.activityType !== E.ACTIVITY_TYPE) continue
+    const key = `${e.threadId}\u0000${String(e.messageId)}`
+    if (e.type === "ACTIVITY_SNAPSHOT") {
+      const rlms = ((e.content as { rlms?: Record<string, Record<string, unknown>> } | undefined)?.rlms ?? {})
+      streams.set(key, { threadId: e.threadId, messageId: String(e.messageId), nodes: new Map(Object.entries(rlms)) })
+      continue
+    }
+    const s = streams.get(key) ?? { threadId: e.threadId, messageId: String(e.messageId), nodes: new Map() }
+    streams.set(key, s)
+    for (const p of (e.patch as ReadonlyArray<{ op: string; path: string; value?: Record<string, unknown> }>) ?? []) {
+      const m = /^\/rlms\/([^/]+)$/.exec(p.path)
+      if (m === null) continue
+      const id = m[1]!.replace(/~1/g, "/").replace(/~0/g, "~")
+      if (p.op === "remove") s.nodes.delete(id)
+      else if (p.value !== undefined) s.nodes.set(id, p.value)
+    }
+  }
+  return [...streams.values()]
+}
+
 /**
  * Agents a previous core left running (it exited mid-run: Ctrl-C, a crash) are marked stopped, so clients replaying
- * the log never show them as live. Work that can resume (a rehearse run) starts its agents afresh.
+ * the log never show them as live. Work that can resume (a rehearse run) starts its agents afresh. Answers the agents
+ * it stopped per thread (zarg's own row aside: the new core draws it again), which the core archives.
  */
 export const closeStale = (log: ThreadLog) =>
   Effect.sync(() => {
-    const streams = new Map<string, { threadId: string; nodes: Map<string, Record<string, unknown>> }>()
-    for (const e of log.all()) {
-      if ((e.type !== "ACTIVITY_SNAPSHOT" && e.type !== "ACTIVITY_DELTA") || e.activityType !== E.ACTIVITY_TYPE) continue
-      const key = `${e.threadId}\u0000${String(e.messageId)}`
-      if (e.type === "ACTIVITY_SNAPSHOT") {
-        const rlms = ((e.content as { rlms?: Record<string, Record<string, unknown>> } | undefined)?.rlms ?? {})
-        streams.set(key, { threadId: e.threadId, nodes: new Map(Object.entries(rlms)) })
-        continue
-      }
-      const s = streams.get(key) ?? { threadId: e.threadId, nodes: new Map() }
-      streams.set(key, s)
-      for (const p of (e.patch as ReadonlyArray<{ op: string; path: string; value?: Record<string, unknown> }>) ?? []) {
-        const m = /^\/rlms\/([^/]+)$/.exec(p.path)
-        if (m === null) continue
-        const id = m[1]!.replace(/~1/g, "/").replace(/~0/g, "~")
-        if (p.op === "remove") s.nodes.delete(id)
-        else if (p.value !== undefined) s.nodes.set(id, p.value)
-      }
-    }
-    for (const [key, s] of streams) {
+    const stopped = new Map<string, Array<string>>()
+    for (const s of agentNodes(log)) {
       // Running agents are over, and no agent of the previous core still needs the developer.
-      const patch = [...s.nodes.entries()]
-        .filter(([, n]) => n.status === "running" || n.attention !== undefined)
-        .map(([id, n]) => {
-          const { attention: _, ...rest } = n
-          return { op: "add", path: `/rlms/${id.replaceAll("~", "~0").replaceAll("/", "~1")}`, value: n.status === "running" ? { ...rest, status: "stopped", error: "zarg restarted" } : rest }
-        })
-      if (patch.length > 0) Effect.runSync(log.append(s.threadId, E.activityDelta(key.split("\u0000")[1]!, patch)))
+      const stale = [...s.nodes.entries()].filter(([, n]) => n.status === "running" || n.attention !== undefined)
+      const patch = stale.map(([id, n]) => {
+        const { attention: _, ...rest } = n
+        return { op: "add", path: `/rlms/${id.replaceAll("~", "~0").replaceAll("/", "~1")}`, value: n.status === "running" ? { ...rest, status: "stopped", error: "zarg restarted", endedAt: Date.now() } : rest }
+      })
+      if (patch.length > 0) Effect.runSync(log.append(s.threadId, E.activityDelta(s.messageId, patch)))
+      const ids = stale.filter(([id, n]) => n.status === "running" && id !== "zarg").map(([id]) => id)
+      if (ids.length > 0) stopped.set(s.threadId, [...(stopped.get(s.threadId) ?? []), ...ids])
     }
+    return [...stopped.entries()].map(([threadId, ids]) => ({ threadId, ids }))
   })
