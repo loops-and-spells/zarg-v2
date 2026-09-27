@@ -176,6 +176,18 @@
         "@zarg/provider-zarg-router": "workspace:*",
       },
     },
+    "packages/view": {
+      "name": "@zarg/view",
+      "dependencies": {
+        "effect": "^4.0.0-rc.117",
+      },
+      "devDependencies": {
+        "@types/react": "^19.3.0",
+      },
+      "peerDependencies": {
+        "react": "19",
+      },
+    },
     "packages/view-tui": {
       "name": "@zarg/view-tui",
       "dependencies": {
@@ -310,6 +322,8 @@
     "@zarg/reconcile": ["@zarg/reconcile@workspace:packages/reconcile"],
 
     "@zarg/rlm": ["@zarg/rlm@workspace:packages/rlm"],
+
+    "@zarg/view": ["@zarg/view@workspace:packages/view"],
 
     "@zarg/view-tui": ["@zarg/view-tui@workspace:packages/view-tui"],
 
