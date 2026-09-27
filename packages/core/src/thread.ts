@@ -1,6 +1,7 @@
 import { Cause, Deferred, Effect, Exit, Fiber, Semaphore, Stream } from "effect"
 import type { AgendaItem } from "@zarg/plugin/server"
 import type { Answer, Asker, Question, Rlm, Scope } from "@zarg/rlm"
+import { makeActivity } from "./activity"
 import * as E from "./events"
 import type { Interrupt } from "@ag-ui/core"
 import type { WireEvent } from "./events"
@@ -49,7 +50,6 @@ export const makeThread = (deps: ThreadDeps) =>
     let pending: Pending | undefined
     let paused: Deferred.Deferred<void> | undefined
     const recent: Array<string> = []
-    const activity = new Map<string, Record<string, unknown>>()
     const emit = (d: E.Draft) => {
       if (d.type === "RUN_FINISHED" || d.type === "RUN_ERROR") open = false
       return log.append(threadId, d)
@@ -91,30 +91,8 @@ export const makeThread = (deps: ThreadDeps) =>
     }
 
     // RLM events become one activity message: the tree of RLMs working for this thread.
-    const observe = (e: Rlm.RlmEvent) => {
-      // Transcripts get what each RLM was asked and did; the activity tree gets its shape and status.
-      if (e.type === "step") {
-        const { type, id, ...rest } = e
-        Effect.runSync(log.transcript(threadId, { type, rlm: id, ...rest }))
-        return
-      }
-      if (e.type === "start") Effect.runSync(log.transcript(threadId, { type: "start", rlm: e.id, parent: e.parent ?? null, preset: e.preset, task: e.task }))
-      const prev = activity.get(e.id) ?? {}
-      const next: Record<string, unknown> =
-        e.type === "start"
-          ? { id: e.id, parent: e.parent ?? null, preset: e.preset, scope: e.scope, depth: e.depth, turns: 0, budget: e.budget.turns, status: "running", decisions: [] }
-          : e.type === "turn"
-            ? { ...prev, turns: e.turn, tokens: e.tokens }
-            : e.type === "atomize"
-              ? { ...prev, decisions: [...((prev.decisions as Array<unknown>) ?? []), { kind: "atomize", atomic: e.atomic, criteria: e.criteria }] }
-              : e.type === "plan"
-                ? { ...prev, plan: e.children }
-                : e.ok
-                  ? { ...prev, status: "done", turns: e.turns, tokens: e.tokens }
-                  : { ...prev, status: e.kind === "stopped" ? "stopped" : "failed", error: e.message }
-      activity.set(e.id, next)
-      Effect.runSync(emit(E.activityDelta(`${threadId}-activity`, [{ op: "add", path: `/rlms/${e.id}`, value: next }])))
-    }
+    const activity = makeActivity(log, threadId)
+    const observe = (e: Rlm.RlmEvent) => activity.observe(e)
 
     const scope: Scope = deps.focus.length > 0 ? { graph: { focus: deps.focus, k: 2 } } : {}
     const focusSet = deps.focus.length > 0 ? new Set(deps.focus) : undefined
@@ -137,8 +115,7 @@ export const makeThread = (deps: ThreadDeps) =>
           .filter((x) => x.length > 0)
           .join("\n\n")
         // Each item gets a fresh driver RLM, whose ids start over: start a fresh tree.
-        activity.clear()
-        yield* emit(E.activitySnapshot(`${threadId}-activity`, { rlms: {} }))
+        yield* emit(activity.reset())
         const outcome = yield* Effect.exit(deps.driver({ task, preset: "driver", scope }, asker, observe))
         if (Exit.isSuccess(outcome)) {
           yield* note("assistant", String(outcome.value.value))
@@ -183,7 +160,7 @@ export const makeThread = (deps: ThreadDeps) =>
           runId = input.runId
           open = true
           yield* emit(E.runStarted(threadId, runId))
-          yield* emit(E.activitySnapshot(`${threadId}-activity`, { rlms: Object.fromEntries(activity) }))
+          yield* emit(activity.snapshot())
           const resume = input.resume?.[0]
           if (resume !== undefined && pending !== undefined && resume.interruptId === pending.id) {
             const payload = (resume.payload ?? {}) as { choice?: string; other?: string }
