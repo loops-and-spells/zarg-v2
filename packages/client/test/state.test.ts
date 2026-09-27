@@ -147,3 +147,20 @@ test("replaying a view's events gives the view the core holds", () => {
   expect(late.views).toEqual(live.views)
   expect((live.views!.a!.data.steps as { lines: unknown[] }).lines).toHaveLength(300)
 })
+
+describe("prompts", () => {
+  const asked = (id: string, threadId = "main") => ev("CUSTOM", { name: "zarg.prompt", value: { id, question: `q ${id}`, options: [{ id: "once", label: "Allow once" }], kind: "grant" } }, threadId)
+  test("prompts queue in the order asked; done takes one out", () => {
+    const s = fold([asked("p1"), asked("p2"), ev("CUSTOM", { name: "zarg.prompt.done", value: { id: "p1" } })])
+    expect(s.prompts?.map((p) => p.id)).toEqual(["p2"])
+  })
+  test("a prompt answered anywhere leaves every client's queue, whatever thread the client follows", () => {
+    const s = fold([asked("p1"), ev("CUSTOM", { name: "zarg.prompt.done", value: { id: "p1", withdrawn: true } })], initial("other"))
+    expect(s.prompts ?? []).toEqual([])
+    expect(fold([asked("p1")], initial("other")).prompts?.map((p) => p.id)).toEqual(["p1"])
+  })
+  test("a replayed prompt is not queued twice", () => {
+    const e = asked("p1")
+    expect([e, e].reduce(reduce, initial("main")).prompts).toHaveLength(1)
+  })
+})

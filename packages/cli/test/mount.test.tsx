@@ -17,6 +17,7 @@ const opened = (state: SessionState) => {
     pluginCommands: () => [],
     act: () => Promise.resolve(),
     answerAgent: () => Promise.resolve(),
+    answerPrompt: () => Promise.resolve(),
   }
   const o: Opened = { session, meta: { threadId: "main", mode: "child" }, close: async () => void (closed = true) }
   return { o, closed: () => closed }

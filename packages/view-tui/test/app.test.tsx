@@ -22,6 +22,7 @@ const fakeSession = (state: SessionState) => {
     command: (t) => calls.push(`command ${t}`),
     pluginCommands: () => [],
     act: (agent, action, _section, rows) => Promise.resolve(void calls.push(`act ${agent} ${action} ${rows.join(",")}`)),
+    answerPrompt: (id, choice) => Promise.resolve(void calls.push(`prompt ${id} ${choice}`)),
     answerAgent: (agent, question, answer) => Promise.resolve(void calls.push(`answer ${agent} ${question} ${JSON.stringify(answer)}`)),
   }
   const update = (next: SessionState) => {

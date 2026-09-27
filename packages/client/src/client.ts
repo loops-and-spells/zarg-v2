@@ -97,6 +97,11 @@ export const makeClient = (info: Pick<CoreInfo, "socket" | "token">) => {
       request(`/threads/${encodeURIComponent(threadId)}/agents/${encodeURIComponent(agent)}/answers`, { method: "POST", body: JSON.stringify({ question, answer }) }).pipe(
         Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ notice: string }>)),
       ),
+    /** Answer one of the core's prompts (a grant). */
+    answerPrompt: (id: string, choice: string) =>
+      request(`/prompts/${encodeURIComponent(id)}`, { method: "POST", body: JSON.stringify({ choice }) }).pipe(
+        Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly notice: string }>)),
+      ),
     stop: (threadId: string) => request(`/threads/${encodeURIComponent(threadId)}/stop`, { method: "POST", body: "{}" }).pipe(Effect.asVoid),
   }
 }

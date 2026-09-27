@@ -19,6 +19,14 @@ export interface Inquiry {
   readonly about: ReadonlyArray<string>
 }
 
+/** A question the core asks itself (a grant): a popover, queued first in first out for every client. */
+export interface Prompt {
+  readonly id: string
+  readonly question: string
+  readonly options: ReadonlyArray<Option>
+  readonly kind: "grant"
+}
+
 export type Decision =
   | {
       readonly kind: "atomize"
@@ -65,6 +73,8 @@ export interface ThreadState {
   readonly yolo?: boolean
   /** Each agent's view (zarg.view activities), by agent id. */
   readonly views?: Views
+  /** The core's prompts (grant popovers), in the order asked. */
+  readonly prompts?: ReadonlyArray<Prompt>
 }
 
 export const initial = (threadId: string): ThreadState => ({ threadId, messages: [], rlms: {}, status: "idle", seq: 0, trees: 0 })
@@ -88,6 +98,14 @@ const patchRlms = (rlms: ThreadState["rlms"], patch: ReadonlyArray<Patch>) => {
 
 /** Fold one core event into a thread's state. Events of other threads are ignored. */
 export const reduce = (s: ThreadState, e: WireEvent): ThreadState => {
+  // Prompts are the core's own questions: every client queues them, whatever thread it follows.
+  if (e.type === "CUSTOM" && (e.name === "zarg.prompt" || e.name === "zarg.prompt.done") && e.seq > s.seq) {
+    const v = e.value as { id?: unknown; question?: unknown; options?: ReadonlyArray<Option> }
+    const id = String(v.id)
+    const rest = (s.prompts ?? []).filter((p) => p.id !== id)
+    const prompts = e.name === "zarg.prompt" ? [...rest, { id, question: String(v.question ?? ""), options: v.options ?? [], kind: "grant" as const }] : rest
+    return { ...s, seq: e.seq, prompts }
+  }
   if (e.threadId !== s.threadId || e.seq <= s.seq) return s
   const t: ThreadState = { ...s, seq: e.seq }
   // Views are their own activities: they never reach the agents tree below.
