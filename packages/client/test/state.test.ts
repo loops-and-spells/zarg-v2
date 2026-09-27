@@ -54,6 +54,11 @@ describe("reduce", () => {
     expect(still.pendingInquiry?.id).toBe("inq-1")
   })
 
+  test("an inquiry's own label for its free-text row is kept", () => {
+    const s = fold([ev("RUN_STARTED", { runId: "r9" }), ev("RUN_FINISHED", { runId: "r9", outcome: { type: "interrupt", interrupts: [{ ...inquiry, metadata: { ...inquiry.metadata, otherLabel: "Change it" } }] } })])
+    expect(s.pendingInquiry?.otherLabel).toBe("Change it")
+  })
+
   test("RUN_ERROR shows the error; the next run clears it", () => {
     const failed = fold([ev("RUN_STARTED"), ev("RUN_ERROR", { message: "model unreachable", code: "model" })])
     expect(failed).toMatchObject({ status: "error", error: { code: "model", message: "model unreachable" } })

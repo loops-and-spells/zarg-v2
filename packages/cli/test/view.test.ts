@@ -35,6 +35,11 @@ describe("picker", () => {
     expect(pickerRows(inquiry, ui.pick)[ui.pick]!.id).toBe(CHAT)
   })
 
+  test("a question can name its free-text row (Change it… on a proposed change)", () => {
+    const q = { id: "inq-c", question: "Add this?", options: [{ id: "add", label: "Add it", recommended: true }, { id: "skip", label: "Skip" }], allowOther: true, otherLabel: "Change it", about: [] }
+    expect(pickerRows(q, 0).map((r) => r.label)).toEqual(["Add it", "Skip", "Change it…", "Chat about this"])
+  })
+
   test("Something else… is an input line in the picker: highlighting it takes the typing; Enter answers with the text", () => {
     let ui = onKey(syncUi(initialUi, waiting), waiting, { name: "down" }, 0).ui
     expect(pickerRows(inquiry, ui.pick)[ui.pick]!.id).toBe(OTHER)

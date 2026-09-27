@@ -114,7 +114,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           {pickerRows(inquiry, ui.pick).map((r) =>
             r.id === OTHER ? (
               <box key={r.id} style={{ flexDirection: "row", height: 1 }}>
-                <text fg={r.selected ? COLORS.accent : COLORS.zarg}>{`${r.selected ? "›" : " "} Something else: `}</text>
+                <text fg={r.selected ? COLORS.accent : COLORS.zarg}>{`${r.selected ? "›" : " "} ${r.label.replace(/…$/, "")}: `}</text>
                 <input
                   focused={otherFocused(ui, s)}
                   value={otherDraft}

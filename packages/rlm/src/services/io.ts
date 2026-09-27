@@ -29,6 +29,7 @@ const Question = Schema.Struct({
   question: Schema.String.annotate({ description: "One question, in a sentence or two." }),
   options: Schema.Array(Option).annotate({ description: "2 to 4 options." }),
   allowOther: Schema.optionalKey(Schema.Boolean).annotate({ description: "Offer \"Something else…\" for a free-text answer (the answer's `other`)." }),
+  otherLabel: Schema.optionalKey(Schema.String).annotate({ description: "The free-text row's label, when not \"Something else\"." }),
   about: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Card or state ids the whole question is about (not per option)." }),
 })
 export type Question = typeof Question.Type
@@ -64,16 +65,17 @@ export const confirmQuestion = (c: Confirm): Question => ({
   question: `Add this to the requirements?\n\n${c.change}`,
   options: [
     { id: "add", label: "Add it", recommended: true, why: "as written" },
-    { id: "change", label: "Change it" },
     { id: "skip", label: "Skip" },
   ],
+  // Changing it is saying what to change.
   allowOther: true,
+  otherLabel: "Change it",
   ...(c.about !== undefined ? { about: c.about } : {}),
 })
 
 export const InquireDef = defineService("Inquire", "Ask the developer a question. The cell waits (yielded) until they answer.", {
   confirm: {
-    doc: "Show the developer the exact change before writing it to the graph: they add it, ask to change it, or skip it. Graph writes are refused until they add it, and closed again by your next question.",
+    doc: "Show the developer the exact change before writing it to the graph. The answer: `add` (write it), `skip`, or `other` = what they want changed: revise the change and confirm it again. Graph writes are refused until they add it, and closed again by your next question.",
     params: Confirm,
     success: Answer,
   },

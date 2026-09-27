@@ -114,7 +114,7 @@ export const makeThread = (deps: ThreadDeps) =>
               id,
               reason: "inquiry",
               message: question.question,
-              metadata: { options: question.options, allowOther: question.allowOther ?? true, about: question.about ?? [] },
+              metadata: { options: question.options, allowOther: question.allowOther ?? true, about: question.about ?? [], ...(question.otherLabel !== undefined ? { otherLabel: question.otherLabel } : {}) },
               responseSchema: {
                 oneOf: [
                   { type: "object", properties: { choice: { enum: question.options.map((o) => o.id) } }, required: ["choice"] },

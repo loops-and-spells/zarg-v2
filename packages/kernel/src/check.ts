@@ -25,6 +25,9 @@ export const makeChecker = (manifest: string) => {
     target: ts.ScriptTarget.ES2022,
     lib: ["lib.es2022.d.ts"],
     strict: true,
+    // Cells are scratch code: the check is for service calls and syntax, not for annotating callbacks over
+    // untyped values (earlier cells' names are \`any\`), which failed ~1 cell in 8 in real runs.
+    noImplicitAny: false,
     noEmit: true,
     types: [],
     noUnusedLocals: false,

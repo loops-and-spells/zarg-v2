@@ -52,6 +52,16 @@ describe("Kernel", () => {
     expect(r.calls).toBe(0)
   })
 
+  test("untyped values (from earlier cells, empty objects) do not fail the typecheck", async () => {
+    const out = await withKernel((k) =>
+      Effect.gen(function* () {
+        yield* k.run('const text = "a\\nvm b\\nc"\nreturn 0')
+        return yield* k.run('const counts = {}\nfor (const l of text.split("\\n").filter(l => l.includes("b"))) counts[l] = (counts[l] || 0) + 1\nreturn counts')
+      }),
+    )
+    expect(out).toMatchObject({ ok: true, output: '{\n  "vm b": 1\n}' })
+  })
+
   test("a failed call fails the cell with its tag, or is caught with Effect.catch", async () => {
     const out = await withKernel((k) =>
       Effect.gen(function* () {

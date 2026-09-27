@@ -11,6 +11,8 @@ export interface Inquiry {
   readonly question: string
   readonly options: ReadonlyArray<Option>
   readonly allowOther: boolean
+  /** The free-text row's label, when not "Something else". */
+  readonly otherLabel?: string
   readonly about: ReadonlyArray<string>
 }
 
@@ -86,11 +88,18 @@ export const reduce = (s: ThreadState, e: WireEvent): ThreadState => {
       const i = outcome?.type === "interrupt" ? outcome.interrupts?.[0] : undefined
       const { pendingInquiry: _, ...rest } = t
       if (i === undefined) return { ...rest, status: "idle" }
-      const meta = (i.metadata ?? {}) as { options?: ReadonlyArray<Option>; allowOther?: boolean; about?: ReadonlyArray<string> }
+      const meta = (i.metadata ?? {}) as { options?: ReadonlyArray<Option>; allowOther?: boolean; otherLabel?: string; about?: ReadonlyArray<string> }
       return {
         ...rest,
         status: "waiting",
-        pendingInquiry: { id: String(i.id), question: String(i.message ?? ""), options: meta.options ?? [], allowOther: meta.allowOther ?? true, about: meta.about ?? [] },
+        pendingInquiry: {
+          id: String(i.id),
+          question: String(i.message ?? ""),
+          options: meta.options ?? [],
+          allowOther: meta.allowOther ?? true,
+          ...(meta.otherLabel !== undefined ? { otherLabel: meta.otherLabel } : {}),
+          about: meta.about ?? [],
+        },
       }
     }
     case "RUN_ERROR":

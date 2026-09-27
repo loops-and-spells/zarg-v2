@@ -45,12 +45,14 @@ describe("ask before writing", () => {
     expect(await write()).toMatchObject({ _tag: "AskFirst" })
   })
 
-  test("the confirm question shows the change and offers add, change and skip", async () => {
-    const asked: Array<{ question: string; options: ReadonlyArray<{ id: string }> }> = []
+  test("the confirm question shows the change and offers add, skip, or typing what to change", async () => {
+    const asked: Array<{ question: string; options: ReadonlyArray<{ id: string }>; allowOther?: boolean; otherLabel?: string }> = []
     const guard = askFirst({ ask: (q) => Effect.sync(() => (asked.push(q), { choice: "add" })) })
     await Effect.runPromise(guard.asker.confirm!({ change: "Given a\nWhen b\nThen c", about: ["S-1"] }))
     expect(asked[0]!.question).toContain("Given a\nWhen b\nThen c")
-    expect(asked[0]!.options.map((o) => o.id)).toEqual(["add", "change", "skip"])
+    expect(asked[0]!.options.map((o) => o.id)).toEqual(["add", "skip"])
+    // Changing it is typing what to change: the free-text row, labelled for it.
+    expect(asked[0]).toMatchObject({ allowOther: true, otherLabel: "Change it" })
   })
 
   test("a discussed change the driver adds for the developer opens writes", async () => {
