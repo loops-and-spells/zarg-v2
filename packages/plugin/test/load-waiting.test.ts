@@ -76,4 +76,16 @@ describe("plugins waiting on a load grant", () => {
     )
     expect(out).toEqual({ call: "Failure", agenda: ["plugin-grant:base"] })
   })
+
+  test("a service plugin starts when it loads (a run cut short by a restart resumes), not on its first call", async () => {
+    const src = `
+import { Effect, Schema } from "effect"
+import { Agents, definePlugin } from "@zarg/plugin-sdk"
+export default definePlugin({ name: "resumer", service: "Resumer", archetype: "service", config: Schema.Struct({}), scopes: { agents: true },
+  methods: { go: { doc: "go", params: Schema.Struct({}), success: Schema.Null } },
+  make: Effect.gen(function* () { yield* (yield* Agents).start({ id: "resumed", title: "t", task: "picked up where it was" }); return { go: () => Effect.succeed(null) } }) })`
+    const events: Array<unknown> = []
+    await Effect.runPromise(hostWith([await fixturePlugin(src)], () => Effect.sleep(300), { agents: (_p, e) => void events.push(e) }))
+    expect(events).toContainEqual(expect.objectContaining({ event: "start", id: "resumed" }))
+  })
 })

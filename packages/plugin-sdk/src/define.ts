@@ -108,8 +108,11 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
     // Handlers are built once, on the first call, so a plugin with a broken config fails that call and not the load.
     let built: Promise<Handlers<M>> | undefined
     const handlers = () => (built ??= Effect.runPromise(def.make.pipe(Effect.provide(layer)) as Effect.Effect<Handlers<M>>))
-    return Object.fromEntries(
-      Object.entries(def.methods).map(([name, spec]) => [
+    return Object.fromEntries([
+      // The host calls this when the plugin loads: its services start then (a run a restart cut short resumes).
+      // Not a method name a plugin can declare (those start with a letter).
+      ["$start", async () => (await handlers(), null)],
+      ...Object.entries(def.methods).map(([name, spec]) => [
         name,
         async (raw: unknown) => {
           const h = (await handlers())[name]!
@@ -119,7 +122,7 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
           return Effect.runPromise((out as Effect.Effect<unknown, PluginFailure>).pipe(Effect.flatMap((v) => Schema.encodeEffect(spec.success)(v))))
         },
       ]),
-    )
+    ])
   }
   return { ...def, serve }
 }

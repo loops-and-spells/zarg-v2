@@ -13,6 +13,7 @@ import { PluginHost } from "@zarg/plugin/server"
 import { openrouter } from "@zarg/provider-openrouter"
 import { zargRouter } from "@zarg/provider-zarg-router"
 import { type Asker, decisionsService, fsRead, graph, inquire, pluginService, Rlm, type Scope, settings } from "@zarg/rlm"
+import { closeStale } from "./activity"
 import { askFirst } from "./driver"
 import { judgeGaps } from "./gaps"
 import { outsideReads } from "./outside"
@@ -49,6 +50,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     const sensitive = yield* env.sensitive
     const rlmSettings = yield* settings(config.extra.rlm)
     const log = yield* makeLog(join(root, ".zarg", "threads"), (t) => redact(t, sensitive))
+    // Agents the last core left running are over: clients replaying the log must not show them as live.
+    yield* closeStale(log)
     const snapshot = store.snapshot.pipe(Effect.mapError((e) => ({ _tag: e._tag, message: e.message })))
 
     // Agents may read outside the repository (porting from another project) once the developer allows it.

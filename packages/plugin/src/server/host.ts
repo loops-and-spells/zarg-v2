@@ -316,6 +316,8 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           return failed(m, `its bundle says it is ${id.name ?? "?"}/${id.service ?? "?"}/${id.archetype ?? "?"}, its manifest ${m.name}/${m.service}/${m.archetype}`)
         }
         const r: Running = { manifest: m, process: spawned.value, restarts, disabled: false, inflight: 0, served: served(powers) }
+        // A service plugin's services start now, not on its first call: a run a restart cut short resumes.
+        if (m.archetype === "service") yield* Effect.forkDetach(Effect.ignore(spawned.value.call("$start", {})))
         return r
       })
       // Checked and started together (a slow plugin does not hold up the others), kept in their given order.

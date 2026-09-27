@@ -128,3 +128,36 @@ export const makeActivity = (log: ThreadLog, threadId: string, messageId = `${th
     },
   }
 }
+
+/**
+ * Agents a previous core left running (it exited mid-run: Ctrl-C, a crash) are marked stopped, so clients replaying
+ * the log never show them as live. Work that can resume (a rehearse run) starts its agents afresh.
+ */
+export const closeStale = (log: ThreadLog) =>
+  Effect.sync(() => {
+    const streams = new Map<string, { threadId: string; nodes: Map<string, Record<string, unknown>> }>()
+    for (const e of log.all()) {
+      if ((e.type !== "ACTIVITY_SNAPSHOT" && e.type !== "ACTIVITY_DELTA") || e.activityType !== E.ACTIVITY_TYPE) continue
+      const key = `${e.threadId}\u0000${String(e.messageId)}`
+      if (e.type === "ACTIVITY_SNAPSHOT") {
+        const rlms = ((e.content as { rlms?: Record<string, Record<string, unknown>> } | undefined)?.rlms ?? {})
+        streams.set(key, { threadId: e.threadId, nodes: new Map(Object.entries(rlms)) })
+        continue
+      }
+      const s = streams.get(key) ?? { threadId: e.threadId, nodes: new Map() }
+      streams.set(key, s)
+      for (const p of (e.patch as ReadonlyArray<{ op: string; path: string; value?: Record<string, unknown> }>) ?? []) {
+        const m = /^\/rlms\/([^/]+)$/.exec(p.path)
+        if (m === null) continue
+        const id = m[1]!.replace(/~1/g, "/").replace(/~0/g, "~")
+        if (p.op === "remove") s.nodes.delete(id)
+        else if (p.value !== undefined) s.nodes.set(id, p.value)
+      }
+    }
+    for (const [key, s] of streams) {
+      const patch = [...s.nodes.entries()]
+        .filter(([, n]) => n.status === "running")
+        .map(([id, n]) => ({ op: "add", path: `/rlms/${id.replaceAll("~", "~0").replaceAll("/", "~1")}`, value: { ...n, status: "stopped", error: "zarg restarted" } }))
+      if (patch.length > 0) Effect.runSync(log.append(s.threadId, E.activityDelta(key.split("\u0000")[1]!, patch)))
+    }
+  })
