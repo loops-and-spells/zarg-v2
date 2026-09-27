@@ -48,6 +48,11 @@ export interface ReconcileSpec {
   /** Landing attempts before a landing-blocked finding (spec: 10, one a minute). */
   readonly landAttempts: number
   readonly message: (items: ReadonlyArray<string>) => string
+  /**
+   * The developer's stop: `wait` completes when a stop is requested (running cards race it and are cut
+   * short); `requested` is checked between steps. A stopped pass ends as failed, without findings.
+   */
+  readonly stop?: { readonly requested: () => boolean; readonly wait: Effect.Effect<void> }
   /** Hold the graph write lock while landing, so no graph write lands halfway. */
   readonly withGraphLock?: <A, E>(effect: Effect.Effect<A, E>) => Effect.Effect<A, E>
 }
@@ -118,6 +123,9 @@ const body = (
     Effect.gen(function* () {
       const root = join(worktreeRoot(spec.repo), id)
       const main = join(root, "main")
+      // A stop is an outside event: record whether it was requested, so a resumed pass replays the same answer.
+      const isStopped = (site: string) => act(site, Schema.Boolean, Effect.sync(() => spec.stop?.requested() ?? false))
+      const stoppedResult = { status: "failed", landed: [], failed: [] } satisfies PassResult
       const branchOf = (name: string) => `zarg/${id}/${name}`
 
       const scope = yield* act(
@@ -165,7 +173,9 @@ const body = (
               const wt = join(root, name(item))
               yield* ensureWorktree(spec.repo, wt, branchOf(name(item)), passHead)
               if (phase.setup && spec.setup) yield* spec.setup(wt)
+              const stopped = { ok: false, kind: "pass-error", title: "stopped", detail: "stopped by the developer" } as ItemOutcome
               const out = yield* phase.run(item, wt).pipe(
+                Effect.raceFirst(spec.stop ? Effect.as(spec.stop.wait, stopped) : Effect.never),
                 Effect.catchCause((cause) =>
                   Effect.succeed({ ok: false, kind: "pass-error", title: `${phase.name} failed for ${item}`, detail: String(cause).slice(0, 4000) } as ItemOutcome),
                 ),
@@ -175,6 +185,7 @@ const body = (
             }),
           ).pipe(Effect.map((out) => [item, out as ItemOutcome] as const))
         const outcomes = yield* Effect.all(live.map(runItem), { concurrency: spec.maxParallel })
+        if (yield* isStopped(`stopped:${phase.name}`)) return stoppedResult
         for (const [item, out] of outcomes) if (!out.ok) failures.set(item, out)
         live = live.filter((i) => !failures.has(i))
         const conflicts = yield* act(
@@ -204,7 +215,7 @@ const body = (
               v = yield* spec.verify(main)
             }
             return v
-          }),
+          }).pipe(Effect.raceFirst(spec.stop ? Effect.as(spec.stop.wait, { passed: false, output: "stopped" }) : Effect.never)),
         )
       const report = (site: string, extra: ReadonlyArray<{ kind: FindingKind; title: string; detail: string; about: ReadonlyArray<string> }>) =>
         act(
@@ -217,7 +228,9 @@ const body = (
         )
       const failed = () => [...failures.keys()].sort()
 
+      if (yield* isStopped("stopped:verify")) return stoppedResult
       const verified = yield* gate("verify")
+      if (yield* isStopped("stopped:verified")) return stoppedResult
       if (!verified.passed) {
         yield* report("verify", [{ kind: "verify-failing", title: "verify still fails after the fix attempts", detail: verified.output.slice(-4000), about: live }])
         return { status: "failed", landed: [], failed: [...live, ...failed()].sort() } satisfies PassResult
@@ -232,6 +245,7 @@ const body = (
           rmSync(join(main, LEGACY_CHECKPOINT), { force: true })
           return yield* commitAll(main, spec.message(live))
         })
+      if (yield* isStopped("stopped:commit")) return stoppedResult
       let commit = yield* act("commit", Schema.String, squash(payload.base, payload.graph))
       let base = payload.base
 
@@ -272,6 +286,7 @@ const body = (
           yield* report(`land:${attempt}`, [{ kind: "landing-blocked", title: "the implementation commit cannot land", detail, about: live }])
           return { status: "failed", commit, landed: [], failed: [...live, ...failed()].sort() } satisfies PassResult
         }
+        if (yield* isStopped(`stopped:land:${attempt}`)) return stoppedResult
         yield* DurableClock.sleep({ name: `land-wait:${attempt}`, duration: spec.landRetry })
       }
 

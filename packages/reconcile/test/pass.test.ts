@@ -185,6 +185,31 @@ describe("reconcile pass", () => {
     expect(results.map((x) => x.status).sort()).toEqual(["landed", "nothing"])
   })
 
+  test("stop ends a running pass at once: nothing lands, no findings, and it does not resume", async () => {
+    const r = repo()
+    graph(r, ["UX-0001"])
+    const spec = stubSpec(r)
+    let requested = false
+    let release: () => void = () => {}
+    const signal = new Promise<void>((resolve) => (release = resolve))
+    const stoppable = {
+      ...spec,
+      stop: { requested: () => requested, wait: Effect.promise(() => signal) },
+      phases: spec.phases.map((p) => (p.name === "implement" ? { ...p, run: (item: string, cwd: string) => Effect.andThen(Effect.sleep("30 seconds"), p.run(item, cwd)) } : p)),
+    }
+    const file = db()
+    const t0 = Date.now()
+    const running = runPass(stoppable, file)
+    await Bun.sleep(1000)
+    requested = true
+    release()
+    expect(await running).toMatchObject({ status: "failed" })
+    expect(Date.now() - t0).toBeLessThan(10_000)
+    expect(sh(r, "git log --format=%s")).toBe("init")
+    expect(spec.findings.list()).toEqual([])
+    expect(await runPass(stoppable, file)).toMatchObject({ status: "failed" })
+  }, 20_000)
+
   test("a removed card's plan and code are deleted in the next pass", async () => {
     const r = repo()
     graph(r, ["UX-0001", "UX-0002"])

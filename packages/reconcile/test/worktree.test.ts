@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { Effect } from "effect"
-import { ensureWorktree, mergeBranches, removeWorktree, worktreeRoot } from "../src"
+import { ensureWorktree, gcPasses, mergeBranches, removeWorktree, worktreeRoot } from "../src"
 import { cleanup, repo, sh, write } from "./repo"
 
 afterAll(cleanup)
@@ -23,6 +23,21 @@ describe("worktrees", () => {
     await run(removeWorktree(r, wt, "zarg/p1/main"))
     expect(existsSync(wt)).toBe(false)
     expect(sh(r, "git branch --list 'zarg/*'")).toBe("")
+  })
+})
+
+describe("gcPasses", () => {
+  test("keeps the newest passes' worktrees and removes the rest with their branches", async () => {
+    const r = repo()
+    const base = sh(r, "git rev-parse HEAD")
+    for (const p of ["p1", "p2", "p3", "p4"]) {
+      await run(ensureWorktree(r, join(worktreeRoot(r), p, "main"), `zarg/${p}/main`, base))
+      await Bun.sleep(20)
+    }
+    await run(gcPasses(r, 3, (p, name) => `zarg/${p}/${name}`))
+    expect(existsSync(join(worktreeRoot(r), "p1"))).toBe(false)
+    expect(["p2", "p3", "p4"].every((p) => existsSync(join(worktreeRoot(r), p, "main")))).toBe(true)
+    expect(sh(r, "git branch --list 'zarg/p1/*'")).toBe("")
   })
 })
 
