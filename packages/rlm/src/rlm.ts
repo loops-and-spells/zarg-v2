@@ -73,6 +73,11 @@ export type RlmEvent =
   /** A service call or a read of time or randomness by one of the turn's cells (for transcripts and replay, not the UI). */
   | { readonly type: "record"; readonly id: string; readonly turn: number; readonly record: Recorded }
   | { readonly type: "atomize"; readonly id: string; readonly atomic: boolean; readonly reason: string; readonly criteria: Atomized["criteria"]; readonly ms: number }
+  /**
+   * How an agent draws its own row in the agents pane (agents that are not RLMs, like rehearse testers):
+   * `progress` fills the bar, `text` replaces the turns.
+   */
+  | { readonly type: "status"; readonly id: string; readonly progress?: { readonly done: number; readonly total: number }; readonly text?: string }
   /** At its turn budget, the decision model judged whether the agent is progressing: `turns` is its budget now. */
   | { readonly type: "extend"; readonly id: string; readonly extended: boolean; readonly turns: number; readonly confidence: number; readonly reason: string; readonly ms: number }
   | { readonly type: "plan"; readonly id: string; readonly children: ReadonlyArray<{ readonly id: string; readonly preset: string; readonly dependsOn: ReadonlyArray<string> }> }

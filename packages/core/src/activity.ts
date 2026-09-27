@@ -40,6 +40,15 @@ export const makeActivity = (log: ThreadLog, threadId: string, messageId = `${th
     }
     if (e.type === "start") Effect.runSync(log.transcript(threadId, { type: "start", rlm: id, parent: e.parent !== undefined ? `${prefix}${e.parent}` : null, preset: e.preset, task: e.task }))
     const prev = nodes.get(id) ?? {}
+    if (e.type === "status") {
+      // The agent draws its own row: no transcript line, only the pane.
+      const row = { ...(e.progress !== undefined ? { progress: e.progress } : {}), ...(e.text !== undefined ? { text: log.redact(e.text) } : {}) }
+      const next = { ...prev, row }
+      nodes.set(id, next)
+      const seg = id.replaceAll("~", "~0").replaceAll("/", "~1")
+      Effect.runSync(log.append(threadId, E.activityDelta(messageId, [{ op: "add", path: `/rlms/${seg}`, value: next }])))
+      return
+    }
     const next: Record<string, unknown> =
       e.type === "start"
         ? { id, parent: e.parent !== undefined ? `${prefix}${e.parent}` : null, preset: e.preset, task: headline(log.redact(e.task)), scope: e.scope, depth: e.depth, turns: 0, budget: e.budget.turns, status: "running", decisions: [] }

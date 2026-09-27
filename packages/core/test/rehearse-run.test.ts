@@ -179,6 +179,30 @@ describe("rehearse run", () => {
     expect(history.map((h) => h.text)).toContain("B: feel 1.00, fail 0.30 → flagged feel → 1 finding")
   })
 
+  test("a tester's progress only goes up: distinct steps checked out of distinct steps to check", async () => {
+    const t = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
+      const t = yield* setup({ slowDecide: 3 })
+      const s = yield* t.r.start({})
+      yield* until(() => t.r.record((s as { run: string }).run)?.status === "done")
+      return t
+    })))
+    const main = readFileSync(join(t.dir, "threads", "main.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l))
+    const rows = main
+      .filter((e) => e.type === "ACTIVITY_DELTA" && e.messageId === "main-rehearse-activity")
+      .flatMap((e) => e.patch)
+      .filter((p: { path: string; value: { row?: unknown } }) => p.path === "/rlms/tester-1" && p.value.row !== undefined)
+      .map((p: { value: { row: { progress: { done: number; total: number } } } }) => p.value.row.progress)
+    const done = rows.map((r) => r.done)
+    expect(done).toEqual([...done].sort((a, b) => a - b))
+    expect(rows.at(-1)).toEqual({ done: 4, total: 4 })
+    const root = main
+      .filter((e) => e.type === "ACTIVITY_DELTA" && e.messageId === "main-rehearse-activity")
+      .flatMap((e) => e.patch)
+      .filter((p: { path: string; value: { row?: unknown } }) => p.path === "/rlms/rehearse" && p.value.row !== undefined)
+      .at(-1).value.row
+    expect(root).toEqual({ progress: { done: 4, total: 4 }, text: "1 finding for triage" })
+  })
+
   test("a second run is refused while one is going", async () => {
     const second = await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
       const t = yield* setup()

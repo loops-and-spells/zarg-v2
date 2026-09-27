@@ -100,9 +100,23 @@ export const makeRehearse = (deps: RehearseDeps) =>
         const sem = yield* Semaphore.make(deps.settings.inFlight)
         // Stories share prefixes and run at once: the first fiber at a prefix screens it, the others wait for it.
         const inFlight = new Map<string, Deferred.Deferred<void>>()
+        // Progress per tester: distinct steps (story prefixes) checked out of those to check, so it only goes up.
+        const toCheck = new Set(rec.stories.flatMap((s) => s.map((_, i) => s.slice(0, i + 1).join(">")))).size
+        const all = toCheck * rec.personas.length
+        let allChecked = 0
         yield* Effect.forEach(rec.personas, (persona, pi) =>
           Effect.gen(function* () {
             const id = `tester-${pi + 1}`
+            const checked = new Set<string>()
+            let flagged = 0
+            const progress = (key: string, flags: number) => {
+              if (checked.has(key)) return
+              checked.add(key)
+              flagged += flags > 0 ? 1 : 0
+              activity.observe({ type: "status", id, progress: { done: checked.size, total: toCheck }, text: `${checked.size}/${toCheck} steps · ${flagged} flagged` })
+              allChecked++
+              activity.observe({ type: "status", id: "rehearse", progress: { done: allChecked, total: all }, text: `${allChecked}/${all} steps` })
+            }
             activity.observe({ type: "start", id, parent: "rehearse", preset: "tester", task: persona.text, scope: {}, depth: 1, budget: { turns: rec.stories.length, tokens: 0, wallMs: 0 } })
             yield* Effect.forEach(rec.stories, (story, si) =>
               Effect.gen(function* () {
@@ -112,7 +126,10 @@ export const makeRehearse = (deps: RehearseDeps) =>
                   const step = yield* viewOf(story[i]!, story[i - 1])
                   if (step === undefined) break
                   const waiting = inFlight.get(key)
-                  if (waiting !== undefined) yield* Deferred.await(waiting)
+                  if (waiting !== undefined) {
+                    yield* Deferred.await(waiting)
+                    progress(key, rec.screened[key]?.flags.length ?? 0)
+                  } else if (key in rec.screened) progress(key, rec.screened[key]?.flags.length ?? 0)
                   else if (!(key in rec.screened)) {
                     const done = yield* Deferred.make<void>()
                     inFlight.set(key, done)
@@ -136,11 +153,11 @@ export const makeRehearse = (deps: RehearseDeps) =>
                             ? ""
                             : ` → flagged ${screened.flags.join(", ")} → ${d === undefined ? "" : "infra" in d ? "diagnosis failed" : `${d.findings.length} finding${d.findings.length === 1 ? "" : "s"}`}`)
                     activity.observe({ type: "step", id, turn: si + 1, text: `${step.card}: ${said}`, cells: [] })
+                    progress(key, screened?.flags.length ?? 0)
                     yield* Deferred.succeed(done, undefined)
                   }
                   prior.push(step)
                 }
-                activity.observe({ type: "turn", id, turn: si + 1, tokens: 0 })
               }),
             { concurrency: "unbounded" })
             activity.observe({ type: "end", id, ok: true, turns: rec.stories.length, tokens: 0 })
@@ -162,6 +179,8 @@ export const makeRehearse = (deps: RehearseDeps) =>
           unscreened: screenedValues.filter((s) => s === null).length,
         })
         yield* update((r) => ({ ...r, status: "done", findings, report: text }))
+        const open0 = findings.filter((f) => f.route !== "drop").length
+        activity.observe({ type: "status", id: "rehearse", progress: { done: all, total: all }, text: `${open0} finding${open0 === 1 ? "" : "s"} for triage` })
         activity.observe({ type: "end", id: "rehearse", ok: true, turns: rec.stories.length, tokens: 0 })
         for (const d of E.textMessage(`${THREAD}-${crypto.randomUUID()}`, "assistant", text)) yield* emit(d)
         yield* emit(E.runFinished(THREAD, rec.run))

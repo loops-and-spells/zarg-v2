@@ -178,12 +178,16 @@ export const agentRows = (rlms: Readonly<Record<string, RlmNode>>, agents: Agent
   const width = Math.max(0, ...lefts.map((l) => l.length))
   return rows.map((r, i) => {
     const n = r.node
-    const filled = Math.min(BAR, Math.round((n.turns / Math.max(1, n.budget)) * BAR))
+    // An agent may draw its own row: its progress, its text; otherwise turns out of the budget.
+    const done = n.row?.progress?.done ?? n.turns
+    const total = n.row?.progress?.total ?? n.budget
+    const filled = Math.min(BAR, Math.round((done / Math.max(1, total)) * BAR))
     const bar = "▰".repeat(filled) + "▱".repeat(BAR - filled)
     const hidden = r.hidden.length > 0 ? `  +${r.hidden.length}` : ""
+    const count = n.row?.text ?? `${done}/${total}`.padStart(5)
     return {
       id: n.id,
-      text: `${lefts[i]!.padEnd(width)}  ${bar} ${`${n.turns}/${n.budget}`.padStart(5)}${hidden}`,
+      text: `${lefts[i]!.padEnd(width)}  ${bar} ${count}${hidden}`,
       tone: r.hidden.some((h) => h.status === "failed") ? "failed" : n.status,
       selected: n.id === cursor,
     }

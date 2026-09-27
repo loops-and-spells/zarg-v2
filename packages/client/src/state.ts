@@ -38,6 +38,8 @@ export interface RlmNode {
   readonly status: "running" | "done" | "failed" | "stopped"
   readonly decisions: ReadonlyArray<Decision>
   readonly error?: string
+  /** A row the agent draws itself (agents that are not RLMs): progress fills the bar, text replaces the turns. */
+  readonly row?: { readonly progress?: { readonly done: number; readonly total: number }; readonly text?: string }
 }
 
 export interface ThreadState {

@@ -153,6 +153,11 @@ describe("the agents pane", () => {
     ])
   })
 
+  test("an agent that draws its own row: its progress fills the bar and its text replaces the turns", () => {
+    const tester = { id: "tester-1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [], row: { progress: { done: 29, total: 58 }, text: "29/58 steps · 2 flagged" } }
+    expect(text(agentRows({ "tester-1": tester }, agents()))).toEqual(["└ ● tester tester-1  ▰▰▰▱▱▱ 29/58 steps · 2 flagged"])
+  })
+
   test("a collapsed node that hides a failure is red; the cursor row is selected (the root when none)", () => {
     const rows = agentRows(rlms, agents())
     expect(rows.map((r) => [r.id, r.tone, r.selected])).toEqual([
