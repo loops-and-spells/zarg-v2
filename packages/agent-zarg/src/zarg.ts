@@ -37,7 +37,7 @@ export const makeZarg = (host: AgentHost) =>
     const makeRlm = (asker: Asker, observe: (e: Rlm.RlmEvent) => void) => {
       // One driver item: graph writes wait for an answered question.
       const guard = askFirst(asker)
-      const outside = host.outsideReads(asker.ask) as never
+      const outside = host.outsideReads as never
       const factory = (name: string, scope: Scope): Bound | undefined => {
         const ctx = { host: plugins, snapshot, scope }
         if (name === "Graph") return graph(ctx)

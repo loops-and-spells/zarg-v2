@@ -18,6 +18,7 @@ import { closeStale, makeActivity } from "./activity"
 import { threadViews } from "./views"
 import { notLoaded } from "./not-loaded"
 import { outsideReads } from "./outside"
+import { makePrompts } from "./prompts"
 import { makeActions } from "./actions"
 import { chosenFindings } from "./chosen"
 import { makeLog } from "./log"
@@ -52,6 +53,9 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     const log = yield* makeLog(join(root, ".zarg", "threads"), (t) => redact(t, sensitive))
     // Agents the last core left running are over: clients replaying the log must not show them as live.
     yield* closeStale(log)
+    // Grants are the core's own questions: popovers on every client, never in zarg's conversation.
+    const prompts = makePrompts(log)
+    yield* prompts.closeStale
     const snapshot = store.snapshot.pipe(Effect.mapError((e) => ({ _tag: e._tag, message: e.message })))
 
     // Agents may read outside the repository (porting from another project) once the developer allows it.
@@ -98,7 +102,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       log,
       sensitive,
       agenda,
-      outsideReads: (ask) => outsideReads({ grants: agentGrants, userDir: USER_DIR, ask: ask as never, yolo: () => yoloControl.on("zarg:agents") }),
+      outsideReads: outsideReads({ grants: agentGrants, userDir: USER_DIR, ask: prompts.ask as never, yolo: () => yoloControl.on("zarg:agents") }),
       findings: { chosen, firstParty: control.firstParty },
     }
     const zarg = yield* trustedAgents(ZARG_ROOT).pipe(
@@ -134,13 +138,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     }
     control.setAgents(pluginAgents(log, "main", layoutOf) as (plugin: string, event: unknown) => void)
     control.setAsk((q) =>
-      main
-        .ask({
-          question: `Plugin ${q.plugin} wants to ${q.what}.`,
-          options: q.options.map((o) => ({ id: o.id, label: o.label, ...(o.id === "once" ? { recommended: true } : {}) })),
-          allowOther: false,
-          kind: "grant",
-        })
+      prompts
+        .ask({ question: `Plugin ${q.plugin} wants to ${q.what}.`, options: q.options.map((o) => ({ id: o.id, label: o.label, ...(o.id === "once" ? { recommended: true } : {}) })), allowOther: false, kind: "grant" })
         .pipe(Effect.map((a) => q.options.find((o) => o.id === a.choice)?.id ?? "deny")),
     )
     // Plugins that lack only their load grant: asked about now that main can ask (YOLO loads them without asking).
@@ -191,7 +190,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         )
       },
     }
-    return { log, threads, driver: roles.driver, turnOn, yolo, actions, commands }
+    return { log, threads, driver: roles.driver, turnOn, yolo, actions, commands, prompts }
   })
 
 /** The project's plugin host options from its environment and config (`[plugins.<name>]` tables). */

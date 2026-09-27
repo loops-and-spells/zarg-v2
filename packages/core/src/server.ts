@@ -49,6 +49,9 @@ export class Actions extends Context.Service<
   }
 >()("@zarg/core/Actions") {}
 
+/** Answers to the core's own prompts (grant popovers): `POST /prompts/:id`. */
+export class Prompts extends Context.Service<Prompts, { readonly answer: (id: string, answer: { readonly choice: string }) => Effect.Effect<{ readonly notice: string }> }>()("@zarg/core/Prompts") {}
+
 /** YOLO on or off (`POST /yolo`): for every plugin, or one; answers whether any plugin is in YOLO now. */
 export class YoloControl extends Context.Service<YoloControl, { readonly set: (on: boolean, plugin?: string) => Effect.Effect<{ readonly on: boolean }> }>()("@zarg/core/YoloControl") {}
 
@@ -100,6 +103,7 @@ const routes = HttpRouter.addAll(
     const yolo = yield* YoloControl
     const actions = yield* Actions
     const commands = yield* PluginCommands
+    const prompts = yield* Prompts
     const heartbeat = yield* Heartbeat
     const log = yield* Log
     // Only a user message this core has not seen yet counts as new input.
@@ -146,6 +150,16 @@ const routes = HttpRouter.addAll(
         "GET",
         "/threads",
         Effect.sync(() => HttpServerResponse.jsonUnsafe(threads.list().map((t) => ({ id: t.id, focus: t.focus, status: t.status() })))),
+      ),
+      HttpRouter.route(
+        "POST",
+        "/prompts/:id",
+        Effect.gen(function* () {
+          const { id } = yield* HttpRouter.params
+          const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as { choice?: unknown }
+          if (typeof body.choice !== "string") return error(400, `an answer needs { "choice" }`)
+          return HttpServerResponse.jsonUnsafe(yield* prompts.answer(decodeURIComponent(id ?? ""), { choice: body.choice }))
+        }),
       ),
       HttpRouter.route("GET", "/commands", Effect.sync(() => HttpServerResponse.jsonUnsafe(commands.list()))),
       HttpRouter.route(
@@ -221,5 +235,6 @@ const routes = HttpRouter.addAll(
  *   GET  /commands              slash commands plugins add
  *   POST /plugins/:name/commands/:cmd  { args } → { notice }
  *   POST /threads/:id/agents/:agent/actions/:action  { rows } → { notice }
+ *   POST /prompts/:id          { choice } → { notice } (a grant popover's answer)
  */
 export const api = Layer.mergeAll(routes, auth)

@@ -51,8 +51,8 @@ export interface AgentHost {
   readonly sensitive: ReadonlyArray<unknown>
   /** The agenda for the driver: reconcile's items and the plugins' items (the host's own plugin-* items left out). */
   readonly agenda: (focus: ReadonlySet<string> | undefined) => Effect.Effect<ReadonlyArray<AgendaEntry>, unknown>
-  /** Reads outside the repository, asking with `ask`. */
-  readonly outsideReads: (ask: (q: Question) => Effect.Effect<Answer, unknown>) => unknown
+  /** The gate for reads outside the repository (the core asks the developer itself). */
+  readonly outsideReads: unknown
   readonly findings: { readonly chosen: unknown; readonly firstParty: (plugin: string) => boolean }
 }
 
