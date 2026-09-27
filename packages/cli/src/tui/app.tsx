@@ -2,7 +2,7 @@ import { useKeyboard } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Session } from "@zarg/client"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
-import { type Action, agentDetail, agentRows, animating, conversation, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
+import { type Action, agentDetail, agentRows, animating, conversation, messageShown, OTHER, otherFocused, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
 
 const COLORS = { you: "#8ab4f8", zarg: "#e8eaed", error: "#f28b82", notice: "#fdd663", dim: "#9aa0a6", accent: "#81c995", select: "#3c4043" }
 const TONE = { running: COLORS.zarg, done: COLORS.dim, failed: COLORS.error, stopped: COLORS.notice }
@@ -17,6 +17,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   // The draft in a ref too: the keyboard handler reads it between renders (Tab completes it).
   const draftRef = useRef("")
   const inputRef = useRef<InputRenderable | null>(null)
+  // The picker's Something else… line has its own text.
+  const [otherDraft, setOtherDraft] = useState("")
   const agentsRef = useRef<ScrollBoxRenderable | null>(null)
   const setDraft = (text: string) => {
     draftRef.current = text
@@ -106,14 +108,33 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           ) : null}
         </box>
       </box>
-      {inquiry !== undefined ? (
+      {inquiry !== undefined && !messageShown(ui, s) ? (
         <box title="Question" style={{ border: true, borderColor: COLORS.accent, flexDirection: "column", flexShrink: 0 }}>
           <text fg={COLORS.zarg}>{inquiry.question}</text>
-          {pickerRows(inquiry, ui.pick).map((r) => (
-            <text key={r.id} fg={r.selected ? COLORS.accent : COLORS.zarg}>
-              {`${r.selected ? "›" : " "} ${r.label}${r.recommended ? " (recommended)" : ""}${r.selected && r.why !== undefined ? ` — ${r.why}` : ""}`}
-            </text>
-          ))}
+          {pickerRows(inquiry, ui.pick).map((r) =>
+            r.id === OTHER ? (
+              <box key={r.id} style={{ flexDirection: "row", height: 1 }}>
+                <text fg={r.selected ? COLORS.accent : COLORS.zarg}>{`${r.selected ? "›" : " "} Something else: `}</text>
+                <input
+                  focused={otherFocused(ui, s)}
+                  value={otherDraft}
+                  placeholder={r.selected ? "type your answer, Enter to send" : ""}
+                  style={{ flexGrow: 1 }}
+                  onInput={(text: string) => setOtherDraft(text)}
+                  onSubmit={(value: unknown) => {
+                    const r2 = onSubmit(latest(), props.session.state(), String(value))
+                    setUi(r2.ui)
+                    if (r2.action !== undefined) setOtherDraft("")
+                    act(r2.action)
+                  }}
+                />
+              </box>
+            ) : (
+              <text key={r.id} fg={r.selected ? COLORS.accent : COLORS.zarg}>
+                {`${r.selected ? "›" : " "} ${r.label}${r.recommended ? " (recommended)" : ""}${r.selected && r.why !== undefined ? ` — ${r.why}` : ""}`}
+              </text>
+            ),
+          )}
         </box>
       ) : null}
       {box !== undefined ? (
@@ -127,12 +148,13 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           {box.lint !== undefined ? <text fg={COLORS.error}>{`✗ ${box.lint}`}</text> : null}
         </box>
       ) : null}
-      <box title={ui.other ? "Your answer" : "Message"} style={{ border: true, height: 3, flexShrink: 0 }}>
+      {messageShown(ui, s) ? (
+      <box title={inquiry !== undefined ? `Chat about: ${inquiry.question}` : "Message"} style={{ border: true, height: 3, flexShrink: 0 }}>
         <input
           ref={inputRef}
           focused={inputFocused(ui, s)}
           value={draft}
-          placeholder={inquiry !== undefined && !ui.other ? "choose above, or pick Something else…" : "type a message, Enter to send"}
+          placeholder={inquiry !== undefined ? "ask about the question; Esc goes back to the options" : "type a message, Enter to send"}
           onInput={(text: string) => {
             setDraft(text)
             // Typing picks the box afresh: no highlighted row.
@@ -149,6 +171,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           }}
         />
       </box>
+      ) : null}
       <box style={{ height: 1, flexShrink: 0 }}>
         <text fg={COLORS.dim}>{`${statusLine(s, props.meta)}   ${ui.focus === "agents" ? "↑↓ move · ←→ fold · Tab back" : "^C stop · ^C^C exit · Tab agents"}`}</text>
       </box>

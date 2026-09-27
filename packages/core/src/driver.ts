@@ -15,7 +15,11 @@ const ASK_FIRST: ServiceFailure = {
 export const askFirst = (asker: Asker) => {
   let answered = false
   return {
-    asker: { ask: (question) => Effect.tap(asker.ask(question), () => Effect.sync(() => void (answered = true))) } satisfies Asker,
+    asker: {
+      // A message about the question is a discussion, not an answer: only a real answer or a choice made for the developer opens the gate.
+      ask: (question) => Effect.tap(asker.ask(question), (a) => Effect.sync(() => void (answered ||= a.interjected !== true))),
+      ...(asker.choose !== undefined ? { choose: (c) => Effect.tap(asker.choose!(c), () => Effect.sync(() => void (answered = true))) } : {}),
+    } satisfies Asker,
     gate: (bound: Bound | undefined): Bound | undefined =>
       bound === undefined
         ? undefined

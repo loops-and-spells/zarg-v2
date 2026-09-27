@@ -90,6 +90,28 @@ describe("Inquire, Agenda and Verify", () => {
     expect(asked).toEqual(["Which?"])
   })
 
+  test("Inquire.choose accepts an option of a question under discussion for the developer", async () => {
+    const chosen: Array<unknown> = []
+    const svc = inquire({
+      ask: () => Effect.succeed({ other: "why Checkout?", interjected: true, question: "inq-1" }),
+      choose: (c) => Effect.sync(() => (chosen.push(c), { choice: c.choice })),
+    })
+    const out = await kernel([svc], (k) =>
+      Effect.all([
+        k.run('const a = yield* Inquire.ask({ question: "Which?", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }] })\nreturn a.question'),
+        k.run('return yield* Inquire.choose({ question: "inq-1", choice: "b", why: "they said checkout matters most" })'),
+      ]),
+    )
+    expect(out[0].output).toContain("inq-1")
+    expect(out[1].output).toContain('"choice": "b"')
+    expect(chosen).toEqual([{ question: "inq-1", choice: "b", why: "they said checkout matters most" }])
+  })
+
+  test("Inquire.choose without a question under discussion fails with a hint", async () => {
+    const out = await kernel([inquire({ ask: () => Effect.succeed({ choice: "a" }) })], (k) => k.run('return yield* Inquire.choose({ question: "inq-9", choice: "a", why: "x" })'))
+    expect(out.output).toContain("NoOpenQuestion")
+  })
+
   test("Agenda.raise hands the item to the inbox", async () => {
     const titles: Array<string> = []
     const out = await kernel([agenda({ raise: (i) => Effect.sync(() => (titles.push(i.title), "A-1")) })], (k) =>

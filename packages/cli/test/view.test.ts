@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
-import { conversation, EXIT_WINDOW_MS, initialUi, inputFocused, OTHER, onKey, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/tui/view"
+import { CHAT, conversation, EXIT_WINDOW_MS, initialUi, inputFocused, messageShown, OTHER, onKey, otherFocused, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/tui/view"
 
 const inquiry: Inquiry = {
   id: "inq-1",
@@ -16,11 +16,11 @@ const waiting: SessionState = { thread: { ...initial("main"), status: "waiting",
 const running: SessionState = { thread: { ...initial("main"), status: "running" }, core: "up" }
 
 describe("picker", () => {
-  test("a new inquiry preselects the recommended option; its why is shown; the last row is Something else…", () => {
+  test("a new inquiry preselects the recommended option; its why is shown; the rows end with Something else… and Chat about this", () => {
     const ui = syncUi(initialUi, waiting)
     expect(ui.pick).toBe(1)
     const rows = pickerRows(inquiry, ui.pick)
-    expect(rows.map((r) => [r.label, r.selected])).toEqual([["Login", false], ["Checkout", true], ["Something else…", false]])
+    expect(rows.map((r) => [r.label, r.selected])).toEqual([["Login", false], ["Checkout", true], ["Something else…", false], ["Chat about this", false]])
     expect(rows[1]).toMatchObject({ recommended: true, why: "most used" })
     expect(syncUi(ui, waiting)).toBe(ui)
   })
@@ -32,17 +32,36 @@ describe("picker", () => {
     expect(ui.pick).toBe(0)
     expect(onKey(ui, waiting, { name: "return" }, 0).action).toEqual({ type: "answer", answer: { choice: "a" } })
     for (let i = 0; i < 5; i++) ui = onKey(ui, waiting, { name: "down" }, 0).ui
-    expect(pickerRows(inquiry, ui.pick)[ui.pick]!.id).toBe(OTHER)
+    expect(pickerRows(inquiry, ui.pick)[ui.pick]!.id).toBe(CHAT)
   })
 
-  test("Something else… opens the text field; Enter there answers with the text; Escape closes it", () => {
-    let ui = { ...syncUi(initialUi, waiting), pick: 2 }
-    expect(inputFocused(ui, waiting)).toBe(false)
-    ui = onKey(ui, waiting, { name: "return" }, 0).ui
+  test("Something else… is an input line in the picker: highlighting it takes the typing; Enter answers with the text", () => {
+    let ui = onKey(syncUi(initialUi, waiting), waiting, { name: "down" }, 0).ui
+    expect(pickerRows(inquiry, ui.pick)[ui.pick]!.id).toBe(OTHER)
     expect(ui.other).toBe(true)
-    expect(inputFocused(ui, waiting)).toBe(true)
+    expect(otherFocused(ui, waiting)).toBe(true)
+    expect(inputFocused(ui, waiting)).toBe(false)
+    expect(messageShown(ui, waiting)).toBe(false)
     expect(onSubmit(ui, waiting, "do payments first")).toEqual({ ui: { ...ui, other: false, answered: "inq-1" }, action: { type: "answer", answer: { other: "do payments first" } } })
-    expect(onKey(ui, waiting, { name: "escape" }, 0).ui.other).toBe(false)
+    ui = onKey(ui, waiting, { name: "up" }, 0).ui
+    expect(ui.other).toBe(false)
+    expect(onKey({ ...ui, pick: 2, other: true }, waiting, { name: "escape" }, 0).ui).toMatchObject({ other: false, pick: 1 })
+  })
+
+  test("Chat about this: the Message box takes over, a message there discusses the question, Escape goes back to the picker", () => {
+    let ui = { ...syncUi(initialUi, waiting), pick: 3 }
+    expect(messageShown(ui, waiting)).toBe(false)
+    ui = onKey(ui, waiting, { name: "return" }, 0).ui
+    expect(ui.chatting).toBe("inq-1")
+    expect(messageShown(ui, waiting)).toBe(true)
+    expect(inputFocused(ui, waiting)).toBe(true)
+    expect(onSubmit(ui, waiting, "why is Checkout recommended?").action).toEqual({ type: "send", text: "why is Checkout recommended?" })
+    expect(onKey(ui, waiting, { name: "escape" }, 0).ui.chatting).toBeUndefined()
+  })
+
+  test("the Message box shows only when no question is up, or while chatting about it", () => {
+    expect(messageShown(initialUi, running)).toBe(true)
+    expect(messageShown(syncUi(initialUi, waiting), waiting)).toBe(false)
   })
 
   test("a second Enter on the same inquiry does nothing (the answer is on its way)", () => {
@@ -55,7 +74,7 @@ describe("picker", () => {
   })
 
   test("once the inquiry is answered the picker state clears", () => {
-    const ui = { ...syncUi(initialUi, waiting), other: true }
+    const ui = { ...syncUi(initialUi, waiting), other: true, chatting: "inq-1" }
     expect(syncUi(ui, running, 0)).toEqual({ focus: "conversation", pick: 1, other: false, agents: { toggled: {}, tree: 0 }, runningSince: 0 })
   })
 })

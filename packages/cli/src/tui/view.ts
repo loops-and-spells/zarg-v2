@@ -8,8 +8,10 @@ export interface Ui {
   readonly pick: number
   /** The inquiry `pick` belongs to; a new inquiry resets the selection. */
   readonly inquiryId?: string
-  /** True while the "Something else…" text field is open. */
+  /** True while "Something else…" is highlighted: its input line in the picker takes the typing. */
   readonly other: boolean
+  /** The inquiry the developer is chatting about (Chat about this): the Message box is back, the picker hidden. */
+  readonly chatting?: string
   /** The inquiry already answered: further Enters wait for the core to move on. */
   readonly answered?: string
   /** The slash-command box: the highlighted row and the Tab cycle. */
@@ -31,6 +33,7 @@ export interface Agents {
 
 export const EXIT_WINDOW_MS = 2000
 export const OTHER = "__other"
+export const CHAT = "__chat"
 
 export const initialUi: Ui = { focus: "conversation", pick: 0, other: false, agents: { toggled: {}, tree: 0 } }
 
@@ -42,27 +45,30 @@ export interface PickerRow {
   readonly selected: boolean
 }
 
-/** The inquiry's options, then "Something else…" when free text is allowed. */
+/** The inquiry's options, "Something else…" when free text is allowed, and "Chat about this". */
 export const pickerRows = (inquiry: Inquiry, pick: number): ReadonlyArray<PickerRow> => {
   const rows = [
     ...inquiry.options.map((o) => ({ id: o.id, label: o.label, ...(o.why !== undefined ? { why: o.why } : {}), recommended: o.recommended === true })),
     ...(inquiry.allowOther ? [{ id: OTHER, label: "Something else…", recommended: false }] : []),
+    { id: CHAT, label: "Chat about this", recommended: false },
   ]
   return rows.map((r, i) => ({ ...r, selected: i === pick }))
 }
+
+const preselect = (inquiry: Inquiry) => Math.max(0, inquiry.options.findIndex((o) => o.recommended === true))
 
 /** A new inquiry preselects its recommended option (or the first). */
 export const syncUi = (ui0: Ui, s: SessionState, now = Date.now()): Ui => {
   const ui = withRunClock(ui0.agents.tree === s.thread.trees ? ui0 : { ...ui0, agents: { toggled: {}, tree: s.thread.trees } }, s, now)
   const inquiry = s.thread.pendingInquiry
   if (inquiry === undefined) {
-    if (ui.inquiryId === undefined && !ui.other) return ui
-    const { inquiryId: _, ...rest } = ui
+    if (ui.inquiryId === undefined && !ui.other && ui.chatting === undefined) return ui
+    const { inquiryId: _, chatting: __, ...rest } = ui
     return { ...rest, other: false }
   }
   if (inquiry.id === ui.inquiryId) return ui
-  const recommended = inquiry.options.findIndex((o) => o.recommended === true)
-  return { ...ui, inquiryId: inquiry.id, pick: recommended >= 0 ? recommended : 0, other: false }
+  const { chatting: _, ...rest } = ui
+  return { ...rest, inquiryId: inquiry.id, pick: preselect(inquiry), other: false }
 }
 
 // The thread's status is stale once the core is down: nothing is working then.
@@ -312,14 +318,22 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: st
   const inquiry = s.thread.pendingInquiry
   // The picker takes keys only while the conversation side has focus.
   if (inquiry === undefined || ui.focus !== "conversation" || ui.answered === inquiry.id) return { ui }
-  if (ui.other) return key.name === "escape" ? { ui: { ...ui, other: false } } : { ui }
+  // Chatting: the Message box has the keys; Escape goes back to the picker.
+  if (ui.chatting === inquiry.id) {
+    if (key.name !== "escape") return { ui }
+    const { chatting: _, ...rest } = ui
+    return { ui: rest }
+  }
   const rows = pickerRows(inquiry, ui.pick)
-  if (key.name === "up") return { ui: { ...ui, pick: Math.max(0, ui.pick - 1) } }
-  if (key.name === "down") return { ui: { ...ui, pick: Math.min(rows.length - 1, ui.pick + 1) } }
+  const moveTo = (pick: number): Ui => ({ ...ui, pick, other: rows[pick]?.id === OTHER })
+  if (key.name === "up") return { ui: moveTo(Math.max(0, ui.pick - 1)) }
+  if (key.name === "down") return { ui: moveTo(Math.min(rows.length - 1, ui.pick + 1)) }
+  if (key.name === "escape" && ui.other) return { ui: moveTo(preselect(inquiry)) }
   if (key.name === "return") {
     const row = rows[ui.pick]
-    if (row === undefined) return { ui }
-    if (row.id === OTHER) return { ui: { ...ui, other: true } }
+    // Something else… answers from its own input line (onSubmit).
+    if (row === undefined || row.id === OTHER) return { ui }
+    if (row.id === CHAT) return { ui: { ...ui, other: false, chatting: inquiry.id } }
     return { ui: { ...ui, answered: inquiry.id }, action: { type: "answer", answer: { choice: row.id } } }
   }
   return { ui }
@@ -334,7 +348,8 @@ export const onSubmit = (ui: Ui, s: SessionState, text: string): { readonly ui: 
   // A command is "/name" as the first word (or a bare "/" with a row highlighted); a path ("/api/v2 …")
   // or an answer to "Something else…" is text.
   const t = text.trim()
-  if (!(ui.other && inquiry !== undefined) && (COMMAND.test(t) || t === "/")) {
+  const answering = ui.other && inquiry !== undefined && ui.chatting !== inquiry.id
+  if (!answering && (COMMAND.test(t) || t === "/")) {
     // An invalid command stays in the input; the box shows why.
     if (lintSlashInput(t) !== null) return { ui }
     const state = parseSlashInput(t)
@@ -351,15 +366,23 @@ export const onSubmit = (ui: Ui, s: SessionState, text: string): { readonly ui: 
     if (t === "/" && state === null) return { ui }
     return { ui: withoutSlash(ui), action: { type: "command", text: chosen } }
   }
-  if (ui.other && inquiry !== undefined) {
+  if (answering) {
     if (ui.answered === inquiry.id) return { ui }
     return { ui: { ...ui, other: false, answered: inquiry.id }, action: { type: "answer", answer: { other: text } } }
   }
+  // A message; while chatting about a question, the core takes it as discussion of that question.
   return { ui, action: { type: "send", text } }
 }
 
-/** Slash commands work in the message input, not while typing an answer to Something else… (that is text). */
-export const slashActive = (ui: Ui, s: SessionState) => inputFocused(ui, s) && !(ui.other && s.thread.pendingInquiry !== undefined)
+/** Slash commands work in the Message box, never in the picker's Something else… line (that is text). */
+export const slashActive = (ui: Ui, s: SessionState) => inputFocused(ui, s)
 
-/** The text field takes keys unless the picker is choosing. */
-export const inputFocused = (ui: Ui, s: SessionState) => ui.focus === "conversation" && (s.thread.pendingInquiry === undefined || ui.other)
+/** The Message box: shown when no question is up, or while chatting about the one that is. */
+export const messageShown = (ui: Ui, s: SessionState) => s.thread.pendingInquiry === undefined || ui.chatting === s.thread.pendingInquiry.id
+
+/** The Message box takes keys when it is shown and the conversation side has focus. */
+export const inputFocused = (ui: Ui, s: SessionState) => ui.focus === "conversation" && messageShown(ui, s)
+
+/** The picker's Something else… line takes keys while it is highlighted. */
+export const otherFocused = (ui: Ui, s: SessionState) =>
+  ui.focus === "conversation" && ui.other && s.thread.pendingInquiry !== undefined && !messageShown(ui, s) && ui.answered !== s.thread.pendingInquiry.id

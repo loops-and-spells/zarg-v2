@@ -1,6 +1,7 @@
 import { Cause, Deferred, Effect, Exit, Fiber, Semaphore, Stream } from "effect"
 import type { AgendaItem } from "@zarg/plugin/server"
-import type { Answer, Asker, Question, Rlm, Scope } from "@zarg/rlm"
+import type { ServiceFailure } from "@zarg/kernel"
+import type { Answer, Asker, Choice, Question, Rlm, Scope } from "@zarg/rlm"
 import { makeActivity } from "./activity"
 import * as E from "./events"
 import type { Interrupt } from "@ag-ui/core"
@@ -76,8 +77,12 @@ export const makeThread = (deps: ThreadDeps) =>
     // Questions in the order asked; only the first is shown, the next once it is answered.
     const queue: Array<Pending> = []
     const pending = (): Pending | undefined => queue[0]
+    // Questions the developer is discussing (a message instead of an answer): open until the driver
+    // chooses an option for them (Inquire.choose) or asks again.
+    const discussed: Array<Pending> = []
     const dropLoopQuestions = () => {
       for (let i = queue.length - 1; i >= 0; i--) if (queue[i]!.owner === "loop") queue.splice(i, 1)
+      discussed.length = 0
     }
     let paused: Deferred.Deferred<void> | undefined
     const recent: Array<string> = []
@@ -121,7 +126,26 @@ export const makeThread = (deps: ThreadDeps) =>
           )
           return yield* Deferred.await(answer)
         })
-    const asker: Asker = { ask: askAs("loop") }
+    /** The driver accepts an option of a question under discussion for the developer; they see it and why. */
+    const choose = (c: Choice) =>
+      Effect.gen(function* () {
+        const at = discussed.findIndex((p) => p.id === c.question)
+        if (at < 0) return yield* Effect.fail<ServiceFailure>({ _tag: "NoOpenQuestion", message: `no question ${c.question} is under discussion; ask with Inquire.ask` })
+        const q = discussed[at]!.question
+        const option = q.options.find((o) => o.id === c.choice)
+        if (option === undefined) {
+          return yield* Effect.fail<ServiceFailure>({ _tag: "InvalidChoice", message: `${c.choice} is not an option of "${q.question}" (${q.options.map((o) => o.id).join(", ")})` })
+        }
+        discussed.splice(at, 1)
+        yield* note("assistant", `zarg chose ${option.label} for you: ${c.why}`)
+        return { choice: option.id }
+      })
+    const loopAsk = askAs("loop")
+    const asker: Asker = {
+      // A new question from the driver replaces any it was discussing.
+      ask: (q) => Effect.andThen(Effect.sync(() => void (discussed.length = 0)), loopAsk(q)),
+      choose,
+    }
 
     // RLM events become one activity message: the tree of RLMs working for this thread.
     const activity = makeActivity(log, threadId)
@@ -173,6 +197,10 @@ export const makeThread = (deps: ThreadDeps) =>
                 .join("\n")}`
             : "",
           recent.length > 0 ? `Recent conversation:\n${recent.join("\n")}` : "",
+          ...discussed.map(
+            (p) =>
+              `Still under discussion: "${p.question.question}" (question ${p.id}; options: ${p.question.options.map((o) => `${o.id} = ${o.label}`).join(", ")}). If the conversation settled it, Inquire.choose that option for the developer; otherwise answer them, or ask again with Inquire.ask.`,
+          ),
           REPLY_RULE,
         ]
           .filter((x) => x.length > 0)
@@ -236,12 +264,14 @@ export const makeThread = (deps: ThreadDeps) =>
             yield* note("user", chosen?.label ?? String(payload.other ?? ""))
             yield* Deferred.succeed(p.answer, answer)
           } else if (input.message !== undefined && head !== undefined) {
-            // Interjection: the message answers the pending question; the question is recorded as dropped.
+            // A message instead of an answer: the developer is discussing the question. It stays open (for
+            // Inquire.choose) while the driver replies; its ask returns the message and the question's id.
             const p = head
             queue.shift()
+            if (p.owner === "loop") discussed.push(p)
             yield* note("user", input.message)
-            yield* note("assistant", `(dropped question: ${p.question.question})`)
-            yield* Deferred.succeed(p.answer, { other: input.message, interjected: true } as Answer)
+            yield* note("assistant", `(discussing: ${p.question.question})`)
+            yield* Deferred.succeed(p.answer, { other: input.message, interjected: true, question: p.id } as Answer)
           } else {
             // A resume for an interrupt this core does not know (e.g. after a restart) counts as a message.
             const text = input.message ?? (resume !== undefined ? String((resume.payload as { other?: string; choice?: string })?.other ?? (resume.payload as { choice?: string })?.choice ?? "") : undefined)

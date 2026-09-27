@@ -22,4 +22,13 @@ describe("ask before writing", () => {
     const next = askFirst({ ask: () => Effect.succeed({ choice: "a" }) })
     expect((await Effect.runPromise(Effect.flip(next.gate(writes)!.handlers.addCard!({})))) as { _tag: string }).toMatchObject({ _tag: "AskFirst" })
   })
+
+  test("a chat message about the question is not an answer; the driver choosing for the developer is", async () => {
+    const guard = askFirst({ ask: () => Effect.succeed({ other: "why?", interjected: true, question: "inq-1" }), choose: (c) => Effect.succeed({ choice: c.choice }) })
+    const gated = guard.gate(writes)!
+    await Effect.runPromise(guard.asker.ask({ question: "q", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }] }))
+    expect(await Effect.runPromise(Effect.flip(gated.handlers.addCard!({})))).toMatchObject({ _tag: "AskFirst" })
+    await Effect.runPromise(guard.asker.choose!({ question: "inq-1", choice: "a", why: "they agreed" }))
+    expect(await Effect.runPromise(gated.handlers.addCard!({}))).toBe("created UX-0001")
+  })
 })

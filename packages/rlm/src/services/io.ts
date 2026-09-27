@@ -33,16 +33,38 @@ const Question = Schema.Struct({
 })
 export type Question = typeof Question.Type
 /** An option id, or free text; `interjected` when the developer wrote a message instead of answering. */
-const Answer = Schema.Struct({ choice: Schema.optionalKey(Schema.String), other: Schema.optionalKey(Schema.String), interjected: Schema.optionalKey(Schema.Boolean) })
+const Answer = Schema.Struct({
+  choice: Schema.optionalKey(Schema.String).annotate({ description: "The option the developer picked." }),
+  other: Schema.optionalKey(Schema.String).annotate({ description: "What the developer wrote instead (Something else…, or a message about the question)." }),
+  interjected: Schema.optionalKey(Schema.Boolean).annotate({
+    description:
+      "True when the developer is discussing the question, not answering it: reply to what they wrote, then either Inquire.choose an option they settled on or Inquire.ask again. Never change the graph on a discussion alone.",
+  }),
+  question: Schema.optionalKey(Schema.String).annotate({ description: "With interjected: the id of the question still open for Inquire.choose." }),
+})
 export type Answer = typeof Answer.Type
+
+const Choice = Schema.Struct({
+  question: Schema.String.annotate({ description: "The id of a question under discussion (an interjected answer's `question`)." }),
+  choice: Schema.String.annotate({ description: "One of that question's option ids." }),
+  why: Schema.String.annotate({ description: "One sentence: what the developer said that settles it; shown to them." }),
+})
+export type Choice = typeof Choice.Type
 
 export const InquireDef = defineService("Inquire", "Ask the developer a question. The cell waits (yielded) until they answer.", {
   ask: { doc: "Ask with 2-4 options; mark one recommended with why. The answer is an option id or free text.", params: Question, success: Answer },
+  choose: {
+    doc: "Accept an option of a question under discussion for the developer, when the conversation settled it. They see what you chose and why.",
+    params: Choice,
+    success: Schema.Struct({ choice: Schema.String }),
+  },
 })
 
 /** How questions reach the developer; 2b implements it with AG-UI interrupts. */
 export interface Asker {
   readonly ask: (q: Question) => Effect.Effect<Answer, ServiceFailure>
+  /** Close a question under discussion with one of its options, for the developer. */
+  readonly choose?: (c: Choice) => Effect.Effect<{ readonly choice: string }, ServiceFailure>
 }
 
 export const inquire = (asker: Asker): Bound =>
@@ -51,6 +73,10 @@ export const inquire = (asker: Asker): Bound =>
       q.options.length < 2 || q.options.length > 4
         ? Effect.fail({ _tag: "InvalidQuestion", message: `ask with 2 to 4 options, got ${q.options.length}` })
         : asker.ask(q),
+    choose: (c) =>
+      asker.choose === undefined
+        ? Effect.fail({ _tag: "NoOpenQuestion", message: `no question ${c.question} is under discussion; ask with Inquire.ask` })
+        : asker.choose(c),
   })
 
 const DQuestion = Schema.Union([

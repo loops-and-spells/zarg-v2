@@ -183,7 +183,7 @@ test("a second question waits behind the first and is shown once the first is an
     expect(tasks[0]).toStartWith(WHAT_NEXT)
   })
 
-  test("a message while a question is pending answers it as an interjection", async () => {
+  test("a message while a question is pending opens a discussion of it; the question stays open for the driver", async () => {
     const answers: Array<unknown> = []
     let calls = 0
     const driver: Driver = (_spec, asker) =>
@@ -199,8 +199,58 @@ test("a second question waits behind the first and is shown once the first is an
         return yield* collect(thread.run({ runId: "r2", message: "actually, do payments first" }).pipe(Stream.take(11)))
       }),
     )
-    expect(answers).toEqual([{ other: "actually, do payments first", interjected: true }])
-    expect(texts(second)).toEqual(["actually, do payments first", "(dropped question: Which?)", "adapted"])
+    expect(answers).toEqual([{ other: "actually, do payments first", interjected: true, question: expect.stringMatching(/^inq-/) }])
+    expect(texts(second)).toEqual(["actually, do payments first", "(discussing: Which?)", "adapted"])
+  })
+
+  test("the driver can choose an option of the question under discussion for the developer, once", async () => {
+    const out: Record<string, unknown> = {}
+    let calls = 0
+    const driver: Driver = (_spec, asker) =>
+      Effect.gen(function* () {
+        if (calls++ > 0) return yield* Effect.never
+        const a = yield* asker.ask(question)
+        out.wrong = yield* Effect.flip(asker.choose!({ question: a.question!, choice: "z", why: "x" }))
+        out.chosen = yield* asker.choose!({ question: a.question!, choice: "b", why: "they want the smaller one" })
+        out.again = yield* Effect.flip(asker.choose!({ question: a.question!, choice: "b", why: "x" }))
+        return outcome("done")
+      }) as never
+    const second = await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setup(driver)
+        yield* collect(thread.run({ runId: "r1" }))
+        return yield* collect(thread.run({ runId: "r2", message: "which is smaller?" }).pipe(Stream.take(14)))
+      }),
+    )
+    expect(out.wrong).toMatchObject({ _tag: "InvalidChoice" })
+    expect(out.chosen).toEqual({ choice: "b" })
+    expect(out.again).toMatchObject({ _tag: "NoOpenQuestion" })
+    expect(texts(second)).toContain("zarg chose Option B for you: they want the smaller one")
+  })
+
+  test("a question left under discussion is named in the next driver's task", async () => {
+    const tasks: Array<string> = []
+    let calls = 0
+    const driver: Driver = (spec, asker) =>
+      Effect.gen(function* () {
+        tasks.push(spec.task)
+        if (calls++ === 0) {
+          yield* asker.ask(question)
+          return outcome("let me think about that")
+        }
+        return yield* Effect.never
+      }) as never
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setup(driver)
+        yield* collect(thread.run({ runId: "r1" }))
+        yield* collect(thread.run({ runId: "r2", message: "what does B cost?" }).pipe(Stream.take(10)))
+        yield* Effect.sleep(50)
+      }),
+    )
+    expect(tasks[1]).toContain('Still under discussion: "Which?" (question inq-')
+    expect(tasks[1]).toContain("options: a = Option A, b = Option B")
+    expect(tasks[1]).toContain("Inquire.choose")
   })
 
   test("a new run while the driver works ends the open run; the message reaches the next driver", async () => {
