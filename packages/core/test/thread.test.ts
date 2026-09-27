@@ -52,7 +52,7 @@ describe("thread runs", () => {
     expect(out.interrupt).toMatchObject({ type: "RUN_FINISHED", runId: "r1", outcome: { type: "interrupt", interrupts: [{ reason: "inquiry", message: "Which?" }] } })
     expect(out.interrupt.outcome.interrupts[0].metadata.options[0]).toMatchObject({ id: "a", recommended: true })
     expect(texts(out.second)).toEqual(["Option A", "picked a"])
-    expect(tasks[0]).toBe(WHAT_NEXT)
+    expect(tasks[0]).toStartWith(WHAT_NEXT)
   })
 
   test("a message while a question is pending answers it as an interjection", async () => {
@@ -101,11 +101,56 @@ describe("thread runs", () => {
     expect(tasks[1]).toContain("developer: also add a logout card")
   })
 
-  test("the agenda's first item is the driver's task, with recent conversation", async () => {
+  test("your message comes before the agenda: the next driver item answers you", async () => {
     const tasks: Array<string> = []
+    let calls = 0
     const driver: Driver = (spec, asker) =>
       Effect.gen(function* () {
         tasks.push(spec.task)
+        if (calls++ === 0) {
+          yield* Effect.sleep(100)
+          return outcome("worked on the agenda")
+        }
+        return yield* Effect.map(asker.ask(question), () => outcome("unused"))
+      }) as never
+    const item: AgendaItem = { id: "x", title: "An agenda item", detail: "d", about: [], priority: 2 }
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setup(driver, () => [item])
+        const first = yield* Effect.forkChild(collect(thread.run({ runId: "r1" })))
+        yield* Effect.sleep(20)
+        yield* collect(thread.run({ runId: "r2", message: "hi, what can we do?" }))
+        yield* Fiber.join(first)
+      }),
+    )
+    expect(tasks[0]).toContain("An agenda item")
+    expect(tasks[1]).toStartWith('The developer said: "hi, what can we do?"')
+  })
+
+  test("the driver's reply is kept short, and every task says so", async () => {
+    const tasks: Array<string> = []
+    let calls = 0
+    const driver: Driver = (spec, asker) =>
+      Effect.gen(function* () {
+        tasks.push(spec.task)
+        if (calls++ === 0) return outcome("x".repeat(2000))
+        return yield* Effect.map(asker.ask(question), () => outcome("unused"))
+      }) as never
+    const out = await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setup(driver); return yield* collect(thread.run({ runId: "r1" })) }))
+    const reply = texts(out)[0] as string
+    expect(reply.length).toBeLessThanOrEqual(601)
+    expect(reply.endsWith("…")).toBe(true)
+    expect(tasks[0]).toContain("one or two sentences")
+  })
+
+  test("the agenda's first item is the driver's task, with recent conversation", async () => {
+    const tasks: Array<string> = []
+    let calls = 0
+    const driver: Driver = (spec, asker) =>
+      Effect.gen(function* () {
+        tasks.push(spec.task)
+        // The first item answers the developer's message; the next one is the agenda's.
+        if (calls++ === 0) return outcome("Hello! Let's look at the agenda.")
         return (yield* asker.ask(question)) as never
       }) as never
     const item: AgendaItem = { id: "gherkin:dead-end:S-0004", title: "What happens after payment?", detail: "No card continues from S-0004.", about: ["S-0004"], priority: 2 }
@@ -115,8 +160,10 @@ describe("thread runs", () => {
         yield* collect(thread.run({ runId: "r1", message: "hello" }))
       }),
     )
-    expect(tasks[0]).toContain("What happens after payment?\nNo card continues from S-0004.")
-    expect(tasks[0]).toContain("Recent conversation:\ndeveloper: hello")
+    expect(tasks[0]).toStartWith('The developer said: "hello"')
+    expect(tasks[1]).toContain("What happens after payment?\nNo card continues from S-0004.")
+    expect(tasks[1]).toContain("ask the developer with Inquire.ask before changing the graph")
+    expect(tasks[1]).toContain("Recent conversation:\ndeveloper: hello\ndriver: Hello! Let's look at the agenda.")
   })
 
   test("an item still open after two passes turns into a what-next question", async () => {

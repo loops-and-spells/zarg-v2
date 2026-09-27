@@ -11,6 +11,7 @@ import { gherkin } from "@zarg/plugin-gherkin/server"
 import { openrouter } from "@zarg/provider-openrouter"
 import { zargRouter } from "@zarg/provider-zarg-router"
 import { type Asker, decisionsService, fsRead, graph, inquire, pluginService, Rlm, type Scope, settings } from "@zarg/rlm"
+import { askFirst } from "./driver"
 import { makeLog } from "./log"
 import { STUB_MODEL, stubLayer } from "./stub"
 import { reasonOf, reconcileGate, type ReconcileSettings } from "./phases"
@@ -40,12 +41,14 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     const snapshot = store.snapshot.pipe(Effect.mapError((e) => ({ _tag: e._tag, message: e.message })))
 
     const makeRlm = (asker: Asker, observe: (e: Rlm.RlmEvent) => void) => {
+      // One driver item: graph writes wait for an answered question.
+      const guard = askFirst(asker)
       const factory = (name: string, scope: Scope): Bound | undefined => {
         const ctx = { host, snapshot, scope }
         if (name === "Graph") return graph(ctx)
-        if (name === "Gherkin") return pluginService(gherkin, ctx)
+        if (name === "Gherkin") return guard.gate(pluginService(gherkin, ctx))
         if (name === "Fs:read") return fsRead({ root, scope, sensitive })
-        if (name === "Inquire") return inquire(asker)
+        if (name === "Inquire") return inquire(guard.asker)
         if (name === "Decisions") return decisionsService(decisions as never)
         return undefined
       }

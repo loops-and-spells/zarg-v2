@@ -8,7 +8,14 @@ import type { WireEvent } from "./events"
 import type { ThreadLog } from "./log"
 
 export const WHAT_NEXT =
-  "The agenda is empty. Ask the developer what to work on next, with options drawn from the graph (unexplored branches, missing failure cases, the next journey)."
+  "The agenda is empty. Ask the developer what to work on next, with options drawn from the graph (unexplored branches, missing failure cases, the next journey). Decide the options yourself from Graph.render and Graph.agenda; no research children for this."
+
+/** Appended to every driver task: its result is a message to the developer. */
+export const REPLY_RULE =
+  "Finish with `yield* Rlm.done({ value })`, where value is one or two sentences to the developer about what you did or found. No card renders, no ids-only lists."
+
+/** The longest reply shown; longer results are cut. */
+const REPLY_MAX = 600
 
 /** A resume or a typed message, as a run brings it in. */
 export interface RunInput {
@@ -50,6 +57,8 @@ export const makeThread = (deps: ThreadDeps) =>
     let pending: Pending | undefined
     let paused: Deferred.Deferred<void> | undefined
     const recent: Array<string> = []
+    // Messages the developer sent while the driver worked: the next item answers them, before the agenda.
+    const inbox: Array<string> = []
     const emit = (d: E.Draft) => {
       if (d.type === "RUN_FINISHED" || d.type === "RUN_ERROR") open = false
       return log.append(threadId, d)
@@ -101,16 +110,22 @@ export const makeThread = (deps: ThreadDeps) =>
       let lastItem = ""
       let passes = 0
       while (true) {
-        const items = yield* deps.agenda(focusSet).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<AgendaItem>))
+        const said = inbox.splice(0)
+        const items = said.length > 0 ? [] : yield* deps.agenda(focusSet).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<AgendaItem>))
         const item = items[0]
         passes = item !== undefined && item.id === lastItem ? passes + 1 : 1
         lastItem = item?.id ?? ""
         // The same item still open after two passes: ask what next instead of looping on it.
         const stuck = item !== undefined && passes > 2
         const task = [
-          item === undefined || stuck ? WHAT_NEXT : `${item.title}\n${item.detail}`,
+          said.length > 0
+            ? `The developer said: ${said.map((m) => JSON.stringify(m)).join(" then ")}\nAnswer them directly. If a choice is needed, ask with Inquire.ask (options, one recommended).`
+            : item === undefined || stuck
+              ? WHAT_NEXT
+              : `${item.title}\n${item.detail}\nPropose how to resolve it and ask the developer with Inquire.ask before changing the graph.`,
           stuck ? `Note: "${item!.title}" is still open after two passes; mention it among the options.` : "",
           recent.length > 0 ? `Recent conversation:\n${recent.join("\n")}` : "",
+          REPLY_RULE,
         ]
           .filter((x) => x.length > 0)
           .join("\n\n")
@@ -118,7 +133,8 @@ export const makeThread = (deps: ThreadDeps) =>
         yield* emit(activity.reset())
         const outcome = yield* Effect.exit(deps.driver({ task, preset: "driver", scope }, asker, observe))
         if (Exit.isSuccess(outcome)) {
-          yield* note("assistant", String(outcome.value.value))
+          const reply = String(outcome.value.value)
+          yield* note("assistant", reply.length > REPLY_MAX ? `${reply.slice(0, REPLY_MAX)}…` : reply)
           continue
         }
         const err = outcome.cause.reasons.find((r) => r._tag === "Fail")?.error
@@ -180,7 +196,10 @@ export const makeThread = (deps: ThreadDeps) =>
           } else {
             // A resume for an interrupt this core does not know (e.g. after a restart) counts as a message.
             const text = input.message ?? (resume !== undefined ? String((resume.payload as { other?: string; choice?: string })?.other ?? (resume.payload as { choice?: string })?.choice ?? "") : undefined)
-            if (text !== undefined && text.length > 0) yield* note("user", text)
+            if (text !== undefined && text.length > 0) {
+              yield* note("user", text)
+              inbox.push(text)
+            }
           }
           if (paused !== undefined) {
             const p = paused
