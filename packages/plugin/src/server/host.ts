@@ -47,6 +47,8 @@ export class PluginHost extends Context.Service<
     readonly stories: (strategy: "edge-pair" | "teleport", focus?: ReadonlySet<string>) => Effect.Effect<{ readonly stories: ReadonlyArray<ReadonlyArray<string>>; readonly unreachable: number }, IoError>
     /** What a tester sees at a card, from the plugin that owns it; undefined for an unknown card. */
     readonly step: (card: string, via?: string) => Effect.Effect<Record<string, unknown> | undefined, IoError>
+    /** Call any method of a loaded plugin (the core's reserved calls: body, act, finding, resolved, stop). */
+    readonly invoke: (plugin: string, method: string, params: unknown) => Effect.Effect<unknown, { readonly _tag: string; readonly message: string }>
     /** Run `effect` with no tool call committing meanwhile (e.g. while landing a commit that writes graph files). */
     readonly exclusive: <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
   }
@@ -79,7 +81,7 @@ const manifestProblem = (m: Manifest): string | undefined => {
   if (!PLUGIN_NAME.test(String(m.name))) return `name "${m.name}" must be kebab-case (no doubled or trailing dash)`
   if (!SERVICE.test(String(m.service))) return `service "${m.service}" must be PascalCase`
   if (RESERVED_SERVICES.has(m.service)) return `service "${m.service}" is zarg's own`
-  if (m.archetype !== "graph" && m.archetype !== "provider") return `archetype "${m.archetype}" is unknown`
+  if (m.archetype !== "graph" && m.archetype !== "provider" && m.archetype !== "service") return `archetype "${m.archetype}" is unknown`
   const bad = Object.keys(m.methods ?? {}).find((k) => !METHOD.test(k))
   return bad !== undefined ? `method "${bad}" is not a method name` : undefined
 }
@@ -98,7 +100,7 @@ const scrub = (value: unknown, secrets: ReadonlySet<string>): unknown => {
 }
 
 /** Methods the host calls on graph plugins; never offered as tools. */
-const RESERVED = new Set(["validate", "lint", "agenda", "suggest", "render", "affected", "stories", "step"])
+const RESERVED = new Set(["validate", "lint", "agenda", "suggest", "render", "affected", "stories", "step", "body", "act", "finding", "resolved", "stop"])
 const IDLE_MS = 10 * 60_000
 const RESTART_WINDOW_MS = 10 * 60_000
 const MAX_RESTARTS = 3
@@ -155,8 +157,44 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         void hostItems.push({ id: `plugin-failed:${m.name}`, title: `Plugin ${m.name} failed to load`, detail: why, about: [], priority: 1 })
       const services = new Set<string>()
 
+      // Dependencies: a plugin in a cycle, or needing one that is not here, does not start at all.
+      const byName = new Map(plugins.map((p) => [p.manifest.name, p.manifest]))
+      const depsOf = (m: Manifest) => (m.pluginDependencies ?? []).map((d) => d.name)
+      const cyclic = new Set<string>()
+      for (const p of plugins) {
+        const path: Array<string> = []
+        const walk = (n: string): boolean => {
+          if (path.includes(n)) {
+            if (path[0] === n) path.forEach((x) => cyclic.add(x))
+            return path[0] === n
+          }
+          const m = byName.get(n)
+          if (m === undefined) return false
+          path.push(n)
+          const hit = depsOf(m).some(walk)
+          path.pop()
+          return hit
+        }
+        walk(p.manifest.name)
+      }
+      const needs = (m: Manifest, dep: string, why: string) =>
+        void hostItems.push({ id: `plugin-needs:${m.name}:${dep}`, title: `Plugin ${m.name} needs ${dep}, which is not loaded`, detail: why, about: [], priority: 1 })
+      const startable = plugins.filter((p) => {
+        const m = p.manifest
+        if (cyclic.has(m.name)) {
+          failed(m, `its pluginDependencies form a cycle (${[...cyclic].join(" → ")})`)
+          return false
+        }
+        const missing = depsOf(m).find((d) => !byName.has(d))
+        if (missing !== undefined) {
+          needs(m, missing, `${missing} is not installed.`)
+          return false
+        }
+        return true
+      })
+
       // Checked and started together (a slow plugin does not hold up the others), kept in their given order.
-      const started = yield* Effect.forEach(plugins, (p) => Effect.gen(function* () {
+      const started = yield* Effect.forEach(startable, (p) => Effect.gen(function* () {
         const m = p.manifest
         const problem = manifestProblem(m)
         if (problem !== undefined) return failed(m, problem)
@@ -190,6 +228,13 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           log: opts.log,
           redact: opts.redact,
           asking: (open) => void (asking += open ? 1 : -1),
+          dependencies: (m.pluginDependencies ?? []).map((d) => ({ name: d.name, methods: byName.get(d.name)?.contract?.methods ?? [] })),
+          // Looked up at call time: the dependency is running by then (checked below), or the call fails typed.
+          callPlugin: (name, method, params) => {
+            const dep = running.get(name)
+            if (dep === undefined) return Promise.reject({ tag: "PluginError", message: `${name} is not loaded` })
+            return Effect.runPromise(invoke(dep, method, params).pipe(Effect.mapError((e) => ({ tag: e._tag, message: e.message }))))
+          },
           ...(opts.userDir !== undefined ? { userDir: opts.userDir } : {}),
         })
         const spawned = yield* spawnPlugin({
@@ -206,6 +251,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
             if (r !== undefined && restarts.length >= MAX_RESTARTS && !r.disabled) {
               r.disabled = true
               hostItems.push({ id: `plugin-disabled:${m.name}`, title: `Plugin ${m.name} was disabled after ${MAX_RESTARTS} restarts`, detail: "It crashed or ran past its deadline three times in ten minutes. Restart zarg to try it again.", about: [], priority: 1 })
+              disableDependents(m.name)
             }
           },
         }).pipe(Scope.provide(scope), Effect.exit)
@@ -222,6 +268,15 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         const r: Running = { manifest: m, process: spawned.value, restarts, disabled: false, inflight: 0, served: served(powers) }
         return r
       }), { concurrency: "unbounded" })
+      /** A disabled plugin takes every plugin that needs it (directly or not) with it. */
+      const disableDependents = (name: string) => {
+        for (const d of running.values()) {
+          if (d.disabled || !depsOf(d.manifest).includes(name)) continue
+          d.disabled = true
+          hostItems.push({ id: `plugin-disabled:${d.manifest.name}`, title: `Plugin ${d.manifest.name} was disabled: ${name}, which it needs, was disabled`, detail: "Restart zarg to try them again.", about: [], priority: 1 })
+          disableDependents(d.manifest.name)
+        }
+      }
       for (const r of started) {
         if (r === undefined) continue
         if (running.has(r.manifest.name) || services.has(r.manifest.service)) {
@@ -231,6 +286,28 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         }
         services.add(r.manifest.service)
         running.set(r.manifest.name, r)
+      }
+
+      // Dependencies in order: each must be running and serve the contract this plugin was built against.
+      const order = [...running.keys()]
+      let changed = true
+      while (changed) {
+        changed = false
+        for (const name of order) {
+          const r = running.get(name)
+          if (r === undefined) continue
+          for (const d of r.manifest.pluginDependencies ?? []) {
+            const dep = running.get(d.name)
+            const why = dep === undefined ? "it did not load (see its own item)" : dep.manifest.contract?.digest !== d.digest ? `${name} was built against a different ${d.name} (its contract changed); rebuild ${name}` : undefined
+            if (why === undefined) continue
+            yield* r.process.stop
+            running.delete(name)
+            services.delete(r.manifest.service)
+            needs(r.manifest, d.name, why)
+            changed = true
+            break
+          }
+        }
       }
 
       yield* Effect.addFinalizer(() => Effect.sync(() => { for (const r of running.values()) if (r.idle !== undefined) clearTimeout(r.idle) }))
@@ -385,6 +462,10 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         affected,
         stories,
         step,
+        invoke: (plugin: string, method: string, params: unknown) => {
+          const r = running.get(plugin)
+          return r === undefined ? Effect.fail({ _tag: "NotLoaded", message: `plugin ${plugin} is not loaded` }) : invoke(r, method, params)
+        },
         exclusive: Semaphore.withPermits(lock, 1),
       }
     }),

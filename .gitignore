@@ -5,3 +5,4 @@ node_modules/
 .zarg/threads/
 packages/*/dist/
 .zarg/rehearse/
+packages/plugin/test/fixtures/.gen/

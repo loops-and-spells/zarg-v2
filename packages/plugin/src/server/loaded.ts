@@ -9,8 +9,12 @@ import { PluginConfigError } from "./validate"
 export interface Manifest {
   readonly name: string
   readonly service: string
-  readonly archetype: "graph" | "provider"
+  readonly archetype: "graph" | "provider" | "service"
   readonly config: unknown
+  /** The contract it serves to dependents: digest and callable methods. */
+  readonly contract?: { readonly name: string; readonly digest: string; readonly methods: ReadonlyArray<string> }
+  /** The contracts it was built against. */
+  readonly pluginDependencies?: ReadonlyArray<{ readonly name: string; readonly digest: string }>
   readonly scopes: ManifestScopes
   readonly optional: ManifestScopes
   readonly methods: Readonly<Record<string, { readonly doc: string; readonly params: unknown; readonly success: unknown; readonly agents: boolean; readonly deadlineMs?: number; readonly stream: boolean }>>

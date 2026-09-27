@@ -106,6 +106,10 @@ export const makePowers = (opts: {
   readonly fetch?: typeof fetch
   /** zarg's user directory (grants, installed plugins): never reachable by a plugin. */
   readonly userDir?: string
+  /** The plugins this one depends on and the contract methods it may call on each. */
+  readonly dependencies?: ReadonlyArray<{ readonly name: string; readonly methods: ReadonlyArray<string> }>
+  /** Call a dependency's method (the host's invoke). */
+  readonly callPlugin?: (name: string, method: string, params: unknown) => Promise<unknown>
   /** Told while a question to the developer is open, so the call's deadline can stop. */
   readonly asking?: (open: boolean) => void
 }): Powers => {
@@ -229,6 +233,15 @@ export const makePowers = (opts: {
         await fh.close()
       }
       return null
+    },
+    // A dependency's contract methods only: its public read surface, never its writes or agent tools.
+    "plugins.call": async (args) => {
+      const a = args as { name?: unknown; method?: unknown; params?: unknown }
+      const dep = (opts.dependencies ?? []).find((d) => d.name === a.name)
+      if (dep === undefined) throw notGranted(`${opts.plugin}: ${printable(String(a.name))} is not one of its pluginDependencies`)
+      if (!dep.methods.includes(String(a.method))) throw notGranted(`${opts.plugin}: ${printable(String(a.method))} is not in the ${dep.name} contract`)
+      if (opts.callPlugin === undefined) throw pluginError(`${opts.plugin}: this host has no plugin calls`)
+      return await opts.callPlugin(dep.name, String(a.method), a.params)
     },
     ...(opts.snapshot !== undefined ? { "graph.snapshot": async () => await opts.snapshot!() } : {}),
   }

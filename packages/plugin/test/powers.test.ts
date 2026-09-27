@@ -262,3 +262,19 @@ describe("review fixes: secrets and questions", () => {
   })
 })
 
+
+describe("plugins.call", () => {
+  test("reaches only declared dependencies, and only the methods their contract lists", async () => {
+    const calls: Array<string> = []
+    const powers = makePowers({
+      plugin: "user", manifest: { scopes: {} as never, optional: {} as never }, grants: Effect.runSync(makeGrants({ file: join(tmp(), "g.json"), project: "/zt/p" })), digest: "d",
+      vault: () => Effect.succeed(undefined), config: {}, ask: () => Effect.succeed("deny"), yolo: () => false, log: () => {}, redact: (t) => t,
+      dependencies: [{ name: "base", methods: ["hello"] }],
+      callPlugin: async (name, method) => (calls.push(`${name}.${method}`), "ok"),
+    })
+    expect(await powers["plugins.call"]!({ name: "base", method: "hello", params: {} })).toBe("ok")
+    await expect(powers["plugins.call"]!({ name: "base", method: "write", params: {} })).rejects.toThrow("not in the base contract")
+    await expect(powers["plugins.call"]!({ name: "other", method: "hello", params: {} })).rejects.toThrow("not one of its pluginDependencies")
+    expect(calls).toEqual(["base.hello"])
+  })
+})

@@ -5,4 +5,4 @@ run = "mise x -- bunx tsc"
 run = "mise x -- bun test"
 
 [tasks.build]
-run = "mise x -- bun scripts/build.ts"
+run = "mise x -- bun ../plugin/scripts/build-plugins.ts plugin-gherkin"

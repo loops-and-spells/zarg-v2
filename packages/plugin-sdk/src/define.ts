@@ -1,4 +1,5 @@
 import { Effect, Layer, Schema, Stream } from "effect"
+import type { Contract } from "./contract"
 import { Config, Files, Graph, Http, PluginFailure, type RawPowers, Secrets, servicesFrom } from "./services"
 
 export interface Scopes {
@@ -22,13 +23,17 @@ type Handlers<M extends Record<string, MethodSpec>> = {
 export interface PluginDef<M extends Record<string, MethodSpec>> {
   readonly name: string
   readonly service: string
-  readonly archetype: "graph" | "provider"
+  readonly archetype: "graph" | "provider" | "service"
   readonly config: Schema.Codec<any, any>
+  /** The contract this plugin serves to plugins that depend on it (its public read methods). */
+  readonly implements?: Contract
+  /** Contracts of the plugins this one needs: it loads only when they are loaded, and yields them as services. */
+  readonly pluginDependencies?: ReadonlyArray<Contract>
   readonly scopes: Scopes
   readonly optional?: Scopes
   readonly methods: M
   readonly graph?: { readonly nodes: Readonly<Record<string, Schema.Codec<any, any>>>; readonly edges: Readonly<Record<string, EdgeSpec>> }
-  readonly make: Effect.Effect<Handlers<M>, never, Secrets | Http | Files | Graph | Config>
+  readonly make: Effect.Effect<Handlers<M>, never, any>
 }
 export interface Plugin<M extends Record<string, MethodSpec> = Record<string, MethodSpec>> extends PluginDef<M> {
   /** Called by the runner inside the plugin's Compartment. */
@@ -44,13 +49,33 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
   if (!SERVICE.test(def.service)) throw new Error(`plugin service "${def.service}" must be PascalCase`)
   const serve = (raw: RawPowers) => {
     const s = servicesFrom(raw)
+    // Each dependency is its contract's service, over the plugins.call power, encoded with the contract's Schemas.
+    const deps = (def.pluginDependencies ?? []).map((dep) =>
+      Layer.succeed(
+        dep,
+        Object.fromEntries(
+          Object.entries(dep.methods).map(([m, spec]) => [
+            m,
+            (p: unknown) =>
+              Effect.tryPromise({
+                try: () => raw.call("plugins.call", { name: dep.pluginName, method: m, params: Schema.encodeSync(spec.params)(p) }),
+                catch: (e) => new PluginFailure({ tag: String((e as { tag?: string }).tag ?? "PluginError"), message: String((e as Error).message ?? e) }),
+              }).pipe(
+                Effect.flatMap((v) => Schema.decodeUnknownEffect(spec.success)(v)),
+                Effect.mapError((e) => (e instanceof PluginFailure ? e : new PluginFailure({ tag: "PluginError", message: `${dep.pluginName}.${m}: ${e.message}` }))),
+              ),
+          ]),
+        ) as never,
+      ),
+    )
     const layer = Layer.mergeAll(
       Layer.succeed(Secrets, s.secrets), Layer.succeed(Http, s.http), Layer.succeed(Files, s.files), Layer.succeed(Graph, s.graph),
       Layer.effect(Config, Effect.map(Effect.promise(() => raw.call("config.get", {})), (value) => Config.of({ value }))),
+      ...deps,
     )
     // Handlers are built once, on the first call, so a plugin with a broken config fails that call and not the load.
     let built: Promise<Handlers<M>> | undefined
-    const handlers = () => (built ??= Effect.runPromise(def.make.pipe(Effect.provide(layer))))
+    const handlers = () => (built ??= Effect.runPromise(def.make.pipe(Effect.provide(layer)) as Effect.Effect<Handlers<M>>))
     return Object.fromEntries(
       Object.entries(def.methods).map(([name, spec]) => [
         name,

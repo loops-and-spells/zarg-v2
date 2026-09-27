@@ -1,4 +1,5 @@
 import { builtinModules } from "node:module"
+import { Schema } from "effect"
 import type { Plugin } from "./define"
 import { type Manifest, manifestOf } from "./manifest"
 
@@ -46,5 +47,13 @@ export const buildPlugin = async (entry: string): Promise<{ ok: true; bundle: st
   for (const [re, msg] of SES_REJECTS) if (re.test(bundle)) errors.push(msg)
   if (errors.length > 0) return { ok: false, errors }
   const plugin = (await import(entry)).default as Plugin
+  // A plugin serves the contract it claims: every contract method, with the same Schemas.
+  const json = (x: unknown) => JSON.stringify(Schema.toJsonSchemaDocument(x as never))
+  for (const [m, spec] of Object.entries(plugin.implements?.methods ?? {})) {
+    const own = plugin.methods[m]
+    if (own === undefined) errors.push(`${plugin.name} implements ${plugin.implements!.pluginName} but has no method ${m}`)
+    else if (json(own.params) !== json(spec.params) || json(own.success) !== json(spec.success)) errors.push(`${plugin.name}.${m} does not match its contract's Schemas`)
+  }
+  if (errors.length > 0) return { ok: false, errors }
   return { ok: true, bundle, manifest: manifestOf(plugin) }
 }

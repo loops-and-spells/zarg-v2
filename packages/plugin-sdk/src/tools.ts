@@ -2,3 +2,4 @@
 export * from "./build"
 export * from "./manifest"
 export * from "./testing"
+export * from "./contract-digest"

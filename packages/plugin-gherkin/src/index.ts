@@ -3,6 +3,7 @@ import { diff, type Node, Snapshot } from "@zarg/graph/pure"
 import { definePlugin, Graph, PluginFailure } from "@zarg/plugin-sdk"
 import { affectedCards } from "./affected"
 import { agenda, suggest } from "./agenda"
+import { Gherkin, StepParams, StepView, StoriesParams, StoriesResult } from "./contract"
 import type { Finding } from "./kit"
 import { clauseShape, stateText } from "./lints"
 import { CARD, CardProps, STATE, StateProps } from "./model"
@@ -37,6 +38,7 @@ export default definePlugin({
   name: "gherkin",
   service: "Gherkin",
   archetype: "graph",
+  implements: Gherkin,
   config: Schema.Struct({}),
   scopes: { graph: "write" },
   graph: {
@@ -54,12 +56,8 @@ export default definePlugin({
     agenda: { doc: "Open items.", params: Schema.Struct({}), success: Items },
     suggest: { doc: "What next when the agenda is empty.", params: Schema.Struct({}), success: Items },
     render: { doc: "Gherkin text.", params: Schema.Struct({ focus: Schema.optionalKey(Schema.Array(Schema.String)) }), success: Schema.String },
-    stories: {
-      doc: "Stories for testers to walk.",
-      params: Schema.Struct({ strategy: Schema.Literals(["edge-pair", "teleport"]), focus: Schema.optionalKey(Schema.Array(Schema.String)) }),
-      success: Schema.Struct({ stories: Schema.Array(Schema.Array(Schema.String)), unreachable: Schema.Number }),
-    },
-    step: { doc: "What a tester sees at a step.", params: Schema.Struct({ card: Schema.String, via: Schema.optionalKey(Schema.String) }), success: Schema.Unknown },
+    stories: { doc: "Stories for testers to walk.", params: StoriesParams, success: StoriesResult },
+    step: { doc: "What a tester sees at a step.", params: StepParams, success: StepView },
     affected: {
       doc: "Cards a change affects.",
       params: Schema.Struct({ before: SnapshotJson, after: SnapshotJson }),
