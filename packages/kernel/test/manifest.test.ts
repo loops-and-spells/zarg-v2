@@ -64,6 +64,19 @@ describe("readable declarations", () => {
 })
 
 describe("manifest", () => {
+  test("a method described by JSON Schema declares its types from it", () => {
+    const Plug = defineService("Plug", "A plugin.", {
+      hello: {
+        doc: "Say hello.",
+        params: Schema.Unknown,
+        success: Schema.Unknown,
+        json: { params: Schema.toJsonSchemaDocument(Schema.Struct({ who: Schema.String })), success: Schema.toJsonSchemaDocument(Schema.String) },
+      },
+    })
+    const text = manifest([Plug])
+    expect(text).toContain("hello(params: { who: string }): Eff<string>")
+    expect(makeChecker(text).check("yield* Plug.hello({ who: 1 })").ok).toBe(false)
+  })
   test("declares each service with its doc lines and typed methods", () => {
     const text = manifest([Notes])
     expect(text).toContain("/** A tiny note store for tests. */\ndeclare const Notes: {")

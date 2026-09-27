@@ -5,6 +5,8 @@ export interface MethodDef<P = any, S = any> {
   readonly doc: string
   readonly params: Schema.Codec<P, any>
   readonly success: Schema.Codec<S, any>
+  /** JSON Schema documents to declare instead of `params`/`success` (plugin methods, described by their manifest). */
+  readonly json?: { readonly params: unknown; readonly success: unknown }
 }
 
 /** A yieldable service: its name as cells see it, a doc line, and its methods. */

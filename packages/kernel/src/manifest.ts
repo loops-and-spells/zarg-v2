@@ -67,6 +67,11 @@ export const tsType = (s: any, defs: Record<string, any> = {}, refs: ReadonlySet
   return "unknown"
 }
 
+const docType = (doc: unknown, indent: string) => {
+  const d = doc as { schema: unknown; definitions?: Record<string, unknown> }
+  return tsType(d.schema, d.definitions ?? {}, new Set(), indent)
+}
+
 const typeOf = (schema: Schema.Top, indent: string) => {
   const doc = Schema.toJsonSchemaDocument(schema) as { schema: unknown; definitions?: Record<string, unknown> }
   return tsType(doc.schema, doc.definitions ?? {}, new Set(), indent)
@@ -96,7 +101,7 @@ export const manifest = (services: ReadonlyArray<ServiceDef>): string =>
         `/** ${svc.doc} */`,
         `declare const ${svc.name}: {`,
         ...Object.entries(svc.methods).map(
-          ([m, def]) => `  /** ${def.doc} */\n  ${m}(params: ${typeOf(def.params, "  ")}): Eff<${typeOf(def.success, "  ")}>`,
+          ([m, def]) => `  /** ${def.doc} */\n  ${m}(params: ${def.json ? docType(def.json.params, "  ") : typeOf(def.params, "  ")}): Eff<${def.json ? docType(def.json.success, "  ") : typeOf(def.success, "  ")}>`,
         ),
         "}",
       ].join("\n"),
