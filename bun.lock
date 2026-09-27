@@ -22,6 +22,7 @@
         "@zarg/core": "workspace:*",
         "@zarg/graph": "workspace:*",
         "@zarg/plugin": "workspace:*",
+        "@zarg/plugin-sdk": "workspace:*",
         "@zarg/reconcile": "workspace:*",
         "effect": "^4.0.0-rc.117",
         "react": "19",
