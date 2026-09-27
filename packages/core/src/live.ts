@@ -1,4 +1,5 @@
 import { BunServices } from "@effect/platform-bun"
+import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { Cause, Effect, Layer, Scope as EffectScope, Semaphore } from "effect"
@@ -14,6 +15,7 @@ import { type Asker, decisionsService, fsRead, graph, inquire, pluginService, Rl
 import { askFirst } from "./driver"
 import { judgeGaps } from "./gaps"
 import { outsideReads } from "./outside"
+import { nextGoals, type NextOption } from "./intent"
 import { makeLog } from "./log"
 import { makeYolo, PluginControl, pluginHostLayer, USER_DIR, vaultFrom } from "./plugins"
 import { STUB_MODEL, stubLayer } from "./stub"
@@ -91,14 +93,19 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     const render = (ids: ReadonlyArray<string>, scope: Scope) => Effect.map(graph({ host, snapshot, scope }).handlers.render!({ focus: ids }), String)
     // What next: failure candidates a decision model judges real.
     const suggest = (focus: ReadonlySet<string> | undefined) => Effect.flatMap(host.suggest(focus), (c) => judgeGaps(decisions.decide, c))
-    // Where journeys start, for the question zarg asks when nothing is open.
-    const journeys = (focus: ReadonlySet<string> | undefined) =>
-      Effect.map(store.snapshot, (snap) =>
-        [...snap.nodes.values()]
+    // What zarg offers when nothing is open: the intent's next goals; without an intent, where journeys start.
+    const whatNext = (focus: ReadonlySet<string> | undefined) =>
+      Effect.gen(function* () {
+        const dir = join(root, "intent")
+        const files = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".md")).sort() : []
+        const goals = files.flatMap((f) => nextGoals(readFileSync(join(dir, f), "utf8"), `intent/${f}`))
+        if (goals.length > 0) return goals
+        const snap = yield* store.snapshot
+        return [...snap.nodes.values()]
           .filter((n) => n.type === "gherkin/state" && n.props.entry === true && (focus === undefined || focus.has(n.id)))
-          .map((n) => ({ id: n.id, text: String(n.props.text ?? n.id) })),
-      )
-    const threads = yield* makeThreads({ log, agenda, render, suggest, journeys, makeRlm, extra: reconcile?.threads ?? [] })
+          .map((n): NextOption => ({ id: n.id, label: String(n.props.text ?? n.id), task: `Work on the journey that starts at "${String(n.props.text ?? n.id)}" (${n.id}).` }))
+      })
+    const threads = yield* makeThreads({ log, agenda, render, suggest, whatNext, makeRlm, extra: reconcile?.threads ?? [] })
     // A plugin's grant question is asked on main, like any driver question.
     const main = yield* threads.get("main", [])
     const control = yield* PluginControl

@@ -9,7 +9,7 @@ export interface ThreadsDeps {
   readonly agenda: ThreadDeps["agenda"]
   readonly render?: ThreadDeps["render"]
   readonly suggest?: ThreadDeps["suggest"]
-  readonly journeys?: ThreadDeps["journeys"]
+  readonly whatNext?: ThreadDeps["whatNext"]
   /** An RLM runner whose Inquire uses `asker` and whose events go to `observe`. */
   readonly makeRlm: (asker: Asker, observe: (e: Rlm.RlmEvent) => void) => Effect.Effect<Rlm.Rlm>
   /** Threads that exist from the start besides `main` (the `plan` and `implement` views). */
@@ -28,7 +28,7 @@ export const makeThreads = (deps: ThreadsDeps) =>
         agenda: deps.agenda,
         ...(deps.render !== undefined ? { render: deps.render } : {}),
         ...(deps.suggest !== undefined ? { suggest: deps.suggest } : {}),
-        ...(deps.journeys !== undefined ? { journeys: deps.journeys } : {}),
+        ...(deps.whatNext !== undefined ? { whatNext: deps.whatNext } : {}),
         driver: (spec, asker, observe) => Effect.flatMap(deps.makeRlm(asker, observe), (rlm) => rlm.exec(spec)),
       })
     threads.set("main", yield* create("main", []))

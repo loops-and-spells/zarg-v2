@@ -4,6 +4,7 @@ import type { ServiceFailure } from "@zarg/kernel"
 import type { Answer, Asker, Choice, Question, Rlm, Scope } from "@zarg/rlm"
 import { makeActivity } from "./activity"
 import * as E from "./events"
+import type { NextOption } from "./intent"
 import type { Interrupt } from "@ag-ui/core"
 import type { WireEvent } from "./events"
 import type { ThreadLog } from "./log"
@@ -45,8 +46,8 @@ export interface ThreadDeps {
   readonly driver: (spec: Rlm.RlmSpec, asker: Asker, observe: (e: Rlm.RlmEvent) => void) => Effect.Effect<Rlm.RlmOutcome, Rlm.RlmError>
   /** Gherkin text for these node ids within the driver's scope, put in its task so its first turn need not fetch it. */
   readonly render?: (ids: ReadonlyArray<string>, scope: Scope) => Effect.Effect<string, unknown>
-  /** Where journeys start (entry states), offered when nothing is open and no gaps were found. */
-  readonly journeys?: (focus: ReadonlySet<string> | undefined) => Effect.Effect<ReadonlyArray<{ readonly id: string; readonly text: string }>, unknown>
+  /** Ways to go on (the intent's next goals), offered when nothing is open and no gaps were found. */
+  readonly whatNext?: (focus: ReadonlySet<string> | undefined) => Effect.Effect<ReadonlyArray<NextOption>, unknown>
   /** Gaps found in code (plugins' suggest), for the "what next" question when the agenda is empty. */
   readonly suggest?: (focus: ReadonlySet<string> | undefined) => Effect.Effect<ReadonlyArray<AgendaItem>, unknown>
 }
@@ -175,13 +176,16 @@ export const makeThread = (deps: ThreadDeps) =>
             ? yield* deps.suggest(focusSet).pipe(Effect.catchCause(() => Effect.succeed([] as ReadonlyArray<AgendaItem>)))
             : []
         // Nothing open and nothing found: zarg asks itself; the answer is the developer's word to the driver.
-        if (said.length === 0 && item === undefined && gaps.length === 0 && deps.journeys !== undefined) {
-          const journeys = yield* deps.journeys(focusSet).pipe(Effect.orElseSucceed(() => []))
-          const a = yield* loopAsk({ question: OPEN_QUESTION, options: journeys.slice(0, 4).map((j) => ({ id: j.id, label: j.text })), allowOther: true })
+        if (said.length === 0 && item === undefined && gaps.length === 0 && deps.whatNext !== undefined) {
+          const next = (yield* deps.whatNext(focusSet).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<NextOption>))).slice(0, 4)
+          const a = yield* loopAsk({
+            question: OPEN_QUESTION,
+            options: next.map((o, i) => ({ id: o.id, label: o.label, ...(o.why !== undefined ? { why: o.why } : {}), ...(i === 0 ? { recommended: true } : {}) })),
+            allowOther: true,
+          })
           // A message about it is not a discussion to settle: it is what they want.
           discussed.length = 0
-          const j = journeys.find((x) => x.id === a.choice)
-          const text = j !== undefined ? `Work on the journey that starts at "${j.text}" (${j.id}).` : (a.other ?? "")
+          const text = next.find((o) => o.id === a.choice)?.task ?? a.other ?? ""
           if (text.length > 0) inbox.push(text)
           continue
         }
