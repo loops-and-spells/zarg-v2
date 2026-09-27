@@ -3,6 +3,7 @@ import { makeChecker } from "./check"
 import { manifest } from "./manifest"
 import type { FromWorker, ToWorker } from "./protocol"
 import type { Bound, ServiceFailure } from "./service"
+import type { ClockMode, TickSource, TickValue } from "./ticks"
 import { toBody } from "./transform"
 
 export interface CellResult {
@@ -25,7 +26,21 @@ export interface KernelOptions {
   readonly outputCap?: number
   /** The worker's whole environment. Defaults to empty; pass only what cells may see (never secrets). */
   readonly env?: Readonly<Record<string, string>>
+  /** Cells' time and randomness: read and reported live (default), or served from a recording. */
+  readonly clock?: ClockMode
+  /** Told of every tick (and, in replay, every read past the recording) as it happens. */
+  readonly record?: (r: Recorded) => void
 }
+
+/** One read of time or randomness by a cell. */
+export interface Tick {
+  readonly cell: number
+  readonly source: TickSource
+  readonly value: TickValue
+}
+
+/** What a kernel records while cells run. */
+export type Recorded = ({ readonly kind: "tick" } & Tick) | { readonly kind: "extra"; readonly cell: number; readonly source: TickSource }
 
 /** Collects output with a hard cap as it arrives: keeps the head and the tail, counts the rest. */
 const collector = (cap: number) => {
@@ -101,7 +116,7 @@ export const make = (opts: KernelOptions) =>
       })
       const services = Object.fromEntries(opts.services.map((s) => [s.def.name, Object.keys(s.def.methods)]))
       worker = w
-      w.postMessage({ type: "init", services } satisfies ToWorker)
+      w.postMessage({ type: "init", services, clock: opts.clock ?? { mode: "record" } } satisfies ToWorker)
       yield* Deferred.await(ready).pipe(
         Effect.timeoutOrElse({ duration: 10_000, orElse: () => Effect.die(new Error("kernel worker did not start within 10s")) }),
       )
@@ -206,6 +221,8 @@ export const make = (opts: KernelOptions) =>
         }
         onMessage = (m) => {
           if (m.type === "log" && m.runId === id) out.push(m.line)
+          else if (m.type === "tick" && m.runId === id) opts.record?.({ kind: "tick", cell: id, source: m.source, value: m.value })
+          else if (m.type === "extra" && m.runId === id) opts.record?.({ kind: "extra", cell: id, source: m.source })
           else if (m.type === "call" && m.runId === id) {
             tick()
             inFlight++

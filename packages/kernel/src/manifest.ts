@@ -88,7 +88,11 @@ declare const Effect: {
   succeed<A>(value: A): Eff<A>
   /** Run calls together: \`yield* Effect.all([a, b], { concurrency: 4 })\`. */
   all<A>(effects: ReadonlyArray<Eff<A>>, options?: { readonly concurrency?: number }): Eff<Array<A>>
+  /** Wait: \`yield* Effect.sleep("2 seconds")\` or a number of milliseconds. */
+  sleep(duration: string | number): Eff<void>
 }
+declare const performance: { now(): number }
+declare const crypto: { randomUUID(): string; getRandomValues<T extends Uint8Array>(array: T): T }
 declare const console: { log(...values: unknown[]): void; error(...values: unknown[]): void }
 `
 
