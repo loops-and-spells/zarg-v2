@@ -20,6 +20,5 @@ export const notLoaded = (log: ThreadLog, id: string, focus: ReadonlyArray<strin
       ),
     wake: Effect.void,
     stop: Effect.void,
-    ask: () => Effect.succeed({ choice: "deny" }),
     status: () => "idle",
   })

@@ -147,7 +147,7 @@ const withPanels = (ui: Ui, s: SessionState): Ui => {
 
 /** Panels on screen, by edge, in opening order: agent-scope ones only while their agent is open; shell-scope ones one per plugin and two per edge; closed ones left out. */
 export const panelsShown = (ui: Ui, s: SessionState): Readonly<Record<"top" | "bottom" | "right", ReadonlyArray<Panel>>> => {
-  const open = (s.thread.panels ?? []).filter((p) => !ui.closedPanels.includes(p.id))
+  const open = (s.thread.panels ?? []).filter((p) => p.id !== ZARG_BAR && !ui.closedPanels.includes(p.id))
   const plugins = new Set<string>()
   const shell = open.filter((p) => p.scope === "shell" && !plugins.has(p.plugin) && (plugins.add(p.plugin), true))
   const mine = open.filter((p) => p.scope === "agent" && ui.viewing !== undefined && (ui.viewing === p.agent || ui.viewing.startsWith(`${p.agent}@`)))
@@ -160,6 +160,11 @@ export const focusedPanel = (ui: Ui, s: SessionState): Panel | undefined => {
   return ui.panel === undefined ? undefined : [...shown.top, ...shown.bottom, ...shown.right].find((p) => p.id === ui.panel)
 }
 
+/** zarg's bar is agent-zarg's panel; the shell draws it as the message bar. */
+export const ZARG_BAR = "zarg:bar:zarg"
+/** zarg is loaded: its bar panel is open (before the core's first panels snapshot, it is taken as loaded). */
+export const zargLoaded = (s: SessionState) => s.thread.panels === undefined || s.thread.panels.some((p) => p.id === ZARG_BAR)
+
 const question = (s: SessionState) => s.thread.pendingInquiry
 /** zarg's sheet covers the tile area: opened, or no agent is open. */
 export const sheetShown = (ui: Ui) => ui.sheet || ui.viewing === undefined
@@ -171,7 +176,7 @@ export const answeringOther = (ui: Ui, s: SessionState) => {
 /** The bar takes text: it has focus, and nothing is asked, or the developer chats about the question or types their own answer. */
 export const typing = (ui: Ui, s: SessionState) => {
   const q = question(s)
-  return ui.focus === "bar" && (q === undefined || ui.chatting === q.id || answeringOther(ui, s))
+  return ui.focus === "bar" && zargLoaded(s) && (q === undefined || ui.chatting === q.id || answeringOther(ui, s))
 }
 /** The shared popover queue, in the order the core asked: nothing on the client reorders it. */
 // A stopped core cannot take an answer, and a prompt without options cannot be answered: neither holds the keys.
@@ -180,6 +185,8 @@ export const queueOf = (_ui: Ui, s: SessionState): ReadonlyArray<Prompt> => (s.c
 export const inputFocused = (ui: Ui, s: SessionState) => typing(ui, s) && queueOf(ui, s).length === 0
 /** The bar takes focus; while zarg asks, the sheet opens with the question. */
 export const focusBar = (ui: Ui, s: SessionState): Ui => {
+  // Without zarg there is no bar to type in.
+  if (!zargLoaded(s)) return ui
   if (question(s) === undefined) return { ...ui, focus: "bar" }
   // zarg's question opens zarg's sheet (in place of a plugin's).
   const { sheetOf: _, ...rest } = ui
@@ -232,6 +239,7 @@ export const working = (ui: Ui, s: SessionState, now: number): string | undefine
 
 /** What the bar shows when it is not an input: zarg's question, the working line, an unread reply, or the prompt. */
 export const barLine = (ui: Ui, s: SessionState, now: number): { readonly text: string; readonly tone: "question" | "working" | "reply" | "idle" } => {
+  if (!zargLoaded(s)) return { text: "zarg is not loaded", tone: "idle" }
   const q = s.thread.pendingInquiry
   if (q !== undefined && ui.answered === q.id) return { text: "sending your answer…", tone: "working" }
   if (q !== undefined && ui.chatting !== q.id)

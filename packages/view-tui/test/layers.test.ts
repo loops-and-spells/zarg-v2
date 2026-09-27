@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
 import { onKey, SHELL } from "../src/layers"
 import { hintsOf } from "@zarg/view"
-import { barLine, initialUi, POPOVER_GUARD_MS, queueOf, syncUi, type Ui } from "../src/view"
+import { barLine, initialUi, panelsShown, POPOVER_GUARD_MS, queueOf, syncUi, type Ui } from "../src/view"
 
 const inquiry: Inquiry = { id: "inq-1", question: "Which card first?", options: [{ id: "a", label: "Login" }, { id: "b", label: "Checkout", recommended: true }], allowOther: true, about: [] }
 const grant = (id: string) => ({ id, question: `Plugin ${id} wants to load.`, options: [{ id: "always", label: "Allow" }, { id: "deny", label: "Not now" }], kind: "grant" as const })
@@ -119,7 +119,9 @@ describe("surfaces in the shell", () => {
   }
   const popover = { id: "p1", kind: "surface" as const, question: "two ask", options: [], view: "two:t1", agent: "two:t1" }
   const panel = (input: "none" | "onFocus", edge: "bottom" | "right" = "bottom") => ({ id: `two:status:two:t1`, plugin: "two", agent: "two:t1", view: "two:t1", name: "status", scope: "shell" as const, edge, size: 2, input })
-  const with_ = (thread: Partial<SessionState["thread"]>): SessionState => ({ ...idle, thread: { ...idle.thread, views, ...thread } })
+  // zarg's bar is a panel too: with it, zarg is loaded.
+  const zargBar = { id: "zarg:bar:zarg", plugin: "zarg", agent: "zarg", view: "zarg", name: "bar", scope: "shell" as const, edge: "bottom" as const, size: 1, input: "onFocus" as const }
+  const with_ = (thread: Partial<SessionState["thread"]>): SessionState => ({ ...idle, thread: { ...idle.thread, views, ...thread, panels: [zargBar, ...(thread.panels ?? [])] } })
 
   test("a plugin's popover: its action key acts on its agent; Esc closes it", () => {
     const s = with_({ prompts: [popover] })
@@ -145,5 +147,21 @@ describe("surfaces in the shell", () => {
     const closed = onKey(ui, with_({}), key("escape"), 0).ui
     expect(closed.sheet).toBe(false)
     expect(closed.sheetOf).toBeUndefined()
+  })
+})
+
+describe("zarg's bar", () => {
+  const other = { id: "two:status:two:t1", plugin: "two", agent: "two:t1", view: "two:t1", name: "status", scope: "shell" as const, edge: "bottom" as const, size: 1, input: "none" as const }
+  const zargBar = { id: "zarg:bar:zarg", plugin: "zarg", agent: "zarg", view: "zarg", name: "bar", scope: "shell" as const, edge: "bottom" as const, size: 1, input: "onFocus" as const }
+  test("without zarg's bar panel (zarg is not loaded) alt+m and / leave focus where it is", () => {
+    const s = { ...idle, thread: { ...idle.thread, panels: [other] } }
+    expect(onKey(at({ focus: "agents" }), s, key("m", { meta: true }), 0).ui.focus).toBe("agents")
+    expect(onKey(at({ focus: "agents" }), s, key("/"), 0).ui.focus).toBe("agents")
+    expect(barLine(at({}), s, 0)).toEqual({ text: "zarg is not loaded", tone: "idle" })
+  })
+  test("zarg's bar panel is the bar, never drawn as a panel", () => {
+    const s = { ...idle, thread: { ...idle.thread, panels: [zargBar] } }
+    expect(onKey(at({ focus: "agents" }), s, key("m", { meta: true }), 0).ui.focus).toBe("bar")
+    expect(panelsShown(at({}), s).bottom).toEqual([])
   })
 })

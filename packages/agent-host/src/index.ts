@@ -1,6 +1,5 @@
 import type { BaseEvent } from "@ag-ui/core"
 import type { Effect, Stream } from "effect"
-import type { Answer, Question } from "@zarg/rlm"
 
 /** An AG-UI event as the core sends it on a thread. */
 export type WireEvent = BaseEvent & { readonly threadId: string; readonly seq: number; readonly [key: string]: unknown }
@@ -21,8 +20,6 @@ export interface Thread {
   /** New work arrived: a paused loop takes up the agenda again. */
   readonly wake: Effect.Effect<void>
   readonly stop: Effect.Effect<void>
-  /** Ask the developer on this thread from outside the agent (grant questions); answered in order. */
-  readonly ask: (q: Question) => Effect.Effect<Answer>
   readonly status: () => "idle" | "running" | "waiting"
 }
 
@@ -54,6 +51,10 @@ export interface AgentHost {
   /** The gate for reads outside the repository (the core asks the developer itself). */
   readonly outsideReads: unknown
   readonly findings: { readonly chosen: unknown; readonly firstParty: (plugin: string) => boolean }
+  /** Panels this agent opens (its message bar): shown by every client until closed. */
+  readonly panels: {
+    readonly open: (p: { readonly name: string; readonly view: string; readonly scope: "agent" | "shell"; readonly edge: "top" | "bottom" | "right"; readonly size: number; readonly input: "none" | "onFocus" }) => void
+  }
 }
 
 /** A trusted agent: imported into the core by path from zarg's own packages, started once. */

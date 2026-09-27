@@ -27,43 +27,6 @@ const texts = (events: ReadonlyArray<WireEvent>) => events.filter((e) => e.type 
 const question = { question: "Which?", options: [{ id: "a", label: "Option A", recommended: true, why: "simpler" }, { id: "b", label: "Option B" }] }
 
 describe("thread runs", () => {
-  test("stopping the driver keeps a question asked from outside it", async () => {
-    const q2 = { question: "Plugin tracker wants to reach b.test", options: [{ id: "once", label: "Allow once" }, { id: "deny", label: "Deny" }] }
-    const driver: Driver = () => Effect.never as never
-    const shown = await Effect.runPromise(Effect.gen(function* () {
-      const { thread } = yield* setup(driver)
-      yield* Effect.forkChild(collect(thread.run({ runId: "r1" })))
-      yield* Effect.sleep(20)
-      yield* Effect.forkChild(thread.ask(q2))
-      yield* Effect.sleep(20)
-      yield* thread.stop
-      const again = yield* collect(thread.run({ runId: "r2" }))
-      return (last(again) as any).outcome?.interrupts?.[0]?.message
-    }))
-    expect(shown).toBe("Plugin tracker wants to reach b.test")
-  })
-
-test("a second question waits behind the first and is shown once the first is answered", async () => {
-    const q2 = { question: "Plugin tracker wants to reach b.test", options: [{ id: "once", label: "Allow once" }, { id: "deny", label: "Deny" }] }
-    const driver: Driver = (_spec, asker) =>
-      Effect.gen(function* () {
-        const a = yield* asker.ask(question)
-        return outcome(`picked ${a.choice}`)
-      }) as never
-    const out = await Effect.runPromise(Effect.gen(function* () {
-      const { thread } = yield* setup(driver)
-      const first = yield* collect(thread.run({ runId: "r1" }))
-      const system = yield* Effect.forkChild(thread.ask(q2))
-      const firstId = (last(first) as any).outcome.interrupts[0].id
-      const second = yield* collect(thread.run({ runId: "r2", resume: [{ interruptId: firstId, payload: { choice: "a" } }] }))
-      const secondInterrupt = (last(second) as any).outcome.interrupts[0]
-      yield* collect(thread.run({ runId: "r3", resume: [{ interruptId: secondInterrupt.id, payload: { choice: "once" } }] }))
-      return { secondMessage: secondInterrupt.message, answer: yield* Fiber.join(system) }
-    }))
-    expect(out.secondMessage).toBe("Plugin tracker wants to reach b.test")
-    expect(out.answer).toEqual({ choice: "once" })
-  })
-
   test("the driver's task already holds the agenda and the item's cards, so its first turn need not fetch them", async () => {
     const tasks: Array<string> = []
     const driver: Driver = (spec, asker) =>

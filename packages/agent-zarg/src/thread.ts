@@ -71,8 +71,6 @@ interface Pending {
   readonly answer: Deferred.Deferred<Answer>
   /** The AG-UI interrupt, kept to send again to a run that brings no answer. */
   readonly interrupt: Interrupt
-  /** The driver loop's own question (dropped when the loop stops), or one asked from outside (a plugin's grant). */
-  readonly owner: "loop" | "system"
 }
 
 /** One driver thread: a loop of driver RLMs, one per agenda item, paused at inquiries. */
@@ -100,7 +98,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
     // chooses an option for them (Inquire.choose) or asks again.
     const discussed: Array<Pending> = []
     const dropLoopQuestions = () => {
-      for (let i = queue.length - 1; i >= 0; i--) if (queue[i]!.owner === "loop") queue.splice(i, 1)
+      queue.length = 0
       syncAttention()
       discussed.length = 0
     }
@@ -121,7 +119,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
     }
 
     // Inquire: park the cell and end the current run with an interrupt; a later run's resume answers it.
-    const askAs = (owner: Pending["owner"]) => (question: Question) =>
+    const loopAsk = (question: Question) =>
         Effect.gen(function* () {
           const answer = yield* Deferred.make<Answer>()
           const id = `inq-${crypto.randomUUID()}`
@@ -139,7 +137,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
             } as unknown as Interrupt
           yield* locked(
             Effect.gen(function* () {
-              queue.push({ id, question, answer, interrupt, owner })
+              queue.push({ id, question, answer, interrupt })
               syncAttention()
               // Behind another question: shown once that one is answered.
               if (queue.length === 1) yield* emit(E.runInterrupted(threadId, runId, interrupt))
@@ -161,7 +159,6 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
         yield* note("assistant", `zarg chose ${option.label} for you: ${c.why}`)
         return { choice: option.id }
       })
-    const loopAsk = askAs("loop")
     const asker: Asker = {
       // A new question from the driver replaces any it was discussing.
       ask: (q) => Effect.andThen(Effect.sync(() => void (discussed.length = 0)), loopAsk(q)),
@@ -327,7 +324,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
             const p = head
             queue.shift()
             syncAttention()
-            if (p.owner === "loop") discussed.push(p)
+            discussed.push(p)
             yield* note("user", input.message)
             yield* note("assistant", `(discussing: ${p.question.question})`)
             yield* Deferred.succeed(p.answer, { other: input.message, interjected: true, question: p.id } as Answer)
@@ -395,7 +392,6 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
       wake,
       stop,
       /** Ask the developer on this thread from outside the driver (a plugin's grant question); answered in order. */
-      ask: askAs("system"),
       status: () => (pending() ? "waiting" : loop ? "running" : "idle"),
     }
   })

@@ -266,12 +266,12 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         </>
       ) : (
         <text wrapMode="none" truncate>
-          {line.tone === "idle" ? (
+          {line.tone === "idle" && line.text.startsWith("message") ? (
             <span fg={COLORS.hot}>
               <u>m</u>
             </span>
           ) : null}
-          <span fg={BAR_TONE[line.tone]}>{line.tone === "idle" ? line.text.slice(1) : line.text}</span>
+          <span fg={BAR_TONE[line.tone]}>{line.tone === "idle" && line.text.startsWith("message") ? line.text.slice(1) : line.text}</span>
         </text>
       )}
     </box>

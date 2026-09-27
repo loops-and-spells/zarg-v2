@@ -78,6 +78,8 @@ export const makeZarg = (host: AgentHost) =>
           .filter((n) => n.type === "gherkin/state" && n.props.entry === true && (focus === undefined || focus.has(n.id)))
           .map((n): NextOption => ({ id: n.id, label: String(n.props.text ?? n.id), task: `Work on the journey that starts at "${String(n.props.text ?? n.id)}" (${n.id}).` }))
       })
+    // zarg's message bar: a shell panel at the bottom, one line, taking keys (the shell draws it as the bar).
+    host.panels.open({ name: "bar", view: "zarg", scope: "shell", edge: "bottom", size: 1, input: "onFocus" })
     return {
       makeThread: (id: string, focus: ReadonlyArray<string>) =>
         makeThread({

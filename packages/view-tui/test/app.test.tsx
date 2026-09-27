@@ -616,7 +616,8 @@ describe("review fixes", () => {
 describe("surfaces", () => {
   const status = { agent: "rehearse:run@status", layout: { name: "status", sections: [{ id: "line", kind: "stats" as const, role: "summary" as const }] }, data: { line: { items: [{ label: "stories", value: "2/5" }] } } }
   const panel = { id: "rehearse:status:rehearse:run", plugin: "rehearse", agent: "rehearse:run", view: "rehearse:run@status", name: "status", scope: "shell" as const, edge: "bottom" as const, size: 1, input: "none" as const }
-  const withStatus: SessionState = { ...idleState, thread: { ...idleState.thread, views: { "rehearse:run@status": status }, panels: [panel] } }
+  const zargBar = { id: "zarg:bar:zarg", plugin: "zarg", agent: "zarg", view: "zarg", name: "bar", scope: "shell" as const, edge: "bottom" as const, size: 1, input: "onFocus" as const }
+  const withStatus: SessionState = { ...idleState, thread: { ...idleState.thread, views: { "rehearse:run@status": status }, panels: [zargBar, panel] } }
   test("a shell-scope bottom panel shows under the tile area and above the bar; its × hides it", async () => {
     const t = await render(withStatus, { width: 110, height: 24 })
     const lines = t.captureCharFrame().split("\n")
@@ -628,6 +629,11 @@ describe("surfaces", () => {
     await t.mockMouse.click(lines[head]!.indexOf("×"), head)
     await settle(t)
     expect(t.captureCharFrame()).not.toContain("2/5")
+  })
+  test("without zarg's bar the bar's place says zarg is not loaded", async () => {
+    const t = await render({ ...idleState, thread: { ...idleState.thread, panels: [] } }, { width: 110, height: 24 })
+    expect(t.captureCharFrame()).toContain("zarg is not loaded")
+    expect(t.captureCharFrame()).not.toContain("message ›")
   })
   test("a plugin's popover shows its view; Esc closes it", async () => {
     const t = await render({ ...idleState, thread: { ...idleState.thread, views: { "rehearse:run@status": status }, prompts: [{ id: "p1", kind: "surface", question: "rehearse ask", options: [], view: "rehearse:run@status", agent: "rehearse:run" }] } }, { width: 110, height: 24 })

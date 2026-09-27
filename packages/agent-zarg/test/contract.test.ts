@@ -12,3 +12,11 @@ void assignable
 test("zarg is a trusted agent named zarg", () => {
   expect(zarg.name).toBe("zarg")
 })
+
+test("zarg opens its bar at start: a shell panel at the bottom, one line, taking keys", async () => {
+  const { Effect } = await import("effect")
+  const opened: Array<unknown> = []
+  const host = { root: "/zt", roles: {}, rlmSettings: {}, model: {}, decisions: {}, plugins: {}, store: { snapshot: Effect.succeed({}) }, log: {}, sensitive: [], agenda: () => Effect.succeed([]), outsideReads: {}, findings: { chosen: {}, firstParty: () => false }, panels: { open: (p: unknown) => void opened.push(p) } }
+  await Effect.runPromise(zarg.start(host as never))
+  expect(opened).toEqual([{ name: "bar", view: "zarg", scope: "shell", edge: "bottom", size: 1, input: "onFocus" }])
+})

@@ -20,6 +20,7 @@ import {
   sheetShown,
   typing,
   type Ui,
+  zargLoaded,
 } from "./view"
 
 /** What the shell's layers read: the session, the time, the bar's draft. */
@@ -66,6 +67,7 @@ const surfaceKey = (v: ViewState, vu: ViewUi, k: InputKey, agent: string): { rea
 
 /** `/` from any panel: the bar opens with the slash typed (while zarg asks, as chat about the question). */
 const slashFrom = (ui: Ui, s: SessionState) => {
+  if (!zargLoaded(s)) return { ui }
   const q = s.thread.pendingInquiry
   return { ui: { ...focusBar(ui, s), ...(q !== undefined ? { chatting: q.id, other: false } : {}) }, draft: "/" }
 }

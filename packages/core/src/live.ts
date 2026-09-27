@@ -108,6 +108,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       agenda,
       outsideReads: outsideReads({ grants: agentGrants, userDir: USER_DIR, ask: prompts.ask as never, yolo: () => yoloControl.on("zarg:agents") }),
       findings: { chosen, firstParty: control.firstParty },
+      panels: { open: (p) => surfaces.openPanel({ ...p, id: `zarg:${p.name}:zarg`, plugin: "zarg", agent: "zarg" }) },
     }
     const zarg = yield* trustedAgents(ZARG_ROOT).pipe(
       Effect.map((agents) => agents.find((a) => a.name === "zarg")),
