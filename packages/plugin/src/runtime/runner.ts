@@ -37,7 +37,7 @@ const onCall = async (id: number, method: string, params: unknown) => {
     } else send({ type: "reply", id, ok: true, value: JSON.parse(JSON.stringify(result ?? null)) })
   } catch (e) {
     const err = e as { tag?: string; message?: string }
-    send({ type: "reply", id, ok: false, error: fail(err?.tag === "NotGranted" ? "NotGranted" : "PluginError", String(err?.message ?? e)) })
+    send({ type: "reply", id, ok: false, error: fail(err?.tag === "NotGranted" || err?.tag === "BudgetExceeded" ? err.tag : "PluginError", String(err?.message ?? e)) })
   } finally {
     running.delete(id)
   }

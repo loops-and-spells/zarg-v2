@@ -163,6 +163,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     const yolo = makeYolo(log, control.yolo)
     // Started with --yolo: say so on main, so the status line shows it.
     if (control.yolo.any()) yield* yolo.set(true)
+    // A plugin's agenda changed (findings to take up): the driver wakes if it waits on nothing.
+    control.setAgendaChanged(() => Effect.runFork(main.wake))
     control.setAsk((q) =>
       main
         .ask({
@@ -199,9 +201,17 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
   })
 
 /** The project's plugin host options from its environment and config (`[plugins.<name>]` tables). */
-const pluginsFor = (root: string, env: Env["Service"], config: Config.ZargConfig, sensitive: ReadonlyArray<SensitiveValue>, yolo?: boolean) => {
+const pluginsFor = (
+  root: string,
+  env: Env["Service"],
+  config: Config.ZargConfig,
+  sensitive: ReadonlyArray<SensitiveValue>,
+  yolo?: boolean,
+  models?: { readonly decide: NonNullable<Parameters<typeof pluginHostLayer>[0]["decide"]>; readonly complete: NonNullable<Parameters<typeof pluginHostLayer>[0]["complete"]> },
+) => {
   const tables = (config.extra.plugins ?? {}) as Readonly<Record<string, unknown>>
   return pluginHostLayer({
+    ...(models ?? {}),
     root,
     listed: Object.keys(tables).filter((name) => (tables[name] as { source?: unknown } | undefined)?.source !== undefined),
     pluginConfig: (name) => tables[name] ?? {},
@@ -222,9 +232,32 @@ export const liveLayer = (root: string, stubFile?: string, opts: { readonly yolo
   const plugins = Layer.unwrap(
     Effect.gen(function* () {
       const env = yield* Env
-      return pluginsFor(root, env, yield* Config.Config, yield* env.sensitive, opts.yolo)
+      const cfg = yield* Config.Config
+      const decisions = yield* Decisions
+      const model = yield* Model.Model
+      // Service plugins reach the decision model and the model roles through the core's own services.
+      const roles: Readonly<Record<string, string>> = stubFile !== undefined ? Object.fromEntries(Object.keys(cfg.roles).map((r) => [r, STUB_MODEL])) : cfg.roles
+      const complete = (req: { readonly role: string; readonly messages: ReadonlyArray<unknown>; readonly outputSchema?: unknown; readonly maxTokens?: number }) =>
+        Effect.gen(function* () {
+          const ref = roles[req.role] ?? roles.driver ?? STUB_MODEL
+          const events = yield* Stream.runCollect(
+            model.stream({ model: ref, messages: req.messages as never, ...(req.outputSchema !== undefined ? { outputSchema: req.outputSchema as Record<string, unknown> } : {}), ...(req.maxTokens !== undefined ? { maxTokens: req.maxTokens } : {}) }),
+          )
+          let text = ""
+          let promptTokens = 0
+          let completionTokens = 0
+          for (const e of events) {
+            if (e.type === "text") text += e.delta
+            if (e.type === "usage") {
+              promptTokens += e.usage.promptTokens
+              completionTokens += e.usage.completionTokens
+            }
+          }
+          return { text, promptTokens, completionTokens }
+        })
+      return pluginsFor(root, env, cfg, yield* env.sensitive, opts.yolo, { decide: (req) => decisions.decide(req as never), complete })
     }),
-  ).pipe(Layer.provide(config))
+  ).pipe(Layer.provide(decisions))
   const graphs = Layer.provideMerge(plugins, graphLayer(join(root, ".zarg", "graph")))
   return Layer.mergeAll(decisions, Layer.provideMerge(graphs, BunServices.layer))
 }

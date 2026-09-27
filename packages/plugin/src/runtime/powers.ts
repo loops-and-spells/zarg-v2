@@ -110,6 +110,12 @@ export const makePowers = (opts: {
   readonly dependencies?: ReadonlyArray<{ readonly name: string; readonly methods: ReadonlyArray<string> }>
   /** Call a dependency's method (the host's invoke). */
   readonly callPlugin?: (name: string, method: string, params: unknown) => Promise<unknown>
+  /** The decision model, the model roles, and the agenda hook, served by the core. */
+  readonly decide?: (req: unknown) => Promise<unknown>
+  readonly complete?: (req: { readonly role: string; readonly messages: ReadonlyArray<unknown>; readonly outputSchema?: unknown; readonly maxTokens?: number }) => Promise<{ readonly text: string; readonly promptTokens: number; readonly completionTokens: number }>
+  readonly agendaChanged?: () => void
+  /** Calls and tokens per hour this plugin may spend on the decision model and model roles. */
+  readonly budget?: { readonly decisionsPerHour: number; readonly tokensPerHour: number }
   /** Told while a question to the developer is open, so the call's deadline can stop. */
   readonly asking?: (open: boolean) => void
 }): Powers => {
@@ -173,6 +179,17 @@ export const makePowers = (opts: {
     return path
   }
 
+  // Spend in a sliding hour: past the budget, calls fail until the hour moves on.
+  const budget = opts.budget ?? { decisionsPerHour: 20_000, tokensPerHour: 2_000_000 }
+  const spent: Record<"decisions" | "tokens", Array<[number, number]>> = { decisions: [], tokens: [] }
+  const spend = (kind: "decisions" | "tokens", amount: number, limit: number) => {
+    const now = Date.now()
+    const window = spent[kind].filter(([t]) => now - t < 3_600_000)
+    const used = window.reduce((n, [, a]) => n + a, 0)
+    if (used + amount > limit || (amount === 0 && used >= limit)) throw Object.assign(new Error(`${opts.plugin}: its ${kind} budget for this hour is spent`), { tag: "BudgetExceeded" })
+    spent[kind] = amount > 0 ? [...window, [now, amount]] : window
+  }
+
   const fetchImpl = opts.fetch ?? fetch
   const powers: Powers = {
     "config.get": async () => opts.config,
@@ -233,6 +250,29 @@ export const makePowers = (opts: {
         await fh.close()
       }
       return null
+    },
+    "decisions.decide": async (req) => {
+      if (opts.manifest.scopes.decisions !== true) throw notGranted(`${opts.plugin}: it has no decisions scope`)
+      spend("decisions", 1, budget.decisionsPerHour)
+      if (opts.decide === undefined) throw pluginError(`${opts.plugin}: this host has no decision model`)
+      return await opts.decide(req)
+    },
+    "models.complete": async (args) => {
+      const a = args as { role?: unknown; messages?: unknown; outputSchema?: unknown; maxTokens?: unknown }
+      const role = String(a.role)
+      if (!(opts.manifest.scopes.models ?? []).includes(role)) throw notGranted(`${opts.plugin}: it may not use the model role ${printable(role)}`)
+      spend("tokens", 0, budget.tokensPerHour)
+      if (opts.complete === undefined) throw pluginError(`${opts.plugin}: this host has no models`)
+      const out = await opts.complete({ role, messages: (a.messages ?? []) as ReadonlyArray<unknown>, ...(a.outputSchema !== undefined ? { outputSchema: a.outputSchema } : {}), ...(typeof a.maxTokens === "number" ? { maxTokens: a.maxTokens } : {}) })
+      spend("tokens", out.promptTokens + out.completionTokens, Infinity)
+      return out
+    },
+    "clock.now": async () => Date.now(),
+    "clock.uuid": async () => crypto.randomUUID(),
+    "agenda.changed": async () => void opts.agendaChanged?.(),
+    "fs.list": async (args) => {
+      const dir = await checkedPath("fs-read", String((args as { dir: string }).dir))
+      return (await fsp.readdir(dir, { withFileTypes: true })).filter((d) => d.isFile()).map((d) => d.name).sort()
     },
     // A dependency's contract methods only: its public read surface, never its writes or agent tools.
     "plugins.call": async (args) => {

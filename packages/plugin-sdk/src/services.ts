@@ -21,9 +21,23 @@ export class Http extends Context.Service<Http, {
 export class Files extends Context.Service<Files, {
   readonly read: (path: string) => Effect.Effect<string, PluginFailure>
   readonly write: (path: string, text: string) => Effect.Effect<void, PluginFailure>
+  /** File names (not paths) directly in a folder the plugin may read. */
+  readonly list: (dir: string) => Effect.Effect<ReadonlyArray<string>, PluginFailure>
 }>()("@zarg/plugin-sdk/Files") {}
 export class Graph extends Context.Service<Graph, { readonly snapshot: Effect.Effect<Snapshot.Snapshot, PluginFailure> }>()("@zarg/plugin-sdk/Graph") {}
 export class Config extends Context.Service<Config, { readonly value: unknown }>()("@zarg/plugin-sdk/Config") {}
+
+/** The decision model: fast yes/no, choice and score judgments (scope `decisions: true`). */
+export class Decisions extends Context.Service<Decisions, { readonly decide: (req: { readonly state: string; readonly questions: Readonly<Record<string, unknown>> }) => Effect.Effect<Readonly<Record<string, any>>, PluginFailure> }>()("@zarg/plugin-sdk/Decisions") {}
+export interface ModelMessage { readonly role: "system" | "user" | "assistant"; readonly content: string }
+/** A configured model role (scope `models: [role, …]`); tokens count against the plugin. */
+export class Models extends Context.Service<Models, {
+  readonly complete: (req: { readonly role: string; readonly messages: ReadonlyArray<ModelMessage>; readonly outputSchema?: Record<string, unknown>; readonly maxTokens?: number }) => Effect.Effect<{ readonly text: string; readonly promptTokens: number; readonly completionTokens: number }, PluginFailure>
+}>()("@zarg/plugin-sdk/Models") {}
+/** Time and randomness from the host: a plugin's sandbox has neither. */
+export class Clock extends Context.Service<Clock, { readonly now: Effect.Effect<number, PluginFailure>; readonly uuid: Effect.Effect<string, PluginFailure> }>()("@zarg/plugin-sdk/Clock") {}
+/** Tell the host this plugin's agenda changed (the driver may take it up). */
+export class Agenda extends Context.Service<Agenda, { readonly changed: Effect.Effect<void, PluginFailure> }>()("@zarg/plugin-sdk/Agenda") {}
 
 /** Every power as an Effect service over the runner's channel. The host decides what is granted. */
 export const servicesFrom = (raw: RawPowers) => ({
@@ -35,7 +49,15 @@ export const servicesFrom = (raw: RawPowers) => ({
         Effect.try({ try: () => JSON.parse(r.text), catch: () => new PluginFailure({ tag: "PluginError", message: `${url}: response is not JSON` }) }),
       ),
   }),
-  files: Files.of({ read: (path) => power<string>(raw, "fs.read", { path }), write: (path, text) => Effect.asVoid(power(raw, "fs.write", { path, text })) }),
+  files: Files.of({
+    read: (path) => power<string>(raw, "fs.read", { path }),
+    write: (path, text) => Effect.asVoid(power(raw, "fs.write", { path, text })),
+    list: (dir) => power<ReadonlyArray<string>>(raw, "fs.list", { dir }),
+  }),
+  decisions: Decisions.of({ decide: (req) => power(raw, "decisions.decide", req) }),
+  models: Models.of({ complete: (req) => power(raw, "models.complete", req) }),
+  clock: Clock.of({ now: power<number>(raw, "clock.now", {}), uuid: power<string>(raw, "clock.uuid", {}) }),
+  agenda: Agenda.of({ changed: Effect.asVoid(power(raw, "agenda.changed", {})) }),
   graph: Graph.of({
     snapshot: Effect.map(power<{ nodes: ReadonlyArray<never>; reserved?: ReadonlyArray<string> }>(raw, "graph.snapshot", {}), (s) => Snapshot.make(s.nodes, new Set(s.reserved ?? []))),
   }),

@@ -69,6 +69,14 @@ export interface HostOptions {
   readonly notices?: ReadonlyArray<AgendaItem>
   /** zarg's user directory (grants, installed plugins): never reachable by a plugin's file powers. */
   readonly userDir?: string
+  /** The decision model for plugins with the decisions scope. */
+  readonly decide?: (req: unknown) => Effect.Effect<unknown, unknown>
+  /** A model role for plugins with the models scope. */
+  readonly complete?: (req: { readonly role: string; readonly messages: ReadonlyArray<unknown>; readonly outputSchema?: unknown; readonly maxTokens?: number }) => Effect.Effect<{ readonly text: string; readonly promptTokens: number; readonly completionTokens: number }, unknown>
+  /** A plugin said its agenda changed. */
+  readonly agendaChanged?: (plugin: string) => void
+  /** Per plugin: decisions and tokens per hour. */
+  readonly budget?: (plugin: string) => { readonly decisionsPerHour: number; readonly tokensPerHour: number } | undefined
 }
 
 /** Names cells already use: a plugin can never take one over (e.g. become `Inquire` and answer for you). */
@@ -121,6 +129,9 @@ const scopeWords = (s: ManifestScopes) =>
     ...(s.secrets ?? []).map((k) => `use the secret ${k}`),
     ...(s.fs?.read === "ask" ? ["read files it asks for"] : (s.fs?.read ?? []).map((g) => `read ${g}`)),
     ...(s.fs?.write === "ask" ? ["write files it asks for"] : (s.fs?.write ?? []).map((g) => `write ${g}`)),
+    s.decisions === true ? "use the decision model" : undefined,
+    ...((s.models ?? []).length > 0 ? [`use the model roles ${s.models!.join(", ")}`] : []),
+    s.agents === true ? "show agents" : undefined,
   ].filter((p) => p !== undefined)
 
 /** What a plugin asks for, in words: what it gets now and what it may ask for later (both are approved). */
@@ -228,6 +239,10 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           log: opts.log,
           redact: opts.redact,
           asking: (open) => void (asking += open ? 1 : -1),
+          ...(opts.decide !== undefined ? { decide: (req: unknown) => Effect.runPromise(opts.decide!(req).pipe(Effect.mapError((e) => ({ tag: "DecisionError", message: String((e as { message?: string }).message ?? e) })))) } : {}),
+          ...(opts.complete !== undefined ? { complete: (req: Parameters<NonNullable<HostOptions["complete"]>>[0]) => Effect.runPromise(opts.complete!(req).pipe(Effect.mapError((e) => ({ tag: "ModelError", message: String((e as { message?: string }).message ?? e) })))) } : {}),
+          agendaChanged: () => opts.agendaChanged?.(m.name),
+          ...(opts.budget?.(m.name) !== undefined ? { budget: opts.budget(m.name)! } : {}),
           dependencies: (m.pluginDependencies ?? []).map((d) => ({ name: d.name, methods: byName.get(d.name)?.contract?.methods ?? [] })),
           // Looked up at call time: the dependency is running by then (checked below), or the call fails typed.
           callPlugin: (name, method, params) => {
@@ -421,7 +436,11 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
       const agenda = (focus?: ReadonlySet<string>) =>
         Effect.gen(function* () {
           const loadedGraph = yield* store.load
-          const items = yield* each<ReadonlyArray<AgendaItem>>("agenda", {})
+          // Every plugin with an agenda: graph plugins and service plugins alike.
+          const items = yield* Effect.forEach(
+            [...running.values()].filter((r) => r.manifest.methods.agenda !== undefined && (r.manifest.archetype !== "graph" || r.manifest.scopes.graph !== undefined)),
+            (r) => invoke(r, "agenda", {}).pipe(Effect.map((v) => v as ReadonlyArray<AgendaItem>), Effect.orElseSucceed(() => undefined)),
+          )
           return [...hostItems, ...problemItems(loadedGraph), ...defined(items).flat()]
             .filter((item) => inFocus(focus, item.about))
             .sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id))

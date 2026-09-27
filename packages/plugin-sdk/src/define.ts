@@ -1,12 +1,18 @@
 import { Effect, Layer, Schema, Stream } from "effect"
 import type { Contract } from "./contract"
-import { Config, Files, Graph, Http, PluginFailure, type RawPowers, Secrets, servicesFrom } from "./services"
+import { Agenda, Clock, Config, Decisions, Files, Graph, Http, Models, PluginFailure, type RawPowers, Secrets, servicesFrom } from "./services"
 
 export interface Scopes {
   readonly net?: ReadonlyArray<string> | "ask"
   readonly secrets?: ReadonlyArray<string>
   readonly graph?: "read" | "write"
   readonly fs?: { readonly read?: ReadonlyArray<string> | "ask"; readonly write?: ReadonlyArray<string> | "ask" }
+  /** The decision model. */
+  readonly decisions?: boolean
+  /** Model roles it may run. */
+  readonly models?: ReadonlyArray<string>
+  /** Agents in the agents pane. */
+  readonly agents?: boolean
 }
 export interface MethodSpec {
   readonly doc: string
@@ -70,6 +76,7 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
     )
     const layer = Layer.mergeAll(
       Layer.succeed(Secrets, s.secrets), Layer.succeed(Http, s.http), Layer.succeed(Files, s.files), Layer.succeed(Graph, s.graph),
+      Layer.succeed(Decisions, s.decisions), Layer.succeed(Models, s.models), Layer.succeed(Clock, s.clock), Layer.succeed(Agenda, s.agenda),
       Layer.effect(Config, Effect.map(Effect.promise(() => raw.call("config.get", {})), (value) => Config.of({ value }))),
       ...deps,
     )

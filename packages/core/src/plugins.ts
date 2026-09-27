@@ -8,6 +8,7 @@ import type { ThreadLog } from "./log"
 import { type Answer as GrantAnswer, type Ask, makeGrants, PLUGIN_NAME } from "@zarg/plugin/runtime"
 import {
   type AgendaItem,
+  type HostOptions,
   isFirstParty,
   KNOWN_FIRST_PARTY,
   layer as hostLayer,
@@ -29,6 +30,8 @@ export class PluginControl extends Context.Service<
   {
     /** Grant questions go here once a thread can ask them; until then they are denied. */
     readonly setAsk: (ask: Ask) => void
+    /** A plugin's agenda changed: the core wakes the driver (set once main exists). */
+    readonly setAgendaChanged: (f: (plugin: string) => void) => void
     readonly yolo: {
       readonly on: (plugin: string) => boolean
       /** On or off for one plugin, or for all when `plugin` is omitted. */
@@ -106,14 +109,19 @@ export const pluginHostLayer = (opts: {
   readonly yolo?: boolean
   readonly zargRoot?: string
   readonly userDir?: string
+  /** The decision model and model roles for service plugins. */
+  readonly decide?: HostOptions["decide"]
+  readonly complete?: HostOptions["complete"]
 }): Layer.Layer<PluginHost | PluginControl, PluginConfigError, GraphStore> => {
   const zargRoot = opts.zargRoot ?? ZARG_ROOT
   const userDir = opts.userDir ?? USER_DIR
   let ask: Ask | undefined
+  let agendaChanged: (plugin: string) => void = () => {}
   const yoloAll = { on: opts.yolo === true }
   const yoloPlugins = new Set<string>()
   const control = PluginControl.of({
     setAsk: (a) => void (ask = a),
+    setAgendaChanged: (f) => void (agendaChanged = f),
     yolo: {
       on: (plugin) => yoloAll.on || yoloPlugins.has(plugin),
       set: (on, plugin) => {
@@ -143,6 +151,13 @@ export const pluginHostLayer = (opts: {
         firstParty: (p) => isFirstParty(p, zargRoot, KNOWN_FIRST_PARTY),
         notices: theirs.notices,
         userDir,
+        ...(opts.decide !== undefined ? { decide: opts.decide } : {}),
+        ...(opts.complete !== undefined ? { complete: opts.complete } : {}),
+        agendaChanged: (plugin) => agendaChanged(plugin),
+        budget: (name) => {
+          const b = (opts.pluginConfig?.(name) as { budget?: { decisions_per_hour?: number; tokens_per_hour?: number } } | undefined)?.budget
+          return b === undefined ? undefined : { decisionsPerHour: b.decisions_per_hour ?? 20_000, tokensPerHour: b.tokens_per_hour ?? 2_000_000 }
+        },
       })
     }),
   )

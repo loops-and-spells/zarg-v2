@@ -19,7 +19,7 @@ export type FromPlugin =
   | { readonly type: "power"; readonly id: number; readonly power: string; readonly args: unknown }
 
 export interface Failure {
-  readonly tag: "NotGranted" | "PluginError" | "UnknownMethod"
+  readonly tag: "NotGranted" | "BudgetExceeded" | "PluginError" | "UnknownMethod"
   readonly message: string
 }
 

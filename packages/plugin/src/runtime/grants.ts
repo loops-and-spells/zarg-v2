@@ -8,6 +8,9 @@ export interface ManifestScopes {
   readonly secrets?: ReadonlyArray<string>
   readonly graph?: "read" | "write"
   readonly fs?: { readonly read?: ReadonlyArray<string> | "ask"; readonly write?: ReadonlyArray<string> | "ask" }
+  readonly decisions?: boolean
+  readonly models?: ReadonlyArray<string>
+  readonly agents?: boolean
 }
 export type Grant =
   | { readonly kind: "net"; readonly host: string }
