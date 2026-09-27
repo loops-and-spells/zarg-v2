@@ -81,19 +81,19 @@ const settle = async (t: { renderOnce: () => Promise<void>; waitForVisualIdle: (
 }
 
 describe("tui frames", () => {
-  test("a click in zarg's messages never gives them the arrow keys: the agents tile keeps them", async () => {
+  test("a click in zarg's sheet never gives its scrollbox the arrow keys: the agents list keeps them", async () => {
     const many = Array.from({ length: 40 }, (_, i) => ({ id: `m${i}`, role: "assistant" as const, text: `message ${i}` }))
     const { pendingInquiry: _, ...quiet } = waiting.thread
     const t = await render({ ...waiting, thread: { ...quiet, status: "idle", messages: many } })
-    await t.mockMouse.click(10, 5)
+    await t.mockMouse.click(60, 5)
     await settle(t)
-    t.mockInput.pressTab()
+    t.mockInput.pressKey("a", { meta: true })
     await settle(t)
-    const before = t.captureCharFrame().split("\n").slice(1, 4).map((l) => l.slice(0, 60))
+    const before = t.captureCharFrame().split("\n").slice(1, 6).map((l) => l.slice(30, 100))
     t.mockInput.pressArrow("up")
     t.mockInput.pressArrow("up")
     await settle(t)
-    expect(t.captureCharFrame().split("\n").slice(1, 4).map((l) => l.slice(0, 60))).toEqual(before)
+    expect(t.captureCharFrame().split("\n").slice(1, 6).map((l) => l.slice(30, 100))).toEqual(before)
   })
 
   const testerView = {
@@ -105,7 +105,7 @@ describe("tui frames", () => {
   const withTester: SessionState = { ...waiting, thread: { ...waiting.thread, rlms: { ...waiting.thread.rlms, "rehearse:tester-1": tester }, views: { "rehearse:tester-1": testerView } } }
   const openTester = async (size: { width: number; height: number }) => {
     const t = await render(withTester, size)
-    t.mockInput.pressTab()
+    t.mockInput.pressKey("a", { meta: true })
     await settle(t)
     t.mockInput.pressArrow("down")
     t.mockInput.pressArrow("down")
@@ -115,92 +115,88 @@ describe("tui frames", () => {
     return t
   }
 
-  // Task 5 redraws the shell.
-  test.skip("wide: zarg, the open agent and the agents tree side by side; Alt+arrows move between them", async () => {
+  test("wide: the agents list, the open agent's view and zarg's bar; Alt+arrows move between them", async () => {
     const t = await openTester({ width: 130, height: 22 })
-    const top = t.captureCharFrame().split("\n")[0]!
-    expect(top).toMatch(/^┌─zarg.*┌─rehearse:tester-1.*┌─Agents ◆1/)
-    // The open view has focus: arrows move its table, not zarg's question.
+    const lines = t.captureCharFrame().split("\n")
+    expect(lines[1]).toMatch(/Agents ◆\d alt\+a.*v rehearse:tester-1 alt\+v/)
+    // The open view has focus: arrows move its table, not zarg's question (which waits in the bar).
     t.mockInput.pressArrow("down")
     await settle(t)
     expect(t.captureCharFrame()).toContain("▸ [ ] R-2")
-    expect(t.captureCharFrame()).toContain("› Checkout (recommended)")
-    // Alt+left: zarg's tile takes the keys; now arrows move the question.
-    t.mockInput.pressArrow("left", { meta: true })
+    expect(t.captureCharFrame()).toContain("? Which card first?")
+    // Alt+down: the bar takes the keys, zarg's sheet opens with the question; arrows move it.
+    t.mockInput.pressArrow("down", { meta: true })
     await settle(t)
     t.mockInput.pressArrow("up")
     await settle(t)
     expect(t.captureCharFrame()).toContain("› Login")
-    // Alt+right twice: the view, then the agents.
-    t.mockInput.pressArrow("right", { meta: true })
-    t.mockInput.pressArrow("right", { meta: true })
+    // alt+v: back to the view.
+    t.mockInput.pressKey("v", { meta: true })
     await settle(t)
-    t.mockInput.pressKey("escape")
-    await settle(t)
-    expect(t.captureCharFrame().split("\n")[0]).toMatch(/┌─rehearse:tester-1/)
+    expect(t.captureCharFrame()).toContain("R-2")
+    expect(t.captureCharFrame()).not.toContain("› Login")
   })
 
-  // Task 5 redraws the shell.
-  test.skip("at 80×24 zarg is above the view and the strip lists attention", async () => {
+  test("at 80×24 the strip lists attention above the view, and the bar sits under it", async () => {
     const t = await openTester({ width: 80, height: 24 })
     const lines = t.captureCharFrame().split("\n")
     expect(lines[0]).toContain("◆")
     expect(lines[0]).toContain("tester-1")
-    const zarg = lines.findIndex((l) => l.startsWith("┌─zarg"))
-    const view = lines.findIndex((l) => l.startsWith("┌─rehearse:tester-1"))
-    expect(zarg).toBeGreaterThan(0)
-    expect(view).toBeGreaterThan(zarg)
+    const view = lines.findIndex((l) => l.includes("rehearse:tester-1 alt+v"))
+    const bar = lines.findIndex((l) => l.includes("? Which card first?"))
+    expect(view).toBeGreaterThan(0)
+    expect(bar).toBeGreaterThan(view)
   })
 
-  // Task 5 redraws the shell.
-  test.skip("at 80×24 with many agents, a four-option question and a long table: the strip keeps attention, zarg keeps its question", async () => {
+  test("at 80×24 with many agents, a four-option question and a long table: the strip keeps attention, the sheet keeps every option", async () => {
     const node = (i: number) => ({ id: `rehearse:tester-${i}`, parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [], ...(i === 6 ? { attention: { reason: "3 findings to review", since: 1 } } : {}) })
     const rlms = Object.fromEntries([1, 2, 3, 4, 5, 6, 7].map((i) => [`rehearse:tester-${i}`, node(i)]))
     const four = { ...inquiry, options: [{ id: "a", label: "Alpha" }, { id: "b", label: "Beta" }, { id: "c", label: "Gamma" }, { id: "d", label: "Delta" }] }
     const rows = Array.from({ length: 30 }, (_, i) => ({ id: `R-${i}`, cells: { id: `R-${i}` } }))
     const big = { ...testerView, agent: "rehearse:tester-1", data: { ...testerView.data, "review.findings": { rows } } }
     const t = await render({ ...waiting, thread: { ...waiting.thread, pendingInquiry: four, rlms, views: { "rehearse:tester-1": big } } }, { width: 80, height: 24 })
-    t.mockInput.pressTab()
+    t.mockInput.pressKey("a", { meta: true })
     await settle(t)
     t.mockInput.pressEnter()
     await settle(t)
     const lines = t.captureCharFrame().split("\n")
     expect(lines[0]).toStartWith("Agents ◆1")
     expect(lines[0]).toContain("tester-6")
-    for (const o of ["Alpha", "Beta", "Gamma", "Delta"]) expect(t.captureCharFrame()).toContain(o)
     expect(t.captureCharFrame()).toContain("R-1")
+    // The question waits in the bar; alt+m opens zarg's sheet with every option.
+    t.mockInput.pressKey("m", { meta: true })
+    await settle(t)
+    for (const o of ["Alpha", "Beta", "Gamma", "Delta"]) expect(t.captureCharFrame()).toContain(o)
   })
 
-  // Task 5 redraws the shell.
-  test.skip("a click on a tile gives it the keys", async () => {
+  test("a click on a tile gives it the keys", async () => {
     const t = await openTester({ width: 130, height: 22 })
-    // The view has the keys; a click inside zarg's tile gives them to zarg: arrows then move its question.
-    await t.mockMouse.click(5, 3)
+    // The view has the keys; a click on the bar gives them to zarg: its sheet opens and arrows move its question.
+    const y = t.captureCharFrame().split("\n").findIndex((l) => l.includes("? Which card first?"))
+    await t.mockMouse.click(60, y)
     await settle(t)
     t.mockInput.pressArrow("up")
     await settle(t)
     expect(t.captureCharFrame()).toContain("› Login")
   })
 
-  // Task 5 redraws the shell.
-  test.skip("Escape in the view tile closes it and gives the keys back to zarg", async () => {
+  test("Escape in the view closes it: zarg's sheet shows, its question takes the keys", async () => {
     const t = await openTester({ width: 130, height: 22 })
     t.mockInput.pressEscape()
     await settle(t)
-    expect(t.captureCharFrame().split("\n")[0]).not.toContain("tester-1 ·")
+    expect(t.captureCharFrame()).not.toContain("rehearse:tester-1 alt+v")
     t.mockInput.pressArrow("up")
     await settle(t)
     expect(t.captureCharFrame()).toContain("› Login")
   })
 
-  test("zarg's conversation is a tile: its messages and its question inside it, beside the agents", async () => {
+  test("with no agent open, zarg's sheet holds its messages and its question beside the agents list", async () => {
     const t = await render(waiting)
     const lines = t.captureCharFrame().split("\n")
-    expect(lines[0]).toMatch(/^┌─zarg─/)
-    // The question sits inside zarg's tile: nothing spans the whole width under the tiles but the status line.
-    expect(lines.at(-3)).toMatch(/^└─+┘└─+┘\s*$/)
-    expect(lines.findIndex((l) => l.includes("Which card first?"))).toBeGreaterThan(0)
-    expect(lines.find((l) => l.includes("Which card first?"))).toMatch(/│\s*$/)
+    expect(lines[1]).toContain("Agents")
+    expect(lines.find((l) => l.includes("zarg  The agenda is empty."))).toMatch(/^│/)
+    const q = lines.find((l) => l.startsWith("│") && l.includes("? Which card first?") && !l.includes("alt+m"))
+    expect(q).toMatch(/│\s*$/)
   })
 
   test("an inquiry: picker with the recommended option preselected and its why; agents pane; status line", async () => {
@@ -208,15 +204,15 @@ describe("tui frames", () => {
     const frame = t.captureCharFrame()
     expect(frame).toContain("Which card first?")
     expect(frame).toContain("› Checkout (recommended) — most used")
-    expect(frame).toContain("  Something else:")
+    expect(frame).toContain("  Something else…")
     expect(frame).toContain("  Chat about this")
     expect(frame).not.toContain("Message")
-    expect(frame).toContain("▾ ● driver rlm-1      ▰▱▱▱▱▱  3/25")
-    expect(frame).toContain("  └ ✓ research rlm-2  ▰▱▱▱▱▱  2/15")
+    expect(frame).toContain("▾ ● driver rlm-1       3/25")
+    expect(frame).toContain("  └ ✓ research rlm-2   2/15")
     expect(frame).toContain("driver rlm-1 · running")
     expect(frame).toContain("turn 3 of 25 · 5,847 tokens")
     expect(frame).toContain("  single          yes  0.91")
-    expect(frame).toContain("core child · waiting · thread main · zarg-router:deepseek-v4.1-flash-exl3")
+    expect(frame).toContain("core child · waiting · thread main")
     expect(frame).toMatchSnapshot()
   })
 
@@ -275,7 +271,7 @@ describe("tui frames", () => {
     t.mockInput.pressKey("c", { ctrl: true })
     await settle(t)
     expect(t.calls).toEqual(["stop"])
-    expect(t.captureCharFrame()).toContain("┌─zarg")
+    expect(t.captureCharFrame()).toContain("Agents alt+a")
   })
 
   test("at 80 columns with a long thread and driver, the status line still shows the core state and thread status", async () => {
@@ -289,14 +285,13 @@ describe("tui frames", () => {
     expect(t.captureCharFrame()).toContain("core stopped · error")
   })
 
-  // Task 5 redraws the shell.
-  test.skip("Tab moves focus to the agents pane, where the highlight walks a tall tree and the detail follows", async () => {
+  test("alt+a gives the agents list the keys; the highlight walks a tall tree and the detail follows", async () => {
     const rlms = Object.fromEntries(
       Array.from({ length: 40 }, (_, i) => [`rlm-${i + 1}`, { id: `rlm-${i + 1}`, parent: i === 0 ? null : "rlm-1", preset: i === 0 ? "driver" : "research", depth: i === 0 ? 0 : 1, turns: 1, budget: 15, status: "done" as const, decisions: [] }]),
     )
     const t = await render({ thread: { ...initial("main"), status: "running", rlms }, core: "up" })
     expect(t.captureCharFrame()).not.toContain("rlm-40 ")
-    t.mockInput.pressTab()
+    t.mockInput.pressKey("a", { meta: true })
     await settle(t)
     for (let i = 0; i < 40; i++) t.mockInput.pressArrow("down")
     await settle(t)
@@ -315,15 +310,14 @@ describe("tui frames", () => {
     expect(spinnerAt(t.rawFrame())).not.toBe(spinnerAt(first))
   })
 
-  // Task 5 redraws the shell.
-  test.skip("Enter on an agent shows its view in place of the conversation; Escape goes back", async () => {
+  test("Enter on an agent shows its view in the tile area; Escape closes it", async () => {
     const rlmView = {
       agent: "rlm-2",
       layout: { name: "rlm", sections: [{ id: "status", kind: "stats" as const, role: "summary" as const }, { id: "history", kind: "log" as const, role: "log" as const, title: "History" }] },
       data: { status: { items: [{ label: "turns", value: "2/15" }] }, history: { lines: [{ text: "research rlm-2: Find the VM grid" }, { text: '  Graph.show {"id":"S-1"}  11ms', tone: "dim" as const }] } },
     }
     const t = await render({ ...waiting, thread: { ...waiting.thread, views: { "rlm-2": rlmView } } })
-    t.mockInput.pressTab()
+    t.mockInput.pressKey("a", { meta: true })
     t.mockInput.pressArrow("down")
     await settle(t)
     t.mockInput.pressEnter()
@@ -331,7 +325,7 @@ describe("tui frames", () => {
     await Bun.sleep(30)
     await settle(t)
     const open = t.captureCharFrame()
-    expect(open).toContain("rlm-2 · Esc back")
+    expect(open).toContain("v rlm-2 alt+v   Esc close")
     expect(open).toContain("2/15 turns")
     // The view tile sits beside zarg's now: its lines are cut at its width.
     expect(open).toContain("research rlm-2: Find")
@@ -340,11 +334,10 @@ describe("tui frames", () => {
     t.mockInput.pressEscape()
     await settle(t)
     expect(t.captureCharFrame()).toContain("The agenda is empty.")
-    expect(t.captureCharFrame()).not.toContain("Esc back")
+    expect(t.captureCharFrame()).not.toContain("Esc close")
   })
 
-  // Task 5 redraws the shell.
-  test.skip("a plugin agent's view: its steps, a Findings table, and a key that acts on the highlighted row", async () => {
+  test("a plugin agent's view: its steps, a Findings table, and a key that acts on the highlighted row", async () => {
     const tester = { id: "rehearse:tester-1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
     const view = {
       agent: "rehearse:tester-1",
@@ -358,7 +351,7 @@ describe("tui frames", () => {
       data: { steps: { lines: [{ text: "UX-1: feel 1.80" }] }, "review.findings": { rows: [{ id: "R-1", cells: { id: "R-1", note: "no error shown" } }] } },
     }
     const t = await render({ thread: { ...initial("main"), status: "running", rlms: { "rehearse:tester-1": tester }, views: { "rehearse:tester-1": view } }, core: "up" })
-    t.mockInput.pressTab()
+    t.mockInput.pressKey("a", { meta: true })
     await settle(t)
     t.mockInput.pressEnter()
     await settle(t)
@@ -380,23 +373,22 @@ describe("tui frames", () => {
     expect(t.calls).toContain("act rehearse:tester-1 apply R-1")
   })
 
-  // Task 5 redraws the shell.
-  test.skip("the agents pane folds: → opens a child's subtree, ← closes it", async () => {
+  test("the agents pane folds: → opens a child's subtree, ← closes it", async () => {
     const rlms = {
       "rlm-1": { id: "rlm-1", parent: null, preset: "driver", depth: 0, turns: 1, budget: 25, status: "running" as const, decisions: [] },
       "rlm-2": { id: "rlm-2", parent: "rlm-1", preset: "research", depth: 1, turns: 1, budget: 15, status: "running" as const, decisions: [] },
       "rlm-3": { id: "rlm-3", parent: "rlm-2", preset: "research", depth: 2, turns: 1, budget: 15, status: "failed" as const, error: "budget", decisions: [] },
     }
     const t = await render({ thread: { ...initial("main"), status: "running", rlms }, core: "up" })
-    expect(t.captureCharFrame()).toContain("▸ ● research rlm-2")
+    expect(t.captureCharFrame()).toContain("▸ ● research …   1/15  +1")
     expect(t.captureCharFrame()).not.toContain("rlm-3")
-    t.mockInput.pressTab()
+    t.mockInput.pressKey("a", { meta: true })
     t.mockInput.pressArrow("down")
     t.mockInput.pressArrow("right")
     t.mockInput.pressArrow("down")
     await settle(t)
     const open = t.captureCharFrame()
-    expect(open).toContain("    └ ✗ research rlm-3")
+    expect(open).toContain("    └ ✗ research rl…   1/15")
     expect(open).toContain("error  budget")
     t.mockInput.pressArrow("left")
     t.mockInput.pressArrow("left")
@@ -414,7 +406,7 @@ describe("tui frames", () => {
     // Tab writes the completion into the input itself (the box row alone would not prove it).
     t.mockInput.pressTab()
     await t.waitForVisualIdle()
-    const messageLine = (frame: string) => frame.split("\n").find((l, i, all) => i > 0 && all[i - 1]!.includes("Message")) ?? ""
+    const messageLine = (frame: string) => frame.split("\n").find((l) => l.includes("message ›")) ?? ""
     expect(messageLine(t.captureCharFrame())).toContain("/reconcile")
     t.mockInput.pressEnter()
     await t.waitForVisualIdle()
@@ -428,7 +420,7 @@ describe("tui frames", () => {
     t.mockInput.pressTab()
     await t.mockInput.typeText("x")
     await t.waitForVisualIdle()
-    const line = t.captureCharFrame().split("\n").find((l, i, all) => i > 0 && all[i - 1]!.includes("Message")) ?? ""
+    const line = t.captureCharFrame().split("\n").find((l) => l.includes("message ›")) ?? ""
     expect(line).toContain("/reconcilex")
   })
 
@@ -441,7 +433,7 @@ describe("tui frames", () => {
     expect(t.captureCharFrame()).not.toContain("commands")
   })
 
-  test("a question replaces the Message box; Something else… is typed in the picker and answers", async () => {
+  test("a question shows in the picker; Something else… is typed in the bar and answers", async () => {
     const t = await render(waiting)
     const frame = t.captureCharFrame()
     expect(frame).not.toContain("Message")
@@ -454,7 +446,7 @@ describe("tui frames", () => {
     expect(t.calls).toEqual(['answer {"other":"payments first"}'])
   })
 
-  test("Chat about this brings the Message box back; what you type there is sent as a message", async () => {
+  test("Chat about this moves the typing to the bar; what you type there is sent as a message", async () => {
     const t = await render(waiting)
     t.mockInput.pressArrow("down")
     t.mockInput.pressArrow("down")
@@ -462,7 +454,7 @@ describe("tui frames", () => {
     t.mockInput.pressEnter()
     await settle(t)
     const frame = t.captureCharFrame()
-    expect(frame).toContain("Chat about: Which card first?")
+    expect(frame).toContain("chat ›")
     expect(frame).not.toContain("Checkout (recommended)")
     await t.mockInput.typeText("why Checkout?")
     t.mockInput.pressEnter()
@@ -479,8 +471,7 @@ describe("tui frames", () => {
     expect(t.calls).toEqual([])
   })
 
-  // Task 5 redraws the shell.
-  test.skip("at 80×20 with a question pending, an open agent's view keeps every section's title on screen", async () => {
+  test("at 80×20 with a question pending, an open agent's view keeps every section's title on screen", async () => {
     const tester = { id: "rehearse:tester-1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
     const view = {
       agent: "rehearse:tester-1",
@@ -500,15 +491,99 @@ describe("tui frames", () => {
       },
     }
     const t = await render({ ...waiting, thread: { ...waiting.thread, rlms: { "rehearse:tester-1": tester }, views: { "rehearse:tester-1": view } } }, { width: 80, height: 20 })
-    t.mockInput.pressTab()
+    t.mockInput.pressKey("a", { meta: true })
     await settle(t)
     t.mockInput.pressEnter()
     await settle(t)
     const f = t.captureCharFrame()
     for (const title of ["Workers", "Steps", "Findings"]) expect(f).toContain(title)
-    // The question is zarg's: it stays in zarg's tile, above the open view, never over it.
+    // The question is zarg's: it waits in the bar, under the open view, never over it.
     const lines = f.split("\n")
-    const viewTop = lines.findIndex((l) => l.startsWith("┌─rehearse:tester-1"))
-    expect(lines.findIndex((l) => l.includes("Which card first?"))).toBeLessThan(viewTop)
+    const viewTop = lines.findIndex((l) => l.includes("rehearse:tester-1 alt+v"))
+    expect(viewTop).toBeGreaterThan(0)
+    expect(lines.findIndex((l) => l.includes("? Which card first?"))).toBeGreaterThan(viewTop)
+  })
+})
+
+const idleState: SessionState = { thread: { ...initial("main"), messages: [{ id: "m1", role: "assistant", text: "Hello." }] }, core: "up" }
+const grantPrompt = (id: string) => ({ id, question: `Plugin ${id} wants to load.`, options: [{ id: "always", label: "Allow" }, { id: "deny", label: "Not now" }], kind: "grant" as const })
+const viewState: SessionState = {
+  ...idleState,
+  thread: {
+    ...idleState.thread,
+    rlms: { "rehearse:t1": { id: "rehearse:t1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 0, status: "running", decisions: [] } },
+    views: { "rehearse:t1": { agent: "rehearse:t1", layout: { name: "t", sections: [{ id: "findings", kind: "table", role: "primary", columns: [{ id: "c", label: "C" }], actions: [{ id: "apply", label: "Apply", key: "a", on: "row" }] }] }, data: { findings: { rows: [{ id: "r1", cells: { c: "x" } }] } } } },
+  },
+}
+
+describe("the shell", () => {
+  const wide = { width: 130, height: 22 }
+  test("the agents list runs full height on the left; the bar sits under the tile area only", async () => {
+    const t = await render(idleState, wide)
+    const lines = t.captureCharFrame().split("\n")
+    expect(lines[1]).toContain("Agents")
+    // The bar starts with the keys: you can type to zarg at once.
+    const bar = lines.findIndex((l) => l.includes("message ›"))
+    expect(bar).toBeGreaterThan(10)
+    // The agents list's border is still on the bar's row: the bar does not run under it.
+    expect(lines[bar]!.indexOf("message ›")).toBeGreaterThan(30)
+    expect(lines[bar]!.startsWith("│")).toBe(true)
+  })
+  test("with no agent open, zarg's sheet fills the tile area with its messages", async () => {
+    const t = await render(idleState, wide)
+    expect(t.captureCharFrame()).toContain("zarg  Hello.")
+  })
+  test("zarg asks while a view is open: the bar shows the question on one line; alt+m opens the sheet with the picker", async () => {
+    const t = await render({ ...viewState, thread: { ...viewState.thread, status: "waiting", pendingInquiry: inquiry } }, wide)
+    t.mockInput.pressKey("a", { meta: true })
+    await settle(t)
+    t.mockInput.pressEnter()
+    await settle(t)
+    let f = t.captureCharFrame()
+    expect(f).toContain("? Which card first?   alt+m or / to answer")
+    expect(f).not.toContain("› Checkout (recommended)")
+    t.mockInput.pressKey("m", { meta: true })
+    await settle(t)
+    f = t.captureCharFrame()
+    expect(f).toContain("Esc collapse")
+    expect(f).toContain("› Checkout (recommended)")
+  })
+  test("a grant popover shows over everything with its place in the queue; Enter answers it", async () => {
+    const t = await render({ ...idleState, thread: { ...idleState.thread, prompts: [grantPrompt("p1"), grantPrompt("p2")] } }, wide)
+    expect(t.captureCharFrame()).toContain("grant  1 of 2")
+    t.mockInput.pressEnter()
+    await settle(t)
+    expect(t.calls).toContain("prompt p1 always")
+  })
+  test("a grant popover blurs the bar; answering it gives the bar back", async () => {
+    const t = await render(idleState, wide)
+    await t.mockInput.typeText("hel")
+    t.update({ ...idleState, thread: { ...idleState.thread, prompts: [grantPrompt("p1")] } })
+    await settle(t)
+    await t.mockInput.typeText("xx")
+    t.update(idleState)
+    await settle(t)
+    await t.mockInput.typeText("lo")
+    t.mockInput.pressEnter()
+    await settle(t)
+    expect(t.calls).toContain("send hello")
+  })
+  test("hotkey letters show in the panels' names", async () => {
+    const t = await render(viewState, wide)
+    t.mockInput.pressKey("a", { meta: true })
+    await settle(t)
+    t.mockInput.pressEnter()
+    await settle(t)
+    const f = t.captureCharFrame()
+    expect(f).toContain("Agents alt+a")
+    expect(f).toContain("v rehearse:t1 alt+v")
+    expect(f).toContain("message zarg… (alt+m or /)")
+  })
+  test("at 80×24 the agents fold to a strip above the tile area; alt+a unfolds them there", async () => {
+    const t = await render(waiting, { width: 80, height: 24 })
+    expect(t.captureCharFrame().split("\n")[0]).toContain("Agents")
+    t.mockInput.pressKey("a", { meta: true })
+    await settle(t)
+    expect(t.captureCharFrame()).toContain("driver rlm-1")
   })
 })

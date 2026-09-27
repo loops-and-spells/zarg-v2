@@ -1,57 +1,57 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
 exports[`tui frames an inquiry: picker with the recommended option preselected and its why; agents pane; status line 1`] = `
-"┌─zarg───────────────────────────────────────────────────────┐┌─Agents───────────────────────────────────────┐
-│zarg  The agenda is empty.                                  ││▾ ● driver rlm-1      ▰▱▱▱▱▱  3/25            │
-│                                                            ││  └ ✓ research rlm-2  ▰▱▱▱▱▱  2/15            │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│┌─Question─────────────────────────────────────────────────┐││                                              │
-││Which card first?                                         │││                                              │
-││  Login                                                   │││──────────────────────────────────────────────│
-││› Checkout (recommended) — most used                      │││driver rlm-1 · running                        │
-││  Something else:                                         │││turn 3 of 25 · 5,847 tokens                   │
-││  Chat about this                                         │││atomic (runs directly)                        │
-│└──────────────────────────────────────────────────────────┘││  single          yes  0.91                   │
-└────────────────────────────────────────────────────────────┘└──────────────────────────────────────────────┘
-core child · waiting · thread main · zarg-router:deepseek-v4.1-flash-exl3   ^C stop · ^C^C exit · Tab agents  
+"┌────────────────────────────┐╭──────────────────────────────────────────────────────────────────────────────╮
+│Agents alt+a                ││zarg                                                                          │
+│▾ ● driver rlm-1       3/25 ││zarg  The agenda is empty.                                                    │
+│  └ ✓ research rlm-2   2/15 ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││──────────────────────────────────────────────────────────────────────────────│
+│                            ││? Which card first?                                                           │
+│                            ││  Login                                                                       │
+│                            ││› Checkout (recommended) — most used                                          │
+│                            ││  Something else…                                                             │
+│────────────────────────────││  Chat about this                                                             │
+│driver rlm-1 · running      │╰──────────────────────────────────────────────────────────────────────────────╯
+│turn 3 of 25 · 5,847 tokens │┌──────────────────────────────────────────────────────────────────────────────┐
+│atomic (runs directly)      ││answer zarg above, or / to chat about it                                      │
+│  single          yes  0.91 │└──────────────────────────────────────────────────────────────────────────────┘
+└────────────────────────────┘core child · waiting · thread main · z...l3   ↑↓ pick · Enter answer · Esc leave
 "
 `;
 
 exports[`tui frames a run error shows its kind and message in the conversation 1`] = `
-"┌─zarg───────────────────────────────────────────────────────┐┌─Agents───────────────────────────────────────┐
-│!  model: zarg-router is not reachable                      ││no agents running                             │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│┌─Message──────────────────────────────────────────────────┐││                                              │
-││type a message, Enter to send                             │││                                              │
-│└──────────────────────────────────────────────────────────┘││                                              │
-└────────────────────────────────────────────────────────────┘└──────────────────────────────────────────────┘
-core child · error · thread main · zarg-router:deepseek-v4.1-flash-exl3   ^C stop · ^C^C exit · Tab agents    
+"┌────────────────────────────┐╭──────────────────────────────────────────────────────────────────────────────╮
+│Agents alt+a                ││zarg                                                                          │
+│no agents running           ││!  model: zarg-router is not reachable                                        │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            ││                                                                              │
+│                            │╰──────────────────────────────────────────────────────────────────────────────╯
+│                            │┌──────────────────────────────────────────────────────────────────────────────┐
+│                            ││message › type a message, Enter to send                                       │
+│                            │└──────────────────────────────────────────────────────────────────────────────┘
+└────────────────────────────┘core child · error · thread main · zar...4.1-flash-exl3   Enter send · Esc leave
 "
 `;

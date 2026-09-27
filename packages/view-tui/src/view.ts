@@ -161,6 +161,25 @@ export const working = (ui: Ui, s: SessionState, now: number): string | undefine
   return `${spin(now)} zarg is preparing a reply · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}${turn}`
 }
 
+/** What the bar shows when it is not an input: zarg's question, the working line, an unread reply, or the prompt. */
+export const barLine = (ui: Ui, s: SessionState, now: number): { readonly text: string; readonly tone: "question" | "working" | "reply" | "idle" } => {
+  const q = s.thread.pendingInquiry
+  if (q !== undefined && ui.chatting !== q.id && ui.answered !== q.id)
+    // The sheet already shows the question with its options: the bar only says how to reach them.
+    return sheetShown(ui) ? { text: "answer zarg above, or / to chat about it", tone: "question" } : { text: `? ${q.question}   alt+m or / to answer`, tone: "question" }
+  const busyLine = working(ui, s, now)
+  if (busyLine !== undefined) return { text: busyLine, tone: "working" }
+  const last = lastReply(s)
+  if (last !== undefined && last.id !== ui.readUpTo && !sheetShown(ui)) return { text: `zarg: ${last.text.length > 60 ? `${last.text.slice(0, 59)}…` : last.text}`, tone: "reply" }
+  return { text: "message zarg… (alt+m or /)", tone: "idle" }
+}
+
+/** A panel's name split around its Alt letter; a letter not in the name goes before it. */
+export const titleHot = (name: string, letter: string): { readonly before: string; readonly letter: string; readonly after: string } => {
+  const i = name.toLowerCase().indexOf(letter)
+  return i < 0 ? { before: "", letter, after: ` ${name}` } : { before: name.slice(0, i), letter: name[i]!, after: name.slice(i + 1) }
+}
+
 export interface Line {
   readonly kind: "you" | "zarg" | "error" | "notice"
   readonly text: string
@@ -238,8 +257,10 @@ export const agentRows = (rlms: Readonly<Record<string, RlmNode>>, agents: Agent
   const rows = visible(rlms, agents)
   const cursor = cursorOf(rows, agents)
   const hiddenWidth = Math.max(0, ...rows.map((r) => (r.hidden.length > 0 ? `  +${r.hidden.length}`.length : 0)))
+  // A narrow list keeps the names and drops the bar.
+  const barWidth = cols >= 40 ? BAR : 0
   // The left column gives way to the bar, the turns and the hidden count: a long id is cut, never wrapped.
-  const room = Math.max(8, cols - (2 + BAR + 1 + 5) - hiddenWidth)
+  const room = Math.max(8, cols - (2 + barWidth + (barWidth > 0 ? 1 : 0) + 5) - hiddenWidth)
   const lefts = rows.map((r) => {
     // zarg's row does not spin: it is there all session, working or not.
     const icon = r.node.attention !== undefined ? "◆" : r.node.status === "running" && now !== undefined && r.node.preset !== "zarg" ? spin(now) : ICON[r.node.status]
@@ -252,16 +273,16 @@ export const agentRows = (rlms: Readonly<Record<string, RlmNode>>, agents: Agent
     // An agent may draw its own row: its progress, its text; otherwise turns out of the budget.
     const done = n.row?.progress?.done ?? n.turns
     const total = n.row?.progress?.total ?? n.budget
-    const filled = Math.min(BAR, Math.round((done / Math.max(1, total)) * BAR))
-    const bar = "▰".repeat(filled) + "▱".repeat(BAR - filled)
+    const filled = Math.min(barWidth, Math.round((done / Math.max(1, total)) * barWidth))
+    const bar = barWidth > 0 ? `${"▰".repeat(filled)}${"▱".repeat(barWidth - filled)} ` : ""
     const hidden = r.hidden.length > 0 ? `  +${r.hidden.length}` : ""
     // A reason gets the room left of the row, and is cut there.
-    const room = Math.max(4, cols - width - 2 - BAR - 1 - hidden.length)
+    const room = Math.max(4, cols - width - 2 - bar.length - hidden.length)
     const reason = n.attention?.reason
     const count = reason !== undefined ? (reason.length > room ? `${reason.slice(0, room - 1)}…` : reason) : (n.row?.text ?? `${done}/${total}`.padStart(5))
     return {
       id: n.id,
-      text: `${lefts[i]!.padEnd(width)}  ${bar} ${count}${hidden}`,
+      text: `${lefts[i]!.padEnd(width)}  ${bar}${count}${hidden}`,
       tone: r.hidden.some((h) => h.status === "failed") ? "failed" : n.status,
       selected: n.id === cursor,
       attention: n.attention !== undefined,
