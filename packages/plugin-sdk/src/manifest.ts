@@ -1,6 +1,6 @@
 import { Schema } from "effect"
 import { contractDigest } from "./contract-digest"
-import type { EdgeSpec, Plugin, Scopes } from "./define"
+import type { EdgeSpec, Plugin, PluginCommand, Scopes } from "./define"
 
 export interface Manifest {
   readonly name: string
@@ -9,6 +9,7 @@ export interface Manifest {
   readonly config: unknown
   /** The contract this plugin implements: its digest and the methods dependents may call. */
   readonly contract?: { readonly name: string; readonly digest: string; readonly methods: ReadonlyArray<string> }
+  readonly commands?: ReadonlyArray<PluginCommand>
   /** What this plugin was built against: each dependency's name and contract digest. */
   readonly pluginDependencies: ReadonlyArray<{ readonly name: string; readonly digest: string }>
   readonly scopes: Scopes
@@ -28,6 +29,7 @@ export const manifestOf = (p: Plugin): Manifest => ({
   optional: p.optional ?? {},
   ...(p.implements !== undefined ? { contract: { name: p.implements.pluginName, digest: contractDigest(p.implements), methods: Object.keys(p.implements.methods) } } : {}),
   pluginDependencies: (p.pluginDependencies ?? []).map((c) => ({ name: c.pluginName, digest: contractDigest(c) })),
+  ...(p.commands !== undefined ? { commands: p.commands } : {}),
   methods: Object.fromEntries(
     Object.entries(p.methods).map(([k, m]) => [k, { doc: m.doc, params: json(m.params), success: json(m.success), agents: m.agents === true, stream: m.stream === true, ...(m.deadlineMs !== undefined ? { deadlineMs: m.deadlineMs } : {}) }]),
   ),

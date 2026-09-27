@@ -13,6 +13,8 @@ export interface Manifest {
   readonly config: unknown
   /** The contract it serves to dependents: digest and callable methods. */
   readonly contract?: { readonly name: string; readonly digest: string; readonly methods: ReadonlyArray<string> }
+  /** Slash commands it adds: each calls `method` with `{ args }`. */
+  readonly commands?: ReadonlyArray<{ readonly cmd: string; readonly desc: string; readonly method: string; readonly arg: unknown }>
   /** The contracts it was built against. */
   readonly pluginDependencies?: ReadonlyArray<{ readonly name: string; readonly digest: string }>
   readonly scopes: ManifestScopes

@@ -2,6 +2,7 @@ import { useKeyboard } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Body, Session } from "@zarg/client"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
+import { registerCommands } from "./commands"
 import { type Action, agentDetail, agentRows, animating, conversation, activate, bodyView, messageShown, OTHER, otherFocused, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
 
 const COLORS = { you: "#8ab4f8", zarg: "#e8eaed", error: "#f28b82", notice: "#fdd663", dim: "#9aa0a6", accent: "#81c995", select: "#3c4043" }
@@ -32,6 +33,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     rerender((n) => n + 1)
   }
   const ui = latest()
+  // Commands loaded plugins add join the input's table (a name already there is skipped).
+  registerCommands(props.session.pluginCommands().map(({ cmd, desc, arg }) => ({ cmd, desc, arg })))
   // One clock for every animation; it ticks only while something is running.
   const [now, setNow] = useState(Date.now())
   const moving = animating(ui, s)

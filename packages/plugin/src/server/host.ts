@@ -47,6 +47,8 @@ export class PluginHost extends Context.Service<
     readonly stories: (strategy: "edge-pair" | "teleport", focus?: ReadonlySet<string>) => Effect.Effect<{ readonly stories: ReadonlyArray<ReadonlyArray<string>>; readonly unreachable: number }, IoError>
     /** What a tester sees at a card, from the plugin that owns it; undefined for an unknown card. */
     readonly step: (card: string, via?: string) => Effect.Effect<Record<string, unknown> | undefined, IoError>
+    /** Slash commands the loaded plugins add. */
+    readonly commands: () => ReadonlyArray<{ readonly plugin: string; readonly cmd: string; readonly desc: string; readonly method: string; readonly arg: unknown }>
     /** Call any method of a loaded plugin (the core's reserved calls: body, act, finding, resolved, stop). */
     readonly invoke: (plugin: string, method: string, params: unknown) => Effect.Effect<unknown, { readonly _tag: string; readonly message: string }>
     /** Run `effect` with no tool call committing meanwhile (e.g. while landing a commit that writes graph files). */
@@ -484,6 +486,10 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         affected,
         stories,
         step,
+        commands: () =>
+          [...running.values()]
+            .filter((r) => !r.disabled)
+            .flatMap((r) => (r.manifest.commands ?? []).map((c) => ({ plugin: r.manifest.name, cmd: c.cmd, desc: c.desc, method: c.method, arg: c.arg }))),
         invoke: (plugin: string, method: string, params: unknown) => {
           const r = running.get(plugin)
           return r === undefined ? Effect.fail({ _tag: "NotLoaded", message: `plugin ${plugin} is not loaded` }) : invoke(r, method, params)

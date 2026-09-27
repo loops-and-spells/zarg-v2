@@ -211,7 +211,19 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       Semaphore.withPermits(turnOnLock, 1),
     )
     const bodies = makeBodies({ log, invoke: (plugin, method, params) => host.invoke(plugin, method, params) })
-    return { log, threads, driver: roles.driver, turnOn, yolo, rehearse, bodies }
+    // A plugin's slash command calls its method with the words after it; its notice shows.
+    const commands = {
+      list: () => host.commands(),
+      run: (plugin: string, cmd: string, args: ReadonlyArray<string>) => {
+        const c = host.commands().find((x) => x.plugin === plugin && x.cmd === cmd)
+        if (c === undefined) return Effect.succeed({ notice: `unknown command: ${cmd}` })
+        return host.invoke(plugin, c.method, { args }).pipe(
+          Effect.map((r) => ({ notice: String((r as { notice?: unknown } | null)?.notice ?? "done") })),
+          Effect.catch((e) => Effect.succeed({ notice: e.message })),
+        )
+      },
+    }
+    return { log, threads, driver: roles.driver, turnOn, yolo, rehearse, bodies, commands }
   })
 
 /** The project's plugin host options from its environment and config (`[plugins.<name>]` tables). */

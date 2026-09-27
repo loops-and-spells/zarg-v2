@@ -22,6 +22,19 @@ export interface MethodSpec {
   readonly deadlineMs?: number
   readonly stream?: boolean
 }
+/** A slash command a plugin adds (the TUI's command-table shape, plus the method it calls). */
+export interface PluginCommand {
+  readonly cmd: string
+  readonly desc: string
+  readonly method: string
+  readonly arg: {
+    readonly kind: "none" | "choice" | "text" | "path"
+    readonly hint?: string
+    readonly choices?: ReadonlyArray<string>
+    readonly required?: boolean
+    readonly params?: { readonly keys: ReadonlyArray<string>; readonly flags?: ReadonlyArray<string> }
+  }
+}
 export interface EdgeSpec { readonly from: string; readonly to: string; readonly min?: number; readonly max?: number }
 type Handlers<M extends Record<string, MethodSpec>> = {
   readonly [K in keyof M]: (p: Schema.Schema.Type<M[K]["params"]>) => Effect.Effect<Schema.Schema.Type<M[K]["success"]>, PluginFailure> | Stream.Stream<unknown, PluginFailure>
@@ -33,6 +46,8 @@ export interface PluginDef<M extends Record<string, MethodSpec>> {
   readonly config: Schema.Codec<any, any>
   /** The contract this plugin serves to plugins that depend on it (its public read methods). */
   readonly implements?: Contract
+  /** Slash commands for the TUI: each calls `method` with `{ args }` and shows its `{ notice }`. */
+  readonly commands?: ReadonlyArray<PluginCommand>
   /** Contracts of the plugins this one needs: it loads only when they are loaded, and yields them as services. */
   readonly pluginDependencies?: ReadonlyArray<Contract>
   readonly scopes: Scopes
@@ -53,6 +68,10 @@ const SERVICE = /^[A-Z][A-Za-z0-9]*$/
 export const definePlugin = <const M extends Record<string, MethodSpec>>(def: PluginDef<M>): Plugin<M> => {
   if (!NAME.test(def.name)) throw new Error(`plugin name "${def.name}" must be kebab-case`)
   if (!SERVICE.test(def.service)) throw new Error(`plugin service "${def.service}" must be PascalCase`)
+  for (const c of def.commands ?? []) {
+    if (!/^\/[a-z][a-z0-9-]*$/.test(c.cmd)) throw new Error(`plugin command "${c.cmd}" must be /kebab-case`)
+    if (!(c.method in def.methods)) throw new Error(`plugin command ${c.cmd} calls ${c.method}, which is not a method`)
+  }
   const serve = (raw: RawPowers) => {
     const s = servicesFrom(raw)
     // Each dependency is its contract's service, over the plugins.call power, encoded with the contract's Schemas.

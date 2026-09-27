@@ -1,5 +1,5 @@
 import { Effect, Fiber, Stream } from "effect"
-import type { Client, RunRequest } from "./client"
+import type { Client, PluginCommandInfo, RunRequest } from "./client"
 import type { Answer } from "./events"
 import { type Body, initial, reduce, type ThreadState } from "./state"
 
@@ -25,6 +25,8 @@ export interface Session {
   readonly command: (text: string) => void
   /** Stop the thread's current work. */
   readonly stop: () => void
+  /** Slash commands the core's plugins add (known once the session started). */
+  readonly pluginCommands: () => ReadonlyArray<PluginCommandInfo>
   /** An agent's body; undefined when the core cannot answer. */
   readonly body: (agent: string) => Promise<Body | undefined>
   /** An action on an agent's selected rows; its notice shows. */
@@ -43,6 +45,7 @@ const RETRIES = 3
  */
 export const makeSession = (opts: { readonly client: Client; readonly threadId: string; readonly focus?: ReadonlyArray<string> }): Session => {
   let state: SessionState = { thread: initial(opts.threadId), core: "up" }
+  let pluginCommands: ReadonlyArray<PluginCommandInfo> = []
   const listeners = new Set<() => void>()
   const set = (next: SessionState) => {
     state = next
@@ -88,6 +91,7 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
       return () => listeners.delete(l)
     },
     start: () => {
+      fork(opts.client.commands().pipe(Effect.map((c) => void (pluginCommands = c)), Effect.ignore))
       fork(follow(0))
       post({})
     },
@@ -111,6 +115,17 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
                 ? `YOLO is on${plugin ? ` for ${plugin}` : ""}: ${plugin ? "it uses every scope it declares" : "plugins use every scope they declare, and agents read outside the repository,"} without asking. Nothing is saved; /yolo off asks again.`
                 : `YOLO is off${plugin ? ` for ${plugin}` : ""}: plugins ask before using a scope you have not granted.`,
             ),
+            Effect.catch((e) => Effect.succeed(e.message)),
+            Effect.flatMap((notice) => Effect.sync(() => set({ ...state, notice }))),
+          ),
+        )
+        return
+      }
+      const plugin = pluginCommands.find((c) => c.cmd === name)
+      if (plugin !== undefined) {
+        fork(
+          opts.client.runCommand(plugin.plugin, plugin.cmd, args).pipe(
+            Effect.map((r) => r.notice),
             Effect.catch((e) => Effect.succeed(e.message)),
             Effect.flatMap((notice) => Effect.sync(() => set({ ...state, notice }))),
           ),
@@ -151,6 +166,7 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
         ),
       )
     },
+    pluginCommands: () => pluginCommands,
     body: (agent) => Effect.runPromise(opts.client.body(opts.threadId, agent).pipe(Effect.orElseSucceed(() => undefined))),
     act: (agent, action, rows) =>
       Effect.runPromise(

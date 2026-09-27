@@ -12,6 +12,15 @@ export interface ThreadInfo {
   readonly status: "idle" | "running" | "waiting"
 }
 
+/** A slash command a plugin adds, as the core lists it. */
+export interface PluginCommandInfo {
+  readonly plugin: string
+  readonly cmd: string
+  readonly desc: string
+  readonly method: string
+  readonly arg: { readonly kind: "none" | "choice" | "text" | "path"; readonly hint?: string; readonly choices?: ReadonlyArray<string>; readonly required?: boolean; readonly params?: { readonly keys: ReadonlyArray<string>; readonly flags?: ReadonlyArray<string> } }
+}
+
 /** What one run sends: a new message (possibly an interjection), an answer to an inquiry, or neither (start the loop). */
 export interface RunRequest {
   readonly threadId: string
@@ -78,6 +87,13 @@ export const makeClient = (info: Pick<CoreInfo, "socket" | "token">) => {
     yolo: (on: boolean, plugin?: string) =>
       request("/yolo", { method: "POST", body: JSON.stringify({ on, ...(plugin !== undefined ? { plugin } : {}) }) }).pipe(
         Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly on: boolean }>)),
+      ),
+    /** Slash commands the core's plugins add. */
+    commands: () => request("/commands").pipe(Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<ReadonlyArray<PluginCommandInfo>>))),
+    /** Run a plugin's slash command; answers a notice. */
+    runCommand: (plugin: string, cmd: string, args: ReadonlyArray<string>) =>
+      request(`/plugins/${encodeURIComponent(plugin)}/commands/${encodeURIComponent(cmd.replace(/^\//, ""))}`, { method: "POST", body: JSON.stringify({ args }) }).pipe(
+        Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly notice: string }>)),
       ),
     /** An agent's body: its history, or what its plugin draws. */
     body: (threadId: string, agent: string) =>

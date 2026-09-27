@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { decodeCommands, lintSlashInput, parseSlashInput, SLASH_COMMANDS, type SlashCycle, stepCompletion } from "../src/tui/commands"
+import { decodeCommands, lintSlashInput, parseSlashInput, registerCommands, SLASH_COMMANDS, type SlashCycle, stepCompletion } from "../src/tui/commands"
 
 // A fixture table with every argument kind (the real table has only /reconcile so far).
 const T = decodeCommands([
@@ -88,4 +88,14 @@ describe("lintSlashInput", () => {
     expect(lintSlashInput("/bench humaneval speed=1", T)?.message).toContain("unknown parameter 'speed=1'")
     expect(lintSlashInput("/open a b", T)?.message).toContain("unexpected 'b'")
   })
+})
+
+test("commands a plugin declares join the table", () => {
+  const remove = registerCommands([{ cmd: "/p-go", desc: "a plugin's command", arg: { kind: "choice", choices: ["now", "later"] } }])
+  expect(SLASH_COMMANDS.map((c) => c.cmd)).toContain("/p-go")
+  expect(parseSlashInput("/p-go l")).toMatchObject({ mode: "arg", candidates: ["later"] })
+  registerCommands([{ cmd: "/p-go", desc: "again", arg: { kind: "none" } }])
+  expect(SLASH_COMMANDS.filter((c) => c.cmd === "/p-go").length).toBe(1)
+  remove()
+  expect(SLASH_COMMANDS.map((c) => c.cmd)).not.toContain("/p-go")
 })

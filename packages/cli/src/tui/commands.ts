@@ -47,7 +47,7 @@ export const decodeCommands = (raw: ReadonlyArray<unknown>): ReadonlyArray<Slash
   })
 
 // @card UX-0058
-export const SLASH_COMMANDS = decodeCommands([
+const table: Array<SlashCommand> = [...decodeCommands([
   { cmd: "/reconcile", desc: "turn plan and implement on for this session", arg: { kind: "none" } },
   {
     cmd: "/yolo",
@@ -59,7 +59,19 @@ export const SLASH_COMMANDS = decodeCommands([
     desc: "testers walk the journeys and report findings to the driver",
     arg: { kind: "choice", choices: ["edge-pair", "teleport"], hint: "edge-pair|teleport", params: { keys: ["focus"] } },
   },
-])
+])]
+/** The input's commands: zarg's own, then those loaded plugins add (`registerCommands`). */
+export const SLASH_COMMANDS: ReadonlyArray<SlashCommand> = table
+
+/** Add commands a plugin declares (a name already in the table is skipped). A bad entry throws, naming it. */
+export const registerCommands = (raw: ReadonlyArray<unknown>): (() => void) => {
+  const added = decodeCommands(raw).filter((c) => !table.some((t) => t.cmd === c.cmd))
+  table.push(...added)
+  // Takes them out again (a test, or a plugin that stopped).
+  return () => {
+    for (const c of added) table.splice(table.indexOf(c), 1)
+  }
+}
 
 /** What the input currently is, parsed against the table. */
 export type SlashInputState =

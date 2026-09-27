@@ -36,6 +36,15 @@ export class RehearseControl extends Context.Service<
   { readonly start: (opts: { readonly strategy?: "edge-pair" | "teleport"; readonly focus?: ReadonlyArray<string> }) => Effect.Effect<unknown> }
 >()("@zarg/core/RehearseControl") {}
 
+/** Slash commands plugins add (`GET /commands`, `POST /plugins/:name/commands/:cmd`). */
+export class PluginCommands extends Context.Service<
+  PluginCommands,
+  {
+    readonly list: () => ReadonlyArray<{ readonly plugin: string; readonly cmd: string; readonly desc: string; readonly method: string; readonly arg: unknown }>
+    readonly run: (plugin: string, cmd: string, args: ReadonlyArray<string>) => Effect.Effect<{ readonly notice: string }>
+  }
+>()("@zarg/core/PluginCommands") {}
+
 /** Agents' bodies and the actions on their selected rows (`GET …/agents/:agent/body`, `POST …/actions/:action`). */
 export class Bodies extends Context.Service<
   Bodies,
@@ -96,6 +105,7 @@ const routes = HttpRouter.addAll(
     const yolo = yield* YoloControl
     const rehearse = yield* RehearseControl
     const bodies = yield* Bodies
+    const commands = yield* PluginCommands
     const heartbeat = yield* Heartbeat
     const log = yield* Log
     // Only a user message this core has not seen yet counts as new input.
@@ -154,6 +164,17 @@ const routes = HttpRouter.addAll(
         "/threads",
         Effect.sync(() => HttpServerResponse.jsonUnsafe(threads.list().map((t) => ({ id: t.id, focus: t.focus, status: t.status() })))),
       ),
+      HttpRouter.route("GET", "/commands", Effect.sync(() => HttpServerResponse.jsonUnsafe(commands.list()))),
+      HttpRouter.route(
+        "POST",
+        "/plugins/:name/commands/:cmd",
+        Effect.gen(function* () {
+          const { name, cmd } = yield* HttpRouter.params
+          const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as { args?: unknown }
+          if (!Array.isArray(body.args) || !body.args.every((a) => typeof a === "string")) return error(400, `a command needs { "args": [strings] }`)
+          return HttpServerResponse.jsonUnsafe(yield* commands.run(decodeURIComponent(name ?? ""), `/${decodeURIComponent(cmd ?? "")}`, body.args as ReadonlyArray<string>))
+        }),
+      ),
       HttpRouter.route(
         "GET",
         "/threads/:id/agents/:agent/body",
@@ -199,6 +220,8 @@ const routes = HttpRouter.addAll(
  *   GET  /threads              [{ id, focus, status }]
  *   POST /threads/:id/stop     stop the thread's current work
  *   POST /rehearse             { strategy?, focus? } → the started run, or { refused }
+ *   GET  /commands              slash commands plugins add
+ *   POST /plugins/:name/commands/:cmd  { args } → { notice }
  *   GET  /threads/:id/agents/:agent/body          the agent's body (parts)
  *   POST /threads/:id/agents/:agent/actions/:action  { rows } → { notice }
  */

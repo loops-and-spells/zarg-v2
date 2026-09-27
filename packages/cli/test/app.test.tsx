@@ -20,6 +20,7 @@ const fakeSession = (state: SessionState) => {
     stop: () => calls.push("stop"),
     close: () => calls.push("close"),
     command: (t) => calls.push(`command ${t}`),
+    pluginCommands: () => [],
     act: (agent, action, rows) => Promise.resolve(void calls.push(`act ${agent} ${action} ${rows.join(",")}`)),
     body: (agent) =>
       Promise.resolve(

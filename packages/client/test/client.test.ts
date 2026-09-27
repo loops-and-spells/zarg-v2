@@ -25,6 +25,8 @@ const server = Bun.serve({
     if (url.pathname === "/threads") return Response.json([{ id: "main", focus: [], status: "idle" }])
     if (url.pathname === "/threads/main/stop") return Response.json({ stopped: "main" })
     if (url.pathname === "/reconcile") return Response.json({ on: true, pending: 1 })
+    if (url.pathname === "/commands") return Response.json([{ plugin: "p", cmd: "/p-go", desc: "d", method: "command", arg: { kind: "none" } }])
+    if (url.pathname === "/plugins/p/commands/p-go") return Response.json({ notice: "went" })
     if (url.pathname === "/rehearse") return Response.json({ run: "r-1", stories: 2, steps: 6, personas: ["dev"] })
     if (url.pathname === "/threads/main/rlms/rlm-2") return Response.json([{ type: "start", rlm: "rlm-2" }])
     if (url.pathname === "/threads/main/agents/rehearse%3At-1/body") return Response.json({ parts: [{ kind: "lines", lines: [{ text: "hi" }] }] })
@@ -80,6 +82,12 @@ describe("client", () => {
     expect(await Effect.runPromise(client.body("main", "rehearse:t-1"))).toEqual({ parts: [{ kind: "lines", lines: [{ text: "hi" }] }] })
     expect(await Effect.runPromise(client.act("main", "rehearse:t-1", "apply", ["R-1"]))).toEqual({ notice: "applied" })
     expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/threads/main/agents/rehearse%3At-1/actions/apply", body: { rows: ["R-1"] } })
+  })
+
+  test("plugin commands are listed and run through the core", async () => {
+    expect((await Effect.runPromise(client.commands())).map((c) => c.cmd)).toEqual(["/p-go"])
+    expect(await Effect.runPromise(client.runCommand("p", "/p-go", ["x"]))).toEqual({ notice: "went" })
+    expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/plugins/p/commands/p-go", body: { args: ["x"] } })
   })
 
   test("a wrong token fails with CoreError 401; a missing socket fails as unreachable", async () => {

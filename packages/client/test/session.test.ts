@@ -9,7 +9,10 @@ const fakeClient = (opts: { readonly refuseRuns?: boolean; readonly streamFails?
   const stops: Array<string> = []
   const reconciles: Array<number> = []
   const yolos: Array<{ on: boolean; plugin?: string }> = []
+  const pluginRuns: Array<[string, string, ReadonlyArray<string>]> = []
   const client = {
+    commands: () => Effect.succeed([{ plugin: "rehearse", cmd: "/rehearse", desc: "testers walk the journeys", method: "command", arg: { kind: "choice", choices: ["edge-pair", "teleport"] } }]),
+    runCommand: (plugin: string, cmd: string, args: ReadonlyArray<string>) => Effect.sync(() => (pluginRuns.push([plugin, cmd, args]), { notice: `${cmd} started` })),
     run: (r: RunRequest) => {
       runs.push(r)
       return opts.refuseRuns ? Stream.fail(new CoreError({ status: 401, message: "unauthorized" })) : Stream.empty
@@ -26,7 +29,7 @@ const fakeClient = (opts: { readonly refuseRuns?: boolean; readonly streamFails?
     yolo: (on: boolean, plugin?: string) => Effect.sync(() => (yolos.push({ on, ...(plugin !== undefined ? { plugin } : {}) }), { on })),
   } as unknown as Client
   const push = (e: WireEvent) => Effect.runSync(Queue.offer(streams.at(-1)!.queue, e))
-  return { client, runs, streams, stops, reconciles, yolos, push }
+  return { client, runs, streams, stops, reconciles, yolos, push, pluginRuns }
 }
 const tick = (ms = 20) => new Promise((r) => setTimeout(r, ms))
 const inquiry = { id: "inq-1", reason: "inquiry", message: "Which?", metadata: { options: [{ id: "a", label: "A" }, { id: "b", label: "B" }], allowOther: true } }
@@ -155,4 +158,17 @@ describe("/yolo", () => {
     expect(f.yolos).toEqual([{ on: true }, { on: false, plugin: "tracker" }, { on: true }])
     session.close()
   })
+})
+
+test("a plugin's slash command runs through the core and shows its notice", async () => {
+  const f = fakeClient()
+  const session = makeSession({ client: f.client, threadId: "main" })
+  session.start()
+  await tick()
+  expect(session.pluginCommands().map((c) => c.cmd)).toEqual(["/rehearse"])
+  session.command("/rehearse teleport focus=UX-1")
+  await tick()
+  expect(f.pluginRuns).toEqual([["rehearse", "/rehearse", ["teleport", "focus=UX-1"]]])
+  expect(session.state().notice).toBe("/rehearse started")
+  session.close()
 })

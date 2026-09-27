@@ -63,4 +63,19 @@ export default definePlugin({ name: "svc", service: "Svc", archetype: "service",
     const refused = await Effect.runPromise(Effect.exit(hostWith([await fixturePlugin(src(`{}`))], (h) => h.invoke("svc", "go", {}), { agents: () => {} })))
     expect(JSON.stringify(refused)).toContain("agents scope")
   })
+
+  test("a plugin's slash commands are in its manifest and listed by the host", async () => {
+    const src = `
+import { Effect, Schema } from "effect"
+import { definePlugin } from "@zarg/plugin-sdk"
+export default definePlugin({ name: "svc", service: "Svc", archetype: "service", config: Schema.Struct({}), scopes: {},
+  commands: [{ cmd: "/svc-go", desc: "go now", method: "command", arg: { kind: "none" } }],
+  methods: { command: { doc: "c", params: Schema.Struct({ args: Schema.Array(Schema.String) }), success: Schema.Struct({ notice: Schema.String }) } },
+  make: Effect.succeed({ command: ({ args }) => Effect.succeed({ notice: "went " + args.join(",") }) }) })`
+    const out = await Effect.runPromise(hostWith([await fixturePlugin(src)], (h) => Effect.gen(function* () {
+      return { list: h.commands(), run: yield* h.invoke("svc", "command", { args: ["x"] }) }
+    })))
+    expect(out.list).toEqual([{ plugin: "svc", cmd: "/svc-go", desc: "go now", method: "command", arg: { kind: "none" } }])
+    expect(out.run).toEqual({ notice: "went x" })
+  })
 })
