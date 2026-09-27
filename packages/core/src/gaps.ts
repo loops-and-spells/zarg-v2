@@ -32,13 +32,3 @@ export const judgeGaps = (
       ),
     { concurrency: MAX_JUDGED },
   ).pipe(Effect.map((kept) => kept.flat()))
-
-/** Card ids with no `@card <id>` tag in the repo's tracked files. */
-export const unbuiltCards = (root: string, cards: ReadonlyArray<string>) =>
-  Effect.promise(async () => {
-    const p = Bun.spawn(["git", "grep", "-h", "-o", "-E", "@card [A-Z]+-[0-9]+"], { cwd: root, env: process.env, stdout: "pipe", stderr: "ignore" })
-    const out = await new Response(p.stdout).text()
-    await p.exited
-    const tagged = new Set(out.split("\n").map((l) => l.slice("@card ".length).trim()))
-    return cards.filter((c) => !tagged.has(c))
-  })

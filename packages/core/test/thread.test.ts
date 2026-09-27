@@ -6,7 +6,7 @@ import { Effect, Fiber, Stream } from "effect"
 import type { AgendaItem } from "@zarg/plugin/server"
 import type { Asker, Rlm } from "@zarg/rlm"
 import { makeLog } from "../src/log"
-import { makeThread, type ThreadDeps, WHAT_NEXT, WHAT_NEXT_GAPS } from "../src/thread"
+import { makeThread, OPEN_QUESTION, type ThreadDeps, WHAT_NEXT, WHAT_NEXT_GAPS } from "../src/thread"
 import type { WireEvent } from "../src/events"
 
 type Driver = (spec: Rlm.RlmSpec, asker: Asker, observe: (e: Rlm.RlmEvent) => void) => Effect.Effect<Rlm.RlmOutcome, Rlm.RlmError>
@@ -141,6 +141,27 @@ test("a second question waits behind the first and is shown once the first is an
     expect(WHAT_NEXT_GAPS).toContain("allowOther")
     expect(WHAT_NEXT_GAPS).not.toContain("new journey")
     expect(WHAT_NEXT).not.toContain("the next journey")
+  })
+
+  test("nothing open and no gaps: zarg asks what to work on itself, with the journeys, and the answer goes to the driver", async () => {
+    const tasks: Array<string> = []
+    const driver: Driver = (spec) => Effect.sync(() => (tasks.push(spec.task), outcome("ok")))
+    const journeys: ThreadDeps["journeys"] = () => Effect.succeed([{ id: "S-1", text: "the cart is shown" }, { id: "S-7", text: "the visitor opens the site" }])
+    const out = await Effect.runPromise(
+      Effect.gen(function* () {
+        const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zarg-thread-")), (t) => t)
+        const thread = yield* makeThread({ id: "main", focus: [], log, agenda: () => Effect.succeed([]), driver, suggest: () => Effect.succeed([]), journeys })
+        const first = yield* collect(thread.run({ runId: "r1" }))
+        const asked = (last(first) as any).outcome.interrupts[0]
+        yield* Effect.forkChild(collect(thread.run({ runId: "r2", resume: [{ interruptId: asked.id, payload: { choice: "S-1" } }] })))
+        yield* Effect.sleep(50)
+        return { asked }
+      }),
+    )
+    expect(out.asked.message).toBe(OPEN_QUESTION)
+    expect(out.asked.metadata.options.map((o: any) => [o.id, o.label])).toEqual([["S-1", "the cart is shown"], ["S-7", "the visitor opens the site"]])
+    expect(out.asked.metadata.allowOther).toBe(true)
+    expect(tasks[0]).toStartWith('The developer said: "Work on the journey that starts at \\"the cart is shown\\" (S-1)."')
   })
 
   test("an empty agenda and no gaps (or a failing suggest): the driver works out the options itself", async () => {

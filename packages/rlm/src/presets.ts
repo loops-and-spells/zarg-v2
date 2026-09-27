@@ -49,7 +49,7 @@ export const DEFAULT_BUDGET: Budget = { turns: 25, tokens: 400_000, wallMs: 30 *
 export const DEFAULT_PRESETS: Readonly<Record<string, Preset>> = {
   // The driver asks the developer; it never splits its task, so atomize would only add a Decisions round trip.
   // Its turns are light (pick options, ask, reply), and thinking was ~80% of each turn's time.
-  driver: { layer: ["Graph", "Gherkin", "Inquire", "Fs:read", "Decisions", "Rlm"], spawns: ["research", "driver"], atomize: false, reasoning: false, role: "driver", budget: { turns: 25 }, result: "text", verify: "none" },
+  driver: { layer: ["Graph", "Gherkin", "Inquire", "Fs:read", "Decisions", "Rlm"], spawns: ["research"], atomize: false, reasoning: false, role: "driver", budget: { turns: 25 }, result: "text", verify: "none" },
   // Plan and implement phases (the reconcile loop): each runs per card in its own worktree.
   plan: { layer: ["Graph", "Fs:read", "Decisions", "Rlm"], spawns: ["research"], role: "plan", budget: { turns: 20 }, result: "plan", verify: "none" },
   "implement-card": { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: ["research"], role: "implement", budget: { turns: 25 }, result: "implement-card", verify: "gate" },

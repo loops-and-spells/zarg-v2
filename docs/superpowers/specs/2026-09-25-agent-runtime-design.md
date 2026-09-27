@@ -70,7 +70,7 @@ max_concurrent = 8
 
 [rlm.presets.driver]
 layer  = ["Graph", "Gherkin", "Inquire", "Fs:read", "Decisions", "Rlm"]
-spawns = ["research", "driver"]
+spawns = ["research"]
 role   = "driver"
 budget = { turns = 25 }
 

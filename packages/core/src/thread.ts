@@ -15,6 +15,9 @@ export const WHAT_NEXT =
 export const WHAT_NEXT_GAPS =
   "The agenda is empty. Ask the developer what to work on next now, in your first turn, with Inquire.ask: 2-4 options drawn from the gaps below, one recommended, and allowOther: true so they can name their own idea. Never make up a journey or feature yourself. Do not render the whole graph; use Graph.render({ focus }) on a gap's ids only if a label needs it. No research children."
 
+/** Asked by zarg itself when nothing is open: no driver turn, no model. */
+export const OPEN_QUESTION = "Nothing is open in the requirements. What do you want to work on?"
+
 // Enough gaps to choose 2-4 options from.
 const GAPS_SHOWN = 8
 
@@ -42,6 +45,8 @@ export interface ThreadDeps {
   readonly driver: (spec: Rlm.RlmSpec, asker: Asker, observe: (e: Rlm.RlmEvent) => void) => Effect.Effect<Rlm.RlmOutcome, Rlm.RlmError>
   /** Gherkin text for these node ids within the driver's scope, put in its task so its first turn need not fetch it. */
   readonly render?: (ids: ReadonlyArray<string>, scope: Scope) => Effect.Effect<string, unknown>
+  /** Where journeys start (entry states), offered when nothing is open and no gaps were found. */
+  readonly journeys?: (focus: ReadonlySet<string> | undefined) => Effect.Effect<ReadonlyArray<{ readonly id: string; readonly text: string }>, unknown>
   /** Gaps found in code (plugins' suggest), for the "what next" question when the agenda is empty. */
   readonly suggest?: (focus: ReadonlySet<string> | undefined) => Effect.Effect<ReadonlyArray<AgendaItem>, unknown>
 }
@@ -169,6 +174,17 @@ export const makeThread = (deps: ThreadDeps) =>
           said.length === 0 && (item === undefined || stuck) && deps.suggest !== undefined
             ? yield* deps.suggest(focusSet).pipe(Effect.catchCause(() => Effect.succeed([] as ReadonlyArray<AgendaItem>)))
             : []
+        // Nothing open and nothing found: zarg asks itself; the answer is the developer's word to the driver.
+        if (said.length === 0 && item === undefined && gaps.length === 0 && deps.journeys !== undefined) {
+          const journeys = yield* deps.journeys(focusSet).pipe(Effect.orElseSucceed(() => []))
+          const a = yield* loopAsk({ question: OPEN_QUESTION, options: journeys.slice(0, 4).map((j) => ({ id: j.id, label: j.text })), allowOther: true })
+          // A message about it is not a discussion to settle: it is what they want.
+          discussed.length = 0
+          const j = journeys.find((x) => x.id === a.choice)
+          const text = j !== undefined ? `Work on the journey that starts at "${j.text}" (${j.id}).` : (a.other ?? "")
+          if (text.length > 0) inbox.push(text)
+          continue
+        }
         const around =
           item !== undefined && !stuck && item.about.length > 0 && deps.render !== undefined
             ? yield* deps.render(item.about, scope).pipe(
