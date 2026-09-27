@@ -236,6 +236,17 @@ describe("the agents pane", () => {
     expect(agentDetail({}, undefined)).toEqual([])
   })
 
+  test("the detail card shows budget extensions and wrap-ups with their confidence", () => {
+    const n = { id: "rlm-1", parent: null, preset: "driver", depth: 0, turns: 30, budget: 35, status: "running" as const, decisions: [
+      { kind: "extend" as const, extended: true, turns: 35, confidence: 0.82, reason: "typecheck failed 0/5" },
+      { kind: "extend" as const, extended: false, turns: 35, confidence: 0.7, reason: "repeated calls 6/6" },
+    ] }
+    expect(agentDetail({ "rlm-1": n }, undefined).slice(2)).toEqual([
+      "extended to 35 turns  0.82  typecheck failed 0/5",
+      "told to wrap up       0.70  repeated calls 6/6",
+    ])
+  })
+
   test("arrows on the agents pane never move the picker", () => {
     const waiting: SessionState = { thread: { ...running.thread, status: "waiting", pendingInquiry: inquiry }, core: "up" }
     const ui = syncUi({ ...initialUi, focus: "agents" }, waiting)

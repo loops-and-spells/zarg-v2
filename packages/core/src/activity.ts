@@ -34,7 +34,7 @@ export const makeActivity = (log: ThreadLog, threadId: string) => {
       Effect.runSync(log.transcript(threadId, { type, rlm: id, ...rest }))
       return
     }
-    if (e.type === "atomize") {
+    if (e.type === "atomize" || e.type === "extend") {
       const { type, id: _, ...rest } = e
       Effect.runSync(log.transcript(threadId, { type, rlm: id, ...rest }))
     }
@@ -47,7 +47,9 @@ export const makeActivity = (log: ThreadLog, threadId: string) => {
           ? { ...prev, turns: e.turn, tokens: e.tokens }
           : e.type === "atomize"
             ? { ...prev, decisions: [...((prev.decisions as Array<unknown>) ?? []), { kind: "atomize", atomic: e.atomic, criteria: e.criteria }] }
-            : e.type === "plan"
+            : e.type === "extend"
+              ? { ...prev, budget: e.turns, decisions: [...((prev.decisions as Array<unknown>) ?? []), { kind: "extend", extended: e.extended, turns: e.turns, confidence: e.confidence, reason: e.reason }] }
+              : e.type === "plan"
               ? { ...prev, plan: e.children }
               : e.ok
                 ? { ...prev, status: "done", turns: e.turns, tokens: e.tokens }

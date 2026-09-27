@@ -233,6 +233,26 @@ describe("transcripts", () => {
     expect(lines[1]).toMatchObject({ rlm: "rlm-1", atomic: true, ms: 4200, criteria: [{ name: "single", answer: true, confidence: 0.9 }] })
   })
 
+  test("a budget extension goes to the transcript, and the agents pane gets the new budget and the decision", async () => {
+    const driver: Driver = (_s, asker, observe) =>
+      Effect.gen(function* () {
+        observe({ type: "start", id: "rlm-1", parent: undefined, preset: "driver", task: "t", scope: {}, depth: 0, budget: { turns: 25, tokens: 1, wallMs: 1 } })
+        observe({ type: "extend", id: "rlm-1", extended: true, turns: 35, confidence: 0.8, reason: "r", ms: 900 })
+        return (yield* asker.ask(question)) as never
+      }) as never
+    const out = await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread, dir } = yield* setup(driver)
+        const events = yield* collect(thread.run({ runId: "r1" }))
+        return { events, dir }
+      }),
+    )
+    const lines = readFileSync(join(out.dir, "main.rlm.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l))
+    expect(lines[1]).toMatchObject({ type: "extend", rlm: "rlm-1", extended: true, turns: 35, confidence: 0.8, reason: "r", ms: 900 })
+    const state = out.events.reduce(reduce, initial("main"))
+    expect(state.rlms["rlm-1"]).toMatchObject({ budget: 35, decisions: [{ kind: "extend", extended: true, turns: 35, confidence: 0.8, reason: "r" }] })
+  })
+
   test("a restarted core does not read transcripts as events", async () => {
     const dir = mkdtempSync(join(tmpdir(), "zarg-log-"))
     writeFileSync(join(dir, "main.jsonl"), `${JSON.stringify({ type: "RUN_STARTED", threadId: "main", runId: "r", seq: 1 })}\n`)

@@ -96,6 +96,10 @@ verify = "none"       # "gate" | "decision" | "none"
 
 [rlm.atomize]
 min_confidence = 0.5
+
+[rlm.extend]
+turns = 10            # turns granted when an agent at its budget is judged to be progressing
+max = 2               # extensions per agent; 0 turns them off
 ```
 
 - The host checks every `Rlm.exec`: the parent's preset must list the child's preset in `spawns`. Otherwise the call fails with `RlmError{kind: "spawn"}`.
@@ -122,8 +126,9 @@ The RLM's runtime is built from its layer narrowed to its scope:
    - Run each `exec({code})` call in the kernel.
    - Return the output (console lines plus return value, capped at 32 KB) as the tool result.
    - The RLM finishes by calling `yield* Rlm.done(value)`. The value must decode with `spec.result`.
-6. When a budget runs out, give the model one final report turn. Its value must still decode.
-7. Dispose the kernel and the runtime, and return the result to the parent.
+6. When the turn budget runs out, the host asks `Decisions` one yes/no question: is the agent progressing? It sees the task's head, the cells of the last 5 turns, and counts the harness makes itself: cells that failed typecheck, calls that repeat an earlier call (same service, method and params), questions to the developer. A yes with confidence at least `min_confidence` grants `rlm.extend.turns` more turns, at most `rlm.extend.max` times; the token and wall budgets still apply. Each judgment is logged and shown in the agents pane.
+7. When a budget runs out (and no extension is granted), give the model one final report turn. Its value must still decode.
+8. Dispose the kernel and the runtime, and return the result to the parent.
 
 ### Folding
 

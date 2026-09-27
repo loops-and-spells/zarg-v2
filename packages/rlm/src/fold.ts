@@ -45,6 +45,45 @@ export const atomize = (decisions: Decisions["Service"], task: string, scope: st
     return { atomic, reason: notes.join(", "), criteria } satisfies Atomized
   })
 
+/** What an agent did in its last turns, counted by the harness for the progress judgment. */
+export interface Progress {
+  readonly used: number
+  readonly extension: number
+  readonly max: number
+  readonly cells: ReadonlyArray<{ readonly turn: number; readonly code: string; readonly ok: boolean; readonly output: string }>
+  readonly typecheckFailed: number
+  readonly calls: number
+  readonly repeated: number
+  readonly asked: number
+}
+
+/**
+ * At the turn budget: is the agent getting closer to finishing (extend) or going round in circles (wrap up)?
+ * Only a confident yes extends; a decision model that cannot answer means wrap up, as before extensions.
+ */
+export const judgeProgress = (decisions: Decisions["Service"], task: string, p: Progress, minConfidence: number) =>
+  Effect.gen(function* () {
+    const head = task.length > ATOMIZE_TASK_MAX ? `${task.slice(0, ATOMIZE_TASK_MAX)}\n… (task cut for this judgment)` : task
+    const state = [
+      `Task: ${head}`,
+      `Turns used: ${p.used} (extension ${p.extension + 1} of ${p.max} would be next)`,
+      `In the last turns: cells that failed typecheck: ${p.typecheckFailed} of ${p.cells.length}; repeated calls: ${p.repeated} of ${p.calls} (same service, method and params as an earlier call); questions to the developer: ${p.asked}`,
+      "Recent cells:",
+      ...p.cells.map((c) => `- turn ${c.turn} ${c.ok ? "ok" : "failed"}: ${preview(c.code, 300)}\n  → ${preview(c.output, 300)}`),
+    ].join("\n")
+    const questions = {
+      progressing: {
+        type: "noul" as const,
+        instructions: "Is this agent making progress toward finishing its task: new information or changes each turn, not repeating the same calls or failing the same way?",
+      },
+    }
+    const answers = yield* decisions.decide({ state, questions }).pipe(Effect.option)
+    const a = answers._tag === "Some" ? answers.value.progressing : undefined
+    if (a === undefined || a.type !== "noul") return { extend: false, confidence: 0, reason: "decisions unavailable" }
+    const reason = `typecheck failed ${p.typecheckFailed}/${p.cells.length}, repeated calls ${p.repeated}/${p.calls}, questions ${p.asked}`
+    return { extend: a.answer && a.confidence >= minConfidence, confidence: a.confidence, reason }
+  })
+
 export const PlanChild = Schema.Struct({
   id: Schema.String,
   task: Schema.String,

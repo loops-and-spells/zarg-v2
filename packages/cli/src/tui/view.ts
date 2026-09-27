@@ -197,10 +197,14 @@ export const agentDetail = (rlms: Readonly<Record<string, RlmNode>>, cursor: str
     `${n.preset} ${n.id} · ${n.status}`,
     ...(task !== undefined ? [`task  ${task}`] : []),
     `turn ${n.turns} of ${n.budget}${n.tokens !== undefined ? ` · ${n.tokens.toLocaleString("en-US")} tokens` : ""}`,
-    ...n.decisions.flatMap((d) => [
-      d.atomic ? "atomic (runs directly)" : "plan (splits into children)",
-      ...d.criteria.map((c) => `  ${c.name.padEnd(16)}${(c.answer ? "yes" : "no").padEnd(5)}${c.confidence.toFixed(2)}`),
-    ]),
+    ...n.decisions.flatMap((d) =>
+      d.kind === "extend"
+        ? [`${(d.extended ? `extended to ${d.turns} turns` : "told to wrap up").padEnd(22)}${d.confidence.toFixed(2)}  ${d.reason}`]
+        : [
+            d.atomic ? "atomic (runs directly)" : "plan (splits into children)",
+            ...d.criteria.map((c) => `  ${c.name.padEnd(16)}${(c.answer ? "yes" : "no").padEnd(5)}${c.confidence.toFixed(2)}`),
+          ],
+    ),
     ...(n.error !== undefined ? [`error  ${n.error}`] : []),
   ]
 }

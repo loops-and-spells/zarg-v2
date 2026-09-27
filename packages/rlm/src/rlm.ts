@@ -2,7 +2,7 @@ import { Data, Effect, Ref, Schema, Semaphore, Stream } from "effect"
 import { bind, type Bound, defineService, Kernel, type Recorded, type ServiceFailure, tsType } from "@zarg/kernel"
 import { Model, type ChatMessage, type ToolCall } from "@zarg/model"
 import type { Decisions } from "@zarg/decisions"
-import { atomize, type Atomized, type ChildResult, preview, requestPlan, scopeOf, waves } from "./fold"
+import { atomize, type Atomized, type ChildResult, judgeProgress, preview, requestPlan, scopeOf, waves } from "./fold"
 import { budgetOf, type Budget, type Preset, RESULTS, type RlmSettings } from "./presets"
 import { describeScope, type Scope } from "./scope"
 
@@ -71,6 +71,8 @@ export type RlmEvent =
   /** A service call or a read of time or randomness by one of the turn's cells (for transcripts and replay, not the UI). */
   | { readonly type: "record"; readonly id: string; readonly turn: number; readonly record: Recorded }
   | { readonly type: "atomize"; readonly id: string; readonly atomic: boolean; readonly reason: string; readonly criteria: Atomized["criteria"]; readonly ms: number }
+  /** At its turn budget, the decision model judged whether the agent is progressing: `turns` is its budget now. */
+  | { readonly type: "extend"; readonly id: string; readonly extended: boolean; readonly turns: number; readonly confidence: number; readonly reason: string; readonly ms: number }
   | { readonly type: "plan"; readonly id: string; readonly children: ReadonlyArray<{ readonly id: string; readonly preset: string; readonly dependsOn: ReadonlyArray<string> }> }
   | { readonly type: "end"; readonly id: string; readonly ok: true; readonly turns: number; readonly tokens: number }
   | { readonly type: "end"; readonly id: string; readonly ok: false; readonly kind: RlmErrorKind | "stopped"; readonly message: string }
@@ -228,10 +230,16 @@ export const make = (deps: RlmDeps) =>
             return b === undefined ? [] : [b]
           })
           let turnCount = 0
+          // What the progress judgment counts: each turn's cells and each service call.
+          const history: Array<{ turn: number; code: string; ok: boolean; output: string }> = []
+          const callLog: Array<{ turn: number; key: string; service: string }> = []
           const kernel = yield* Kernel.make({
             services: [...layer, rlmService],
             env: {},
-            record: (record) => emit({ type: "record", id, turn: turnCount, record }),
+            record: (record) => {
+              if (record.kind === "call") callLog.push({ turn: turnCount, key: `${record.service}.${record.method} ${JSON.stringify(record.params)}`, service: record.service })
+              emit({ type: "record", id, turn: turnCount, record })
+            },
             ...(deps.cellTimeoutMs ? { timeoutMs: deps.cellTimeoutMs } : {}),
           })
 
@@ -290,7 +298,10 @@ export const make = (deps: RlmDeps) =>
             emit({ type: "model", id, turn: turnCount, firstTokenMs, modelMs, promptTokens, completionTokens, reasoningTokens })
             messages.push({ role: "assistant", content: text.length > 0 ? text : null, ...(calls.length > 0 ? { toolCalls: calls } : {}) })
             const cells: Array<{ code: string; ok: boolean; output: string; ms: number; cell?: number }> = []
-            const step = () => emit({ type: "step", id, turn: turnCount, text, cells })
+            const step = () => {
+              for (const c of cells) history.push({ turn: turnCount, code: c.code, ok: c.ok, output: c.output })
+              emit({ type: "step", id, turn: turnCount, text, cells })
+            }
             if (calls.length === 0) {
               step()
               messages.push({ role: "user", content: "Use the exec tool. Finish with `yield* Rlm.done({ value })`." })
@@ -371,7 +382,37 @@ export const make = (deps: RlmDeps) =>
           }
 
           const over = () => tokens >= budget.tokens || Date.now() - started >= budget.wallMs
-          for (let n = 1; n <= budget.turns && !over(); n++) {
+          // At the budget, an agent the decision model judges to be progressing gets more turns (up to extendMax times).
+          let limit = budget.turns
+          let extensions = 0
+          const progress = () => {
+            const from = turnCount - 4
+            const cells = history.filter((c) => c.turn >= from)
+            const recent = callLog.flatMap((c, i) => (c.turn >= from ? [{ ...c, repeated: callLog.slice(0, i).some((e) => e.key === c.key) }] : []))
+            return {
+              used: turnCount,
+              extension: extensions,
+              max: deps.settings.extendMax,
+              cells,
+              typecheckFailed: cells.filter((c) => c.output.startsWith("typecheck failed")).length,
+              calls: recent.length,
+              repeated: recent.filter((c) => c.repeated).length,
+              asked: recent.filter((c) => c.service === "Inquire").length,
+            }
+          }
+          for (let n = 1; !over(); n++) {
+            if (n > limit) {
+              if (deps.decisions === undefined || extensions >= deps.settings.extendMax) break
+              const judgeStart = Date.now()
+              const j = yield* judgeProgress(deps.decisions, spec.task, progress(), deps.minConfidence ?? deps.settings.minConfidence)
+              if (j.extend) {
+                extensions++
+                limit += deps.settings.extendTurns
+                messages.push({ role: "user", content: `You are making progress: ${deps.settings.extendTurns} more turns. Finish with \`yield* Rlm.done({ value })\`.` })
+              }
+              emit({ type: "extend", id, extended: j.extend, turns: limit, confidence: j.confidence, reason: j.reason, ms: Date.now() - judgeStart })
+              if (!j.extend) break
+            }
             yield* turn
             const done = yield* Ref.get(finished)
             if (done !== undefined) {
@@ -385,10 +426,10 @@ export const make = (deps: RlmDeps) =>
           yield* turn
           const last = yield* Ref.get(finished)
           if (last !== undefined) {
-            emit({ type: "end", id, ok: true, turns: budget.turns + 1, tokens })
-            return { id, value: last.value, turns: budget.turns + 1, tokens }
+            emit({ type: "end", id, ok: true, turns: turnCount, tokens })
+            return { id, value: last.value, turns: turnCount, tokens }
           }
-          return yield* new RlmError({ kind: "budget", message: `${spec.preset} did not finish within its budget (${budget.turns} turns)` })
+          return yield* new RlmError({ kind: "budget", message: `${spec.preset} did not finish within its budget (${limit} turns)` })
         }),
       )
 

@@ -14,11 +14,14 @@ export interface Inquiry {
   readonly about: ReadonlyArray<string>
 }
 
-export interface Decision {
-  readonly kind: "atomize"
-  readonly atomic: boolean
-  readonly criteria: ReadonlyArray<{ readonly name: string; readonly answer: boolean; readonly confidence: number }>
-}
+export type Decision =
+  | {
+      readonly kind: "atomize"
+      readonly atomic: boolean
+      readonly criteria: ReadonlyArray<{ readonly name: string; readonly answer: boolean; readonly confidence: number }>
+    }
+  /** At its turn budget: extended to `turns`, or told to wrap up. */
+  | { readonly kind: "extend"; readonly extended: boolean; readonly turns: number; readonly confidence: number; readonly reason: string }
 
 export interface RlmNode {
   readonly id: string

@@ -28,6 +28,7 @@ const RlmConfig = Schema.Struct({
   max_concurrent: Schema.optionalKey(Schema.Number),
   presets: Schema.optionalKey(Schema.Record(Schema.String, Preset)),
   atomize: Schema.optionalKey(Schema.Struct({ min_confidence: Schema.optionalKey(Schema.Number) })),
+  extend: Schema.optionalKey(Schema.Struct({ turns: Schema.optionalKey(Schema.Number), max: Schema.optionalKey(Schema.Number) })),
 })
 
 export interface RlmSettings {
@@ -36,6 +37,10 @@ export interface RlmSettings {
   /** `[rlm.atomize] min_confidence`: how sure a "no" must be to plan, and a "decision" check to pass. */
   readonly minConfidence: number
   readonly presets: Readonly<Record<string, Preset>>
+  /** `[rlm.extend] turns`: turns granted when an agent at its budget is judged to be progressing. */
+  readonly extendTurns: number
+  /** `[rlm.extend] max`: extensions per agent; 0 turns them off. */
+  readonly extendMax: number
 }
 
 export const DEFAULT_BUDGET: Budget = { turns: 25, tokens: 400_000, wallMs: 30 * 60_000 }
@@ -67,7 +72,7 @@ export const settings = (raw: unknown) =>
         }
       }
     }
-    return { maxDepth: cfg.max_depth ?? 4, maxConcurrent: cfg.max_concurrent ?? 8, minConfidence: cfg.atomize?.min_confidence ?? 0.5, presets } satisfies RlmSettings
+    return { maxDepth: cfg.max_depth ?? 4, maxConcurrent: cfg.max_concurrent ?? 8, minConfidence: cfg.atomize?.min_confidence ?? 0.5, presets, extendTurns: cfg.extend?.turns ?? 10, extendMax: cfg.extend?.max ?? 2 } satisfies RlmSettings
   })
 
 export const budgetOf = (p: Preset, override: Partial<Budget> = {}): Budget => {
