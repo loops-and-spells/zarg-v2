@@ -39,8 +39,11 @@ export const DEFAULT_BUDGET: Budget = { turns: 25, tokens: 400_000, wallMs: 30 *
 /** The presets from the spec; `[rlm.presets.*]` in config overrides them by name. */
 export const DEFAULT_PRESETS: Readonly<Record<string, Preset>> = {
   driver: { layer: ["Graph", "Gherkin", "Inquire", "Fs:read", "Decisions", "Rlm"], spawns: ["research", "driver"], role: "driver", budget: { turns: 25 }, result: "text", verify: "none" },
-  sync: { layer: ["Graph", "Fs", "Sh", "Verify", "Agenda", "Decisions", "Rlm"], spawns: ["implement-card", "research"], role: "sync", budget: { turns: 40 }, result: "text", verify: "gate" },
-  "implement-card": { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: ["research"], role: "sync", budget: { turns: 25 }, result: "implement-card", verify: "gate" },
+  // Plan and implement phases (the reconcile loop): each runs per card in its own worktree.
+  plan: { layer: ["Graph", "Fs:read", "Decisions", "Rlm"], spawns: ["research"], role: "plan", budget: { turns: 20 }, result: "plan", verify: "none" },
+  "implement-card": { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: ["research"], role: "implement", budget: { turns: 25 }, result: "implement-card", verify: "gate" },
+  fix: { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: [], role: "implement", budget: { turns: 15 }, result: "text", verify: "none" },
+  resolve: { layer: ["Fs", "Sh", "Rlm"], spawns: [], role: "implement", budget: { turns: 10 }, result: "resolve", verify: "none" },
   research: { layer: ["Graph", "Fs:read", "Decisions", "Rlm"], spawns: ["research"], role: "driver", budget: { turns: 15 }, result: "research", verify: "none" },
 }
 
@@ -75,5 +78,8 @@ export const budgetOf = (p: Preset, override: Partial<Budget> = {}): Budget => {
 export const RESULTS: Readonly<Record<string, Schema.Codec<any, any>>> = {
   text: Schema.String,
   research: Schema.Struct({ findings: Schema.Array(Schema.String), sources: Schema.Array(Schema.String) }),
-  "implement-card": Schema.Struct({ files: Schema.Array(Schema.String), summary: Schema.String }),
+  /** The plan's Markdown sections (Approach, Files, Tests, Depends on), or why the card cannot be planned. */
+  plan: Schema.Struct({ plan: Schema.optionalKey(Schema.String), blocked: Schema.optionalKey(Schema.String) }),
+  "implement-card": Schema.Struct({ files: Schema.Array(Schema.String), summary: Schema.String, blocked: Schema.optionalKey(Schema.String) }),
+  resolve: Schema.Struct({ resolved: Schema.Boolean }),
 }

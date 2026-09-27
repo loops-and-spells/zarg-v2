@@ -23,7 +23,7 @@ describe("plan checks", () => {
     expect(planProblems({ children: [child("a")] }, ["research"])).toEqual(["a plan has 2 to 8 children, got 1"])
     expect(planProblems({ children: [child("a"), child("a")] }, ["research"])).toContain('duplicate child id "a"')
     expect(planProblems({ children: [child("a", ["zz"]), child("b")] }, ["research"])).toContain('a depends on unknown "zz"')
-    expect(planProblems({ children: [child("a", [], "sync"), child("b")] }, ["research"])[0]).toContain('preset "sync" is not one you may spawn')
+    expect(planProblems({ children: [child("a", [], "fix"), child("b")] }, ["research"])[0]).toContain('preset "fix" is not one you may spawn')
     expect(planProblems({ children: [child("a", ["b"]), child("b", ["a"])] }, ["research"])).toEqual(["dependsOn has a cycle"])
   })
 })
@@ -70,7 +70,7 @@ const run = (scripts: Record<string, ReadonlyArray<Reply>>, spec: Rlm.RlmSpec, d
   return Effect.runPromise(
     Effect.gen(function* () {
       const s = yield* settings(raw)
-      const rlm = yield* Rlm.make({ settings: s, services: factory, roles: { driver: "stub:m", sync: "stub:m" }, decisions: d.service, cellTimeoutMs: 5000, ...(observe ? { observe } : {}) })
+      const rlm = yield* Rlm.make({ settings: s, services: factory, roles: { driver: "stub:m", implement: "stub:m" }, decisions: d.service, cellTimeoutMs: 5000, ...(observe ? { observe } : {}) })
       return yield* Effect.exit(rlm.exec(spec))
     }).pipe(Effect.provide(stub.layer)),
   ).then((exit) => ({ exit, seen: stub.seen }))
@@ -147,14 +147,15 @@ describe("folding", () => {
         plan: [planText(plan)],
         "implement-card": [{ cell: 'yield* Rlm.done({ value: { files: ["src/a.ts"], summary: "edited" } })' }],
         research: [researchDone("fine")],
-        sync: [{ cell: "yield* Rlm.done({ value: JSON.stringify(children.map((c: any) => [c.id, c.ok, c.kind ?? null])) })" }],
+        lead: [{ cell: "yield* Rlm.done({ value: JSON.stringify(children.map((c: any) => [c.id, c.ok, c.kind ?? null])) })" }],
       },
-      { task: "big", preset: "sync", scope: { paths: ["src/**"] } },
+      { task: "big", preset: "lead", scope: { paths: ["src/**"] } },
       decisions(false),
+      { presets: { lead: { layer: ["Graph", "Fs", "Sh", "Verify", "Decisions", "Rlm"], spawns: ["implement-card", "research"], role: "implement", result: "text", verify: "gate" } } },
     )
     gatePasses = true
     expect(JSON.parse(value(r))).toEqual([["i1", false, "verify"], ["r1", true, null]])
-    const note = String(r.seen.filter((s) => s.preset === "sync")[0]!.messages.at(-1)?.content)
+    const note = String(r.seen.filter((s) => s.preset === "lead")[0]!.messages.at(-1)?.content)
     expect(note).toContain("2 tests failed")
   })
 

@@ -36,7 +36,7 @@ const run = (scripts: Record<string, ReadonlyArray<Reply>>, spec: Rlm.RlmSpec, p
   return Effect.runPromise(
     Effect.gen(function* () {
       const s = yield* settings(presetsRaw)
-      const rlm = yield* Rlm.make({ settings: s, services: factory, roles: { driver: "stub:m", sync: "stub:m" }, cellTimeoutMs: 5000 })
+      const rlm = yield* Rlm.make({ settings: s, services: factory, roles: { driver: "stub:m", implement: "stub:m" }, cellTimeoutMs: 5000 })
       return yield* Effect.exit(rlm.exec(spec))
     }).pipe(Effect.provide(stub.layer)),
   ).then((exit) => ({ exit, seen: stub.seen }))
