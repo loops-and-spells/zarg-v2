@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
-import { conversation, EXIT_WINDOW_MS, initialUi, inputFocused, OTHER, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, tree } from "../src/tui/view"
+import { conversation, EXIT_WINDOW_MS, initialUi, inputFocused, OTHER, onKey, onSubmit, pickerRows, agentDetail, agentRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "../src/tui/view"
 
 const inquiry: Inquiry = {
   id: "inq-1",
@@ -56,7 +56,7 @@ describe("picker", () => {
 
   test("once the inquiry is answered the picker state clears", () => {
     const ui = { ...syncUi(initialUi, waiting), other: true }
-    expect(syncUi(ui, running)).toEqual({ focus: "conversation", pick: 1, other: false })
+    expect(syncUi(ui, running)).toEqual({ focus: "conversation", pick: 1, other: false, agents: { toggled: {} } })
   })
 })
 
@@ -105,20 +105,98 @@ describe("conversation, agents and status", () => {
     ])
     expect(statusLine(s, { threadId: "main", driver: "zarg-router:deepseek", mode: "child" })).toBe("core stopped · error · thread main · zarg-router:deepseek")
   })
+})
 
-  test("the RLM tree nests children under parents with decisions and confidence", () => {
-    const node = (id: string, parent: string | null, preset: string, extra = {}) => ({ id, parent, preset, depth: 0, turns: 2, budget: 25, status: "running" as const, decisions: [], ...extra })
-    const lines = tree({
-      "rlm-10": node("rlm-10", "rlm-1", "research", { status: "failed", error: "budget" }),
-      "rlm-1": node("rlm-1", null, "driver", { tokens: 900, decisions: [{ kind: "atomize", atomic: false, criteria: [{ name: "single", answer: false, confidence: 0.82 }] }] }),
-      "rlm-2": node("rlm-2", "rlm-1", "research", { status: "done" }),
-    })
-    expect(lines).toEqual([
-      { depth: 0, kind: "rlm", text: "driver rlm-1  2/25 900 tok  running" },
-      { depth: 1, kind: "decision", text: "plan  single no 0.82" },
-      { depth: 1, kind: "rlm", text: "research rlm-2  2/25  done" },
-      { depth: 1, kind: "rlm", text: "research rlm-10  2/25  failed: budget" },
+describe("the agents pane", () => {
+  const node = (id: string, parent: string | null, preset: string, extra = {}) => ({ id, parent, preset, depth: 0, turns: 2, budget: 10, status: "running" as const, decisions: [], ...extra })
+  const rlms = {
+    "rlm-10": node("rlm-10", "rlm-1", "research", { status: "failed", error: "budget" }),
+    "rlm-1": node("rlm-1", null, "driver", { tokens: 4120, task: "Resolve the agenda item\nsecond line", decisions: [{ kind: "atomize", atomic: false, criteria: [{ name: "single", answer: false, confidence: 0.82 }] }] }),
+    "rlm-2": node("rlm-2", "rlm-1", "research", { status: "done", turns: 10 }),
+    "rlm-3": node("rlm-3", "rlm-2", "research"),
+    "rlm-4": node("rlm-4", "rlm-3", "research", { status: "failed" }),
+  }
+  const agents = (extra = {}) => ({ ...initialUi.agents, ...extra })
+  const text = (rows: ReturnType<typeof agentRows>) => rows.map((r) => r.text)
+  const running: SessionState = { thread: { ...initial("main"), status: "running", rlms }, core: "up" }
+  const press = (ui: typeof initialUi, name: string) => onKey(ui, running, { name }, 0)
+
+  test("roots start open, children collapsed with a count of what they hide; ids sort numerically", () => {
+    expect(text(agentRows(rlms, agents()))).toEqual([
+      "▾ ● driver rlm-1       ▰▱▱▱▱▱  2/10",
+      "  ▸ ✓ research rlm-2   ▰▰▰▰▰▰ 10/10  +2",
+      "  └ ✗ research rlm-10  ▰▱▱▱▱▱  2/10",
     ])
+  })
+
+  test("a collapsed node that hides a failure is red; the cursor row is selected (the root when none)", () => {
+    const rows = agentRows(rlms, agents())
+    expect(rows.map((r) => [r.id, r.tone, r.selected])).toEqual([
+      ["rlm-1", "running", true],
+      ["rlm-2", "failed", false],
+      ["rlm-10", "failed", false],
+    ])
+  })
+
+  test("expanding draws the tree lines through open levels", () => {
+    expect(text(agentRows(rlms, agents({ toggled: { "rlm-2": true, "rlm-3": true } })))).toEqual([
+      "▾ ● driver rlm-1          ▰▱▱▱▱▱  2/10",
+      "  ▾ ✓ research rlm-2      ▰▰▰▰▰▰ 10/10",
+      "  │ ▾ ● research rlm-3    ▰▱▱▱▱▱  2/10",
+      "  │   └ ✗ research rlm-4  ▰▱▱▱▱▱  2/10",
+      "  └ ✗ research rlm-10     ▰▱▱▱▱▱  2/10",
+    ])
+  })
+
+  test("keys on the agents pane: down/up move, right and Enter expand, left collapses then jumps to the parent", () => {
+    let ui: Ui = { ...initialUi, focus: "agents" }
+    ui = press(ui, "down").ui
+    expect(ui.agents.cursor).toBe("rlm-2")
+    ui = press(ui, "right").ui
+    expect(text(agentRows(rlms, ui.agents))[2]).toContain("rlm-3")
+    ui = press(ui, "down").ui
+    expect(ui.agents.cursor).toBe("rlm-3")
+    ui = press(ui, "return").ui
+    expect(text(agentRows(rlms, ui.agents))[3]).toContain("rlm-4")
+    ui = press(ui, "left").ui
+    expect(text(agentRows(rlms, ui.agents))).toHaveLength(4)
+    ui = press(ui, "left").ui
+    expect(ui.agents.cursor).toBe("rlm-2")
+    ui = press(ui, "left").ui
+    expect(ui.agents.cursor).toBe("rlm-2")
+    expect(text(agentRows(rlms, ui.agents))).toHaveLength(3)
+    ui = press(ui, "up").ui
+    ui = press(ui, "up").ui
+    expect(ui.agents.cursor).toBe("rlm-1")
+    ui = press(ui, "left").ui
+    expect(text(agentRows(rlms, ui.agents))).toEqual(["▸ ● driver rlm-1  ▰▱▱▱▱▱  2/10  +4"])
+  })
+
+  test("expansion and the cursor survive live updates; a cursor whose RLM is gone falls back to the root", () => {
+    const ui = { ...initialUi, agents: agents({ cursor: "rlm-2", toggled: { "rlm-2": true } }) }
+    const more = { ...rlms, "rlm-5": node("rlm-5", "rlm-2", "research") }
+    expect(agentRows(more, ui.agents).find((r) => r.selected)?.id).toBe("rlm-2")
+    expect(text(agentRows(more, ui.agents))).toHaveLength(5)
+    const next = { "rlm-20": node("rlm-20", null, "driver") }
+    expect(agentRows(next, ui.agents).map((r) => [r.id, r.selected])).toEqual([["rlm-20", true]])
+  })
+
+  test("the detail card: status, the task's first line, turns and tokens, the verdict per criterion, the error", () => {
+    expect(agentDetail(rlms, undefined)).toEqual([
+      "driver rlm-1 · running",
+      "task  Resolve the agenda item",
+      "turn 2 of 10 · 4,120 tokens",
+      "plan (splits into children)",
+      "  single          no   0.82",
+    ])
+    expect(agentDetail(rlms, "rlm-10")).toEqual(["research rlm-10 · failed", "turn 2 of 10", "error  budget"])
+    expect(agentDetail({}, undefined)).toEqual([])
+  })
+
+  test("arrows on the agents pane never move the picker", () => {
+    const waiting: SessionState = { thread: { ...running.thread, status: "waiting", pendingInquiry: inquiry }, core: "up" }
+    const ui = syncUi({ ...initialUi, focus: "agents" }, waiting)
+    expect(onKey(ui, waiting, { name: "up" }, 0).ui.pick).toBe(ui.pick)
   })
 })
 

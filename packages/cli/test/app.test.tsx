@@ -64,6 +64,13 @@ const render = async (state: SessionState, size = { width: 110, height: 24 }) =>
   return { ...t, ...fake, exited: () => exited }
 }
 
+// Arrow keys arrive as escape sequences the parser holds briefly; let them land, then draw.
+const settle = async (t: { renderOnce: () => Promise<void>; waitForVisualIdle: () => Promise<unknown> }) => {
+  await Bun.sleep(30)
+  await t.renderOnce()
+  await t.waitForVisualIdle()
+}
+
 describe("tui frames", () => {
   test("an inquiry: picker with the recommended option preselected and its why; agents pane; status line", async () => {
     const t = await render(waiting)
@@ -71,8 +78,11 @@ describe("tui frames", () => {
     expect(frame).toContain("Which card first?")
     expect(frame).toContain("› Checkout (recommended) — most used")
     expect(frame).toContain("  Something else…")
-    expect(frame).toContain("driver rlm-1  3/25 5847 tok  running")
-    expect(frame).toContain("  research rlm-2  2/15  done")
+    expect(frame).toContain("▾ ● driver rlm-1      ▰▱▱▱▱▱  3/25")
+    expect(frame).toContain("  └ ✓ research rlm-2  ▰▱▱▱▱▱  2/15")
+    expect(frame).toContain("driver rlm-1 · running")
+    expect(frame).toContain("turn 3 of 25 · 5,847 tokens")
+    expect(frame).toContain("  single          yes  0.91")
     expect(frame).toContain("core child · waiting · thread main · zarg-router:deepseek-v4.1-flash-exl3")
     expect(frame).toMatchSnapshot()
   })
@@ -138,17 +148,41 @@ describe("tui frames", () => {
     expect(t.captureCharFrame()).toContain("core stopped · error")
   })
 
-  test("Tab moves focus to the agents pane, where arrows scroll a tall tree", async () => {
+  test("Tab moves focus to the agents pane, where the highlight walks a tall tree and the detail follows", async () => {
     const rlms = Object.fromEntries(
       Array.from({ length: 40 }, (_, i) => [`rlm-${i + 1}`, { id: `rlm-${i + 1}`, parent: i === 0 ? null : "rlm-1", preset: i === 0 ? "driver" : "research", depth: i === 0 ? 0 : 1, turns: 1, budget: 15, status: "done" as const, decisions: [] }]),
     )
     const t = await render({ thread: { ...initial("main"), status: "running", rlms }, core: "up" })
     expect(t.captureCharFrame()).not.toContain("rlm-40 ")
     t.mockInput.pressTab()
-    await t.waitForVisualIdle()
+    await settle(t)
     for (let i = 0; i < 40; i++) t.mockInput.pressArrow("down")
-    await t.waitForVisualIdle()
+    await settle(t)
     expect(t.captureCharFrame()).toContain("research rlm-40")
+    expect(t.captureCharFrame()).toContain("research rlm-40 · done")
+  })
+
+  test("the agents pane folds: → opens a child's subtree, ← closes it", async () => {
+    const rlms = {
+      "rlm-1": { id: "rlm-1", parent: null, preset: "driver", depth: 0, turns: 1, budget: 25, status: "running" as const, decisions: [] },
+      "rlm-2": { id: "rlm-2", parent: "rlm-1", preset: "research", depth: 1, turns: 1, budget: 15, status: "running" as const, decisions: [] },
+      "rlm-3": { id: "rlm-3", parent: "rlm-2", preset: "research", depth: 2, turns: 1, budget: 15, status: "failed" as const, error: "budget", decisions: [] },
+    }
+    const t = await render({ thread: { ...initial("main"), status: "running", rlms }, core: "up" })
+    expect(t.captureCharFrame()).toContain("▸ ● research rlm-2")
+    expect(t.captureCharFrame()).not.toContain("rlm-3")
+    t.mockInput.pressTab()
+    t.mockInput.pressArrow("down")
+    t.mockInput.pressArrow("right")
+    t.mockInput.pressArrow("down")
+    await settle(t)
+    const open = t.captureCharFrame()
+    expect(open).toContain("    └ ✗ research rlm-3")
+    expect(open).toContain("error  budget")
+    t.mockInput.pressArrow("left")
+    t.mockInput.pressArrow("left")
+    await settle(t)
+    expect(t.captureCharFrame()).not.toContain("rlm-3")
   })
 
   test("typing / shows the command box; Tab completes; Enter runs the command", async () => {

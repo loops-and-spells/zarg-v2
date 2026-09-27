@@ -233,7 +233,7 @@ describe("thread runs", () => {
       }) as never
     const events = await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setup(driver); return yield* collect(thread.run({ runId: "r1" })) }))
     const deltas = events.filter((e) => e.type === "ACTIVITY_DELTA") as any[]
-    expect(deltas.at(-1).patch[0]).toMatchObject({ op: "add", path: "/rlms/rlm-1", value: { preset: "driver", turns: 1, budget: 25, status: "running" } })
+    expect(deltas.at(-1).patch[0]).toMatchObject({ op: "add", path: "/rlms/rlm-1", value: { preset: "driver", task: "t", turns: 1, budget: 25, status: "running" } })
     expect(events.some((e) => e.type === "ACTIVITY_SNAPSHOT")).toBe(true)
   })
 

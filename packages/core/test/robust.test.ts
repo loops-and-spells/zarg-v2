@@ -152,10 +152,10 @@ describe("thread robustness", () => {
 })
 
 describe("transcripts", () => {
-  test("each RLM's task, text, cells and outputs go to <thread>.rlm.jsonl, redacted, never to the wire", async () => {
+  test("each RLM's task, text, cells and outputs go to <thread>.rlm.jsonl, redacted; the wire gets only the task's first line", async () => {
     const driver: Driver = (_s, asker, observe) =>
       Effect.gen(function* () {
-        observe({ type: "start", id: "rlm-1", parent: undefined, preset: "driver", task: "the task", scope: {}, depth: 0, budget: { turns: 25, tokens: 1, wallMs: 1 } })
+        observe({ type: "start", id: "rlm-1", parent: undefined, preset: "driver", task: "the task\nthe agenda and graph context", scope: {}, depth: 0, budget: { turns: 25, tokens: 1, wallMs: 1 } })
         observe({ type: "step", id: "rlm-1", turn: 1, text: "hmm", cells: [{ code: 'Fs.read("zt-secret")', ok: false, output: "no such file" }] })
         return (yield* asker.ask(question)) as never
       }) as never
@@ -168,9 +168,11 @@ describe("transcripts", () => {
     )
     const lines = readFileSync(join(out.dir, "main.rlm.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l))
     expect(lines.map((l) => l.type)).toEqual(["start", "step"])
-    expect(lines[0]).toMatchObject({ rlm: "rlm-1", preset: "driver", task: "the task" })
+    expect(lines[0]).toMatchObject({ rlm: "rlm-1", preset: "driver", task: "the task\nthe agenda and graph context" })
     expect(lines[1]).toMatchObject({ rlm: "rlm-1", turn: 1, text: "hmm", cells: [{ code: 'Fs.read("<redacted:ZT>")', ok: false, output: "no such file" }] })
-    expect(JSON.stringify(out.events)).not.toContain("the task")
+    expect(JSON.stringify(out.events)).toContain('"task":"the task"')
+    expect(JSON.stringify(out.events)).not.toContain("the agenda and graph context")
+    expect(JSON.stringify(out.events)).not.toContain("hmm")
   })
 
   test("a restarted core does not read transcripts as events", async () => {

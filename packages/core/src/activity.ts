@@ -7,6 +7,10 @@ import type { ThreadLog } from "./log"
  * The RLM tree a thread shows (ACTIVITY_SNAPSHOT / ACTIVITY_DELTA) and its transcript. `prefix` keeps ids
  * apart when several independent RLM runs share one thread (the reconcile threads: one run per card).
  */
+// The agents pane shows what an RLM was asked; the full task (often pages of context) stays in the transcript.
+const TASK_MAX = 200
+const headline = (task: string) => (task.split("\n")[0] ?? "").slice(0, TASK_MAX)
+
 export const makeActivity = (log: ThreadLog, threadId: string) => {
   const nodes = new Map<string, Record<string, unknown>>()
   const messageId = `${threadId}-activity`
@@ -22,7 +26,7 @@ export const makeActivity = (log: ThreadLog, threadId: string) => {
     const prev = nodes.get(id) ?? {}
     const next: Record<string, unknown> =
       e.type === "start"
-        ? { id, parent: e.parent !== undefined ? `${prefix}${e.parent}` : null, preset: e.preset, scope: e.scope, depth: e.depth, turns: 0, budget: e.budget.turns, status: "running", decisions: [] }
+        ? { id, parent: e.parent !== undefined ? `${prefix}${e.parent}` : null, preset: e.preset, task: headline(e.task), scope: e.scope, depth: e.depth, turns: 0, budget: e.budget.turns, status: "running", decisions: [] }
         : e.type === "turn"
           ? { ...prev, turns: e.turn, tokens: e.tokens }
           : e.type === "atomize"

@@ -24,6 +24,8 @@ export interface RlmNode {
   readonly id: string
   readonly parent: string | null
   readonly preset: string
+  /** What the RLM was asked. */
+  readonly task?: string
   readonly depth: number
   readonly turns: number
   readonly budget: number

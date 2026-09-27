@@ -2,18 +2,18 @@
 
 exports[`tui frames an inquiry: picker with the recommended option preselected and its why; agents pane; status line 1`] = `
 "┌─Conversation───────────────────────────────────────────────┐┌─Agents───────────────────────────────────────┐
-│zarg  The agenda is empty.                                  ││driver rlm-1  3/25 5847 tok  running          │
-│                                                            ││  · atomic  single yes 0.91                   │
-│                                                            ││  research rlm-2  2/15  done                  │
+│zarg  The agenda is empty.                                  ││▾ ● driver rlm-1      ▰▱▱▱▱▱  3/25            │
+│                                                            ││  └ ✓ research rlm-2  ▰▱▱▱▱▱  2/15            │
 │                                                            ││                                              │
 │                                                            ││                                              │
 │                                                            ││                                              │
 │                                                            ││                                              │
 │                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
-│                                                            ││                                              │
+│                                                            ││──────────────────────────────────────────────│
+│                                                            ││driver rlm-1 · running                        │
+│                                                            ││turn 3 of 25 · 5,847 tokens                   │
+│                                                            ││atomic (runs directly)                        │
+│                                                            ││  single          yes  0.91                   │
 └────────────────────────────────────────────────────────────┘└──────────────────────────────────────────────┘
 ┌─Question───────────────────────────────────────────────────────────────────────────────────────────────────┐
 │Which card first?                                                                                           │

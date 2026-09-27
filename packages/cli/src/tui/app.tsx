@@ -1,10 +1,11 @@
 import { useKeyboard } from "@opentui/react"
-import { useRef, useState, useSyncExternalStore } from "react"
+import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Session } from "@zarg/client"
-import type { InputRenderable } from "@opentui/core"
-import { type Action, conversation, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, tree, type Ui } from "./view"
+import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
+import { type Action, agentDetail, agentRows, conversation, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
 
-const COLORS = { you: "#8ab4f8", zarg: "#e8eaed", error: "#f28b82", notice: "#fdd663", dim: "#9aa0a6", accent: "#81c995" }
+const COLORS = { you: "#8ab4f8", zarg: "#e8eaed", error: "#f28b82", notice: "#fdd663", dim: "#9aa0a6", accent: "#81c995", select: "#3c4043" }
+const TONE = { running: COLORS.zarg, done: COLORS.dim, failed: COLORS.error, stopped: COLORS.notice }
 
 /** The zarg TUI: conversation, inline inquiry picker, input line, agents pane and status line. */
 export const App = (props: { readonly session: Session; readonly meta: Meta; readonly onExit: () => void }) => {
@@ -16,6 +17,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   // The draft in a ref too: the keyboard handler reads it between renders (Tab completes it).
   const draftRef = useRef("")
   const inputRef = useRef<InputRenderable | null>(null)
+  const agentsRef = useRef<ScrollBoxRenderable | null>(null)
   const setDraft = (text: string) => {
     draftRef.current = text
     setDraftState(text)
@@ -51,7 +53,13 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const box = slashActive(ui, s) ? slashBox(draft, ui) : undefined
   const width = Math.max(0, ...(box?.rows ?? []).map((r) => r.label.length))
   const lines = conversation(s)
-  const agents = tree(s.thread.rlms)
+  const agents = agentRows(s.thread.rlms, ui.agents)
+  const cursor = agents.find((a) => a.selected)?.id
+  const detail = agentDetail(s.thread.rlms, cursor)
+  // Keep the highlighted row on screen as the cursor moves through a tall tree.
+  useEffect(() => {
+    if (cursor !== undefined) agentsRef.current?.scrollChildIntoView(`agent-${cursor}`)
+  }, [cursor])
   return (
     <box style={{ flexDirection: "column", width: "100%", height: "100%" }}>
       <box style={{ flexDirection: "row", flexGrow: 1 }}>
@@ -67,14 +75,25 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             </text>
           ))}
         </scrollbox>
-        <scrollbox title="Agents" focused={ui.focus === "agents"} style={{ width: 48, border: true, borderColor: ui.focus === "agents" ? COLORS.accent : COLORS.dim }}>
-          {agents.length === 0 ? <text fg={COLORS.dim}>no agents running</text> : null}
-          {agents.map((a, i) => (
-            <text key={i} fg={a.kind === "decision" ? COLORS.dim : COLORS.zarg}>
-              {`${"  ".repeat(a.depth)}${a.kind === "decision" ? "· " : ""}${a.text}`}
-            </text>
-          ))}
-        </scrollbox>
+        <box title="Agents" style={{ width: 48, flexDirection: "column", border: true, borderColor: ui.focus === "agents" ? COLORS.accent : COLORS.dim }}>
+          <scrollbox ref={agentsRef} style={{ flexGrow: 1 }}>
+            {agents.length === 0 ? <text fg={COLORS.dim}>no agents running</text> : null}
+            {agents.map((a) => (
+              <text key={a.id} id={`agent-${a.id}`} fg={TONE[a.tone]} {...(a.selected && ui.focus === "agents" ? { bg: COLORS.select } : {})}>
+                {a.text}
+              </text>
+            ))}
+          </scrollbox>
+          {detail.length > 0 ? (
+            <box style={{ flexDirection: "column", flexShrink: 0, border: ["top"], borderColor: COLORS.dim }}>
+              {detail.map((l, i) => (
+                <text key={i} fg={i === 0 ? COLORS.zarg : COLORS.dim} truncate>
+                  {l}
+                </text>
+              ))}
+            </box>
+          ) : null}
+        </box>
       </box>
       {inquiry !== undefined ? (
         <box title="Question" style={{ border: true, borderColor: COLORS.accent, flexDirection: "column", flexShrink: 0 }}>
@@ -120,7 +139,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         />
       </box>
       <box style={{ height: 1, flexShrink: 0 }}>
-        <text fg={COLORS.dim}>{`${statusLine(s, props.meta)}   ^C stop · ^C^C exit · Tab agents`}</text>
+        <text fg={COLORS.dim}>{`${statusLine(s, props.meta)}   ${ui.focus === "agents" ? "↑↓ move · ←→ fold · Tab back" : "^C stop · ^C^C exit · Tab agents"}`}</text>
       </box>
     </box>
   )

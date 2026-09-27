@@ -16,12 +16,19 @@ export interface Ui {
   readonly slash?: { readonly sel: number | null; readonly cycle: SlashCycle | null }
   /** When Ctrl-C was last pressed (ms); a second press within `EXIT_WINDOW_MS` exits. */
   readonly lastCtrlC?: number
+  /** The agents pane: the highlighted RLM and the nodes opened or closed against their default. */
+  readonly agents: Agents
+}
+
+export interface Agents {
+  readonly cursor?: string
+  readonly toggled: Readonly<Record<string, boolean>>
 }
 
 export const EXIT_WINDOW_MS = 2000
 export const OTHER = "__other"
 
-export const initialUi: Ui = { focus: "conversation", pick: 0, other: false }
+export const initialUi: Ui = { focus: "conversation", pick: 0, other: false, agents: { toggled: {} } }
 
 export interface PickerRow {
   readonly id: string
@@ -65,30 +72,111 @@ export const conversation = (s: SessionState): ReadonlyArray<Line> => [
   ...(s.notice !== undefined ? [{ kind: "notice" as const, text: s.notice }] : []),
 ]
 
-export interface TreeLine {
-  readonly depth: number
-  readonly kind: "rlm" | "decision"
-  readonly text: string
-}
-
 const idNumber = (id: string) => Number(/(\d+)$/.exec(id)?.[1] ?? 0)
 
-/** The RLM tree, parents before children, each RLM followed by its decisions. */
-export const tree = (rlms: Readonly<Record<string, RlmNode>>): ReadonlyArray<TreeLine> => {
+export interface AgentRow {
+  readonly id: string
+  readonly text: string
+  /** The node's status, or "failed" when a collapsed node hides a failure. */
+  readonly tone: RlmNode["status"]
+  readonly selected: boolean
+}
+
+const ICON: Record<RlmNode["status"], string> = { running: "●", done: "✓", failed: "✗", stopped: "■" }
+const BAR = 6
+
+// Children in id order; a node whose parent is unknown is a root.
+const childrenOf = (rlms: Readonly<Record<string, RlmNode>>) => {
   const nodes = Object.values(rlms).sort((a, b) => idNumber(a.id) - idNumber(b.id))
-  const children = (parent: string | null) => nodes.filter((n) => (parent === null ? n.parent === null || rlms[n.parent] === undefined : n.parent === parent))
-  const out: Array<TreeLine> = []
-  const visit = (n: RlmNode, depth: number) => {
-    const tokens = n.tokens !== undefined ? ` ${n.tokens} tok` : ""
-    out.push({ depth, kind: "rlm", text: `${n.preset} ${n.id}  ${n.turns}/${n.budget}${tokens}  ${n.status}${n.error !== undefined ? `: ${n.error}` : ""}` })
-    for (const d of n.decisions ?? []) {
-      const criteria = d.criteria.map((c) => `${c.name} ${c.answer ? "yes" : "no"} ${c.confidence.toFixed(2)}`).join(" · ")
-      out.push({ depth: depth + 1, kind: "decision", text: `${d.atomic ? "atomic" : "plan"}${criteria ? `  ${criteria}` : ""}` })
-    }
-    for (const c of children(n.id)) visit(c, depth + 1)
+  return (parent: string | null) => nodes.filter((n) => (parent === null ? n.parent === null || rlms[n.parent] === undefined : n.parent === parent))
+}
+
+// Roots start open, everything below starts collapsed; `toggled` flips that per id.
+const isOpen = (rlms: Readonly<Record<string, RlmNode>>, agents: Agents, n: RlmNode) =>
+  agents.toggled[n.id] ?? (n.parent === null || rlms[n.parent] === undefined)
+
+interface Visible {
+  readonly node: RlmNode
+  readonly prefix: string
+  readonly hidden: ReadonlyArray<RlmNode>
+}
+
+const visible = (rlms: Readonly<Record<string, RlmNode>>, agents: Agents): ReadonlyArray<Visible> => {
+  const children = childrenOf(rlms)
+  const below = (n: RlmNode): Array<RlmNode> => children(n.id).flatMap((c) => [c, ...below(c)])
+  const out: Array<Visible> = []
+  const visit = (n: RlmNode, indent: string, last: boolean, root: boolean) => {
+    const kids = children(n.id)
+    const open = isOpen(rlms, agents, n)
+    const mark = kids.length > 0 ? (open ? "▾" : "▸") : last ? "└" : "├"
+    out.push({ node: n, prefix: `${indent}${mark}`, hidden: open ? [] : below(n) })
+    if (!open) return
+    const next = root ? `${indent}  ` : `${indent}${last ? " " : "│"} `
+    kids.forEach((c, i) => visit(c, next, i === kids.length - 1, false))
   }
-  for (const r of children(null)) visit(r, 0)
+  const roots = children(null)
+  roots.forEach((r, i) => visit(r, "", i === roots.length - 1, true))
   return out
+}
+
+// The highlighted RLM: the cursor while its RLM exists, else the first root.
+const cursorOf = (rows: ReadonlyArray<Visible>, agents: Agents) =>
+  rows.some((r) => r.node.id === agents.cursor) ? agents.cursor : rows[0]?.node.id
+
+/** The agents tree: one line per visible RLM with its status icon, turn bar and how many descendants it hides. */
+export const agentRows = (rlms: Readonly<Record<string, RlmNode>>, agents: Agents): ReadonlyArray<AgentRow> => {
+  const rows = visible(rlms, agents)
+  const cursor = cursorOf(rows, agents)
+  const lefts = rows.map((r) => `${r.prefix} ${ICON[r.node.status]} ${r.node.preset} ${r.node.id}`)
+  const width = Math.max(0, ...lefts.map((l) => l.length))
+  return rows.map((r, i) => {
+    const n = r.node
+    const filled = Math.min(BAR, Math.round((n.turns / Math.max(1, n.budget)) * BAR))
+    const bar = "▰".repeat(filled) + "▱".repeat(BAR - filled)
+    const hidden = r.hidden.length > 0 ? `  +${r.hidden.length}` : ""
+    return {
+      id: n.id,
+      text: `${lefts[i]!.padEnd(width)}  ${bar} ${`${n.turns}/${n.budget}`.padStart(5)}${hidden}`,
+      tone: r.hidden.some((h) => h.status === "failed") ? "failed" : n.status,
+      selected: n.id === cursor,
+    }
+  })
+}
+
+/** The card for the highlighted RLM (the first root when none): status, task, turns, decisions, error. */
+export const agentDetail = (rlms: Readonly<Record<string, RlmNode>>, cursor: string | undefined): ReadonlyArray<string> => {
+  const n = (cursor !== undefined ? rlms[cursor] : undefined) ?? childrenOf(rlms)(null)[0]
+  if (n === undefined) return []
+  const task = n.task?.split("\n")[0]
+  return [
+    `${n.preset} ${n.id} · ${n.status}`,
+    ...(task !== undefined ? [`task  ${task}`] : []),
+    `turn ${n.turns} of ${n.budget}${n.tokens !== undefined ? ` · ${n.tokens.toLocaleString("en-US")} tokens` : ""}`,
+    ...n.decisions.flatMap((d) => [
+      d.atomic ? "atomic (runs directly)" : "plan (splits into children)",
+      ...d.criteria.map((c) => `  ${c.name.padEnd(16)}${(c.answer ? "yes" : "no").padEnd(5)}${c.confidence.toFixed(2)}`),
+    ]),
+    ...(n.error !== undefined ? [`error  ${n.error}`] : []),
+  ]
+}
+
+/** Arrows and Enter on the agents pane: move the highlight, open and close nodes, jump to the parent. */
+const onAgentsKey = (ui: Ui, rlms: Readonly<Record<string, RlmNode>>, key: Key): Ui => {
+  const rows = visible(rlms, ui.agents)
+  const cursor = cursorOf(rows, ui.agents)
+  const at = rows.findIndex((r) => r.node.id === cursor)
+  const row = rows[at]
+  if (row === undefined) return ui
+  const n = row.node
+  const move = (id: string | undefined): Ui => (id === undefined ? ui : { ...ui, agents: { ...ui.agents, cursor: id } })
+  const set = (open: boolean): Ui => ({ ...ui, agents: { cursor: n.id, toggled: { ...ui.agents.toggled, [n.id]: open } } })
+  const hasKids = childrenOf(rlms)(n.id).length > 0
+  const open = isOpen(rlms, ui.agents, n)
+  if (key.name === "down") return move(rows[Math.min(rows.length - 1, at + 1)]?.node.id)
+  if (key.name === "up") return move(rows[Math.max(0, at - 1)]?.node.id)
+  if (key.name === "right" || key.name === "return") return hasKids && !open ? set(true) : ui
+  if (key.name === "left") return hasKids && open ? set(false) : n.parent !== null && rlms[n.parent] !== undefined ? move(n.parent) : ui
+  return ui
 }
 
 export interface Meta {
@@ -174,8 +262,9 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: st
     if (slash !== undefined) return slash
   }
   if (key.name === "tab") return { ui: { ...ui, focus: ui.focus === "conversation" ? "agents" : "conversation" } }
+  if (ui.focus === "agents") return { ui: onAgentsKey(ui, s.thread.rlms, key) }
   const inquiry = s.thread.pendingInquiry
-  // The picker takes keys only while the conversation side has focus; on the agents pane arrows scroll.
+  // The picker takes keys only while the conversation side has focus.
   if (inquiry === undefined || ui.focus !== "conversation" || ui.answered === inquiry.id) return { ui }
   if (ui.other) return key.name === "escape" ? { ui: { ...ui, other: false } } : { ui }
   const rows = pickerRows(inquiry, ui.pick)
