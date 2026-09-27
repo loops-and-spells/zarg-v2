@@ -18,7 +18,7 @@ test("only the runtime and a plugin's own package import plugin code", () => {
 })
 
 test("other packages may import only a plugin's /contract, and a contract carries no plugin code", () => {
-  const plugins = readdirSync(root).filter((p) => p.startsWith("plugin-") && p !== "plugin-sdk")
+  const plugins = readdirSync(root).filter((p) => (p.startsWith("plugin-") || p.startsWith("agent-")) && p !== "plugin-sdk")
   const offenders = readdirSync(root).flatMap((pkg) =>
     files(join(root, pkg)).filter((f) => {
       const text = readFileSync(f, "utf8")

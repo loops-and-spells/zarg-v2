@@ -21,7 +21,7 @@ export const testAffected = (root: string) => (before: Snapshot.Snapshot, after:
 
 /** Approve the first-party plugins that need a load grant (rehearse) for `project`, in the tests' user dir: tests not about grants start without the question. */
 export const grantFirstParty = (project: string) => {
-  const m = JSON.parse(readFileSync(join(import.meta.dir, "..", "..", "plugin-rehearse", "dist", "zarg-plugin.json"), "utf8"))
+  const m = JSON.parse(readFileSync(join(import.meta.dir, "..", "..", "agent-rehearse", "dist", "zarg-plugin.json"), "utf8"))
   const grants = Effect.runSync(makeGrants({ file: join(process.env.ZARG_USER_DIR!, "grants.json"), project }))
   Effect.runSync(grants.approveLoad(m.name, scopesDigest(m.scopes, m.optional, (m.pluginDependencies ?? []).map((d: { name: string }) => d.name))))
 }

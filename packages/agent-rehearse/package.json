@@ -1,5 +1,5 @@
 {
-  "name": "@zarg/plugin-rehearse",
+  "name": "@zarg/agent-rehearse",
   "private": true,
   "type": "module",
   "exports": {

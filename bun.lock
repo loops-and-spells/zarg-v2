@@ -9,6 +9,21 @@
         "typescript": "^7.0.2",
       },
     },
+    "packages/agent-rehearse": {
+      "name": "@zarg/agent-rehearse",
+      "dependencies": {
+        "@zarg/plugin-gherkin": "workspace:*",
+        "@zarg/plugin-sdk": "workspace:*",
+        "effect": "^4.0.0-rc.117",
+      },
+      "devDependencies": {
+        "@effect/platform-bun": "^4.0.0-rc.117",
+        "@zarg/core": "workspace:*",
+        "@zarg/decisions": "workspace:*",
+        "@zarg/graph": "workspace:*",
+        "@zarg/plugin": "workspace:*",
+      },
+    },
     "packages/cli": {
       "name": "@zarg/cli",
       "bin": {
@@ -113,21 +128,6 @@
       },
       "devDependencies": {
         "@effect/platform-bun": "^4.0.0-rc.117",
-        "@zarg/plugin": "workspace:*",
-      },
-    },
-    "packages/plugin-rehearse": {
-      "name": "@zarg/plugin-rehearse",
-      "dependencies": {
-        "@zarg/plugin-gherkin": "workspace:*",
-        "@zarg/plugin-sdk": "workspace:*",
-        "effect": "^4.0.0-rc.117",
-      },
-      "devDependencies": {
-        "@effect/platform-bun": "^4.0.0-rc.117",
-        "@zarg/core": "workspace:*",
-        "@zarg/decisions": "workspace:*",
-        "@zarg/graph": "workspace:*",
         "@zarg/plugin": "workspace:*",
       },
     },
@@ -301,6 +301,8 @@
 
     "@varlock/native-helper-win32-x64": ["@varlock/native-helper-win32-x64@1.20.0", "", { "os": [ "linux", "win32", ] }, "sha512-mDH00lx2h+dWmbARTnfmRu321SuZigKslUdX7dAn0/7+psShiFCx6QEWLjjyZgDPSCGVNbIM3JArC40vCTXJjw=="],
 
+    "@zarg/agent-rehearse": ["@zarg/agent-rehearse@workspace:packages/agent-rehearse"],
+
     "@zarg/cli": ["@zarg/cli@workspace:packages/cli"],
 
     "@zarg/client": ["@zarg/client@workspace:packages/client"],
@@ -318,8 +320,6 @@
     "@zarg/plugin": ["@zarg/plugin@workspace:packages/plugin"],
 
     "@zarg/plugin-gherkin": ["@zarg/plugin-gherkin@workspace:packages/plugin-gherkin"],
-
-    "@zarg/plugin-rehearse": ["@zarg/plugin-rehearse@workspace:packages/plugin-rehearse"],
 
     "@zarg/plugin-sdk": ["@zarg/plugin-sdk@workspace:packages/plugin-sdk"],
 
