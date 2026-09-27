@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test"
-import { mkdtempSync, rmSync } from "node:fs"
+import { mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -190,5 +190,26 @@ describe("zarg affected and checkpoint", () => {
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
+  })
+})
+
+describe("zarg plugin", () => {
+  test("grant --fs-read adds a folder grant for the plugin in this project, in the user's grants file", () => {
+    const r = zarg("plugin", "grant", "gherkin", "--fs-read", "/mnt/zt-data")
+    expect(r.code).toBe(0)
+    const grants = JSON.parse(readFileSync(join(process.env.ZARG_USER_DIR!, "grants.json"), "utf8"))
+    expect(grants[dir].gherkin.extra).toEqual([{ kind: "fs-read", glob: "/mnt/zt-data/**" }])
+  })
+  test("grant without flags shows the scopes and approves on y", () => {
+    const p = Bun.spawnSync([process.execPath, main, "plugin", "grant", "gherkin"], { cwd: dir, env: { ...process.env, ZARG_ROOT: dir }, stdin: new TextEncoder().encode("y\n") })
+    expect(p.exitCode).toBe(0)
+    expect(p.stdout.toString()).toContain("Plugin gherkin asks for: change your graph")
+    const grants = JSON.parse(readFileSync(join(process.env.ZARG_USER_DIR!, "grants.json"), "utf8"))
+    expect(grants[dir].gherkin.digests.length).toBeGreaterThan(0)
+  })
+  test("grant for an unknown plugin fails", () => {
+    const r = zarg("plugin", "grant", "zt-nope", "--net", "a.test")
+    expect(r.code).toBe(1)
+    expect(r.err).toContain("zt-nope")
   })
 })

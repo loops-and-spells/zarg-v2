@@ -66,6 +66,11 @@ export const makeClient = (info: Pick<CoreInfo, "socket" | "token">) => {
       request("/reconcile", { method: "POST", body: "{}" }).pipe(
         Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly on: boolean; readonly reason?: string; readonly pending?: number }>)),
       ),
+    /** YOLO on or off, for every plugin or one; answers whether any plugin is in YOLO now. */
+    yolo: (on: boolean, plugin?: string) =>
+      request("/yolo", { method: "POST", body: JSON.stringify({ on, ...(plugin !== undefined ? { plugin } : {}) }) }).pipe(
+        Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly on: boolean }>)),
+      ),
     stop: (threadId: string) => request(`/threads/${encodeURIComponent(threadId)}/stop`, { method: "POST", body: "{}" }).pipe(Effect.asVoid),
   }
 }

@@ -12,7 +12,7 @@ import { zargRouter } from "@zarg/provider-zarg-router"
 import { type Asker, decisionsService, fsRead, graph, inquire, pluginService, Rlm, type Scope, settings } from "@zarg/rlm"
 import { askFirst } from "./driver"
 import { makeLog } from "./log"
-import { PluginControl, pluginHostLayer, vaultFrom } from "./plugins"
+import { makeYolo, PluginControl, pluginHostLayer, vaultFrom } from "./plugins"
 import { STUB_MODEL, stubLayer } from "./stub"
 import { reasonOf, reconcileGate, type ReconcileSettings } from "./phases"
 import { checkoutProblem } from "@zarg/reconcile"
@@ -87,6 +87,9 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // A plugin's grant question is asked on main, like any driver question.
     const main = yield* threads.get("main", [])
     const control = yield* PluginControl
+    const yolo = makeYolo(log, control.yolo)
+    // Started with --yolo: say so on main, so the status line shows it.
+    if (control.yolo.any()) yield* yolo.set(true)
     control.setAsk((q) =>
       main
         .ask({
@@ -119,7 +122,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       Effect.uninterruptible,
       Semaphore.withPermits(turnOnLock, 1),
     )
-    return { log, threads, driver: roles.driver, turnOn }
+    return { log, threads, driver: roles.driver, turnOn, yolo }
   })
 
 /** The project's plugin host options from its environment and config (`[plugins.<name>]` tables). */

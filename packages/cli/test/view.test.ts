@@ -229,7 +229,7 @@ describe("slash commands in the input", () => {
   const press = (ui: typeof initialUi, draft: string, name: string) => onKey(ui, idle, { name }, 0, draft)
 
   test("typing / shows the commands; Tab completes; Esc clears", () => {
-    expect(slashBox("/", initialUi)).toMatchObject({ title: "commands", rows: [{ label: "/reconcile", desc: "turn plan and implement on for this session", selected: false }] })
+    expect(slashBox("/", initialUi)).toMatchObject({ title: "commands", rows: [{ label: "/reconcile", desc: "turn plan and implement on for this session", selected: false }, { label: "/yolo" }] })
     const tab = press(initialUi, "/re", "tab")
     expect(tab.draft).toBe("/reconcile")
     expect(press(initialUi, "/re", "escape").draft).toBe("")
@@ -305,6 +305,14 @@ describe("the working indicator", () => {
     const rows = agentRows(rlms, { toggled: {} }, 46, 300).map((r) => r.text)
     expect(rows[0]!.startsWith(`▾ ${SPINNER[3]} driver rlm-1`)).toBe(true)
     expect(rows[1]).toContain("✓ research rlm-2")
+  })
+})
+
+describe("YOLO on the status line", () => {
+  test("the status line shows YOLO right after the core state while plugins pass without asking", () => {
+    const s: SessionState = { thread: { ...initial("main"), status: "idle", yolo: true }, core: "up" }
+    expect(statusLine(s, { threadId: "main", mode: "child" })).toBe("core child · YOLO · idle · thread main · driver model unknown")
+    expect(statusLine({ ...s, thread: { ...s.thread, yolo: false } }, { threadId: "main", mode: "child" })).not.toContain("YOLO")
   })
 })
 

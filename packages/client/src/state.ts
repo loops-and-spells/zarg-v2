@@ -46,6 +46,8 @@ export interface ThreadState {
   readonly seq: number
   /** How many fresh (empty) RLM trees have started: a new driver item or pass. */
   readonly trees: number
+  /** YOLO: plugins use every scope they declare without asking (`/yolo`, `zarg --yolo`). */
+  readonly yolo?: boolean
 }
 
 export const initial = (threadId: string): ThreadState => ({ threadId, messages: [], rlms: {}, status: "idle", seq: 0, trees: 0 })
@@ -96,6 +98,8 @@ export const reduce = (s: ThreadState, e: WireEvent): ThreadState => {
       const rlms = (e.content as { rlms?: ThreadState["rlms"] } | undefined)?.rlms ?? {}
       return { ...t, rlms, trees: Object.keys(rlms).length === 0 ? t.trees + 1 : t.trees }
     }
+    case "CUSTOM":
+      return e.name === "zarg.yolo" ? { ...t, yolo: (e.value as { on?: unknown } | undefined)?.on === true } : t
     case "ACTIVITY_DELTA":
       return { ...t, rlms: patchRlms(t.rlms, (e.patch as ReadonlyArray<Patch>) ?? []) }
     default:

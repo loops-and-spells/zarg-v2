@@ -95,9 +95,26 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
       if (text.trim().length > 0) post({ message: text })
     },
     command: (text) => {
-      const name = text.trim().split(/\s+/)[0] ?? ""
+      const [name = "", ...args] = text.trim().split(/\s+/)
+      if (name === "/yolo") {
+        // `/yolo [on|off] [plugin=<name>]`: a bare /yolo turns it on.
+        const on = args[0] !== "off"
+        const plugin = args.find((a) => a.startsWith("plugin="))?.slice("plugin=".length)
+        fork(
+          opts.client.yolo(on, plugin).pipe(
+            Effect.map(() =>
+              on
+                ? `YOLO is on${plugin ? ` for ${plugin}` : ""}: plugins use every scope they declare without asking. Nothing is saved; /yolo off asks again.`
+                : `YOLO is off${plugin ? ` for ${plugin}` : ""}: plugins ask before using a scope you have not granted.`,
+            ),
+            Effect.catch((e) => Effect.succeed(e.message)),
+            Effect.flatMap((notice) => Effect.sync(() => set({ ...state, notice }))),
+          ),
+        )
+        return
+      }
       if (name !== "/reconcile") {
-        set({ ...state, notice: `unknown command: ${name} (try /reconcile)` })
+        set({ ...state, notice: `unknown command: ${name} (try /reconcile or /yolo)` })
         return
       }
       fork(

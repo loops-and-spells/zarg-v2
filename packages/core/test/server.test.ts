@@ -7,7 +7,7 @@ import { EventSchemas } from "@ag-ui/core/schemas"
 import { Model, type ChatMessage, type StreamEvent } from "@zarg/model"
 import { type Asker, inquire, Rlm, settings } from "@zarg/rlm"
 import { HttpRouter } from "effect/unstable/http"
-import { api, Heartbeat, Log, makeLog, makeThreads, ReconcileControl, Threads, Token } from "../src"
+import { api, Heartbeat, Log, makeLog, makeThreads, ReconcileControl, Threads, Token, YoloControl } from "../src"
 
 /** A stub model: the driver asks one question, then finishes with the answer. */
 const stub = Layer.succeed(Model.Model, {
@@ -30,6 +30,7 @@ const stub = Layer.succeed(Model.Model, {
 })
 
 const TOKEN = "t0ken"
+const yolos: Array<{ on: boolean; plugin?: string }> = []
 /** The router as a fetch handler, over a real Rlm on the stub model (disposed after each test). */
 const handlers: Array<{ dispose: () => Promise<void> }> = []
 afterEach(() => Promise.all(handlers.splice(0).map((h) => h.dispose())))
@@ -46,7 +47,7 @@ const handler = async (heartbeat: Duration.Input = "5 seconds") => {
     }).pipe(Effect.provide(stub)),
   )
   const web = HttpRouter.toWebHandler(
-    api.pipe(Layer.provide([Layer.succeed(Threads, threads), Layer.succeed(Log, log), Layer.succeed(Token, TOKEN), Layer.succeed(Heartbeat, heartbeat), Layer.succeed(ReconcileControl, { turnOn: Effect.succeed({ on: true, pending: 3 }) })])),
+    api.pipe(Layer.provide([Layer.succeed(Threads, threads), Layer.succeed(Log, log), Layer.succeed(Token, TOKEN), Layer.succeed(Heartbeat, heartbeat), Layer.succeed(ReconcileControl, { turnOn: Effect.succeed({ on: true, pending: 3 }) }), Layer.succeed(YoloControl, { set: (on, plugin) => Effect.sync(() => (yolos.push({ on, ...(plugin !== undefined ? { plugin } : {}) }), { on })) })])),
     { disableLogger: true },
   )
   handlers.push(web)
@@ -138,6 +139,15 @@ describe("core HTTP API", () => {
     const since = run[1].seq
     const replay = await events(await h(new Request(`http://core/stream?since=${since}`, { headers: { authorization: `Bearer ${TOKEN}` } })), run.length - 2)
     expect(replay.map((e) => e.seq)).toEqual(run.slice(2).map((e) => e.seq))
+  })
+
+  test("POST /yolo turns YOLO on or off (for all plugins or one) and answers the state", async () => {
+    const h = await handler()
+    expect(await (await post(h, "/yolo", { on: true })).json()).toEqual({ on: true })
+    expect(await (await post(h, "/yolo", { on: false, plugin: "tracker" })).json()).toEqual({ on: false })
+    expect((await post(h, "/yolo", { on: "yes" })).status).toBe(400)
+    expect((await post(h, "/yolo", { on: true }, "wrong")).status).toBe(401)
+    expect(yolos).toEqual([{ on: true }, { on: false, plugin: "tracker" }])
   })
 
   test("POST /reconcile turns reconcile on and answers what happens", async () => {

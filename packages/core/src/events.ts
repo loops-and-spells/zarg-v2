@@ -7,6 +7,9 @@ type Draft = { readonly type: EventType; readonly [key: string]: unknown }
 
 export const runStarted = (threadId: string, runId: string): Draft => ({ type: EventType.RUN_STARTED, threadId, runId })
 
+/** A zarg-specific event (AG-UI CUSTOM), e.g. `zarg.yolo` when plugins stop or start asking. */
+export const custom = (name: string, value: unknown): Draft => ({ type: EventType.CUSTOM, name, value })
+
 export const runFinished = (threadId: string, runId: string): Draft => ({ type: EventType.RUN_FINISHED, threadId, runId })
 
 export const runInterrupted = (threadId: string, runId: string, interrupt: Interrupt): Draft => ({

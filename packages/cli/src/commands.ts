@@ -2,8 +2,12 @@ import { Console, Effect, Option } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
 import { diff, GraphStore, hash, Snapshot } from "@zarg/graph"
 import { PluginHost } from "@zarg/plugin/server"
-import { rmSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { join, resolve } from "node:path"
+import { findPlugin, USER_DIR } from "@zarg/core/plugins"
+import { type Grant, makeGrants, scopesDigest, warnings } from "@zarg/plugin/runtime"
+import { installPlugin } from "@zarg/plugin/server"
+import { buildPlugin } from "@zarg/plugin-sdk/tools"
 import { readClaim, startHeadless, stopCore } from "@zarg/client"
 import { baseTree, CHECKPOINT, git, LEGACY_CHECKPOINT, snapshotAtTree, workingGraphTree } from "@zarg/reconcile"
 import { cardRefs, snapshotAt } from "./git"
@@ -117,12 +121,15 @@ const checkpoint = Command.make("checkpoint", {}, () =>
 
 const coreStart = Command.make(
   "start",
-  { headless: Flag.Boolean("headless").pipe(Flag.withDescription("run until `zarg core stop`, detached from this terminal")) },
-  ({ headless }) =>
+  {
+    headless: Flag.Boolean("headless").pipe(Flag.withDescription("run until `zarg core stop`, detached from this terminal")),
+    yolo: Flag.Boolean("yolo").pipe(Flag.withDefault(false), Flag.withDescription("plugins use every scope they declare without asking (nothing saved)")),
+  },
+  ({ headless, yolo }) =>
     Effect.gen(function* () {
       if (!headless) return yield* Effect.fail(new Error("only `zarg core start --headless` is supported; `zarg` starts a core for its session"))
       const { coreCommand } = yield* Effect.promise(() => import("./tui/run"))
-      const info = yield* startHeadless({ root, command: coreCommand() })
+      const info = yield* startHeadless({ root, command: [...coreCommand(), ...(yolo ? ["--yolo"] : [])] })
       yield* print({ pid: info.pid, socket: info.socket, mode: info.mode })
     }),
 )
@@ -137,12 +144,89 @@ const coreStatus = Command.make("status", {}, () =>
 
 const core = Command.make("core").pipe(Command.withSubcommands([coreStart, coreStop, coreStatus]))
 
+// A path grant covers a file as given, or everything under a directory (`/mnt/data` → `/mnt/data/**`).
+const pathGlob = (p: string) => {
+  if (p.includes("*")) return p
+  const abs = resolve(p.startsWith("~/") ? `${process.env.HOME ?? ""}${p.slice(1)}` : p)
+  return existsSync(abs) && statSync(abs).isFile() ? abs : `${abs}/**`
+}
+
+/** The terminal answer to a yes/no question (the CLI has no thread to ask on). */
+const confirm = (question: string) =>
+  Effect.promise(async () => {
+    process.stdout.write(`${question} [y/N] `)
+    for await (const line of console) return /^y(es)?$/i.test(line.trim())
+    return false
+  })
+
+const pluginAdd = Command.make("add", { source: Argument.String("source") }, ({ source }) =>
+  Effect.flatMap(installPlugin(resolve(source), USER_DIR), (r) =>
+    print({ installed: r.name, dir: r.dir, next: `list it in .zarg/config.toml as [plugins.${r.name}] source = ${JSON.stringify(source)}, then approve it with \`zarg plugin grant ${r.name}\`` }),
+  ),
+)
+
+const pluginGrant = Command.make(
+  "grant",
+  {
+    name: Argument.String("name"),
+    fsRead: Flag.String("fs-read").pipe(Flag.atLeast(0), Flag.withDescription("let it read this file or directory")),
+    fsWrite: Flag.String("fs-write").pipe(Flag.atLeast(0), Flag.withDescription("let it write this file or directory")),
+    net: Flag.String("net").pipe(Flag.atLeast(0), Flag.withDescription("let it reach this host (https)")),
+    secret: Flag.String("secret").pipe(Flag.atLeast(0), Flag.withDescription("let it read this secret of its own namespace")),
+  },
+  (o) =>
+    Effect.gen(function* () {
+      const plugin = yield* findPlugin(o.name)
+      const m = plugin.manifest
+      const grants = yield* makeGrants({ file: join(USER_DIR, "grants.json"), project: root })
+      const extra: ReadonlyArray<Grant> = [
+        ...o.fsRead.map((p): Grant => ({ kind: "fs-read", glob: pathGlob(p) })),
+        ...o.fsWrite.map((p): Grant => ({ kind: "fs-write", glob: pathGlob(p) })),
+        ...o.net.map((h): Grant => ({ kind: "net", host: h })),
+        ...o.secret.map((k): Grant => ({ kind: "secret", name: k })),
+      ]
+      if (extra.length > 0) {
+        yield* Effect.forEach(extra, (g) => grants.add(m.name, g), { discard: true })
+        return yield* print({ plugin: m.name, granted: extra })
+      }
+      const asks = [
+        m.scopes.graph === "read" ? "read your graph" : m.scopes.graph === "write" ? "change your graph" : undefined,
+        ...(m.scopes.net === "ask" ? ["reach hosts it asks for"] : (m.scopes.net ?? []).map((h) => `reach ${h}`)),
+        ...(m.scopes.secrets ?? []).map((k) => `the secret ${k}`),
+        ...[m.scopes.fs?.read].flatMap((r) => (r === undefined ? [] : r === "ask" ? ["read files it asks for"] : r.map((g) => `read ${g}`))),
+        ...[m.scopes.fs?.write].flatMap((w) => (w === undefined ? [] : w === "ask" ? ["write files it asks for"] : w.map((g) => `write ${g}`))),
+      ].filter((x) => x !== undefined)
+      yield* print(`Plugin ${m.name} asks for: ${asks.join(", ") || "nothing"}`)
+      for (const w of warnings(m.scopes, m.optional)) yield* print(`Warning: it ${w}.`)
+      if (!(yield* confirm("Approve?"))) return yield* print({ plugin: m.name, approved: false })
+      yield* grants.approveLoad(m.name, scopesDigest(m.scopes, m.optional))
+      yield* print({ plugin: m.name, approved: true })
+    }),
+)
+
+const pluginBuild = Command.make("build", { dir: Argument.String("dir").pipe(Argument.withDefault(".")) }, ({ dir }) =>
+  Effect.gen(function* () {
+    const entry = [join(dir, "src/index.ts"), join(dir, "index.ts")].map((p) => resolve(p)).find(existsSync)
+    if (entry === undefined) return yield* Effect.fail(new Error(`${dir}: no src/index.ts or index.ts to build`))
+    const r = yield* Effect.promise(() => buildPlugin(entry))
+    if (!r.ok) return yield* Effect.fail(new Error(r.errors.join("\n")))
+    const out = join(resolve(dir), "dist")
+    mkdirSync(out, { recursive: true })
+    writeFileSync(join(out, "zarg-plugin.js"), r.bundle)
+    writeFileSync(join(out, "zarg-plugin.json"), `${JSON.stringify(r.manifest, null, 2)}\n`)
+    yield* print({ built: r.manifest.name, dir: out, kib: Math.round(r.bundle.length / 1024) })
+  }),
+)
+
+const plugin = Command.make("plugin").pipe(Command.withSubcommands([pluginAdd, pluginGrant, pluginBuild]))
+
 /** `zarg [--thread <id>] [--focus <node>…]` opens the TUI; the subcommands are the graph tools and core lifecycle. */
 export const zarg = Command.make(
   "zarg",
   {
     thread: Flag.String("thread").pipe(Flag.withDefault("main"), Flag.withDescription("driver thread to open")),
     focus: Flag.String("focus").pipe(Flag.atLeast(0), Flag.withDescription("graph node the thread focuses on (repeatable)")),
+    yolo: Flag.Boolean("yolo").pipe(Flag.withDefault(false), Flag.withDescription("plugins use every scope they declare without asking, until /yolo off (nothing saved)")),
   },
-  ({ thread, focus }) => Effect.flatMap(Effect.promise(() => import("./tui/run")), (m) => m.runTui({ root, threadId: thread, focus })),
-).pipe(Command.withSubcommands([tool, show, render, agenda, lint, query, diffCmd, affected, checkpoint, core]))
+  ({ thread, focus, yolo }) => Effect.flatMap(Effect.promise(() => import("./tui/run")), (m) => m.runTui({ root, threadId: thread, focus, yolo })),
+).pipe(Command.withSubcommands([tool, show, render, agenda, lint, query, diffCmd, affected, checkpoint, core, plugin]))

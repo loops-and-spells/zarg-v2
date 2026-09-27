@@ -3,6 +3,8 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import { Context, Effect, Layer, Redacted } from "effect"
 import type { GraphStore } from "@zarg/graph"
+import * as E from "./events"
+import type { ThreadLog } from "./log"
 import { type Answer as GrantAnswer, type Ask, makeGrants } from "@zarg/plugin/runtime"
 import {
   type AgendaItem,
@@ -122,3 +124,30 @@ export const vaultFrom = (get: (name: string) => Effect.Effect<string | Redacted
     Effect.map((v) => (Redacted.isRedacted(v) ? v : Redacted.make(v))),
     Effect.orElseSucceed(() => undefined),
   )
+
+/**
+ * `/yolo` and `--yolo`: switch it, and tell every client on `main` (the status line shows YOLO), so a TUI
+ * attaching later learns it too. Answers whether any plugin is in YOLO now.
+ */
+export const makeYolo = (log: ThreadLog, control: PluginControl["Service"]["yolo"]) => ({
+  set: (on: boolean, plugin?: string) =>
+    Effect.gen(function* () {
+      control.set(on, plugin)
+      const any = control.any()
+      yield* log.append("main", E.custom("zarg.yolo", { on: any }))
+      return { on: any }
+    }),
+})
+
+/** A plugin by name: first-party, or installed by `zarg plugin add` (its current version). */
+export const findPlugin = (name: string, opts: { readonly zargRoot?: string; readonly userDir?: string } = {}) =>
+  Effect.gen(function* () {
+    const own = yield* firstParty(opts.zargRoot ?? ZARG_ROOT)
+    const found = own.find((p) => p.manifest.name === name)
+    if (found !== undefined) return found
+    const theirs = yield* installed(opts.userDir ?? USER_DIR, [name])
+    const p = theirs.plugins[0]
+    if (p === undefined) return yield* Effect.fail(new PluginConfigError(`no plugin "${name}": run \`zarg plugin add <source>\` first`))
+    return p
+  })
+

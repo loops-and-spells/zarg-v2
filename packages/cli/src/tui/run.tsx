@@ -54,8 +54,10 @@ export const mount = (renderer: CliRenderer, opened: Opened) =>
   })
 
 /** `zarg`: open the TUI on a thread; resolves when the developer exits. */
-export const runTui = (opts: { readonly root: string; readonly threadId: string; readonly focus: ReadonlyArray<string> }) =>
+export const runTui = (opts: { readonly root: string; readonly threadId: string; readonly focus: ReadonlyArray<string>; readonly yolo?: boolean }) =>
   Effect.gen(function* () {
     const opened = yield* openSession(opts)
+    // --yolo: switched on through the core, so it also works on a core that was already running.
+    if (opts.yolo === true) opened.session.command("/yolo on")
     yield* Effect.promise(async () => mount(await createCliRenderer({ exitOnCtrlC: false }), opened))
   })

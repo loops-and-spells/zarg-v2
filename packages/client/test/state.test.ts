@@ -82,3 +82,12 @@ test("an empty activity snapshot starts a fresh tree; a snapshot with nodes (a r
   t = reduce(t, snap(3, {}))
   expect(t.trees).toBe(2)
 })
+
+describe("YOLO", () => {
+  test("a zarg.yolo custom event sets whether plugins pass without asking", () => {
+    const on = reduce(initial("main"), { type: "CUSTOM", threadId: "main", seq: 1, name: "zarg.yolo", value: { on: true } } as never)
+    expect(on.yolo).toBe(true)
+    expect(reduce(on, { type: "CUSTOM", threadId: "main", seq: 2, name: "zarg.yolo", value: { on: false } } as never).yolo).toBe(false)
+  })
+})
+

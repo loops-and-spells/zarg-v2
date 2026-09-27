@@ -10,9 +10,9 @@ import { HttpRouter } from "effect/unstable/http"
 import { runDir } from "@zarg/client"
 import { claim, markReady, release } from "./lifecycle"
 import { liveCore, liveLayer } from "./live"
-import { api, Log, ReconcileControl, Threads, Token } from "./server"
+import { api, Log, ReconcileControl, Threads, Token, YoloControl } from "./server"
 
-const { values } = parseArgs({ options: { root: { type: "string" }, mode: { type: "string" } } })
+const { values } = parseArgs({ options: { root: { type: "string" }, mode: { type: "string" }, yolo: { type: "boolean" } } })
 const root = values.root ?? process.cwd()
 const mode = values.mode === "headless" ? "headless" : "child"
 const socket = join(runDir(root), "core.sock")
@@ -47,7 +47,7 @@ const program = Effect.gen(function* () {
   rmSync(socket, { force: true })
   yield* Layer.build(
     HttpRouter.serve(api, { disableListenLog: true, disableLogger: true }).pipe(
-      Layer.provide([BunHttpServer.layer({ unix: socket }), Layer.succeed(Threads, core.threads), Layer.succeed(Log, core.log), Layer.succeed(Token, token), Layer.succeed(ReconcileControl, { turnOn: core.turnOn })]),
+      Layer.provide([BunHttpServer.layer({ unix: socket }), Layer.succeed(Threads, core.threads), Layer.succeed(Log, core.log), Layer.succeed(Token, token), Layer.succeed(ReconcileControl, { turnOn: core.turnOn }), Layer.succeed(YoloControl, core.yolo)]),
     ),
   )
   // Finalizers run in reverse: live streams end first, so the server's graceful stop does not wait on them.
@@ -56,7 +56,7 @@ const program = Effect.gen(function* () {
   console.log(`ready ${socket}`)
   // SIGINT and SIGTERM interrupt this fiber (runMain); finalizers stop the server and release core.json.
   yield* mode === "child" ? parentGone : Effect.never
-}).pipe(Effect.scoped, Effect.provide(liveLayer(root, stubFile)))
+}).pipe(Effect.scoped, Effect.provide(liveLayer(root, stubFile, { yolo: values.yolo === true })))
 
 // Exit once finalizers ran, on success too: open handles (stdin, workers) would otherwise keep the process alive.
 // A failure is written synchronously first: a piped stderr would lose an async log at process.exit.

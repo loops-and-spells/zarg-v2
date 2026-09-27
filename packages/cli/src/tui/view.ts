@@ -226,7 +226,14 @@ export interface Meta {
 
 /** Most important first, so a narrow terminal cuts the driver model, never the core state. */
 export const statusLine = (s: SessionState, meta: Meta) =>
-  [s.core === "down" ? "core stopped" : `core ${meta.mode}`, s.thread.status, `thread ${meta.threadId}`, meta.driver ?? "driver model unknown"].join(" · ")
+  [
+    s.core === "down" ? "core stopped" : `core ${meta.mode}`,
+    // Right after the core state: a narrow terminal cuts from the end, and YOLO must stay visible.
+    ...(s.thread.yolo === true ? ["YOLO"] : []),
+    s.thread.status,
+    `thread ${meta.threadId}`,
+    meta.driver ?? "driver model unknown",
+  ].join(" · ")
 
 export interface Key {
   readonly name: string

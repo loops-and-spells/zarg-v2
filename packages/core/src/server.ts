@@ -30,6 +30,9 @@ export interface ReconcileAnswer {
 /** Turn plan and implement on for this session (`POST /reconcile`), even when the config leaves them off. */
 export class ReconcileControl extends Context.Service<ReconcileControl, { readonly turnOn: Effect.Effect<ReconcileAnswer> }>()("@zarg/core/ReconcileControl") {}
 
+/** YOLO on or off (`POST /yolo`): for every plugin, or one; answers whether any plugin is in YOLO now. */
+export class YoloControl extends Context.Service<YoloControl, { readonly set: (on: boolean, plugin?: string) => Effect.Effect<{ readonly on: boolean }> }>()("@zarg/core/YoloControl") {}
+
 /** The bearer token every request must carry (from `.zarg/run/core.json`). */
 export class Token extends Context.Service<Token, string>()("@zarg/core/Token") {}
 
@@ -75,6 +78,7 @@ const routes = HttpRouter.addAll(
   Effect.gen(function* () {
     const threads = yield* Threads
     const control = yield* ReconcileControl
+    const yolo = yield* YoloControl
     const heartbeat = yield* Heartbeat
     const log = yield* Log
     // Only a user message this core has not seen yet counts as new input.
@@ -107,6 +111,16 @@ const routes = HttpRouter.addAll(
         Effect.map(HttpServerRequest.HttpServerRequest, (req) => sse(log.stream(Number(searchParam(req, "since") ?? 0)), heartbeat)),
       ),
       HttpRouter.route("POST", "/reconcile", Effect.map(control.turnOn, (answer) => HttpServerResponse.jsonUnsafe(answer))),
+      HttpRouter.route(
+        "POST",
+        "/yolo",
+        Effect.gen(function* () {
+          const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as { on?: unknown; plugin?: unknown }
+          if (typeof body.on !== "boolean") return error(400, `/yolo needs { "on": true | false }`)
+          if (body.plugin !== undefined && typeof body.plugin !== "string") return error(400, `/yolo "plugin" must be a plugin name`)
+          return HttpServerResponse.jsonUnsafe(yield* yolo.set(body.on, body.plugin as string | undefined))
+        }),
+      ),
       HttpRouter.route(
         "GET",
         "/threads",

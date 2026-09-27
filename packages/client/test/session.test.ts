@@ -8,6 +8,7 @@ const fakeClient = (opts: { readonly refuseRuns?: boolean; readonly streamFails?
   const streams: Array<{ since: number; queue: Queue.Queue<WireEvent, CoreError | Cause.Done> }> = []
   const stops: Array<string> = []
   const reconciles: Array<number> = []
+  const yolos: Array<{ on: boolean; plugin?: string }> = []
   const client = {
     run: (r: RunRequest) => {
       runs.push(r)
@@ -22,9 +23,10 @@ const fakeClient = (opts: { readonly refuseRuns?: boolean; readonly streamFails?
     threads: () => Effect.succeed([]),
     stop: (id: string) => Effect.sync(() => void stops.push(id)),
     reconcile: () => Effect.sync(() => (reconciles.push(1), opts.reconcileResult ?? { on: true, pending: 2 })),
+    yolo: (on: boolean, plugin?: string) => Effect.sync(() => (yolos.push({ on, ...(plugin !== undefined ? { plugin } : {}) }), { on })),
   } as unknown as Client
   const push = (e: WireEvent) => Effect.runSync(Queue.offer(streams.at(-1)!.queue, e))
-  return { client, runs, streams, stops, reconciles, push }
+  return { client, runs, streams, stops, reconciles, yolos, push }
 }
 const tick = (ms = 20) => new Promise((r) => setTimeout(r, ms))
 const inquiry = { id: "inq-1", reason: "inquiry", message: "Which?", metadata: { options: [{ id: "a", label: "A" }, { id: "b", label: "B" }], allowOther: true } }
@@ -116,7 +118,7 @@ describe("session", () => {
     expect(f.reconciles).toHaveLength(1)
     expect(s.state().notice).toBe("Reconcile is on for this session; a pass is starting (2 cards).")
     s.command("/nope")
-    expect(s.state().notice).toBe("unknown command: /nope (try /reconcile)")
+    expect(s.state().notice).toBe("unknown command: /nope (try /reconcile or /yolo)")
     const off = fakeClient({ reconcileResult: { on: false, reason: "set roles.plan in .zarg/config.toml" } })
     const s2 = makeSession({ client: off.client, threadId: "main" })
     s2.command("/reconcile")
@@ -136,5 +138,21 @@ describe("session", () => {
     await tick()
     expect(s.state().notice).toBe("unauthorized")
     s.close()
+  })
+})
+
+describe("/yolo", () => {
+  test("/yolo on, /yolo off plugin=tracker and a bare /yolo reach the core and say what happened", async () => {
+    const f = fakeClient()
+    const session = makeSession({ client: f.client, threadId: "main" })
+    session.command("/yolo on")
+    await tick()
+    expect(session.state().notice).toBe("YOLO is on: plugins use every scope they declare without asking. Nothing is saved; /yolo off asks again.")
+    session.command("/yolo off plugin=tracker")
+    await tick()
+    session.command("/yolo")
+    await tick()
+    expect(f.yolos).toEqual([{ on: true }, { on: false, plugin: "tracker" }, { on: true }])
+    session.close()
   })
 })

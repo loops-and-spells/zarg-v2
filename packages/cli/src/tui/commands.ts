@@ -47,7 +47,14 @@ export const decodeCommands = (raw: ReadonlyArray<unknown>): ReadonlyArray<Slash
   })
 
 // @card UX-0058
-export const SLASH_COMMANDS = decodeCommands([{ cmd: "/reconcile", desc: "turn plan and implement on for this session", arg: { kind: "none" } }])
+export const SLASH_COMMANDS = decodeCommands([
+  { cmd: "/reconcile", desc: "turn plan and implement on for this session", arg: { kind: "none" } },
+  {
+    cmd: "/yolo",
+    desc: "plugins use every scope they declare without asking (nothing saved)",
+    arg: { kind: "choice", choices: ["on", "off"], hint: "on|off", params: { keys: ["plugin"] } },
+  },
+])
 
 /** What the input currently is, parsed against the table. */
 export type SlashInputState =
