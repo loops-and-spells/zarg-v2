@@ -339,7 +339,46 @@ const visible = (rlms: Readonly<Record<string, RlmNode>>, agents: Agents): Reado
 
 // The highlighted RLM: the cursor while its RLM exists, else the first root.
 const cursorOf = (rows: ReadonlyArray<Visible>, agents: Agents) =>
-  rows.some((r) => r.node.id === agents.cursor) ? agents.cursor : rows[0]?.node.id
+  // On the Archived row or one of its agents, no live row is highlighted.
+  agents.cursor !== undefined && isArchiveRow(agents.cursor) ? undefined : rows.some((r) => r.node.id === agents.cursor) ? agents.cursor : rows[0]?.node.id
+
+/** The Archived row's id, and the prefix of an archived agent's row. */
+export const ARCHIVED = "__archived"
+const ARCH = "archived:"
+const isArchiveRow = (id: string) => id === ARCHIVED || id.startsWith(ARCH)
+
+/** The agents still in the tree: archived and deleted ones leave it, but a running agent never hides (a new rlm-1). */
+export const liveRlms = (s: SessionState): Readonly<Record<string, RlmNode>> => {
+  const archived = s.thread.archived ?? {}
+  const deleted = new Set(s.thread.deleted ?? [])
+  return Object.fromEntries(Object.entries(s.thread.rlms).filter(([id, n]) => n.status === "running" || (archived[id] === undefined && !deleted.has(id))))
+}
+const archivedNodes = (s: SessionState) => {
+  const deleted = new Set(s.thread.deleted ?? [])
+  return Object.entries(s.thread.archived ?? {})
+    .flatMap(([id, a]) => {
+      const n = s.thread.rlms[id]
+      return n === undefined || n.status === "running" || deleted.has(id) ? [] : [{ node: n, ...a }]
+    })
+    .sort((a, b) => b.at - a.at)
+}
+const ago = (at: number, now: number) => {
+  const m = Math.max(0, Math.floor((now - at) / 60_000))
+  return m < 60 ? `${m}m ago` : m < 24 * 60 ? `${Math.floor(m / 60)}h ago` : `${Math.floor(m / (24 * 60))}d ago`
+}
+
+/** The agents list: the live tree, then a folded Archived row with the agents it holds (why, and when). */
+export const treeRows = (ui: Ui, s: SessionState, now?: number, cols = 46, seen?: Readonly<Record<string, number>>): ReadonlyArray<AgentRow> => {
+  const rows = agentRows(liveRlms(s), ui.agents, cols, now, seen)
+  const arch = archivedNodes(s)
+  if (arch.length === 0) return rows
+  const open = ui.agents.toggled[ARCHIVED] === true
+  const group: AgentRow = { id: ARCHIVED, text: `${open ? "▾" : "▸"} Archived (${arch.length})`, tone: "done", selected: ui.agents.cursor === ARCHIVED, attention: false }
+  const items = open
+    ? arch.map((a): AgentRow => ({ id: `${ARCH}${a.node.id}`, text: `  ${ICON[a.node.status]} ${a.node.preset} ${a.node.id}  ${a.reason} · ${ago(a.at, now ?? Date.now())}`, tone: a.node.status === "failed" ? "failed" : "done", selected: ui.agents.cursor === `${ARCH}${a.node.id}`, attention: false }))
+    : []
+  return [...rows, group, ...items]
+}
 
 /** The agents tree: one line per visible RLM with its status icon, turn bar and how many descendants it hides. */
 export const agentRows = (rlms: Readonly<Record<string, RlmNode>>, agents: Agents, cols = 46, now?: number, seen?: Readonly<Record<string, number>>): ReadonlyArray<AgentRow> => {
@@ -433,25 +472,53 @@ export const activate = (ui: Ui, s: SessionState, id: string): Ui => {
   return openAgent(ui, s, id)
 }
 
-/** Arrows and Enter on the agents list: move the highlight, open and close nodes, jump to the parent. */
-export const onAgentsKey = (ui: Ui, s: SessionState, key: Key): Ui => {
-  const rlms = s.thread.rlms
-  const rows = visible(rlms, ui.agents)
-  const cursor = cursorOf(rows, ui.agents)
-  const at = rows.findIndex((r) => r.node.id === cursor)
-  const row = rows[at]
-  if (row === undefined) return ui
-  const n = row.node
+/** Keys on the agents list: move the highlight, fold, open; `x` archives (or restores), `X` archives every finished agent, `D` deletes an archived one for good. */
+export const onAgentsKey = (ui: Ui, s: SessionState, key: Key): { readonly ui: Ui; readonly action?: Action } => {
+  const live = liveRlms(s)
+  const rows = visible(live, ui.agents)
+  const ids = treeRows(ui, s).map((r) => r.id)
+  const cursor = ui.agents.cursor !== undefined && isArchiveRow(ui.agents.cursor) ? ui.agents.cursor : cursorOf(rows, ui.agents)
+  if (cursor === undefined) return { ui }
+  const at = ids.indexOf(cursor)
   const move = (id: string | undefined): Ui => (id === undefined ? ui : { ...ui, agents: { ...ui.agents, cursor: id } })
+  const shifted = (letter: string) => key.name === letter.toUpperCase() || (key.name === letter && key.shift === true)
+  const archive = (change: { archive?: ReadonlyArray<string>; restore?: ReadonlyArray<string>; delete?: ReadonlyArray<string> }) => ({ ui, action: { type: "archive" as const, change } })
+  // Finished, asking for nothing, and not zarg: what may leave the tree.
+  const finished = (n: RlmNode) => n.id !== "zarg" && n.status !== "running" && n.attention === undefined
+  if (key.name === "down") return { ui: move(ids[Math.min(ids.length - 1, at + 1)]) }
+  if (key.name === "up") return { ui: move(ids[Math.max(0, at - 1)]) }
+  if (shifted("x")) {
+    const all = rows.flatMap((r) => [r.node, ...r.hidden]).filter(finished).map((n) => n.id)
+    return all.length > 0 ? archive({ archive: all }) : { ui }
+  }
+  const toggleGroup = (open: boolean): Ui => ({ ...ui, agents: { ...ui.agents, cursor: ARCHIVED, toggled: { ...ui.agents.toggled, [ARCHIVED]: open } } })
+  if (cursor === ARCHIVED) {
+    if (key.name === "return") return { ui: toggleGroup(ui.agents.toggled[ARCHIVED] !== true) }
+    if (key.name === "right") return { ui: toggleGroup(true) }
+    if (key.name === "left") return { ui: toggleGroup(false) }
+    return { ui }
+  }
+  if (cursor.startsWith(ARCH)) {
+    const id = cursor.slice(ARCH.length)
+    if (key.name === "x") return archive({ restore: [id] })
+    if (shifted("d")) return archive({ delete: [id] })
+    if (key.name === "return") return { ui: openAgent(ui, s, id) }
+    if (key.name === "left") return { ui: move(ARCHIVED) }
+    return { ui }
+  }
+  const row = rows.find((r) => r.node.id === cursor)
+  if (row === undefined) return { ui }
+  const n = row.node
+  const children = childrenOf(live)
+  const below = (x: RlmNode): Array<RlmNode> => children(x.id).flatMap((c) => [c, ...below(c)])
+  if (key.name === "x") return finished(n) ? archive({ archive: [n, ...below(n)].filter(finished).map((x) => x.id) }) : { ui }
   const set = (open: boolean): Ui => ({ ...ui, agents: { ...ui.agents, cursor: n.id, toggled: { ...ui.agents.toggled, [n.id]: open } } })
-  const hasKids = childrenOf(rlms)(n.id).length > 0
-  const open = isOpen(rlms, ui.agents, n)
-  if (key.name === "down") return move(rows[Math.min(rows.length - 1, at + 1)]?.node.id)
-  if (key.name === "up") return move(rows[Math.max(0, at - 1)]?.node.id)
-  if (key.name === "return") return activate(ui, s, n.id)
-  if (key.name === "right") return hasKids && !open ? set(true) : ui
-  if (key.name === "left") return hasKids && open ? set(false) : n.parent !== null && rlms[n.parent] !== undefined ? move(n.parent) : ui
-  return ui
+  const hasKids = children(n.id).length > 0
+  const open = isOpen(live, ui.agents, n)
+  if (key.name === "return") return { ui: activate(ui, s, n.id) }
+  if (key.name === "right") return { ui: hasKids && !open ? set(true) : ui }
+  if (key.name === "left") return { ui: hasKids && open ? set(false) : n.parent !== null && live[n.parent] !== undefined ? move(n.parent) : ui }
+  return { ui }
 }
 
 export interface Meta {
@@ -487,6 +554,8 @@ export type Action =
   | { readonly type: "act"; readonly section: string | undefined; readonly action: string; readonly rows: ReadonlyArray<string>; readonly agent?: string; readonly view?: string }
   /** Close a plugin's popover. */
   | { readonly type: "close-prompt"; readonly id: string }
+  /** Archive, restore or delete agents of the tree. */
+  | { readonly type: "archive"; readonly change: { readonly archive?: ReadonlyArray<string>; readonly restore?: ReadonlyArray<string>; readonly delete?: ReadonlyArray<string> } }
   /** Answer a question in the open agent's conversation (or `agent`'s). */
   | { readonly type: "answer-agent"; readonly question: string; readonly answer: { readonly choice?: string; readonly other?: string }; readonly agent?: string }
   /** Scroll the open agent's focused section by lines. */

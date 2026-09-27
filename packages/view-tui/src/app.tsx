@@ -10,7 +10,9 @@ import {
   type Action,
   activate,
   agentDetail,
-  agentRows,
+  ARCHIVED,
+  openAgent,
+  treeRows,
   animating,
   answeringOther,
   attentionOf,
@@ -105,6 +107,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     else if (action.type === "scroll-talk") talkRef.current?.scrollBy(action.delta)
     else if (action.type === "answer-prompt") void props.session.answerPrompt(action.id, action.choice)
     else if (action.type === "close-prompt") void props.session.closePrompt(action.id)
+    else if (action.type === "archive") void props.session.archive(action.change)
     else if (action.type === "answer-agent") {
       const agent = action.agent ?? latest().viewing?.split("@")[0]
       if (agent !== undefined) void props.session.answerAgent(agent, action.question, action.answer)
@@ -133,9 +136,10 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const box = slashActive(ui, s) ? slashBox(draft, ui) : undefined
   const width = Math.max(0, ...(box?.rows ?? []).map((r) => r.label.length))
   // Agents spin only while the clock runs (not while a question waits on you).
-  const agents = agentRows(s.thread.rlms, ui.agents, AGENTS_WIDTH - 3, moving ? now : undefined, ui.seen)
+  const agents = treeRows(ui, s, moving ? now : undefined, AGENTS_WIDTH - 3, ui.seen)
   const cursor = agents.find((a) => a.selected)?.id
-  const detail = agentDetail(s.thread.rlms, cursor)
+  // On an archived agent's row, the card shows that agent; on the Archived row, none.
+  const detail = cursor === ARCHIVED ? [] : agentDetail(s.thread.rlms, cursor?.replace(/^archived:/, ""))
   // Keep the highlighted row on screen as the cursor moves through a tall tree.
   useEffect(() => {
     if (cursor !== undefined) agentsRef.current?.scrollChildIntoView(`agent-${cursor}`)
@@ -166,7 +170,11 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             // The list's own handler (focus the list) must not run after the row gave its view the keys.
             onMouseDown={(e: { stopPropagation: () => void }) => {
               e.stopPropagation()
-              setUi(activate(latest(), props.session.state(), a.id))
+              const u = latest()
+              const st = props.session.state()
+              if (a.id === ARCHIVED) setUi({ ...u, focus: "agents", agents: { ...u.agents, cursor: ARCHIVED, toggled: { ...u.agents.toggled, [ARCHIVED]: u.agents.toggled[ARCHIVED] !== true } } })
+              else if (a.id.startsWith("archived:")) setUi(openAgent(u, st, a.id.slice("archived:".length)))
+              else setUi(activate(u, st, a.id))
             }}
             {...((a.selected && ui.focus === "agents") || a.id === viewing ? { bg: COLORS.select } : {})}
           >

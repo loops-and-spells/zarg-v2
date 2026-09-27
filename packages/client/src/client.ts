@@ -102,6 +102,11 @@ export const makeClient = (info: Pick<CoreInfo, "socket" | "token">) => {
       request(`/prompts/${encodeURIComponent(id)}`, { method: "POST", body: JSON.stringify({ choice }) }).pipe(
         Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly notice: string }>)),
       ),
+    /** Archive, restore or delete agents of a thread's tree. */
+    archive: (threadId: string, change: { readonly archive?: ReadonlyArray<string>; readonly restore?: ReadonlyArray<string>; readonly delete?: ReadonlyArray<string> }) =>
+      request(`/threads/${encodeURIComponent(threadId)}/archive`, { method: "POST", body: JSON.stringify(change) }).pipe(
+        Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly notice: string }>)),
+      ),
     /** Close a plugin's popover (Esc). */
     closePrompt: (id: string) =>
       request(`/prompts/${encodeURIComponent(id)}`, { method: "POST", body: JSON.stringify({ close: true }) }).pipe(

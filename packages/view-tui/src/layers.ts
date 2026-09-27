@@ -281,8 +281,11 @@ export const SHELL: ReadonlyArray<Layer> = [
   {
     id: "agents",
     when: (ui) => ui.focus === "agents",
-    hints: () => [{ keys: "↑↓", does: "move" }, { keys: "←→", does: "fold" }, { keys: "Enter", does: "open" }, { keys: "g", does: "next ◆" }],
-    handle: (ui, w, k) => common(ui, w, k) ?? { ui: onAgentsKey(ui, w.s, k) },
+    hints: (ui) =>
+      ui.agents.cursor?.startsWith("archived:") === true
+        ? [{ keys: "x", does: "restore" }, { keys: "D", does: "delete" }, { keys: "Enter", does: "open" }]
+        : [{ keys: "↑↓", does: "move" }, { keys: "Enter", does: "open" }, { keys: "x", does: "archive" }, { keys: "X", does: "archive finished" }, { keys: "g", does: "next ◆" }],
+    handle: (ui, w, k) => common(ui, w, k) ?? onAgentsKey(ui, w.s, k),
   },
 ]
 

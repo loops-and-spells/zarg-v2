@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
 import { defineView, layoutOf } from "@zarg/view"
-import { panelsShown, activate, answeringOther, attentionOf, attentionLine, CHAT, conversation, openAgent, EXIT_WINDOW_MS, initialUi, inputFocused, typing, OTHER, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/view"
+import { ARCHIVED, treeRows, panelsShown, activate, answeringOther, attentionOf, attentionLine, CHAT, conversation, openAgent, EXIT_WINDOW_MS, initialUi, inputFocused, typing, OTHER, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/view"
 import { onKey } from "../src/layers"
 
 const inquiry: Inquiry = {
@@ -555,5 +555,49 @@ describe("surface fixes", () => {
     const ui = syncUi({ ...initialUi, sheet: true, sheetOf: "two:t1", sheetView: { focus: 2, tabs: {}, rows: {}, selected: {} } }, s, 1001)
     expect(ui.sheetOf).toBe("two:t2")
     expect(ui.sheetView).toBeUndefined()
+  })
+})
+
+describe("archive", () => {
+  const node = (id: string, status: "running" | "done" | "failed", parent: string | null = null, extra = {}) => ({ id, parent, preset: "tester", depth: 0, turns: 1, budget: 1, status, decisions: [], ...extra })
+  const rlms = {
+    "rehearse:run": node("rehearse:run", "done"),
+    "rehearse:t1": node("rehearse:t1", "done", "rehearse:run"),
+    "rehearse:t2": node("rehearse:t2", "running"),
+    "rehearse:t3": node("rehearse:t3", "failed"),
+    "rehearse:t4": node("rehearse:t4", "done", null, { attention: { reason: "look", since: 1 } }),
+  }
+  const base: SessionState = { thread: { ...initial("main"), rlms }, core: "up" }
+  const withArchived = (archived: Record<string, { reason: string; at: number }>, deleted: ReadonlyArray<string> = []): SessionState => ({ ...base, thread: { ...base.thread, archived, deleted } })
+  const agentsUi = (cursor: string): Ui => ({ ...initialUi, focus: "agents", agents: { cursor, toggled: {}, tree: 0 } })
+
+  test("archived agents leave the tree for a folded Archived row; opened, it says why", () => {
+    const s = withArchived({ "rehearse:t3": { reason: "ttl (24h)", at: 0 } })
+    expect(treeRows(initialUi, s).map((r) => r.text.trim().split(/\s{2,}/)[0])).toEqual(["▾ ✓ tester rehearse:run", "└ ✓ tester rehearse:t1", "├ ● tester rehearse:t2", "└ ◆ tester rehearse:t4", "▸ Archived (1)"])
+    const open = treeRows({ ...initialUi, agents: { toggled: { [ARCHIVED]: true }, tree: 0 } }, s)
+    expect(open.at(-1)!.text).toContain("rehearse:t3")
+    expect(open.at(-1)!.text).toContain("ttl (24h)")
+  })
+  test("a running agent is never hidden, even one whose id was archived (a new rlm-1)", () => {
+    expect(treeRows(initialUi, withArchived({ "rehearse:t2": { reason: "x", at: 0 } }), 0).some((r) => r.id === "rehearse:t2")).toBe(true)
+  })
+  test("x archives a finished agent with its children; a running one, one asking for attention, or zarg stay", () => {
+    expect(onKey(agentsUi("rehearse:run"), base, { name: "x" }, 0).action).toEqual({ type: "archive", change: { archive: ["rehearse:run", "rehearse:t1"] } })
+    expect(onKey(agentsUi("rehearse:t2"), base, { name: "x" }, 0).action).toBeUndefined()
+    expect(onKey(agentsUi("rehearse:t4"), base, { name: "x" }, 0).action).toBeUndefined()
+  })
+  test("X archives every finished agent that asks for nothing", () => {
+    expect(onKey(agentsUi("rehearse:t2"), base, { name: "X", shift: true }, 0).action).toEqual({ type: "archive", change: { archive: ["rehearse:run", "rehearse:t1", "rehearse:t3"] } })
+  })
+  test("down reaches the Archived row; Enter opens it; x on an archived agent restores it; D deletes it for good", () => {
+    const s = withArchived({ "rehearse:t3": { reason: "ttl (24h)", at: 0 } })
+    let ui = onKey(agentsUi("rehearse:t4"), s, { name: "down" }, 0).ui
+    expect(ui.agents.cursor).toBe(ARCHIVED)
+    ui = onKey(ui, s, { name: "return" }, 0).ui
+    ui = onKey(ui, s, { name: "down" }, 0).ui
+    expect(ui.agents.cursor).toBe("archived:rehearse:t3")
+    expect(onKey(ui, s, { name: "x" }, 0).action).toEqual({ type: "archive", change: { restore: ["rehearse:t3"] } })
+    expect(onKey(ui, s, { name: "D", shift: true }, 0).action).toEqual({ type: "archive", change: { delete: ["rehearse:t3"] } })
+    expect(treeRows(ui, withArchived({}, ["rehearse:t3"]), 0).some((r) => r.id.includes("rehearse:t3"))).toBe(false)
   })
 })

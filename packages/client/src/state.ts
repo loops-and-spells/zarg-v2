@@ -96,6 +96,10 @@ export interface ThreadState {
   readonly views?: Views
   /** The core's popovers (grants, plugins' popovers), in the order asked. */
   readonly prompts?: ReadonlyArray<Prompt>
+  /** Agents out of the tree (restorable): why, and when (ms). */
+  readonly archived?: Readonly<Record<string, { readonly reason: string; readonly at: number }>>
+  /** Agents deleted for good: never shown again. */
+  readonly deleted?: ReadonlyArray<string>
   /** The panels plugins have open. */
   readonly panels?: ReadonlyArray<Panel>
   /** The last tile or sheet a plugin opened for the developer, with the event's seq and time. */
@@ -184,10 +188,20 @@ export const reduce = (s: ThreadState, e: WireEvent): ThreadState => {
       const streams = { ...t.streams, [String(e.messageId)]: own }
       // Only the driver's own tree starting over is a new tree (its RLM ids start over).
       const fresh = Object.keys(own).length === 0 && e.messageId === `${t.threadId}-activity`
-      return { ...t, streams, rlms: merged(streams), trees: fresh ? t.trees + 1 : t.trees }
+      // A fresh driver tree starts its RLM ids over: archive marks on the old ones (no plugin prefix) would hide the new.
+      const archived = fresh && t.archived !== undefined ? Object.fromEntries(Object.entries(t.archived).filter(([id]) => id.includes(":"))) : t.archived
+      return { ...t, streams, rlms: merged(streams), trees: fresh ? t.trees + 1 : t.trees, ...(archived !== undefined ? { archived } : {}) }
     }
-    case "CUSTOM":
+    case "CUSTOM": {
+      if (e.name === "zarg.archive") {
+        const v = e.value as { archive?: ReadonlyArray<string>; reason?: unknown; at?: unknown; restore?: ReadonlyArray<string>; delete?: ReadonlyArray<string> }
+        const archived: Record<string, { reason: string; at: number }> = { ...t.archived }
+        for (const id of v.archive ?? []) archived[id] = { reason: String(v.reason ?? "archived"), at: Number(v.at ?? 0) }
+        for (const id of v.restore ?? []) delete archived[id]
+        return { ...t, archived, ...(v.delete !== undefined ? { deleted: [...new Set([...(t.deleted ?? []), ...v.delete])] } : {}) }
+      }
       return e.name === "zarg.yolo" ? { ...t, yolo: (e.value as { on?: unknown } | undefined)?.on === true } : t
+    }
     case "ACTIVITY_DELTA": {
       const id = String(e.messageId)
       const streams = { ...t.streams, [id]: patchRlms(t.streams?.[id] ?? {}, (e.patch as ReadonlyArray<Patch>) ?? []) }

@@ -37,6 +37,8 @@ export interface Session {
   readonly answerAgent: (agent: string, question: string, answer: { readonly choice?: string; readonly other?: string }) => Promise<void>
   /** Answer one of the core's prompts (a grant popover); its notice shows. */
   readonly answerPrompt: (id: string, choice: string) => Promise<void>
+  /** Archive, restore or delete agents of the tree; its notice shows. */
+  readonly archive: (change: { readonly archive?: ReadonlyArray<string>; readonly restore?: ReadonlyArray<string>; readonly delete?: ReadonlyArray<string> }) => Promise<void>
   /** Close a plugin's popover; its notice shows. */
   readonly closePrompt: (id: string) => Promise<void>
   /** Stop following the core. */
@@ -186,6 +188,14 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
     answerPrompt: (id, choice) =>
       Effect.runPromise(
         opts.client.answerPrompt(id, choice).pipe(
+          Effect.map((r) => r.notice),
+          Effect.catch((e) => Effect.succeed(e.message)),
+          Effect.flatMap((notice) => Effect.sync(() => set({ ...state, notice }))),
+        ),
+      ),
+    archive: (change) =>
+      Effect.runPromise(
+        opts.client.archive(opts.threadId, change).pipe(
           Effect.map((r) => r.notice),
           Effect.catch((e) => Effect.succeed(e.message)),
           Effect.flatMap((notice) => Effect.sync(() => set({ ...state, notice }))),

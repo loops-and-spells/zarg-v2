@@ -181,3 +181,22 @@ describe("surfaces", () => {
     expect(s.prompts).toEqual([{ id: "p1", kind: "surface", question: "rehearse ask", options: [], view: "rehearse:t1", agent: "rehearse:t1" }])
   })
 })
+
+describe("archive", () => {
+  test("archived agents keep their reason and time; restore brings them back; delete is for good", () => {
+    const s = fold([
+      ev("CUSTOM", { name: "zarg.archive", value: { archive: ["rehearse:t1", "rehearse:t2"], reason: "archived by you", at: 5 } }),
+      ev("CUSTOM", { name: "zarg.archive", value: { restore: ["rehearse:t2"] } }),
+      ev("CUSTOM", { name: "zarg.archive", value: { delete: ["rehearse:t1"] } }),
+    ])
+    expect(s.archived).toEqual({ "rehearse:t1": { reason: "archived by you", at: 5 } })
+    expect(s.deleted).toEqual(["rehearse:t1"])
+  })
+  test("a fresh driver tree forgets archived RLMs (their ids start over), never plugin agents", () => {
+    const s = fold([
+      ev("CUSTOM", { name: "zarg.archive", value: { archive: ["rlm-1", "rehearse:t1"], reason: "ttl (24h)", at: 5 } }),
+      ev("ACTIVITY_SNAPSHOT", { messageId: "main-activity", content: { rlms: {} } }),
+    ])
+    expect(Object.keys(s.archived ?? {})).toEqual(["rehearse:t1"])
+  })
+})

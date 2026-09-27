@@ -25,6 +25,7 @@ const fakeSession = (state: SessionState) => {
     act: (agent, action, _section, rows) => Promise.resolve(void calls.push(`act ${agent} ${action} ${rows.join(",")}`)),
     answerPrompt: (id, choice) => Promise.resolve(void calls.push(`prompt ${id} ${choice}`)),
     closePrompt: (id) => Promise.resolve(void calls.push(`close ${id}`)),
+    archive: (change) => Promise.resolve(void calls.push(`archive ${JSON.stringify(change)}`)),
     answerAgent: (agent, question, answer) => Promise.resolve(void calls.push(`answer ${agent} ${question} ${JSON.stringify(answer)}`)),
   }
   const update = (next: SessionState) => {
@@ -643,5 +644,18 @@ describe("surfaces", () => {
     t.mockInput.pressEscape()
     await settle(t)
     expect(t.calls).toContain("close p1")
+  })
+})
+
+describe("archive", () => {
+  const done = { id: "rehearse:t1", parent: null, preset: "tester", depth: 0, turns: 1, budget: 1, status: "done" as const, decisions: [] }
+  test("x on a finished agent asks the core to archive it; archived ones wait in a folded row", async () => {
+    const t = await render({ ...idleState, thread: { ...idleState.thread, rlms: { "rehearse:t1": done, "rehearse:t2": { ...done, id: "rehearse:t2" } }, archived: { "rehearse:t2": { reason: "ttl (24h)", at: Date.now() } } } }, { width: 110, height: 24 })
+    expect(t.captureCharFrame()).toContain("▸ Archived (1)")
+    t.mockInput.pressKey("a", { meta: true })
+    await settle(t)
+    t.mockInput.pressKey("x")
+    await settle(t)
+    expect(t.calls).toContain('archive {"archive":["rehearse:t1"]}')
   })
 })
