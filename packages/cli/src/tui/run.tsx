@@ -3,8 +3,7 @@ import { type CliRenderer, createCliRenderer } from "@opentui/core"
 import { createRoot } from "@opentui/react"
 import { Effect } from "effect"
 import { connect, makeClient, makeSession, type Session } from "@zarg/client"
-import { App } from "./app"
-import type { Meta } from "./view"
+import { App, type Meta } from "@zarg/view-tui"
 
 /**
  * The zarg-core command line. Core's entry is resolved as a file path, never imported: the TUI only

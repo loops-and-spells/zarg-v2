@@ -5,7 +5,7 @@ import { join } from "node:path"
 import { testRender } from "@opentui/react/test-utils"
 import { Effect } from "effect"
 import { isAlive, readInfo } from "@zarg/client"
-import { App } from "../src/tui/app"
+import { App } from "@zarg/view-tui"
 import { openSession } from "../src/tui/run"
 
 const root = mkdtempSync(join(tmpdir(), "zarg-tui-e2e-"))

@@ -2,8 +2,8 @@ import { expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
-test("the TUI never imports core or a server module", () => {
-  const dir = join(import.meta.dir, "..", "src", "tui")
+test("the terminal shell never imports core or a server module", () => {
+  const dir = join(import.meta.dir, "..", "src")
   const offenders = readdirSync(dir).flatMap((f) =>
     [...readFileSync(join(dir, f), "utf8").matchAll(/(?:from|import)\s*\(?\s*"([^"]+)"/g)]
       .map((m) => m[1]!)

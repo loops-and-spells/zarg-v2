@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { testRender } from "@opentui/react/test-utils"
 import { type Answer, initial, type Inquiry, type Session, type SessionState } from "@zarg/client"
-import { App } from "../src/tui/app"
+import { App } from "../src/app"
 
 /** A session with fixed state that records what the UI asks of it. */
 const fakeSession = (state: SessionState) => {

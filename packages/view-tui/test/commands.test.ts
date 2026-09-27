@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { decodeCommands, lintSlashInput, parseSlashInput, registerCommands, SLASH_COMMANDS, type SlashCycle, stepCompletion } from "../src/tui/commands"
+import { decodeCommands, lintSlashInput, parseSlashInput, registerCommands, SLASH_COMMANDS, type SlashCycle, stepCompletion } from "../src/commands"
 
 // A fixture table with every argument kind (the real table has only /reconcile so far).
 const T = decodeCommands([
