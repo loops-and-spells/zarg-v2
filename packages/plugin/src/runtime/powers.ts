@@ -142,7 +142,8 @@ export const makePowers = (opts: {
   /** Allowed when granted; else ask (optional scopes), pass (YOLO) or refuse. */
   const allow = async (kind: Kind, target: string, what: string, folder?: string) => {
     const granted = await Effect.runPromise(opts.grants.of(opts.plugin, opts.digest))
-    if (granted.loaded && declared(opts.manifest.scopes, kind, target, opts.projectRoot) === true) return
+    // A plugin YOLO loaded has no saved grant: under YOLO what it declares is allowed all the same.
+    if ((granted.loaded || opts.yolo()) && declared(opts.manifest.scopes, kind, target, opts.projectRoot) === true) return
     if (granted.extra.some((g) => grantMatches(g, kind, target))) return
     const optional = declared(opts.manifest.optional, kind, target, opts.projectRoot)
     if (optional === false) throw notGranted(`${opts.plugin}: ${printable(what)} is not declared in its manifest`)

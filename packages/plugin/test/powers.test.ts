@@ -8,14 +8,14 @@ import { type Ask, isPower, makeGrants, makePowers, scopesDigest, secretVar, ser
 const tmp = () => mkdtempSync(join(tmpdir(), "zt-powers-"))
 const vaultOf = (values: Record<string, string>) => (name: string) => Effect.succeed(values[name] !== undefined ? Redacted.make(values[name]!) : undefined)
 
-const setup = (opts: { scopes?: object; optional?: object; answers?: Array<"once" | "folder" | "always" | "deny">; yolo?: boolean; vault?: Record<string, string>; fetchImpl?: typeof fetch; userDir?: string }) =>
+const setup = (opts: { scopes?: object; optional?: object; answers?: Array<"once" | "folder" | "always" | "deny">; yolo?: boolean; noLoadGrant?: boolean; vault?: Record<string, string>; fetchImpl?: typeof fetch; userDir?: string }) =>
   Effect.gen(function* () {
     const file = join(tmp(), "grants.json")
     const grants = yield* makeGrants({ file, project: "/p" })
     const scopes = (opts.scopes ?? {}) as never
     const optional = (opts.optional ?? {}) as never
     const digest = scopesDigest(scopes, optional)
-    yield* grants.approveLoad("tracker", digest)
+    if (opts.noLoadGrant !== true) yield* grants.approveLoad("tracker", digest)
     const asked: Array<string> = []
     const logs: Array<string> = []
     const answers = [...(opts.answers ?? [])]
@@ -307,5 +307,18 @@ describe("project-relative files", () => {
     expect(readFileSync(join(project, ".zarg/out/run/r-1.json"), "utf8")).toBe("{}")
     expect(await powers["fs.list"]!({ dir: ".zarg/out/run" })).toEqual(["r-1.json"])
     await expect(powers["fs.write"]!({ path: "elsewhere.txt", text: "x" })).rejects.toThrow()
+  })
+})
+
+describe("YOLO and declared scopes", () => {
+  test("a plugin YOLO loaded without a saved grant uses what it declares; without YOLO it may not", async () => {
+    const root = tmp()
+    mkdirSync(join(root, "docs"), { recursive: true })
+    writeFileSync(join(root, "docs", "a.md"), "hi")
+    const yolo = await go(setup({ scopes: { fs: { read: [`${root}/docs/**`] } }, yolo: true, noLoadGrant: true }))
+    expect(await yolo.powers["fs.read"]!({ path: `${root}/docs/a.md` })).toBe("hi")
+    expect(yolo.asked).toEqual([])
+    const off = await go(setup({ scopes: { fs: { read: [`${root}/docs/**`] } }, noLoadGrant: true }))
+    await expect(off.powers["fs.read"]!({ path: `${root}/docs/a.md` })).rejects.toMatchObject({ tag: "NotGranted" })
   })
 })
