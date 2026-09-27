@@ -52,13 +52,15 @@ Done:
 - The feature graph, plugins and the Gherkin plugin, with the `zarg` CLI and Claude Code skills (phase 1).
 - Models, Decisions, the kernel and the RLM with folding (phase 2a).
 - The core process with AG-UI, driver threads with inquiries, the client and the OpenTUI app (phase 2b-1). The driver there is the first form of the intent agent.
+- Plan and implement on the generic reconcile loop, each pass a durable workflow (phase 2b-2).
+- The plugin runtime and SDK: every plugin runs in its own locked-down process with only the scopes you granted, and Gherkin is the first plugin on it.
 
 Next:
-1. **Plan and implement** on a generic reconcile loop (2b-2), each pass a durable workflow: per-card worktrees, verify, landing, merge conflicts, findings to the agenda.
+1. **Plugins, continued**: providers become plugins (zarg-router's warm and decisions as its own methods), agents call plugin methods you grant them (plugin output always marked untrusted), and a TUI for consent, config and login by archetype (replacing `/models`).
 2. **Capture**: the driver becomes the intent agent and keeps `intent/*.md`; its context comes from artifacts, never the transcript; pending questions become durable.
 3. **Specify**: intents projected to cards, with each card tracing to its intent.
 4. **Rehearse**: roleplay testers over the graph (ported from Colony's flow tester: edge-pair walks, typed findings, step scores).
-5. Provider login and model setup; implement code ownership (tagged regions, generated output or a hybrid).
+5. Implement code ownership (tagged regions, generated output or a hybrid).
 
 ## Open questions
 

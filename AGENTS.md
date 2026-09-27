@@ -26,8 +26,9 @@ packages/<name>/
 ## Packages
 
 - `packages/graph` (`@zarg/graph`): JSON graph store under `.zarg/graph`: snapshot, queries, diff.
-- `packages/plugin` (`@zarg/plugin/server`): plugin contract, `PluginHost` and the write pipeline.
-- `packages/plugin-gherkin` (`@zarg/plugin-gherkin/server`): atomic Gherkin user action graph (states and cards).
+- `packages/plugin` (`@zarg/plugin/server`, `@zarg/plugin/runtime`): the plugin runtime (each plugin in its own locked-down Bun process with `ses`, powers served by the host), grants (`~/.config/zarg/grants.json`), `PluginHost` and the write pipeline. Plugins load only through it; a test fails if another package imports a plugin.
+- `packages/plugin-sdk` (`@zarg/plugin-sdk`, `@zarg/plugin-sdk/tools`): `definePlugin` and the power services plugins yield (`Secrets`, `Http`, `Files`, `Graph`, `Config`); manifests, the checked build and `testPlugin`.
+- `packages/plugin-gherkin` (`@zarg/plugin-gherkin`): atomic Gherkin user action graph (states and cards), built to `dist/` by its `build` task (tests and `mise run zarg` depend on it).
 - `packages/cli` (`@zarg/cli`): the `zarg` CLI. `zarg [--thread <id>] [--focus <node>]…` opens the TUI (it starts a core as its child, or attaches to a running one); `zarg core start --headless`, `zarg core stop`, `zarg core status` manage a detached core; the other subcommands are graph tools. Run it with `mise run -q zarg -- <command>`. `mise run smoke:chat` runs one live driver item (needs the configured driver model; ask first).
 - `packages/model` (`@zarg/model`): `Env` and `Secrets` (varlock), config loader, `Model` service, provider contract, OpenRouter-wire client.
 - `packages/provider-zarg-router`, `packages/provider-openrouter`: provider plugins. Each ships its `.env.schema` fragment.
