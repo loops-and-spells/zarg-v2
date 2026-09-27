@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Snapshot } from "@zarg/graph"
-import { affectedCards } from "../src/server"
+import { affectedCards } from "../src/affected"
 
 const state = (id: string, text: string) => ({ id, type: "gherkin/state", props: { text }, edges: [] })
 const card = (id: string, arrives: string, then: ReadonlyArray<string>, when = "the user acts") => ({

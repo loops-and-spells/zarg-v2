@@ -12,6 +12,7 @@
     "ses": "2.3.0"
   },
   "devDependencies": {
-    "@effect/platform-bun": "^4.0.0-rc.117"
+    "@effect/platform-bun": "^4.0.0-rc.117",
+    "@zarg/plugin-sdk": "workspace:*"
   }
 }

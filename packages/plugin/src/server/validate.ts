@@ -1,42 +1,7 @@
-import { Schema } from "effect"
 import type { Node } from "@zarg/graph"
-import type { EdgeSpec, Finding, LintContext, ServerPlugin } from "./plugin"
-
-export interface Registry {
-  readonly plugins: ReadonlyArray<ServerPlugin>
-  readonly nodes: ReadonlyMap<string, Schema.ConstraintDecoder<unknown>>
-  /** Full edge type -> spec with full node type names. */
-  readonly edges: ReadonlyMap<string, EdgeSpec>
-}
+import type { EdgeSpec, Finding, LintContext } from "./plugin"
 
 export class PluginConfigError extends Error {}
-
-export const registry = (plugins: ReadonlyArray<ServerPlugin>): Registry => {
-  const names = new Set<string>()
-  const nodes = new Map<string, Schema.ConstraintDecoder<unknown>>()
-  const edges = new Map<string, EdgeSpec>()
-  for (const p of plugins) {
-    if (names.has(p.name)) throw new PluginConfigError(`plugin "${p.name}" is registered twice`)
-    names.add(p.name)
-  }
-  for (const p of plugins) {
-    for (const r of p.requires ?? []) {
-      if (!names.has(r)) throw new PluginConfigError(`plugin "${p.name}" requires "${r}", which is not registered`)
-    }
-    for (const [local, schema] of Object.entries(p.nodes ?? {})) nodes.set(`${p.name}/${local}`, schema)
-  }
-  const full = (owner: string, type: string) => (type.includes("/") ? type : `${owner}/${type}`)
-  for (const p of plugins) {
-    for (const [local, spec] of Object.entries(p.edges ?? {})) {
-      const resolved = { ...spec, from: full(p.name, spec.from), to: full(p.name, spec.to) }
-      for (const t of [resolved.from, resolved.to]) {
-        if (!nodes.has(t)) throw new PluginConfigError(`edge "${p.name}/${local}" uses unknown node type "${t}"`)
-      }
-      edges.set(`${p.name}/${local}`, resolved)
-    }
-  }
-  return { plugins, nodes, edges }
-}
 
 const error = (code: string, message: string, about: ReadonlyArray<string>): Finding => ({
   severity: "error",
@@ -45,15 +10,10 @@ const error = (code: string, message: string, about: ReadonlyArray<string>): Fin
   about,
 })
 
-/** Schema, edge-type and cardinality checks for one node, against the snapshot it lives in. */
-const checkNode = (reg: Registry, ctx: LintContext, node: Node): ReadonlyArray<Finding> => {
-  const schema = reg.nodes.get(node.type)
-  if (schema === undefined) return [error("unknown-type", `${node.id}: unknown node type "${node.type}"`, [node.id])]
+/** Type, edge and cardinality checks for one node, against the snapshot it lives in. */
+const checkNode = (reg: ManifestRegistry, ctx: LintContext, node: Node): ReadonlyArray<Finding> => {
+  if (!reg.nodes.has(node.type)) return [error("unknown-type", `${node.id}: unknown node type "${node.type}"`, [node.id])]
   const out: Array<Finding> = []
-  const decoded = Schema.decodeUnknownExit(schema)(node.props)
-  if (decoded._tag === "Failure") {
-    out.push(error("invalid-props", `${node.id}: props do not match ${node.type}: ${String(decoded.cause)}`, [node.id]))
-  }
   for (const edge of node.edges) {
     const spec = reg.edges.get(edge.type)
     if (spec === undefined) {
@@ -90,8 +50,37 @@ const checkNode = (reg: Registry, ctx: LintContext, node: Node): ReadonlyArray<F
   return out
 }
 
-/** Every check for a proposed change: structure of touched nodes, then every plugin's lints. */
-export const check = (reg: Registry, ctx: LintContext): ReadonlyArray<Finding> => [
-  ...[...ctx.diff.added, ...ctx.diff.changed.map((c) => c.after)].flatMap((n) => checkNode(reg, ctx, n)),
-  ...reg.plugins.flatMap((p) => (p.lints ?? []).flatMap((lint) => lint(ctx))),
-]
+/** Node types and edge specs from plugin manifests (props are checked by each plugin's own `validate`). */
+export interface ManifestRegistry {
+  /** Full node type ("notes/topic") → the plugin that owns it. */
+  readonly nodes: ReadonlyMap<string, string>
+  readonly edges: ReadonlyMap<string, EdgeSpec>
+}
+
+export const manifestRegistry = (
+  manifests: ReadonlyArray<{ readonly name: string; readonly graph?: { readonly nodes: Readonly<Record<string, unknown>>; readonly edges: Readonly<Record<string, EdgeSpec>> } }>,
+): ManifestRegistry => {
+  const names = new Set<string>()
+  for (const m of manifests) {
+    if (names.has(m.name)) throw new PluginConfigError(`plugin "${m.name}" is registered twice`)
+    names.add(m.name)
+  }
+  const nodes = new Map<string, string>()
+  for (const m of manifests) for (const local of Object.keys(m.graph?.nodes ?? {})) nodes.set(`${m.name}/${local}`, m.name)
+  const full = (owner: string, type: string) => (type.includes("/") ? type : `${owner}/${type}`)
+  const edges = new Map<string, EdgeSpec>()
+  for (const m of manifests) {
+    for (const [local, spec] of Object.entries(m.graph?.edges ?? {})) {
+      const resolved = { ...spec, from: full(m.name, spec.from), to: full(m.name, spec.to) }
+      for (const t of [resolved.from, resolved.to]) {
+        if (!nodes.has(t)) throw new PluginConfigError(`edge "${m.name}/${local}" uses unknown node type "${t}"`)
+      }
+      edges.set(`${m.name}/${local}`, resolved)
+    }
+  }
+  return { nodes, edges }
+}
+
+/** Type, edge and cardinality checks for the nodes a change touches (no props: plugins check those). */
+export const checkStructure = (reg: ManifestRegistry, ctx: LintContext): ReadonlyArray<Finding> =>
+  [...ctx.diff.added, ...ctx.diff.changed.map((c) => c.after)].flatMap((node) => checkNode(reg, ctx, node))

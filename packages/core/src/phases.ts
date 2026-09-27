@@ -2,11 +2,10 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSyn
 import { dirname, join } from "node:path"
 import { BunServices } from "@effect/platform-bun"
 import { Context, Effect, Layer, Schema } from "effect"
-import { GraphStore, hash, layer as graphLayer } from "@zarg/graph"
+import { GraphStore, hash, layer as graphLayer, type Snapshot } from "@zarg/graph"
 import type { Bound } from "@zarg/kernel"
 import { ConfigError, redact, type SensitiveValue } from "@zarg/model"
-import { layer as hostLayer, PluginHost } from "@zarg/plugin/server"
-import { affectedCards, gherkin } from "@zarg/plugin-gherkin/server"
+import { PluginHost } from "@zarg/plugin/server"
 import { type Findings, GRAPH, gitRun, type ItemOutcome, type ReconcileSpec } from "@zarg/reconcile"
 import { fs, fsRead, graph, type Rlm, runCommand, type Scope, sh, verify } from "@zarg/rlm"
 
@@ -93,13 +92,17 @@ export interface PhaseDeps {
   readonly observe?: (phase: string, item: string, e: Rlm.RlmEvent) => void
   readonly withGraphLock?: ReconcileSpec["withGraphLock"]
   readonly stop?: ReconcileSpec["stop"]
+  /** A plugin host over a graph store (the pass's worktree graph); plugins run in their own processes. */
+  readonly pluginHost: Layer.Layer<PluginHost, unknown, GraphStore>
+  /** Cards a graph change affects, asked of the graph plugins. */
+  readonly affected: (before: Snapshot.Snapshot, after: Snapshot.Snapshot) => Effect.Effect<{ readonly cards: ReadonlyArray<string>; readonly removed: ReadonlyArray<string> }, unknown>
 }
 
 /** The graph as the worktree at `cwd` has it (the pass's graph, not the developer's newer one). */
-const withGraph = <A, E>(cwd: string, f: (g: { host: PluginHost["Service"]; store: GraphStore["Service"] }) => Effect.Effect<A, E>) =>
+const withGraph = <A, E>(deps: PhaseDeps, cwd: string, f: (g: { host: PluginHost["Service"]; store: GraphStore["Service"] }) => Effect.Effect<A, E>) =>
   Effect.scoped(
     Effect.gen(function* () {
-      const ctx = yield* Layer.build(Layer.provideMerge(hostLayer([gherkin]), graphLayer(join(cwd, GRAPH))).pipe(Layer.provide(BunServices.layer)))
+      const ctx = yield* Layer.build(Layer.provideMerge(deps.pluginHost, graphLayer(join(cwd, GRAPH))).pipe(Layer.provide(BunServices.layer)))
       return yield* f({ host: Context.get(ctx, PluginHost), store: Context.get(ctx, GraphStore) })
     }),
   )
@@ -145,7 +148,7 @@ const implementTask = (item: string, card: string, plan: string) =>
 /** Plan and implement as reconcile phases, backed by RLMs working in each card's worktree. */
 export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
   const run = (phase: string, preset: string, item: string, task: string, cwd: string) =>
-    withGraph(cwd, ({ host, store }) =>
+    withGraph(deps, cwd, ({ host, store }) =>
       Effect.gen(function* () {
         const snapshot = store.snapshot.pipe(Effect.mapError((e) => ({ _tag: e._tag, message: e.message })))
         const services = (name: string, scope: Scope): Bound | undefined => {
@@ -163,7 +166,7 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
       }),
     )
   const card = (cwd: string, item: string) =>
-    withGraph(cwd, ({ host, store }) =>
+    withGraph(deps, cwd, ({ host, store }) =>
       Effect.gen(function* () {
         const snap = yield* store.snapshot
         const node = snap.nodes.get(item)
@@ -174,10 +177,7 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
 
   return {
     repo: deps.repo,
-    affected: (before, after) => {
-      const a = affectedCards(before, after)
-      return { items: a.cards, removed: a.removed }
-    },
+    affected: (before, after) => Effect.map(deps.affected(before, after), (a) => ({ items: a.cards, removed: a.removed })),
     phases: [
       {
         name: "plan",

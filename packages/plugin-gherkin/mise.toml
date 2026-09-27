@@ -3,3 +3,6 @@ run = "mise x -- bunx tsc"
 
 [tasks.test]
 run = "mise x -- bun test"
+
+[tasks.build]
+run = "mise x -- bun scripts/build.ts"

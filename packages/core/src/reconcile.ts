@@ -1,7 +1,6 @@
 import { join } from "node:path"
 import { Cause, Effect, Layer, ManagedRuntime, Stream } from "effect"
 import type { AgendaItem } from "@zarg/plugin/server"
-import { affectedCards } from "@zarg/plugin-gherkin/server"
 import { baseTree, engineLayer, gcPasses, makeFindings, Pass, type PassResult, passLayer, snapshotAtTree, startReconciler, workingGraphTree } from "@zarg/reconcile"
 import { makeActivity } from "./activity"
 import * as E from "./events"
@@ -18,6 +17,8 @@ export interface ReconcileDeps {
   readonly makeRlm: PhaseDeps["makeRlm"]
   readonly extra?: PhaseDeps["extra"]
   readonly withGraphLock?: PhaseDeps["withGraphLock"]
+  readonly pluginHost: PhaseDeps["pluginHost"]
+  readonly affected: PhaseDeps["affected"]
   /** The workflow store. Under `.zarg/reconcile/`, which keeps itself out of git. */
   readonly dbFile?: string
 }
@@ -53,6 +54,8 @@ export const makeReconcile = (deps: ReconcileDeps) =>
       sensitive: deps.sensitive,
       findings,
       makeRlm: deps.makeRlm,
+      pluginHost: deps.pluginHost,
+      affected: deps.affected,
       ...(deps.extra ? { extra: deps.extra } : {}),
       ...(deps.withGraphLock ? { withGraphLock: deps.withGraphLock } : {}),
       observe: (phase, item, e) => (phase === "plan" ? activity.plan : activity.implement).observe(e, `${item}:`),
@@ -137,7 +140,7 @@ export const makeReconcile = (deps: ReconcileDeps) =>
         Effect.flatMap(baseTree(deps.repo), (t) => snapshotAtTree(deps.repo, t)),
         Effect.flatMap(workingGraphTree(deps.repo), (t) => snapshotAtTree(deps.repo, t)),
       ])
-      const a = affectedCards(before, after)
+      const a = yield* deps.affected(before, after)
       return a.cards.length + a.removed.length
     }).pipe(Effect.orElseSucceed(() => 0))
 

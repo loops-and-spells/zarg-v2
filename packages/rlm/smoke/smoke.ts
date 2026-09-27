@@ -7,8 +7,8 @@ import { Effect, Layer } from "effect"
 import { Decisions, layer as decisionsLayer } from "@zarg/decisions"
 import { GraphStore, layer as graphLayer } from "@zarg/graph"
 import { Config, Env, layer as envLayer, Model } from "@zarg/model"
-import { layer as hostLayer, PluginHost } from "@zarg/plugin/server"
-import { gherkin } from "@zarg/plugin-gherkin/server"
+import { PluginHost } from "@zarg/plugin/server"
+import { gherkin, gherkinHost } from "../test/gherkin-host"
 import { openrouter } from "@zarg/provider-openrouter"
 import { zargRouter } from "@zarg/provider-zarg-router"
 import { type Bound } from "@zarg/kernel"
@@ -53,7 +53,7 @@ const base = Layer.merge(envLayer(root), BunServices.layer)
 const config = Layer.provideMerge(Config.layer({ userDir: join(homedir(), ".config", "zarg"), projectDir: root }), base)
 const model = Layer.provideMerge(Model.layer([zargRouter, openrouter]), config)
 const decisions = Layer.provideMerge(decisionsLayer(), model)
-const graphs = Layer.provideMerge(hostLayer([gherkin]), graphLayer(join(root, ".zarg", "graph")))
+const graphs = Layer.provideMerge(gherkinHost(), graphLayer(join(root, ".zarg", "graph")))
 
 await Effect.runPromise(program.pipe(Effect.provide(Layer.mergeAll(decisions, Layer.provideMerge(graphs, BunServices.layer))))).catch((e) => {
   console.error(e instanceof Error ? e.message : e)

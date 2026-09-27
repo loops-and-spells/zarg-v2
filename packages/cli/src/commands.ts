@@ -5,7 +5,6 @@ import { PluginHost } from "@zarg/plugin/server"
 import { rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { readClaim, startHeadless, stopCore } from "@zarg/client"
-import { affectedCards } from "@zarg/plugin-gherkin/server"
 import { baseTree, CHECKPOINT, git, LEGACY_CHECKPOINT, snapshotAtTree, workingGraphTree } from "@zarg/reconcile"
 import { cardRefs, snapshotAt } from "./git"
 import { root } from "./root"
@@ -97,7 +96,7 @@ const affected = Command.make("affected", {}, () =>
     const base = yield* baseTree(root)
     const graph = yield* workingGraphTree(root)
     const [before, after] = yield* Effect.all([snapshotAtTree(root, base), snapshotAtTree(root, graph)])
-    yield* print({ base, graph, ...affectedCards(before, after) })
+    yield* print({ base, graph, ...(yield* PluginHost.use((h) => h.affected(before, after))) })
   }),
 )
 

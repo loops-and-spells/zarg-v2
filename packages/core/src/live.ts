@@ -5,14 +5,14 @@ import { Cause, Effect, Layer, Scope as EffectScope, Semaphore } from "effect"
 import { Decisions, layer as decisionsLayer } from "@zarg/decisions"
 import { GraphStore, layer as graphLayer } from "@zarg/graph"
 import { type Bound } from "@zarg/kernel"
-import { Config, Env, layer as envLayer, Model, redact } from "@zarg/model"
-import { layer as hostLayer, PluginHost } from "@zarg/plugin/server"
-import { gherkin } from "@zarg/plugin-gherkin/server"
+import { Config, Env, layer as envLayer, Model, redact, type SensitiveValue } from "@zarg/model"
+import { PluginHost } from "@zarg/plugin/server"
 import { openrouter } from "@zarg/provider-openrouter"
 import { zargRouter } from "@zarg/provider-zarg-router"
 import { type Asker, decisionsService, fsRead, graph, inquire, pluginService, Rlm, type Scope, settings } from "@zarg/rlm"
 import { askFirst } from "./driver"
 import { makeLog } from "./log"
+import { PluginControl, pluginHostLayer, vaultFrom } from "./plugins"
 import { STUB_MODEL, stubLayer } from "./stub"
 import { reasonOf, reconcileGate, type ReconcileSettings } from "./phases"
 import { checkoutProblem } from "@zarg/reconcile"
@@ -46,7 +46,9 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       const factory = (name: string, scope: Scope): Bound | undefined => {
         const ctx = { host, snapshot, scope }
         if (name === "Graph") return graph(ctx)
-        if (name === "Gherkin") return guard.gate(pluginService(gherkin, ctx))
+        // A plugin's agent methods, by the service name its manifest declares; graph writes wait for an answer.
+        const plugin = host.manifests.find((m) => m.service === name)
+        if (plugin !== undefined) return guard.gate(pluginService(plugin, ctx))
         if (name === "Fs:read") return fsRead({ root, scope, sensitive })
         if (name === "Inquire") return inquire(guard.asker)
         if (name === "Decisions") return decisionsService(decisions as never)
@@ -70,6 +72,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         extra: (name) => (name === "Decisions" ? decisionsService(decisions as never) : undefined),
         // Landing writes graph files: no driver write may land halfway through it.
         withGraphLock: (effect) => host.exclusive(effect),
+        pluginHost: pluginsFor(root, env, config, sensitive),
+        affected: (before, after) => host.affected(before, after),
       }).pipe(Effect.provideService(EffectScope.Scope, scope))
     const gate = yield* reconcileGate(root, config.extra, roles)
     // stderr: stdout carries the `ready` handshake a starting client waits for.
@@ -80,6 +84,18 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // The same scope filter the driver's Graph.render applies.
     const render = (ids: ReadonlyArray<string>, scope: Scope) => Effect.map(graph({ host, snapshot, scope }).handlers.render!({ focus: ids }), String)
     const threads = yield* makeThreads({ log, agenda, render, suggest: (focus) => host.suggest(focus), makeRlm, extra: reconcile?.threads ?? [] })
+    // A plugin's grant question is asked on main, like any driver question.
+    const main = yield* threads.get("main", [])
+    const control = yield* PluginControl
+    control.setAsk((q) =>
+      main
+        .ask({
+          question: `Plugin ${q.plugin} wants to ${q.what}.`,
+          options: q.options.map((o) => ({ id: o.id, label: o.label, ...(o.id === "once" ? { recommended: true } : {}) })),
+          allowOther: false,
+        })
+        .pipe(Effect.map((a) => q.options.find((o) => o.id === a.choice)?.id ?? "deny")),
+    )
 
     // @card UX-0058 @card UX-0059
     /** `/reconcile`: turn plan and implement on for this session (the config's section and `enabled` are overridden). */
@@ -106,14 +122,33 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     return { log, threads, driver: roles.driver, turnOn }
   })
 
+/** The project's plugin host options from its environment and config (`[plugins.<name>]` tables). */
+const pluginsFor = (root: string, env: Env["Service"], config: Config.ZargConfig, sensitive: ReadonlyArray<SensitiveValue>, yolo?: boolean) => {
+  const tables = (config.extra.plugins ?? {}) as Readonly<Record<string, unknown>>
+  return pluginHostLayer({
+    root,
+    listed: Object.keys(tables).filter((name) => (tables[name] as { source?: unknown } | undefined)?.source !== undefined),
+    pluginConfig: (name) => tables[name] ?? {},
+    vault: vaultFrom(env.get),
+    redact: (t) => redact(t, sensitive),
+    ...(yolo !== undefined ? { yolo } : {}),
+  })
+}
+
 /** Layers for a project root: env, config, models, decisions, graph and plugins. `stubFile` swaps in the scripted models. */
-export const liveLayer = (root: string, stubFile?: string) => {
+export const liveLayer = (root: string, stubFile?: string, opts: { readonly yolo?: boolean } = {}) => {
   const base = Layer.merge(envLayer(root), BunServices.layer)
   const config = Layer.provideMerge(Config.layer({ userDir: join(homedir(), ".config", "zarg"), projectDir: root }), base)
   const decisions =
     stubFile !== undefined
       ? Layer.provideMerge(stubLayer(stubFile), config)
       : Layer.provideMerge(decisionsLayer(), Layer.provideMerge(Model.layer([zargRouter, openrouter]), config))
-  const graphs = Layer.provideMerge(hostLayer([gherkin]), graphLayer(join(root, ".zarg", "graph")))
+  const plugins = Layer.unwrap(
+    Effect.gen(function* () {
+      const env = yield* Env
+      return pluginsFor(root, env, yield* Config.Config, yield* env.sensitive, opts.yolo)
+    }),
+  ).pipe(Layer.provide(config))
+  const graphs = Layer.provideMerge(plugins, graphLayer(join(root, ".zarg", "graph")))
   return Layer.mergeAll(decisions, Layer.provideMerge(graphs, BunServices.layer))
 }

@@ -32,7 +32,8 @@ export interface ReconcileSpec {
   readonly repo: string
   readonly phases: ReadonlyArray<Phase>
   /** Items (cards) to reconcile between the base graph and the new one, and items that were removed. */
-  readonly affected: (base: Snapshot.Snapshot, current: Snapshot.Snapshot) => { readonly items: ReadonlyArray<string>; readonly removed: ReadonlyArray<string> }
+  /** Items a graph change affects (asked of the graph plugins, which run in their own processes). */
+  readonly affected: (base: Snapshot.Snapshot, current: Snapshot.Snapshot) => Effect.Effect<{ readonly items: ReadonlyArray<string>; readonly removed: ReadonlyArray<string> }, unknown>
   /** Runs in every new worktree before phases use it (e.g. `bun install`). */
   readonly setup?: (cwd: string) => Effect.Effect<void>
   /** Runs once in the pass worktree for removed items (e.g. delete their plan files). */
@@ -146,7 +147,7 @@ const body = (
           if (tip.code === 0 && (yield* baseTree(spec.repo, tip.stdout.trim())) === payload.graph) return { items: [], removed: [] }
           const baseGraph = yield* baseTree(spec.repo, payload.base)
           const [before, after] = yield* Effect.all([snapshotAtTree(spec.repo, baseGraph), snapshotAtTree(spec.repo, payload.graph)])
-          const affected = spec.affected(before, after)
+          const affected = yield* spec.affected(before, after).pipe(Effect.orDie)
           // Findings about cards that changed are stale: this pass takes them up again.
           spec.findings.clearFor([...affected.items, ...affected.removed])
           return affected

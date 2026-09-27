@@ -1,4 +1,4 @@
-import { type Node, Snapshot } from "@zarg/graph"
+import { type Node, Snapshot } from "@zarg/graph/pure"
 import { ARRIVES, cards, GIVEN, states, text, THEN } from "./model"
 
 const line = (keyword: string, snap: Snapshot.Snapshot, id: string) => {

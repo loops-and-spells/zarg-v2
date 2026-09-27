@@ -1,4 +1,4 @@
-import { diff, Snapshot } from "@zarg/graph"
+import { diff, Snapshot } from "@zarg/graph/pure"
 import { CARD, STATE } from "./model"
 
 export interface Affected {

@@ -9,7 +9,6 @@
     "@zarg/kernel": "workspace:*",
     "@zarg/model": "workspace:*",
     "@zarg/plugin": "workspace:*",
-    "@zarg/plugin-gherkin": "workspace:*",
     "@zarg/provider-openrouter": "workspace:*",
     "@zarg/provider-zarg-router": "workspace:*",
     "@zarg/reconcile": "workspace:*",
@@ -18,7 +17,8 @@
     "zod": "3"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./plugins": "./src/plugins.ts"
   },
   "private": true,
   "type": "module"

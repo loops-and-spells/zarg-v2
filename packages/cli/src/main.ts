@@ -3,12 +3,12 @@ import { BunRuntime, BunServices } from "@effect/platform-bun"
 import { Console, Effect, Layer } from "effect"
 import { CliError, Command } from "effect/unstable/cli"
 import { layer as graphLayer } from "@zarg/graph"
-import { layer as hostLayer } from "@zarg/plugin/server"
 import { zarg } from "./commands"
-import { plugins } from "./plugins"
-import { graphDir } from "./root"
+import { pluginHostLayer } from "@zarg/core/plugins"
+import { graphDir, root } from "./root"
 
-const services = Layer.provideMerge(hostLayer(plugins), graphLayer(graphDir)).pipe(
+// Graph commands run the project's plugins in their own locked processes, like the core (no secrets here).
+const services = Layer.provideMerge(pluginHostLayer({ root }), graphLayer(graphDir)).pipe(
   Layer.provideMerge(BunServices.layer),
 )
 

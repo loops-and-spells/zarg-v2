@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { Snapshot } from "@zarg/graph"
-import { render } from "../src/server/render"
+import { render } from "../src/render"
 
 test("render shows a missing state instead of crashing", () => {
   const snap = Snapshot.make([

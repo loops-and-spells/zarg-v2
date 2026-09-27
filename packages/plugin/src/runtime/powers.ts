@@ -48,7 +48,7 @@ export const makePowers = (opts: {
   readonly digest: string
   readonly vault: (name: string) => Effect.Effect<Redacted.Redacted<string> | undefined>
   readonly config: unknown
-  readonly snapshot?: () => { readonly nodes: ReadonlyArray<unknown> }
+  readonly snapshot?: () => Promise<{ readonly nodes: ReadonlyArray<unknown> }> | { readonly nodes: ReadonlyArray<unknown> }
   readonly ask: Ask
   readonly askTimeoutMs?: number
   readonly yolo: () => boolean
@@ -136,6 +136,6 @@ export const makePowers = (opts: {
       try { assertSame(path, fd); writeFileSync(fd, String(a.text)) } finally { closeSync(fd) }
       return null
     },
-    ...(opts.snapshot !== undefined ? { "graph.snapshot": async () => opts.snapshot!() } : {}),
+    ...(opts.snapshot !== undefined ? { "graph.snapshot": async () => await opts.snapshot!() } : {}),
   }
 }

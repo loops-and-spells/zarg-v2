@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect"
-import { type Change, type Node, Put, Remove, Snapshot } from "@zarg/graph"
-import { tool, ToolError } from "@zarg/plugin/server"
+import { type Change, type Node, Put, Remove, Snapshot } from "@zarg/graph/pure"
+import { tool, ToolError } from "./kit"
 import { ARRIVES, CARD, findStateByText, GIVEN, STATE, THEN } from "./model"
 
 /** Point at an existing state by id, or describe one by text (reused if the text already exists). */

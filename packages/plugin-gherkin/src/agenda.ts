@@ -1,5 +1,5 @@
-import { Snapshot } from "@zarg/graph"
-import type { AgendaItem } from "@zarg/plugin/server"
+import { Snapshot } from "@zarg/graph/pure"
+import type { AgendaItem } from "./kit"
 import { ARRIVES, cards, similarity, states, text, THEN } from "./model"
 
 export const agenda = (snap: Snapshot.Snapshot): ReadonlyArray<AgendaItem> => {

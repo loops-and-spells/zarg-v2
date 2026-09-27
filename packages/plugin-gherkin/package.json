@@ -3,14 +3,15 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./server": "./src/server/index.ts"
+    ".": "./src/index.ts"
   },
   "dependencies": {
     "@zarg/graph": "workspace:*",
-    "@zarg/plugin": "workspace:*",
+    "@zarg/plugin-sdk": "workspace:*",
     "effect": "^4.0.0-rc.117"
   },
   "devDependencies": {
-    "@effect/platform-bun": "^4.0.0-rc.117"
+    "@effect/platform-bun": "^4.0.0-rc.117",
+    "@zarg/plugin": "workspace:*"
   }
 }

@@ -22,7 +22,6 @@
         "@zarg/core": "workspace:*",
         "@zarg/graph": "workspace:*",
         "@zarg/plugin": "workspace:*",
-        "@zarg/plugin-gherkin": "workspace:*",
         "@zarg/reconcile": "workspace:*",
         "effect": "^4.0.0-rc.117",
         "react": "19",
@@ -48,7 +47,6 @@
         "@zarg/kernel": "workspace:*",
         "@zarg/model": "workspace:*",
         "@zarg/plugin": "workspace:*",
-        "@zarg/plugin-gherkin": "workspace:*",
         "@zarg/provider-openrouter": "workspace:*",
         "@zarg/provider-zarg-router": "workspace:*",
         "@zarg/reconcile": "workspace:*",
@@ -99,17 +97,19 @@
       },
       "devDependencies": {
         "@effect/platform-bun": "^4.0.0-rc.117",
+        "@zarg/plugin-sdk": "workspace:*",
       },
     },
     "packages/plugin-gherkin": {
       "name": "@zarg/plugin-gherkin",
       "dependencies": {
         "@zarg/graph": "workspace:*",
-        "@zarg/plugin": "workspace:*",
+        "@zarg/plugin-sdk": "workspace:*",
         "effect": "^4.0.0-rc.117",
       },
       "devDependencies": {
         "@effect/platform-bun": "^4.0.0-rc.117",
+        "@zarg/plugin": "workspace:*",
       },
     },
     "packages/plugin-sdk": {
@@ -155,7 +155,6 @@
       },
       "devDependencies": {
         "@effect/platform-bun": "^4.0.0-rc.117",
-        "@zarg/plugin-gherkin": "workspace:*",
         "@zarg/provider-openrouter": "workspace:*",
         "@zarg/provider-zarg-router": "workspace:*",
       },

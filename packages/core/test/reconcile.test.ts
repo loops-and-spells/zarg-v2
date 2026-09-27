@@ -7,6 +7,7 @@ import { Model, type StreamEvent } from "@zarg/model"
 import { Rlm, settings } from "@zarg/rlm"
 import { initial, reduce } from "@zarg/client"
 import { makeLog, makeReconcile, reconcileSettings } from "../src"
+import { testAffected, testPlugins } from "./plugins-helper"
 
 const roots: Array<string> = []
 afterAll(() => roots.forEach((r) => rmSync(r, { recursive: true, force: true })))
@@ -51,6 +52,8 @@ const start = (repo: string, implementMs: number) =>
         settings: yield* reconcileSettings({ quiet_ms: 100, verify: "true" }),
         log,
         sensitive: [],
+        pluginHost: testPlugins(repo),
+        affected: testAffected(repo),
         makeRlm: (services, observe) => Rlm.make({ settings: s, services, roles: { plan: "stub:m", implement: "stub:m" }, observe, cellTimeoutMs: 30_000 }).pipe(Effect.provideService(Model.Model, m)),
       })
       return { reconcile, log }

@@ -1,3 +1,6 @@
+export * from "./first-party"
+export * from "./first-party-hashes"
 export * from "./host"
+export * from "./loaded"
 export * from "./plugin"
-export { check, PluginConfigError, registry, type Registry } from "./validate"
+export { checkStructure, manifestRegistry, PluginConfigError, type ManifestRegistry } from "./validate"

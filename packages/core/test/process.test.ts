@@ -11,7 +11,7 @@ writeFileSync(join(root, ".env.schema"), "# @defaultSensitive=false\n# ---\n")
 afterAll(() => rmSync(root, { recursive: true, force: true }))
 
 const start = async (mode: "child" | "headless") => {
-  const proc = Bun.spawn([process.execPath, main, "--root", root, "--mode", mode], { stdin: "pipe", stdout: "pipe", stderr: "pipe" })
+  const proc = Bun.spawn([process.execPath, main, "--root", root, "--mode", mode], { stdin: "pipe", stdout: "pipe", stderr: "pipe", env: process.env })
   const reader = proc.stdout.getReader()
   const { value } = await reader.read()
   reader.releaseLock()
@@ -30,7 +30,7 @@ describe("zarg-core process", () => {
     const denied = await Effect.runPromise(Effect.flip(makeClient({ socket: info.socket, token: "wrong" }).threads()))
     expect(denied.status).toBe(401)
 
-    const second = Bun.spawnSync([process.execPath, main, "--root", root, "--mode", "headless"])
+    const second = Bun.spawnSync([process.execPath, main, "--root", root, "--mode", "headless"], { env: process.env })
     expect(second.exitCode).toBe(2)
     expect(second.stderr.toString()).toContain("already running")
 
@@ -51,7 +51,7 @@ describe("zarg-core process", () => {
   }, 20_000)
 
   test("two cores started at once: exactly one serves, the other exits 2", async () => {
-    const spawn = () => Bun.spawn([process.execPath, main, "--root", root, "--mode", "child"], { stdin: "pipe", stdout: "pipe", stderr: "pipe" })
+    const spawn = () => Bun.spawn([process.execPath, main, "--root", root, "--mode", "child"], { stdin: "pipe", stdout: "pipe", stderr: "pipe", env: process.env })
     const procs = [spawn(), spawn()]
     const first = (p: (typeof procs)[number]) =>
       p.stdout
@@ -196,7 +196,7 @@ describe("zarg-core process", () => {
     mkdirSync(join(broken, ".zarg"))
     writeFileSync(join(broken, ".zarg", "config.toml"), "not = [valid toml\n")
     writeFileSync(join(broken, ".env.schema"), "# @defaultSensitive=false\n# ---\n")
-    const r = Bun.spawnSync([process.execPath, main, "--root", broken, "--mode", "child"], { stdin: "ignore" })
+    const r = Bun.spawnSync([process.execPath, main, "--root", broken, "--mode", "child"], { stdin: "ignore", env: process.env })
     rmSync(broken, { recursive: true, force: true })
     expect(r.exitCode).toBe(1)
     expect(r.stderr.toString()).toContain("invalid TOML")

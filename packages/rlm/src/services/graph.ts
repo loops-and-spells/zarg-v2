@@ -1,7 +1,7 @@
 import { Effect, Schema } from "effect"
 import { hash, Snapshot } from "@zarg/graph"
 import { bind, type Bound, defineService, type ServiceFailure } from "@zarg/kernel"
-import type { PluginHost, ServerPlugin } from "@zarg/plugin/server"
+import type { Manifest, PluginHost } from "@zarg/plugin/server"
 import type { Scope } from "../scope"
 
 const Item = Schema.Struct({ id: Schema.String, title: Schema.String, detail: Schema.String, about: Schema.Array(Schema.String), priority: Schema.Number })
@@ -85,18 +85,25 @@ const CallResult = Schema.Struct({
   warnings: Schema.Array(Schema.Struct({ severity: Schema.String, code: Schema.String, message: Schema.String, about: Schema.Array(Schema.String) })),
 })
 
+/** Methods the host calls on graph plugins; never offered to agents. */
+const RESERVED = new Set(["validate", "lint", "agenda", "suggest", "render", "affected"])
+
 /**
- * A plugin's tools as a yieldable service: plugin "gherkin" with tool "add-card" becomes
- * `Gherkin.addCard(params)`. Every call runs through the PluginHost write pipeline.
+ * A plugin's agent methods as a yieldable service, named by its manifest: plugin "gherkin" (service
+ * "Gherkin") with method "add-card" becomes `Gherkin.addCard(params)`. Types come from the manifest's JSON
+ * Schema; the plugin validates params itself. Every call runs through the PluginHost write pipeline.
  * A write whose params name an existing node outside the RLM's graph scope is refused before it runs.
  */
-export const pluginService = (plugin: ServerPlugin, ctx: GraphContext): Bound | undefined => {
-  const tools = plugin.tools ?? []
+export const pluginService = (manifest: Manifest, ctx: GraphContext): Bound | undefined => {
+  const tools = Object.entries(manifest.methods)
+    .filter(([name, spec]) => spec.agents && !RESERVED.has(name))
+    .map(([name, spec]) => ({ name, description: spec.doc, params: spec.params }))
   if (tools.length === 0) return undefined
+  const result = Schema.toJsonSchemaDocument(CallResult)
   const methods = Object.fromEntries(
-    tools.map((t) => [camel(t.name), { doc: t.description, params: t.params as unknown as Schema.Codec<unknown, unknown>, success: CallResult }]),
+    tools.map((t) => [camel(t.name), { doc: t.description, params: Schema.Unknown, success: Schema.Unknown, json: { params: t.params, success: result } }]),
   )
-  const def = defineService(pascal(plugin.name), `Graph writes for the ${plugin.name} plugin (through lints and the write pipeline).`, methods)
+  const def = defineService(manifest.service, `Graph writes for the ${manifest.name} plugin (through lints and the write pipeline).`, methods)
   const handlers = Object.fromEntries(
     tools.map((t) => [
       camel(t.name),
@@ -108,7 +115,7 @@ export const pluginService = (plugin: ServerPlugin, ctx: GraphContext): Bound | 
           const touched = (JSON.stringify(params).match(/\b[A-Za-z]+-\d{4,}\b/g) ?? []).filter((id) => snap.nodes.has(id))
           const outside = visible === undefined ? [] : touched.filter((id) => !visible.has(id))
           if (outside.length > 0) return yield* Effect.fail(outOfScope(outside.join(", ")))
-          return yield* ctx.host.call(`${plugin.name}/${t.name}`, params).pipe(
+          return yield* ctx.host.call(`${manifest.name}/${t.name}`, params).pipe(
             Effect.mapError((e): ServiceFailure => {
               if (e._tag === "LintFailed") return { _tag: "LintFailed", message: e.findings.map((f) => f.message).join("; ") }
               const tagged = e as { readonly _tag: string; readonly message?: unknown }

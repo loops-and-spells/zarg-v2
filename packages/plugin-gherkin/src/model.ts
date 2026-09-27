@@ -1,5 +1,5 @@
 import { Schema } from "effect"
-import { type Node, Snapshot } from "@zarg/graph"
+import { type Node, Snapshot } from "@zarg/graph/pure"
 
 export const STATE = "gherkin/state"
 export const CARD = "gherkin/card"

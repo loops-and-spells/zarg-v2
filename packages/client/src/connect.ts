@@ -19,6 +19,8 @@ const start = (root: string, command: ReadonlyArray<string>, mode: "child" | "he
     const proc = spawn(bin!, [...args, "--root", root, "--mode", mode], {
       stdio: ["pipe", "pipe", "pipe"],
       detached: mode === "headless",
+      // Bun's default is the environment at startup; pass the current one (tests point ZARG_USER_DIR elsewhere).
+      env: process.env,
     })
     let out = ""
     let err = ""

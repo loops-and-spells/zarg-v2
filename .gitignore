@@ -3,3 +3,4 @@ node_modules/
 .env.*.local
 .zarg/run/
 .zarg/threads/
+packages/*/dist/

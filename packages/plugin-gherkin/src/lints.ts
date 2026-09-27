@@ -1,5 +1,5 @@
-import type { Node } from "@zarg/graph"
-import type { Finding, Lint } from "@zarg/plugin/server"
+import type { Node } from "@zarg/graph/pure"
+import type { Finding, Lint } from "./kit"
 import { CARD, normalize, similarity, STATE, states, text } from "./model"
 
 const MAX_WORDS = 15

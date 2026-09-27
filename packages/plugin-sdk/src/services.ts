@@ -36,5 +36,7 @@ export const servicesFrom = (raw: RawPowers) => ({
       ),
   }),
   files: Files.of({ read: (path) => power<string>(raw, "fs.read", { path }), write: (path, text) => Effect.asVoid(power(raw, "fs.write", { path, text })) }),
-  graph: Graph.of({ snapshot: Effect.map(power<{ nodes: ReadonlyArray<never> }>(raw, "graph.snapshot", {}), (s) => Snapshot.make(s.nodes)) }),
+  graph: Graph.of({
+    snapshot: Effect.map(power<{ nodes: ReadonlyArray<never>; reserved?: ReadonlyArray<string> }>(raw, "graph.snapshot", {}), (s) => Snapshot.make(s.nodes, new Set(s.reserved ?? []))),
+  }),
 })

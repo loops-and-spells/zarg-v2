@@ -6,8 +6,8 @@ import { join } from "node:path"
 import { Effect, Layer } from "effect"
 import { GraphStore, layer as graphLayer } from "@zarg/graph"
 import { Kernel, manifest } from "@zarg/kernel"
-import { layer as hostLayer, PluginHost } from "@zarg/plugin/server"
-import { gherkin } from "@zarg/plugin-gherkin/server"
+import { PluginHost } from "@zarg/plugin/server"
+import { gherkin, gherkinHost } from "./gherkin-host"
 import { agenda, AgendaDef, DecisionsDef, decisionsService, graph, GraphDef, inquire, InquireDef, pluginService, type Scope, verify } from "../src"
 
 /** A real graph with the gherkin plugin: S-0001 → UX-0001 → S-0002, plus an unrelated S-0003. */
@@ -19,12 +19,12 @@ const withGraph = <A>(scope: Scope, body: (k: Kernel.Kernel) => Effect.Effect<A>
     yield* host.call("gherkin/add-card", { title: "Open pricing", when: "the user opens pricing", arrives: { id: "S-0001" }, then: [{ text: "the plan picker is shown", terminal: true }] })
     yield* host.call("gherkin/add-state", { text: "an unrelated screen", entry: true, terminal: true })
     const ctx = { host, snapshot: store.snapshot.pipe(Effect.mapError((e) => ({ _tag: e._tag, message: e.message }))), scope }
-    const services = [graph(ctx), pluginService(gherkin, ctx)!]
+    const services = [graph(ctx), pluginService(gherkin.manifest, ctx)!]
     const k = yield* Kernel.make({ services })
     return yield* body(k)
   }).pipe(
     Effect.scoped,
-    Effect.provide(Layer.provideMerge(hostLayer([gherkin]), graphLayer(mkdtempSync(join(tmpdir(), "zarg-rlm-graph-"))))),
+    Effect.provide(Layer.provideMerge(gherkinHost(), graphLayer(mkdtempSync(join(tmpdir(), "zarg-rlm-graph-"))))),
     Effect.provide(BunServices.layer),
     Effect.runPromise,
   )
@@ -118,7 +118,7 @@ describe("Inquire, Agenda and Verify", () => {
 })
 
 describe("the manifest explains the fields a model gets wrong", () => {
-  const text = manifest([InquireDef, DecisionsDef, GraphDef, AgendaDef, pluginService(gherkin, { host: undefined as never, snapshot: undefined as never, scope: {} })!.def])
+  const text = manifest([InquireDef, DecisionsDef, GraphDef, AgendaDef, pluginService(gherkin.manifest, { host: undefined as never, snapshot: undefined as never, scope: {} })!.def])
   test("Inquire: `about` belongs to the question, `id` is what the answer returns", () => {
     expect(text).toMatch(/\/\*\* Card or state ids the whole question is about[^\n]*\*\/\n\s+about\?: ReadonlyArray<string>\n\s+\}\): Eff/)
     expect(text).toMatch(/\/\*\* Returned as the answer's `choice`[^\n]*\*\/\n\s+id: string/)

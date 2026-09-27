@@ -34,7 +34,7 @@ export const stubSpec = (repo: string, opts: {
     affected: (before, after) => {
       const items = [...after.nodes.values()].filter((n) => n.type === "gherkin/card" && (!before.nodes.has(n.id) || canonical(before.nodes.get(n.id)!) !== canonical(n))).map((n) => n.id)
       const removed = [...before.nodes.keys()].filter((id) => !after.nodes.has(id) && id.startsWith("UX-"))
-      return { items: items.sort(), removed }
+      return Effect.succeed({ items: items.sort(), removed })
     },
     phases: [
       {

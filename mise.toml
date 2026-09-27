@@ -12,6 +12,7 @@ depends = ["//...:typecheck", "//...:test"]
 
 [tasks.zarg]
 description = "Run this repo's zarg CLI: mise run zarg -- agenda"
+depends = ["//packages/plugin-gherkin:build"]
 run = "mise x -- bun packages/cli/src/main.ts"
 
 

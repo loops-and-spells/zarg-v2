@@ -1,14 +1,38 @@
 import { BunServices } from "@effect/platform-bun"
+import { mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { Effect, FileSystem, Layer } from "effect"
 import { GraphStore, layer as graphLayer } from "@zarg/graph"
-import { layer as hostLayer, PluginHost } from "@zarg/plugin/server"
-import { gherkin } from "../src/server"
+import { makeGrants } from "@zarg/plugin/runtime"
+import { layer as hostLayer, type LoadedPlugin, PluginHost } from "@zarg/plugin/server"
+import { buildPlugin } from "@zarg/plugin-sdk/tools"
+
+// Built once per test file: the plugin runs in its own locked process, as in zarg.
+let built: Promise<LoadedPlugin> | undefined
+const gherkin = () =>
+  (built ??= buildPlugin(join(import.meta.dir, "../src/index.ts")).then((r) => {
+    if (!r.ok) throw new Error(r.errors.join("\n"))
+    return { manifest: r.manifest as never, bundle: r.bundle, origin: join(import.meta.dir, "..") }
+  }))
 
 /** Runs `body` with a PluginHost (gherkin only) over a fresh temp graph. */
 export const run = <A, E>(body: Effect.Effect<A, E, PluginHost | GraphStore>) =>
   Effect.gen(function* () {
     const dir = yield* (yield* FileSystem.FileSystem).makeTempDirectoryScoped()
-    return yield* body.pipe(Effect.provide(Layer.provideMerge(hostLayer([gherkin]), graphLayer(dir))))
+    const plugin = yield* Effect.promise(gherkin)
+    const grants = yield* makeGrants({ file: join(mkdtempSync(join(tmpdir(), "zt-gherkin-")), "grants.json"), project: dir })
+    const host = hostLayer([plugin], {
+      grants,
+      vault: () => Effect.succeed(undefined),
+      config: () => ({}),
+      ask: () => Effect.succeed("deny"),
+      yolo: { on: () => false },
+      log: () => {},
+      redact: (t) => t,
+      firstParty: () => true,
+    })
+    return yield* body.pipe(Effect.provide(Layer.provideMerge(host, graphLayer(dir))))
   }).pipe(Effect.scoped, Effect.provide(BunServices.layer), Effect.runPromise)
 
 export const call = (name: string, params: unknown) =>

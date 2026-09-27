@@ -7,6 +7,7 @@ import { Model, type StreamEvent } from "@zarg/model"
 import { engineLayer, makeFindings, Pass, passLayer, workingGraphTree } from "@zarg/reconcile"
 import { Rlm, settings } from "@zarg/rlm"
 import { reasonOf, reconcileGate, reconcileSettings, reconcileSpec } from "../src/phases"
+import { testAffected, testPlugins } from "./plugins-helper"
 
 const roots: Array<string> = []
 afterAll(() => roots.forEach((r) => rmSync(r, { recursive: true, force: true })))
@@ -72,6 +73,8 @@ const pass = (repo: string, model: Layer.Layer<Model.Model>) =>
         settings: yield* reconcileSettings({ verify: "test -f src/UX-0001.ts", land_retry_ms: 50, land_attempts: 2 }),
         sensitive: [],
         findings,
+        pluginHost: testPlugins(repo),
+        affected: testAffected(repo),
         makeRlm: (services, observe) => Rlm.make({ settings: s, services, roles: { plan: "stub:m", implement: "stub:m" }, observe, cellTimeoutMs: 10_000 }).pipe(Effect.provideService(Model.Model, m)),
       })
       const graph = yield* workingGraphTree(repo)
