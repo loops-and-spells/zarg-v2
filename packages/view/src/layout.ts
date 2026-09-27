@@ -5,7 +5,7 @@ type ActionSpec = { readonly id: string; readonly label: string; readonly key?: 
 type ColumnSpec = { readonly id: string; readonly label: string }
 type Role = "summary" | "primary" | "log" | "pinned" | "aside"
 export type LeafSpec =
-  | { readonly kind: "stats" | "list" | "log" | "keyvalue" | "text"; readonly title?: string }
+  | { readonly kind: "stats" | "list" | "log" | "keyvalue" | "text" | "conversation"; readonly title?: string }
   | { readonly kind: "table"; readonly title?: string; readonly columns: ReadonlyArray<ColumnSpec>; readonly selectable?: boolean; readonly actions?: ReadonlyArray<ActionSpec> }
 export type SectionSpec = (LeafSpec & { readonly role: Role }) | { readonly kind: "tabs"; readonly role: Role; readonly title?: string; readonly tabs: Readonly<Record<string, LeafSpec>> }
 export type ViewSpec = Readonly<Record<string, SectionSpec>>

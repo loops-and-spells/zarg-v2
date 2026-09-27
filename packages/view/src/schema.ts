@@ -23,8 +23,24 @@ export const TableData = Schema.Struct({ rows: Schema.Array(Schema.Struct({ id: 
 export const KeyValueData = Schema.Struct({ pairs: Schema.Array(Schema.Struct({ key: Schema.String, value: Schema.String })) })
 export const TextData = Schema.Struct({ markdown: Schema.String })
 
+/** A question an agent asks in its conversation. `kind: "grant"`: a permission question, answered only with its options. */
+export const QuestionData = Schema.Struct({
+  id: Schema.String,
+  question: Schema.String,
+  options: Schema.Array(Schema.Struct({ id: Schema.String, label: Schema.String, why: Schema.optionalKey(Schema.String), recommended: Schema.optionalKey(Schema.Boolean) })),
+  allowOther: Schema.Boolean,
+  otherLabel: Schema.optionalKey(Schema.String),
+  kind: Schema.optionalKey(Schema.Literal("grant")),
+})
+/** An agent's conversation: its messages, then one slot, the question or the message input. */
+export const ConversationData = Schema.Struct({
+  messages: Schema.Array(Schema.Struct({ id: Schema.String, role: Schema.Literals(["user", "agent"]), text: Schema.String })),
+  question: Schema.optionalKey(QuestionData),
+  status: Schema.optionalKey(Schema.Literals(["idle", "working", "waiting"])),
+})
+
 /** The data each leaf kind holds. `tabs` has none of its own: its tabs do. */
-export const DATA = { stats: StatsData, list: ListData, log: LogData, table: TableData, keyvalue: KeyValueData, text: TextData } as const
+export const DATA = { stats: StatsData, list: ListData, log: LogData, table: TableData, keyvalue: KeyValueData, text: TextData, conversation: ConversationData } as const
 export type LeafKind = keyof typeof DATA
 export type SectionKind = LeafKind | "tabs"
 export type LogLine = typeof LogLine.Type
@@ -36,9 +52,9 @@ const leafFields = {
   selectable: Schema.optionalKey(Schema.Boolean),
   actions: Schema.optionalKey(Schema.Array(Action)),
 }
-export const LayoutLeaf = Schema.Struct({ ...leafFields, kind: Schema.Literals(["stats", "list", "log", "table", "keyvalue", "text"]) })
+export const LayoutLeaf = Schema.Struct({ ...leafFields, kind: Schema.Literals(["stats", "list", "log", "table", "keyvalue", "text", "conversation"]) })
 export const LayoutSection = Schema.Union([
-  Schema.Struct({ ...leafFields, kind: Schema.Literals(["stats", "list", "log", "table", "keyvalue", "text"]), role: Role }),
+  Schema.Struct({ ...leafFields, kind: Schema.Literals(["stats", "list", "log", "table", "keyvalue", "text", "conversation"]), role: Role }),
   Schema.Struct({ id: Schema.String, title: Schema.optionalKey(Schema.String), kind: Schema.Literal("tabs"), role: Role, tabs: Schema.Array(LayoutLeaf) }),
 ])
 /** A view as the manifest and the wire carry it. */

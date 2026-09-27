@@ -75,8 +75,17 @@ const KeyValue: Leaf = ({ view, path }) => (
 )
 const Text: Leaf = ({ view, path }) => <text fg={TONES.normal}>{(view.data[path] as { markdown?: string } | undefined)?.markdown ?? ""}</text>
 
+// A conversation's messages; its question and input come with the conversation tile.
+const Conversation: Leaf = ({ view, path }) => (
+  <>
+    {((view.data[path] as { messages?: ReadonlyArray<{ id: string; role: string; text: string }> } | undefined)?.messages ?? []).map((m) => (
+      <text key={m.id} fg={m.role === "user" ? TONES.accent : TONES.normal}>{`${m.role === "user" ? "you " : "    "}  ${m.text}`}</text>
+    ))}
+  </>
+)
+
 /** How the terminal draws each leaf kind; tabs draw their current leaf. Every kind must be here. */
-export const renderers: Record<Exclude<SectionKind, "tabs">, Leaf> = { stats: Stats, list: List, log: Log, table: Table, keyvalue: KeyValue, text: Text }
+export const renderers: Record<Exclude<SectionKind, "tabs">, Leaf> = { stats: Stats, list: List, log: Log, table: Table, keyvalue: KeyValue, text: Text, conversation: Conversation }
 
 const count = (view: ViewState, path: string) => rowsOf(view, path).length
 const titleOf = (view: ViewState, ui: ViewUi, s: LayoutSection) =>
