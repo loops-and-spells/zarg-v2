@@ -52,11 +52,12 @@ export const reconcileSettings = (raw: unknown) =>
  * Whether plan and implement run for a project: only with a `[reconcile]` section (not `enabled = false`),
  * models for `roles.plan` and `roles.implement`, and the project at the top of a git repository.
  */
-export const reconcileGate = (root: string, extra: Readonly<Record<string, unknown>>, roles: Readonly<Record<string, string>>) =>
+export const reconcileGate = (root: string, extra: Readonly<Record<string, unknown>>, roles: Readonly<Record<string, string>>, opts: { readonly force?: boolean } = {}) =>
   Effect.gen(function* () {
-    if (extra.reconcile === undefined) return { on: false, reason: "plan and implement are off: add a [reconcile] section to .zarg/config.toml to turn them on" } as const
+    // `force` (the /reconcile command) overrides a missing section and `enabled = false`, nothing else.
+    if (extra.reconcile === undefined && !opts.force) return { on: false, reason: "plan and implement are off: add a [reconcile] section to .zarg/config.toml to turn them on" } as const
     const settings = yield* reconcileSettings(extra.reconcile)
-    if (!settings.enabled) return { on: false, reason: "plan and implement are off ([reconcile] enabled = false)" } as const
+    if (!settings.enabled && !opts.force) return { on: false, reason: "plan and implement are off ([reconcile] enabled = false)" } as const
     const missing = ["plan", "implement"].filter((r) => roles[r] === undefined)
     if (missing.length > 0) return { on: false, reason: `plan and implement are off: set ${missing.map((r) => `roles.${r}`).join(" and ")} in .zarg/config.toml` } as const
     const top = yield* gitRun(root, ["rev-parse", "--show-toplevel"])

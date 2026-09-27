@@ -23,6 +23,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     if (action === undefined) return
     if (action.type === "answer") props.session.answer(action.answer)
     else if (action.type === "send") props.session.send(action.text)
+    else if (action.type === "command") props.session.command(action.text)
     else if (action.type === "stop") props.session.stop()
     else props.onExit()
   }

@@ -3,10 +3,11 @@ import { type Cause, Effect, Queue, Stream } from "effect"
 import { type Client, CoreError, makeSession, type RunRequest, type WireEvent } from "../src"
 
 /** A client whose event stream the test feeds; each `stream()` call opens a new feed. */
-const fakeClient = (opts: { readonly refuseRuns?: boolean; readonly streamFails?: boolean } = {}) => {
+const fakeClient = (opts: { readonly refuseRuns?: boolean; readonly streamFails?: boolean; readonly reconcileResult?: { on: boolean; reason?: string; pending?: number } } = {}) => {
   const runs: Array<RunRequest> = []
   const streams: Array<{ since: number; queue: Queue.Queue<WireEvent, CoreError | Cause.Done> }> = []
   const stops: Array<string> = []
+  const reconciles: Array<number> = []
   const client = {
     run: (r: RunRequest) => {
       runs.push(r)
@@ -20,9 +21,10 @@ const fakeClient = (opts: { readonly refuseRuns?: boolean; readonly streamFails?
     },
     threads: () => Effect.succeed([]),
     stop: (id: string) => Effect.sync(() => void stops.push(id)),
+    reconcile: () => Effect.sync(() => (reconciles.push(1), opts.reconcileResult ?? { on: true, pending: 2 })),
   } as unknown as Client
   const push = (e: WireEvent) => Effect.runSync(Queue.offer(streams.at(-1)!.queue, e))
-  return { client, runs, streams, stops, push }
+  return { client, runs, streams, stops, reconciles, push }
 }
 const tick = (ms = 20) => new Promise((r) => setTimeout(r, ms))
 const inquiry = { id: "inq-1", reason: "inquiry", message: "Which?", metadata: { options: [{ id: "a", label: "A" }, { id: "b", label: "B" }], allowOther: true } }
@@ -104,6 +106,27 @@ describe("session", () => {
     await tick(1500)
     expect(s.state()).toMatchObject({ core: "down", notice: "core stopped: core is not reachable" })
     s.close()
+  })
+
+  test("/reconcile turns reconcile on and says what happens; an unknown command shows a hint", async () => {
+    const f = fakeClient()
+    const s = makeSession({ client: f.client, threadId: "main" })
+    s.command("/reconcile")
+    await tick()
+    expect(f.reconciles).toHaveLength(1)
+    expect(s.state().notice).toBe("Reconcile is on for this session; a pass is starting (2 cards).")
+    s.command("/nope")
+    expect(s.state().notice).toBe("unknown command: /nope (try /reconcile)")
+    const off = fakeClient({ reconcileResult: { on: false, reason: "set roles.plan in .zarg/config.toml" } })
+    const s2 = makeSession({ client: off.client, threadId: "main" })
+    s2.command("/reconcile")
+    await tick()
+    expect(s2.state().notice).toBe("Reconcile stays off: set roles.plan in .zarg/config.toml")
+    const idle = fakeClient({ reconcileResult: { on: true, pending: 0 } })
+    const s3 = makeSession({ client: idle.client, threadId: "main" })
+    s3.command("/reconcile")
+    await tick()
+    expect(s3.state().notice).toBe("Reconcile is on for this session; nothing to reconcile.")
   })
 
   test("a refused run shows its reason", async () => {

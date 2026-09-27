@@ -37,6 +37,7 @@ export const makeThreads = (deps: ThreadsDeps) =>
           return t
         }),
       list: () => [...threads.values()],
+      add: (t) => void threads.set(t.id, t),
     }
     return registry
   })

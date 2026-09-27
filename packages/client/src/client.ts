@@ -61,6 +61,11 @@ export const makeClient = (info: Pick<CoreInfo, "socket" | "token">) => {
     /** Every thread's events after `since`, then live ones. */
     stream: (since: number) => events(`/stream?since=${since}`),
     threads: () => request("/threads").pipe(Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<ReadonlyArray<ThreadInfo>>))),
+    /** Turn plan and implement on for this session; says whether it worked and how many cards are pending. */
+    reconcile: () =>
+      request("/reconcile", { method: "POST", body: "{}" }).pipe(
+        Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly on: boolean; readonly reason?: string; readonly pending?: number }>)),
+      ),
     stop: (threadId: string) => request(`/threads/${encodeURIComponent(threadId)}/stop`, { method: "POST", body: "{}" }).pipe(Effect.asVoid),
   }
 }

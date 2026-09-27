@@ -21,6 +21,8 @@ export interface Session {
   readonly answer: (answer: Answer) => void
   /** Send a message; while an inquiry is pending the core takes it as an interjection. */
   readonly send: (text: string) => void
+  /** A slash command typed in the input (`/reconcile`); its outcome shows as a notice. */
+  readonly command: (text: string) => void
   /** Stop the thread's current work. */
   readonly stop: () => void
   /** Stop following the core. */
@@ -91,6 +93,26 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
     },
     send: (text) => {
       if (text.trim().length > 0) post({ message: text })
+    },
+    command: (text) => {
+      const name = text.trim().split(/\s+/)[0] ?? ""
+      if (name !== "/reconcile") {
+        set({ ...state, notice: `unknown command: ${name} (try /reconcile)` })
+        return
+      }
+      fork(
+        opts.client.reconcile().pipe(
+          Effect.map((a) =>
+            !a.on
+              ? `Reconcile stays off: ${a.reason ?? "unknown reason"}`
+              : (a.pending ?? 0) > 0
+                ? `Reconcile is on for this session; a pass is starting (${a.pending} card${a.pending === 1 ? "" : "s"}).`
+                : "Reconcile is on for this session; nothing to reconcile.",
+          ),
+          Effect.catch((e) => Effect.succeed(e.message)),
+          Effect.flatMap((notice) => Effect.sync(() => set({ ...state, notice }))),
+        ),
+      )
     },
     stop: () => fork(opts.client.stop(opts.threadId).pipe(Effect.catch((e) => Effect.sync(() => set({ ...state, notice: e.message }))))),
     close: () => {

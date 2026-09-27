@@ -61,6 +61,11 @@ describe("picker", () => {
 })
 
 describe("keys and input", () => {
+  test("input starting with / is a command, not a message", () => {
+    expect(onSubmit(initialUi, running, "/reconcile").action).toEqual({ type: "command", text: "/reconcile" })
+    expect(onSubmit(initialUi, running, " /nope ").action).toEqual({ type: "command", text: "/nope" })
+  })
+
   test("typing while the driver works sends the message (an interjection)", () => {
     expect(inputFocused(initialUi, running)).toBe(true)
     expect(onSubmit(initialUi, running, "also add logout").action).toEqual({ type: "send", text: "also add logout" })

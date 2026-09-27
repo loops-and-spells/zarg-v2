@@ -12,11 +12,23 @@ export class Threads extends Context.Service<
     /** The thread with this id, created on first use with the given focus. */
     readonly get: (id: string, focus: ReadonlyArray<string>) => Effect.Effect<Thread>
     readonly list: () => ReadonlyArray<Thread>
+    /** Add a thread that exists from now on (the plan and implement views, when reconcile starts). */
+    readonly add: (thread: Thread) => void
   }
 >()("@zarg/core/Threads") {}
 
 /** The event log every thread writes to. */
 export class Log extends Context.Service<Log, ThreadLog>()("@zarg/core/Log") {}
+
+/** What `/reconcile` did: on (with how many cards are pending), or why reconcile stays off. */
+export interface ReconcileAnswer {
+  readonly on: boolean
+  readonly reason?: string
+  readonly pending?: number
+}
+
+/** Turn plan and implement on for this session (`POST /reconcile`), even when the config leaves them off. */
+export class ReconcileControl extends Context.Service<ReconcileControl, { readonly turnOn: Effect.Effect<ReconcileAnswer> }>()("@zarg/core/ReconcileControl") {}
 
 /** The bearer token every request must carry (from `.zarg/run/core.json`). */
 export class Token extends Context.Service<Token, string>()("@zarg/core/Token") {}
@@ -62,6 +74,7 @@ const searchParam = (req: HttpServerRequest.HttpServerRequest, name: string) => 
 const routes = HttpRouter.addAll(
   Effect.gen(function* () {
     const threads = yield* Threads
+    const control = yield* ReconcileControl
     const heartbeat = yield* Heartbeat
     const log = yield* Log
     // Only a user message this core has not seen yet counts as new input.
@@ -93,6 +106,7 @@ const routes = HttpRouter.addAll(
         "/stream",
         Effect.map(HttpServerRequest.HttpServerRequest, (req) => sse(log.stream(Number(searchParam(req, "since") ?? 0)), heartbeat)),
       ),
+      HttpRouter.route("POST", "/reconcile", Effect.map(control.turnOn, (answer) => HttpServerResponse.jsonUnsafe(answer))),
       HttpRouter.route(
         "GET",
         "/threads",

@@ -138,6 +138,48 @@ describe("zarg-core process", () => {
     rmSync(stub, { force: true })
   }, 60_000)
 
+  test("/reconcile turns plan and implement on for a session when the config leaves them off; outside a git top it says why", async () => {
+    const project = mkdtempSync(join(tmpdir(), "zarg-proc-force-"))
+    const git = (cmd: string) => Bun.spawnSync(["sh", "-c", cmd], { cwd: project, env: { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" } }).stdout.toString().trim()
+    git("git init -q -b main && git config user.email t@t && git config user.name t")
+    writeFileSync(join(project, ".env.schema"), "# @defaultSensitive=false\n# ---\n")
+    mkdirSync(join(project, ".zarg", "graph", "nodes"), { recursive: true })
+    writeFileSync(join(project, ".zarg", "config.toml"), '[reconcile]\nenabled = false\nquiet_ms = 200\nverify = "true"\n')
+    writeFileSync(join(project, ".gitignore"), ".zarg/run/\n.zarg/threads/\n")
+    writeFileSync(join(project, ".zarg/graph/nodes/S-0001.json"), `${JSON.stringify({ id: "S-0001", type: "gherkin/state", props: { text: "home" }, edges: [] })}\n`)
+    writeFileSync(join(project, ".zarg/graph/nodes/UX-0001.json"), `${JSON.stringify({ id: "UX-0001", type: "gherkin/card", props: { title: "Open", when: "the user opens it" }, edges: [{ type: "gherkin/arrives", to: "S-0001" }, { type: "gherkin/then", to: "S-0001" }] })}\n`)
+    git("git add -A && git commit -qm init")
+    const stub = join(project, "..", `${project.split("/").pop()}-stub.json`)
+    writeFileSync(stub, JSON.stringify({ cells: ['yield* Rlm.done({ value: { plan: "## Approach\\nx" } })', 'yield* Rlm.done({ value: { files: [], summary: "nothing to write" } })'] }))
+    const proc = Bun.spawn([process.execPath, main, "--root", project, "--mode", "child"], { stdin: "pipe", stdout: "pipe", stderr: "pipe", env: { ...process.env, ZARG_CORE_STUB: stub } })
+    await proc.stdout.getReader().read()
+    const client = makeClient(readInfo(project)!)
+    expect((await Effect.runPromise(client.threads())).map((t) => t.id)).toEqual(["main"])
+    expect(await Effect.runPromise(client.reconcile())).toEqual({ on: true, pending: 1 })
+    expect((await Effect.runPromise(client.threads())).map((t) => t.id)).toEqual(["main", "plan", "implement"])
+    const until = Date.now() + 30_000
+    while (git("git log -1 --format=%s") !== "feat: implement UX-0001" && Date.now() < until) await Bun.sleep(200)
+    expect(git("git log -1 --format=%s")).toBe("feat: implement UX-0001")
+    expect(await Effect.runPromise(client.reconcile())).toEqual({ on: true, pending: 0 })
+    proc.stdin.end()
+    await proc.exited
+    rmSync(project, { recursive: true, force: true })
+    rmSync(stub, { force: true })
+
+    // Not a git repository: it says why and stays off.
+    const plain = mkdtempSync(join(tmpdir(), "zarg-proc-nogit-"))
+    writeFileSync(join(plain, ".env.schema"), "# @defaultSensitive=false\n# ---\n")
+    writeFileSync(stub.replace(/-stub.json$/, "-none.json"), JSON.stringify({ cells: ["return 1"] }))
+    const p2 = Bun.spawn([process.execPath, main, "--root", plain, "--mode", "child"], { stdin: "pipe", stdout: "pipe", stderr: "pipe", env: { ...process.env, ZARG_CORE_STUB: stub.replace(/-stub.json$/, "-none.json") } })
+    await p2.stdout.getReader().read()
+    const answer = await Effect.runPromise(makeClient(readInfo(plain)!).reconcile())
+    expect(answer.on).toBe(false)
+    expect(answer.reason).toContain("not the top of a git repository")
+    p2.stdin.end()
+    await p2.exited
+    rmSync(plain, { recursive: true, force: true })
+  }, 60_000)
+
   test("a core that cannot start exits 1 with the reason on stderr and leaves no core.json", () => {
     const broken = mkdtempSync(join(tmpdir(), "zarg-proc-bad-"))
     mkdirSync(join(broken, ".zarg"))

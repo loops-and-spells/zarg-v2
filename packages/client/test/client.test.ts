@@ -24,6 +24,7 @@ const server = Bun.serve({
     if (req.headers.get("authorization") !== "Bearer tok") return Response.json({ error: "unauthorized" }, { status: 401 })
     if (url.pathname === "/threads") return Response.json([{ id: "main", focus: [], status: "idle" }])
     if (url.pathname === "/threads/main/stop") return Response.json({ stopped: "main" })
+    if (url.pathname === "/reconcile") return Response.json({ on: true, pending: 1 })
     // Events split across chunks and with CRLF-free multi-line framing, as a real stream may deliver them.
     return new Response(
       sseBody(['data: {"type":"RUN_STARTED","threadId":"main","seq":1}\n\n: comment\n\ndata: {"type":"RUN_FIN', 'ISHED","threadId":"main","seq":2}\n\n']),
@@ -59,6 +60,9 @@ describe("client", () => {
     await collect(client.stream(5))
     expect(seen.at(-1)).toMatchObject({ method: "GET", path: "/stream?since=5", auth: "Bearer tok" })
     expect(await Effect.runPromise(client.threads())).toEqual([{ id: "main", focus: [], status: "idle" }])
+    await Effect.runPromise(client.stop("main"))
+    expect(await Effect.runPromise(client.reconcile())).toEqual({ on: true, pending: 1 })
+    expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/reconcile" })
     await Effect.runPromise(client.stop("main"))
     expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/threads/main/stop" })
   })

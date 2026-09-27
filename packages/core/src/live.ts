@@ -1,7 +1,7 @@
 import { BunServices } from "@effect/platform-bun"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { Effect, Layer } from "effect"
+import { Cause, Effect, Layer, Scope as EffectScope } from "effect"
 import { Decisions, layer as decisionsLayer } from "@zarg/decisions"
 import { GraphStore, layer as graphLayer } from "@zarg/graph"
 import { type Bound } from "@zarg/kernel"
@@ -13,8 +13,9 @@ import { zargRouter } from "@zarg/provider-zarg-router"
 import { type Asker, decisionsService, fsRead, graph, inquire, pluginService, Rlm, type Scope, settings } from "@zarg/rlm"
 import { makeLog } from "./log"
 import { STUB_MODEL, stubLayer } from "./stub"
-import { reconcileGate } from "./phases"
+import { reconcileGate, type ReconcileSettings } from "./phases"
 import { makeReconcile } from "./reconcile"
+import type { ReconcileAnswer } from "./server"
 import { makeThreads } from "./threads"
 
 /**
@@ -52,26 +53,41 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       )
     }
     // Plan and implement: the reconcile loop, unless `[reconcile] enabled = false`.
+    // The core's own scope: reconcile started later (by /reconcile) closes with the core.
+    const scope = yield* Effect.scope
+    const startReconcile = (settings: ReconcileSettings) =>
+      makeReconcile({
+        repo: root,
+        settings,
+        log,
+        sensitive,
+        makeRlm: (services, observe) =>
+          Rlm.make({ settings: rlmSettings, services, roles, decisions, observe }).pipe(Effect.provideService(Model.Model, model)),
+        extra: (name) => (name === "Decisions" ? decisionsService(decisions as never) : undefined),
+        // Landing writes graph files: no driver write may land halfway through it.
+        withGraphLock: (effect) => host.exclusive(effect),
+      }).pipe(Effect.provideService(EffectScope.Scope, scope))
     const gate = yield* reconcileGate(root, config.extra, roles)
     // stderr: stdout carries the `ready` handshake a starting client waits for.
     if (!gate.on) yield* Effect.sync(() => console.error(`zarg-core: ${gate.reason}`))
-    const reconcile = gate.on
-      ? yield* makeReconcile({
-          repo: root,
-          settings: gate.settings,
-          log,
-          sensitive,
-          makeRlm: (services, observe) =>
-            Rlm.make({ settings: rlmSettings, services, roles, decisions, observe }).pipe(Effect.provideService(Model.Model, model)),
-          extra: (name) => (name === "Decisions" ? decisionsService(decisions as never) : undefined),
-          // Landing writes graph files: no driver write may land halfway through it.
-          withGraphLock: (effect) => host.exclusive(effect),
-        })
-      : undefined
+    let reconcile = gate.on ? yield* startReconcile(gate.settings) : undefined
     const agenda = (focus: ReadonlySet<string> | undefined) =>
       Effect.map(host.agenda(focus), (items) => [...(reconcile?.agenda(focus) ?? []), ...items])
     const threads = yield* makeThreads({ log, agenda, makeRlm, extra: reconcile?.threads ?? [] })
-    return { log, threads, driver: roles.driver }
+
+    // @card UX-0058 @card UX-0059
+    /** `/reconcile`: turn plan and implement on for this session (the config's section and `enabled` are overridden). */
+    const turnOn = Effect.gen(function* () {
+      if (reconcile === undefined) {
+        const forced = yield* reconcileGate(root, config.extra, roles, { force: true })
+        if (!forced.on) return { on: false, reason: forced.reason } satisfies ReconcileAnswer
+        reconcile = yield* startReconcile(forced.settings)
+        for (const t of reconcile.threads) threads.add(t)
+      }
+      reconcile.notify()
+      return { on: true, pending: yield* reconcile.pending } satisfies ReconcileAnswer
+    }).pipe(Effect.catchCause((cause) => Effect.succeed({ on: false, reason: String(Cause.squash(cause)) } satisfies ReconcileAnswer)))
+    return { log, threads, driver: roles.driver, turnOn }
   })
 
 /** Layers for a project root: env, config, models, decisions, graph and plugins. `stubFile` swaps in the scripted models. */

@@ -1,7 +1,8 @@
 import { join } from "node:path"
 import { Cause, Effect, Layer, ManagedRuntime, Stream } from "effect"
 import type { AgendaItem } from "@zarg/plugin/server"
-import { engineLayer, gcPasses, makeFindings, Pass, type PassResult, passLayer, startReconciler } from "@zarg/reconcile"
+import { affectedCards } from "@zarg/plugin-gherkin/server"
+import { baseTree, engineLayer, gcPasses, makeFindings, Pass, type PassResult, passLayer, snapshotAtTree, startReconciler, workingGraphTree } from "@zarg/reconcile"
 import { makeActivity } from "./activity"
 import * as E from "./events"
 import type { WireEvent } from "./events"
@@ -128,5 +129,15 @@ export const makeReconcile = (deps: ReconcileDeps) =>
         .filter((f) => focus === undefined || f.about.length === 0 || f.about.some((c) => focus.has(c)))
         .map((f) => ({ id: f.id, title: f.title, detail: `${f.kind}: ${f.detail}`, about: f.about, priority: 0 }))
 
-    return { threads: [view("plan"), view("implement")], agenda, notify: reconciler.notify, findings }
+    /** Cards the next pass would take up (the working graph against the last checkpoint). */
+    const pending = Effect.gen(function* () {
+      const [before, after] = yield* Effect.all([
+        Effect.flatMap(baseTree(deps.repo), (t) => snapshotAtTree(deps.repo, t)),
+        Effect.flatMap(workingGraphTree(deps.repo), (t) => snapshotAtTree(deps.repo, t)),
+      ])
+      const a = affectedCards(before, after)
+      return a.cards.length + a.removed.length
+    }).pipe(Effect.orElseSucceed(() => 0))
+
+    return { threads: [view("plan"), view("implement")], agenda, notify: reconciler.notify, findings, pending }
   })

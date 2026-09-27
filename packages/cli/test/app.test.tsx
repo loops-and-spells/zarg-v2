@@ -19,6 +19,7 @@ const fakeSession = (state: SessionState) => {
     send: (t) => calls.push(`send ${t}`),
     stop: () => calls.push("stop"),
     close: () => calls.push("close"),
+    command: (t) => calls.push(`command ${t}`),
   }
   const update = (next: SessionState) => {
     current = next

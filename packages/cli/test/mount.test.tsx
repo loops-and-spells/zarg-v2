@@ -13,6 +13,7 @@ const opened = (state: SessionState) => {
     send: () => {},
     stop: () => {},
     close: () => {},
+    command: () => {},
   }
   const o: Opened = { session, meta: { threadId: "main", mode: "child" }, close: async () => void (closed = true) }
   return { o, closed: () => closed }

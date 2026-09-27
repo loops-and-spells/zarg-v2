@@ -106,6 +106,7 @@ export interface Key {
 export type Action =
   | { readonly type: "answer"; readonly answer: Answer }
   | { readonly type: "send"; readonly text: string }
+  | { readonly type: "command"; readonly text: string }
   | { readonly type: "stop" }
   | { readonly type: "exit" }
 
@@ -136,6 +137,7 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number): { readonl
 /** Enter in the text field: the "Something else…" answer, or a message (an interjection while the driver works). */
 export const onSubmit = (ui: Ui, s: SessionState, text: string): { readonly ui: Ui; readonly action?: Action } => {
   if (text.trim().length === 0) return { ui }
+  if (text.trim().startsWith("/")) return { ui, action: { type: "command", text: text.trim() } }
   const inquiry = s.thread.pendingInquiry
   if (ui.other && inquiry !== undefined) {
     if (ui.answered === inquiry.id) return { ui }
