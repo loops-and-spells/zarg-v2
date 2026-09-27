@@ -125,7 +125,8 @@ export const typing = (ui: Ui, s: SessionState) => {
   return ui.focus === "bar" && (q === undefined || ui.chatting === q.id || answeringOther(ui, s))
 }
 /** The shared popover queue, in the order the core asked: nothing on the client reorders it. */
-export const queueOf = (_ui: Ui, s: SessionState): ReadonlyArray<Prompt> => s.thread.prompts ?? []
+// A stopped core cannot take an answer, and a prompt without options cannot be answered: neither holds the keys.
+export const queueOf = (_ui: Ui, s: SessionState): ReadonlyArray<Prompt> => (s.core === "down" ? [] : (s.thread.prompts ?? []).filter((p) => p.options.length > 0))
 /** The bar's input has the keys: it takes text and no popover is up. */
 export const inputFocused = (ui: Ui, s: SessionState) => typing(ui, s) && queueOf(ui, s).length === 0
 /** The bar takes focus; while zarg asks, the sheet opens with the question. */
@@ -175,7 +176,8 @@ export const working = (ui: Ui, s: SessionState, now: number): string | undefine
 /** What the bar shows when it is not an input: zarg's question, the working line, an unread reply, or the prompt. */
 export const barLine = (ui: Ui, s: SessionState, now: number): { readonly text: string; readonly tone: "question" | "working" | "reply" | "idle" } => {
   const q = s.thread.pendingInquiry
-  if (q !== undefined && ui.chatting !== q.id && ui.answered !== q.id)
+  if (q !== undefined && ui.answered === q.id) return { text: "sending your answer…", tone: "working" }
+  if (q !== undefined && ui.chatting !== q.id)
     // The sheet already shows the question with its options: the bar only says how to reach them.
     return sheetShown(ui) ? { text: "answer zarg above, or / to chat about it", tone: "question" } : { text: `? ${q.question}   alt+m or / to answer`, tone: "question" }
   const busyLine = working(ui, s, now)

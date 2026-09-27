@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
-import { onKey } from "../src/layers"
-import { initialUi, POPOVER_GUARD_MS, syncUi, type Ui } from "../src/view"
+import { onKey, SHELL } from "../src/layers"
+import { hintsOf } from "@zarg/view"
+import { barLine, initialUi, POPOVER_GUARD_MS, queueOf, syncUi, type Ui } from "../src/view"
 
 const inquiry: Inquiry = { id: "inq-1", question: "Which card first?", options: [{ id: "a", label: "Login" }, { id: "b", label: "Checkout", recommended: true }], allowOther: true, about: [] }
 const grant = (id: string) => ({ id, question: `Plugin ${id} wants to load.`, options: [{ id: "always", label: "Allow" }, { id: "deny", label: "Not now" }], kind: "grant" as const })
@@ -87,5 +88,24 @@ describe("a grant needs a deliberate press", () => {
     const ui = syncUi(at({ popover: { id: "p1", pick: 0, answering: "p1" } }), next, 1000)
     expect(onKey(ui, next, key("return"), 1100).action).toBeUndefined()
     expect(onKey(ui, next, key("return"), 1000 + POPOVER_GUARD_MS).action).toEqual({ type: "answer-prompt", id: "p2", choice: "always" })
+  })
+})
+
+describe("popovers and the core", () => {
+  test("a dead core's popover gives the keys back: nothing can answer it", () => {
+    const s = { ...idle, core: "down" as const, thread: { ...idle.thread, prompts: [grant("p1")] } }
+    expect(onKey(at({ focus: "agents" }), s, key("down"), 0).by).toBe("agents")
+    expect(queueOf(at({}), s)).toEqual([])
+  })
+  test("a prompt with no options is never shown: it could not be answered", () => {
+    const s = { ...idle, thread: { ...idle.thread, prompts: [{ ...grant("p0"), options: [] }, grant("p1")] } }
+    expect(queueOf(at({}), s).map((p) => p.id)).toEqual(["p1"])
+  })
+  test("under a popover the hints are the popover's alone", () => {
+    const s = { ...idle, thread: { ...idle.thread, prompts: [grant("p1")] } }
+    expect(hintsOf(SHELL, at({ focus: "bar" }), { s, now: 0, draft: "" }).map((h) => h.keys)).toEqual(["←→", "Enter"])
+  })
+  test("after answering zarg, the bar says the answer is on its way until the core moves on", () => {
+    expect(barLine(at({ answered: "inq-1", viewing: "x" }), asking, 0)).toEqual({ text: "sending your answer…", tone: "working" })
   })
 })

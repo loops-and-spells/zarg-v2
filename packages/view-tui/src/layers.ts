@@ -89,6 +89,7 @@ export const SHELL: ReadonlyArray<Layer> = [
   },
   {
     id: "popover",
+    exclusive: true,
     when: (ui, w) => queueOf(ui, w.s).length > 0,
     hints: () => [{ keys: "←→", does: "pick" }, { keys: "Enter", does: "choose" }],
     handle: (ui, w, k) => {

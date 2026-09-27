@@ -22,6 +22,10 @@ describe("input layers", () => {
   test("hints come from the top layers below global", () => {
     expect(hintsOf(layers, { n: 0 }, { on: true }).map((h) => h.keys)).toEqual(["top", "mid"])
   })
+  test("an exclusive layer's hints are the only ones shown", () => {
+    const dialog = { ...layer("top", () => true), exclusive: true }
+    expect(hintsOf([layers[0]!, dialog, layers[2]!], { n: 0 }, { on: true }).map((h) => h.keys)).toEqual(["top"])
+  })
   test("printable: one character, space or Backspace, without Ctrl or Alt", () => {
     expect([{ name: "a" }, { name: "space" }, { name: "backspace" }, { name: "/" }].every(printable)).toBe(true)
     expect([{ name: "up" }, { name: "a", ctrl: true }, { name: "a", meta: true }, { name: "return" }].some(printable)).toBe(false)
