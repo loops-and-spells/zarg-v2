@@ -2,7 +2,8 @@ import { BunServices } from "@effect/platform-bun"
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { Cause, Effect, Layer, Scope as EffectScope, Semaphore, Stream } from "effect"
+import { Cause, Effect, Layer, Schema, Scope as EffectScope, Semaphore, Stream } from "effect"
+import { LayoutSchema } from "@zarg/view"
 import { Decisions, layer as decisionsLayer } from "@zarg/decisions"
 import { GraphStore, layer as graphLayer } from "@zarg/graph"
 import { type Bound } from "@zarg/kernel"
@@ -149,7 +150,12 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // A plugin's agenda changed (findings to take up): the driver wakes if it waits on nothing.
     control.setAgendaChanged(() => Effect.runFork(main.wake))
     // Plugins' agents show in main's agents pane, each plugin in its own stream.
-    control.setAgents(pluginAgents(log, "main") as (plugin: string, event: unknown) => void)
+    // A plugin agent's view is one its manifest declares; a malformed one fails that agent's start.
+    const layoutOf = (plugin: string, view: string) => {
+      const l = host.manifests.find((m) => m.name === plugin)?.views?.find((v) => v.name === view)
+      return l === undefined ? undefined : Schema.decodeUnknownSync(LayoutSchema)(l)
+    }
+    control.setAgents(pluginAgents(log, "main", layoutOf) as (plugin: string, event: unknown) => void)
     control.setAsk((q) =>
       main
         .ask({

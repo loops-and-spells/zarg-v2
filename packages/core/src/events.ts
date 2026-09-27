@@ -37,18 +37,20 @@ export const textMessage = (messageId: string, role: "assistant" | "user", text:
 
 export const ACTIVITY_TYPE = "zarg.rlm"
 
-export const activitySnapshot = (messageId: string, content: Record<string, unknown>): Draft => ({
+export const activitySnapshot = (messageId: string, content: Record<string, unknown>, activityType = ACTIVITY_TYPE): Draft => ({
   type: EventType.ACTIVITY_SNAPSHOT,
   messageId,
-  activityType: ACTIVITY_TYPE,
+  activityType,
   content,
 })
 
-export const activityDelta = (messageId: string, patch: ReadonlyArray<Record<string, unknown>>): Draft => ({
+/** `content` (not in AG-UI's delta): zarg views name their agent there, so a client need not parse the message id. */
+export const activityDelta = (messageId: string, patch: ReadonlyArray<Record<string, unknown>>, activityType = ACTIVITY_TYPE, content?: Record<string, unknown>): Draft => ({
   type: EventType.ACTIVITY_DELTA,
   messageId,
-  activityType: ACTIVITY_TYPE,
+  activityType,
   patch,
+  ...(content !== undefined ? { content } : {}),
 })
 
 export type { Draft }
