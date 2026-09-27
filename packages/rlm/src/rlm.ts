@@ -45,9 +45,22 @@ export interface RlmDeps {
 export type RlmEvent =
   | { readonly type: "start"; readonly id: string; readonly parent: string | undefined; readonly preset: string; readonly task: string; readonly scope: Scope; readonly depth: number; readonly budget: Budget }
   | { readonly type: "turn"; readonly id: string; readonly turn: number; readonly tokens: number }
-  /** What one turn did: the model's text and each cell with its result (for transcripts, not the UI). */
-  | { readonly type: "step"; readonly id: string; readonly turn: number; readonly text: string; readonly cells: ReadonlyArray<{ readonly code: string; readonly ok: boolean; readonly output: string }> }
-  | { readonly type: "atomize"; readonly id: string; readonly atomic: boolean; readonly reason: string; readonly criteria: Atomized["criteria"] }
+  /**
+   * What one turn did: the model's text and each cell with its result (for transcripts, not the UI), and where
+   * the time went: until the first streamed event (mostly reading the prompt), the whole model call, each cell.
+   */
+  | {
+      readonly type: "step"
+      readonly id: string
+      readonly turn: number
+      readonly text: string
+      readonly cells: ReadonlyArray<{ readonly code: string; readonly ok: boolean; readonly output: string; readonly ms: number }>
+      readonly firstTokenMs: number
+      readonly modelMs: number
+      readonly promptTokens: number
+      readonly completionTokens: number
+    }
+  | { readonly type: "atomize"; readonly id: string; readonly atomic: boolean; readonly reason: string; readonly criteria: Atomized["criteria"]; readonly ms: number }
   | { readonly type: "plan"; readonly id: string; readonly children: ReadonlyArray<{ readonly id: string; readonly preset: string; readonly dependsOn: ReadonlyArray<string> }> }
   | { readonly type: "end"; readonly id: string; readonly ok: true; readonly turns: number; readonly tokens: number }
   | { readonly type: "end"; readonly id: string; readonly ok: false; readonly kind: RlmErrorKind | "stopped"; readonly message: string }
@@ -233,19 +246,33 @@ export const make = (deps: RlmDeps) =>
 
           const turn = Effect.gen(function* () {
             emit({ type: "turn", id, turn: ++turnCount, tokens })
+            // Timed from when this turn gets the model (a sibling may hold it first).
+            let started = 0
+            let first: number | undefined
             const events = yield* Semaphore.withPermits(turns, 1)(
-              Stream.runCollect(model.stream({ model: ref, messages, tools: [EXEC_TOOL] })),
+              Effect.suspend(() => {
+                started = Date.now()
+                return Stream.runCollect(model.stream({ model: ref, messages, tools: [EXEC_TOOL] }).pipe(Stream.tap(() => Effect.sync(() => void (first ??= Date.now())))))
+              }),
             ).pipe(Effect.mapError((e) => new RlmError({ kind: "model", message: e.message })))
+            const modelMs = Date.now() - started
+            const firstTokenMs = (first ?? Date.now()) - started
             let text = ""
+            let promptTokens = 0
+            let completionTokens = 0
             const calls: Array<ToolCall> = []
             for (const e of events) {
               if (e.type === "text") text += e.delta
               if (e.type === "toolCall") calls.push(e.call)
-              if (e.type === "usage") tokens += e.usage.promptTokens + e.usage.completionTokens
+              if (e.type === "usage") {
+                promptTokens += e.usage.promptTokens
+                completionTokens += e.usage.completionTokens
+              }
             }
+            tokens += promptTokens + completionTokens
             messages.push({ role: "assistant", content: text.length > 0 ? text : null, ...(calls.length > 0 ? { toolCalls: calls } : {}) })
-            const cells: Array<{ code: string; ok: boolean; output: string }> = []
-            const step = () => emit({ type: "step", id, turn: turnCount, text, cells })
+            const cells: Array<{ code: string; ok: boolean; output: string; ms: number }> = []
+            const step = () => emit({ type: "step", id, turn: turnCount, text, cells, firstTokenMs, modelMs, promptTokens, completionTokens })
             if (calls.length === 0) {
               step()
               messages.push({ role: "user", content: "Use the exec tool. Finish with `yield* Rlm.done({ value })`." })
@@ -257,11 +284,12 @@ export const make = (deps: RlmDeps) =>
                 code = String((JSON.parse(call.function.arguments) as { code?: unknown }).code ?? "")
               } catch {
                 messages.push({ role: "tool", name: "exec", toolCallId: call.id, content: "error: exec arguments must be JSON {\"code\": string}" })
-                cells.push({ code: call.function.arguments, ok: false, output: "exec arguments must be JSON" })
+                cells.push({ code: call.function.arguments, ok: false, output: "exec arguments must be JSON", ms: 0 })
                 continue
               }
+              const cellStart = Date.now()
               const r = yield* kernel.run(code)
-              cells.push({ code, ok: r.ok, output: r.output })
+              cells.push({ code, ok: r.ok, output: r.output, ms: Date.now() - cellStart })
               restarts = r.restarted ? restarts + 1 : 0
               if (restarts >= 2) return yield* new RlmError({ kind: "kernel", message: "the kernel died twice in a row" })
               messages.push({ role: "tool", name: "exec", toolCallId: call.id, content: `${r.ok ? "ok" : "failed"}\n${r.output}` })
@@ -275,9 +303,11 @@ export const make = (deps: RlmDeps) =>
           const spawnable = depth >= deps.settings.maxDepth ? [] : (preset.spawns ?? [])
           if (deps.decisions !== undefined && spawnable.length > 0) {
             const minConfidence = deps.minConfidence ?? deps.settings.minConfidence
+            const atomizeStart = Date.now()
             const a = yield* atomize(deps.decisions, spec.task, describeScope(spec.scope), minConfidence)
+            const atomizeMs = Date.now() - atomizeStart
             yield* Effect.logInfo("rlm.atomize").pipe(Effect.annotateLogs({ rlm: id, atomic: a.atomic, reason: a.reason }))
-            emit({ type: "atomize", id, atomic: a.atomic, reason: a.reason, criteria: a.criteria })
+            emit({ type: "atomize", id, atomic: a.atomic, reason: a.reason, criteria: a.criteria, ms: atomizeMs })
             if (!a.atomic) {
               const choices = spawnable.map((p) => `- ${p} → ${resultType(results[deps.settings.presets[p]?.result ?? "text"] ?? Schema.String)}`)
               const plan = yield* Semaphore.withPermits(turns, 1)(requestPlan(model, ref, spec.task, describeScope(spec.scope), choices, spawnable)).pipe(

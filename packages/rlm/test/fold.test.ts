@@ -96,6 +96,7 @@ describe("folding", () => {
     await run({ driver: [{ cell: 'yield* Rlm.done({ value: "direct" })' }] }, { task: "small", preset: "driver", scope: {} }, decisions(true), {}, (e) => events.push(e))
     const a = events.find((e) => e.type === "atomize")
     expect(a?.type === "atomize" && a.atomic).toBe(true)
+    expect(a?.type === "atomize" && typeof a.ms).toBe("number")
     expect(a?.type === "atomize" && a.criteria).toEqual(
       ["single", "oneExecutor", "noSteps", "noPackaging", "noCoordination"].map((name) => ({ name, answer: true, confidence: 0.9 })),
     )

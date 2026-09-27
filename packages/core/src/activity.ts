@@ -23,6 +23,10 @@ export const makeActivity = (log: ThreadLog, threadId: string) => {
       Effect.runSync(log.transcript(threadId, { type, rlm: id, ...rest }))
       return
     }
+    if (e.type === "atomize") {
+      const { type, id: _, ...rest } = e
+      Effect.runSync(log.transcript(threadId, { type, rlm: id, ...rest }))
+    }
     if (e.type === "start") Effect.runSync(log.transcript(threadId, { type: "start", rlm: id, parent: e.parent !== undefined ? `${prefix}${e.parent}` : null, preset: e.preset, task: e.task }))
     const prev = nodes.get(id) ?? {}
     const next: Record<string, unknown> =

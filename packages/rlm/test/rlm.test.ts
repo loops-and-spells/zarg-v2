@@ -110,11 +110,14 @@ describe("observe", () => {
     )
     expect(events[0]).toMatchObject({ type: "start", task: "say hi" })
     const steps = events.filter((e) => e.type === "step")
+    const t = { firstTokenMs: expect.any(Number), modelMs: expect.any(Number), promptTokens: expect.any(Number), completionTokens: expect.any(Number) }
+    const ms = expect.any(Number)
     expect(steps).toEqual([
-      { type: "step", id: "rlm-1", turn: 1, text: "thinking out loud", cells: [] },
-      { type: "step", id: "rlm-1", turn: 2, text: "", cells: [{ code: 'console.log("hi")', ok: true, output: "hi" }] },
-      { type: "step", id: "rlm-1", turn: 3, text: "", cells: [{ code: 'yield* Rlm.done({ value: "ok" })', ok: true, output: "" }] },
+      { type: "step", id: "rlm-1", turn: 1, text: "thinking out loud", cells: [], ...t },
+      { type: "step", id: "rlm-1", turn: 2, text: "", cells: [{ code: 'console.log("hi")', ok: true, output: "hi", ms }], ...t },
+      { type: "step", id: "rlm-1", turn: 3, text: "", cells: [{ code: 'yield* Rlm.done({ value: "ok" })', ok: true, output: "", ms }], ...t },
     ])
+    for (const s of steps) if (s.type === "step") expect(s.firstTokenMs).toBeLessThanOrEqual(s.modelMs)
   })
 
 

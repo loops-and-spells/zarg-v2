@@ -156,7 +156,7 @@ describe("transcripts", () => {
     const driver: Driver = (_s, asker, observe) =>
       Effect.gen(function* () {
         observe({ type: "start", id: "rlm-1", parent: undefined, preset: "driver", task: "the task\nthe agenda and graph context", scope: {}, depth: 0, budget: { turns: 25, tokens: 1, wallMs: 1 } })
-        observe({ type: "step", id: "rlm-1", turn: 1, text: "hmm", cells: [{ code: 'Fs.read("zt-secret")', ok: false, output: "no such file" }] })
+        observe({ type: "step", id: "rlm-1", turn: 1, text: "hmm", cells: [{ code: 'Fs.read("zt-secret")', ok: false, output: "no such file", ms: 3 }], firstTokenMs: 1, modelMs: 2, promptTokens: 10, completionTokens: 5 })
         return (yield* asker.ask(question)) as never
       }) as never
     const out = await Effect.runPromise(
@@ -191,6 +191,25 @@ describe("transcripts", () => {
     const wire = JSON.stringify(events)
     expect(wire).not.toContain(" zt-")
     expect(wire).toContain(" <red")
+  })
+
+  test("the atomize decision goes to the transcript with its time", async () => {
+    const driver: Driver = (_s, asker, observe) =>
+      Effect.gen(function* () {
+        observe({ type: "start", id: "rlm-1", parent: undefined, preset: "driver", task: "t", scope: {}, depth: 0, budget: { turns: 25, tokens: 1, wallMs: 1 } })
+        observe({ type: "atomize", id: "rlm-1", atomic: true, reason: "r", criteria: [{ name: "single", answer: true, confidence: 0.9 }], ms: 4200 })
+        return (yield* asker.ask(question)) as never
+      }) as never
+    const dir = await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread, dir } = yield* setup(driver)
+        yield* collect(thread.run({ runId: "r1" }))
+        return dir
+      }),
+    )
+    const lines = readFileSync(join(dir, "main.rlm.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l))
+    expect(lines.map((l) => l.type)).toEqual(["start", "atomize"])
+    expect(lines[1]).toMatchObject({ rlm: "rlm-1", atomic: true, ms: 4200, criteria: [{ name: "single", answer: true, confidence: 0.9 }] })
   })
 
   test("a restarted core does not read transcripts as events", async () => {
