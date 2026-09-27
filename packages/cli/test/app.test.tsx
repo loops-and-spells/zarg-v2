@@ -158,12 +158,35 @@ describe("tui frames", () => {
     const frame = t.captureCharFrame()
     expect(frame).toContain("commands")
     expect(frame).toContain("/reconcile  turn plan and implement on for this session")
+    // Tab writes the completion into the input itself (the box row alone would not prove it).
     t.mockInput.pressTab()
     await t.waitForVisualIdle()
-    expect(t.captureCharFrame()).toContain("/reconcile")
+    const messageLine = (frame: string) => frame.split("\n").find((l, i, all) => i > 0 && all[i - 1]!.includes("Message")) ?? ""
+    expect(messageLine(t.captureCharFrame())).toContain("/reconcile")
     t.mockInput.pressEnter()
     await t.waitForVisualIdle()
     expect(t.calls).toEqual(["command /reconcile"])
+  })
+
+  test("a key typed right after Tab lands after the completion", async () => {
+    const t = await render({ thread: { ...initial("main"), status: "idle" }, core: "up" })
+    await t.mockInput.typeText("/re")
+    await t.waitForVisualIdle()
+    t.mockInput.pressTab()
+    await t.mockInput.typeText("x")
+    await t.waitForVisualIdle()
+    const line = t.captureCharFrame().split("\n").find((l, i, all) => i > 0 && all[i - 1]!.includes("Message")) ?? ""
+    expect(line).toContain("/reconcilex")
+  })
+
+  test("while answering Something else…, no command box is shown", async () => {
+    const t = await render(waiting)
+    t.mockInput.pressArrow("down")
+    t.mockInput.pressEnter()
+    await t.waitForVisualIdle()
+    await t.mockInput.typeText("/re")
+    await t.waitForVisualIdle()
+    expect(t.captureCharFrame()).not.toContain("commands")
   })
 
   test("an unknown command shows its lint and is not sent", async () => {

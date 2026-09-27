@@ -169,7 +169,7 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: st
     if (ui.lastCtrlC !== undefined && now - ui.lastCtrlC < EXIT_WINDOW_MS) return { ui, action: { type: "exit" } }
     return { ui: { ...ui, lastCtrlC: now }, action: { type: "stop" } }
   }
-  if (draft !== undefined && inputFocused(ui, s)) {
+  if (draft !== undefined && slashActive(ui, s)) {
     const slash = onSlashKey(ui, key, draft)
     if (slash !== undefined) return slash
   }
@@ -222,6 +222,9 @@ export const onSubmit = (ui: Ui, s: SessionState, text: string): { readonly ui: 
   }
   return { ui, action: { type: "send", text } }
 }
+
+/** Slash commands work in the message input, not while typing an answer to Something else… (that is text). */
+export const slashActive = (ui: Ui, s: SessionState) => inputFocused(ui, s) && !(ui.other && s.thread.pendingInquiry !== undefined)
 
 /** The text field takes keys unless the picker is choosing. */
 export const inputFocused = (ui: Ui, s: SessionState) => ui.focus === "conversation" && (s.thread.pendingInquiry === undefined || ui.other)

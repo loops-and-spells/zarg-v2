@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
-import { conversation, EXIT_WINDOW_MS, initialUi, inputFocused, OTHER, onKey, onSubmit, pickerRows, slashBox, statusLine, syncUi, tree } from "../src/tui/view"
+import { conversation, EXIT_WINDOW_MS, initialUi, inputFocused, OTHER, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, tree } from "../src/tui/view"
 
 const inquiry: Inquiry = {
   id: "inq-1",
@@ -139,6 +139,15 @@ describe("slash commands in the input", () => {
     const down = press(initialUi, "/", "down")
     expect(slashBox("/", down.ui)?.rows[0]?.selected).toBe(true)
     expect(onSubmit(down.ui, idle, "/").action).toEqual({ type: "command", text: "/reconcile" })
+  })
+
+  test("while answering Something else…, / is text: no box, no slash keys, Escape closes the answer field", () => {
+    const answering = { ...syncUi(initialUi, waiting), other: true }
+    expect(onKey(answering, waiting, { name: "tab" }, 0, "/re").draft).toBeUndefined()
+    const esc = onKey(answering, waiting, { name: "escape" }, 0, "/nope")
+    expect(esc.draft).toBeUndefined()
+    expect(esc.ui.other).toBe(false)
+    expect(slashActive(answering, waiting)).toBe(false)
   })
 
   test("a lint error shows in the box and Enter keeps the draft instead of running", () => {

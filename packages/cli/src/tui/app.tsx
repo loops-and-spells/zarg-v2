@@ -1,7 +1,8 @@
 import { useKeyboard } from "@opentui/react"
 import { useRef, useState, useSyncExternalStore } from "react"
 import type { Session } from "@zarg/client"
-import { type Action, conversation, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashBox, statusLine, syncUi, tree, type Ui } from "./view"
+import type { InputRenderable } from "@opentui/core"
+import { type Action, conversation, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, tree, type Ui } from "./view"
 
 const COLORS = { you: "#8ab4f8", zarg: "#e8eaed", error: "#f28b82", notice: "#fdd663", dim: "#9aa0a6", accent: "#81c995" }
 
@@ -14,6 +15,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const [draft, setDraftState] = useState("")
   // The draft in a ref too: the keyboard handler reads it between renders (Tab completes it).
   const draftRef = useRef("")
+  const inputRef = useRef<InputRenderable | null>(null)
   const setDraft = (text: string) => {
     draftRef.current = text
     setDraftState(text)
@@ -37,12 +39,16 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   useKeyboard((key) => {
     const r = onKey(latest(), props.session.state(), { name: key.name, ctrl: key.ctrl }, Date.now(), draftRef.current)
     setUi(r.ui)
-    if (r.draft !== undefined) setDraft(r.draft)
+    if (r.draft !== undefined) {
+      // Write into the input now, so a key typed right after Tab lands after the completion.
+      if (inputRef.current !== null) inputRef.current.value = r.draft
+      setDraft(r.draft)
+    }
     act(r.action)
   })
 
   const inquiry = s.thread.pendingInquiry
-  const box = inputFocused(ui, s) ? slashBox(draft, ui) : undefined
+  const box = slashActive(ui, s) ? slashBox(draft, ui) : undefined
   const width = Math.max(0, ...(box?.rows ?? []).map((r) => r.label.length))
   const lines = conversation(s)
   const agents = tree(s.thread.rlms)
@@ -93,6 +99,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       ) : null}
       <box title={ui.other ? "Your answer" : "Message"} style={{ border: true, height: 3, flexShrink: 0 }}>
         <input
+          ref={inputRef}
           focused={inputFocused(ui, s)}
           value={draft}
           placeholder={inquiry !== undefined && !ui.other ? "choose above, or pick Something else…" : "type a message, Enter to send"}
