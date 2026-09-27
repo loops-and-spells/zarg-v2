@@ -129,7 +129,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const box = slashActive(ui, s) ? slashBox(draft, ui) : undefined
   const width = Math.max(0, ...(box?.rows ?? []).map((r) => r.label.length))
   // Agents spin only while the clock runs (not while a question waits on you).
-  const agents = agentRows(s.thread.rlms, ui.agents, AGENTS_WIDTH - 3, moving ? now : undefined)
+  const agents = agentRows(s.thread.rlms, ui.agents, AGENTS_WIDTH - 3, moving ? now : undefined, ui.seen)
   const cursor = agents.find((a) => a.selected)?.id
   const detail = agentDetail(s.thread.rlms, cursor)
   // Keep the highlighted row on screen as the cursor moves through a tall tree.
@@ -152,7 +152,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           <text
             key={a.id}
             id={`agent-${a.id}`}
-            fg={a.attention ? COLORS.notice : TONE[a.tone]}
+            // An unseen request blinks between the attention colour and plain; a seen one stays in the attention colour.
+            fg={a.pulse === "off" ? COLORS.zarg : a.attention ? COLORS.notice : TONE[a.tone]}
             truncate
             onMouseDown={() => setUi(activate(latest(), props.session.state(), a.id))}
             {...((a.selected && ui.focus === "agents") || a.id === viewing ? { bg: COLORS.select } : {})}

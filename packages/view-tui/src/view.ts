@@ -139,6 +139,8 @@ const busy = (s: SessionState) => s.core === "up" && s.thread.status === "runnin
 /** Whether anything on screen animates: the driver working, or agents running while no question waits. */
 export const animating = (ui: Ui, s: SessionState) =>
   ui.runningSince !== undefined ||
+  // An unseen request for attention blinks.
+  Object.values(s.thread.rlms).some((r) => r.attention !== undefined && ui.seen[r.id] !== r.attention.since) ||
   // zarg's own row is always there: only agents doing work keep the clock ticking.
   (s.core === "up" && s.thread.pendingInquiry === undefined && Object.values(s.thread.rlms).some((r) => r.status === "running" && r.preset !== "zarg"))
 
@@ -202,7 +204,12 @@ export interface AgentRow {
   readonly selected: boolean
   /** The agent asks for the developer (◆, its reason in place of its progress). */
   readonly attention: boolean
+  /** Set while its request for attention is unseen: its ◆ blinks with the clock. */
+  readonly pulse?: "on" | "off"
 }
+
+/** How often an unseen ◆ blinks. */
+export const PULSE_MS = 500
 
 const ICON: Record<RlmNode["status"], string> = { running: "●", done: "✓", failed: "✗", stopped: "■" }
 const BAR = 6
@@ -253,7 +260,9 @@ const cursorOf = (rows: ReadonlyArray<Visible>, agents: Agents) =>
   rows.some((r) => r.node.id === agents.cursor) ? agents.cursor : rows[0]?.node.id
 
 /** The agents tree: one line per visible RLM with its status icon, turn bar and how many descendants it hides. */
-export const agentRows = (rlms: Readonly<Record<string, RlmNode>>, agents: Agents, cols = 46, now?: number): ReadonlyArray<AgentRow> => {
+export const agentRows = (rlms: Readonly<Record<string, RlmNode>>, agents: Agents, cols = 46, now?: number, seen?: Readonly<Record<string, number>>): ReadonlyArray<AgentRow> => {
+  const phase = Math.floor((now ?? 0) / PULSE_MS) % 2 === 0 ? "on" : "off"
+  const unseen = (n: RlmNode) => n.attention !== undefined && seen?.[n.id] !== n.attention.since
   const rows = visible(rlms, agents)
   const cursor = cursorOf(rows, agents)
   const hiddenWidth = Math.max(0, ...rows.map((r) => (r.hidden.length > 0 ? `  +${r.hidden.length}`.length : 0)))
@@ -263,7 +272,7 @@ export const agentRows = (rlms: Readonly<Record<string, RlmNode>>, agents: Agent
   const room = Math.max(8, cols - (2 + barWidth + (barWidth > 0 ? 1 : 0) + 5) - hiddenWidth)
   const lefts = rows.map((r) => {
     // zarg's row does not spin: it is there all session, working or not.
-    const icon = r.node.attention !== undefined ? "◆" : r.node.status === "running" && now !== undefined && r.node.preset !== "zarg" ? spin(now) : ICON[r.node.status]
+    const icon = r.node.attention !== undefined ? (unseen(r.node) && phase === "off" ? "◇" : "◆") : r.node.status === "running" && now !== undefined && r.node.preset !== "zarg" ? spin(now) : ICON[r.node.status]
     const l = `${r.prefix} ${icon} ${r.node.preset} ${r.node.id}`
     return l.length > room ? `${l.slice(0, room - 1)}…` : l
   })
@@ -286,6 +295,7 @@ export const agentRows = (rlms: Readonly<Record<string, RlmNode>>, agents: Agent
       tone: r.hidden.some((h) => h.status === "failed") ? "failed" : n.status,
       selected: n.id === cursor,
       attention: n.attention !== undefined,
+      ...(unseen(n) ? { pulse: phase } : {}),
     }
   })
 }

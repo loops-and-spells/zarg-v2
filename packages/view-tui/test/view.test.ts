@@ -424,6 +424,32 @@ describe("keys in an agent's view", () => {
 })
 
 describe("attention", () => {
+  test("an unseen request pulses (◆ then ◇ every 500 ms); once opened the ◆ stays steady", () => {
+    const rlms = { "rehearse:t1": { id: "rehearse:t1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 0, status: "running" as const, decisions: [], attention: { reason: "4 findings", since: 100 } } }
+    const agents = { toggled: {}, tree: 0 }
+    expect(agentRows(rlms, agents, 46, 0, {})[0]).toMatchObject({ pulse: "on" })
+    expect(agentRows(rlms, agents, 46, 0, {})[0]!.text).toContain("◆")
+    expect(agentRows(rlms, agents, 46, 500, {})[0]).toMatchObject({ pulse: "off" })
+    expect(agentRows(rlms, agents, 46, 500, {})[0]!.text).toContain("◇")
+    const seen = agentRows(rlms, agents, 46, 500, { "rehearse:t1": 100 })[0]!
+    expect(seen.pulse).toBeUndefined()
+    expect(seen.text).toContain("◆")
+  })
+  test("the screen animates while something pulses, and stops once everything is seen", () => {
+    const { pendingInquiry: _, ...quiet } = waiting.thread
+    const s: SessionState = { ...waiting, thread: { ...quiet, status: "idle", rlms: { t: { id: "t", parent: null, preset: "tester", depth: 0, turns: 0, budget: 0, status: "done", decisions: [], attention: { reason: "r", since: 7 } } } } }
+    expect(animating({ ...initialUi }, s)).toBe(true)
+    expect(animating({ ...initialUi, seen: { t: 7 } }, s)).toBe(false)
+  })
+  test("g goes to unseen requests first, then tree order", () => {
+    // zarg asked earlier and was seen; the tester asks now: g goes to the tester first.
+    const rlms = {
+      zarg: { id: "zarg", parent: null, preset: "zarg", depth: 0, turns: 0, budget: 0, status: "running" as const, decisions: [], attention: { reason: "asks", since: 1 } },
+      "rehearse:t1": { id: "rehearse:t1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 0, status: "running" as const, decisions: [], attention: { reason: "r", since: 2 } },
+    }
+    const s = { ...waiting, thread: { ...waiting.thread, rlms } }
+    expect(onKey({ ...initialUi, focus: "agents", seen: { zarg: 1 } }, s, { name: "g" }, 0).ui).toMatchObject({ viewing: "rehearse:t1", seen: { zarg: 1, "rehearse:t1": 2 } })
+  })
   const node = (id: string, parent: string | null, attention?: string) => ({ id, parent, preset: id === "zarg" ? "zarg" : "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [], ...(attention !== undefined ? { attention: { reason: attention, since: 1 } } : {}) })
   const rlms = { zarg: node("zarg", null, "asks: What next?"), "rlm-1": node("rlm-1", "zarg"), "rehearse:run": node("rehearse:run", null), "rehearse:tester-1": node("rehearse:tester-1", "rehearse:run", "2 findings to review") }
 
