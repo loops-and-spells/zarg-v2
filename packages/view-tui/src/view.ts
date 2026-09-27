@@ -1,5 +1,5 @@
-import type { Answer, Inquiry, RlmNode, SessionState } from "@zarg/client"
-import { startUi, type ViewUi } from "@zarg/view"
+import { type Answer, type Inquiry, type RlmNode, type SessionState, zargConversation } from "@zarg/client"
+import { CHAT, type ConversationQuestion, conversationRows, OTHER, startUi, type ViewUi } from "@zarg/view"
 import { viewKeys } from "./view-keys"
 import { lintSlashInput, parseSlashInput, SLASH_COMMANDS, type SlashCycle, type SlashInputState, stepCompletion } from "./commands"
 
@@ -38,8 +38,7 @@ export interface Agents {
 }
 
 export const EXIT_WINDOW_MS = 2000
-export const OTHER = "__other"
-export const CHAT = "__chat"
+export { CHAT, OTHER }
 
 export const initialUi: Ui = { focus: "conversation", pick: 0, other: false, agents: { toggled: {}, tree: 0 } }
 
@@ -52,15 +51,16 @@ export interface PickerRow {
 }
 
 /** The inquiry's options, "Something else…" when free text is allowed, and "Chat about this". */
-export const pickerRows = (inquiry: Inquiry, pick: number): ReadonlyArray<PickerRow> => {
-  const rows = [
-    ...inquiry.options.map((o) => ({ id: o.id, label: o.label, ...(o.why !== undefined ? { why: o.why } : {}), recommended: o.recommended === true })),
-    // A grant question is answered with one of its options: nothing to type, nothing to discuss with the driver.
-    ...(inquiry.allowOther && inquiry.kind !== "grant" ? [{ id: OTHER, label: `${inquiry.otherLabel ?? "Something else"}…`, recommended: false }] : []),
-    ...(inquiry.kind !== "grant" ? [{ id: CHAT, label: "Chat about this", recommended: false }] : []),
-  ]
-  return rows.map((r, i) => ({ ...r, selected: i === pick }))
-}
+// The picker is the conversation section's behaviour (@zarg/view), on zarg's question.
+export const pickerRows = (inquiry: Inquiry, pick: number): ReadonlyArray<PickerRow> => conversationRows(questionOf(inquiry), { pick, other: false })
+const questionOf = (i: Inquiry): ConversationQuestion => ({
+  id: i.id,
+  question: i.question,
+  options: i.options.map((o) => ({ id: o.id, label: o.label, ...(o.why !== undefined ? { why: o.why } : {}), ...(o.recommended === true ? { recommended: true } : {}) })),
+  allowOther: i.allowOther,
+  ...(i.otherLabel !== undefined ? { otherLabel: i.otherLabel } : {}),
+  ...(i.kind !== undefined ? { kind: i.kind } : {}),
+})
 
 const preselect = (inquiry: Inquiry) => Math.max(0, inquiry.options.findIndex((o) => o.recommended === true))
 
@@ -110,9 +110,9 @@ export interface Line {
   readonly text: string
 }
 
-/** The conversation: messages, then the run error and any transport notice. */
+/** zarg's conversation: its section's messages, then the run error and any transport notice. */
 export const conversation = (s: SessionState): ReadonlyArray<Line> => [
-  ...s.thread.messages.map((m): Line => ({ kind: m.role === "user" ? "you" : "zarg", text: m.text })),
+  ...(zargConversation(s.thread).data.talk as { messages: ReadonlyArray<{ role: string; text: string }> }).messages.map((m): Line => ({ kind: m.role === "user" ? "you" : "zarg", text: m.text })),
   ...(s.thread.error !== undefined ? [{ kind: "error" as const, text: `${s.thread.error.code ?? "error"}: ${s.thread.error.message}` }] : []),
   ...(s.notice !== undefined ? [{ kind: "notice" as const, text: s.notice }] : []),
 ]

@@ -79,6 +79,16 @@ const settle = async (t: { renderOnce: () => Promise<void>; waitForVisualIdle: (
 }
 
 describe("tui frames", () => {
+  test("zarg's conversation is a tile: its messages and its question inside it, beside the agents", async () => {
+    const t = await render(waiting)
+    const lines = t.captureCharFrame().split("\n")
+    expect(lines[0]).toMatch(/^┌─zarg─/)
+    // The question sits inside zarg's tile: nothing spans the whole width under the tiles but the status line.
+    expect(lines.at(-3)).toMatch(/^└─+┘└─+┘\s*$/)
+    expect(lines.findIndex((l) => l.includes("Which card first?"))).toBeGreaterThan(0)
+    expect(lines.find((l) => l.includes("Which card first?"))).toMatch(/│\s*$/)
+  })
+
   test("an inquiry: picker with the recommended option preselected and its why; agents pane; status line", async () => {
     const t = await render(waiting)
     const frame = t.captureCharFrame()
@@ -151,7 +161,7 @@ describe("tui frames", () => {
     t.mockInput.pressKey("c", { ctrl: true })
     await settle(t)
     expect(t.calls).toEqual(["stop"])
-    expect(t.captureCharFrame()).toContain("Conversation")
+    expect(t.captureCharFrame()).toContain("┌─zarg")
   })
 
   test("at 80 columns with a long thread and driver, the status line still shows the core state and thread status", async () => {
@@ -376,10 +386,7 @@ describe("tui frames", () => {
     await settle(t)
     const f = t.captureCharFrame()
     for (const title of ["Workers", "Steps", "Findings"]) expect(f).toContain(title)
-    // Nothing of the view spills over the question below it: the view's frame closes above it, the question's rows are its own.
-    const lines = f.split("\n")
-    const q = lines.findIndex((l) => l.startsWith("┌─Question"))
-    expect(lines[q - 1]!.startsWith("└─")).toBe(true)
-    expect(lines[q + 1]!.trimEnd()).toMatch(/^│Which card first\?\s*│$/)
+    // The question is zarg's: it stays in zarg's tile, never over the open view.
+    expect(f).not.toContain("Which card first?")
   })
 })
