@@ -1,7 +1,8 @@
 import { Schema } from "effect"
+import { keysProblem } from "./keys"
 import { DATA, type Layout, type LayoutLeaf, type LayoutSection, type LeafKind, type LogLine, LogData } from "./schema"
 
-type ActionSpec = { readonly id: string; readonly label: string; readonly key?: string; readonly on: "selection" | "row" | "none" }
+export type ActionSpec = { readonly id: string; readonly label: string; readonly key?: string; readonly keys?: Readonly<Record<string, string>>; readonly on: "selection" | "row" | "none" }
 type ColumnSpec = { readonly id: string; readonly label: string }
 type Role = "summary" | "primary" | "log" | "pinned" | "aside"
 export type LeafSpec =
@@ -12,6 +13,8 @@ export type ViewSpec = Readonly<Record<string, SectionSpec>>
 export interface ViewDef<S extends ViewSpec> {
   readonly name: string
   readonly sections: S
+  /** The view's own actions, on no table. */
+  readonly actions?: ReadonlyArray<ActionSpec>
 }
 
 /** Every leaf's path: a section's id, or `<tabs id>.<tab id>`. */
@@ -36,7 +39,7 @@ const checkLeaf = (view: string, path: string, leaf: LeafSpec) => {
 }
 
 /** Declare a view: its sections in order, each with a kind and a role. Checked here, so a plugin's build refuses a bad one. */
-export const defineView = <const S extends ViewSpec>(name: string, sections: S): ViewDef<S> => {
+export const defineView = <const S extends ViewSpec>(name: string, sections: S, opts: { readonly actions?: ReadonlyArray<ActionSpec> } = {}): ViewDef<S> => {
   if (!NAME.test(name)) throw new Error(`view name "${name}" must be kebab-case`)
   for (const [id, s] of Object.entries(sections)) {
     if (!ID.test(id)) throw new Error(`view ${name}: section id "${id}" must be letters, digits or dashes, starting with a letter`)
@@ -49,7 +52,10 @@ export const defineView = <const S extends ViewSpec>(name: string, sections: S):
       }
     } else checkLeaf(name, id, s)
   }
-  return { name, sections }
+  const def: ViewDef<S> = { name, sections, ...(opts.actions !== undefined ? { actions: opts.actions } : {}) }
+  const problem = keysProblem(layoutOf(def))
+  if (problem !== undefined) throw new Error(problem)
+  return def
 }
 
 const leafOf = (id: string, l: LeafSpec): LayoutLeaf => ({
@@ -62,6 +68,7 @@ const leafOf = (id: string, l: LeafSpec): LayoutLeaf => ({
 /** The view as data: what the manifest carries and the core sends. */
 export const layoutOf = (def: ViewDef<ViewSpec>): Layout => ({
   name: def.name,
+  ...(def.actions !== undefined && def.actions.length > 0 ? { actions: def.actions } : {}),
   sections: Object.entries(def.sections).map(([id, s]): LayoutSection =>
     s.kind === "tabs"
       ? { id, kind: "tabs", role: s.role, ...(s.title !== undefined ? { title: s.title } : {}), tabs: Object.entries(s.tabs).map(([tid, t]) => leafOf(tid, t)) }

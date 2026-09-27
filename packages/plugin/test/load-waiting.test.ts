@@ -105,6 +105,14 @@ export default definePlugin({ name: "walker", service: "Walker", archetype: "age
     expect(events).toContainEqual(expect.objectContaining({ event: "start", id: "w" }))
   })
 
+  test("the host refuses an action mapped to a reserved key", async () => {
+    const built = await fixturePlugin(agent())
+    // The SDK refuses this at build; a hand-made manifest reaches the host, which must refuse it too.
+    const views = [{ name: "w", sections: [{ id: "t", kind: "table", role: "primary", columns: [], actions: [{ id: "a", label: "A", key: "tab", on: "row" }] }] }]
+    const out = await Effect.runPromise(hostWith([{ ...built, manifest: { ...built.manifest, views } as never }], (h) => Effect.map(h.agenda(), (a) => a.map((i) => i.detail).join(" "))))
+    expect(out).toContain("tab, a key terminal keeps for itself")
+  })
+
   test("a bundle that claims the trusted runtime is refused: trusted agents are zarg's own packages", async () => {
     const out = await Effect.runPromise(hostWith([await fixturePlugin(agent("trusted"))], (h) => Effect.map(h.agenda(), (a) => a.map((i) => i.detail).join(" "))))
     expect(out).toContain("trusted")

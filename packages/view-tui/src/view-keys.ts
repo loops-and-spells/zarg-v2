@@ -3,7 +3,7 @@ import { actionFor, afterAction, type ConversationQuestion, conversationKey, foc
 /** A key in an open agent's view: focus, scroll a table's cursor, switch tabs, select, act. */
 export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: string; readonly shift?: boolean; readonly ctrl?: boolean; readonly meta?: boolean }): {
   readonly ui: ViewUi
-  readonly act?: { readonly section: string; readonly action: string; readonly rows: ReadonlyArray<string> }
+  readonly act?: { readonly section: string | undefined; readonly action: string; readonly rows: ReadonlyArray<string> }
   readonly scroll?: number
   readonly answer?: { readonly question: string; readonly answer: { readonly choice?: string; readonly other?: string } }
 } => {

@@ -140,6 +140,7 @@
       "name": "@zarg/plugin",
       "dependencies": {
         "@zarg/graph": "workspace:*",
+        "@zarg/view": "workspace:*",
         "effect": "^4.0.0-rc.117",
         "ses": "2.3.0",
       },

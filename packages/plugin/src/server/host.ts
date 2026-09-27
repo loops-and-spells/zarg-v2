@@ -1,4 +1,5 @@
 import { Cause, Context, Data, Effect, Exit, Layer, type Redacted, Scope, Semaphore } from "effect"
+import { keysProblem, type Layout } from "@zarg/view"
 import { diff, type Expect, GraphStore, type GraphError, hash, type IoError, type Loaded, Snapshot } from "@zarg/graph"
 import { type Ask, type Grants, type ManifestScopes, makePowers, PLUGIN_NAME, PluginCallError, type PluginProcess, scopesDigest, served, spawnPlugin, warnings } from "../runtime"
 import type { LoadedPlugin, Manifest } from "./loaded"
@@ -105,7 +106,19 @@ const manifestProblem = (m: Manifest): string | undefined => {
   if (m.runtime === "trusted") return "a plugin bundle cannot run trusted: trusted agents are zarg's own packages, loaded by the core"
   const bad = Object.keys(m.methods ?? {}).find((k) => !METHOD.test(k))
   if (bad !== undefined) return `method "${bad}" is not a method name`
-  return (m.commands ?? []).map(commandProblem(m)).find((p) => p !== undefined)
+  const command = (m.commands ?? []).map(commandProblem(m)).find((p) => p !== undefined)
+  if (command !== undefined) return command
+  // An action on a key the shell keeps (or one key twice): the SDK refuses it at build, a hand-made manifest here.
+  return (Array.isArray(m.views) ? m.views : []).map(viewProblem).find((p) => p !== undefined)
+}
+
+/** A view's key mappings, checked; a manifest is untrusted, so a view that is not even a layout is refused too. */
+const viewProblem = (v: unknown): string | undefined => {
+  try {
+    return keysProblem(v as Layout)
+  } catch {
+    return "a view is malformed"
+  }
 }
 
 /** zarg's own slash commands: no plugin may take one. */

@@ -402,7 +402,7 @@ export type Action =
   | { readonly type: "command"; readonly text: string }
   | { readonly type: "stop" }
   /** An action on rows of a table in the open agent's view. */
-  | { readonly type: "act"; readonly section: string; readonly action: string; readonly rows: ReadonlyArray<string> }
+  | { readonly type: "act"; readonly section: string | undefined; readonly action: string; readonly rows: ReadonlyArray<string> }
   /** Answer a question in the open agent's conversation. */
   | { readonly type: "answer-agent"; readonly question: string; readonly answer: { readonly choice?: string; readonly other?: string } }
   /** Scroll the open agent's focused section by lines. */

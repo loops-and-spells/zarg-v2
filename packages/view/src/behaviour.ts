@@ -1,3 +1,4 @@
+import { keyFor } from "./keys"
 import { leafAt } from "./layout"
 import type { LayoutLeaf, LayoutSection } from "./schema"
 import type { ViewState } from "./reducer"
@@ -76,12 +77,14 @@ export const toggleSelect = (view: ViewState, ui: ViewUi): ViewUi => {
   return { ...ui, selected: { ...ui.selected, [c.path]: sel.includes(row.id) ? sel.filter((x) => x !== row.id) : [...sel, row.id] } }
 }
 
-/** The action a key triggers in the focused table, with the rows it applies to; undefined when none. */
-export const actionFor = (view: ViewState, ui: ViewUi, key: string): { readonly section: string; readonly action: string; readonly rows: ReadonlyArray<string> } | undefined => {
+/** The action a key triggers on a platform: the focused table's, else the view's own; undefined when none. */
+export const actionFor = (view: ViewState, ui: ViewUi, key: string, platform = "terminal"): { readonly section: string | undefined; readonly action: string; readonly rows: ReadonlyArray<string> } | undefined => {
   const c = current(view, ui)
-  if (c === undefined || c.leaf.kind !== "table") return undefined
-  const a = (c.leaf.actions ?? []).find((x) => x.key === key)
-  if (a === undefined) return undefined
+  const a = c !== undefined && c.leaf.kind === "table" ? (c.leaf.actions ?? []).find((x) => keyFor(x, platform) === key) : undefined
+  if (c === undefined || a === undefined) {
+    const own = (view.layout.actions ?? []).find((x) => keyFor(x, platform) === key)
+    return own === undefined ? undefined : { section: undefined, action: own.id, rows: [] }
+  }
   const all = rowsOf(view, c.path)
   const row = all[ui.rows[c.path] ?? 0]
   // Rows can be replaced under a selection: only ids the table still shows are sent.
@@ -102,4 +105,4 @@ export const pickRow = (view: ViewState, ui: ViewUi, sectionId: string, index: n
 }
 
 /** After an action ran: that table's selection clears. */
-export const afterAction = (ui: ViewUi, section: string): ViewUi => ({ ...ui, selected: { ...ui.selected, [section]: [] } })
+export const afterAction = (ui: ViewUi, section: string | undefined): ViewUi => (section === undefined ? ui : { ...ui, selected: { ...ui.selected, [section]: [] } })

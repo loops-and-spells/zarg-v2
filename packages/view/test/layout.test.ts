@@ -60,3 +60,17 @@ describe("checking pushes against a layout", () => {
     expect(checkAppend(l, "progress", [{ text: "x" }])).toMatchObject({ ok: false, error: expect.stringContaining("not a log") })
   })
 })
+
+test("an action on a reserved key, or two actions on one key, are refused; another platform's mapping is kept", () => {
+  const table = (actions: ReadonlyArray<Record<string, unknown>>) => ({ t: { kind: "table" as const, role: "primary" as const, columns: [{ id: "c", label: "C" }], actions: actions as never } })
+  expect(() => defineView("v", table([{ id: "a", label: "A", key: "tab", on: "row" }]))).toThrow(/tab, a key terminal keeps/)
+  expect(() => defineView("v", table([{ id: "a", label: "A", keys: { terminal: "ctrl+a" }, on: "row" }]))).toThrow(/ctrl\+a/)
+  expect(() => defineView("v", table([{ id: "a", label: "A", key: "/", on: "row" }]))).toThrow(/\//)
+  expect(() => defineView("v", table([{ id: "a", label: "A", key: "r", on: "row" }]), { actions: [{ id: "b", label: "B", key: "r", on: "none" }] })).toThrow(/mapped twice/)
+  expect(layoutOf(defineView("v", table([{ id: "a", label: "A", keys: { terminal: "a", web: "mod+enter" }, on: "row" }]))).sections[0]).toMatchObject({ actions: [{ keys: { terminal: "a", web: "mod+enter" } }] })
+})
+
+test("one key in two tables is fine: only the focused table answers it", () => {
+  const table = { kind: "table" as const, columns: [{ id: "c", label: "C" }], actions: [{ id: "apply", label: "Apply", key: "a", on: "row" as const }] }
+  expect(() => defineView("v", { review: { kind: "tabs", role: "pinned", tabs: { findings: table, likes: table } } })).not.toThrow()
+})

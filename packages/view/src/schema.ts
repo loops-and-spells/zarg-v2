@@ -5,7 +5,14 @@ export const Tone = Schema.Literals(["normal", "ok", "warn", "error", "dim", "ac
 /** What a section is for; each platform places roles its own way. */
 export const Role = Schema.Literals(["summary", "primary", "log", "pinned", "aside"])
 /** An action on a table: on the selected rows (or the highlighted one), on the highlighted row, or on none. */
-export const Action = Schema.Struct({ id: Schema.String, label: Schema.String, key: Schema.optionalKey(Schema.String), on: Schema.Literals(["selection", "row", "none"]) })
+/** `key` is the terminal's key (shorthand for `keys.terminal`); `keys` maps each platform that has keys to one. */
+export const Action = Schema.Struct({
+  id: Schema.String,
+  label: Schema.String,
+  key: Schema.optionalKey(Schema.String),
+  keys: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)),
+  on: Schema.Literals(["selection", "row", "none"]),
+})
 export const Column = Schema.Struct({ id: Schema.String, label: Schema.String })
 
 export const StatsData = Schema.Struct({
@@ -58,7 +65,8 @@ export const LayoutSection = Schema.Union([
   Schema.Struct({ id: Schema.String, title: Schema.optionalKey(Schema.String), kind: Schema.Literal("tabs"), role: Role, tabs: Schema.Array(LayoutLeaf) }),
 ])
 /** A view as the manifest and the wire carry it. */
-export const LayoutSchema = Schema.Struct({ name: Schema.String, sections: Schema.Array(LayoutSection) })
+/** `actions`: the view's own actions, on no table (a rerun). */
+export const LayoutSchema = Schema.Struct({ name: Schema.String, sections: Schema.Array(LayoutSection), actions: Schema.optionalKey(Schema.Array(Action)) })
 export type Layout = typeof LayoutSchema.Type
 export type LayoutSection = typeof LayoutSection.Type
 export type LayoutLeaf = typeof LayoutLeaf.Type

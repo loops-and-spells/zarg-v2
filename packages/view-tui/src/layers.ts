@@ -1,5 +1,5 @@
 import type { SessionState } from "@zarg/client"
-import { dispatch, type InputKey, type InputLayer, printable, startUi } from "@zarg/view"
+import { dispatch, focused, type InputKey, type InputLayer, keyFor, type KeyHint, leafOf, printable, startUi } from "@zarg/view"
 import { viewKeys } from "./view-keys"
 import {
   type Action,
@@ -55,6 +55,19 @@ const nextAttention = (ui: Ui, s: SessionState) => {
 
 /** g and / belong to every panel that is not a text input. */
 const common = (ui: Ui, w: ShellWorld, k: InputKey) => (k.ctrl === true || k.meta === true ? undefined : k.name === "g" ? nextAttention(ui, w.s) : k.name === "/" ? slashFrom(ui, w.s) : undefined)
+
+/** The open agent's own keys on the terminal: the focused table's actions, then the view's. */
+const agentKeys = (ui: Ui, s: SessionState): ReadonlyArray<KeyHint> => {
+  const v = ui.viewing === undefined ? undefined : s.thread.views?.[ui.viewing]
+  if (v === undefined) return []
+  const vu = ui.view ?? startUi(v)
+  const at = focused(v, vu)
+  const leaf = at === undefined ? undefined : leafOf(v, vu, at.id)?.leaf
+  return [...(leaf?.kind === "table" ? (leaf.actions ?? []) : []), ...(v.layout.actions ?? [])].flatMap((a) => {
+    const key = keyFor(a, "terminal")
+    return key === undefined ? [] : [{ keys: key, does: a.label }]
+  })
+}
 
 /** The shell's input layers, top first. Each is on the stack while its `when` holds; a key goes to the first that takes it. */
 export const SHELL: ReadonlyArray<Layer> = [
@@ -143,7 +156,7 @@ export const SHELL: ReadonlyArray<Layer> = [
   {
     id: "view",
     when: (ui) => ui.focus === "tile" && !sheetShown(ui),
-    hints: () => [{ keys: "Tab", does: "sections" }, { keys: "[ ]", does: "tabs" }, { keys: "Space", does: "select" }, { keys: "Esc", does: "close" }],
+    hints: (ui, w) => [{ keys: "Tab", does: "sections" }, { keys: "[ ]", does: "tabs" }, { keys: "Space", does: "select" }, { keys: "Esc", does: "close" }, ...agentKeys(ui, w.s)],
     handle: (ui, w, k) => {
       if (k.name === "escape") {
         const { viewing: _, view: __, ...rest } = ui

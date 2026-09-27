@@ -75,3 +75,19 @@ describe("view behaviour", () => {
     expect(ui.selected["review.findings"]).toEqual([])
   })
 })
+
+test("a view-level action fires from any section; keys.terminal works like key", () => {
+  const view = {
+    agent: "a",
+    layout: {
+      name: "v",
+      sections: [{ id: "t", kind: "table" as const, role: "primary" as const, columns: [], actions: [{ id: "apply", label: "Apply", keys: { terminal: "a" }, on: "row" as const }] }, { id: "log", kind: "log" as const, role: "log" as const }],
+      actions: [{ id: "rerun", label: "Rerun", keys: { terminal: "r" }, on: "none" as const }],
+    },
+    data: { t: { rows: [{ id: "r1", cells: {} }] } },
+  }
+  // ordered: the primary table (0), then the log (1).
+  expect(actionFor(view, { ...initialViewUi, focus: 1 }, "r")).toEqual({ section: undefined, action: "rerun", rows: [] })
+  expect(actionFor(view, { ...initialViewUi, focus: 0 }, "a")).toEqual({ section: "t", action: "apply", rows: ["r1"] })
+  expect(actionFor(view, { ...initialViewUi, focus: 0 }, "a", "web")).toBeUndefined()
+})
