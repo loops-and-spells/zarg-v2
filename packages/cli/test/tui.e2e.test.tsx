@@ -39,7 +39,7 @@ describe("tui end to end", () => {
     const opened = await Effect.runPromise(openSession({ root, threadId: "main", focus: [] })).finally(() => delete process.env.ZARG_CORE_STUB)
     const pid = readInfo(root)!.pid
     let exited = false
-    const t = await testRender(<App session={opened.session} meta={opened.meta} onExit={() => (exited = true)} />, { width: 110, height: 26 })
+    const t = await testRender(<App session={opened.session} meta={opened.meta} onExit={() => (exited = true)} />, { width: 110, height: 26, exitOnCtrlC: false, exitSignals: [] })
     try {
       opened.session.start()
       await frameUntil(t, (f) => f.includes("› Checkout (recommended) — most used"))

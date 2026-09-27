@@ -38,6 +38,9 @@ const inquiry: Inquiry = {
   allowOther: true,
   about: [],
 }
+// As production (run.tsx): the app handles Ctrl-C itself, and nothing tears the renderer down on a signal.
+const RENDERER = { exitOnCtrlC: false, exitSignals: [] }
+
 const meta = { threadId: "main", driver: "zarg-router:deepseek-v4.1-flash-exl3", mode: "child" as const }
 const waiting: SessionState = {
   thread: {
@@ -58,7 +61,7 @@ afterEach(() => destroy?.())
 const render = async (state: SessionState, size = { width: 110, height: 24 }) => {
   const fake = fakeSession(state)
   let exited = false
-  const t = await testRender(<App session={fake.session} meta={meta} onExit={() => (exited = true)} />, size)
+  const t = await testRender(<App session={fake.session} meta={meta} onExit={() => (exited = true)} />, { ...size, ...RENDERER })
   destroy = () => t.renderer.destroy()
   await t.waitForVisualIdle()
   // Running agents spin with the clock: frames show the spinner as ● so they compare; rawFrame keeps it.
@@ -139,11 +142,19 @@ describe("tui frames", () => {
     for (const w of question.split(" ")) expect(words).toContain(w)
   })
 
+  test("one Ctrl-C stops the driver and leaves the TUI on screen", async () => {
+    const t = await render({ thread: { ...initial("main"), status: "running" }, core: "up" })
+    t.mockInput.pressKey("c", { ctrl: true })
+    await settle(t)
+    expect(t.calls).toEqual(["stop"])
+    expect(t.captureCharFrame()).toContain("Conversation")
+  })
+
   test("at 80 columns with a long thread and driver, the status line still shows the core state and thread status", async () => {
     const fake = fakeSession({ thread: { ...initial("feature-checkout-refactor"), status: "error" }, core: "down" })
     const t = await testRender(
       <App session={fake.session} meta={{ threadId: "feature-checkout-refactor", driver: "openrouter:anthropic/claude-sonnet-4.5", mode: "child" }} onExit={() => {}} />,
-      { width: 80, height: 24 },
+      { width: 80, height: 24, ...RENDERER },
     )
     destroy = () => t.renderer.destroy()
     await t.waitForVisualIdle()
