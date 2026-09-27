@@ -397,7 +397,7 @@ describe("keys in an agent's view", () => {
   const layout = layoutOf(defineView("t", { steps: { kind: "log", role: "log" }, review: { kind: "tabs", role: "pinned", tabs: { findings: { kind: "table", columns: [{ id: "id", label: "id" }], selectable: true, actions: [{ id: "apply", label: "Apply", key: "a", on: "selection" }] }, likes: { kind: "table", columns: [] } } } }))
   const views = { "rehearse:t-1": { agent: "rehearse:t-1", layout, data: { "review.findings": { rows: [{ id: "R-1", cells: {} }, { id: "R-2", cells: {} }] } } } }
   const s = { ...running, thread: { ...running.thread, views } } as SessionState
-  const open = { ...initialUi, viewing: "rehearse:t-1" }
+  const open = { ...initialUi, viewing: "rehearse:t-1", focus: "view" as const }
   test("the view opens on its table: space and a apply the selected rows, [ and ] switch tabs, Tab moves to the log", () => {
     let ui = onKey(open, s, { name: "down" }, 0).ui
     expect(ui.view?.focus).toBe(1)

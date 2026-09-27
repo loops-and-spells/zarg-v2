@@ -79,6 +79,69 @@ const settle = async (t: { renderOnce: () => Promise<void>; waitForVisualIdle: (
 }
 
 describe("tui frames", () => {
+  const testerView = {
+    agent: "rehearse:tester-1",
+    layout: { name: "tester", sections: [{ id: "steps", kind: "log" as const, role: "log" as const, title: "Steps" }, { id: "review", kind: "tabs" as const, role: "pinned" as const, tabs: [{ id: "findings", kind: "table" as const, title: "Findings", columns: [{ id: "id", label: "id" }], selectable: true, actions: [{ id: "apply", label: "Apply", key: "a", on: "selection" as const }] }] }] },
+    data: { steps: { lines: [{ text: "UX-1: feel 1.80" }] }, "review.findings": { rows: [{ id: "R-1", cells: { id: "R-1" } }, { id: "R-2", cells: { id: "R-2" } }] } },
+  }
+  const tester = { id: "rehearse:tester-1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [], attention: { reason: "2 findings to review", since: 1 } }
+  const withTester: SessionState = { ...waiting, thread: { ...waiting.thread, rlms: { ...waiting.thread.rlms, "rehearse:tester-1": tester }, views: { "rehearse:tester-1": testerView } } }
+  const openTester = async (size: { width: number; height: number }) => {
+    const t = await render(withTester, size)
+    t.mockInput.pressTab()
+    await settle(t)
+    t.mockInput.pressArrow("down")
+    t.mockInput.pressArrow("down")
+    await settle(t)
+    t.mockInput.pressEnter()
+    await settle(t)
+    return t
+  }
+
+  test("wide: zarg, the open agent and the agents tree side by side; Alt+arrows move between them", async () => {
+    const t = await openTester({ width: 130, height: 22 })
+    const top = t.captureCharFrame().split("\n")[0]!
+    expect(top).toMatch(/^┌─zarg.*┌─rehearse:tester-1.*┌─Agents/)
+    // The open view has focus: arrows move its table, not zarg's question.
+    t.mockInput.pressArrow("down")
+    await settle(t)
+    expect(t.captureCharFrame()).toContain("▸ [ ] R-2")
+    expect(t.captureCharFrame()).toContain("› Checkout (recommended)")
+    // Alt+left: zarg's tile takes the keys; now arrows move the question.
+    t.mockInput.pressArrow("left", { meta: true })
+    await settle(t)
+    t.mockInput.pressArrow("up")
+    await settle(t)
+    expect(t.captureCharFrame()).toContain("› Login")
+    // Alt+right twice: the view, then the agents.
+    t.mockInput.pressArrow("right", { meta: true })
+    t.mockInput.pressArrow("right", { meta: true })
+    await settle(t)
+    t.mockInput.pressKey("escape")
+    await settle(t)
+    expect(t.captureCharFrame().split("\n")[0]).toMatch(/┌─rehearse:tester-1/)
+  })
+
+  test("at 80×24 zarg is above the view and the strip lists attention", async () => {
+    const t = await openTester({ width: 80, height: 24 })
+    const lines = t.captureCharFrame().split("\n")
+    expect(lines[0]).toContain("tester-1")
+    const zarg = lines.findIndex((l) => l.startsWith("┌─zarg"))
+    const view = lines.findIndex((l) => l.startsWith("┌─rehearse:tester-1"))
+    expect(zarg).toBeGreaterThan(0)
+    expect(view).toBeGreaterThan(zarg)
+  })
+
+  test("Escape in the view tile closes it and gives the keys back to zarg", async () => {
+    const t = await openTester({ width: 130, height: 22 })
+    t.mockInput.pressEscape()
+    await settle(t)
+    expect(t.captureCharFrame().split("\n")[0]).not.toContain("tester-1 ·")
+    t.mockInput.pressArrow("up")
+    await settle(t)
+    expect(t.captureCharFrame()).toContain("› Login")
+  })
+
   test("zarg's conversation is a tile: its messages and its question inside it, beside the agents", async () => {
     const t = await render(waiting)
     const lines = t.captureCharFrame().split("\n")
@@ -217,9 +280,10 @@ describe("tui frames", () => {
     const open = t.captureCharFrame()
     expect(open).toContain("rlm-2 · Esc back")
     expect(open).toContain("2/15 turns")
-    expect(open).toContain("research rlm-2: Find the VM grid")
+    // The view tile sits beside zarg's now: its lines are cut at its width.
+    expect(open).toContain("research rlm-2: Find")
     expect(open).toContain('Graph.show {"id":"S-1"}  11ms')
-    expect(t.captureCharFrame()).toContain("research rlm-2: Find the VM grid")
+    expect(t.captureCharFrame()).toContain("research rlm-2: Find")
     t.mockInput.pressEscape()
     await settle(t)
     expect(t.captureCharFrame()).toContain("The agenda is empty.")
@@ -386,7 +450,9 @@ describe("tui frames", () => {
     await settle(t)
     const f = t.captureCharFrame()
     for (const title of ["Workers", "Steps", "Findings"]) expect(f).toContain(title)
-    // The question is zarg's: it stays in zarg's tile, never over the open view.
-    expect(f).not.toContain("Which card first?")
+    // The question is zarg's: it stays in zarg's tile, above the open view, never over it.
+    const lines = f.split("\n")
+    const viewTop = lines.findIndex((l) => l.startsWith("┌─rehearse:tester-1"))
+    expect(lines.findIndex((l) => l.includes("Which card first?"))).toBeLessThan(viewTop)
   })
 })

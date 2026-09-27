@@ -5,7 +5,8 @@ import { lintSlashInput, parseSlashInput, SLASH_COMMANDS, type SlashCycle, type 
 
 /** UI-only state: what is focused and selected. Everything else comes from the session. */
 export interface Ui {
-  readonly focus: "conversation" | "agents"
+  /** The tile with the keys: zarg's conversation, the open agent's view, or the agents tree (Alt+arrows move between them). */
+  readonly focus: "conversation" | "agents" | "view"
   /** The selected picker row. */
   readonly pick: number
   /** The inquiry `pick` belongs to; a new inquiry resets the selection. */
@@ -223,7 +224,7 @@ export const agentDetail = (rlms: Readonly<Record<string, RlmNode>>, cursor: str
 /** Open an agent's history (Enter on it, or a click); it also becomes the highlighted agent. */
 export const openHistory = (ui: Ui, id: string): Ui => {
   const { view: _, ...rest } = ui
-  return { ...rest, viewing: id, agents: { ...ui.agents, cursor: id } }
+  return { ...rest, viewing: id, focus: "view", agents: { ...ui.agents, cursor: id } }
 }
 
 /** Enter on an agent, or a click: its hidden children open first; an open or childless agent shows its history. */
@@ -346,8 +347,15 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: st
     if (ui.lastCtrlC !== undefined && now - ui.lastCtrlC < EXIT_WINDOW_MS) return { ui, action: { type: "exit" } }
     return { ui: { ...ui, lastCtrlC: now }, action: { type: "stop" } }
   }
-  // An agent's history is open: Escape goes back to the conversation; other keys wait.
-  if (ui.viewing !== undefined) {
+  // Alt+arrows move between tiles: zarg's conversation, the open view, the agents tree.
+  if (key.meta === true && ["left", "right", "up", "down"].includes(key.name)) {
+    const tiles: ReadonlyArray<Ui["focus"]> = ui.viewing !== undefined ? ["conversation", "view", "agents"] : ["conversation", "agents"]
+    const at = Math.max(0, tiles.indexOf(ui.focus))
+    const to = key.name === "left" || key.name === "up" ? Math.max(0, at - 1) : Math.min(tiles.length - 1, at + 1)
+    return { ui: { ...ui, focus: tiles[to]! } }
+  }
+  // The open view has the keys while its tile is focused: Escape closes it and gives zarg the keys.
+  if (ui.viewing !== undefined && ui.focus === "view") {
     if (key.name === "escape") {
       const { viewing: _, ...rest } = ui
       return { ui: { ...rest, focus: "conversation" } }
@@ -431,7 +439,7 @@ export const messageShown = (ui: Ui, s: SessionState) => s.thread.pendingInquiry
 
 /** The Message box takes keys when it is shown and the conversation side has focus. */
 // An open agent's view takes the keys; typing there must not also go into the message box.
-export const inputFocused = (ui: Ui, s: SessionState) => ui.focus === "conversation" && ui.viewing === undefined && messageShown(ui, s)
+export const inputFocused = (ui: Ui, s: SessionState) => ui.focus === "conversation" && messageShown(ui, s)
 
 /** The picker's Something else… line takes keys while it is highlighted. */
 export const otherFocused = (ui: Ui, s: SessionState) =>
