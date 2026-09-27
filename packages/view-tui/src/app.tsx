@@ -5,7 +5,7 @@ import { pickRow, startUi } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { registerCommands } from "./commands"
 import { AgentView, type Scroller } from "./sections"
-import { type Action, agentDetail, agentRows, animating, conversation, activate, messageShown, OTHER, otherFocused, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
+import { type Action, agentDetail, agentRows, animating, attentionLine, conversation, activate, messageShown, OTHER, otherFocused, working, initialUi, inputFocused, type Meta, onKey, onSubmit, pickerRows, slashActive, slashBox, statusLine, syncUi, type Ui } from "./view"
 
 const COLORS = { you: "#8ab4f8", zarg: "#e8eaed", error: "#f28b82", notice: "#fdd663", dim: "#9aa0a6", accent: "#81c995", select: "#3c4043" }
 const TONE = { running: COLORS.zarg, done: COLORS.dim, failed: COLORS.error, stopped: COLORS.notice }
@@ -181,7 +181,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       </box>
     )
   const agentsTile = (
-    <box title="Agents" style={{ ...(narrow ? { flexGrow: 1 } : { width: viewing !== undefined ? 32 : 48 }), flexDirection: "column", border: true, borderColor: ui.focus === "agents" ? COLORS.accent : COLORS.dim }}>
+    <box title={`Agents${agents.some((a) => a.attention) ? ` ◆${agents.filter((a) => a.attention).length}` : ""}`} style={{ ...(narrow ? { flexGrow: 1 } : { width: viewing !== undefined ? 32 : 48 }), flexDirection: "column", border: true, borderColor: ui.focus === "agents" ? COLORS.accent : COLORS.dim }}>
       <scrollbox ref={agentsRef} style={{ flexGrow: 1 }}>
         {agents.length === 0 ? <text fg={COLORS.dim}>no agents running</text> : null}
         {agents.map((a) => (
@@ -228,7 +228,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         </box>
       )}
       <box style={{ height: 1, flexShrink: 0 }}>
-        <text fg={COLORS.dim}>{`${statusLine(s, props.meta)}   ${viewing !== undefined ? "Tab sections · [ ] tabs · ↑↓ move · Space select · Esc back" : ui.focus === "agents" ? "↑↓ move · ←→ fold · Enter open, then history · Tab back" : "^C stop · ^C^C exit · Tab agents"}`}</text>
+        <text fg={COLORS.dim}>{`${statusLine(s, props.meta)}   ${attentionLine(s.thread.rlms) !== "" ? `${attentionLine(s.thread.rlms)} · g next ◆   ` : ""}${viewing !== undefined ? "Tab sections · [ ] tabs · ↑↓ move · Space select · Esc back" : ui.focus === "agents" ? "↑↓ move · ←→ fold · Enter open, then history · Tab back" : "^C stop · ^C^C exit · Tab agents"}`}</text>
       </box>
     </box>
   )

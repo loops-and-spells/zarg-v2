@@ -101,7 +101,7 @@ describe("tui frames", () => {
   test("wide: zarg, the open agent and the agents tree side by side; Alt+arrows move between them", async () => {
     const t = await openTester({ width: 130, height: 22 })
     const top = t.captureCharFrame().split("\n")[0]!
-    expect(top).toMatch(/^┌─zarg.*┌─rehearse:tester-1.*┌─Agents/)
+    expect(top).toMatch(/^┌─zarg.*┌─rehearse:tester-1.*┌─Agents ◆1/)
     // The open view has focus: arrows move its table, not zarg's question.
     t.mockInput.pressArrow("down")
     await settle(t)
@@ -125,6 +125,7 @@ describe("tui frames", () => {
   test("at 80×24 zarg is above the view and the strip lists attention", async () => {
     const t = await openTester({ width: 80, height: 24 })
     const lines = t.captureCharFrame().split("\n")
+    expect(lines[0]).toContain("◆")
     expect(lines[0]).toContain("tester-1")
     const zarg = lines.findIndex((l) => l.startsWith("┌─zarg"))
     const view = lines.findIndex((l) => l.startsWith("┌─rehearse:tester-1"))

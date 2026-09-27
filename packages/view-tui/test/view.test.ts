@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
 import { defineView, layoutOf } from "@zarg/view"
-import { activate, CHAT, conversation, openHistory, EXIT_WINDOW_MS, initialUi, inputFocused, messageShown, OTHER, onKey, otherFocused, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/view"
+import { activate, attentionOf, attentionLine, CHAT, conversation, openHistory, EXIT_WINDOW_MS, initialUi, inputFocused, messageShown, OTHER, onKey, otherFocused, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/view"
 
 const inquiry: Inquiry = {
   id: "inq-1",
@@ -422,5 +422,32 @@ describe("keys in an agent's view", () => {
     const log = onKey(open, s, { name: "tab" }, 0).ui
     expect(onKey(log, s, { name: "up" }, 0).action).toEqual({ type: "scroll", delta: -1 })
     expect(onKey(log, s, { name: "pagedown" }, 0).action).toEqual({ type: "scroll", delta: 10 })
+  })
+})
+
+describe("attention", () => {
+  const node = (id: string, parent: string | null, attention?: string) => ({ id, parent, preset: id === "zarg" ? "zarg" : "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [], ...(attention !== undefined ? { attention: { reason: attention, since: 1 } } : {}) })
+  const rlms = { zarg: node("zarg", null, "asks: What next?"), "rlm-1": node("rlm-1", "zarg"), "rehearse:run": node("rehearse:run", null), "rehearse:tester-1": node("rehearse:tester-1", "rehearse:run", "2 findings to review") }
+
+  test("a row that asks for attention shows ◆ and its reason", () => {
+    const rows = agentRows(rlms, { toggled: { "rehearse:run": true } }, 60)
+    const tester = rows.find((r) => r.id === "rehearse:tester-1")!
+    expect(tester.text).toContain("◆ tester rehearse:tester-1")
+    expect(tester.text).toContain("2 findings to review")
+    expect(tester.attention).toBe(true)
+  })
+
+  test("the agents needing the developer, zarg first; the status line names the first two", () => {
+    expect(attentionOf(rlms).map((a) => a.id)).toEqual(["zarg", "rehearse:tester-1"])
+    expect(attentionLine(rlms)).toBe("◆ zarg: asks: What next?   ◆ rehearse:tester-1: 2 findings to review")
+  })
+
+  test("g opens the next agent that needs the developer, zarg by giving it the keys", () => {
+    const s = { ...running, thread: { ...running.thread, rlms } } as SessionState
+    let ui = onKey({ ...initialUi, focus: "agents" }, s, { name: "g" }, 0).ui
+    expect(ui.focus).toBe("conversation")
+    ui = onKey({ ...ui, focus: "agents" }, s, { name: "g" }, 0).ui
+    expect(ui.viewing).toBe("rehearse:tester-1")
+    expect(ui.focus).toBe("view")
   })
 })

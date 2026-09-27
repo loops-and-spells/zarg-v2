@@ -29,6 +29,8 @@ export interface Ui {
   readonly viewing?: string
   /** In the open agent's view: the focused section, tabs, row cursors and selections. */
   readonly view?: ViewUi
+  /** The agent `g` went to last: the next `g` goes on from it. */
+  readonly attentionAt?: string
 }
 
 export interface Agents {
@@ -126,6 +128,8 @@ export interface AgentRow {
   /** The node's status, or "failed" when a collapsed node hides a failure. */
   readonly tone: RlmNode["status"]
   readonly selected: boolean
+  /** The agent asks for the developer (◆, its reason in place of its progress). */
+  readonly attention: boolean
 }
 
 const ICON: Record<RlmNode["status"], string> = { running: "●", done: "✓", failed: "✗", stopped: "■" }
@@ -177,7 +181,7 @@ export const agentRows = (rlms: Readonly<Record<string, RlmNode>>, agents: Agent
   // The left column gives way to the bar, the turns and the hidden count: a long id is cut, never wrapped.
   const room = Math.max(8, cols - (2 + BAR + 1 + 5) - hiddenWidth)
   const lefts = rows.map((r) => {
-    const icon = r.node.status === "running" && now !== undefined ? spin(now) : ICON[r.node.status]
+    const icon = r.node.attention !== undefined ? "◆" : r.node.status === "running" && now !== undefined ? spin(now) : ICON[r.node.status]
     const l = `${r.prefix} ${icon} ${r.node.preset} ${r.node.id}`
     return l.length > room ? `${l.slice(0, room - 1)}…` : l
   })
@@ -190,15 +194,36 @@ export const agentRows = (rlms: Readonly<Record<string, RlmNode>>, agents: Agent
     const filled = Math.min(BAR, Math.round((done / Math.max(1, total)) * BAR))
     const bar = "▰".repeat(filled) + "▱".repeat(BAR - filled)
     const hidden = r.hidden.length > 0 ? `  +${r.hidden.length}` : ""
-    const count = n.row?.text ?? `${done}/${total}`.padStart(5)
+    const count = n.attention?.reason ?? n.row?.text ?? `${done}/${total}`.padStart(5)
     return {
       id: n.id,
       text: `${lefts[i]!.padEnd(width)}  ${bar} ${count}${hidden}`,
       tone: r.hidden.some((h) => h.status === "failed") ? "failed" : n.status,
       selected: n.id === cursor,
+      attention: n.attention !== undefined,
     }
   })
 }
+
+/** The agents asking for the developer, in tree order, zarg first. */
+export const attentionOf = (rlms: Readonly<Record<string, RlmNode>>): ReadonlyArray<{ readonly id: string; readonly reason: string }> => {
+  const children = childrenOf(rlms)
+  const order: Array<RlmNode> = []
+  const visit = (n: RlmNode) => {
+    order.push(n)
+    children(n.id).forEach(visit)
+  }
+  const roots = children(null)
+  ;[...roots.filter((r) => r.id === "zarg"), ...roots.filter((r) => r.id !== "zarg")].forEach(visit)
+  return order.flatMap((n) => (n.attention !== undefined ? [{ id: n.id, reason: n.attention.reason }] : []))
+}
+
+/** The status line's attention: the first two agents asking, with their reasons. */
+export const attentionLine = (rlms: Readonly<Record<string, RlmNode>>) =>
+  attentionOf(rlms)
+    .slice(0, 2)
+    .map((a) => `◆ ${a.id}: ${a.reason}`)
+    .join("   ")
 
 /** The card for the highlighted RLM (the first root when none): status, task, turns, decisions, error. */
 export const agentDetail = (rlms: Readonly<Record<string, RlmNode>>, cursor: string | undefined): ReadonlyArray<string> => {
@@ -346,6 +371,14 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: st
   if (key.ctrl && key.name === "c") {
     if (ui.lastCtrlC !== undefined && now - ui.lastCtrlC < EXIT_WINDOW_MS) return { ui, action: { type: "exit" } }
     return { ui: { ...ui, lastCtrlC: now }, action: { type: "stop" } }
+  }
+  // g: the next agent asking for the developer (zarg: its tile takes the keys), unless g is being typed.
+  if (key.name === "g" && key.ctrl !== true && !inputFocused(ui, s) && !otherFocused(ui, s)) {
+    const asking = attentionOf(s.thread.rlms)
+    if (asking.length === 0) return { ui }
+    const next = asking[(asking.findIndex((a) => a.id === ui.attentionAt) + 1) % asking.length]!
+    const to = next.id === "zarg" ? { ...ui, focus: "conversation" as const } : openHistory(ui, next.id)
+    return { ui: { ...to, attentionAt: next.id } }
   }
   // Alt+arrows move between tiles: zarg's conversation, the open view, the agents tree.
   if (key.meta === true && ["left", "right", "up", "down"].includes(key.name)) {
