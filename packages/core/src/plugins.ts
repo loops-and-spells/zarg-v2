@@ -196,6 +196,8 @@ export const makeYolo = (log: ThreadLog, control: PluginControl["Service"]["yolo
       if (on) yield* Effect.forkDetach(onYolo)
       return { on: any }
     }),
+  /** Say this core's YOLO state on main: clients replaying an earlier core's log would show its state otherwise. */
+  announce: Effect.asVoid(Effect.suspend(() => log.append("main", E.custom("zarg.yolo", { on: control.any() })))),
 })
 
 /** The agenda the driver works from: the host's own plugin items (grants, failures) are the developer's, not requirements work. */

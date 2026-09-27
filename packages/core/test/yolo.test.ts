@@ -48,4 +48,15 @@ describe("YOLO control", () => {
     const item = (id: string) => ({ id, title: id, detail: "", about: [], priority: 1 })
     expect(forDriver([item("plugin-grant:rehearse"), item("gherkin:dead-end:S-1"), item("plugin-failed:x"), item("plugin-disabled:y"), item("plugin-needs:a:b")]).map((i) => i.id)).toEqual(["gherkin:dead-end:S-1"])
   })
+
+  test("a starting core says its own YOLO state, so a replayed 'on' from an earlier core is not what clients show", async () => {
+    const events = await Effect.runPromise(Effect.gen(function* () {
+      const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zt-yolo-")), (t) => t)
+      yield* log.append("main", { type: "CUSTOM", name: "zarg.yolo", value: { on: true } } as never)
+      const yolo = makeYolo(log, { on: () => false, set: () => {}, any: () => false })
+      yield* yolo.announce
+      return log.all().filter((e) => (e as { name?: string }).name === "zarg.yolo").map((e) => (e as unknown as { value: unknown }).value)
+    }))
+    expect(events).toEqual([{ on: true }, { on: false }])
+  })
 })

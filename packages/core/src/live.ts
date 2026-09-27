@@ -145,8 +145,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // A plugin's grant question is asked on main, like any driver question.
     const main = yield* threads.get("main", [])
     const yolo = makeYolo(log, control.yolo, host.loadWaiting)
-    // Started with --yolo: say so on main, so the status line shows it.
-    if (control.yolo.any()) yield* yolo.set(true)
+    // This core's YOLO state (on with --yolo, off otherwise): a replayed state from an earlier core must not linger.
+    yield* yolo.announce
     // A plugin's agenda changed (findings to take up): the driver wakes if it waits on nothing.
     control.setAgendaChanged(() => Effect.runFork(main.wake))
     // Plugins' agents show in main's agents pane, each plugin in its own stream.
