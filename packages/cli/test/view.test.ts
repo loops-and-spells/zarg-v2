@@ -213,6 +213,17 @@ describe("the agents pane", () => {
     expect(ui.focus).toBe("conversation")
   })
 
+  test("with a history open, a pending question still takes its keys; only Escape closes the history", () => {
+    const asking: SessionState = { thread: { ...running.thread, status: "waiting", pendingInquiry: { id: "inq-9", question: "Allow?", options: [{ id: "once", label: "Allow once" }, { id: "deny", label: "Deny" }], allowOther: false, about: [] } }, core: "up" }
+    let ui: Ui = syncUi(openHistory({ ...initialUi, focus: "agents" }, "rlm-2"), asking)
+    const down = onKey(ui, asking, { name: "down" }, 0)
+    expect(down.ui.pick).toBe(1)
+    const enter = onKey(down.ui, asking, { name: "return" }, 0)
+    expect(enter.action).toEqual({ type: "answer", answer: { choice: "deny" } })
+    ui = onKey(down.ui, asking, { name: "escape" }, 0).ui
+    expect(ui.viewing).toBeUndefined()
+  })
+
   test("an agent's history: the task, each turn's model time, calls, and cells with code and output", () => {
     const lines = historyView([
       { type: "start", rlm: "rlm-2", preset: "research", task: "Find the VM grid\nmore context" },

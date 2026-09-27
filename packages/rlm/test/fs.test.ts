@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Fiber } from "effect"
 import { Kernel } from "@zarg/kernel"
-import { fs, runCommand, sh } from "../src"
+import { fs, fsRead, runCommand, sh } from "../src"
 
 let base = ""
 let root = ""
@@ -117,5 +117,15 @@ describe("Fs reads outside the repo only through the host's say", () => {
     const out = await Effect.runPromise(h.list!({ glob: `${base}/outdir/**/*.txt` }) as Effect.Effect<ReadonlyArray<string>>)
     expect(out).toEqual([join(base, "outdir", "f.txt")])
     expect(asked).toEqual([join(base, "outdir")])
+  })
+})
+
+describe("read-only Fs without paths in scope", () => {
+  test("reads the whole repository (a driver or research agent is not given paths); a read-write Fs still reads nothing", async () => {
+    const ro = fsRead({ root, scope: {}, sensitive: [] }).handlers
+    expect(await Effect.runPromise(ro.read!({ path: "src/ok.ts" }) as Effect.Effect<string>)).toBe("fine\n")
+    expect(await Effect.runPromise(Effect.flip(ro.read!({ path: ".env.local" }) as Effect.Effect<string, { _tag: string }>))).toMatchObject({ _tag: "OutOfScope" })
+    const rw = fs({ root, scope: {}, sensitive: [] }).handlers
+    expect(await Effect.runPromise(Effect.flip(rw.read!({ path: "src/ok.ts" }) as Effect.Effect<string, { _tag: string }>))).toMatchObject({ _tag: "OutOfScope" })
   })
 })

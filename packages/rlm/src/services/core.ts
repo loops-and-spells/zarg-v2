@@ -35,15 +35,17 @@ const realRel = (root: string, rel: string): string => {
 }
 
 /** Resolve a path the RLM asked for, enforcing root, scope and the env-file rule on the real (symlink-free) path. */
-const check = (ctx: CoreContext, path: string): string => {
+const check = (ctx: CoreContext, path: string, readOnly = false): string => {
   const rel = realRel(ctx.root, withinRoot(ctx.root, path))
   if (isEnvSecretFile(rel)) throw new OutOfScope(`${rel} holds secrets; agents cannot read it`)
+  // Read-only and given no paths (a driver, a research agent): the whole repository.
+  if (readOnly && ctx.scope.paths === undefined) return rel
   if (!pathInScope(ctx.scope, rel)) throw new OutOfScope(`${rel} is outside this RLM's scope (${(ctx.scope.paths ?? []).join(", ") || "no files"}); hand the work to a child RLM`)
   return rel
 }
 
-const resolvePath = (ctx: CoreContext, path: string) =>
-  Effect.try({ try: () => check(ctx, path), catch: (e) => fail("OutOfScope", e instanceof Error ? e.message : String(e)) })
+const resolvePath = (ctx: CoreContext, path: string, readOnly = false) =>
+  Effect.try({ try: () => check(ctx, path, readOnly), catch: (e) => fail("OutOfScope", e instanceof Error ? e.message : String(e)) })
 
 const expandHome = (p: string) => (p.startsWith("~/") && process.env.HOME !== undefined ? `${process.env.HOME}${p.slice(1)}` : p)
 
@@ -90,13 +92,13 @@ export const FsDef = defineService("Fs", "Files in your scope.", {
   },
 })
 
-const fsHandlers = (ctx: CoreContext) => ({
+const fsHandlers = (ctx: CoreContext, readOnly = false) => ({
   read: ({ path }: { path: string }) => {
     const outside = outsideOf(ctx, path)
     const file =
       outside !== undefined
         ? allowOutside(ctx, outside)
-        : Effect.map(resolvePath(ctx, path), (rel) => `${ctx.root}/${rel}`)
+        : Effect.map(resolvePath(ctx, path, readOnly), (rel) => `${ctx.root}/${rel}`)
     return Effect.flatMap(file, (f) =>
       Effect.tryPromise({
         try: () => Bun.file(f).text(),
@@ -124,7 +126,7 @@ const fsHandlers = (ctx: CoreContext) => ({
       for await (const f of new Bun.Glob(glob).scan({ cwd: ctx.root, onlyFiles: true })) {
         if (f.startsWith("node_modules/") || f.includes("/node_modules/")) continue
         try {
-          out.push(check(ctx, f))
+          out.push(check(ctx, f, readOnly))
         } catch {
           // Outside the repo, outside the scope, or an env file: not listed.
         }
@@ -135,7 +137,7 @@ const fsHandlers = (ctx: CoreContext) => ({
   },
 })
 
-export const fsRead = (ctx: CoreContext): Bound => bind(FsReadDef, fsHandlers(ctx))
+export const fsRead = (ctx: CoreContext): Bound => bind(FsReadDef, fsHandlers(ctx, true))
 
 export const fs = (ctx: CoreContext): Bound =>
   bind(FsDef, {

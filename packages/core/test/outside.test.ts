@@ -53,4 +53,12 @@ describe("agents reading outside the repository", () => {
     expect(reads.map((r) => r._tag)).toEqual(["Success", "Success", "Success"])
     expect(t.asked.length).toBe(1)
   })
+
+  test("the filesystem root, the home folder and top-level folders are never offered: refused without asking", async () => {
+    const t = await Effect.runPromise(setup(["always"]))
+    for (const p of ["/", "/home", "/etc", process.env.HOME ?? "/home/x"]) {
+      expect(await t.read(p)).toMatchObject({ _tag: "Failure", failure: { _tag: "NotAllowed", message: expect.stringContaining("too broad") } })
+    }
+    expect(t.asked.length).toBe(0)
+  })
 })

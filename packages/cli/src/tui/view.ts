@@ -375,9 +375,13 @@ export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: st
   }
   // An agent's history is open: Escape goes back to the conversation; other keys wait.
   if (ui.viewing !== undefined) {
-    if (key.name !== "escape") return { ui }
-    const { viewing: _, ...rest } = ui
-    return { ui: { ...rest, focus: "conversation" } }
+    if (key.name === "escape") {
+      const { viewing: _, ...rest } = ui
+      return { ui: { ...rest, focus: "conversation" } }
+    }
+    // A question on screen still takes its keys (arrows, Enter); anything else waits for Escape.
+    if (s.thread.pendingInquiry === undefined) return { ui }
+    ui = { ...ui, focus: "conversation" }
   }
   if (draft !== undefined && slashActive(ui, s)) {
     const slash = onSlashKey(ui, key, draft)

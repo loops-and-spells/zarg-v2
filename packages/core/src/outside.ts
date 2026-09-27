@@ -18,6 +18,12 @@ const folderOf = (path: string) => {
 
 const covers = (folder: string, path: string) => path === folder || path.startsWith(`${folder}/`)
 
+/** The root, a top-level folder (/home, /etc), the home folder or anything above it: never offered. */
+const tooBroad = (path: string) => {
+  const home = process.env.HOME
+  return path.split("/").filter((p) => p.length > 0).length <= 1 || (home !== undefined && (path === home || home.startsWith(`${path}/`)))
+}
+
 /**
  * Whether an agent may read a real path outside the repository: never for zarg's own state, git internals,
  * keys and env files; yes under a folder the developer always allowed; otherwise the developer is asked
@@ -31,19 +37,18 @@ export const outsideReads = (opts: { readonly grants: Grants; readonly userDir: 
   return (path: string): Effect.Effect<void, ServiceFailure> =>
     Effect.gen(function* () {
       if (deniedPath(path, opts.userDir)) return yield* Effect.fail(notAllowed(`${path} is never readable by agents`))
+      if (tooBroad(path)) return yield* Effect.fail(notAllowed(`${path} is too broad: read a file or a project folder inside it`))
       if (yield* allowed(path)) return
       yield* Semaphore.withPermits(asking, 1)(
         Effect.gen(function* () {
           // Asked and answered "always" while this read waited.
           if (yield* allowed(path)) return
           const folder = folderOf(path)
+          // A folder too broad to allow for good (a file straight in /tmp or the home folder) is only offered once.
+          const always = tooBroad(folder) ? [] : [{ id: "always", label: `Always allow ${folder}`, recommended: true, why: "reads in that folder stop asking" }]
           const a = yield* opts.ask({
             question: `An agent wants to read ${path}, outside this repository.`,
-            options: [
-              { id: "once", label: "Allow once" },
-              { id: "always", label: `Always allow ${folder}`, recommended: true, why: "reads in that folder stop asking" },
-              { id: "deny", label: "Deny" },
-            ],
+            options: [{ id: "once", label: "Allow once" }, ...always, { id: "deny", label: "Deny" }],
             allowOther: false,
           })
           if (a.choice === "always") return yield* opts.grants.add(AGENTS, { kind: "fs-read", glob: `${folder}/**` })
