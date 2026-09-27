@@ -27,3 +27,7 @@ run = "mise x -- bun packages/cli/smoke/implement.ts"
 [tasks.smoke]
 description = "Live smoke test: one real research RLM on this repo (needs the configured model providers)"
 run = "mise x -- bun packages/rlm/smoke/smoke.ts"
+
+[tasks."calibrate:rehearse"]
+description = "Live rehearse calibration: the labelled steps against the decision model (needs zarg-router; ask first)"
+run = "mise x -- bun packages/core/scripts/calibrate-rehearse.ts"

@@ -1,0 +1,445 @@
+[
+  {
+    "name": "good step",
+    "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
+    "prior": [
+      {
+        "card": "prev",
+        "title": "before",
+        "given": "the visitor is on the site",
+        "when": "the visitor opens a product page",
+        "thens": [
+          "the product page is shown"
+        ],
+        "fork": [],
+        "hasFailure": false
+      }
+    ],
+    "step": {
+      "card": "good-step",
+      "title": "good step",
+      "given": "the product page is shown",
+      "when": "the visitor clicks Add to cart",
+      "thens": [
+        "the item is in the cart",
+        "the cart count goes up by one"
+      ],
+      "fork": [],
+      "hasFailure": false
+    },
+    "expect": []
+  },
+  {
+    "name": "broken seam",
+    "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
+    "prior": [
+      {
+        "card": "prev",
+        "title": "before",
+        "given": "the visitor is on the site",
+        "when": "the visitor opens the home page",
+        "thens": [
+          "the home page is shown"
+        ],
+        "fork": [],
+        "hasFailure": false
+      }
+    ],
+    "step": {
+      "card": "broken-seam",
+      "title": "broken seam",
+      "given": "the payment form is shown",
+      "when": "the visitor enters a card number",
+      "thens": [
+        "the card number is accepted"
+      ],
+      "fork": [],
+      "hasFailure": false
+    },
+    "expect": [
+      "seam"
+    ]
+  },
+  {
+    "name": "broken seam 2",
+    "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
+    "prior": [
+      {
+        "card": "prev",
+        "title": "before",
+        "given": "the visitor is on the site",
+        "when": "the visitor logs out",
+        "thens": [
+          "the login form is shown"
+        ],
+        "fork": [],
+        "hasFailure": false
+      }
+    ],
+    "step": {
+      "card": "broken-seam-2",
+      "title": "broken seam 2",
+      "given": "the visitor's order history is shown",
+      "when": "the visitor opens an order",
+      "thens": [
+        "the order details are shown"
+      ],
+      "fork": [],
+      "hasFailure": false
+    },
+    "expect": [
+      "seam"
+    ]
+  },
+  {
+    "name": "unclear action",
+    "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
+    "prior": [
+      {
+        "card": "prev",
+        "title": "before",
+        "given": "the visitor is on the site",
+        "when": "the visitor opens the cart",
+        "thens": [
+          "the cart is shown"
+        ],
+        "fork": [],
+        "hasFailure": false
+      }
+    ],
+    "step": {
+      "card": "unclear-action",
+      "title": "unclear action",
+      "given": "the cart is shown",
+      "when": "the visitor does the usual thing",
+      "thens": [
+        "checkout starts"
+      ],
+      "fork": [],
+      "hasFailure": false
+    },
+    "expect": [
+      "feel"
+    ]
+  },
+  {
+    "name": "unclear action 2",
+    "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
+    "prior": [
+      {
+        "card": "prev",
+        "title": "before",
+        "given": "the visitor is on the site",
+        "when": "the visitor opens the cart",
+        "thens": [
+          "the cart is shown"
+        ],
+        "fork": [],
+        "hasFailure": false
+      }
+    ],
+    "step": {
+      "card": "unclear-action-2",
+      "title": "unclear action 2",
+      "given": "the cart is shown",
+      "when": "the visitor finalizes the gesture",
+      "thens": [
+        "the order is placed"
+      ],
+      "fork": [],
+      "hasFailure": false
+    },
+    "expect": [
+      "feel"
+    ]
+  },
+  {
+    "name": "clear action",
+    "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
+    "prior": [
+      {
+        "card": "prev",
+        "title": "before",
+        "given": "the visitor is on the site",
+        "when": "the visitor opens the cart",
+        "thens": [
+          "the cart is shown"
+        ],
+        "fork": [],
+        "hasFailure": false
+      }
+    ],
+    "step": {
+      "card": "clear-action",
+      "title": "clear action",
+      "given": "the cart is shown",
+      "when": "the visitor clicks Checkout",
+      "thens": [
+        "the checkout form is shown"
+      ],
+      "fork": [],
+      "hasFailure": false
+    },
+    "expect": []
+  },
+  {
+    "name": "surprising outcome",
+    "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
+    "prior": [
+      {
+        "card": "prev",
+        "title": "before",
+        "given": "the visitor is on the site",
+        "when": "the visitor opens settings",
+        "thens": [
+          "the settings page is shown"
+        ],
+        "fork": [],
+        "hasFailure": false
+      }
+    ],
+    "step": {
+      "card": "surprising-outcome",
+      "title": "surprising outcome",
+      "given": "the settings page is shown",
+      "when": "the visitor clicks Save",
+      "thens": [
+        "the account is deleted"
+      ],
+      "fork": [],
+      "hasFailure": false
+    },
+    "expect": [
+      "feel"
+    ]
+  },
+  {
+    "name": "surprising outcome 2",
+    "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
+    "prior": [
+      {
+        "card": "prev",
+        "title": "before",
+        "given": "the visitor is on the site",
+        "when": "the visitor opens a product page",
+        "thens": [
+          "the product page is shown"
+        ],
+        "fork": [],
+        "hasFailure": false
+      }
+    ],
+    "step": {
+      "card": "surprising-outcome-2",
+      "title": "surprising outcome 2",
+      "given": "the product page is shown",
+      "when": "the visitor clicks Add to cart",
+      "thens": [
+        "the visitor is logged out"
+      ],
+      "fork": [],
+      "hasFailure": false
+    },
+    "expect": [
+      "feel"
+    ]
+  },
+  {
+    "name": "missing failure pay",
+    "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
+    "prior": [
+      {
+        "card": "prev",
+        "title": "before",
+        "given": "the visitor is on the site",
+        "when": "the visitor fills the checkout form",
+        "thens": [
+          "the payment form is shown"
+        ],
+        "fork": [],
+        "hasFailure": false
+      }
+    ],
+    "step": {
+      "card": "missing-failure-pay",
+      "title": "missing failure pay",
+      "given": "the payment form is shown",
+      "when": "the visitor pays with a card",
+      "thens": [
+        "the order is placed"
+      ],
+      "fork": [],
+      "hasFailure": false
+    },
+    "expect": [
+      "fail"
+    ]
+  },
+  {
+    "name": "missing failure login",
+    "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
+    "prior": [
+      {
+        "card": "prev",
+        "title": "before",
+        "given": "the visitor is on the site",
+        "when": "the visitor opens the login page",
+        "thens": [
+          "the login form is shown"
+        ],
+        "fork": [],
+        "hasFailure": false
+      }
+    ],
+    "step": {
+      "card": "missing-failure-login",
+      "title": "missing failure login",
+      "given": "the login form is shown",
+      "when": "the visitor submits email and password",
+      "thens": [
+        "the visitor is signed in"
+      ],
+      "fork": [],
+      "hasFailure": false
+    },
+    "expect": [
+      "fail"
+    ]
+  },
+  {
+    "name": "no failure scroll",
+    "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
+    "prior": [
+      {
+        "card": "prev",
+        "title": "before",
+        "given": "the visitor is on the site",
+        "when": "the visitor opens the home page",
+        "thens": [
+          "the home page is shown"
+        ],
+        "fork": [],
+        "hasFailure": false
+      }
+    ],
+    "step": {
+      "card": "no-failure-scroll",
+      "title": "no failure scroll",
+      "given": "the home page is shown",
+      "when": "the visitor scrolls down",
+      "thens": [
+        "more products are shown"
+      ],
+      "fork": [],
+      "hasFailure": false
+    },
+    "expect": []
+  },
+  {
+    "name": "no failure close",
+    "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
+    "prior": [
+      {
+        "card": "prev",
+        "title": "before",
+        "given": "the visitor is on the site",
+        "when": "the visitor opens a dialog",
+        "thens": [
+          "the dialog is shown"
+        ],
+        "fork": [],
+        "hasFailure": false
+      }
+    ],
+    "step": {
+      "card": "no-failure-close",
+      "title": "no failure close",
+      "given": "the dialog is shown",
+      "when": "the visitor clicks Close",
+      "thens": [
+        "the dialog is gone"
+      ],
+      "fork": [],
+      "hasFailure": false
+    },
+    "expect": []
+  },
+  {
+    "name": "clear fork",
+    "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside. Right now you want to keep the new address.",
+    "prior": [
+      {
+        "card": "prev",
+        "title": "before",
+        "given": "the visitor is on the site",
+        "when": "the visitor edits their address",
+        "thens": [
+          "the edited address is shown"
+        ],
+        "fork": [],
+        "hasFailure": false
+      }
+    ],
+    "step": {
+      "card": "clear-fork",
+      "title": "clear fork",
+      "given": "the edited address is shown",
+      "when": "the visitor decides",
+      "thens": [
+        "a choice is made"
+      ],
+      "fork": [
+        {
+          "card": "f0",
+          "when": "the visitor clicks Save changes"
+        },
+        {
+          "card": "f1",
+          "when": "the visitor clicks Delete account"
+        }
+      ],
+      "hasFailure": false
+    },
+    "expect": []
+  },
+  {
+    "name": "ambiguous fork",
+    "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside. Right now you want to finish buying.",
+    "prior": [
+      {
+        "card": "prev",
+        "title": "before",
+        "given": "the visitor is on the site",
+        "when": "the visitor fills the checkout form",
+        "thens": [
+          "the checkout form is complete"
+        ],
+        "fork": [],
+        "hasFailure": false
+      }
+    ],
+    "step": {
+      "card": "ambiguous-fork",
+      "title": "ambiguous fork",
+      "given": "the checkout form is complete",
+      "when": "the visitor decides",
+      "thens": [
+        "a choice is made"
+      ],
+      "fork": [
+        {
+          "card": "f0",
+          "when": "the visitor clicks Continue"
+        },
+        {
+          "card": "f1",
+          "when": "the visitor clicks Proceed"
+        }
+      ],
+      "hasFailure": false
+    },
+    "expect": [
+      "fork"
+    ]
+  }
+]
