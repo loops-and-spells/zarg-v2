@@ -65,7 +65,9 @@ describe("reconciler", () => {
     // Under load the two files may land in separate quiet periods: an early pass then finds nothing to do.
     await until(() => results.includes("landed"))
     rec.close()
-    expect(results.filter((x) => x !== "nothing")).toEqual(["landed"])
+    // Extra quiet periods may add passes that find nothing (or find it already reconciled): exactly one lands.
+    expect(results.filter((x) => x === "landed")).toEqual(["landed"])
+    expect(results.every((x) => x === "landed" || x === "nothing" || x === "skipped")).toBe(true)
     expect(sh(r, "git log -1 --format=%s")).toBe("feat: implement UX-0001")
   }, 20_000)
 
