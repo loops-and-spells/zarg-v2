@@ -25,7 +25,7 @@ describe("reduce", () => {
     expect(s.pendingInquiry).toEqual({ id: "inq-1", question: "Which card first?", options: inquiry.metadata.options, allowOther: true, about: ["UX-0001"] })
   })
 
-  test("messages build from START, CONTENT, END; the next run clears the inquiry once it finishes", () => {
+  test("messages build from START, CONTENT, END; the next run clears the inquiry", () => {
     const s = fold([
       ev("RUN_STARTED", { runId: "r1" }),
       ev("RUN_FINISHED", { runId: "r1", outcome: { type: "interrupt", interrupts: [inquiry] } }),
@@ -40,6 +40,18 @@ describe("reduce", () => {
     ])
     expect(s.pendingInquiry).toBeUndefined()
     expect(s.status).toBe("idle")
+  })
+
+  test("the run an answer starts clears the inquiry at once; a question still open comes back with the run's interrupt", () => {
+    const answered = fold([
+      ev("RUN_STARTED", { runId: "r1" }),
+      ev("RUN_FINISHED", { runId: "r1", outcome: { type: "interrupt", interrupts: [inquiry] } }),
+      ev("RUN_STARTED", { runId: "r2" }),
+    ])
+    expect(answered.pendingInquiry).toBeUndefined()
+    expect(answered.status).toBe("running")
+    const still = fold([ev("RUN_FINISHED", { runId: "r2", outcome: { type: "interrupt", interrupts: [inquiry] } })], answered)
+    expect(still.pendingInquiry?.id).toBe("inq-1")
   })
 
   test("RUN_ERROR shows the error; the next run clears it", () => {

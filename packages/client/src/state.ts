@@ -76,7 +76,9 @@ export const reduce = (s: ThreadState, e: WireEvent): ThreadState => {
   const t: ThreadState = { ...s, seq: e.seq }
   switch (e.type) {
     case "RUN_STARTED": {
-      const { error: _, ...rest } = t
+      // A new run means the core took the answer (or message): the question goes. One still open comes
+      // back with this run's interrupt.
+      const { error: _, pendingInquiry: __, ...rest } = t
       return { ...rest, status: "running" }
     }
     case "RUN_FINISHED": {
