@@ -1,0 +1,10 @@
+{
+  "edges": [],
+  "id": "P-0002",
+  "props": {
+    "kind": "cli",
+    "name": "CLI actor",
+    "text": "a coding agent (Claude Code, Codex) working the same requirements and code through the zarg command line and its skills. It reads and writes structured output, follows refusals and hints, and never sees the terminal app."
+  },
+  "type": "gherkin/persona"
+}

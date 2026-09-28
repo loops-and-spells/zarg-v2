@@ -1,0 +1,10 @@
+{
+  "edges": [],
+  "id": "P-0003",
+  "props": {
+    "kind": "agent",
+    "name": "Driver Agent",
+    "text": "zarg's conversational agent. It reads the agenda, asks the operator one question at a time and records the answers as requirements. It sees the requirements and the conversation, never the operator's screen."
+  },
+  "type": "gherkin/persona"
+}

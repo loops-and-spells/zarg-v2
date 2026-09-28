@@ -1,0 +1,10 @@
+{
+  "edges": [],
+  "id": "P-0004",
+  "props": {
+    "kind": "agent",
+    "name": "Planner Agent",
+    "text": "turns changed cards into implementation plans. It reads the cards and the code and writes plans; it never edits code or requirements."
+  },
+  "type": "gherkin/persona"
+}

@@ -1,0 +1,10 @@
+{
+  "edges": [],
+  "id": "P-0006",
+  "props": {
+    "kind": "agent",
+    "name": "Plugin Agent",
+    "text": "an agent a plugin brings, running locked down with only the scopes the operator granted. It sees what its powers serve, never secrets or undeclared files."
+  },
+  "type": "gherkin/persona"
+}

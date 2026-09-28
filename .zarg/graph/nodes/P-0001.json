@@ -1,0 +1,10 @@
+{
+  "edges": [],
+  "id": "P-0001",
+  "props": {
+    "kind": "human",
+    "name": "Operator",
+    "text": "the person shaping their product with zarg, through its terminal app or any client. They talk about intent, answer questions, approve what is written and what runs, and watch or stop the work."
+  },
+  "type": "gherkin/persona"
+}

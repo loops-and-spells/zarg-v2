@@ -11,6 +11,14 @@
     {
       "to": "J-0001",
       "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
     }
   ],
   "id": "UX-0072",
