@@ -52,7 +52,8 @@ describe("the terminal draws an agent's view", () => {
     expect(at("Steps")).toBeLessThan(at("Findings"))
     expect(f).toContain("story 3")
     expect(f).toContain("R-2")
-    expect(f).toContain("a Apply")
+    // Keys live on the status line, never inside a table.
+    expect(f).not.toContain("a Apply")
     // The log shows its newest lines (it follows the bottom).
     expect(f).toContain("step 39")
   })
@@ -68,15 +69,42 @@ describe("the terminal draws an agent's view", () => {
     expect(lines.filter((l) => /R-\d/.test(l)).length).toBeGreaterThanOrEqual(2)
   })
 
-  test("the focused section is marked, the highlighted row shows, selected rows are ticked", async () => {
-    const f = await frame(view(3), { ...initialViewUi, focus: 3, rows: { "review.findings": 1 }, selected: { "review.findings": ["R-2"] } })
-    expect(f).toContain("▸ [ ] R-1")
-    expect(f).toContain("  [x] R-2")
+  test("sections are headed blocks: a title and a rule, no frames", async () => {
+    const f = await frame(view(3))
+    expect(f).not.toMatch(/[┌┐└┘│]/)
+    expect(f).toMatch(/Workers ─+/)
+    expect(f).toMatch(/Steps ─+/)
+  })
+
+  test("the current tab is marked in the heading", async () => {
+    const f = await frame(view(3))
+    expect(f).toMatch(/Findings 3 {2}Likes 0 ─+/)
+  })
+
+  test("a selectable table: ○ on each row, ● on selected ones, ▍ on the cursor", async () => {
+    const ui = { ...initialViewUi, focus: 3, rows: { "review.findings": 1 }, selected: { "review.findings": ["R-0"] } }
+    const lines = (await frame(view(3), ui)).split("\n")
+    expect(lines.find((l) => l.includes("R-0"))).toMatch(/● R-0/)
+    expect(lines.find((l) => l.includes("R-1"))).toMatch(/▍○ R-1/)
+    expect(lines.find((l) => l.includes("R-2"))).toMatch(/ ○ R-2/)
+  })
+
+  test("an empty selectable table", async () => {
+    const f = await frame(view(0), { ...initialViewUi, focus: 3 })
+    expect(f).toContain("nothing yet")
+    expect(f).not.toMatch(/[○●]/)
+  })
+
+  test("a long cell ends in … on one line", async () => {
+    const long = { ...view(1), data: { ...view(1).data, "review.findings": { rows: [{ id: "R-0", cells: { id: "R-0", note: "word ".repeat(60) } }] } } }
+    const lines = (await frame(long, initialViewUi, { width: 80, height: 30 })).split("\n").filter((l) => l.includes("word"))
+    expect(lines).toHaveLength(1)
+    expect(lines[0]!.trimEnd()).toMatch(/…$/)
   })
 
   test("the highlighted row of a long table stays on screen", async () => {
     const f = await frame(view(30), { ...initialViewUi, focus: 3, rows: { "review.findings": 25 } }, { width: 80, height: 20 })
-    expect(f).toContain("▸ [ ] R-25")
+    expect(f).toContain("▍○ R-25")
   })
 
   test("the focused section scrolls when the shell asks", async () => {
