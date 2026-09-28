@@ -250,12 +250,12 @@ export const barLine = (ui: Ui, s: SessionState, now: number): { readonly text: 
   if (q !== undefined && ui.answered === q.id) return { text: "sending your answer…", tone: "working" }
   if (q !== undefined && ui.chatting !== q.id)
     // The sheet already shows the question with its options: the bar only says how to reach them.
-    return sheetShown(ui) ? { text: "answer zarg above, or / to chat about it", tone: "question" } : { text: `? ${q.question}   alt+m or / to answer`, tone: "question" }
+    return sheetShown(ui) ? { text: "answer zarg above, or / to chat about it", tone: "question" } : { text: `◆ zarg asks ${q.question}   ⏎ answer   / chat`, tone: "question" }
   const busyLine = working(ui, s, now)
   if (busyLine !== undefined) return { text: busyLine, tone: "working" }
   const last = lastReply(s)
-  if (last !== undefined && last.id !== ui.readUpTo && !sheetShown(ui)) return { text: `zarg: ${last.text.length > 60 ? `${last.text.slice(0, 59)}…` : last.text}`, tone: "reply" }
-  return { text: "message zarg… (alt+m or /)", tone: "idle" }
+  if (last !== undefined && last.id !== ui.readUpTo && !sheetShown(ui)) return { text: `zarg ${last.text.length > 60 ? `${last.text.slice(0, 59)}…` : last.text}`, tone: "reply" }
+  return { text: "› message zarg… (alt+m or /)", tone: "idle" }
 }
 
 /** A panel's name split around its Alt letter; a letter not in the name goes before it. */
