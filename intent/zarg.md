@@ -43,6 +43,7 @@ Who meets zarg at its edges; listed in the frontmatter (`personas`), where rehea
 
 - Intent documents (`intent/*.md`): what the product is for, in the operator's words.
 - The requirements graph (`.zarg/graph`): the product as atomic user actions, each traceable to an intent.
+- Feedback and plans (`.zarg/feedback`, `.zarg/triage`, `.zarg/backlog`): what testers found on each version of a card, how the operator triaged it, and the plans that change the requirements before anything is built.
 - Plans and code, verified and landed on the operator's branch as commits, each traceable to its cards.
 - Questions and findings for the operator: one at a time, with options and a recommendation.
 - A live view of the work: what runs, what it decided, how far it got, what waits for the operator.

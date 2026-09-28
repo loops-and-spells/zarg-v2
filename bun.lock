@@ -33,6 +33,22 @@
         "@zarg/plugin": "workspace:*",
       },
     },
+    "packages/agent-triage": {
+      "name": "@zarg/agent-triage",
+      "dependencies": {
+        "@zarg/agent-rehearse": "workspace:*",
+        "@zarg/entities": "workspace:*",
+        "@zarg/plugin-backlog": "workspace:*",
+        "@zarg/plugin-gherkin": "workspace:*",
+        "@zarg/plugin-sdk": "workspace:*",
+        "effect": "^4.0.0-rc.117",
+      },
+      "devDependencies": {
+        "@effect/platform-bun": "^4.0.0-rc.117",
+        "@zarg/graph": "workspace:*",
+        "@zarg/plugin": "workspace:*",
+      },
+    },
     "packages/agent-zarg": {
       "name": "@zarg/agent-zarg",
       "dependencies": {
@@ -399,6 +415,8 @@
     "@zarg/agent-host": ["@zarg/agent-host@workspace:packages/agent-host"],
 
     "@zarg/agent-rehearse": ["@zarg/agent-rehearse@workspace:packages/agent-rehearse"],
+
+    "@zarg/agent-triage": ["@zarg/agent-triage@workspace:packages/agent-triage"],
 
     "@zarg/agent-zarg": ["@zarg/agent-zarg@workspace:packages/agent-zarg"],
 

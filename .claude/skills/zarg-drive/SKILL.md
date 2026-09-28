@@ -18,7 +18,7 @@ Run the CLI from the repo root as `mise run -q zarg -- <command>`. Output is JSO
 - Mark a state `entry` when the user can start there, `terminal` when nothing needs to follow it.
 - A **persona** (`P-NNNN`) is someone who acts in cards: a name (the cards' title prefix), a kind (human, cli, agent) and a roleplay text. Every card names its actors with `by` (one or more). The agenda asks who uses the product when there are none, and who does cards without `by`.
 - Clauses have at most 15 words, never contain "if" (make one card per case), and avoid "and".
-- Personas (listed in `intent/zarg.md`): **the operator**, the person using zarg (titles "Operator …"; never "the developer", which also means zarg's contributors); **a CLI actor**, a coding agent working through the zarg CLI and its skills ("CLI actor …"); and zarg's internal agents, each "the X Agent": the Driver Agent, the Planner Agent, the Implementer Agent, a Plugin Agent. Say what the persona sees and does, never how zarg is built (no packages, renderers or libraries).
+- Personas (listed in `intent/zarg.md`): **the operator**, the person using zarg (titles "Operator …"; never "the developer", which also means zarg's contributors); **a CLI actor**, a coding agent working through the zarg CLI and its skills ("CLI actor …"); and zarg's internal agents, each "the X Agent": the Driver Agent, the Planner Agent, the Implementer Agent, the Triage Agent, a Plugin Agent. Say what the persona sees and does, never how zarg is built (no packages, renderers or libraries).
 
 ## Loop
 

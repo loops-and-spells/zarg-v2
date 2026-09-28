@@ -161,9 +161,13 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     yield* announceNav
     // A plugin's agenda changed (findings to take up): the driver wakes if it waits on nothing.
     // The backlog's agenda changing (a plan is Ready) wakes the Planner too.
+    // The Triage Agent's pass over every journey's stage (when it is loaded).
+    const triageTick = Effect.suspend(() => (host.manifests.some((m) => m.name === "triage") ? Effect.ignore(host.invoke("triage", "tick", {})) : Effect.void))
+    // The backlog's or rehearse's agenda changing wakes the Triage Agent (a stage's turn, a re-rehearse done).
     control.setAgendaChanged((plugin) => {
       Effect.runFork(main.wake)
       if (plugin === "backlog") Effect.runFork(planner.tick)
+      if (plugin === "backlog" || plugin === "rehearse") Effect.runFork(triageTick)
     })
     // Plugins' agents show in main's agents pane, each plugin in its own stream.
     // A plugin agent's view is one its manifest declares; a malformed one fails that agent's start.
@@ -189,7 +193,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         .pipe(Effect.map((a) => q.options.find((o) => o.id === a.choice)?.id ?? "deny")),
     )
     // Plugins that lack only their load grant: asked about now that main can ask (YOLO loads them without asking).
-    yield* Effect.forkDetach(Effect.andThen(loadPlugins, planner.tick))
+    // Then the agents pick up where a restart left them: a Ready plan, a journey's stage halfway.
+    yield* Effect.forkDetach(Effect.andThen(loadPlugins, Effect.andThen(planner.tick, triageTick)))
 
     // @card UX-0058 @card UX-0059
     /** `/reconcile`: turn plan and implement on for this session (the config's section and `enabled` are overridden). */

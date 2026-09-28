@@ -1,0 +1,21 @@
+{
+  "name": "@zarg/agent-triage",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@zarg/agent-rehearse": "workspace:*",
+    "@zarg/entities": "workspace:*",
+    "@zarg/plugin-backlog": "workspace:*",
+    "@zarg/plugin-gherkin": "workspace:*",
+    "@zarg/plugin-sdk": "workspace:*",
+    "effect": "^4.0.0-rc.117"
+  },
+  "devDependencies": {
+    "@effect/platform-bun": "^4.0.0-rc.117",
+    "@zarg/graph": "workspace:*",
+    "@zarg/plugin": "workspace:*"
+  }
+}
