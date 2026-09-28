@@ -261,7 +261,7 @@ const cardHeight = (card: NonNullable<ReturnType<typeof cursorRow>>, view: ViewS
   const { cols, widths } = tableLayout(view, card.path, card.leaf, width)
   const lines = cols.reduce((a, c, i) => {
     const v = card.row.cells?.[c.id] ?? ""
-    return i > 0 && v.replace(/\s*\n\s*/g, " ").length > widths[i]! ? a + 1 + v.split("\n").reduce((n, l) => n + Math.max(1, Math.ceil(l.length / Math.max(1, width - 2))), 0) : a
+    return i > 0 && v.replace(/\s*\n\s*/g, " ").length > widths[i]! ? a + 1 + v.split("\n").reduce((n, l) => n + Math.max(1, Math.ceil(l.length / Math.max(1, width - 4))), 0) : a
   }, 1)
   return Math.max(1, Math.min(cap, lines))
 }
@@ -272,24 +272,24 @@ const RowCard = (p: { readonly card: NonNullable<ReturnType<typeof cursorRow>>; 
   const long = cols.flatMap((c, i) => (i > 0 && text(i).length > widths[i]! ? [{ label: c.label, value: p.card.row.cells?.[c.id] ?? "" }] : []))
   const short = cols.flatMap((c, i) => (i > 0 && text(i) !== "" && text(i).length <= widths[i]! ? [`${c.label} ${text(i)}`] : []))
   return (
-    // As tall as the row needs (`cardHeight`), a blank row above it; past its cap it scrolls.
-    <scrollbox focusable={false} style={{ flexShrink: 0, height: p.height, marginTop: 1 }}>
-      <text wrapMode="none">
-        {p.card.leaf.selectable === true ? <span fg={p.card.selected ? THEME.accent : THEME.dim}>{p.card.selected ? "● " : "○ "}</span> : null}
-        <span fg={fg(p.card.row.tone)}>
-          <b>{cols.length > 0 ? text(0) : p.card.row.id}</b>
-        </span>
-        <span fg={THEME.dim}>{fit(`  ${short.join(" · ")}`, Math.max(0, p.width - 4 - (cols.length > 0 ? text(0) : p.card.row.id).length))}</span>
-      </text>
-      {long.map((l) => (
-        <box key={l.label} style={{ flexDirection: "column", flexShrink: 0 }}>
-          <text fg={THEME.dim}>{l.label}</text>
-          <box style={{ paddingLeft: 2 }}>
+    // A shaded panel with an accent bar, so it never reads as another row; as tall as the row needs (`cardHeight`), a blank row above it; past its cap it scrolls.
+    <box style={{ flexShrink: 0, height: p.height, marginTop: 1, border: ["left"], borderStyle: "heavy", borderColor: THEME.accent, backgroundColor: THEME.shade, paddingLeft: 1, paddingRight: 1 }}>
+      <scrollbox focusable={false} style={{ flexGrow: 1 }}>
+        <text wrapMode="none">
+          <span fg={p.card.row.tone !== undefined ? fg(p.card.row.tone) : THEME.accent}>
+            <b>{cols.length > 0 ? text(0) : p.card.row.id}</b>
+          </span>
+          {p.card.selected ? <span fg={THEME.accent}>{"  ● ticked"}</span> : null}
+          <span fg={THEME.dim}>{fit(`  ${short.join(" · ")}`, Math.max(0, p.width - 6 - (cols.length > 0 ? text(0) : p.card.row.id).length - (p.card.selected ? 10 : 0)))}</span>
+        </text>
+        {long.map((l) => (
+          <box key={l.label} style={{ flexDirection: "column", flexShrink: 0 }}>
+            <text fg={THEME.dim}>{l.label}</text>
             <text fg={THEME.text}>{l.value}</text>
           </box>
-        </box>
-      ))}
-    </scrollbox>
+        ))}
+      </scrollbox>
+    </box>
   )
 }
 

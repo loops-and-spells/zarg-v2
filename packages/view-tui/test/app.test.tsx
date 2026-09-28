@@ -1178,14 +1178,16 @@ describe("tabs, the fixed card, breathing room", () => {
     let ls = lines(t)
     const last = ls.findIndex((l) => l.includes("○ F2"))
     expect(ls[last + 1]!.slice(24).trim()).toBe("")
-    expect(ls[last + 2]).toContain("○ F1")
+    // A panel, not a row: an accent bar, no ○.
+    expect(ls[last + 2]).toContain("┃ F1")
+    expect(ls[last + 2]).not.toContain("○")
     expect(ls.findIndex((l, i) => i > last && l.includes("a long note a long note"))).toBeGreaterThan(last + 2)
     t.mockInput.pressArrow("down"); await settle(t)
     ls = lines(t)
     expect(t.captureCharFrame()).toContain("▍○ F2")
     expect(at()).toBe(before)
     // A short row: a short card (its line, with its note inline).
-    const card = ls.findIndex((l, i) => i > last + 1 && l.includes("○ F2"))
+    const card = ls.findIndex((l, i) => i > last + 1 && l.includes("┃ F2"))
     expect(ls[card]).toContain("note short")
     expect(ls.slice(card + 1).some((l) => l.includes("a long note a long"))).toBe(false)
   })
