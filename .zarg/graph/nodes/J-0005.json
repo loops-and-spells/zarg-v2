@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "J-0005",
+  "props": {
+    "name": "CLI actor"
+  },
+  "type": "gherkin/journey"
+}

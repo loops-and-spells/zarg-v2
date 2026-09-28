@@ -7,6 +7,10 @@
     {
       "to": "S-0044",
       "type": "gherkin/then"
+    },
+    {
+      "to": "J-0003",
+      "type": "gherkin/in"
     }
   ],
   "id": "UX-0042",

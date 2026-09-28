@@ -11,6 +11,10 @@
     {
       "to": "S-0079",
       "type": "gherkin/arrives"
+    },
+    {
+      "to": "J-0001",
+      "type": "gherkin/in"
     }
   ],
   "id": "UX-0077",
