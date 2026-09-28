@@ -1214,3 +1214,62 @@ describe("tabs, the fixed card, breathing room", () => {
     expect(ls[report + 1]!.slice(24).trim()).toBe("")
   })
 })
+
+describe("nav items above the agents", () => {
+  const nav = [{ id: "gherkin:journeys", plugin: "gherkin", name: "journeys", label: "Journeys", view: "gherkin:journeys@journeys" }]
+  const journeysView = {
+    agent: "gherkin:journeys@journeys",
+    layout: {
+      name: "journeys",
+      sections: [
+        { id: "list", kind: "table" as const, role: "primary" as const, title: "Journeys", columns: [{ id: "name", label: "journey" }, { id: "cards", label: "cards" }], actions: [{ id: "show", label: "Show", key: "s", on: "row" as const, default: true }] },
+        { id: "flow", kind: "text" as const, role: "pinned" as const, title: "Flow" },
+      ],
+    },
+    data: {
+      list: { rows: [{ id: "J-0002", cells: { name: "Browse", cards: "1" } }, { id: "J-0001", cells: { name: "Checkout", cards: "2" } }] },
+      flow: { markdown: "```text\nBrowse  # J-0002 · 1 card\n\nUX-0001 Visitor opens pricing\n  Given the visitor is on the home page  # S-0001\n```" },
+    },
+  }
+  const tester = { id: "rehearse:t1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
+  const state: SessionState = { thread: { ...initial("main"), status: "idle", rlms: { "rehearse:t1": tester }, nav, views: { "gherkin:journeys@journeys": journeysView } }, core: "up" }
+  const big = { width: 130, height: 32 }
+
+  test("the rail lists nav items above the agents header; agents stay below as they were", async () => {
+    const t = await render(state, big)
+    const lines = t.captureCharFrame().split("\n").map((l) => l.slice(0, 24))
+    const journeys = lines.findIndex((l) => l.includes("Journeys"))
+    const agents = lines.findIndex((l) => l.includes("agents"))
+    const row = lines.findIndex((l) => l.includes("t1"))
+    expect(journeys).toBeGreaterThanOrEqual(0)
+    expect(agents).toBeGreaterThan(journeys)
+    expect(row).toBeGreaterThan(agents)
+  })
+
+  test("keys: up from the first agent reaches Journeys; Enter opens its view and asks gherkin to fill it", async () => {
+    const t = await render(state, big)
+    t.mockInput.pressKey("a", { meta: true }); await settle(t)
+    t.mockInput.pressArrow("up"); await settle(t)
+    t.mockInput.pressEnter(); await settle(t)
+    expect(t.calls).toContain("act gherkin:journeys open ")
+    const frame = t.captureCharFrame()
+    // Its header is the nav item's label, not an agent id.
+    expect(frame).not.toContain("gherkin:journeys")
+    expect(frame).toContain("Browse")
+    expect(frame).toContain("Given the visitor is on the home page")
+    // Enter on a row shows that journey.
+    t.mockInput.pressArrow("down"); await settle(t)
+    t.mockInput.pressEnter(); await settle(t)
+    expect(t.calls).toContain("act gherkin:journeys show J-0001")
+  })
+
+  test("a click on the nav item opens it too", async () => {
+    const t = await render(state, big)
+    const lines = t.captureCharFrame().split("\n")
+    const y = lines.findIndex((l) => l.slice(0, 24).includes("Journeys"))
+    await t.mockMouse.click(lines[y]!.indexOf("Journeys") + 1, y)
+    await settle(t)
+    expect(t.calls).toContain("act gherkin:journeys open ")
+    expect(t.captureCharFrame()).toContain("Checkout")
+  })
+})

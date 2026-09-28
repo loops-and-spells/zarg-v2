@@ -37,6 +37,8 @@ import {
   pickerRows,
   queueOf,
   sheetShown,
+  NAV,
+  openNav,
   slashActive,
   slashBox,
   statusLine,
@@ -164,6 +166,11 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     const st = props.session.state()
     if (id === ARCHIVED) setUi({ ...u, focus: "agents", agents: { ...u.agents, cursor: ARCHIVED, toggled: { ...u.agents.toggled, [ARCHIVED]: u.agents.toggled[ARCHIVED] !== true } } })
     else if (id.startsWith("archived:")) setUi(openAgent(u, st, id.slice("archived:".length)))
+    else if (id.startsWith(NAV)) {
+      const r = openNav(u, st, id)
+      setUi(r.ui)
+      act(r.action)
+    }
     else setUi(activate(u, st, id))
   }
   const agentsList = (
@@ -175,6 +182,27 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       }}
       style={{ ...(narrow && ui.focus === "agents" ? { flexGrow: 1 } : { width: railWidth, flexShrink: 0 }), flexDirection: "column", backgroundColor: THEME.raised, paddingLeft: 1, paddingRight: railWidth > 3 ? 1 : 0 }}
     >
+      {/* Nav items (plugins' views: Journeys, …) above the agents; a click or Enter opens one. */}
+      {(s.thread.nav ?? []).map((n) => {
+        const id = `${NAV}${n.id}`
+        const on = (ui.agents.cursor === id && ui.focus === "agents") || n.view === viewing
+        return (
+          <box
+            key={id}
+            style={{ flexShrink: 0, height: 1 }}
+            onMouseDown={(e: { stopPropagation: () => void }) => {
+              e.stopPropagation()
+              pick(id)
+            }}
+          >
+            <text wrapMode="none" {...(on ? { bg: THEME.selection } : {})}>
+              <span fg={on ? THEME.accent : THEME.dim}>▤</span>
+              {railWidth > 3 ? <span fg={THEME.text}>{on ? <b>{` ${fit(n.label, AGENTS_WIDTH - 5)}`}</b> : ` ${fit(n.label, AGENTS_WIDTH - 5)}`}</span> : null}
+            </text>
+          </box>
+        )
+      })}
+      {(s.thread.nav ?? []).length > 0 ? <text> </text> : null}
       {railWidth > 3 ? (
         <text wrapMode="none">
           <span fg={ui.focus === "agents" ? THEME.accent : THEME.dim}>
@@ -286,7 +314,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       <box style={{ flexGrow: 1, flexDirection: "column", paddingLeft: 2, paddingRight: 2 }}>
         <text wrapMode="none">
           <span fg={THEME.accent}>
-            <b>{fit(agentNode !== undefined ? displayName(agentNode) : (agentId ?? ""), focusWidth)}</b>
+            <b>{fit(agentNode !== undefined ? displayName(agentNode) : ((s.thread.nav ?? []).find((n) => n.view === viewing)?.label ?? agentId ?? ""), focusWidth)}</b>
           </span>
           <span fg={THEME.dim}>{agentNode !== undefined ? fit(`  ${contextOf(agentNode)}`, Math.max(0, focusWidth - displayName(agentNode).length)) : ""}</span>
         </text>

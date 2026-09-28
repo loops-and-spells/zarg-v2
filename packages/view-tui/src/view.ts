@@ -524,21 +524,42 @@ export const activate = (ui: Ui, s: SessionState, id: string): Ui => {
   return openAgent(ui, s, id)
 }
 
+/** A nav item's rail row id: `nav:` and the item's id. */
+export const NAV = "nav:"
+/** The nav items' row ids, in the order the rail lists them (above the agents). */
+export const navRows = (s: SessionState) => (s.thread.nav ?? []).map((n) => `${NAV}${n.id}`)
+/** Open a nav item: its view in the focus, and the plugin asked to fill it (its `act` "open"). */
+export const openNav = (ui: Ui, s: SessionState, row: string): { readonly ui: Ui; readonly action?: Action } => {
+  const item = (s.thread.nav ?? []).find((n) => `${NAV}${n.id}` === row)
+  if (item === undefined) return { ui }
+  const at = { ...ui, agents: { ...ui.agents, cursor: row } }
+  return { ui: { ...goTo(at, "agent", item.view), sheet: false, focus: "tile" }, action: { type: "act", agent: item.id, action: "open", section: undefined, rows: [], view: item.view } }
+}
+
 /** Keys on the agents list: move the highlight, fold, open; `x` archives (or restores), `X` archives every finished agent, `D` deletes an archived one for good. */
 export const onAgentsKey = (ui: Ui, s: SessionState, key: Key): { readonly ui: Ui; readonly action?: Action } => {
   const live = liveRlms(s)
   const rows = visible(live, ui.agents)
+  const nav = navRows(s)
   const ids = treeRows(ui, s).map((r) => r.id)
-  const cursor = ui.agents.cursor !== undefined && isArchiveRow(ui.agents.cursor) ? ui.agents.cursor : cursorOf(rows, ui.agents)
-  if (cursor === undefined) return { ui }
-  const at = ids.indexOf(cursor)
   const move = (id: string | undefined): Ui => (id === undefined ? ui : { ...ui, agents: { ...ui.agents, cursor: id } })
+  // The nav items sit above the agents: the arrows run through both.
+  if (ui.agents.cursor !== undefined && nav.includes(ui.agents.cursor)) {
+    const i = nav.indexOf(ui.agents.cursor)
+    if (key.name === "down") return { ui: move(nav[i + 1] ?? ids[0]) }
+    if (key.name === "up") return { ui: move(nav[Math.max(0, i - 1)]) }
+    if (key.name === "return") return openNav(ui, s, ui.agents.cursor)
+    return { ui }
+  }
+  const cursor = ui.agents.cursor !== undefined && isArchiveRow(ui.agents.cursor) ? ui.agents.cursor : cursorOf(rows, ui.agents)
+  if (cursor === undefined) return key.name === "up" || key.name === "down" ? { ui: move(nav.at(-1)) } : { ui }
+  const at = ids.indexOf(cursor)
   const shifted = (letter: string) => key.name === letter.toUpperCase() || (key.name === letter && key.shift === true)
   const archive = (change: { archive?: ReadonlyArray<string>; restore?: ReadonlyArray<string>; delete?: ReadonlyArray<string> }) => ({ ui, action: { type: "archive" as const, change } })
   // Finished, asking for nothing, and not zarg: what may leave the tree.
   const finished = (n: RlmNode) => n.id !== "zarg" && n.status !== "running" && n.attention === undefined
   if (key.name === "down") return { ui: move(ids[Math.min(ids.length - 1, at + 1)]) }
-  if (key.name === "up") return { ui: move(ids[Math.max(0, at - 1)]) }
+  if (key.name === "up") return { ui: move(at === 0 && nav.length > 0 ? nav.at(-1) : ids[Math.max(0, at - 1)]) }
   if (shifted("x")) {
     const all = rows.flatMap((r) => [r.node, ...r.hidden]).filter(finished).map((n) => n.id)
     return all.length > 0 ? archive({ archive: all }) : { ui }
