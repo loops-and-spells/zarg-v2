@@ -20,6 +20,8 @@ export interface Ui {
   readonly arrived: boolean
   /** The grid's highlighted card (its page follows from it). */
   readonly grid: { readonly cursor: number }
+  /** The review queue: the highlighted row (over every group) and the selected rows' keys. */
+  readonly review: { readonly cursor: number; readonly selected: ReadonlyArray<string> }
   /** The selected picker row. */
   readonly pick: number
   /** The inquiry `pick` belongs to; a new inquiry resets the selection. */
@@ -85,7 +87,7 @@ export const POPOVER_GUARD_MS = 300
 export const NAVIGATE_FRESH_MS = 10_000
 export { CHAT, OTHER }
 
-export const initialUi: Ui = { focus: "bar", sheet: false, main: "grid", back: [], arrived: false, grid: { cursor: 0 }, pick: 0, other: false, agents: { toggled: {}, tree: 0 }, popover: { pick: 0 }, seen: {}, closedPanels: [] }
+export const initialUi: Ui = { focus: "bar", sheet: false, main: "grid", back: [], arrived: false, grid: { cursor: 0 }, review: { cursor: 0, selected: [] }, pick: 0, other: false, agents: { toggled: {}, tree: 0 }, popover: { pick: 0 }, seen: {}, closedPanels: [] }
 
 export interface PickerRow {
   readonly id: string
@@ -598,6 +600,8 @@ export type Action =
   | { readonly type: "act"; readonly section: string | undefined; readonly action: string; readonly rows: ReadonlyArray<string>; readonly agent?: string; readonly view?: string }
   /** Close a plugin's popover. */
   | { readonly type: "close-prompt"; readonly id: string }
+  /** Review actions: one act per agent and table. */
+  | { readonly type: "review-acts"; readonly acts: ReadonlyArray<{ readonly agent: string; readonly section: string; readonly action: string; readonly rows: ReadonlyArray<string> }> }
   /** Archive, restore or delete agents of the tree. */
   | { readonly type: "archive"; readonly change: { readonly archive?: ReadonlyArray<string>; readonly restore?: ReadonlyArray<string>; readonly delete?: ReadonlyArray<string> } }
   /** Answer a question in the open agent's conversation (or `agent`'s). */

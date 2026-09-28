@@ -1,6 +1,7 @@
 import type { SessionState } from "@zarg/client"
 import { dispatch, focused, type InputKey, type InputLayer, keyFor, type KeyHint, leafOf, printable, startUi, type ViewState, type ViewUi } from "@zarg/view"
 import { gridCards } from "./grid"
+import { reviewActs, reviewGroups } from "./review"
 import { viewKeys } from "./view-keys"
 import {
   type Action,
@@ -315,6 +316,33 @@ export const SHELL: ReadonlyArray<Layer> = [
       if (card.action !== undefined && k.name === card.action.key && k.ctrl !== true && k.meta !== true)
         return { ui, action: { type: "act", section: card.action.section, action: card.action.id, rows: card.action.rows, agent: card.id, view: card.id } }
       return "pass"
+    },
+  },
+  {
+    id: "review",
+    when: (ui) => ui.focus === "tile" && ui.main === "review" && !ui.sheet,
+    hints: () => [{ keys: "↑↓", does: "move" }, { keys: "Space", does: "select" }, { keys: "Enter", does: "open agent" }],
+    handle: (ui, w, k) => {
+      const c = common(ui, w, k)
+      if (c !== undefined) return c
+      const groups = reviewGroups(w.s)
+      const rows = groups.flatMap((g) => g.rows)
+      if (rows.length === 0) return "pass"
+      const at = Math.min(ui.review.cursor, rows.length - 1)
+      const to = (i: number) => ({ ui: { ...ui, review: { ...ui.review, cursor: Math.max(0, Math.min(rows.length - 1, i)) } } })
+      if (k.name === "down") return to(at + 1)
+      if (k.name === "up") return to(at - 1)
+      if (k.name === "pagedown") return to(at + 10)
+      if (k.name === "pageup") return to(at - 10)
+      const row = rows[at]!
+      if (k.name === "space") {
+        const sel = ui.review.selected
+        return { ui: { ...ui, review: { ...ui.review, selected: sel.includes(row.key) ? sel.filter((x) => x !== row.key) : [...sel, row.key] } } }
+      }
+      if (k.name === "return") return { ui: openAgent(ui, w.s, row.agent) }
+      if (k.ctrl === true || k.meta === true) return "pass"
+      const acts = reviewActs(groups, at, ui.review.selected, k.name)
+      return acts.length === 0 ? "pass" : { ui: { ...ui, review: { ...ui.review, selected: [] } }, action: { type: "review-acts", acts } }
     },
   },
   {
