@@ -37,6 +37,9 @@ describe("personas", () => {
         yield* setup
         const none = yield* Effect.flip(call("add-card", { title: "x", when: "x happens", by: [], arrives: { id: "S-0001" }, then: [{ text: "y" }] }))
         expect(String(none)).toContain("P-0001 Operator")
+        // Leaving by out entirely (an agent's old habit) gets the same hint, not a schema error.
+        const missing = yield* Effect.flip(call("add-card", { title: "x", when: "x happens", arrives: { id: "S-0001" }, then: [{ text: "y" }] }))
+        expect(String(missing)).toContain("P-0001 Operator")
         const unknown = yield* Effect.flip(call("add-card", { title: "x", when: "x happens", by: [{ name: "Shopper" }], arrives: { id: "S-0001" }, then: [{ text: "y" }] }))
         expect(String(unknown)).toContain('"Shopper" is not a persona')
       }),

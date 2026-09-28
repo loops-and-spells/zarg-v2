@@ -18,6 +18,21 @@ describe("snapshot", () => {
     ])
   })
 
+  test("neighbors never walks back up a by edge: a persona every card names is a leaf, not a hub", () => {
+    const card = (id: string, state: string) => ({ id, type: "gherkin/card", props: {}, edges: [{ type: "gherkin/by", to: "P-0001" }, { type: "gherkin/arrives", to: state }] })
+    const snap = Snapshot.make([
+      { id: "P-0001", type: "gherkin/persona", props: {}, edges: [] },
+      { id: "S-0001", type: "gherkin/state", props: {}, edges: [] },
+      { id: "S-0009", type: "gherkin/state", props: {}, edges: [] },
+      card("UX-0001", "S-0001"),
+      card("UX-0009", "S-0009"),
+    ] as never)
+    // UX-0001 sees its persona, but not the unrelated UX-0009 that shares it.
+    expect(Snapshot.neighbors(snap, "UX-0001", 3)).toEqual(["P-0001", "S-0001", "UX-0001"])
+    // From the persona itself, its cards are still one hop away.
+    expect(Snapshot.neighbors(snap, "P-0001", 1)).toEqual(["P-0001", "UX-0001", "UX-0009"])
+  })
+
   test("neighbors walks both directions up to k hops", () => {
     expect(Snapshot.neighbors(base, "S-0002", 1)).toEqual(["S-0002", "UX-0001", "UX-0002"])
     expect(Snapshot.neighbors(base, "S-0002", 2)).toEqual(["S-0001", "S-0002", "S-0003", "UX-0001", "UX-0002"])

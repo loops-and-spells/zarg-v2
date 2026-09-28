@@ -116,14 +116,14 @@ export const addCard = tool({
   params: Schema.Struct({
     title: Schema.NonEmptyString.annotate({ description: "Short: who does what." }),
     when: Schema.NonEmptyString.annotate({ description: "The one user action." }),
-    by: Schema.Array(PersonaRef).annotate({ description: "Who acts in the When: one or more personas." }),
+    by: Schema.optionalKey(Schema.Array(PersonaRef)).annotate({ description: "Who acts in the When: one or more personas (required)." }),
     arrives: StateRef.annotate({ description: "The state the user is in before the action (the Given)." }),
     given: Schema.optionalKey(Schema.Array(StateRef)).annotate({ description: "Up to 3 extra context states (And)." }),
     then: Schema.Array(StateRef).annotate({ description: "1-5 states the action leads to." }),
   }),
   run: (p, snap) =>
     Effect.gen(function* () {
-      if (p.by.length === 0) return yield* new ToolError({ message: `a card needs at least one persona in by; known: ${known(snap)}` })
+      if (p.by === undefined || p.by.length === 0) return yield* new ToolError({ message: `a card needs at least one persona in by; known: ${known(snap)}` })
       const by = yield* Effect.forEach(p.by, (ref) => personaOf(snap, ref))
       const r = resolver(snap)
       const arrives = yield* r.resolve(p.arrives)

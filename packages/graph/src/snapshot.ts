@@ -64,14 +64,21 @@ export const out = (snap: Snapshot, id: string, type?: string): ReadonlyArray<Ed
 export const inbound = (snap: Snapshot, id: string, type?: string): ReadonlyArray<InEdge> =>
   (snap.inbound.get(id) ?? []).filter((e) => type === undefined || e.edge.type === type)
 
-/** Node ids within k hops, following edges in both directions. Includes `id`. */
+/**
+ * Edges a walk never follows backward (except from where it starts): their target is a hub nearly every node
+ * points at (a persona every card names), and walking back through it would pull in the whole graph.
+ */
+// ponytail: one plugin's edge named here; move it to the manifest's edge spec when a second plugin needs one.
+const ONE_WAY = new Set(["gherkin/by"])
+
+/** Node ids within k hops, following edges in both directions (one-way edges only forward). Includes `id`. */
 export const neighbors = (snap: Snapshot, id: string, k: number): ReadonlyArray<string> => {
   const seen = new Set([id])
   let frontier = [id]
   for (let i = 0; i < k && frontier.length > 0; i++) {
     const next: Array<string> = []
     for (const cur of frontier) {
-      const adj = [...out(snap, cur).map((e) => e.to), ...inbound(snap, cur).map((e) => e.from)]
+      const adj = [...out(snap, cur).map((e) => e.to), ...inbound(snap, cur).filter((e) => cur === id || !ONE_WAY.has(e.edge.type)).map((e) => e.from)]
       for (const n of adj) if (snap.nodes.has(n) && !seen.has(n)) {
         seen.add(n)
         next.push(n)
