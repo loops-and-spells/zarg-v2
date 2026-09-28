@@ -8,7 +8,7 @@ type ToneName = PluginTone
 type ColumnSpec = { readonly id: string; readonly label: string; readonly order?: ReadonlyArray<string>; readonly filter?: "values" | "none" | "search" | { readonly range: readonly [number, number]; readonly step?: number }; readonly tone?: ToneName; readonly tones?: Readonly<Record<string, ToneName>>; readonly ref?: true }
 type Role = "summary" | "primary" | "log" | "pinned" | "aside"
 export type LeafSpec =
-  | { readonly kind: "stats" | "list" | "log" | "keyvalue" | "conversation"; readonly title?: string }
+  | { readonly kind: "stats" | "list" | "log" | "keyvalue" | "conversation" | "board"; readonly title?: string }
   /** `follows`: a table's section id; the text shows its `rows` entry for that table's highlighted row. */
   | { readonly kind: "text"; readonly title?: string; readonly follows?: string; readonly beside?: string }
   | { readonly kind: "table"; readonly title?: string; readonly columns: ReadonlyArray<ColumnSpec>; readonly selectable?: boolean; readonly actions?: ReadonlyArray<ActionSpec>; readonly review?: boolean; readonly search?: boolean; readonly toggle?: boolean }

@@ -3,6 +3,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react"
 import { useTerminalDimensions } from "@opentui/react"
 import { CHAT, type ConversationQuestion, conversationRows, cursorRow, filterOf, followedText, keyFor, searchCount, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
 import { fit, gauge, heading } from "./look"
+import { Board } from "./board"
 import { RichText } from "./markdown"
 import { useColors, useToneFg } from "./theme"
 
@@ -255,7 +256,8 @@ const Conversation: Leaf = ({ view, ui, path, width, onHeight }) => {
 }
 
 /** How the terminal draws each leaf kind; tabs draw their current leaf. Every kind must be here. */
-export const renderers: Record<Exclude<SectionKind, "tabs">, Leaf> = { stats: Stats, list: List, log: Log, table: Table, keyvalue: KeyValue, text: Text, conversation: Conversation }
+const BoardLeaf: Leaf = ({ view, ui, path, focused, width }) => <Board view={view} ui={ui} path={path} focused={focused} width={width} />
+export const renderers: Record<Exclude<SectionKind, "tabs">, Leaf> = { stats: Stats, list: List, log: Log, table: Table, keyvalue: KeyValue, text: Text, conversation: Conversation, board: BoardLeaf }
 
 const count = (view: ViewState, path: string) => rowsOf(view, path).length
 /** A tabs section's tabs for its heading: each with its row count, the current one marked. */
@@ -491,6 +493,16 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
               <Draw view={props.view} ui={props.ui} path={leaf.path} leaf={leaf.leaf} focused={focused} width={width} />
             </box>
           )
+        // A board takes the room left and scrolls each lane itself: no section scroll box around it.
+        if (leaf.leaf.kind === "board") {
+          const after = seen++ > 0
+          return (
+            <box key={s.id} style={{ flexDirection: "column", flexGrow: 1, flexBasis: 0, minHeight: 4, ...(after ? { marginTop: 1 } : {}) }}>
+              {headRowsOfSection(s) > 0 ? <Heading title={s.title ?? s.id} width={width} focused={focused} /> : null}
+              <Board view={props.view} ui={props.ui} path={leaf.path} focused={focused} width={width} />
+            </box>
+          )
+        }
         const tabs = tabsOf(props.view, props.ui, s)
         const headRows = headRowsOfSection(s)
         // A blank row between one section and the one before it.

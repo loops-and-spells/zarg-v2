@@ -1,4 +1,4 @@
-import { actionFor, afterAction, applyMenu, closeMenu, menuAdjust, menuEntries, menuMove, menuQuery, printable, setSearch, moveColumn, openMenu, type ConversationQuestion, conversationKey, focused, focusNext, leafOf, moveRow, nextTab, toggleAct, toggleSelect, type ViewState, type ViewUi } from "@zarg/view"
+import { actionFor, boardKey, afterAction, applyMenu, closeMenu, menuAdjust, menuEntries, menuMove, menuQuery, printable, setSearch, moveColumn, openMenu, type ConversationQuestion, conversationKey, focused, focusNext, leafOf, moveRow, nextTab, toggleAct, toggleSelect, type ViewState, type ViewUi } from "@zarg/view"
 
 /** A key in an open agent's view: focus, scroll a table's cursor, switch tabs, select, act. */
 export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: string; readonly shift?: boolean; readonly ctrl?: boolean; readonly meta?: boolean }): {
@@ -9,6 +9,9 @@ export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: stri
 } => {
   // Ctrl and Meta chords are the shell's, never an action's key.
   if (key.ctrl === true || key.meta === true) return { ui }
+  // A focused board has its own keys (lanes, cards, folds, moves).
+  const board = boardKey(view, ui, key)
+  if (board !== undefined) return board
   // A table's search field has the keys: typing edits the query; Enter or an arrow leaves it (the search stays); Esc clears it.
   if (ui.searching !== undefined) {
     const path = ui.searching

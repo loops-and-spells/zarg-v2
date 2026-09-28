@@ -59,7 +59,26 @@ export const ConversationData = Schema.Struct({
 })
 
 /** The data each leaf kind holds. `tabs` has none of its own: its tabs do. */
-export const DATA = { stats: StatsData, list: ListData, log: LogData, table: TableData, keyvalue: KeyValueData, text: TextData, conversation: ConversationData } as const
+/** A kanban: lanes of cards; a card's `tone` is its stripe (a severity), `top` and `badge` its first line, `lines` what follows its title. */
+export const BoardData = Schema.Struct({
+  lanes: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      title: Schema.String,
+      cards: Schema.Array(
+        Schema.Struct({
+          id: Schema.String,
+          title: Schema.String,
+          tone: Schema.optionalKey(Tone),
+          top: Schema.optionalKey(Schema.String),
+          badge: Schema.optionalKey(Schema.String),
+          lines: Schema.optionalKey(Schema.Array(Schema.Struct({ text: Schema.String, tone: Schema.optionalKey(Tone) }))),
+        }),
+      ),
+    }),
+  ),
+})
+export const DATA = { stats: StatsData, list: ListData, log: LogData, table: TableData, keyvalue: KeyValueData, text: TextData, conversation: ConversationData, board: BoardData } as const
 export type LeafKind = keyof typeof DATA
 export type SectionKind = LeafKind | "tabs"
 export type LogLine = typeof LogLine.Type
@@ -81,9 +100,9 @@ const leafFields = {
   /** A table whose rows are on or off (the row's `on`), kept by the plugin: space asks it to flip one (`act "toggle"`). */
   toggle: Schema.optionalKey(Schema.Boolean),
 }
-export const LayoutLeaf = Schema.Struct({ ...leafFields, kind: Schema.Literals(["stats", "list", "log", "table", "keyvalue", "text", "conversation"]) })
+export const LayoutLeaf = Schema.Struct({ ...leafFields, kind: Schema.Literals(["stats", "list", "log", "table", "keyvalue", "text", "conversation", "board"]) })
 export const LayoutSection = Schema.Union([
-  Schema.Struct({ ...leafFields, kind: Schema.Literals(["stats", "list", "log", "table", "keyvalue", "text", "conversation"]), role: Role }),
+  Schema.Struct({ ...leafFields, kind: Schema.Literals(["stats", "list", "log", "table", "keyvalue", "text", "conversation", "board"]), role: Role }),
   Schema.Struct({ id: Schema.String, title: Schema.optionalKey(Schema.String), kind: Schema.Literal("tabs"), role: Role, tabs: Schema.Array(LayoutLeaf) }),
 ])
 /** A view as the manifest and the wire carry it. */

@@ -20,7 +20,10 @@ export interface ViewUi {
   readonly search?: Readonly<Record<string, string>>
   /** The table whose search field has the keys (typing goes there). */
   readonly searching?: string
+  /** Each board's cursor (a lane, a card in it) and its folded lanes (by id). */
+  readonly board?: Readonly<Record<string, BoardUi>>
 }
+export interface BoardUi { readonly lane: number; readonly card: number; readonly folded: ReadonlyArray<string> }
 export const initialViewUi: ViewUi = { focus: 0, tabs: {}, rows: {}, selected: {} }
 
 const ROLE_ORDER = ["summary", "primary", "log", "aside", "pinned"] as const
@@ -291,6 +294,47 @@ export const toggleAct = (view: ViewState, ui: ViewUi): { readonly section: stri
   if (c === undefined || c.leaf.kind !== "table" || c.leaf.toggle !== true) return undefined
   const row = shownRows(view, ui, c.path)[ui.rows[c.path] ?? 0]
   return row === undefined ? undefined : { section: c.path, action: "toggle", rows: [row.id] }
+}
+
+/** A board's cursor and folds (clamped to its lanes and cards when read). */
+export const boardUi = (view: ViewState, ui: ViewUi, path: string): BoardUi => {
+  const lanes = (view.data[path] as { lanes?: ReadonlyArray<{ id: string; cards: ReadonlyArray<{ id: string }> }> } | undefined)?.lanes ?? []
+  const b = ui.board?.[path] ?? { lane: 0, card: 0, folded: [] }
+  const lane = Math.max(0, Math.min(lanes.length - 1, b.lane))
+  const card = Math.max(0, Math.min((lanes[lane]?.cards.length ?? 1) - 1, b.card))
+  return { lane, card, folded: b.folded.filter((id) => lanes.some((l) => l.id === id)) }
+}
+
+/**
+ * Keys on a focused board: ←→ lanes (a folded one too), ↑↓ cards, z folds or unfolds the lane under the cursor,
+ * Z folds every other lane (again: unfolds all), ⏎ opens the card (`act "item"`) or unfolds a folded lane,
+ * ⇧←/⇧→ move the card through the plugin (`act "move-left"` / `"move-right"`). Undefined: not a board.
+ */
+export const boardKey = (view: ViewState, ui: ViewUi, key: { readonly name: string; readonly shift?: boolean }): { readonly ui: ViewUi; readonly act?: { readonly section: string; readonly action: string; readonly rows: ReadonlyArray<string> } } | undefined => {
+  const c = current(view, ui)
+  if (c === undefined || c.leaf.kind !== "board") return undefined
+  const lanes = (view.data[c.path] as { lanes?: ReadonlyArray<{ id: string; cards: ReadonlyArray<{ id: string }> }> } | undefined)?.lanes ?? []
+  const b = boardUi(view, ui, c.path)
+  const set = (next: BoardUi) => ({ ui: { ...ui, board: { ...ui.board, [c.path]: next } } })
+  const lane = lanes[b.lane]
+  if (lane === undefined) return { ui }
+  const folded = b.folded.includes(lane.id)
+  const card = folded ? undefined : lane.cards[b.card]
+  const act = (action: string) => (card === undefined ? { ui } : { ui, act: { section: c.path, action, rows: [card.id] } })
+  if (key.shift === true && key.name === "right") return act("move-right")
+  if (key.shift === true && key.name === "left") return act("move-left")
+  if (key.name === "right" || key.name === "left") {
+    const to = Math.max(0, Math.min(lanes.length - 1, b.lane + (key.name === "right" ? 1 : -1)))
+    return set({ ...b, lane: to, card: Math.max(0, Math.min((lanes[to]?.cards.length ?? 1) - 1, b.card)) })
+  }
+  if ((key.name === "down" || key.name === "up") && !folded) return set({ ...b, card: Math.max(0, Math.min(lane.cards.length - 1, b.card + (key.name === "down" ? 1 : -1))) })
+  if (key.name === "Z" || (key.name === "z" && key.shift === true)) {
+    const others = lanes.filter((l) => l.id !== lane.id).map((l) => l.id)
+    return set({ ...b, folded: others.every((id) => b.folded.includes(id)) ? [] : others })
+  }
+  if (key.name === "z") return set({ ...b, folded: folded ? b.folded.filter((id) => id !== lane.id) : [...b.folded, lane.id] })
+  if (key.name === "return") return folded ? set({ ...b, folded: b.folded.filter((id) => id !== lane.id) }) : act("item")
+  return undefined
 }
 
 /** The action a key triggers on a platform: the focused table's, else the view's own; undefined when none. */
