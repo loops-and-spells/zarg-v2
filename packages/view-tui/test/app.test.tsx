@@ -1421,3 +1421,75 @@ describe("the theme", () => {
     expect(hex(cursor.bg)).not.toBe(theme.value("ground").fg)
   })
 })
+
+describe("clicking through the rail", () => {
+  const nav = [
+    { id: "gherkin:journeys", plugin: "gherkin", name: "journeys", label: "Journeys", view: "gherkin:journeys@journeys" },
+    { id: "backlog:feedback", plugin: "backlog", name: "feedback", label: "Feedback", view: "backlog:feedback@feedback" },
+    { id: "backlog:backlog", plugin: "backlog", name: "backlog", label: "Backlog", view: "backlog:backlog@backlog" },
+  ]
+  const view = (v: string, name: string) => ({ agent: v, layout: { name, sections: [{ id: "t", kind: "text" as const, role: "primary" as const, title: "" }] }, data: { t: { markdown: name } } })
+  const state: SessionState = {
+    thread: {
+      ...initial("main"),
+      status: "idle",
+      nav,
+      views: Object.fromEntries(nav.map((n) => [n.view, view(n.view, n.name)])),
+      rlms: {
+        "rlm-1": { id: "rlm-1", parent: null, preset: "driver", depth: 0, turns: 1, budget: 25, status: "done", decisions: [] },
+        "rehearse:run": { id: "rehearse:run", parent: null, preset: "rehearse", depth: 0, turns: 0, budget: 1, status: "done", decisions: [] },
+      },
+    },
+    core: "up",
+  }
+  test("clicking nav items and agents never draws a row twice", async () => {
+    const t = await render(state, { width: 110, height: 30 })
+    const railLines = () => t.captureCharFrame().split("\n").map((l) => l.slice(0, 24))
+    for (const label of ["Feedback", "Journeys", "Backlog", "Journeys", "Feedback"]) {
+      const y = railLines().findIndex((l) => l.includes(label))
+      await t.mockMouse.click(railLines()[y]!.indexOf(label) + 1, y)
+      await settle(t)
+      const rail = railLines()
+      for (const l of ["Journeys", "Feedback", "Backlog"]) expect(`${label}: ${rail.filter((x) => x.includes(l)).length}`).toBe(`${label}: 1`)
+    }
+  })
+  test("clicking the rail many times adds no listeners that pile up", async () => {
+    const warnings: Array<string> = []
+    const onWarning = (w: Error) => void warnings.push(`${w.name}: ${w.message}`)
+    process.on("warning", onWarning)
+    try {
+      const t = await render(state, { width: 110, height: 30 })
+      const railLines = () => t.captureCharFrame().split("\n").map((l) => l.slice(0, 24))
+      for (let i = 0; i < 30; i++) {
+        const label = ["Feedback", "Journeys", "Backlog", "driver", "rehearse"][i % 5]!
+        const y = railLines().findIndex((l) => l.includes(label))
+        if (y < 0) continue
+        await t.mockMouse.click(railLines()[y]!.indexOf(label) + 1, y)
+        await settle(t)
+      }
+      await Bun.sleep(50)
+      console.error("WARNINGS", JSON.stringify(warnings))
+      expect(warnings.filter((w) => /MaxListeners/.test(w))).toEqual([])
+    } finally {
+      process.off("warning", onWarning)
+    }
+  })
+  test("a board with many lanes (a scroll box each) raises no listener warning that would print over the screen", async () => {
+    const warnings: Array<string> = []
+    const onWarning = (w: Error) => void warnings.push(w.name)
+    process.on("warning", onWarning)
+    try {
+      const board = { agent: "backlog:backlog@backlog", layout: { name: "backlog", sections: [{ id: "board", kind: "board" as const, role: "primary" as const, title: "" }] }, data: { board: { lanes: Array.from({ length: 14 }, (_, i) => ({ id: `l${i}`, title: `L${i}`, cards: [{ id: `c${i}`, title: "a card" }] })) } } }
+      const s: SessionState = { ...state, thread: { ...state.thread, views: { ...state.thread.views, "backlog:backlog@backlog": board } } }
+      const t = await render(s, { width: 200, height: 30 })
+      const railLines = () => t.captureCharFrame().split("\n").map((l) => l.slice(0, 24))
+      const y = railLines().findIndex((l) => l.includes("Backlog"))
+      await t.mockMouse.click(railLines()[y]!.indexOf("Backlog") + 1, y)
+      await settle(t)
+      await Bun.sleep(20)
+      expect(warnings.filter((w) => /MaxListeners/.test(w))).toEqual([])
+    } finally {
+      process.off("warning", onWarning)
+    }
+  })
+})

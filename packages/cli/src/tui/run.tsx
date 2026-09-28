@@ -45,6 +45,8 @@ export const mount = (renderer: CliRenderer, opened: Opened, theme?: Theme["Serv
     const exit = () => {
       if (!renderer.isDestroyed) renderer.destroy()
     }
+    // Scroll boxes each listen to the renderer (a board has one per lane): no warning printed over the screen.
+    renderer.setMaxListeners(1000)
     renderer.once("destroy", () => void opened.close().then(done))
     renderer.keyInput.on("keypress", (key) => {
       if (key.ctrl && key.name === "d") exit()

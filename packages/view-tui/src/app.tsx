@@ -1,4 +1,4 @@
-import { useKeyboard, useTerminalDimensions } from "@opentui/react"
+import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Panel, Session } from "@zarg/client"
 import { afterAction, applyMenu, hintsOf, keyFor, menuAdjust, pickHeader, pickMark, pickRow, pickTab, startUi } from "@zarg/view"
@@ -57,6 +57,10 @@ const AGENTS_WIDTH = 24
  */
 export const App = (props: { readonly session: Session; readonly meta: Meta; readonly onExit: () => void; readonly theme?: ThemeService }) => {
   const theme = props.theme ?? DEFAULT_THEME
+  // Every scroll box listens to the renderer (a board has one per lane): past Node's default of 10 it would print a
+  // MaxListenersExceededWarning over the screen. Set before any of them mounts.
+  const renderer = useRenderer()
+  if (renderer.getMaxListeners() < 1000) renderer.setMaxListeners(1000)
   const C = colorsOf(theme)
   const s = useSyncExternalStore(props.session.subscribe, props.session.state)
   // UI state lives in a ref so several keys in one frame each see the previous key's result.
