@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { actionFor, applyMenu, closeMenu, defineView, focusNext, initialViewUi, layoutOf, menuEntries, menuMove, moveColumn, moveRow, nextTab, cursorRow, filterOf, menuAdjust, menuQuery, openMenu, ordered, pickHeader, pickMark, pickRow, shownRows, startUi, toggleSelect, type ViewState, type ViewUi } from "../src"
+import { actionFor, applyMenu, closeMenu, defineView, focusNext, initialViewUi, layoutOf, menuEntries, menuMove, moveColumn, moveRow, nextTab, cursorRow, filterOf, pickTab, menuAdjust, menuQuery, openMenu, ordered, pickHeader, pickMark, pickRow, shownRows, startUi, toggleSelect, type ViewState, type ViewUi } from "../src"
 
 const layout = layoutOf(
   defineView("tester", {
@@ -227,5 +227,38 @@ describe("column filters", () => {
     const ui = startUi(t)
     expect(cursorRow(t, ui)?.row.id).toBe("F1")
     expect(cursorRow(t, moveRow(t, ui, -1))).toBeUndefined()
+  })
+})
+
+describe("tabs", () => {
+  const cols = [{ id: "id", label: "id" }, { id: "n", label: "note" }]
+  const t: ViewState = {
+    agent: "t",
+    layout: layoutOf(
+      defineView("t", {
+        steps: { kind: "log", role: "log" },
+        review: { kind: "tabs", role: "pinned", tabs: { findings: { kind: "table", columns: cols, selectable: true }, likes: { kind: "table", columns: cols, selectable: true } } },
+      }),
+    ),
+    data: { "review.findings": { rows: [{ id: "F1", cells: {} }] }, "review.likes": { rows: [{ id: "L1", cells: {} }, { id: "L2", cells: {} }] } },
+  }
+  test("a click on a tab: its section takes focus and shows that tab", () => {
+    const ui = pickTab(t, initialViewUi, "review", 1)
+    expect(ordered(t.layout)[ui.focus]!.id).toBe("review")
+    expect(ui.tabs.review).toBe(1)
+    expect(cursorRow(t, ui)?.row.id).toBe("L1")
+  })
+  test("on the header, ← past the first column and → past the last move between tabs, onto the new tab's header", () => {
+    let ui = moveRow(t, pickTab(t, initialViewUi, "review", 0), -1)
+    expect(ui.header).toEqual({ path: "review.findings", col: 0 })
+    ui = moveColumn(t, ui, 1)
+    ui = moveColumn(t, ui, 1)
+    expect(ui.tabs.review ?? 0).toBe(1)
+    expect(ui.header).toEqual({ path: "review.likes", col: 0 })
+    ui = moveColumn(t, ui, -1)
+    expect(ui.tabs.review).toBe(0)
+    expect(ui.header).toEqual({ path: "review.findings", col: 1 })
+    // At the ends of the tabs it stops.
+    expect(moveColumn(t, { ...ui, header: { path: "review.findings", col: 0 } }, -1).tabs.review).toBe(0)
   })
 })

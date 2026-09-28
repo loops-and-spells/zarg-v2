@@ -78,7 +78,7 @@ describe("the terminal draws an agent's view", () => {
 
   test("the current tab is marked in the heading", async () => {
     const f = await frame(view(3))
-    expect(f).toMatch(/Findings 3 {2}Likes 0 ─+/)
+    expect(f).toMatch(/Findings 3 {3}Likes 0 ─+/)
   })
 
   test("a selectable table: ○ on each row, ● on selected ones, ▍ on the cursor", async () => {

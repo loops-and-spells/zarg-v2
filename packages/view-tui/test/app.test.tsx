@@ -365,7 +365,7 @@ describe("tui frames", () => {
     await settle(t)
     const frame = t.captureCharFrame()
     expect(frame).toContain("UX-1: feel 1.80")
-    expect(frame).toMatch(/Findings 1  Likes 0 ─/)
+    expect(frame).toMatch(/Findings 1   Likes 0 ─/)
     // The view opens on its table: its highlighted row takes the action at once.
     expect(t.captureCharFrame()).toContain("▍○ R-1   no error shown")
     // A click on a row's box ticks it.
@@ -1109,5 +1109,73 @@ describe("column filters and the row card", () => {
     t.mockInput.pressEnter(); await settle(t)
     lines = t.captureCharFrame().split("\n")
     expect(t.captureCharFrame()).toMatch(/● tick those in range\s+1\/1/)
+  })
+})
+
+describe("tabs, the fixed card, breathing room", () => {
+  const tester = { id: "rehearse:run", parent: null, preset: "run", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
+  const cols = [{ id: "id", label: "id", filter: "none" as const }, { id: "note", label: "note", filter: "search" as const }]
+  const long = "a long note ".repeat(40)
+  const state: SessionState = {
+    thread: {
+      ...initial("main"),
+      status: "running",
+      rlms: { "rehearse:run": tester },
+      views: {
+        "rehearse:run": {
+          agent: "rehearse:run",
+          layout: {
+            name: "run",
+            sections: [
+              { id: "report", kind: "text" as const, role: "aside" as const, title: "Report" },
+              { id: "review", kind: "tabs" as const, role: "pinned" as const, tabs: [{ id: "findings", kind: "table" as const, title: "Findings", columns: cols, selectable: true }, { id: "likes", kind: "table" as const, title: "Likes", columns: cols, selectable: true }] },
+            ],
+          },
+          data: {
+            report: { markdown: "The run went fine." },
+            "review.findings": { rows: [{ id: "F1", cells: { id: "F1", note: long } }, { id: "F2", cells: { id: "F2", note: "short" } }] },
+            "review.likes": { rows: [{ id: "L1", cells: { id: "L1", note: "liked the flow" } }] },
+          },
+        },
+      },
+    },
+    core: "up",
+  }
+  const open = async () => {
+    const t = await render(state, { width: 130, height: 32 })
+    t.mockInput.pressKey("a", { meta: true }); await settle(t); t.mockInput.pressEnter(); await settle(t)
+    return t
+  }
+  const lines = (t: Awaited<ReturnType<typeof render>>) => t.captureCharFrame().split("\n")
+  test("the tabs: the current one underlined; a click on another shows its rows", async () => {
+    const t = await open()
+    let ls = lines(t)
+    const y = ls.findIndex((l) => l.includes("Findings 2") && l.includes("Likes 1"))
+    expect(ls[y + 1]!.slice(ls[y]!.indexOf("Findings"), ls[y]!.indexOf("Findings") + 10)).toBe("▔".repeat(10))
+    await t.mockMouse.click(ls[y]!.indexOf("Likes") + 1, y)
+    await settle(t)
+    // The click focused the section: the row card shows above it, so find the tabs again.
+    ls = lines(t)
+    const z = ls.findIndex((l) => l.includes("Findings 2") && l.includes("Likes 1"))
+    expect(t.captureCharFrame()).toContain("▍○ L1")
+    expect(ls[z + 1]!.slice(ls[z]!.indexOf("Likes"), ls[z]!.indexOf("Likes") + 7)).toBe("▔".repeat(7))
+  })
+  test("the row card keeps one height whatever the row: the table below stays put", async () => {
+    const t = await open()
+    t.mockInput.pressKey("]"); await settle(t)
+    const at = () => lines(t).findIndex((l) => l.includes("Findings 2"))
+    const before = at()
+    expect(t.captureCharFrame()).toContain("▍○ F1")
+    t.mockInput.pressArrow("down"); await settle(t)
+    expect(t.captureCharFrame()).toContain("▍○ F2")
+    expect(at()).toBe(before)
+  })
+  test("a blank row between one section and the next", async () => {
+    const t = await open()
+    const ls = lines(t)
+    const report = ls.findIndex((l) => l.includes("The run went fine."))
+    const tabs = ls.findIndex((l) => l.includes("Findings 2"))
+    expect(tabs).toBe(report + 2)
+    expect(ls[report + 1]!.slice(24).trim()).toBe("")
   })
 })
