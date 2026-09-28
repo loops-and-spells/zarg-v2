@@ -40,10 +40,13 @@ describe("the backlog's feedback", () => {
       yield* h.invoke("backlog", "act", { agent: "feedback", action: "toggle", rows: ids })
       yield* h.invoke("backlog", "file", { entries: [report(card.ref)] })
       yield* h.invoke("backlog", "act", { agent: "feedback", action: "open", rows: [] })
-      return { row: rows(seen, "feedback")[0]!, status: yield* h.invoke("backlog", "status", { ids }) }
+      const row = rows(seen, "feedback")[0]!
+      return { row, detail: (seen.get("feedback/detail") as { rows: Record<string, string> }).rows[row.id]!, status: yield* h.invoke("backlog", "status", { ids }) }
     }))
     expect(out.row.on).toBe(false)
-    expect(out.row.cells.why).toMatch(/^you:/)
+    // Why it is off is in the detail beside the list, not a column.
+    expect(Object.keys(out.row.cells)).not.toContain("why")
+    expect(out.detail).toContain("off (your call: fix · real 0.80)")
     expect(out.status).toEqual([{ id: out.row.id, state: "open", on: false }])
   })
   test("a changed card makes its feedback stale: it leaves the Feedback view", async () => {

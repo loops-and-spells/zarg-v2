@@ -197,7 +197,7 @@ export default definePlugin({
         rows: sorted.map((e) => ({
           id: e.id,
           on: e.triage.on,
-          cells: { card: target(e.ref), severity: e.severity, kind: e.kind, feedback: e.note, why: `${e.triage.by === "operator" ? "you" : "agent"}: ${e.triage.why}` },
+          cells: { card: target(e.ref), severity: e.severity, kind: e.kind, feedback: e.note },
           search: [e.id, e.ref, e.persona, e.kind, e.severity, e.note, ...e.journeys].join(" "),
         })),
       })

@@ -32,7 +32,6 @@ export const FeedbackView = defineView("feedback", {
       { id: "severity", label: "severity", order: ["high", "medium", "low"], filter: "values", tones: { high: "severity.high", medium: "severity.medium", low: "severity.low" } },
       { id: "kind", label: "kind", filter: "values" },
       { id: "feedback", label: "feedback", filter: "none" },
-      { id: "why", label: "why", filter: "none" },
     ],
   },
   // The highlighted entry in full, and its card as the tester saw it.
