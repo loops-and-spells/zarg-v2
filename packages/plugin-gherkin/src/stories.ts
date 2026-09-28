@@ -22,17 +22,17 @@ const thensOf = (snap: Snapshot.Snapshot, card: string) => (snap.nodes.get(card)
 const nextOf = (snap: Snapshot.Snapshot, card: string) => [...new Set(thensOf(snap, card).flatMap((s) => Snapshot.inbound(snap, s, ARRIVES).map((e) => e.from)))].sort()
 
 /**
- * Stories to walk. edge-pair (Ammann and Offutt): root-to-leaf stories that together cover every step
- * (card to next card) and every consecutive pair, by greedy set cover; loopbacks are left out. teleport:
- * each card alone. With focus, only stories through a focused card (or, for teleport, focused cards).
+ * Edge-pair (Ammann and Offutt) over some cards (all of them when `members` is undefined): root-to-leaf stories
+ * that together cover every card, every step (card to next card, both members) and every consecutive pair, by
+ * greedy set cover; loopbacks are left out. Roots: members whose Given is an entry state, or that no member leads to.
  */
-export const planStories = (snap: Snapshot.Snapshot, strategy: "edge-pair" | "teleport", focus?: ReadonlySet<string>) => {
-  const all = cards(snap).map((c) => c.id).sort()
-  if (strategy === "teleport") return { stories: all.filter((c) => focus === undefined || focus.has(c)).map((c) => [c]), unreachable: 0 }
-  // Roots: cards starting at an entry state, or at a state no card leads to.
+const edgePair = (snap: Snapshot.Snapshot, members?: ReadonlySet<string>) => {
+  const all = cards(snap).map((c) => c.id).filter((c) => members === undefined || members.has(c)).sort()
+  const inside = (c: string) => members === undefined || members.has(c)
+  const nextIn = (c: string) => nextOf(snap, c).filter(inside)
   const roots = all.filter((c) => {
     const s = arrivesOf(snap, c)
-    return s !== undefined && (snap.nodes.get(s)?.props.entry === true || Snapshot.inbound(snap, s, THEN).length === 0)
+    return s !== undefined && (snap.nodes.get(s)?.props.entry === true || Snapshot.inbound(snap, s, THEN).filter((e) => inside(e.from)).length === 0)
   })
   // Drop back edges (loopbacks) with a DFS from the roots, so every walk ends.
   const next = new Map<string, Array<string>>()
@@ -40,7 +40,7 @@ export const planStories = (snap: Snapshot.Snapshot, strategy: "edge-pair" | "te
   const visit = (c: string) => {
     state.set(c, "open")
     const out: Array<string> = []
-    for (const n of nextOf(snap, c)) {
+    for (const n of nextIn(c)) {
       if (state.get(n) === "open") continue
       out.push(n)
       if (!state.has(n)) visit(n)
@@ -85,8 +85,42 @@ export const planStories = (snap: Snapshot.Snapshot, strategy: "edge-pair" | "te
     })
   }
   // Cards no root reaches (a loop nothing enters, a start that is not marked entry) are never walked: counted.
-  const unreached = all.filter((c) => !next.has(c)).length
-  return { stories: stories.filter((s) => focus === undefined || s.some((c) => focus.has(c))), unreachable: unreached + need.size }
+  return { stories, unreachable: all.filter((c) => !next.has(c)).length + need.size }
+}
+
+/**
+ * Stories to walk. journey (the default): edge-pair inside each journey, one two-card story for each step from a
+ * journey into another (a seam), and each card in no journey alone. edge-pair: the same over the whole graph.
+ * teleport: each card alone. With focus, only stories through a focused card (or, for teleport, focused cards).
+ */
+export const planStories = (snap: Snapshot.Snapshot, strategy: "journey" | "edge-pair" | "teleport", focus?: ReadonlySet<string>) => {
+  const all = cards(snap).map((c) => c.id).sort()
+  const through = (stories: ReadonlyArray<ReadonlyArray<string>>) => stories.filter((s) => focus === undefined || s.some((c) => focus.has(c)))
+  if (strategy === "teleport") return { stories: all.filter((c) => focus === undefined || focus.has(c)).map((c) => [c]), unreachable: 0 }
+  if (strategy === "edge-pair") {
+    const r = edgePair(snap)
+    return { stories: through(r.stories), unreachable: r.unreachable }
+  }
+  const journeys = Snapshot.byType(snap, "gherkin/journey")
+    .map((j) => ({ id: j.id, cards: new Set(Snapshot.inbound(snap, j.id, IN).map((e) => e.from)) }))
+    .sort((a, b) => a.id.localeCompare(b.id))
+  const stories: Array<Array<string>> = []
+  let unreachable = 0
+  for (const j of journeys) {
+    const r = edgePair(snap, j.cards)
+    stories.push(...r.stories)
+    unreachable += r.unreachable
+  }
+  // Seams: a step from one journey's card to a card of another journey (not also in the first): its handoff alone.
+  const seams = new Set<string>()
+  for (const j of journeys)
+    for (const c of j.cards)
+      for (const n of nextOf(snap, c)) if (!j.cards.has(n) && journeys.some((o) => o !== j && o.cards.has(n))) seams.add(`${c}>${n}`)
+  stories.push(...[...seams].sort().map((x) => x.split(">")))
+  // Cards in no journey: each alone, so nothing goes unwalked.
+  const inAny = new Set(journeys.flatMap((j) => [...j.cards]))
+  stories.push(...all.filter((c) => !inAny.has(c)).map((c) => [c]))
+  return { stories: through(stories), unreachable }
 }
 
 /** What a tester sees at one step: the card, how they got here, and what they can do next. */

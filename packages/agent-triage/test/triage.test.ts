@@ -54,7 +54,7 @@ describe("the Triage Agent", () => {
     const draft = [{ tool: "edit-state", params: { id: "S-0002", text: "x" } }]
     const a = setup({ stages: [stage({ stage: "rehearse", draft })] })
     await Effect.runPromise(a.t.tick)
-    expect(a.calls.find(([k]) => k === "run")?.[1]).toEqual({ focus: ["UX-0001", "UX-0002", "UX-0003"], draft, file: false })
+    expect(a.calls.find(([k]) => k === "run")?.[1]).toEqual({ strategy: "journey", focus: ["UX-0001", "UX-0002", "UX-0003"], draft, file: false })
     expect(a.calls.find(([k]) => k === "rehearsing")?.[1]).toEqual({ journey: "Set up", run: "r-9", cards: ["UX-0001", "UX-0003"] })
     const b = setup({ stages: [stage({ stage: "rehearse", draft })], run: { refused: "run r-1 is still going" } })
     await Effect.runPromise(b.t.tick)

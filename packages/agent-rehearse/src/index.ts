@@ -39,7 +39,7 @@ export default definePlugin({
       cmd: "/rehearse",
       desc: "testers walk the journeys and file feedback (triage it in Feedback)",
       method: "command",
-      arg: { kind: "choice", choices: ["edge-pair", "teleport"], hint: "edge-pair|teleport", params: { keys: ["focus"] } },
+      arg: { kind: "choice", choices: ["journey", "edge-pair", "teleport"], hint: "journey|edge-pair|teleport", params: { keys: ["focus"] } },
     },
   ],
   methods: {
@@ -90,7 +90,7 @@ export default definePlugin({
       command: ({ args }: { args: ReadonlyArray<string> }) =>
         Effect.map(
           run({
-            ...(args.includes("teleport") ? { strategy: "teleport" as const } : args.includes("edge-pair") ? { strategy: "edge-pair" as const } : {}),
+            ...(args.includes("teleport") ? { strategy: "teleport" as const } : args.includes("edge-pair") ? { strategy: "edge-pair" as const } : { strategy: "journey" as const }),
             focus: (args.find((a) => a.startsWith("focus="))?.slice("focus=".length) ?? "").split(",").filter((x) => x.length > 0),
           }),
           (s) =>

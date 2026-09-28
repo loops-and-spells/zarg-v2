@@ -1,7 +1,7 @@
 // packages/plugin-gherkin/test/stories.test.ts
 import { describe, expect, test } from "bun:test"
 import { Snapshot } from "@zarg/graph/pure"
-import { ARRIVES, CARD, STATE, THEN } from "../src/model"
+import { ARRIVES, CARD, IN, JOURNEY, STATE, THEN } from "../src/model"
 import { planStories, stepView } from "../src/stories"
 
 const st = (id: string, text: string, props: Record<string, unknown> = {}) => ({ id, type: STATE, props: { text, ...props }, edges: [] })
@@ -77,5 +77,37 @@ describe("stories", () => {
     ].map((n) => (n.id === "B" ? { ...n, edges: [...n.edges, { type: "gherkin/in", to: "J-0001" }, { type: "gherkin/by", to: "P-0001" }] } : n)) as never)
     expect(stepView(tagged, "B")).toMatchObject({ journeys: ["Checkout"], by: ["Visitor"] })
     expect(stepView(graph, "nope")).toBeUndefined()
+  })
+})
+
+describe("journey stories", () => {
+  // Checkout: A, B, C, D. After: E, F. X is in no journey. C leads into After (to E), D too (to F).
+  const jn = (id: string, name: string) => ({ id, type: JOURNEY, props: { name }, edges: [] })
+  const inJ = (n: { id: string; type: string; props: unknown; edges: ReadonlyArray<{ type: string; to: string }> }, j: string) => ({ ...n, edges: [...n.edges, { type: IN, to: j }] })
+  const nodes = [...graph.nodes.values()]
+  const card = (id: string) => nodes.find((n) => n.id === id)! as never
+  const journeys = Snapshot.make([
+    ...nodes.filter((n) => n.type === STATE),
+    jn("J-0001", "Checkout"), jn("J-0002", "After"),
+    ...["A", "B", "C", "D"].map((c) => inJ(card(c), "J-0001")),
+    ...["E", "F"].map((c) => inJ(card(c), "J-0002")),
+    cd("X", "the visitor comes back", "S6", ["S1"]),
+  ] as never)
+  const key = (s: ReadonlyArray<string>) => s.join(">")
+
+  test("each journey's stories stay inside it and cover its steps and pairs; a seam story per step between journeys; a lone card alone", () => {
+    const { stories, unreachable } = planStories(journeys, "journey")
+    expect(new Set(stories.map(key))).toEqual(new Set(["A>B>D", "A>C", "E>F", "C>E", "D>F", "X"]))
+    expect(unreachable).toBe(0)
+  })
+  test("focus keeps the stories through a focused card", () => {
+    expect(new Set(planStories(journeys, "journey", new Set(["E"])).stories.map(key))).toEqual(new Set(["E>F", "C>E"]))
+  })
+  test("a card in two journeys is walked in both", () => {
+    const both = Snapshot.make([...journeys.nodes.values()].map((n) => (n.id === "F" ? { ...n, edges: [...n.edges, { type: IN, to: "J-0001" }] } : n)) as never)
+    const stories = planStories(both, "journey").stories.map(key)
+    expect(stories).toContain("A>B>D>F")
+    expect(stories).toContain("E>F")
+    expect(stories).not.toContain("D>F")
   })
 })

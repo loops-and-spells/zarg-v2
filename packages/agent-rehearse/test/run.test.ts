@@ -16,6 +16,7 @@ const setup = (o: Opts = {}) =>
     const events: Array<{ event: string; id: string; text?: string; progress?: { done: number; total: number } }> = []
     const filedCalls: Array<ReadonlyArray<FiledEntry>> = []
     const drafts: Array<[string, unknown]> = []
+    const strategies: Array<string> = []
     const agendaChanges = { n: 0 }
     const gone = new Set(o.gone ?? [])
     const writing = new Map<string, number>()
@@ -25,7 +26,7 @@ const setup = (o: Opts = {}) =>
     const view = (card: string): StepView => ({ card, title: `card ${card}`, given: `before ${card}`, when: o.cardText?.(card) ?? `do ${card}`, thens: [`after ${card}`], fork: [], hasFailure: false, journeys: ["Checkout"], by: ["Operator"] })
     const deps: RunDeps = {
       personas: () => Effect.succeed(o.personas ?? [{ name: "Operator", text: "The operator, through the zarg TUI.", cards: ["A", "B", "C", "D"] }]),
-      stories: (_s, _f, draft) => Effect.sync(() => (drafts.push(["stories", draft]), { stories: [["A", "B", "C"], ["A", "B", "D"]], unreachable: o.unreachable ?? 0 })),
+      stories: (strategy, _f, draft) => Effect.sync(() => (drafts.push(["stories", draft]), strategies.push(strategy), { stories: [["A", "B", "C"], ["A", "B", "D"]], unreachable: o.unreachable ?? 0 })),
       step: (card, _via, draft) => Effect.sync(() => (drafts.push(["step", draft]), draft !== undefined && card === "B" ? { ...view(card), thens: ["after B, drafted"] } : view(card))),
       agendaChanged: Effect.sync(() => void agendaChanges.n++),
       decide: (req) =>
@@ -74,7 +75,7 @@ const setup = (o: Opts = {}) =>
       settings: rehearseSettings({ ...(o.inFlight !== undefined ? { in_flight: o.inFlight } : {}) }, "stub:m"),
     }
     const r = yield* makeRehearse(deps)
-    return { r, files, decisions, llm, events, filedCalls, overlap, pushes, drafts, agendaChanges }
+    return { r, files, decisions, llm, events, filedCalls, overlap, pushes, drafts, agendaChanges, strategies }
   })
 const until = (check: () => boolean) =>
   Effect.gen(function* () {
@@ -126,6 +127,12 @@ describe("rehearse runs in the plugin", () => {
     expect(md).toContain("B is unclear")
     // Who and where on the card's By / In lines, so the highlighter colours them.
     expect(md).toContain("```gherkin\nBy    Operator\nIn    Checkout\nGiven before B\nWhen  do B\nThen  after B\n```")
+  })
+
+  test("testers walk journeys by default; edge-pair and teleport on request", async () => {
+    const t = await finish()
+    expect(t.strategies).toEqual(["journey"])
+    expect(t.r.record(t.run)!.strategy).toBe("journey")
   })
 
   test("a run over a draft walks the drafted cards, files nothing, and holds its findings for the caller; its end changes the agenda", async () => {

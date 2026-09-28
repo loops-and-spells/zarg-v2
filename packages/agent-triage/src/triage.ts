@@ -32,7 +32,7 @@ export interface TriageDeps {
   readonly redraft: (p: { readonly journey: string; readonly problems: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
   readonly rehearsed: (p: { readonly journey: string; readonly resolved: ReadonlyArray<string>; readonly fresh: ReadonlyArray<Fresh>; readonly next: "plan" | "refine"; readonly cards?: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
   readonly drafted: (p: { readonly journey: string; readonly title: string; readonly steps: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
-  readonly run: (p: { readonly focus: ReadonlyArray<string>; readonly draft: Draft; readonly file: false }) => Effect.Effect<{ readonly run?: string; readonly refused?: string }, unknown>
+  readonly run: (p: { readonly strategy: "journey"; readonly focus: ReadonlyArray<string>; readonly draft: Draft; readonly file: false }) => Effect.Effect<{ readonly run?: string; readonly refused?: string }, unknown>
   readonly result: (run: string) => Effect.Effect<{ readonly status: string; readonly findings: ReadonlyArray<Fresh & { readonly on: boolean }> }, unknown>
   /** The agent's row: what it does now. */
   readonly status: (text: string) => Effect.Effect<void, unknown>
@@ -127,7 +127,7 @@ export const makeTriage = (d: TriageDeps) => {
         const focus = [...new Set([...(journey?.cards ?? []), ...dry.cards])]
         // Nothing to walk: an empty focus would walk the whole graph.
         if (focus.length === 0) return yield* d.rehearsed({ journey: st.journey, resolved: [], fresh: [], next: "plan", cards: dry.cards })
-        const started: { readonly run?: string; readonly refused?: string } = yield* d.run({ focus, draft: st.draft, file: false }).pipe(Effect.orElseSucceed(() => ({ refused: "rehearse did not answer" })))
+        const started: { readonly run?: string; readonly refused?: string } = yield* d.run({ strategy: "journey", focus, draft: st.draft, file: false }).pipe(Effect.orElseSucceed(() => ({ refused: "rehearse did not answer" })))
         if (started.run === undefined) return yield* d.rehearsing({ journey: st.journey, clear: true, note: `waits: ${started.refused ?? "rehearse did not start"}` })
         return yield* d.rehearsing({ journey: st.journey, run: started.run, cards: dry.cards })
       })

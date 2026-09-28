@@ -130,7 +130,7 @@ export default definePlugin({
       agenda: () => Effect.map(snap, agenda),
       suggest: () => Effect.map(snap, suggest),
       render: ({ focus }: { focus?: ReadonlyArray<string> }) => Effect.map(snap, (s) => render(s, focus === undefined ? undefined : new Set(focus))),
-      stories: ({ strategy, focus, draft }: { strategy: "edge-pair" | "teleport"; focus?: ReadonlyArray<string>; draft?: Draft }) =>
+      stories: ({ strategy, focus, draft }: { strategy: "journey" | "edge-pair" | "teleport"; focus?: ReadonlyArray<string>; draft?: Draft }) =>
         Effect.map(drafted(draft), (s) => planStories(s, strategy, focus === undefined || focus.length === 0 ? undefined : new Set(focus))),
       step: ({ card, via, draft }: { card: string; via?: string; draft?: Draft }) => Effect.map(drafted(draft), (s) => stepView(s, card, via) ?? null),
       dryRun: ({ draft }: { draft: Draft }) => Effect.flatMap(snap, (s) => dryRun(s, draft, tools, (c) => validateProps(c), [clauseShape, stateText, personaShape, journeyShape], EDGES)),

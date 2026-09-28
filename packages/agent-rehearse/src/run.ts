@@ -24,7 +24,7 @@ export interface RunRecord {
   /** When the run started (ms): orders runs, since run ids do not. */
   readonly startedAt: number
   readonly status: "running" | "done" | "stopped"
-  readonly strategy: "edge-pair" | "teleport"
+  readonly strategy: "journey" | "edge-pair" | "teleport"
   readonly focus: ReadonlyArray<string>
   readonly personas: ReadonlyArray<Persona>
   readonly stories: ReadonlyArray<ReadonlyArray<string>>
@@ -56,7 +56,7 @@ const stepsFor = (p: Persona, stories: ReadonlyArray<ReadonlyArray<string>>) =>
 export interface RunDeps {
   /** The graph's personas, each with the cards it acts in (gherkin's `personas`). */
   readonly personas: () => Effect.Effect<ReadonlyArray<{ readonly name: string; readonly text: string; readonly cards: ReadonlyArray<string> }>, unknown>
-  readonly stories: (strategy: "edge-pair" | "teleport", focus?: ReadonlyArray<string>, draft?: Draft) => Effect.Effect<{ readonly stories: ReadonlyArray<ReadonlyArray<string>>; readonly unreachable: number }, unknown>
+  readonly stories: (strategy: "journey" | "edge-pair" | "teleport", focus?: ReadonlyArray<string>, draft?: Draft) => Effect.Effect<{ readonly stories: ReadonlyArray<ReadonlyArray<string>>; readonly unreachable: number }, unknown>
   readonly step: (card: string, via?: string, draft?: Draft) => Effect.Effect<StepView | null, unknown>
   /** Tell the core a run ended (the Triage Agent waits for its re-rehearse). */
   readonly agendaChanged: Effect.Effect<void, unknown>
@@ -370,11 +370,11 @@ export const makeRehearse = (deps: RunDeps) =>
         active = { run: rec.run, fiber }
       })
 
-    const start = (opts: { readonly strategy?: "edge-pair" | "teleport"; readonly focus?: ReadonlyArray<string>; readonly personas?: ReadonlyArray<string>; readonly draft?: Draft; readonly file?: boolean }) =>
+    const start = (opts: { readonly strategy?: "journey" | "edge-pair" | "teleport"; readonly focus?: ReadonlyArray<string>; readonly personas?: ReadonlyArray<string>; readonly draft?: Draft; readonly file?: boolean }) =>
       Semaphore.withPermits(lock, 1)(
         Effect.gen(function* () {
           if (active !== undefined) return { refused: `run ${active.run} is still going` }
-          const strategy = opts.strategy ?? "edge-pair"
+          const strategy = opts.strategy ?? "journey"
           // No focus, or an empty one, is every story.
           const focus = opts.focus !== undefined && opts.focus.length > 0 ? opts.focus : undefined
           const planned = yield* deps.stories(strategy, focus, opts.draft).pipe(Effect.orElseSucceed(() => ({ stories: [], unreachable: 0 })))

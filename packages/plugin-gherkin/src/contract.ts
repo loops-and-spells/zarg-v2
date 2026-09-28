@@ -3,7 +3,7 @@ import { pluginContract } from "@zarg/plugin-sdk"
 
 /** Gherkin tool calls, in order: a change drafted over the graph, never written to it. */
 export const Draft = Schema.Array(Schema.Struct({ tool: Schema.String, params: Schema.Unknown }))
-export const StoriesParams = Schema.Struct({ strategy: Schema.Literals(["edge-pair", "teleport"]), focus: Schema.optionalKey(Schema.Array(Schema.String)), draft: Schema.optionalKey(Draft) })
+export const StoriesParams = Schema.Struct({ strategy: Schema.Literals(["journey", "edge-pair", "teleport"]), focus: Schema.optionalKey(Schema.Array(Schema.String)), draft: Schema.optionalKey(Draft) })
 export const StoriesResult = Schema.Struct({ stories: Schema.Array(Schema.Array(Schema.String)), unreachable: Schema.Number })
 export const StepParams = Schema.Struct({ card: Schema.String, via: Schema.optionalKey(Schema.String), draft: Schema.optionalKey(Draft) })
 export const StepView = Schema.NullOr(
