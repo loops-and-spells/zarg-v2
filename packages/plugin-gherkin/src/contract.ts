@@ -1,9 +1,11 @@
 import { Schema } from "effect"
 import { pluginContract } from "@zarg/plugin-sdk"
 
-export const StoriesParams = Schema.Struct({ strategy: Schema.Literals(["edge-pair", "teleport"]), focus: Schema.optionalKey(Schema.Array(Schema.String)) })
+/** Gherkin tool calls, in order: a change drafted over the graph, never written to it. */
+export const Draft = Schema.Array(Schema.Struct({ tool: Schema.String, params: Schema.Unknown }))
+export const StoriesParams = Schema.Struct({ strategy: Schema.Literals(["edge-pair", "teleport"]), focus: Schema.optionalKey(Schema.Array(Schema.String)), draft: Schema.optionalKey(Draft) })
 export const StoriesResult = Schema.Struct({ stories: Schema.Array(Schema.Array(Schema.String)), unreachable: Schema.Number })
-export const StepParams = Schema.Struct({ card: Schema.String, via: Schema.optionalKey(Schema.String) })
+export const StepParams = Schema.Struct({ card: Schema.String, via: Schema.optionalKey(Schema.String), draft: Schema.optionalKey(Draft) })
 export const StepView = Schema.NullOr(
   Schema.Struct({
     card: Schema.String,
@@ -20,6 +22,10 @@ export const StepView = Schema.NullOr(
   }),
 )
 
+export const JourneyView = Schema.Struct({ id: Schema.String, name: Schema.String, cards: Schema.Array(Schema.String) })
+export const DryRunParams = Schema.Struct({ draft: Draft })
+/** A draft checked like a write: ok, or its problems (a tool's error, a lint); the nodes it would touch. */
+export const DryRunResult = Schema.Struct({ ok: Schema.Boolean, problems: Schema.Array(Schema.String), touched: Schema.Array(Schema.String), messages: Schema.Array(Schema.String) })
 export const PersonaView = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
@@ -33,4 +39,6 @@ export const Gherkin = pluginContract("gherkin", {
   stories: { params: StoriesParams, success: StoriesResult },
   step: { params: StepParams, success: StepView },
   personas: { params: Schema.Struct({}), success: Schema.Array(PersonaView) },
+  journeys: { params: Schema.Struct({}), success: Schema.Array(JourneyView) },
+  dryRun: { params: DryRunParams, success: DryRunResult },
 })

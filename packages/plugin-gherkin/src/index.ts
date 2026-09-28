@@ -5,7 +5,8 @@ import { diff, type Node, Snapshot } from "@zarg/graph/pure"
 import { definePlugin, Graph, PluginFailure, Views } from "@zarg/plugin-sdk"
 import { affectedCards } from "./affected"
 import { agenda, suggest } from "./agenda"
-import { Gherkin, PersonaView, StepParams, StepView, StoriesParams, StoriesResult } from "./contract"
+import { DryRunParams, DryRunResult, Gherkin, JourneyView, PersonaView, StepParams, StepView, StoriesParams, StoriesResult } from "./contract"
+import { applyDraft, type Draft, dryRun } from "./draft"
 import type { Finding } from "./kit"
 import { clauseShape, journeyShape, personaShape, stateText } from "./lints"
 import { BY, CARD, CardProps, JOURNEY, JourneyProps, PERSONA, PersonaProps, personaName, personas, STATE, StateProps } from "./model"
@@ -82,7 +83,8 @@ export default definePlugin({
       params: Schema.Struct({ agent: Schema.String, action: Schema.String, section: Schema.optionalKey(Schema.String), rows: Schema.Array(Schema.String) }),
       success: Schema.Struct({ notice: Schema.String }),
     },
-    journeys: { doc: "Journeys, each with its cards.", params: Schema.Struct({}), success: Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String, cards: Schema.Array(Schema.String) })) },
+    journeys: { doc: "Journeys, each with its cards.", params: Schema.Struct({}), success: Schema.Array(JourneyView) },
+    dryRun: { doc: "Check a draft (gherkin tool calls, in order) as a write would, without writing.", params: DryRunParams, success: DryRunResult },
     affected: {
       doc: "Cards a change affects.",
       params: Schema.Struct({ before: SnapshotJson, after: SnapshotJson }),
@@ -93,6 +95,8 @@ export default definePlugin({
     const graph = yield* Graph
     const snap = graph.snapshot.pipe(Effect.orDie)
     const views = yield* Views
+    // The graph as a draft would leave it (the graph itself when there is none).
+    const drafted = (draft: Draft | undefined) => (draft === undefined || draft.length === 0 ? snap : Effect.flatMap(snap, (s) => Effect.map(applyDraft(s, draft, tools), (a) => a.snapshot)))
     const runTool = (t: (typeof tools)[number]) => (p: unknown) =>
       Effect.flatMap(snap, (s) => t.run(p as never, s)).pipe(Effect.mapError((e) => new PluginFailure({ tag: "ToolError", message: e.message })))
     // Entity handlers read the graph as it is now; `get` feeds the other ops (the host serves get itself).
@@ -124,9 +128,10 @@ export default definePlugin({
       agenda: () => Effect.map(snap, agenda),
       suggest: () => Effect.map(snap, suggest),
       render: ({ focus }: { focus?: ReadonlyArray<string> }) => Effect.map(snap, (s) => render(s, focus === undefined ? undefined : new Set(focus))),
-      stories: ({ strategy, focus }: { strategy: "edge-pair" | "teleport"; focus?: ReadonlyArray<string> }) =>
-        Effect.map(snap, (s) => planStories(s, strategy, focus === undefined || focus.length === 0 ? undefined : new Set(focus))),
-      step: ({ card, via }: { card: string; via?: string }) => Effect.map(snap, (s) => stepView(s, card, via) ?? null),
+      stories: ({ strategy, focus, draft }: { strategy: "edge-pair" | "teleport"; focus?: ReadonlyArray<string>; draft?: Draft }) =>
+        Effect.map(drafted(draft), (s) => planStories(s, strategy, focus === undefined || focus.length === 0 ? undefined : new Set(focus))),
+      step: ({ card, via, draft }: { card: string; via?: string; draft?: Draft }) => Effect.map(drafted(draft), (s) => stepView(s, card, via) ?? null),
+      dryRun: ({ draft }: { draft: Draft }) => Effect.flatMap(snap, (s) => dryRun(s, draft, tools, (c) => validateProps(c), [clauseShape, stateText, personaShape, journeyShape])),
       journeys: () => Effect.map(snap, journeyList),
       // The nav item opens the view (Refresh reloads it): every journey, with every journey's flow for the one highlighted.
       act: ({ agent }: { agent: string; action: string; rows: ReadonlyArray<string> }) =>
