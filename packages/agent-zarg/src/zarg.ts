@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { Effect } from "effect"
 import type { AgentHost } from "@zarg/agent-host"
-import type { ChosenFindings, ThreadLog } from "@zarg/core"
+import type { ThreadLog } from "@zarg/core"
 import type { Decisions } from "@zarg/decisions"
 import type { GraphStore } from "@zarg/graph"
 import type { Bound } from "@zarg/kernel"
@@ -10,7 +10,6 @@ import { Model } from "@zarg/model"
 import type { PluginHost } from "@zarg/plugin/server"
 import { type Asker, decisionsService, entitiesService, fsRead, graph, inquire, pluginService, Rlm, type RlmSettings, type Scope } from "@zarg/rlm"
 import { askFirst } from "./driver"
-import { commitGraph, findingsService } from "./findings"
 import { judgeGaps } from "./gaps"
 import { nextGoals, type NextOption } from "./intent"
 import { makeThread } from "./thread"
@@ -29,7 +28,6 @@ export const makeZarg = (host: AgentHost) =>
     const log = host.log as ThreadLog
     const rlmSettings = host.rlmSettings as RlmSettings
     const sensitive = host.sensitive as never
-    const chosen = host.findings.chosen as ChosenFindings
     const snapshot = store.snapshot.pipe(Effect.mapError((e) => ({ _tag: e._tag, message: e.message })))
     // A child's graph focus must name real nodes.
     const unknownIds = (ids: ReadonlyArray<string>) =>
@@ -51,16 +49,6 @@ export const makeZarg = (host: AgentHost) =>
         if (name === "Fs:read") return fsRead({ root, scope, sensitive, outside })
         if (name === "Inquire") return inquire(guard.asker)
         if (name === "Decisions") return decisionsService(decisions as never)
-        if (name === "Findings")
-          return findingsService({
-            dir: join(root, ".zarg", "findings"),
-            invoke: (p, method, params) => plugins.invoke(p, method, params),
-            guard,
-            chosen,
-            trusted: (p) => host.findings.firstParty(p),
-            neighbors: (card) => Effect.map(store.snapshot, (snap) => (snap.nodes.get(card)?.edges ?? []).map((e) => e.to)).pipe(Effect.orElseSucceed(() => [])),
-            commit: (ids, message) => plugins.exclusive(commitGraph(root, ids, message)),
-          })
         return undefined
       }
       return Rlm.make({ settings: rlmSettings, services: factory, roles: host.roles, decisions, observe, unknownIds }).pipe(Effect.provideService(Model.Model, model))

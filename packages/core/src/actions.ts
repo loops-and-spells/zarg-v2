@@ -8,10 +8,9 @@ const owner = (agent: string) => {
   return at < 0 ? undefined : { plugin: agent.slice(0, at), id: agent.slice(at + 1) }
 }
 
-/** Actions on an agent's view go to its plugin's `act`; the core records what the operator applied (the findings gate). */
+/** Actions on an agent's view go to its plugin's `act`. */
 export const makeActions = (deps: {
   readonly invoke: Invoke
-  readonly onApply?: (plugin: string, rows: ReadonlyArray<string>) => void
   /** Take a question the agent no longer waits for out of its view (its messages stay). */
   readonly withdraw?: (thread: string, agent: string) => void
   /** The surfaces an action declares it opens (`opens`), looked up in the view (its store key) it came from. */
@@ -37,7 +36,6 @@ export const makeActions = (deps: {
       })
     }
     return deps.invoke(o.plugin, "act", { agent: o.id, action, ...(section !== undefined ? { section } : {}), rows }).pipe(
-      Effect.tap(() => Effect.sync(() => (action === "apply" ? deps.onApply?.(o.plugin, rows) : undefined))),
       Effect.map((r) => ({ notice: String((r as { notice?: unknown } | null)?.notice ?? "done") })),
       Effect.catch((e) => Effect.succeed({ notice: e.message })),
     )

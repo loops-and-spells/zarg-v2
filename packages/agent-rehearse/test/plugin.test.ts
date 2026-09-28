@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { BunServices } from "@effect/platform-bun"
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Layer } from "effect"
@@ -17,19 +17,19 @@ const build = async (entry: string, origin: string): Promise<LoadedPlugin> => {
 const noul = (p: number) => ({ type: "noul", answer: p >= 0.5, probability: p, confidence: 0 })
 
 describe("rehearse as a loaded plugin", () => {
-  test("/rehearse walks gherkin's stories through the host and leaves findings for the developer", async () => {
+  test("/rehearse walks gherkin's stories through the host and files what it found with the backlog", async () => {
     const root = mkdtempSync(join(tmpdir(), "zt-rehearse-"))
     mkdirSync(join(root, "intent"))
     const plugins = await Promise.all([
       build(join(import.meta.dir, "../../plugin-gherkin/src/index.ts"), join(import.meta.dir, "../../plugin-gherkin")),
       build(join(import.meta.dir, "../src/index.ts"), join(import.meta.dir, "..")),
+      build(join(import.meta.dir, "../../plugin-backlog/src/index.ts"), join(import.meta.dir, "../../plugin-backlog")),
     ])
     const events: Array<{ plugin: string; event: { event: string; id: string; text?: string } }> = []
     const out = await Effect.gen(function* () {
       const grants = yield* makeGrants({ file: join(mkdtempSync(join(tmpdir(), "zt-rehearse-g-")), "grants.json"), project: root })
       // Rehearse asks for more than the graph: the operator grants it once (`zarg plugin grant rehearse`).
-      const m = plugins[1]!.manifest
-      yield* grants.approveLoad(m.name, scopesDigest(m.scopes, m.optional, (m.pluginDependencies ?? []).map((d) => d.name)))
+      for (const m of [plugins[1]!.manifest, plugins[2]!.manifest]) yield* grants.approveLoad(m.name, scopesDigest(m.scopes, m.optional, (m.pluginDependencies ?? []).map((d) => d.name)))
       const host = hostLayer(plugins, {
         grants,
         vault: () => Effect.succeed(undefined),
@@ -64,11 +64,14 @@ describe("rehearse as a loaded plugin", () => {
     }).pipe(Effect.scoped, Effect.provide(BunServices.layer), Effect.runPromise)
 
     expect(out.started).toMatchObject({ notice: expect.stringContaining("started") })
-    expect(events.every((e) => e.plugin === "rehearse")).toBe(true)
+    expect(events.filter((e) => e.plugin !== "rehearse")).toEqual([])
     expect(events.map((e) => e.event.id)).toContain("tester-1")
     expect(events.find((e) => e.event.event === "start" && e.event.id === "tester-1")?.event).toMatchObject({ view: "tester" })
-    const review = events.filter((e) => e.event.id === "run" && e.event.event === "set" && (e.event as { section?: string }).section === "review.findings").at(-1)
-    expect(((review?.event as { data?: { rows?: ReadonlyArray<unknown> } } | undefined)?.data?.rows ?? []).length).toBeGreaterThan(0)
+    const review = events.filter((e) => e.event.id === "tester-1" && e.event.event === "set" && (e.event as { section?: string }).section === "review.feedback").at(-1)
+    const rows = ((review?.event as { data?: { rows?: ReadonlyArray<{ cells: Record<string, string> }> } } | undefined)?.data?.rows ?? [])
+    expect(rows.length).toBeGreaterThan(0)
+    expect(rows.every((r) => r.cells.now === "open")).toBe(true)
+    expect(readdirSync(join(root, ".zarg/feedback")).length).toBe(rows.length)
     const index = JSON.parse(readFileSync(join(root, ".zarg/rehearse/index.json"), "utf8")) as ReadonlyArray<string>
     expect(index).toHaveLength(1)
   }, 30_000)
@@ -79,14 +82,12 @@ describe("rehearse as a loaded plugin", () => {
   })
 })
 
-test("rehearse declares one card, the run's, and sends the run's findings to zarg from the review queue", async () => {
+test("rehearse declares one card, the run's, with no action; none of its tables joins the review queue or has actions", async () => {
   const { manifestOf } = await import("@zarg/plugin-sdk/tools")
   const { default: rehearse } = await import("../src")
   const m = manifestOf(rehearse as never)
-  expect((m.surfaces ?? []).filter((s) => s.kind === "card")).toEqual([{ kind: "card", name: "run", view: "run", headline: "progress", recent: "testers", action: "apply" }])
-  const reviewed = (m.views ?? []).flatMap((v) => v.sections.flatMap((s) => (s.kind === "tabs" ? s.tabs.map((t) => [v.name, `${s.id}.${t.id}`, t.review === true] as const) : [])))
-  expect(reviewed.filter(([, , r]) => r).map(([v, p]) => `${v}:${p}`)).toEqual(["run:review.findings"])
-  const run = (m.views ?? []).find((v) => v.name === "run")!
-  const findings = run.sections.flatMap((s) => (s.kind === "tabs" ? s.tabs : [])).find((t) => t.id === "findings")!
-  expect(findings.actions?.find((a) => a.id === "apply")?.label).toBe("Send to zarg")
+  expect((m.surfaces ?? []).filter((s) => s.kind === "card")).toEqual([{ kind: "card", name: "run", view: "run", headline: "progress", recent: "testers" }])
+  const leaves = (m.views ?? []).flatMap((v) => v.sections.flatMap((s) => (s.kind === "tabs" ? s.tabs : [s])))
+  expect(leaves.filter((l) => l.review === true || (l.actions ?? []).length > 0 || l.selectable === true)).toEqual([])
+  expect(m.pluginDependencies.map((d) => d.name)).toEqual(["gherkin", "backlog"])
 })

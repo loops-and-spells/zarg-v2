@@ -22,7 +22,6 @@ import { outsideReads } from "./outside"
 import { makePrompts } from "./prompts"
 import { makeSurfaces, NAV, navItems } from "./surfaces"
 import { makeActions } from "./actions"
-import { chosenFindings } from "./chosen"
 import { makeLog } from "./log"
 import { pluginAgents } from "./plugin-agents"
 import { forDriver, makeYolo, PluginControl, pluginHostLayer, trustedAgents, USER_DIR, vaultFrom, ZARG_ROOT } from "./plugins"
@@ -80,8 +79,6 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // /yolo (for every plugin) also lets agents' reads outside the repository through without asking.
     const control = yield* PluginControl
     const yoloControl = control.yolo
-    // The operator's applied findings, recorded by the core (the findings gate reads them).
-    const chosen = chosenFindings(join(root, ".zarg", "findings"))
     // A child's graph focus must name real nodes.
     const unknownIds = (ids: ReadonlyArray<string>) => Effect.map(store.snapshot, (snap) => ids.filter((id) => !snap.nodes.has(id))).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>))
     // Plan and implement: the reconcile loop, unless `[reconcile] enabled = false`.
@@ -120,7 +117,6 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       sensitive,
       agenda,
       outsideReads: outsideReads({ grants: agentGrants, userDir: USER_DIR, ask: prompts.ask as never, yolo: () => yoloControl.on("zarg:agents") }),
-      findings: { chosen, firstParty: control.firstParty },
       panels: { open: (p) => surfaces.openPanel({ ...p, id: `zarg:${p.name}:zarg`, plugin: "zarg", agent: "zarg" }) },
     }
     const zarg = yield* trustedAgents(ZARG_ROOT).pipe(
@@ -199,7 +195,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       Effect.uninterruptible,
       Semaphore.withPermits(turnOnLock, 1),
     )
-    const actions = makeActions({ invoke: (plugin, method, params) => host.invoke(plugin, method, params), onApply: (plugin, rows) => chosen.add(plugin, rows),
+    const actions = makeActions({ invoke: (plugin, method, params) => host.invoke(plugin, method, params),
       // An action's `opens`, from the layout its view has now: the operator's own gesture opens them.
       opensOf: (view, action) => {
         const layout = threadViews(log, "main").layout(view)

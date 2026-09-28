@@ -42,15 +42,20 @@ describe("tui end to end", () => {
     const t = await testRender(<App session={opened.session} meta={opened.meta} onExit={() => (exited = true)} />, { width: 110, height: 26, exitOnCtrlC: false, exitSignals: [] })
     try {
       opened.session.start()
-      // Rehearse has no load grant in this test's user dir: the core asks in a popover. Not now keeps it unloaded.
-      await frameUntil(t, (f) => f.includes("grant") && f.includes("Plugin rehearse wants to load"))
-      t.mockInput.pressArrow("right")
-      await t.renderOnce()
-      // A grant that just showed ignores Enter for a moment.
-      await Bun.sleep(400)
-      t.mockInput.pressEnter()
+      // The backlog (and rehearse, which needs it) have no load grant in this test's user dir: the core asks in
+      // popovers, one at a time. Not now keeps them unloaded.
+      await frameUntil(t, (f) => f.includes("grant") && f.includes("Plugin backlog wants to load"))
+      for (let i = 0; i < 2 && t.captureCharFrame().includes("wants to load"); i++) {
+        t.mockInput.pressArrow("right")
+        await t.renderOnce()
+        // A grant that just showed ignores Enter for a moment.
+        await Bun.sleep(400)
+        t.mockInput.pressEnter()
+        await Bun.sleep(300)
+        await t.renderOnce()
+      }
       // No agent is open: zarg's sheet shows the question with its options.
-      await frameUntil(t, (f) => f.includes("› Checkout (recommended) — most used") && !f.includes("Plugin rehearse wants to load"))
+      await frameUntil(t, (f) => f.includes("› Checkout (recommended) — most used") && !f.includes("wants to load"))
       t.mockInput.pressEnter()
       const frame = await frameUntil(t, (f) => f.includes("What next?"))
       expect(frame).toContain("you  Checkout")

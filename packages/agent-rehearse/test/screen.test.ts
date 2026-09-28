@@ -15,9 +15,9 @@ const persona = { name: "developer", text: "The developer, through the zarg TUI"
 const decideWith = (answers: Record<string, Answer>, seen: Array<DecisionRequest> = []) => (req: DecisionRequest) => Effect.sync(() => (seen.push(req), answers))
 
 describe("rehearse screen", () => {
-  test("settings default to the calibrated thresholds and auto_apply off", () => {
-    expect(s).toEqual({ feelBelow: 1.45, failAt: 0.8, forkBelow: 0.8, seamBelow: 0.3, realKeep: 0.75, realDrop: 0.25, inFlight: 8, autoApply: false, role: "rehearse" })
-    expect(rehearseSettings({ feel_below: 1.2, auto_apply: true }, "rehearse")).toMatchObject({ feelBelow: 1.2, autoApply: true })
+  test("settings default to the calibrated thresholds", () => {
+    expect(s).toEqual({ feelBelow: 1.45, failAt: 0.8, forkBelow: 0.8, seamBelow: 0.3, realKeep: 0.75, realDrop: 0.25, inFlight: 8, role: "rehearse" })
+    expect(rehearseSettings({ feel_below: 1.2 }, "rehearse")).toMatchObject({ feelBelow: 1.2 })
   })
 
   test("one request per step: persona, story so far and card; a fine step raises no flag", async () => {

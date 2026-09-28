@@ -1,6 +1,5 @@
 export * from "./events"
 export * from "./log"
-export * from "./chosen"
 export * from "./views"
 export * from "./rlm-view"
 export * from "./outside"

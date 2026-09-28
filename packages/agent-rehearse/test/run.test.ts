@@ -1,24 +1,24 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { makeRehearse, ownCard, type RunDeps } from "../src/run"
+import { type FiledEntry, makeRehearse, ownCard, type RunDeps } from "../src/run"
 import { rehearseSettings } from "../src/settings"
 import type { Answer, DecisionRequest, StepView } from "../src/types"
-import { FINDING_COLUMNS } from "../src/views"
+import { FINDING_COLUMNS, RunView, TesterView } from "../src/views"
 
 const noul = (p: number): Answer => ({ type: "noul", answer: p >= 0.5, probability: p, confidence: 0 })
 
-type Opts = { inFlight?: number; slowWrite?: number; down?: boolean; slowDecide?: number; auto?: boolean; unreachable?: number; personas?: ReadonlyArray<{ name: string; text: string; cards: ReadonlyArray<string> }>; files?: Map<string, string>; cardText?: (card: string) => string }
+type Opts = { inFlight?: number; slowWrite?: number; down?: boolean; slowDecide?: number; gone?: ReadonlyArray<string>; state?: string; on?: boolean; unreachable?: number; personas?: ReadonlyArray<{ name: string; text: string; cards: ReadonlyArray<string> }>; files?: Map<string, string>; cardText?: (card: string) => string }
 const setup = (o: Opts = {}) =>
   Effect.gen(function* () {
     const files = o.files ?? new Map<string, string>()
     const decisions: Array<DecisionRequest> = []
     const llm = { n: 0 }
     const events: Array<{ event: string; id: string; text?: string; progress?: { done: number; total: number } }> = []
-    let changed = 0
+    const filedCalls: Array<ReadonlyArray<FiledEntry>> = []
+    const gone = new Set(o.gone ?? [])
     const writing = new Map<string, number>()
     const overlap = { max: 0 }
     const pushes: Array<{ agent: string; path: string; data?: unknown; lines?: unknown; view?: string }> = []
-    const attention: Array<[string, string | undefined]> = []
     let ids = 0
     const view = (card: string): StepView => ({ card, title: `card ${card}`, given: `before ${card}`, when: o.cardText?.(card) ?? `do ${card}`, thens: [`after ${card}`], fork: [], hasFailure: false, journeys: ["Checkout"], by: ["Operator"] })
     const deps: RunDeps = {
@@ -60,20 +60,18 @@ const setup = (o: Opts = {}) =>
           writing.set(path, n - 1)
         }),
       list: (dir) => Effect.succeed([...files.keys()].filter((k) => k.startsWith(`${dir}/`)).map((k) => k.slice(dir.length + 1))),
-      agendaChanged: Effect.sync(() => void changed++),
-      attention: {
-        request: (agent, reason) => Effect.sync(() => void attention.push([agent, reason])),
-        clear: (agent) => Effect.sync(() => void attention.push([agent, undefined])),
-      },
+      version: (card) => Effect.succeed(gone.has(card) ? null : `v${card.toLowerCase()}00000000000`.slice(0, 12)),
+      file: (entries) => Effect.sync(() => (filedCalls.push(entries), { ids: entries.map((_, i) => `F-${i}`) })),
+      status: (ids) => Effect.succeed(ids.map((id) => ({ id, state: o.state ?? "open", on: o.on ?? true }))),
       views: {
         set: (agent, v, path, data) => Effect.sync(() => void pushes.push({ agent, path, data, view: v.name })),
         append: (agent, _v, path, lines) => Effect.sync(() => void pushes.push({ agent, path, lines })),
       },
       surfaces: { open: (surface, agent) => Effect.sync(() => void events.push({ event: "open", id: agent, text: surface })) },
-      settings: rehearseSettings({ ...(o.auto ? { auto_apply: true } : {}), ...(o.inFlight !== undefined ? { in_flight: o.inFlight } : {}) }, "stub:m"),
+      settings: rehearseSettings({ ...(o.inFlight !== undefined ? { in_flight: o.inFlight } : {}) }, "stub:m"),
     }
     const r = yield* makeRehearse(deps)
-    return { r, files, decisions, llm, events, changed: () => changed, overlap, pushes, attention }
+    return { r, files, decisions, llm, events, filedCalls, overlap, pushes }
   })
 const until = (check: () => boolean) =>
   Effect.gen(function* () {
@@ -103,25 +101,23 @@ describe("rehearse runs in the plugin", () => {
     expect(line.items[0]!.value).toMatch(/^\d+\/\d+ steps$/)
   })
 
-  test("a run screens shared prefixes once, diagnoses only flagged steps, and by default applies nothing", async () => {
+  test("a run screens shared prefixes once, diagnoses only flagged steps, and files what it found", async () => {
     const t = await finish()
     expect(t.decisions.filter((d) => d.questions.feel).length).toBe(4)
     expect(t.llm.n).toBe(2)
     const rec = t.r.record(t.run)!
     expect(rec.findings.map((f) => [f.kind, f.card, f.route])).toEqual([["friction", "B", "fix"]])
     expect(rec.report).toBe("Testers stalled at B.")
-    expect(t.r.agenda()).toEqual([])
-    expect(t.changed()).toBe(0)
-    expect(t.events.filter((e) => e.id === "run" && e.event === "status").at(-1)?.text).toBe("1 finding to review")
+    expect(t.events.filter((e) => e.id === "run" && e.event === "status").at(-1)?.text).toBe("1 feedback entry filed · triage in Feedback")
   })
 
   test("each finding: card, journey, kind and severity in the list, everything in its search text, and in full in the detail beside it", async () => {
     const t = await finish()
-    const [row] = rowsNow(t.pushes, "run", "review.findings") as ReadonlyArray<{ id: string; cells: Record<string, string>; search?: string }>
-    expect(row!.cells).toEqual({ card: "B", journey: "Checkout", kind: "friction", severity: "medium" })
+    const [row] = rowsNow(t.pushes, "tester-1", "review.feedback") as ReadonlyArray<{ id: string; cells: Record<string, string>; search?: string }>
+    expect(row!.cells).toEqual({ card: "gherkin/card:B", journey: "Checkout", kind: "friction", severity: "medium", now: "open" })
     expect(row!.search).toContain("B is unclear")
     expect(row!.search).toContain("Operator")
-    const detail = t.pushes.filter((p) => p.agent === "run" && p.path === "detail").at(-1)?.data as { rows: Record<string, string> }
+    const detail = t.pushes.filter((p) => p.agent === "tester-1" && p.path === "detail").at(-1)?.data as { rows: Record<string, string> }
     const md = detail.rows[row!.id]!
     expect(md).toContain("card B")
     expect(md).toContain("B is unclear")
@@ -129,49 +125,28 @@ describe("rehearse runs in the plugin", () => {
     expect(md).toContain("```gherkin\nBy    Operator\nIn    Checkout\nGiven before B\nWhen  do B\nThen  after B\n```")
   })
 
-  test("the tables list the findings; apply sends only the chosen ones to the agenda and says so to the host", async () => {
+  test("a finished run files each finding with the backlog: the card's version, its journeys, and the run's first call", async () => {
     const t = await finish()
-    const id = t.r.record(t.run)!.findings[0]!.id
-    expect(rowsNow(t.pushes, "run", "review.findings").map((r) => r.id)).toEqual([id])
-    expect(rowsNow(t.pushes, "run", "review.likes")).toEqual([])
-    expect(await Effect.runPromise(t.r.finding(id))).toMatchObject({ chosen: false, stale: false })
-    expect(await Effect.runPromise(t.r.act("apply", "review.findings", [id]))).toEqual({ notice: "sent 1 finding to zarg" })
-    expect(t.r.agenda()).toEqual([expect.objectContaining({ title: expect.stringContaining("1 finding the developer sent to zarg") })])
-    expect(t.changed()).toBe(1)
-    expect(await Effect.runPromise(t.r.finding(id))).toMatchObject({ chosen: true })
+    expect(t.filedCalls).toEqual([
+      [{ ref: "gherkin/card:B@vb0000000000", journeys: ["Checkout"], persona: "Operator", kind: "friction", severity: "medium", note: "B is unclear", from: { agent: "rehearse", run: t.run }, triage: { on: true, why: "fix · real 0.90" } }],
+    ])
+    expect(t.r.record(t.run)!.filed).toEqual({ [t.r.record(t.run)!.findings[0]!.id]: "F-0" })
   })
 
-  test("chosen findings survive a restart", async () => {
+  test("a finding on a card that is gone is not filed", async () => {
+    const t = await finish({ gone: ["B"] })
+    expect(t.filedCalls).toEqual([])
+  })
+
+  test("a tester's Feedback table says where each entry is now: off when triaged off", async () => {
+    const t = await finish({ on: false })
+    expect(rowsNow(t.pushes, "tester-1", "review.feedback").map((r) => r.cells.now)).toEqual(["off"])
+  })
+
+  test("the run shows its feedback by journey and severity, and has no actions", async () => {
     const t = await finish()
-    const id = t.r.record(t.run)!.findings[0]!.id
-    await Effect.runPromise(t.r.act("apply", "review.findings", [id]))
-    const again = await Effect.runPromise(setup({ files: t.files }))
-    expect(again.r.agenda().length).toBe(1)
-  })
-
-  test("dismissed findings stay dismissed on a rerun while the card is unchanged", async () => {
-    const t = await finish()
-    await Effect.runPromise(t.r.act("dismiss", "review.findings", [t.r.record(t.run)!.findings[0]!.id]))
-    await Effect.runPromise(
-      Effect.gen(function* () {
-        const s = (yield* t.r.start({})) as { run: string }
-        yield* until(() => t.r.record(s.run)?.status === "done")
-      }),
-    )
-    expect(rowsNow(t.pushes, "run", "review.findings")).toEqual([])
-  })
-
-  test("a finding whose card changed since the run is stale", async () => {
-    let text = "do B"
-    const t = await finish({ cardText: (c) => (c === "B" ? text : `do ${c}`) })
-    text = "do B differently"
-    expect(await Effect.runPromise(t.r.finding(t.r.record(t.run)!.findings[0]!.id))).toMatchObject({ stale: true })
-  })
-
-  test("auto_apply sends the decision model's local fixes to the agenda on its own", async () => {
-    const t = await finish({ auto: true })
-    expect(t.r.agenda().length).toBe(1)
-    expect(t.changed()).toBe(1)
+    expect(rowsNow(t.pushes, "run", "journeys").map((r) => r.cells)).toEqual([{ journey: "Checkout", feedback: "1", high: "0", medium: "1", low: "0" }])
+    expect(JSON.stringify([TesterView, RunView])).not.toContain("actions")
   })
 
   test("a second run is refused while one is going; with no testers a run does not start", async () => {
@@ -205,7 +180,7 @@ describe("rehearse runs in the plugin", () => {
         run, startedAt: 1, status: "running", strategy: "edge-pair", focus: [], personas: [{ name: "The developer", text: "The developer, through the zarg TUI." }],
         stories: [["A", "B", "C"], ["A", "B", "D"]], unreachable: 0,
         screened: { "The developer|A": { feel: 1.8, fail: 0.3, arrive: 0.7, flags: [] }, "The developer|A>B": { feel: 1.0, fail: 0.3, arrive: 0.7, flags: ["feel"] } },
-        raw: [], infra: [], findings: [], applying: [], resolved: [],
+        raw: [], infra: [], findings: [],
       }),
     )
     const t = await Effect.runPromise(
@@ -237,25 +212,12 @@ describe("rehearse runs in the plugin", () => {
     expect(rows.map((r) => r.done)).toEqual([...rows.map((r) => r.done)].sort((a, b) => a - b))
     expect(rows.at(-1)).toEqual({ done: 4, total: 4 })
     expect(t.pushes.filter((p) => p.agent === "tester-1" && p.path === "steps").flatMap((p) => p.lines as ReadonlyArray<{ text: string }>).map((l) => l.text)).toContain("B: feel 1.00, fail 0.30 → flagged feel → 1 finding")
-    expect(t.events.filter((e) => e.id === "run" && e.event === "status").at(-1)?.text).toBe("1 finding to review · 2 unreachable")
+    expect(t.events.filter((e) => e.id === "run" && e.event === "status").at(-1)?.text).toBe("1 feedback entry filed · triage in Feedback · 2 unreachable")
   })
 
   test("writes of one record never overlap, so a record is never half-written", async () => {
     const t = await finish({ slowWrite: 2 })
     expect(t.overlap.max).toBe(1)
-  })
-
-  test("a finding chosen in one run stays takeable after a later run reports it again unchosen", async () => {
-    const t = await finish()
-    const id = t.r.record(t.run)!.findings[0]!.id
-    await Effect.runPromise(t.r.act("apply", "review.findings", [id]))
-    await Effect.runPromise(
-      Effect.gen(function* () {
-        const s = (yield* t.r.start({})) as { run: string }
-        yield* until(() => t.r.record(s.run)?.status === "done")
-      }),
-    )
-    expect(await Effect.runPromise(t.r.finding(id))).toMatchObject({ run: t.run, chosen: true })
   })
 
   test("the tester's view: workers follow the walk, steps are logged, its findings fill the review table", async () => {
@@ -267,45 +229,25 @@ describe("rehearse runs in the plugin", () => {
     expect(workers.at(-1)!.items).toEqual([])
     expect(t.pushes.filter((p) => p.agent === "tester-1" && p.path === "steps").flatMap((p) => p.lines as ReadonlyArray<{ text: string }>).map((l) => l.text)).toContain("B: feel 1.00, fail 0.30 → flagged feel → 1 finding")
     const id = t.r.record(t.run)!.findings[0]!.id
-    const review = t.pushes.filter((p) => p.agent === "tester-1" && p.path === "review.findings").at(-1)!.data as { rows: ReadonlyArray<{ id: string }> }
+    const review = t.pushes.filter((p) => p.agent === "tester-1" && p.path === "review.feedback").at(-1)!.data as { rows: ReadonlyArray<{ id: string }> }
     expect(review.rows.map((r) => r.id)).toEqual([id])
   })
 
-  test("the run's view: progress over all testers, the report, every finding; apply refreshes it", async () => {
+  test("while a run goes, the last run's tables do not replace the live ones; raw rows have unique ids", async () => {
     const t = await finish()
     const id = t.r.record(t.run)!.findings[0]!.id
-    expect(t.pushes.find((p) => p.agent === "run" && p.path === "report")?.data).toEqual({ markdown: "Testers stalled at B." })
-    expect(await Effect.runPromise(t.r.act("apply", "review.findings", [id]))).toEqual({ notice: "sent 1 finding to zarg" })
-    // Sent: its row turns green in the list, and the detail says so.
-    const last = t.pushes.filter((p) => p.agent === "run" && p.path === "review.findings").at(-1)!.data as { rows: ReadonlyArray<{ id: string; tone?: string }> }
-    expect(last.rows[0]!.tone).toBe("ok")
-    const detail = t.pushes.filter((p) => p.agent === "run" && p.path === "detail").at(-1)!.data as { rows: Record<string, string> }
-    expect(detail.rows[last.rows[0]!.id]).toContain("✓ sent to zarg")
-  })
-
-  test("while a run goes, actions are refused and the last run's tables do not replace the live ones", async () => {
-    const t = await finish()
-    const id = t.r.record(t.run)!.findings[0]!.id
-    const out = await Effect.runPromise(
+    const clobbered = await Effect.runPromise(
       Effect.gen(function* () {
         const s = (yield* t.r.start({})) as { run: string }
         const before = t.pushes.length
-        const notice = yield* t.r.act("apply", "review.findings", [id])
-        const clobbered = t.pushes.slice(before).some((p) => p.path.startsWith("review.") && ((p.data as { rows?: ReadonlyArray<{ id: string }> }).rows ?? []).some((r) => r.id === id))
+        yield* t.r.refresh
+        const out = t.pushes.slice(before).some((p) => p.path.startsWith("review.") && ((p.data as { rows?: ReadonlyArray<{ id: string }> }).rows ?? []).some((r) => r.id === id))
         yield* until(() => t.r.record(s.run)?.status === "done")
-        return { notice, clobbered }
+        return out
       }),
     )
-    expect(out.notice.notice).toContain("still going")
-    expect(out.clobbered).toBe(false)
-    expect(t.r.record(t.run)!.applying).toEqual([])
-  })
-
-  test("an action names only findings the finished run has; raw rows during a run have unique ids", async () => {
-    const t = await finish()
-    expect(await Effect.runPromise(t.r.act("apply", "review.findings", ["The developer|B|friction"]))).toEqual({ notice: "no such findings in the last run" })
-    expect(t.r.record(t.run)!.applying).toEqual([])
-    const raw = t.pushes.filter((p) => p.agent === "tester-1" && p.path === "review.findings").map((p) => (p.data as { rows: ReadonlyArray<{ id: string }> }).rows.map((r) => r.id))
+    expect(clobbered).toBe(false)
+    const raw = t.pushes.filter((p) => p.agent === "tester-1" && p.path === "review.feedback").map((p) => (p.data as { rows: ReadonlyArray<{ id: string }> }).rows.map((r) => r.id))
     for (const ids of raw) expect(new Set(ids).size).toBe(ids.length)
   })
 
@@ -318,13 +260,6 @@ describe("rehearse runs in the plugin", () => {
     expect(progress.some((items) => items.some((i) => i.label === "busy" && i.value === "1/1"))).toBe(true)
   })
 
-  test("a tester with findings to review asks for attention; acting on the last one ends it", async () => {
-    const t = await finish()
-    expect(t.attention.filter(([a]) => a === "tester-1").at(-1)).toEqual(["tester-1", "1 finding to review"])
-    const id = t.r.record(t.run)!.findings[0]!.id
-    await Effect.runPromise(t.r.act("apply", "review.findings", [id]))
-    expect(t.attention.filter(([a]) => a === "tester-1").at(-1)).toEqual(["tester-1", undefined])
-  })
 })
 
 
@@ -361,9 +296,10 @@ describe("testers from the graph's personas", () => {
 
 test("the findings columns colour by meaning: card, journey, severity keys", () => {
   expect(FINDING_COLUMNS.map((c) => [c.id, "tone" in c ? c.tone : undefined, "tones" in c ? c.tones : undefined])).toEqual([
-    ["card", "card", undefined],
+    ["card", undefined, undefined],
     ["journey", "journey", undefined],
     ["kind", undefined, undefined],
     ["severity", undefined, { high: "severity.high", medium: "severity.medium", low: "severity.low" }],
+    ["now", undefined, { open: "attention", off: "dim", stale: "dim", planned: "accent", closed: "ok" }],
   ])
 })

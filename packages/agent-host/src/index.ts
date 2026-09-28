@@ -50,7 +50,6 @@ export interface AgentHost {
   readonly agenda: (focus: ReadonlySet<string> | undefined) => Effect.Effect<ReadonlyArray<AgendaEntry>, unknown>
   /** The gate for reads outside the repository (the core asks the operator itself). */
   readonly outsideReads: unknown
-  readonly findings: { readonly chosen: unknown; readonly firstParty: (plugin: string) => boolean }
   /** Panels this agent opens (its message bar): shown by every client until closed. */
   readonly panels: {
     readonly open: (p: { readonly name: string; readonly view: string; readonly scope: "agent" | "shell"; readonly edge: "top" | "bottom" | "right"; readonly size: number; readonly input: "none" | "onFocus" }) => void
