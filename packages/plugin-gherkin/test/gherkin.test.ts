@@ -101,16 +101,16 @@ describe("rehearse", () => {
 })
 
 describe("gherkin rules", () => {
-  test("an empty graph asks for the first requirement", async () => {
+  test("an empty graph asks for the first requirement and who uses the product", async () => {
     const items = await run(PluginHost.use((h) => h.agenda()))
-    expect(items.map((i) => i.id)).toEqual(["gherkin:empty"])
+    expect(items.map((i) => i.id)).toEqual(["gherkin:empty", "gherkin:no-personas"])
   })
 
   test("a state nothing leads to is unreached unless it is an entry", async () => {
     const ids = await run(
       Effect.andThen(call("add-state", { text: "a lonely screen", terminal: true }), PluginHost.use((h) => h.agenda())),
     )
-    expect(ids.map((i) => i.id)).toEqual(["gherkin:unreached:S-0001"])
+    expect(ids.map((i) => i.id)).toEqual(["gherkin:unreached:S-0001", "gherkin:no-personas"])
   })
 
   test("a card needs at least one Then", async () => {

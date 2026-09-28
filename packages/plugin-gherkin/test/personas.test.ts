@@ -95,3 +95,26 @@ describe("persona lints", () => {
     )
   })
 })
+
+describe("persona agenda", () => {
+  const items = PluginHost.use((h) => h.agenda())
+  test("no personas: who uses this product (with an empty graph too)", async () => {
+    const got = await run(items)
+    expect(got.find((i) => i.id === "gherkin:no-personas")).toMatchObject({ title: "Who uses this product?", priority: 1 })
+  })
+  test("cards without by: one item naming them; an unused persona: its own item", async () => {
+    const got = await run(
+      Effect.gen(function* () {
+        yield* setup
+        yield* call("add-card", { title: "Operator answers", when: "the operator picks an option", by: [{ id: "P-0001" }], arrives: { id: "S-0001" }, then: [{ text: "the answer is recorded", terminal: true }] })
+        // A card written without the tool (an old graph): no by.
+        yield* GraphStore.use((g) => g.commit([{ _tag: "Put", node: { id: "UX-0002", type: "gherkin/card", props: { title: "Verify passes", when: "every check passes" }, edges: [{ type: "gherkin/arrives", to: "S-0001" }, { type: "gherkin/then", to: "S-0002" }] } }] as never))
+        return yield* items
+      }),
+    )
+    expect(got.find((i) => i.id === "gherkin:no-personas")).toBeUndefined()
+    expect(got.find((i) => i.id === "gherkin:who-does")).toMatchObject({ title: "Who does 1 card?", about: ["UX-0002"], priority: 2 })
+    expect(got.find((i) => i.id === "gherkin:who-does")!.detail).toContain("P-0001 Operator")
+    expect(got.find((i) => i.id === "gherkin:unused-persona:P-0002")).toMatchObject({ title: "Nobody acts as Driver Agent", priority: 3 })
+  })
+})

@@ -1,17 +1,14 @@
 import { Snapshot } from "@zarg/graph/pure"
 import type { AgendaItem } from "./kit"
-import { ARRIVES, cards, similarity, states, text, THEN } from "./model"
+import { ARRIVES, BY, cards, personaName, personas, similarity, states, text, THEN } from "./model"
 
 export const agenda = (snap: Snapshot.Snapshot): ReadonlyArray<AgendaItem> => {
   const all = states(snap)
   if (all.length === 0 && cards(snap).length === 0) {
-    return [{
-      id: "gherkin:empty",
-      title: "No requirements yet",
-      detail: "Describe where a user starts and their first action.",
-      about: [],
-      priority: 1,
-    }]
+    return [
+      { id: "gherkin:empty", title: "No requirements yet", detail: "Describe where a user starts and their first action.", about: [], priority: 1 },
+      ...personaItems(snap),
+    ]
   }
   const items: Array<AgendaItem> = []
   for (const s of all) {
@@ -45,6 +42,39 @@ export const agenda = (snap: Snapshot.Snapshot): ReadonlyArray<AgendaItem> => {
           priority: 3,
         })
       }
+    }
+  }
+  items.push(...personaItems(snap))
+  return items
+}
+
+/** Who acts: no personas yet, cards that name none (one item for all of them), personas no card names. */
+const personaItems = (snap: Snapshot.Snapshot): ReadonlyArray<AgendaItem> => {
+  const items: Array<AgendaItem> = []
+  const ps = personas(snap)
+  const known = ps.map((p) => `${p.id} ${personaName(p)}`).join(", ")
+  if (ps.length === 0) {
+    items.push({
+      id: "gherkin:no-personas",
+      title: "Who uses this product?",
+      detail: "No personas yet. Draft them from the intents' frontmatter personas and the conversation (who meets the product, and the product's own agents that act in cards), show them with Inquire.confirm, then add each with add-persona.",
+      about: [],
+      priority: 1,
+    })
+  }
+  const nobody = cards(snap).filter((c) => !c.edges.some((e) => e.type === BY)).map((c) => c.id)
+  if (nobody.length > 0) {
+    items.push({
+      id: "gherkin:who-does",
+      title: `Who does ${nobody.length} card${nobody.length === 1 ? "" : "s"}?`,
+      detail: `${nobody.slice(0, 20).join(", ")}${nobody.length > 20 ? ` and ${nobody.length - 20} more` : ""} name no persona (by). Propose one persona per card from its title and When, show the whole mapping with Inquire.confirm, then link each with link {edge: "by", persona}. Personas: ${known || "none yet"}.`,
+      about: nobody,
+      priority: 2,
+    })
+  }
+  for (const p of ps) {
+    if (Snapshot.inbound(snap, p.id, BY).length === 0) {
+      items.push({ id: `gherkin:unused-persona:${p.id}`, title: `Nobody acts as ${personaName(p)}`, detail: `No card names ${p.id}. Link cards to it with link {edge: "by"}, or remove it.`, about: [p.id], priority: 3 })
     }
   }
   return items

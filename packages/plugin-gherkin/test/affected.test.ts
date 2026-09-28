@@ -30,3 +30,13 @@ describe("affectedCards", () => {
     expect(affectedCards(base, base)).toEqual({ cards: [], removed: [] })
   })
 })
+
+test("a persona's text change affects no card; a card's by change affects that card", () => {
+  const persona = (text: string) => ({ id: "P-0001", type: "gherkin/persona", props: { name: "Operator", kind: "human", text }, edges: [] })
+  const card = (by: ReadonlyArray<string>) => ({ id: "UX-0001", type: "gherkin/card", props: { title: "t", when: "w" }, edges: [...by.map((to) => ({ type: "gherkin/by", to })), { type: "gherkin/arrives", to: "S-0001" }, { type: "gherkin/then", to: "S-0002" }] })
+  const s1 = { id: "S-0001", type: "gherkin/state", props: { text: "a" }, edges: [] }
+  const s2 = { id: "S-0002", type: "gherkin/state", props: { text: "b" }, edges: [] }
+  const mk = (...nodes: ReadonlyArray<unknown>) => Snapshot.make(nodes as never)
+  expect(affectedCards(mk(persona("x"), card(["P-0001"]), s1, s2), mk(persona("y"), card(["P-0001"]), s1, s2)).cards).toEqual([])
+  expect(affectedCards(mk(persona("x"), card([]), s1, s2), mk(persona("x"), card(["P-0001"]), s1, s2)).cards).toEqual(["UX-0001"])
+})
