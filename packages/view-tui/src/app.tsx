@@ -1,7 +1,7 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Panel, Session } from "@zarg/client"
-import { afterAction, applyMenu, highlightActs, hintsOf, keyFor, menuAdjust, pickHeader, pickMark, pickRow, pickTab, startUi } from "@zarg/view"
+import { afterAction, applyMenu, closeMenu, highlightActs, hintsOf, keyFor, menuAdjust, pickHeader, pickMark, pickRow, pickTab, startUi } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { registerCommands, SLASH_COMMANDS } from "./commands"
 import { fit, gauge, keyGlyphs } from "./look"
@@ -61,6 +61,15 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   // MaxListenersExceededWarning over the screen. Set before any of them mounts.
   const renderer = useRenderer()
   if (renderer.getMaxListeners() < 1000) renderer.setMaxListeners(1000)
+  // A press anywhere closes an open column menu, unless it lands on the menu or a header (their handlers run first and set this).
+  const keepMenu = useRef(false)
+  const dismissMenus = () => {
+    const keep = keepMenu.current
+    keepMenu.current = false
+    const u = uiRef.current
+    if (keep || (u.view?.menu ?? u.sheetView?.menu ?? u.panelView?.menu) === undefined) return
+    setUi({ ...u, ...(u.view !== undefined ? { view: closeMenu(u.view) } : {}), ...(u.sheetView !== undefined ? { sheetView: closeMenu(u.sheetView) } : {}), ...(u.panelView !== undefined ? { panelView: closeMenu(u.panelView) } : {}) })
+  }
   const C = colorsOf(theme)
   const s = useSyncExternalStore(props.session.subscribe, props.session.state)
   // UI state lives in a ref so several keys in one frame each see the previous key's result.
@@ -198,6 +207,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         ? {
             onMouseDown: (e: { stopPropagation: () => void }) => {
               e.stopPropagation()
+              dismissMenus()
               r.onPick!()
             },
           }
@@ -230,6 +240,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       // Narrow, the unfolded rail sits over the focus: its click must not reach the focus's handler (which would fold it).
       onMouseDown={(e: { stopPropagation: () => void }) => {
         e.stopPropagation()
+        dismissMenus()
         setUi({ ...latest(), focus: "agents" })
       }}
       style={{ ...(narrow && ui.focus === "agents" ? { flexGrow: 1 } : { width: railWidth, flexShrink: 0 }), flexDirection: "column", backgroundColor: C.raised, border: ["right"], borderColor: C.line }}
@@ -277,6 +288,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
               // The rail's own handler (focus the rail) must not run after the row gave its view the keys.
               onMouseDown={(e: { stopPropagation: () => void }) => {
                 e.stopPropagation()
+                dismissMenus()
                 pick(r.id)
               }}
             >
@@ -387,6 +399,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
               if (v !== undefined) setUi({ ...latest(), view: afterAction(latest().view ?? startUi(v), section) })
             }}
             onHeader={(section, col) => {
+              keepMenu.current = true
               const v = props.session.state().thread.views?.[viewing]
               if (v !== undefined) setUi({ ...latest(), focus: "tile", view: pickHeader(v, latest().view ?? startUi(v), section, col) })
             }}
@@ -405,12 +418,14 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
               if (v !== undefined) setUi({ ...latest(), focus: "tile", view: pickMark(v, latest().view ?? startUi(v), section, i) })
             }}
             onMenuAdjust={(i, dir) => {
+              keepMenu.current = true
               const v = props.session.state().thread.views?.[viewing]
               if (v === undefined) return
               const vu = latest().view ?? startUi(v)
               setUi({ ...latest(), focus: "tile", view: menuAdjust(v, vu.menu === undefined ? vu : { ...vu, menu: { ...vu.menu, pick: i } }, dir) })
             }}
             onMenuPick={(i) => {
+              keepMenu.current = true
               const v = props.session.state().thread.views?.[viewing]
               if (v !== undefined) setUi({ ...latest(), focus: "tile", view: applyMenu(v, latest().view ?? startUi(v), i) })
             }}
@@ -535,6 +550,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         key={p.id}
         onMouseDown={(e: { stopPropagation: () => void }) => {
           e.stopPropagation()
+          dismissMenus()
           if (p.input === "onFocus") setUi({ ...latest(), focus: "panel", panel: p.id })
         }}
         style={{ ...size, flexDirection: "column", paddingLeft: 2, paddingRight: 1 }}
@@ -547,6 +563,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             fg={C.faint}
             onMouseDown={(e: { stopPropagation: () => void }) => {
               e.stopPropagation()
+              dismissMenus()
               const u = latest()
               setUi({ ...u, closedPanels: [...u.closedPanels, closedKey(p)], ...(u.panel === p.id ? { focus: "tile" as const } : {}) })
             }}
@@ -605,6 +622,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         key={c.id}
         onMouseDown={(e: { stopPropagation: () => void }) => {
           e.stopPropagation()
+          dismissMenus()
           setUi(openAgent(latest(), props.session.state(), c.id))
         }}
         style={{ flexGrow: 1, flexBasis: 0, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: on && ui.focus === "tile" ? C.accent : C.line, paddingLeft: 1, paddingRight: 1 }}
@@ -760,7 +778,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
 
   return (
     <ThemeContext.Provider value={theme}>
-    <box style={{ flexDirection: "row", width: "100%", height: "100%", backgroundColor: C.bg }}>
+    <box onMouseDown={dismissMenus} style={{ flexDirection: "row", width: "100%", height: "100%", backgroundColor: C.bg }}>
       {narrow && ui.focus === "agents" ? null : agentsList}
       <box style={{ flexDirection: "column", flexGrow: 1 }}>
         <box onMouseDown={() => setUi({ ...latest(), focus: "tile" })} style={{ flexGrow: 1, flexDirection: "column" }}>

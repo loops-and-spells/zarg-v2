@@ -313,7 +313,9 @@ export const Buttons = (p: { readonly actions: ReadonlyArray<ButtonSpec>; readon
  * shows are counted; an action takes them, or the highlighted row when none are ticked (a row action: always it).
  */
 const buttonsOf = (view: ViewState, ui: ViewUi, leaf: { readonly path: string; readonly leaf: LayoutLeaf }) => {
-  if (leaf.leaf.kind !== "table" || (leaf.leaf.actions ?? []).length === 0) return undefined
+  // A highlight action runs as the cursor moves: it needs no button.
+  const actions = leaf.leaf.kind === "table" ? (leaf.leaf.actions ?? []).filter((a) => a.highlight !== true) : []
+  if (leaf.leaf.kind !== "table" || actions.length === 0) return undefined
   const all = rowsOf(view, leaf.path)
   const rows = (ui.selected[leaf.path] ?? []).filter((id) => all.some((r) => r.id === id))
   const here = shownRows(view, ui, leaf.path)[ui.rows[leaf.path] ?? 0]?.id
@@ -324,7 +326,7 @@ const buttonsOf = (view: ViewState, ui: ViewUi, leaf: { readonly path: string; r
     const picked = a.on === "selection" && rows.length > 0 ? rows : here !== undefined ? [here] : []
     return picked.length > 0 ? picked : undefined
   }
-  return { rows, actions: leaf.leaf.actions ?? [], rowsFor }
+  return { rows, actions, rowsFor }
 }
 
 /** How tall a row card would be: its line, then each cut column's label and wrapped text; at most `cap`. */

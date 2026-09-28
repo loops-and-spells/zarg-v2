@@ -410,6 +410,8 @@ describe("tui frames", () => {
     await Bun.sleep(30)
     await settle(t)
     expect(t.calls.filter((c) => c.startsWith("act"))).toEqual(["act backlog:feedback journey Reconcile"])
+    // It runs on its own: no button for it.
+    expect(t.captureCharFrame()).not.toContain("Show")
   })
 
   test("the agents pane folds: → opens a child's subtree, ← closes it", async () => {
@@ -1047,6 +1049,21 @@ describe("column menus", () => {
     t.mockInput.pressEscape(); await settle(t)
     expect(t.captureCharFrame()).toContain("● F2")
     expect(t.captureCharFrame()).toContain("Send to zarg · 1")
+  })
+  test("a click outside an open menu closes it: on the rail, and on a row of its own table", async () => {
+    const t = await open()
+    for (const outside of ["rail", "row"] as const) {
+      let lines = t.captureCharFrame().split("\n")
+      const y = lines.findIndex((l) => /id\s+severity/.test(l))
+      await t.mockMouse.click(lines[y]!.indexOf("severity") + 1, y)
+      await settle(t)
+      expect(t.captureCharFrame()).toContain("▲ high first")
+      lines = t.captureCharFrame().split("\n")
+      if (outside === "rail") await t.mockMouse.click(2, lines.length - 3)
+      else { const r = lines.findIndex((l) => /[○●] F1/.test(l)); await t.mockMouse.click(lines[r]!.indexOf("F1"), r) }
+      await settle(t)
+      expect(t.captureCharFrame()).not.toContain("▲ high first")
+    }
   })
 })
 
