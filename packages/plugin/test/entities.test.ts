@@ -23,7 +23,7 @@ export default definePlugin({
     rename: ({ id, title }) => Effect.succeed(id + "=" + title),
     entities: { item: {
       get: (ids) => ids.includes("B-boom") ? Effect.fail(new PluginFailure({ tag: "Boom", message: "provider broke" })) : Effect.succeed(ids.flatMap((id) => (items[id] ? [{ id, data: items[id] }] : []))),
-      query: () => Effect.succeed(Object.keys(items)),
+      query: ({ text }) => Effect.succeed(Object.keys(items).filter((id) => text === undefined || items[id].title.toLowerCase().includes(text))),
       label: (e) => e.data.title,
     } },
   }),

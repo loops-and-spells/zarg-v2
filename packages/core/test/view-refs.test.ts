@@ -52,3 +52,18 @@ test("a bad set is refused to the plugin at once; a failing lookup never stops t
   const patches = log.all().filter((e) => (e as { activityType?: string }).activityType === "zarg.view").flatMap((e) => ((e as { patch?: Array<{ path: string; value: { rows: Array<{ id: string }> } }> }).patch ?? []))
   expect(patches.filter((p) => p.path === "/data/list").at(-1)!.value.rows[0]!.id).toBe("2")
 })
+
+test("an append to the log while a ref table waits for labels keeps both", async () => {
+  const log = await Effect.runPromise(makeLog(mkdtempSync(join(tmpdir(), "zarg-refs-")), (t) => t))
+  const t = layoutOf(defineView("t", { list: { kind: "table", role: "primary", columns: [{ id: "card", label: "card", ref: true }] }, steps: { kind: "log", role: "log" } }))
+  const many = () => Effect.as(Effect.sleep(20), { entities: [], failed: [] })
+  const on = pluginAgents(log, "main", () => t, undefined, undefined, undefined, undefined, many)
+  on("p", { event: "start", id: "a", title: "a", task: "a", view: "t" })
+  on("p", { event: "set", id: "a", view: "t", section: "list", data: { rows: [{ id: "1", cells: { card: "x/y:A" } }] } })
+  on("p", { event: "append", id: "a", view: "t", section: "steps", lines: [{ text: "hello" }] })
+  await Bun.sleep(50)
+  const views = threadViews(log, "main")
+  views.flush()
+  expect(views.data("p:a", "steps")).toEqual({ lines: [{ text: "hello" }] })
+  expect((views.data("p:a", "list") as { rows: Array<{ id: string }> }).rows[0]!.id).toBe("1")
+})

@@ -35,4 +35,8 @@ describe("entity kinds", () => {
     const [v] = (await serve.$entity!({ op: "version", kind: "item", ids: ["B-1"] })) as Array<{ version: string }>
     expect(v!.version).toMatch(/^[0-9a-f]{12}$/)
   })
+  test("an op declared without its handler is refused when the plugin starts, naming both", async () => {
+    const p = definePlugin({ ...plugin(), entities: { item: { doc: "x", data: Item, tone: "accent", glyph: "▦", ops: ["get", "query"] } } })
+    await expect(p.serve({ call: async () => null } as never).$start!(undefined)).rejects.toThrow(/entity item declares query but has no query handler/)
+  })
 })

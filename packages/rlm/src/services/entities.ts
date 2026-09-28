@@ -11,8 +11,12 @@ export const entitiesService = (ctx: GraphContext, opts: { readonly write: boole
   const kinds = ctx.host.entities.types()
   const defs: Record<string, unknown> = {}
   const variants = kinds.map((k) => {
-    const d = k.data as { schema?: unknown; definitions?: Record<string, unknown> } | undefined
-    Object.assign(defs, d?.definitions ?? {})
+    // Each kind's definitions under its own names, so two kinds' same-named definitions stay apart.
+    const raw = k.data as { schema?: unknown; definitions?: Record<string, unknown> } | undefined
+    const prefix = `${k.type.replace(/[^A-Za-z0-9]/g, "_")}__`
+    const rename = (v: unknown) => JSON.parse(JSON.stringify(v ?? {}).replace(/"\$ref":"#\/(\$defs|definitions)\/([^"]+)"/g, (_m, _d, name: string) => `"$ref":"#/$defs/${prefix}${name}"`)) as unknown
+    for (const [name, def] of Object.entries(raw?.definitions ?? {})) defs[`${prefix}${name}`] = rename(def)
+    const d = { schema: raw?.schema === undefined ? undefined : rename(raw.schema) }
     return { type: "object", properties: { type: { const: k.type }, id: { type: "string" }, ref: { type: "string" }, version: { type: "string" }, label: { type: "object", properties: { text: { type: "string" }, tone: { type: "string" }, glyph: { type: "string" } }, required: ["text", "tone", "glyph"] }, data: d?.schema ?? {} }, required: ["type", "id", "ref", "version", "label", "data"] }
   })
   const entity = { anyOf: variants.length > 0 ? variants : [{}] }
@@ -42,7 +46,14 @@ export const entitiesService = (ctx: GraphContext, opts: { readonly write: boole
   const e = ctx.host.entities
   const handlers = {
     get: ({ ref }: { ref: string }) => Effect.flatMap(inScope(ref), () => Effect.mapError(e.get(ref), fail)),
-    many: ({ refs }: { refs: ReadonlyArray<string> }) => Effect.flatMap(Effect.forEach(refs, inScope), () => e.many(refs)),
+    // An out-of-scope ref is listed among the failures; the rest are served.
+    many: ({ refs }: { refs: ReadonlyArray<string> }) =>
+      Effect.gen(function* () {
+        const checked = yield* Effect.forEach(refs, (ref) => Effect.match(inScope(ref), { onFailure: (f) => ({ ref, f }), onSuccess: () => ({ ref, f: undefined }) }))
+        const out = checked.flatMap((c) => (c.f === undefined ? [] : [{ ref: c.ref, _tag: c.f._tag, message: c.f.message }]))
+        const r = yield* e.many(checked.filter((c) => c.f === undefined).map((c) => c.ref))
+        return { entities: r.entities, failed: [...out, ...r.failed] }
+      }),
     // Graph entities outside the RLM's scope are left out, as `get` refuses them.
     query: (q: never) =>
       Effect.gen(function* () {

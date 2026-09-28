@@ -2,7 +2,7 @@ import { Effect, Layer, Schema, Stream } from "effect"
 import type { Contract } from "./contract"
 import { entitiesProblem, layoutOf, opensProblem, type Surface, surfacesProblem, tonesProblem, type ViewDef } from "@zarg/view"
 import { conversations } from "./conversation"
-import { type EntityDecl, type EntityHandlers, serveEntity } from "./entities"
+import { type EntityDecl, type EntityHandlers, opsOf, serveEntity } from "./entities"
 import { Agenda, Agents, Attention, Clock, Conversation, Config, Decisions, Entities, Files, Graph, Http, Models, PluginFailure, type RawPowers, Secrets, servicesFrom, Surfaces, Views } from "./services"
 
 export interface Scopes {
@@ -127,12 +127,26 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
     // Handlers are built once, on the first call, so a plugin with a broken config fails that call and not the load.
     let built: Promise<Handlers<M>> | undefined
     const handlers = () => (built ??= Effect.runPromise(def.make.pipe(Effect.provide(layer)) as Effect.Effect<Handlers<M>>))
+    // Every op a kind declares needs its handler (a label defaults to the id): a mismatch fails loudly, naming both.
+    const checkedEntities = async () => {
+      const h = ((await handlers()) as unknown as { readonly entities?: Readonly<Record<string, EntityHandlers>> }).entities
+      for (const [kind, d] of Object.entries(def.entities ?? {})) {
+        const served = opsOf(h?.[kind])
+        const ops = d.ops ?? (def.archetype === "graph" ? [] : ["get", "label", "version"])
+        // label, version and context are answered over get's data: they need a get handler too.
+        const needs = [...ops, ...(ops.some((op) => op !== "query") ? ["get" as const] : [])]
+        const missing = needs.find((op) => op !== "label" && !served.includes(op))
+        if (missing !== undefined) throw new Error(`plugin ${def.name}: entity ${kind} declares ${missing} but has no ${missing} handler`)
+      }
+      return h
+    }
     return Object.fromEntries([
       // The host calls this when the plugin loads: its services start then (a run a restart cut short resumes).
       // Not a method name a plugin can declare (those start with a letter).
-      ["$start", async () => (await handlers(), null)],
+      // The host starts service and agent plugins; graph plugins are checked on their first entity call.
+      ["$start", async () => (await checkedEntities(), null)],
       // The host asks for this plugin's entities (get, query, label, context, version) by kind.
-      ["$entity", async (p: unknown) => Effect.runPromise(serveEntity(((await handlers()) as unknown as { readonly entities?: Readonly<Record<string, EntityHandlers>> }).entities)(p as never) as Effect.Effect<unknown, PluginFailure>)],
+      ["$entity", async (p: unknown) => Effect.runPromise(serveEntity(await checkedEntities())(p as never) as Effect.Effect<unknown, PluginFailure>)],
       // The operator answered or wrote to one of its agents (the core routes these; plugins cannot declare `$` names).
       ["$answer", async (p: unknown) => talks.answer(p as never)],
       [

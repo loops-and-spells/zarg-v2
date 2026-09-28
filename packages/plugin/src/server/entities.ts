@@ -65,7 +65,8 @@ export const makeEntities = (b: Backend) => {
       const present = got.map((g) => g.id)
       const labels = k.ops.has("label") ? new Map((yield* ask<Array<{ id: string; text: string }>>(k, "label", present)).map((x) => [x.id, x.text])) : new Map(nodes.map((n) => [n.id, graphLabel(n.props, n.id)]))
       const versions = k.ops.has("version") ? new Map((yield* ask<Array<{ id: string; version: string }>>(k, "version", present)).map((x) => [x.id, x.version])) : new Map(nodes.map((n) => [n.id, hash(n)]))
-      return got.map((g): Entity => {
+      // An owner that versions its kind and has no version for an id no longer has it: gone, not versioned another way.
+      return got.filter((g) => !k.ops.has("version") || versions.has(g.id)).map((g): Entity => {
         const version = versions.get(g.id) ?? versionOf(g.data)
         const label: Label = { text: labels.get(g.id) ?? g.id, tone: k.tone, glyph: k.glyph }
         return { ref: formatRef({ type: k.type, id: g.id, version }), type: k.type, id: g.id, version, label, data: g.data }
@@ -111,15 +112,21 @@ export const makeEntities = (b: Backend) => {
     Effect.gen(function* () {
       const k = yield* kindOf(q.type)
       if (!allowed(caller, k.type, "read")) return yield* Effect.fail(err("NotAllowed", `${caller} may not read ${k.type}`))
-      const ids: ReadonlyArray<string> = k.ops.has("query")
-        ? yield* Effect.mapError(b.provider(k.owner, { op: "query", kind: local(k), query: { ...(q.where !== undefined ? { where: q.where } : {}), ...(q.text !== undefined ? { text: q.text } : {}), ...(q.limit !== undefined ? { limit: q.limit } : {}) } }) as Effect.Effect<ReadonlyArray<string>, { message: string }>, (e) => err("ProviderFailed", `${k.type}: ${e.message}`))
-        : k.graph ? Snapshot.byType(yield* Effect.orElseSucceed(b.snapshot, () => Snapshot.empty), k.type).map((n) => n.id) : []
-      let es = yield* fetch(k, ids)
-      if (q.where !== undefined) es = es.filter((e) => Object.entries(q.where!).every(([f, v]) => JSON.stringify((e.data as Record<string, unknown>)?.[f] ?? (e.data as { props?: Record<string, unknown> })?.props?.[f]) === JSON.stringify(v)))
-      if (q.text !== undefined && q.text.trim().length > 0) {
-        const scores = rank(es.map((e) => `${e.label.text} ${JSON.stringify(e.data)}`), q.text)
-        es = es.map((e, i) => [e, scores[i] ?? 0] as const).filter(([, s]) => s > 0).sort((x, y) => y[1] - x[1]).map(([e]) => e)
+      // An owner's own query is its answer (its filter, its order); the host only fetches what it named.
+      if (k.ops.has("query")) {
+        const ids = yield* Effect.mapError(b.provider(k.owner, { op: "query", kind: local(k), query: { ...(q.where !== undefined ? { where: q.where } : {}), ...(q.text !== undefined ? { text: q.text } : {}), ...(q.limit !== undefined ? { limit: q.limit } : {}) } }) as Effect.Effect<ReadonlyArray<string>, { message: string }>, (e) => err("ProviderFailed", `${k.type}: ${e.message}`))
+        const es = yield* fetch(k, q.limit !== undefined ? ids.slice(0, q.limit) : ids)
+        return [...es].sort((x, y) => ids.indexOf(x.id) - ids.indexOf(y.id))
       }
+      if (!k.graph) return []
+      // A graph kind: filter on the nodes' props first, so only what is kept is fetched.
+      const snap = yield* Effect.orElseSucceed(b.snapshot, () => Snapshot.empty)
+      const nodes = Snapshot.byType(snap, k.type).filter((n) => q.where === undefined || Object.entries(q.where).every(([f, v]) => JSON.stringify(n.props[f]) === JSON.stringify(v)))
+      const plain = q.text === undefined || q.text.trim().length === 0
+      if (plain) return yield* fetch(k, (q.limit !== undefined ? nodes.slice(0, q.limit) : nodes).map((n) => n.id))
+      let es = yield* fetch(k, nodes.map((n) => n.id))
+      const scores = rank(es.map((e) => `${e.label.text} ${JSON.stringify(e.data)}`), q.text!)
+      es = es.map((e, i) => [e, scores[i] ?? 0] as const).filter(([, sc]) => sc > 0).sort((x, y) => y[1] - x[1]).map(([e]) => e)
       return q.limit !== undefined ? es.slice(0, q.limit) : es
     })
   const command = (ref: string, name: string, args: unknown, caller?: string) =>

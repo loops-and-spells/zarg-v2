@@ -254,6 +254,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
       const services = new Set<string>()
       // Built once the host's calls exist (below); a plugin asking before then is told so.
       let entities: ReturnType<typeof makeEntities> | undefined
+      let kindsFor: { readonly key: string; readonly kinds: ReturnType<typeof registry> } | undefined
 
       // Dependencies: a plugin in a cycle, or needing one that is not here, does not start at all.
       const byName = new Map(plugins.map((p) => [p.manifest.name, p.manifest]))
@@ -578,7 +579,12 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         Effect.map(each<string>("render", focus === undefined ? {} : { focus: [...focus] }), (parts) => defined(parts).filter((s) => s.length > 0).join("\n\n"))
 
       entities = makeEntities({
-        get kinds() { return registry([...running.values()].map((r) => r.manifest)) },
+        // Rebuilt only when the running plugins change (a late load, a stop).
+        get kinds() {
+          const key = [...running.keys()].join(",")
+          if (kindsFor?.key !== key) kindsFor = { key, kinds: registry([...running.values()].map((r) => r.manifest)) }
+          return kindsFor.kinds
+        },
         provider: (owner, p) => {
           const r = running.get(owner)
           return r === undefined ? Effect.fail({ message: `${owner} is not running` }) : invoke(r, "$entity", p)

@@ -7,6 +7,7 @@ import { entitiesService } from "../src/services/entities"
 const host = {
   entities: {
     types: () => [{ type: "gherkin/card", doc: "cards", tone: "card", glyph: "◇", commands: [], data: { schema: { type: "object", properties: { props: { type: "object", properties: { title: { type: "string" } }, required: ["title"] }, edges: { type: "array", items: {} } }, required: ["props", "edges"] }, definitions: {} } }],
+    many: (refs: ReadonlyArray<string>) => Effect.succeed({ entities: refs.map((r) => ({ ref: r, type: "gherkin/card", id: r.split(":")[1]!, version: "abc", label: { text: "t", tone: "card", glyph: "◇" }, data: {} })), failed: [] }),
     query: () => Effect.succeed(["UX-0001", "UX-0002"].map((id) => ({ ref: `gherkin/card:${id}@abc`, type: "gherkin/card", id, version: "abc", label: { text: id, tone: "card", glyph: "◇" }, data: { props: { title: id }, edges: [] } }))),
     get: (ref: string) => Effect.succeed({ ref: `${ref}@abc`, type: "gherkin/card", id: ref.split(":")[1]!, version: "abc", label: { text: "t", tone: "card", glyph: "◇" }, data: { title: "t" } }),
   },
@@ -34,5 +35,24 @@ describe("the Entities service", () => {
     const svc = entitiesService({ host, snapshot, scope: { graph: { focus: ["UX-0001"], k: 0 } } as never }, { write: false })
     const out = (await Effect.runPromise(svc.handlers.query!({ type: "gherkin/card" }) as Effect.Effect<Array<{ id: string }>>)).map((e) => e.id)
     expect(out).toEqual(["UX-0001"])
+  })
+  test("many lists an out-of-scope ref among its failures and serves the rest", async () => {
+    const svc = entitiesService({ host, snapshot, scope: { graph: { focus: ["UX-0001"], k: 0 } } as never }, { write: false })
+    const out = (await Effect.runPromise(svc.handlers.many!({ refs: ["gherkin/card:UX-0001", "gherkin/card:UX-0002"] }) as Effect.Effect<{ entities: Array<{ id: string }>; failed: Array<{ ref: string; _tag: string; message: string }> }>))
+    expect(out.entities.map((e) => e.id)).toEqual(["UX-0001"])
+    expect(out.failed).toEqual([{ ref: "gherkin/card:UX-0002", _tag: "OutOfScope", message: expect.stringContaining("scope") }])
+  })
+  test("two kinds' same-named schema definitions do not overwrite each other", () => {
+    const two = {
+      entities: {
+        types: () => [
+          { type: "a/x", doc: "", tone: "accent", glyph: "a", commands: [], data: { schema: { $ref: "#/$defs/Item" }, definitions: { Item: { type: "object", properties: { alpha: { type: "string" } }, required: ["alpha"] } } } },
+          { type: "b/y", doc: "", tone: "accent", glyph: "b", commands: [], data: { schema: { $ref: "#/$defs/Item" }, definitions: { Item: { type: "object", properties: { beta: { type: "number" } }, required: ["beta"] } } } },
+        ],
+      },
+    } as never
+    const text = manifest([entitiesService({ host: two, snapshot, scope: {} as never }, { write: false }).def])
+    expect(text).toContain("alpha: string")
+    expect(text).toContain("beta: number")
   })
 })
