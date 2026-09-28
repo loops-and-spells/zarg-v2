@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** zarg becomes a trusted first-party agent plugin (`agent-zarg`), rehearse a sandboxed agent (`agent-rehearse`), and the TUI a tiling shell where zarg's conversation is always on screen beside the open agent's view, with attention (◆) for agents that need the developer.
+**Goal:** zarg becomes a trusted first-party agent plugin (`agent-zarg`), rehearse a sandboxed agent (`agent-rehearse`), and the TUI a tiling shell where zarg's conversation is always on screen beside the open agent's view, with attention (◆) for agents that need the operator.
 
 **Architecture:** A new types package `@zarg/agent-host` defines the `Thread` interface the core serves, the `AgentHost` interface the core gives trusted agents, and the trusted-agent contract. The driver loop and its helpers move from `core` into `agent-zarg`, which the core loads by path from zarg's own packages and starts on `main`. `@zarg/view` gains a `conversation` section kind and its behaviour; attention is a field on agent rows set through the SDK or `AgentHost`; the terminal shell tiles zarg's conversation, the open view and the agents tree, moving between tiles with Alt+arrows.
 
@@ -19,7 +19,7 @@
 - Package names: `agent-*` agents, `provider-*` providers, `plugin-*` graph and service plugins. Rehearse's plugin name stays `rehearse`.
 - The `conversation` section: `messages: [{ id, role: "user" | "agent", text }]`, `question?: { id, question, options: [{ id, label, why?, recommended? }], allowOther, otherLabel?, kind?: "grant" }`, `status?: "idle" | "working" | "waiting"`. One slot: the question or the message input, never both.
 - Attention: `attention?: { reason, since }` on an agent row; `Attention.request(agent, reason)` / `clear(agent)`.
-- Shell: Alt+arrows between tiles; Tab between sections in a tile; narrow layout under 100 columns; `g` opens the next agent needing the developer (tree order, zarg first).
+- Shell: Alt+arrows between tiles; Tab between sections in a tile; narrow layout under 100 columns; `g` opens the next agent needing the operator (tree order, zarg first).
 - zarg's conversation stays on AG-UI (messages, interrupts, `/runs`).
 - YOLO never asks; without YOLO permission questions are zarg's `kind: "grant"` questions.
 - Never print, log or commit a secret; tests use unique variable names; tests never write `~/.config/zarg`.
@@ -28,10 +28,10 @@
 ## Review Focus
 
 1. `agent-zarg` fails to load or throws in `start`: the core still serves, `main` answers with "zarg is not loaded: <reason>", the TUI's zarg tile says so. → Task 3, test "without agent-zarg the core serves and main says why".
-2. A question arrives while the developer is in another tile: keys never reach the picker until zarg's tile has focus; nothing is answered by accident. → Task 8, test "a question waits while the view tile has focus: arrows move the view".
+2. A question arrives while the operator is in another tile: keys never reach the picker until zarg's tile has focus; nothing is answered by accident. → Task 8, test "a question waits while the view tile has focus: arrows move the view".
 3. A narrow terminal (80×24) with three tiles and a tall table: zarg's tile keeps its slot visible, the strip shows every ◆. → Task 8, test "at 80×24 zarg is above the view and the strip lists attention".
 4. Attention from an agent that then ends or is stopped (or a core restart): no ◆ lingers. → Task 6, test "attention clears when the agent ends and on a core restart".
-5. A sandboxed agent's `ask` while the developer never answers and the plugin restarts: the question is gone from its view and no answer reaches a dead handler. → Task 10, test "a restarted agent's open question is withdrawn".
+5. A sandboxed agent's `ask` while the operator never answers and the plugin restarts: the question is gone from its view and no answer reaches a dead handler. → Task 10, test "a restarted agent's open question is withdrawn".
 
 ---
 
@@ -70,7 +70,7 @@ export interface Thread {
   readonly run: (input: RunInput) => Stream.Stream<WireEvent>
   readonly wake: Effect.Effect<void>
   readonly stop: Effect.Effect<void>
-  /** Ask the developer on this thread from outside the agent (grant questions); answered in order. */
+  /** Ask the operator on this thread from outside the agent (grant questions); answered in order. */
   readonly ask: (q: Question) => Effect.Effect<Answer>
   readonly status: () => "idle" | "running" | "waiting"
 }
@@ -250,7 +250,7 @@ In `live.ts`: build `AgentHost` from the existing values (`root`, `roles`, `rlmS
 
 **Files:** `packages/plugin-sdk/src/services.ts` (`Conversation`), `packages/plugin-sdk/src/define.ts` (the SDK keeps each agent's open `ask` and resolves it on `answer`), `packages/core/src/server.ts` (`POST /threads/:id/agents/:agent/messages {text}`, `POST …/answers {question, answer}`), `packages/core/src/actions.ts` (route to the plugin's `message` / `answer`), `packages/client` (`message`, `answer` on an agent), `packages/view-tui` (the view tile draws a plugin agent's `conversation` section with `ConversationTile`, sending through them), tests in each package.
 
-- [ ] **Step 1: Tests:** a fixture plugin agent with a `conversation` section: `ask` shows the question in its view; the developer's answer (HTTP) completes `ask`; `message` reaches its `message` method; "a restarted agent's open question is withdrawn" (Review Focus 5: after a restart the view's `question` is cleared by the SDK on start).
+- [ ] **Step 1: Tests:** a fixture plugin agent with a `conversation` section: `ask` shows the question in its view; the operator's answer (HTTP) completes `ask`; `message` reaches its `message` method; "a restarted agent's open question is withdrawn" (Review Focus 5: after a restart the view's `question` is cleared by the SDK on start).
 - [ ] **Step 2:** Run — FAIL.
 - [ ] **Step 3:** Implement.
 - [ ] **Step 4:** `mise run verify` — PASS.

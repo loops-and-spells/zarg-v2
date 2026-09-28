@@ -38,7 +38,7 @@ export const spawnPlugin = (opts: {
   readonly powers: Powers
   readonly deadlineMs?: number
   readonly loadTimeoutMs?: number
-  /** True while the plugin waits on the developer (a grant question): its call's deadline stops. */
+  /** True while the plugin waits on the operator (a grant question): its call's deadline stops. */
   readonly paused?: () => boolean
   readonly onExit?: (reason: "crash" | "deadline" | "stop") => void
 }): Effect.Effect<PluginProcess, PluginLoadError, Scope.Scope> =>
@@ -151,7 +151,7 @@ export const spawnPlugin = (opts: {
     const toError = (e: Failure | { tag: "PluginCrashed" | "Deadline"; message: string }) => new PluginCallError({ _tag: e.tag, message: e.message })
     const crashed = (message: string) => new PluginCallError({ _tag: "PluginCrashed", message })
 
-    /** Fails once `deadlineMs` of the plugin's own time has passed; time spent waiting on the developer does not count. */
+    /** Fails once `deadlineMs` of the plugin's own time has passed; time spent waiting on the operator does not count. */
     const deadline = (method: string, deadlineMs: number) =>
       Effect.gen(function* () {
         let used = 0

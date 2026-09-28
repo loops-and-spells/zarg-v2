@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Plugins gain typed dependencies, a `service` archetype, powers for models, decisions, agents, clock and agenda, self-drawn agent bodies with actions, and plugin slash commands; rehearse moves out of the core into `@zarg/plugin-rehearse`, where the developer picks which findings to apply.
+**Goal:** Plugins gain typed dependencies, a `service` archetype, powers for models, decisions, agents, clock and agenda, self-drawn agent bodies with actions, and plugin slash commands; rehearse moves out of the core into `@zarg/plugin-rehearse`, where the operator picks which findings to apply.
 
 **Architecture:** The SDK gets `pluginContract` (an Effect `Context.Service` class per plugin's public read methods) and `pluginDependencies`; the host loads plugins in dependency order, checks contract digests and serves the new powers from host callbacks the core provides. Plugin agents are activity nodes in main's agents pane (own stream per plugin, ids `<plugin>:<id>`); bodies come from the plugin's reserved `body` method and actions go to `act`. The core keeps the findings gate (`Findings.take` / `Findings.resolve`) for any plugin that answers `finding`. Rehearse is ported module by module into the plugin, talking to Gherkin through its contract.
 
@@ -26,7 +26,7 @@
 1. A dependency that loads but whose process later crashes for good: its dependents must be disabled too, with an agenda item, and their calls fail typed. → Task 1, test "a dependency disabled at runtime disables its dependents".
 2. A plugin calling a dependency method that exists but is not in the contract (a write tool): refused. → Task 1, test "Plugins.call reaches only contract methods of declared dependencies".
 3. A plugin agent id that collides with an RLM id or another plugin's agent: impossible by construction (prefix); a plugin sending an id with `:` or `/` is refused. → Task 3, test "agent ids are namespaced and checked".
-4. The developer applies findings, restarts zarg before the driver takes them up: the chosen findings are still on the agenda (the plugin's record). → Task 7, test "chosen findings survive a restart".
+4. The operator applies findings, restarts zarg before the driver takes them up: the chosen findings are still on the agenda (the plugin's record). → Task 7, test "chosen findings survive a restart".
 5. A body action for an agent whose plugin is gone (disabled or not loaded): a typed failure shown as a notice, never a crash. → Task 4, test "an action on a gone plugin's agent is a notice".
 
 ---
@@ -428,7 +428,7 @@ test("agent ids are namespaced and checked; events become main's activity in the
   const log = await Effect.runPromise(makeLog(dir, (t) => t))
   const sink = pluginAgents(log, "main")
   sink("rehearse", { event: "start", id: "run", title: "rehearse", task: "run r-1" })
-  sink("rehearse", { event: "start", id: "tester-1", parent: "run", title: "tester", task: "The developer" })
+  sink("rehearse", { event: "start", id: "tester-1", parent: "run", title: "tester", task: "The operator" })
   sink("rehearse", { event: "step", id: "tester-1", text: "UX-0001: feel 1.80" })
   sink("rehearse", { event: "status", id: "tester-1", progress: { done: 1, total: 4 }, text: "1/4 steps" })
   expect(() => sink("rehearse", { event: "start", id: "a:b", title: "x", task: "y" })).toThrow("agent id")
@@ -562,21 +562,21 @@ export const pluginAgents = (log: ThreadLog, threadId: string) => {
   - "the tester's body is its history then Feedback and Likes tables; the run's body is the table over all testers".
 
 - [ ] **Step 3: Implement the plugin**
-  - `run.ts` keeps its structure; replace: `deps.stories`/`deps.step` → `gherkin.stories`/`gherkin.step`; `deps.decide` → `Decisions.decide`; `deps.model` → `Models.complete` (the `findings.ts` `textOf` helper takes a `complete` function); records via `Files.read`/`Files.write` under `.zarg/rehearse/` with an index file `index.json` (run ids) since there is no directory listing of records needed beyond it; dismissed in `.zarg/rehearse/dismissed.json`; `intent` via `Files.list("intent")` + `Files.read`; ids and times via `Clock`; `activity.observe` → `Agents.start/status/step/end` (ids `run`, `tester-N`); `announce` → the run's `status` text (no chat line); `wake` → `Agenda.changed`; `built` → dropped (the developer picks now; the route is a suggestion).
+  - `run.ts` keeps its structure; replace: `deps.stories`/`deps.step` → `gherkin.stories`/`gherkin.step`; `deps.decide` → `Decisions.decide`; `deps.model` → `Models.complete` (the `findings.ts` `textOf` helper takes a `complete` function); records via `Files.read`/`Files.write` under `.zarg/rehearse/` with an index file `index.json` (run ids) since there is no directory listing of records needed beyond it; dismissed in `.zarg/rehearse/dismissed.json`; `intent` via `Files.list("intent")` + `Files.read`; ids and times via `Clock`; `activity.observe` → `Agents.start/status/step/end` (ids `run`, `tester-N`); `announce` → the run's `status` text (no chat line); `wake` → `Agenda.changed`; `built` → dropped (the operator picks now; the route is a suggestion).
   - `index.ts`: `definePlugin` with the methods above; `body` and `act` as in the stashed WIP (`git stash show -p stash@{0}` has `body`, `act`, `chosen`, `isDismissed`, `rowsOf`); `finding({ id })` → `{ run, card, chosen, hash, notes } | null`; `resolved({ run, ids })` → marks resolved; `stop` interrupts the active run; `command({ args })` → parses `edge-pair|teleport` and `focus=` and calls `run`, answering `{ notice }`.
   - Core: the driver's `Findings` service (Task 5) asks `invoke("rehearse", "finding", …)`; `Rehearse.run` is the plugin's agent tool (the existing `pluginService` exposes it as `Rehearse.run`).
   - Build: `mise run build:plugins` builds both plugins and writes both hashes.
 
 - [ ] **Step 4: Run the plugin's tests; delete the core's rehearse code and tests; run `mise run verify`.**
 
-- [ ] **Step 5: Commit** `feat: rehearse is a plugin; the developer picks findings to apply`.
+- [ ] **Step 5: Commit** `feat: rehearse is a plugin; the operator picks findings to apply`.
 
 ---
 
 ### Task 8: Calibration and docs
 
 **Files:**
-- Modify: root `mise.toml` (`calibrate:rehearse` runs `packages/plugin-rehearse/scripts/calibrate.ts`), `AGENTS.md` (packages list: `plugin-rehearse`, `build:plugins`), the rehearse spec's pointers (a line at the top: "moved into `@zarg/plugin-rehearse`; triage by the developer, see the service plugins spec")
+- Modify: root `mise.toml` (`calibrate:rehearse` runs `packages/plugin-rehearse/scripts/calibrate.ts`), `AGENTS.md` (packages list: `plugin-rehearse`, `build:plugins`), the rehearse spec's pointers (a line at the top: "moved into `@zarg/plugin-rehearse`; triage by the operator, see the service plugins spec")
 - Test: `packages/plugin-rehearse/test/calibration.test.ts` (moved)
 
 - [ ] Steps: move the calibration script to the plugin package (it runs `screenStep` with the live `Decisions` layer from the core, as before); update `mise.toml` and `AGENTS.md`; run `mise run verify`; commit `docs: plugin-rehearse, build:plugins, calibration path`.
@@ -586,6 +586,6 @@ export const pluginAgents = (log: ThreadLog, threadId: string) => {
 ## Deviations from the spec (for review)
 
 - **No chat line when a run ends:** plugins cannot post messages; the run's row says the result ("7 findings to review"), and applied findings reach the driver through the agenda. A `Say` power can come later.
-- **`built` (the "card has code" check) is dropped:** a plugin cannot run `git grep`, and with the developer picking findings the route is only a suggestion.
+- **`built` (the "card has code" check) is dropped:** a plugin cannot run `git grep`, and with the operator picking findings the route is only a suggestion.
 - **Clock power:** the plugin sandbox has no clock or randomness (SES), so `Clock.now`/`Clock.uuid` are host powers; the spec did not list them.
 - **`Files.list`:** added to read `intent/*.md` without knowing file names.

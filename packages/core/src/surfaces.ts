@@ -5,7 +5,7 @@ import type { ViewStore } from "./views"
 
 /** The open panels, one activity snapshot per change. */
 export const PANELS = "zarg.panels"
-/** A plugin asked for a tile or sheet to show (the developer's call opened it): a one-way request clients follow. */
+/** A plugin asked for a tile or sheet to show (the operator's call opened it): a one-way request clients follow. */
 export const NAVIGATE = "zarg.navigate"
 
 /** A panel a plugin opened for one of its agents. `id` is `${plugin}:${name}:${agent}`. */
@@ -20,7 +20,7 @@ export interface PanelInstance {
   readonly edge: "top" | "bottom" | "right"
   readonly size: number
   readonly input: "none" | "onFocus"
-  /** When it was (re)opened: a panel the developer closed shows again once the plugin opens it again. */
+  /** When it was (re)opened: a panel the operator closed shows again once the plugin opens it again. */
   readonly at?: number
 }
 

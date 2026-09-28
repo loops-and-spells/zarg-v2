@@ -10,7 +10,7 @@ export interface SessionState {
   readonly thread: ThreadState
   /** "down" once the core stops answering (it exited, or the socket is gone). */
   readonly core: "up" | "down"
-  /** The last transport problem (a refused run, a lost stream), shown to the developer. */
+  /** The last transport problem (a refused run, a lost stream), shown to the operator. */
   readonly notice?: string
 }
 

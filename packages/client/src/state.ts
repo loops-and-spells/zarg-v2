@@ -72,7 +72,7 @@ export interface RlmNode {
   readonly error?: string
   /** A row the agent draws itself (agents that are not RLMs): progress fills the bar, text replaces the turns. */
   readonly row?: { readonly progress?: { readonly done: number; readonly total: number }; readonly text?: string }
-  /** The agent asks for the developer: why, and since when (ms). */
+  /** The agent asks for the operator: why, and since when (ms). */
   readonly attention?: { readonly reason: string; readonly since: number }
 }
 
@@ -102,7 +102,7 @@ export interface ThreadState {
   readonly deleted?: ReadonlyArray<string>
   /** The panels plugins have open. */
   readonly panels?: ReadonlyArray<Panel>
-  /** The last tile or sheet a plugin opened for the developer, with the event's seq and time. */
+  /** The last tile or sheet a plugin opened for the operator, with the event's seq and time. */
   readonly navigate?: { readonly seq: number; readonly kind: "tile" | "sheet"; readonly view: string; readonly at: number }
 }
 

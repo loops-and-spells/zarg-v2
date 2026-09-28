@@ -52,7 +52,7 @@ export interface ReconcileSpec {
   readonly landAttempts: number
   readonly message: (items: ReadonlyArray<string>) => string
   /**
-   * The developer's stop: `wait` completes when a stop is requested (running cards race it and are cut
+   * The operator's stop: `wait` completes when a stop is requested (running cards race it and are cut
    * short); `requested` is checked between steps. A stopped pass ends as failed, without findings.
    */
   readonly stop?: { readonly requested: () => boolean; readonly wait: Effect.Effect<void> }

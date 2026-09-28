@@ -26,7 +26,7 @@ const tooBroad = (path: string) => {
 
 /**
  * Whether an agent may read a real path outside the repository: never for zarg's own state, git internals,
- * keys and env files; yes under a folder the developer always allowed; otherwise the developer is asked
+ * keys and env files; yes under a folder the operator always allowed; otherwise the operator is asked
  * (once, always for the path's repository, or deny). One question at a time: reads that arrive together
  * wait for it, and an "always" answer lets them through.
  */

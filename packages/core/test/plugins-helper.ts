@@ -8,7 +8,7 @@ import { makeGrants, scopesDigest } from "@zarg/plugin/runtime"
 import { PluginHost } from "@zarg/plugin/server"
 import { pluginHostLayer } from "../src/plugins"
 
-/** First-party plugins (the built Gherkin) with a throwaway grants file, never the developer's. */
+/** First-party plugins (the built Gherkin) with a throwaway grants file, never the operator's. */
 export const testPlugins = (root: string) => pluginHostLayer({ root, userDir: mkdtempSync(join(tmpdir(), "zt-core-plugins-")) })
 
 /** `affected` asked of those plugins, as the core asks its host. */

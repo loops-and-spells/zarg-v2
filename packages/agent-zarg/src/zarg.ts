@@ -43,7 +43,7 @@ export const makeZarg = (host: AgentHost) =>
         if (name === "Graph") return graph(ctx)
         // A plugin's agent methods, by the service name its manifest declares; graph writes wait for an answer.
         const plugin = plugins.manifests.find((m) => m.service === name)
-        // Graph writes wait for the developer; service and agent plugins' tools (Rehearse.run) do not write the graph.
+        // Graph writes wait for the operator; service and agent plugins' tools (Rehearse.run) do not write the graph.
         if (plugin !== undefined) return plugin.archetype === "graph" ? guard.gate(pluginService(plugin, ctx)) : pluginService(plugin, ctx)
         if (name === "Fs:read") return fsRead({ root, scope, sensitive, outside })
         if (name === "Inquire") return inquire(guard.asker)

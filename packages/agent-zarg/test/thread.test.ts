@@ -151,7 +151,7 @@ describe("thread runs", () => {
       }),
     )
     expect(tasks[0]).toStartWith("Rehearse run r-1: 1 finding")
-    // Nothing was said for the developer: the question just went away.
+    // Nothing was said for the operator: the question just went away.
     expect(out.log.all().filter((e) => e.type === "TEXT_MESSAGE_CONTENT" && e.delta === "")).toEqual([])
   })
 
@@ -363,7 +363,7 @@ describe("thread runs", () => {
     const driver: Driver = (spec, asker) =>
       Effect.gen(function* () {
         tasks.push(spec.task)
-        // The first item answers the developer's message; the next one is the agenda's.
+        // The first item answers the operator's message; the next one is the agenda's.
         if (calls++ === 0) return outcome("Hello! Let's look at the agenda.")
         return (yield* asker.ask(question)) as never
       }) as never

@@ -34,7 +34,7 @@ const Question = Schema.Struct({
 })
 /** `kind: "grant"`: a permission question zarg itself asks (never a cell: the schema has no such field); only its options are offered. */
 export type Question = typeof Question.Type & { readonly kind?: "grant" }
-/** An option id, or free text; `interjected` when the developer wrote a message instead of answering. */
+/** An option id, or free text; `interjected` when the operator wrote a message instead of answering. */
 const Answer = Schema.Struct({
   choice: Schema.optionalKey(Schema.String).annotate({ description: "The option the developer picked." }),
   other: Schema.optionalKey(Schema.String).annotate({ description: "What the developer wrote instead (Something else…, or a message about the question)." }),
@@ -88,12 +88,12 @@ export const InquireDef = defineService("Inquire", "Ask the developer a question
   },
 })
 
-/** How questions reach the developer; 2b implements it with AG-UI interrupts. */
+/** How questions reach the operator; 2b implements it with AG-UI interrupts. */
 export interface Asker {
   readonly ask: (q: Question) => Effect.Effect<Answer, ServiceFailure>
-  /** Close a question under discussion with one of its options, for the developer. */
+  /** Close a question under discussion with one of its options, for the operator. */
   readonly choose?: (c: Choice) => Effect.Effect<{ readonly choice: string }, ServiceFailure>
-  /** Show a change for the developer to add, change or skip; defaults to `ask` with `confirmQuestion`. */
+  /** Show a change for the operator to add, change or skip; defaults to `ask` with `confirmQuestion`. */
   readonly confirm?: (c: Confirm) => Effect.Effect<Answer, ServiceFailure>
 }
 

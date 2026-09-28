@@ -13,5 +13,5 @@ export interface Option {
   readonly why?: string
 }
 
-/** Answer to an inquiry: one of its options, or the developer's own text. */
+/** Answer to an inquiry: one of its options, or the operator's own text. */
 export type Answer = { readonly choice: string } | { readonly other: string }

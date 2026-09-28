@@ -14,7 +14,7 @@ const Notice = Schema.Struct({ notice: Schema.String })
 // Starting asks the decision model once per persona and plans every story: slow on a CPU decision model.
 const START_DEADLINE_MS = 10 * 60_000
 
-/** Testers roleplay the journeys; findings wait for the developer to pick which to apply. */
+/** Testers roleplay the journeys; findings wait for the operator to pick which to apply. */
 export default definePlugin({
   name: "rehearse",
   service: "Rehearse",

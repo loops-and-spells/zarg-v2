@@ -157,7 +157,7 @@ describe("Inquire, Agenda and Verify", () => {
   const kernel = <A>(services: Parameters<typeof Kernel.make>[0]["services"], f: (k: Kernel.Kernel) => Effect.Effect<A>) =>
     Effect.runPromise(Effect.scoped(Effect.flatMap(Kernel.make({ services }), f)))
 
-  test("Inquire.ask returns the developer's answer; bad option counts are refused", async () => {
+  test("Inquire.ask returns the operator's answer; bad option counts are refused", async () => {
     const asked: Array<string> = []
     const svc = inquire({ ask: (q) => Effect.sync(() => (asked.push(q.question), { choice: "b" })) })
     const out = await kernel([svc], (k) =>
@@ -543,11 +543,11 @@ export type Question = typeof Question.Type
 const Answer = Schema.Struct({ choice: Schema.optionalKey(Schema.String), other: Schema.optionalKey(Schema.String) })
 export type Answer = typeof Answer.Type
 
-export const InquireDef = defineService("Inquire", "Ask the developer a question. The cell waits (yielded) until they answer.", {
+export const InquireDef = defineService("Inquire", "Ask the operator a question. The cell waits (yielded) until they answer.", {
   ask: { doc: "Ask with 2-4 options; mark one recommended with why. The answer is an option id or free text.", params: Question, success: Answer },
 })
 
-/** How questions reach the developer; 2b implements it with AG-UI interrupts. */
+/** How questions reach the operator; 2b implements it with AG-UI interrupts. */
 export interface Asker {
   readonly ask: (q: Question) => Effect.Effect<Answer, ServiceFailure>
 }

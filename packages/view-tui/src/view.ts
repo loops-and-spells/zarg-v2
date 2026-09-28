@@ -30,7 +30,7 @@ export interface Ui {
   readonly inquiryId?: string
   /** True while "Something else…" is highlighted: the bar takes the typing. */
   readonly other: boolean
-  /** The inquiry the developer is chatting about (Chat about this): the bar takes the typing, the options wait. */
+  /** The inquiry the operator is chatting about (Chat about this): the bar takes the typing, the options wait. */
   readonly chatting?: string
   /** The inquiry already answered: further Enters wait for the core to move on. */
   readonly answered?: string
@@ -59,14 +59,14 @@ export interface Ui {
     /** A plugin popover's view state (its focused section, rows). */
     readonly view?: ViewUi
   }
-  /** Agents the developer opened since they asked, by the `since` of the attention they saw. */
+  /** Agents the operator opened since they asked, by the `since` of the attention they saw. */
   readonly seen: Readonly<Record<string, number>>
-  /** zarg's last reply the developer has seen; newer ones preview in the bar. */
+  /** zarg's last reply the operator has seen; newer ones preview in the bar. */
   readonly readUpTo?: string
   /** The focused panel's id (focus "panel") and its view's state. */
   readonly panel?: string
   readonly panelView?: ViewUi
-  /** Panels the developer closed, by `closedKey`: one the plugin opens again (a new `at`) shows again. */
+  /** Panels the operator closed, by `closedKey`: one the plugin opens again (a new `at`) shows again. */
   readonly closedPanels: ReadonlyArray<string>
   /** The seq of the last navigation request followed. */
   readonly navigated?: number
@@ -141,7 +141,7 @@ const withPopover = (ui0: Ui, s: SessionState, now: number): Ui => {
   return { ...ui, popover: { id: head.id, pick: Math.max(0, head.options.findIndex((o) => o.recommended === true)), since: now } }
 }
 
-/** A plugin opened a tile or sheet during the developer's call: follow it once, unless it is old (a replayed log). */
+/** A plugin opened a tile or sheet during the operator's call: follow it once, unless it is old (a replayed log). */
 const withNavigate = (ui: Ui, s: SessionState, now: number): Ui => {
   const n = s.thread.navigate
   if (n === undefined || (ui.navigated !== undefined && n.seq <= ui.navigated)) return ui
@@ -191,7 +191,7 @@ const question = (s: SessionState) => s.thread.pendingInquiry
 /** zarg's sheet covers the tile area: opened, or no agent is open. */
 export const sheetShown = (ui: Ui) => ui.sheet || ui.main === "zarg"
 
-/** Plugin agents (an id with ":") running or asking for the developer, not archived or deleted: work the grid shows. zarg and its RLMs are the conversation. */
+/** Plugin agents (an id with ":") running or asking for the operator, not archived or deleted: work the grid shows. zarg and its RLMs are the conversation. */
 export const agentsWork = (s: SessionState) =>
   Object.values(liveRlms(s)).some((n) => n.id.includes(":") && (n.status === "running" || n.attention !== undefined))
 
@@ -232,7 +232,7 @@ export const answeringOther = (ui: Ui, s: SessionState) => {
   const q = question(s)
   return q !== undefined && ui.other && ui.chatting !== q.id && ui.answered !== q.id
 }
-/** The bar takes text: it has focus, and nothing is asked, or the developer chats about the question or types their own answer. */
+/** The bar takes text: it has focus, and nothing is asked, or the operator chats about the question or types their own answer. */
 export const typing = (ui: Ui, s: SessionState) => {
   const q = question(s)
   return ui.focus === "bar" && zargLoaded(s) && (q === undefined || ui.chatting === q.id || answeringOther(ui, s))
@@ -336,7 +336,7 @@ export interface AgentRow {
   /** The node's status, or "failed" when a collapsed node hides a failure. */
   readonly tone: RlmNode["status"]
   readonly selected: boolean
-  /** The agent asks for the developer (◆, its reason in place of its progress). */
+  /** The agent asks for the operator (◆, its reason in place of its progress). */
   readonly attention: boolean
   /** Set while its request for attention is unseen: its ◆ blinks with the clock. */
   readonly pulse?: "on" | "off"
@@ -473,7 +473,7 @@ export const agentRows = (rlms: Readonly<Record<string, RlmNode>>, agents: Agent
   })
 }
 
-/** The agents asking for the developer, in tree order, zarg first. */
+/** The agents asking for the operator, in tree order, zarg first. */
 export const attentionOf = (rlms: Readonly<Record<string, RlmNode>>): ReadonlyArray<{ readonly id: string; readonly reason: string }> => {
   const children = childrenOf(rlms)
   const order: Array<RlmNode> = []

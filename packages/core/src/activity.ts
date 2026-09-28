@@ -119,7 +119,7 @@ export const makeActivity = (log: ThreadLog, threadId: string, messageId = `${th
     const segment = id.replaceAll("~", "~0").replaceAll("/", "~1")
     Effect.runSync(log.append(threadId, E.activityDelta(messageId, [{ op: "add", path: `/rlms/${segment}`, value: next }])))
   }
-  /** An agent asks for the developer's attention (a reason) or stops asking (undefined). */
+  /** An agent asks for the operator's attention (a reason) or stops asking (undefined). */
   const attention = (id: string, reason: string | undefined) => {
     const prev = nodes.get(id)
     if (prev === undefined) return
@@ -182,7 +182,7 @@ export const closeStale = (log: ThreadLog) =>
   Effect.sync(() => {
     const stopped = new Map<string, Array<string>>()
     for (const s of agentNodes(log)) {
-      // Running agents are over, and no agent of the previous core still needs the developer.
+      // Running agents are over, and no agent of the previous core still needs the operator.
       const stale = [...s.nodes.entries()].filter(([, n]) => n.status === "running" || n.attention !== undefined)
       const patch = stale.map(([id, n]) => {
         const { attention: _, ...rest } = n

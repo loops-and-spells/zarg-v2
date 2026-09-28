@@ -8,7 +8,7 @@ interface Talk {
   waiting?: Deferred.Deferred<Answer>
 }
 
-/** Conversations of one plugin's agents: kept here, pushed to each agent's `talk` section, answered by the developer. */
+/** Conversations of one plugin's agents: kept here, pushed to each agent's `talk` section, answered by the operator. */
 export const conversations = (raw: RawPowers) => {
   const talks = new Map<string, Talk>()
   let n = 0
@@ -39,7 +39,7 @@ export const conversations = (raw: RawPowers) => {
         t.question = { id: `q${++n}`, question: q.question, options: q.options, allowOther: q.allowOther ?? false }
         t.waiting = waiting
         yield* push(agent)
-        // The host stops this call's deadline while the developer thinks.
+        // The host stops this call's deadline while the operator thinks.
         const asking = (open: boolean) => Effect.ignore(Effect.tryPromise(() => raw.call("conversation.asking", { open })))
         yield* asking(true)
         return yield* Deferred.await(waiting).pipe(Effect.ensuring(asking(false)))
@@ -47,7 +47,7 @@ export const conversations = (raw: RawPowers) => {
   })
   return {
     service,
-    /** The developer answered a question in an agent's conversation. */
+    /** The operator answered a question in an agent's conversation. */
     answer: async (p: { agent: string; question: string; answer: Answer }) => {
       const t = talks.get(p.agent)
       const waiting = t?.question?.id === p.question ? t.waiting : undefined
@@ -59,7 +59,7 @@ export const conversations = (raw: RawPowers) => {
       await Effect.runPromise(Deferred.succeed(waiting, p.answer))
       return { notice: "answered" }
     },
-    /** The developer said something to an agent: it joins the conversation. */
+    /** The operator said something to an agent: it joins the conversation. */
     message: async (p: { agent: string; text: string }) => {
       talkOf(p.agent).messages.push({ id: `m${++n}`, role: "user", text: p.text })
       await Effect.runPromise(Effect.ignore(push(p.agent)))

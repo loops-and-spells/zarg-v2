@@ -98,7 +98,7 @@ export interface PhaseDeps {
   readonly affected: (before: Snapshot.Snapshot, after: Snapshot.Snapshot) => Effect.Effect<{ readonly cards: ReadonlyArray<string>; readonly removed: ReadonlyArray<string> }, unknown>
 }
 
-/** The graph as the worktree at `cwd` has it (the pass's graph, not the developer's newer one). */
+/** The graph as the worktree at `cwd` has it (the pass's graph, not the operator's newer one). */
 const withGraph = <A, E>(deps: PhaseDeps, cwd: string, f: (g: { host: PluginHost["Service"]; store: GraphStore["Service"] }) => Effect.Effect<A, E>) =>
   Effect.scoped(
     Effect.gen(function* () {

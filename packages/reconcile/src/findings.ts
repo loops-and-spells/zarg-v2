@@ -4,7 +4,7 @@ import { ensureIgnored } from "./worktree"
 
 export type FindingKind = "unplannable" | "blocked-card" | "merge-conflict" | "verify-failing" | "landing-blocked" | "pass-error"
 
-/** Something a phase could not project; it reaches the developer through the driver's agenda. */
+/** Something a phase could not project; it reaches the operator through the driver's agenda. */
 export interface Finding {
   readonly id: string
   readonly kind: FindingKind

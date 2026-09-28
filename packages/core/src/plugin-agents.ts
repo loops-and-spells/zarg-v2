@@ -15,10 +15,10 @@ export type AgentEvent =
   /** Data for a section of the agent's view (checked by the core against the declared layout). */
   | { readonly event: "set"; readonly id: string; readonly view?: string; readonly section: string; readonly data: unknown }
   | { readonly event: "append"; readonly id: string; readonly view?: string; readonly section: string; readonly lines: unknown }
-  /** Show declared surfaces for its agents; `gesture` is the host's word that the developer's call is running. */
+  /** Show declared surfaces for its agents; `gesture` is the host's word that the operator's call is running. */
   | { readonly event: "open"; readonly surfaces: ReadonlyArray<{ readonly surface: string; readonly agent: string; readonly focus?: boolean }>; readonly gesture?: boolean }
   | { readonly event: "close"; readonly surface: string; readonly id: string }
-  /** Ask for the developer's attention (a reason) or stop asking (no reason). */
+  /** Ask for the operator's attention (a reason) or stop asking (no reason). */
   | { readonly event: "attention"; readonly id: string; readonly reason?: string }
 
 const ID = /^[A-Za-z0-9._-]{1,64}$/
@@ -61,7 +61,7 @@ export const pluginAgents = (
       if (s === undefined) throw new Error(`plugin ${plugin} declares no surface ${String(o.surface)}`)
       // A card is how the agent shows in the grid: there is nothing to open.
       if (s.kind === "card") throw new Error(`${s.name} is a card: it shows in the grid by itself`)
-      // Panels open any time; the rest take the screen or the keys, so only the developer's call opens them.
+      // Panels open any time; the rest take the screen or the keys, so only the operator's call opens them.
       if (s.kind !== "panel" && e.gesture !== true) throw new Error(`${s.name} is a ${s.kind}: it opens only while you handle the developer's call; ask for attention instead`)
       const id = `${plugin}:${o.agent}`
       // Only for its own agents that exist: no surfaces for ids it made up.

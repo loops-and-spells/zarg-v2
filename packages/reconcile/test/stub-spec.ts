@@ -12,7 +12,7 @@ export const stubSpec = (repo: string, opts: {
   brokenFixes?: number
   resolve?: (cwd: string, files: ReadonlyArray<string>) => boolean
   landAttempts?: number
-  /** Called when an item is implemented (e.g. to commit on the developer's branch meanwhile). */
+  /** Called when an item is implemented (e.g. to commit on the operator's branch meanwhile). */
   during?: (item: string) => void
   /** Record calls in this file too (for tests that span processes). */
   callLog?: string

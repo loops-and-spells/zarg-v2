@@ -39,7 +39,7 @@ describe("YOLO control", () => {
       yield* yolo.set(true, "rehearse")
       yield* yolo.set(false)
     }))
-    // The load runs detached (a question may wait on the developer): let it run.
+    // The load runs detached (a question may wait on the operator): let it run.
     await Bun.sleep(5)
     expect(loads).toEqual(["load"])
   })

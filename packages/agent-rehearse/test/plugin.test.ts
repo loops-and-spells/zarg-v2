@@ -28,7 +28,7 @@ describe("rehearse as a loaded plugin", () => {
     const events: Array<{ plugin: string; event: { event: string; id: string; text?: string } }> = []
     const out = await Effect.gen(function* () {
       const grants = yield* makeGrants({ file: join(mkdtempSync(join(tmpdir(), "zt-rehearse-g-")), "grants.json"), project: root })
-      // Rehearse asks for more than the graph: the developer grants it once (`zarg plugin grant rehearse`).
+      // Rehearse asks for more than the graph: the operator grants it once (`zarg plugin grant rehearse`).
       const m = plugins[1]!.manifest
       yield* grants.approveLoad(m.name, scopesDigest(m.scopes, m.optional, (m.pluginDependencies ?? []).map((d) => d.name)))
       const host = hostLayer(plugins, {

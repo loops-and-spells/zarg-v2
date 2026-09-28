@@ -45,7 +45,7 @@ export const screenStep = (decide: Decide, persona: Persona, prior: ReadonlyArra
     return { feel, fail, arrive, ...(fork !== undefined ? { fork } : {}), flags } satisfies Screened
   }).pipe(Effect.orElseSucceed(() => undefined))
 
-// jevk5 on zarg's intent (2026-09-27): "The developer, through the zarg TUI" 0.45, "Shoppers, on mobile" 0.69;
+// jevk5 on zarg's intent (2026-09-27): "The operator, through the zarg TUI" 0.45, "Shoppers, on mobile" 0.69;
 // the git repository 0.26, model providers 0.18, a payments API 0.23. People rank above systems, below 0.5.
 const PERSON_AT = 0.4
 

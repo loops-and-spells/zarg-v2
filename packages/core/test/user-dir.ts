@@ -1,4 +1,4 @@
-// Tests never touch the developer's ~/.config/zarg: grants and installed plugins go to a temp dir (children inherit it).
+// Tests never touch the contributor's ~/.config/zarg: grants and installed plugins go to a temp dir (children inherit it).
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"

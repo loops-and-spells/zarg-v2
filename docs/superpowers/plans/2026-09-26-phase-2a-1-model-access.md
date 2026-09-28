@@ -16,7 +16,7 @@
 - Effect is the `rc` tag (`effect@rc`, `@effect/platform-bun@rc`, resolved `4.0.0-rc.117`). Services use `Context.Service<Self, Shape>()("key")`; errors use `Data.TaggedError`.
 - varlock is pinned to exactly `1.20.0`: the loader zarg uses (`internal.loadVarlockEnvGraph`) is not part of varlock's public API.
 - Every package: `package.json` named `@zarg/<name>`, `"type": "module"`, `tsconfig.json` extending `../../tsconfig.base.json`, `mise.toml` with `typecheck` and `test` tasks.
-- **Secrets:** never print, log or commit a secret value. Tests use variable names unique to the test (`ZARGTEST_*`, `ZTS_*`, `ZT_*`) so a developer's real environment can neither override them nor leak into output. A real `OPENROUTER_API_KEY` may be set in the shell; no test may depend on it or echo it.
+- **Secrets:** never print, log or commit a secret value. Tests use variable names unique to the test (`ZARGTEST_*`, `ZTS_*`, `ZT_*`) so a contributor's real environment can neither override them nor leak into output. A real `OPENROUTER_API_KEY` may be set in the shell; no test may depend on it or echo it.
 - User-level files live in `~/.config/zarg/` (`config.toml`, `.env.local`). `~/.zarg/` belongs to zarg v1 and is never read.
 - No test touches the network except fake servers on `localhost` started by the test.
 - `mise run verify` must pass at the end of every task. Commit after every task, ending the message with `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
@@ -154,7 +154,7 @@ import { join } from "node:path"
 import { Effect, Redacted } from "effect"
 import { Env, layer, redact, scrubEnv } from "../src"
 
-// Variable names are unique to these tests so a developer's real environment can never override them.
+// Variable names are unique to these tests so a contributor's real environment can never override them.
 let dir = ""
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), "zarg-env-"))
@@ -2691,7 +2691,7 @@ Design: `docs/superpowers/specs/2026-09-25-harness-architecture-design.md` and `
 ## Secrets
 
 - The root `.env.schema` declares every variable zarg reads (it imports the provider packages and `~/.config/zarg/`). Values live in gitignored `.env.local` files. Store secrets with varlock's device-bound encryption: `echo "$KEY" | mise x -- bunx varlock encrypt`.
-- Never print, log or commit a secret value. In tests, use variable names unique to the test so a developer's real environment cannot override them or leak into output.
+- Never print, log or commit a secret value. In tests, use variable names unique to the test so a contributor's real environment cannot override them or leak into output.
 
 ## Requirements
 

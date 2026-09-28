@@ -58,13 +58,13 @@ export interface SurfaceOpen {
 }
 /**
  * Show this plugin's declared surfaces for its agents (scope `agents: true`). Panels open any time; tiles, sheets and
- * popovers only while the plugin handles the developer's call (an action, an answer, a message, a slash command).
+ * popovers only while the plugin handles the operator's call (an action, an answer, a message, a slash command).
  */
 export class Surfaces extends Context.Service<Surfaces, {
   readonly open: (s: SurfaceOpen | ReadonlyArray<SurfaceOpen>) => Effect.Effect<void, PluginFailure>
   readonly close: (surface: string, agent: string) => Effect.Effect<void, PluginFailure>
 }>()("@zarg/plugin-sdk/Surfaces") {}
-/** Ask for the developer's attention on one of this plugin's agents (scope `agents: true`): a ◆ with the reason. */
+/** Ask for the operator's attention on one of this plugin's agents (scope `agents: true`): a ◆ with the reason. */
 export class Attention extends Context.Service<Attention, {
   readonly request: (agent: string, reason: string) => Effect.Effect<void, PluginFailure>
   readonly clear: (agent: string) => Effect.Effect<void, PluginFailure>
@@ -77,7 +77,7 @@ export interface AgentQuestion {
 }
 /**
  * An agent's conversation (its view's `talk` section, kind `conversation`): say something, ask and wait for the
- * developer's answer. What the developer sends reaches the plugin's `message({ agent, text })` method.
+ * operator's answer. What the operator sends reaches the plugin's `message({ agent, text })` method.
  */
 export class Conversation extends Context.Service<Conversation, {
   readonly say: (agent: string, text: string) => Effect.Effect<void, PluginFailure>

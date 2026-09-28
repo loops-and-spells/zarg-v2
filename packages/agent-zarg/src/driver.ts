@@ -9,8 +9,8 @@ const ASK_FIRST: ServiceFailure = {
 }
 
 /**
- * The driver's rule for the graph: nothing is written that the developer did not see. One guard per driver
- * item: graph writes open when the developer adds a change shown with Inquire.confirm (or the driver adds a
+ * The driver's rule for the graph: nothing is written that the operator did not see. One guard per driver
+ * item: graph writes open when the operator adds a change shown with Inquire.confirm (or the driver adds a
  * discussed one for them), and close at the next question.
  */
 export const askFirst = (asker: Asker) => {

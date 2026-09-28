@@ -122,7 +122,7 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
       // The host calls this when the plugin loads: its services start then (a run a restart cut short resumes).
       // Not a method name a plugin can declare (those start with a letter).
       ["$start", async () => (await handlers(), null)],
-      // The developer answered or wrote to one of its agents (the core routes these; plugins cannot declare `$` names).
+      // The operator answered or wrote to one of its agents (the core routes these; plugins cannot declare `$` names).
       ["$answer", async (p: unknown) => talks.answer(p as never)],
       [
         "$message",

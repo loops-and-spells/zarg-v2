@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-/** Findings the developer applied in the agents pane, per plugin: kept by the core, so a plugin's own word never opens writes. */
+/** Findings the operator applied in the agents pane, per plugin: kept by the core, so a plugin's own word never opens writes. */
 export const chosenFindings = (dir: string) => {
   const file = join(dir, "chosen.json")
   const read = (): Record<string, ReadonlyArray<string>> => {

@@ -253,7 +253,7 @@ export const make = (opts: KernelOptions) =>
 
         // The deadline counts only time the cell runs in the worker. While a service call is in
         // flight the cell is yielded to the host (a model turn, a child RLM, a question to the
-        // developer), and the clock pauses.
+        // operator), and the clock pauses.
         let inFlight = 0
         let used = 0
         let last = Date.now()

@@ -49,7 +49,7 @@ export type RlmEvent =
   | { readonly type: "turn"; readonly id: string; readonly turn: number; readonly tokens: number }
   /**
    * Where a turn's model call spent its time, sent as soon as it returns (a cell after it may wait on the
-   * developer for good): until the first streamed event (mostly reading the prompt), the whole call, and tokens.
+   * operator for good): until the first streamed event (mostly reading the prompt), the whole call, and tokens.
    */
   | {
       readonly type: "model"

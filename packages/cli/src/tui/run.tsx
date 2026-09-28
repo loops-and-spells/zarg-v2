@@ -52,7 +52,7 @@ export const mount = (renderer: CliRenderer, opened: Opened) =>
     opened.session.start()
   })
 
-/** `zarg`: open the TUI on a thread; resolves when the developer exits. */
+/** `zarg`: open the TUI on a thread; resolves when the operator exits. */
 export const runTui = (opts: { readonly root: string; readonly threadId: string; readonly focus: ReadonlyArray<string>; readonly yolo?: boolean }) =>
   Effect.gen(function* () {
     const opened = yield* openSession(opts)

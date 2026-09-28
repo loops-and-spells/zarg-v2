@@ -56,7 +56,7 @@ export class PluginHost extends Context.Service<
     readonly exclusive: <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
     /**
      * Load plugins that lacked only their load grant: with YOLO on for a plugin it loads as declared (nothing is
-     * saved); otherwise the developer is asked (Allow saves the grant). Dependents follow their dependencies.
+     * saved); otherwise the operator is asked (Allow saves the grant). Dependents follow their dependencies.
      */
     readonly loadWaiting: Effect.Effect<void>
   }
@@ -128,7 +128,7 @@ const viewProblem = (v: unknown): string | undefined => {
   }
 }
 
-/** Methods the core calls for the developer: while one runs, the plugin may open tiles, sheets and popovers. */
+/** Methods the core calls for the operator: while one runs, the plugin may open tiles, sheets and popovers. */
 const GESTURES = new Set(["act", "$answer", "$message"])
 
 /** zarg's own slash commands: no plugin may take one. */
@@ -212,9 +212,9 @@ interface Running {
   readonly restarts: Array<number>
   disabled: boolean
   inflight: number
-  /** Calls it is handling for the developer (an action, an answer, a message, a slash command): its gestures. */
+  /** Calls it is handling for the operator (an action, an answer, a message, a slash command): its gestures. */
   gestures: number
-  /** Questions it waits on the developer for (grants, its agents' conversations): it is not idle then. */
+  /** Questions it waits on the operator for (grants, its agents' conversations): it is not idle then. */
   readonly asking: () => number
   idle?: ReturnType<typeof setTimeout>
   /** Secret values the host served this plugin: scrubbed from all it returns. */
@@ -269,13 +269,13 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         return true
       })
 
-      // Plugins that only lack their load grant: YOLO or the developer can still let them load (`loadWaiting`).
+      // Plugins that only lack their load grant: YOLO or the operator can still let them load (`loadWaiting`).
       const waiting: Array<LoadedPlugin> = []
       /** Start one plugin's process (its grant already settled); undefined, with an agenda item, when it cannot. */
       const spawnOne = (p: LoadedPlugin, digest: string) => Effect.gen(function* () {
         const m = p.manifest
         const restarts: Array<number> = []
-        // While one of its questions waits on the developer, the plugin's call deadline stops.
+        // While one of its questions waits on the operator, the plugin's call deadline stops.
         let asking = 0
         const powers = makePowers({
           plugin: m.name,
@@ -294,7 +294,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           ...(opts.decide !== undefined ? { decide: (req: unknown) => Effect.runPromise(opts.decide!(req).pipe(Effect.mapError((e) => ({ tag: "DecisionError", message: String((e as { message?: string }).message ?? e) })))) } : {}),
           ...(opts.complete !== undefined ? { complete: (req: Parameters<NonNullable<HostOptions["complete"]>>[0]) => Effect.runPromise(opts.complete!(req).pipe(Effect.mapError((e) => ({ tag: "ModelError", message: String((e as { message?: string }).message ?? e) })))) } : {}),
           agendaChanged: () => opts.agendaChanged?.(m.name),
-          // The host says whether the plugin acts for the developer now; a plugin's own `gesture` field is overwritten.
+          // The host says whether the plugin acts for the operator now; a plugin's own `gesture` field is overwritten.
           agents: (e: unknown) => opts.agents?.(m.name, { ...(e !== null && typeof e === "object" ? e : {}), gesture: (running.get(m.name)?.gestures ?? 0) > 0 }),
           ...(opts.projectRoot !== undefined ? { projectRoot: opts.projectRoot } : {}),
           // A plugin working in the background (calling powers) is not idle.

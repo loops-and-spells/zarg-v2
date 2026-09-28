@@ -295,11 +295,11 @@ Apply this patch to the sources. The end event on failure comes from a scope fin
  })
  export type Question = typeof Question.Type
 -const Answer = Schema.Struct({ choice: Schema.optionalKey(Schema.String), other: Schema.optionalKey(Schema.String) })
-+/** An option id, or free text; `interjected` when the developer wrote a message instead of answering. */
++/** An option id, or free text; `interjected` when the operator wrote a message instead of answering. */
 +const Answer = Schema.Struct({ choice: Schema.optionalKey(Schema.String), other: Schema.optionalKey(Schema.String), interjected: Schema.optionalKey(Schema.Boolean) })
  export type Answer = typeof Answer.Type
  
- export const InquireDef = defineService("Inquire", "Ask the developer a question. The cell waits (yielded) until they answer.", {
+ export const InquireDef = defineService("Inquire", "Ask the operator a question. The cell waits (yielded) until they answer.", {
 ```
 
 - [ ] **Step 4: Run the tests to verify they pass**
@@ -630,7 +630,7 @@ export interface Option {
   readonly why?: string
 }
 
-/** Answer to an inquiry: one of its options, or the developer's own text. */
+/** Answer to an inquiry: one of its options, or the operator's own text. */
 export type Answer = { readonly choice: string } | { readonly other: string }
 ```
 
@@ -1250,7 +1250,7 @@ describe("thread runs", () => {
     )
     expect(last(out.first)).toMatchObject({ type: "RUN_FINISHED", runId: "r1" })
     expect(last(out.second)).toMatchObject({ type: "RUN_FINISHED", runId: "r2", outcome: { type: "interrupt" } })
-    expect(tasks[1]).toContain("developer: also add a logout card")
+    expect(tasks[1]).toContain("operator: also add a logout card")
   })
 
   test("the agenda's first item is the driver's task, with recent conversation", async () => {
@@ -1478,12 +1478,12 @@ import type { WireEvent } from "./events"
 import type { ThreadLog } from "./log"
 
 export const WHAT_NEXT =
-  "The agenda is empty. Ask the developer what to work on next, with options drawn from the graph (unexplored branches, missing failure cases, the next journey)."
+  "The agenda is empty. Ask the operator what to work on next, with options drawn from the graph (unexplored branches, missing failure cases, the next journey)."
 
 /** A resume or a typed message, as a run brings it in. */
 export interface RunInput {
   readonly runId: string
-  /** The newest user message, when the developer typed something. */
+  /** The newest user message, when the operator typed something. */
   readonly message?: string
   readonly resume?: ReadonlyArray<{ readonly interruptId: string; readonly payload?: unknown }>
 }
@@ -1524,7 +1524,7 @@ export const makeThread = (deps: ThreadDeps) =>
     }
     const emitAll = (ds: ReadonlyArray<E.Draft>) => Effect.forEach(ds, emit, { discard: true })
     const note = (role: "assistant" | "user", text: string) => {
-      recent.push(`${role === "user" ? "developer" : "driver"}: ${text}`)
+      recent.push(`${role === "user" ? "operator" : "driver"}: ${text}`)
       if (recent.length > 8) recent.shift()
       return emitAll(E.textMessage(`${threadId}-m${++messageCounter}`, role, text))
     }

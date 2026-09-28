@@ -29,7 +29,7 @@
 
 1. A plugin bundle that is valid JavaScript but not built by the SDK (hand-written, no `default` export, throws at load): the host must report it on the agenda and keep every other plugin working. → Task 7, test "a plugin that throws while loading is reported and others still load".
 2. Two graph writes landing while a plugin process restarts: the snapshot mirror must be re-sent in full on restart, never a diff against a mirror the new process never had. → Task 7, test "a restarted plugin gets the full snapshot again".
-3. A grant question the developer never answers while the plugin keeps calling: calls after the first must share the same pending question and all fail together at the timeout. → Task 4, test "concurrent calls share one question and time out together".
+3. A grant question the operator never answers while the plugin keeps calling: calls after the first must share the same pending question and all fail together at the timeout. → Task 4, test "concurrent calls share one question and time out together".
 4. Secrets in errors: a plugin that puts its own secret in an error message must not have it reach the core log or the wire. → Task 4, test "a secret inside a plugin error is redacted".
 5. `--yolo` with a plugin whose manifest has no optional scopes: YOLO must pass nothing extra and must not write grants. → Task 4, test "YOLO passes only declared scopes and writes no grants".
 

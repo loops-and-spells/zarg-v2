@@ -10,7 +10,7 @@ import type { WireEvent } from "@zarg/core"
 import type { Thread } from "@zarg/agent-host"
 import type { ThreadLog } from "@zarg/core"
 
-/** An agenda item for the driver's prompt; a plugin's text is marked as that plugin's, not the developer's or zarg's. */
+/** An agenda item for the driver's prompt; a plugin's text is marked as that plugin's, not the operator's or zarg's. */
 export const agendaText = (item: { readonly title: string; readonly detail: string; readonly plugin?: string }) =>
   item.plugin === undefined
     ? `${item.title}\n${item.detail}`
@@ -29,7 +29,7 @@ export const OPEN_QUESTION = "Nothing is open in the requirements. What do you w
 // Enough gaps to choose 2-4 options from.
 const GAPS_SHOWN = 8
 
-/** Appended to every driver task: its result is a message to the developer. */
+/** Appended to every driver task: its result is a message to the operator. */
 export const REPLY_RULE =
   "Before any graph write, show the developer the exact change with Inquire.confirm({ change }) (each card as Given / When / Then lines) and write only what they add. Finish with `yield* Rlm.done({ value })`, where value is one or two sentences to the developer about what you did or found. No card renders, no ids-only lists."
 
@@ -39,7 +39,7 @@ const REPLY_MAX = 600
 /** A resume or a typed message, as a run brings it in. */
 export interface RunInput {
   readonly runId: string
-  /** The newest user message, when the developer typed something. */
+  /** The newest user message, when the operator typed something. */
   readonly message?: string
   readonly resume?: ReadonlyArray<{ readonly interruptId: string; readonly payload?: unknown }>
 }
@@ -88,13 +88,13 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
     // Questions in the order asked; only the first is shown, the next once it is answered.
     const queue: Array<Pending> = []
     const pending = (): Pending | undefined => queue[0]
-    // zarg asks for the developer while a question waits, and stops asking when none does.
+    // zarg asks for the operator while a question waits, and stops asking when none does.
     const syncAttention = () => {
       const head = queue[0]
       const q = head?.question.question
       activity.attention("zarg", q === undefined ? undefined : `asks: ${q.length > 60 ? `${q.slice(0, 59)}…` : q}`)
     }
-    // Questions the developer is discussing (a message instead of an answer): open until the driver
+    // Questions the operator is discussing (a message instead of an answer): open until the driver
     // chooses an option for them (Inquire.choose) or asks again.
     const discussed: Array<Pending> = []
     const dropLoopQuestions = () => {
@@ -104,7 +104,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
     }
     let paused: Deferred.Deferred<void> | undefined
     const recent: Array<string> = []
-    // Messages the developer sent while the driver worked: the next item answers them, before the agenda.
+    // Messages the operator sent while the driver worked: the next item answers them, before the agenda.
     const inbox: Array<string> = []
     const emit = (d: E.Draft) => {
       if (d.type === "RUN_FINISHED" || d.type === "RUN_ERROR") open = false
@@ -145,7 +145,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
           )
           return yield* Deferred.await(answer)
         })
-    /** The driver accepts an option of a question under discussion for the developer; they see it and why. */
+    /** The driver accepts an option of a question under discussion for the operator; they see it and why. */
     const choose = (c: Choice) =>
       Effect.gen(function* () {
         const at = discussed.findIndex((p) => p.id === c.question)
@@ -191,7 +191,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
           said.length === 0 && (item === undefined || stuck) && deps.suggest !== undefined
             ? yield* deps.suggest(focusSet).pipe(Effect.catchCause(() => Effect.succeed([] as ReadonlyArray<AgendaItem>)))
             : []
-        // Nothing open and nothing found: zarg asks itself; the answer is the developer's word to the driver.
+        // Nothing open and nothing found: zarg asks itself; the answer is the operator's word to the driver.
         if (said.length === 0 && item === undefined && gaps.length === 0 && deps.whatNext !== undefined) {
           const next = (yield* deps.whatNext(focusSet).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<NextOption>))).slice(0, 4)
           const a = yield* loopAsk({
@@ -249,8 +249,8 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
         if (Exit.isSuccess(outcome)) {
           const reply = String(outcome.value.value)
           yield* note("assistant", reply.length > REPLY_MAX ? `${reply.slice(0, REPLY_MAX)}…` : reply)
-          // What next is the developer's to say: after one round, wait for them rather than ask again.
-          // A message that came in meanwhile is the developer speaking: go on with it.
+          // What next is the operator's to say: after one round, wait for them rather than ask again.
+          // A message that came in meanwhile is the operator speaking: go on with it.
           if (said.length === 0 && (item === undefined || stuck) && inbox.length === 0) {
             const wait = yield* Deferred.make<void>()
             paused = wait
@@ -305,7 +305,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
           const head = pending()
           const wakeUp = (resume?.payload as { wake?: unknown } | undefined)?.wake === true
           if (resume !== undefined && head !== undefined && resume.interruptId === head.id && wakeUp && head.question.question === OPEN_QUESTION) {
-            // zarg's own what-next question, set aside because new work arrived: nothing to say for the developer.
+            // zarg's own what-next question, set aside because new work arrived: nothing to say for the operator.
             queue.shift()
             syncAttention()
             yield* Deferred.succeed(head.answer, { other: "" })
@@ -319,7 +319,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
             yield* note("user", chosen?.label ?? String(payload.other ?? ""))
             yield* Deferred.succeed(p.answer, answer)
           } else if (input.message !== undefined && head !== undefined) {
-            // A message instead of an answer: the developer is discussing the question. It stays open (for
+            // A message instead of an answer: the operator is discussing the question. It stays open (for
             // Inquire.choose) while the driver replies; its ask returns the message and the question's id.
             const p = head
             queue.shift()
@@ -374,7 +374,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
 
     /**
      * New work arrived (a rehearse run finished): a loop paused after what next, or parked on zarg's own
-     * what-next question, takes up the agenda again. A question the developer still owes keeps its turn.
+     * what-next question, takes up the agenda again. A question the operator still owes keeps its turn.
      */
     const wake = Effect.suspend(() => {
       const head = pending()

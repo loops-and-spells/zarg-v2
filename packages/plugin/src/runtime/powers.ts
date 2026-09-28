@@ -65,7 +65,7 @@ export const warnings = (scopes: ManifestScopes, optional: ManifestScopes, depen
 /**
  * Never reachable, whatever was granted: zarg's own trust state (grants, installed plugins), the project's
  * config, git internals, and files that make tools run code or hold secrets. A grant cannot hand a plugin
- * the keys to other plugins or to the developer's shell. Agents reading outside the repository obey it too.
+ * the keys to other plugins or to the operator's shell. Agents reading outside the repository obey it too.
  */
 export const deniedPath = (path: string, userDir: string) => {
   const parts = path.split(sep)
@@ -126,7 +126,7 @@ export const makePowers = (opts: {
   readonly agents?: (event: unknown) => void
   /** Calls and tokens per hour this plugin may spend on the decision model and model roles. */
   readonly budget?: { readonly decisionsPerHour: number; readonly tokensPerHour: number }
-  /** Told while a question to the developer is open, so the call's deadline can stop. */
+  /** Told while a question to the operator is open, so the call's deadline can stop. */
   readonly asking?: (open: boolean) => void
 }): Powers => {
   const userDir = resolve(opts.userDir ?? join(process.env.HOME ?? homedir(), ".config", "zarg"))
@@ -287,7 +287,7 @@ export const makePowers = (opts: {
       spend("tokens", out.promptTokens + out.completionTokens, Infinity)
       return out
     },
-    // An agent's conversation waits on the developer: its call's deadline and the idle timer stop meanwhile.
+    // An agent's conversation waits on the operator: its call's deadline and the idle timer stop meanwhile.
     "conversation.asking": async (a) => {
       if (opts.manifest.scopes.agents !== true) throw notGranted(`${opts.plugin}: it has no agents scope`)
       opts.asking?.((a as { open?: unknown }).open === true)

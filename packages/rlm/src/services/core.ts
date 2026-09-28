@@ -11,7 +11,7 @@ export interface CoreContext {
   readonly sensitive: ReadonlyArray<SensitiveValue>
   /**
    * Reads outside the repository (an absolute or `~/` path): allowed only when this says so for the real
-   * path (the host asks the developer). Without it, nothing outside the repository is readable.
+   * path (the host asks the operator). Without it, nothing outside the repository is readable.
    */
   readonly outside?: (path: string) => Effect.Effect<void, ServiceFailure>
 }

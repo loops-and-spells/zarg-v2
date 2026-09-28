@@ -938,7 +938,7 @@ import { dirname, join } from "node:path"
 
 export type FindingKind = "unplannable" | "blocked-card" | "merge-conflict" | "verify-failing" | "landing-blocked" | "pass-error"
 
-/** Something a phase could not project; it reaches the developer through the driver's agenda. */
+/** Something a phase could not project; it reaches the operator through the driver's agenda. */
 export interface Finding {
   readonly id: string
   readonly kind: FindingKind
@@ -1039,7 +1039,7 @@ export const stubSpec = (repo: string, opts: {
   brokenFixes?: number
   resolve?: (cwd: string, files: ReadonlyArray<string>) => boolean
   landAttempts?: number
-  /** Called when an item is implemented (e.g. to commit on the developer's branch meanwhile). */
+  /** Called when an item is implemented (e.g. to commit on the operator's branch meanwhile). */
   during?: (item: string) => void
   /** Record calls in this file too (for tests that span processes). */
   callLog?: string

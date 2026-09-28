@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Run bun only as `mise x -- bun ...`; tests spawn `process.execPath`.
-- No real model in `mise run verify`: phases are tested with stub models; the core end to end uses stub mode (`ZARG_CORE_STUB`). `mise run smoke:implement` is the live test; it loads the developer's plan and implement models, so **ask before running it**.
+- No real model in `mise run verify`: phases are tested with stub models; the core end to end uses stub mode (`ZARG_CORE_STUB`). `mise run smoke:implement` is the live test; it loads the contributor's plan and implement models, so **ask before running it**.
 - Downstream phases never edit requirements: whatever a planner, implementer or fix RLM changes under `.zarg/` in its worktree is discarded.
 - Every card's RLMs work in that card's worktree; findings go to `.zarg/reconcile/findings.json`; the engine database is `.zarg/reconcile/cluster.db` (a directory that keeps itself out of git).
 - `mise run verify` must pass at the end of every task. Commit after every task, ending the message with `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
@@ -251,7 +251,7 @@ Expected: FAIL (timeout: the pass keeps running for 30 s; `stop` is ignored).
    readonly landAttempts: number
    readonly message: (items: ReadonlyArray<string>) => string
 +  /**
-+   * The developer's stop: `wait` completes when a stop is requested (running cards race it and are cut
++   * The operator's stop: `wait` completes when a stop is requested (running cards race it and are cut
 +   * short); `requested` is checked between steps. A stopped pass ends as failed, without findings.
 +   */
 +  readonly stop?: { readonly requested: () => boolean; readonly wait: Effect.Effect<void> }
@@ -272,7 +272,7 @@ Expected: FAIL (timeout: the pass keeps running for 30 s; `stop` is ignored).
                const wt = join(root, name(item))
                yield* ensureWorktree(spec.repo, wt, branchOf(name(item)), passHead)
                if (phase.setup && spec.setup) yield* spec.setup(wt)
-+              const stopped = { ok: false, kind: "pass-error", title: "stopped", detail: "stopped by the developer" } as ItemOutcome
++              const stopped = { ok: false, kind: "pass-error", title: "stopped", detail: "stopped by the operator" } as ItemOutcome
                const out = yield* phase.run(item, wt).pipe(
 +                Effect.raceFirst(spec.stop ? Effect.as(spec.stop.wait, stopped) : Effect.never),
                  Effect.catchCause((cause) =>
@@ -834,7 +834,7 @@ export interface PhaseDeps {
   readonly stop?: ReconcileSpec["stop"]
 }
 
-/** The graph as the worktree at `cwd` has it (the pass's graph, not the developer's newer one). */
+/** The graph as the worktree at `cwd` has it (the pass's graph, not the operator's newer one). */
 const withGraph = <A, E>(cwd: string, f: (g: { host: PluginHost["Service"]; store: GraphStore["Service"] }) => Effect.Effect<A, E>) =>
   Effect.scoped(
     Effect.gen(function* () {
@@ -1583,7 +1583,7 @@ Run the CLI from the repo root as `mise run -q zarg -- <command>`.
 7. Commit the cards, plans, code and checkpoint together: `git add .zarg/graph .zarg/plans .zarg/reconciled.json <code paths> && git commit -m "feat: implement <card ids>"`.
 ````
 
-`packages/cli/smoke/implement.ts` (the live smoke test; **do not run it without asking the developer**):
+`packages/cli/smoke/implement.ts` (the live smoke test; **do not run it without asking the contributor**):
 
 ```ts
 // Live smoke test (outside `mise run verify`): one real card through plan and implement. It runs in a scratch

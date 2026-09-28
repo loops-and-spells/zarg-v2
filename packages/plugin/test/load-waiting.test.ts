@@ -6,7 +6,7 @@ import { Effect, Fiber } from "effect"
 import { makeGrants, scopesDigest } from "../src/runtime"
 import { fixturePlugin, hostWith } from "./fixtures"
 
-// Plugins that need a load grant (they read files): waiting until YOLO or the developer lets them load.
+// Plugins that need a load grant (they read files): waiting until YOLO or the operator lets them load.
 const plugin = (name: string, deps?: string) => `
 import { Effect, Schema } from "effect"
 import { definePlugin, pluginContract } from "@zarg/plugin-sdk"

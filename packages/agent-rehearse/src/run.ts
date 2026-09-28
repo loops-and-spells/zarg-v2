@@ -23,7 +23,7 @@ export interface RunRecord {
   readonly infra: ReadonlyArray<string>
   readonly findings: ReadonlyArray<Triaged>
   readonly report?: string
-  /** Findings the developer sent to zarg (its driver triages them against the graph). */
+  /** Findings the operator sent to zarg (its driver triages them against the graph). */
   readonly applying: ReadonlyArray<string>
   /** Findings the driver resolved (applied or dismissed there). */
   readonly resolved: ReadonlyArray<string>
@@ -48,7 +48,7 @@ export interface RunDeps {
   readonly write: (path: string, text: string) => Effect.Effect<void, unknown>
   readonly list: (dir: string) => Effect.Effect<ReadonlyArray<string>, unknown>
   readonly agendaChanged: Effect.Effect<void, unknown>
-  /** The developer's attention (the SDK's `Attention`): a tester with findings to review asks for it. */
+  /** The operator's attention (the SDK's `Attention`): a tester with findings to review asks for it. */
   readonly attention: {
     readonly request: (agent: string, reason: string) => Effect.Effect<void, unknown>
     readonly clear: (agent: string) => Effect.Effect<void, unknown>
@@ -277,7 +277,7 @@ export const makeRehearse = (deps: RunDeps) =>
         yield* quiet(deps.views.set("run", RunView, "report", { markdown: text }))
         yield* refresh
         yield* quiet(deps.agents.end({ id: "run", ok: true }))
-        // Only auto_apply hands findings to the driver on its own; otherwise the developer picks them.
+        // Only auto_apply hands findings to the driver on its own; otherwise the operator picks them.
         if (deps.settings.autoApply && findings.some((f) => f.route === "fix")) yield* quiet(deps.agendaChanged)
       })
 
@@ -340,7 +340,7 @@ export const makeRehearse = (deps: RunDeps) =>
     const isDismissed = (f: Triaged) => dismissed[f.id] !== undefined && dismissed[f.id] === (f.hash ?? "")
     /** The newest finished run: the one the tables show. */
     const latest = () => [...records.values()].filter((r) => r.status === "done").sort((a, b) => b.startedAt - a.startedAt)[0]
-    /** Findings the driver takes up: the ones the developer applied, and with auto_apply the local fixes. */
+    /** Findings the driver takes up: the ones the operator applied, and with auto_apply the local fixes. */
     const chosen = (r: RunRecord, f: Triaged) => r.applying.includes(f.id) || (deps.settings.autoApply && f.route === "fix")
     const openFindings = (r: RunRecord) => r.findings.filter((f) => chosen(r, f) && !r.resolved.includes(f.id) && !isDismissed(f))
 
@@ -373,7 +373,7 @@ export const makeRehearse = (deps: RunDeps) =>
       const shown = r.findings.filter((f) => !isDismissed(f) && !r.resolved.includes(f.id))
       const tables = (fs: ReadonlyArray<Triaged>) => ({ findings: { rows: fs.filter((f) => f.kind !== "delight").map((f) => rowOf(r, f)) }, likes: { rows: fs.filter((f) => f.kind === "delight").map((f) => rowOf(r, f)) } })
       const agents = [{ id: "run", view: RunView as typeof TesterView | typeof RunView, fs: shown }, ...r.personas.map((p, i) => ({ id: `tester-${i + 1}`, view: TesterView as typeof TesterView | typeof RunView, fs: shown.filter((f) => f.personas.includes(p.name)) }))]
-      // Findings the developer has not acted on yet (applied, dismissed or resolved).
+      // Findings the operator has not acted on yet (applied, dismissed or resolved).
       const toReview = (fs: ReadonlyArray<Triaged>) => fs.filter((f) => !r.applying.includes(f.id)).length
       return Effect.forEach(
         agents,
@@ -414,7 +414,7 @@ export const makeRehearse = (deps: RunDeps) =>
         return { notice: `unknown action ${action}` }
       })
 
-    /** For the core's findings gate: which run and card, whether the developer chose it, whether its card changed. */
+    /** For the core's findings gate: which run and card, whether the operator chose it, whether its card changed. */
     const finding = (id: string) =>
       Effect.gen(function* () {
         const hits = [...records.values()]
@@ -422,7 +422,7 @@ export const makeRehearse = (deps: RunDeps) =>
           .sort((a, b) => b.startedAt - a.startedAt)
           .flatMap((r) => r.findings.map((f) => ({ r, f })))
           .filter((x) => x.f.id === id)
-        // A later run can report a finding again, unchosen: the developer's open choice wins.
+        // A later run can report a finding again, unchosen: the operator's open choice wins.
         const hit = hits.find((x) => chosen(x.r, x.f) && !x.r.resolved.includes(id)) ?? hits[0]
         if (hit === undefined) return null
         const now = yield* deps.step(hit.f.card).pipe(Effect.orElseSucceed(() => null))

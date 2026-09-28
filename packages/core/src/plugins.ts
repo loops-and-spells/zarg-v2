@@ -177,7 +177,7 @@ export const vaultFrom = (get: (name: string) => Effect.Effect<string | Redacted
  * attaching later learns it too. Answers whether any plugin is in YOLO now.
  */
 /**
- * YOLO for one project, kept in the user folder (`yolo.json`, by project) so it survives restarts: the developer's own
+ * YOLO for one project, kept in the user folder (`yolo.json`, by project) so it survives restarts: the operator's own
  * trust choice, never in the repository. `--yolo` (`flag`) turns it on for this run only; /yolo off clears both.
  */
 export const yoloState = (userDir: string, project: string, flag: boolean) => {
@@ -228,7 +228,7 @@ export const makeYolo = (log: ThreadLog, control: PluginControl["Service"]["yolo
   announce: Effect.asVoid(Effect.suspend(() => log.append("main", E.custom("zarg.yolo", { on: control.any() })))),
 })
 
-/** The agenda the driver works from: the host's own plugin items (grants, failures) are the developer's, not requirements work. */
+/** The agenda the driver works from: the host's own plugin items (grants, failures) are the operator's, not requirements work. */
 export const forDriver = <A extends { readonly id: string }>(items: ReadonlyArray<A>): ReadonlyArray<A> => items.filter((i) => !i.id.startsWith("plugin-"))
 
 /**

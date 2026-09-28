@@ -7,7 +7,7 @@ export type WireEvent = BaseEvent & { readonly threadId: string; readonly seq: n
 /** A resume or a typed message, as a run brings it in. */
 export interface RunInput {
   readonly runId: string
-  /** The newest user message, when the developer typed something. */
+  /** The newest user message, when the operator typed something. */
   readonly message?: string
   readonly resume?: ReadonlyArray<{ readonly interruptId: string; readonly payload?: unknown }>
 }
@@ -48,7 +48,7 @@ export interface AgentHost {
   readonly sensitive: ReadonlyArray<unknown>
   /** The agenda for the driver: reconcile's items and the plugins' items (the host's own plugin-* items left out). */
   readonly agenda: (focus: ReadonlySet<string> | undefined) => Effect.Effect<ReadonlyArray<AgendaEntry>, unknown>
-  /** The gate for reads outside the repository (the core asks the developer itself). */
+  /** The gate for reads outside the repository (the core asks the operator itself). */
   readonly outsideReads: unknown
   readonly findings: { readonly chosen: unknown; readonly firstParty: (plugin: string) => boolean }
   /** Panels this agent opens (its message bar): shown by every client until closed. */

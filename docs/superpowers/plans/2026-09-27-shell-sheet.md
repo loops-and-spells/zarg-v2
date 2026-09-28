@@ -20,14 +20,14 @@
 - Global keys, a closed list: Ctrl-C (stop; twice within 2 s exits), Ctrl-D (exit), Alt+←→↑↓, `alt+a` `alt+v` `alt+m`.
 - Terminal reserved keys (agents may not map them): Ctrl-*, Alt-*, arrows, Tab, Shift-Tab, Enter, Esc, Space, PgUp, PgDn, `[`, `]`, `g`, `x`, `/`.
 - Agents list 30 columns, full height; narrow is under 100 columns.
-- Attention blinks every 500 ms until the developer opened the agent since its request.
+- Attention blinks every 500 ms until the operator opened the agent since its request.
 - YOLO never asks: no grant popover under YOLO (unchanged core behaviour).
 - Never print, log or commit a secret; never start a core or the TUI in the repo root; no live models; tests never write to `~/.config/zarg`.
 
 ## Review Focus
 
 1. Typing `g`, `x`, `/`, `[`, space or an agent's action letter in the message bar: every character lands in the bar, nothing else fires. → Task 4, test "the bar owns printable keys while typing".
-2. A grant arriving while the developer types in the bar: the popover takes the keys at once, the bar's input is blurred (no characters leak into it), and after answering the typing resumes where it was. → Task 5, test "a grant popover blurs the bar; answering it gives the bar back".
+2. A grant arriving while the operator types in the bar: the popover takes the keys at once, the bar's input is blurred (no characters leak into it), and after answering the typing resumes where it was. → Task 5, test "a grant popover blurs the bar; answering it gives the bar back".
 3. Two clients on one core: a grant answered in one leaves the other's queue. → Task 3, test "a prompt answered anywhere leaves every client's queue".
 4. The core restarts with a grant open: the new core withdraws it, no popover lingers. → Task 2, test "a restarted core withdraws prompts the last one left open".
 5. Esc or any other key on a grant: it stays up with the keys, and the next popover never jumps ahead of it. → Task 4, test "the queue is strictly first in, first out: Esc never reorders it".
@@ -227,7 +227,7 @@ export const PROMPT = "zarg.prompt"
 export const PROMPT_DONE = "zarg.prompt.done"
 
 /**
- * Questions the core asks the developer itself (grants): they wait side by side, never behind zarg's own question,
+ * Questions the core asks the operator itself (grants): they wait side by side, never behind zarg's own question,
  * and every client shows them as popovers, first in first out. Each is answered by its id.
  */
 export const makePrompts = (log: ThreadLog, threadId = "main") => {
@@ -292,7 +292,7 @@ Replace the `control.setAsk((q) => main.ask({...}))` block with:
 ```
 Return `prompts` from `liveCore` (`return { log, threads, driver: roles.driver, turnOn, yolo, actions, commands, prompts }`).
 
-In `packages/agent-host/src/index.ts`: `readonly outsideReads: unknown` with doc "The gate for reads outside the repository (the core asks the developer itself)." In `packages/agent-zarg/src/zarg.ts` line 40: `const outside = host.outsideReads as never`.
+In `packages/agent-host/src/index.ts`: `readonly outsideReads: unknown` with doc "The gate for reads outside the repository (the core asks the operator itself)." In `packages/agent-zarg/src/zarg.ts` line 40: `const outside = host.outsideReads as never`.
 
 In `packages/core/src/server.ts` add the `Prompts` service above, `const prompts = yield* Prompts` in `routes`, and the route (plus a line in the API doc comment `POST /prompts/:id  { choice } → { notice }`):
 ```ts
@@ -416,9 +416,9 @@ export interface Ui {
   readonly agents: Agents; readonly viewing?: string; readonly view?: ViewUi; readonly attentionAt?: string
   /** The popover queue's head (the core keeps the queue, strictly first in first out) and its highlighted option. */
   readonly popover: { readonly id?: string; readonly pick: number }
-  /** Agents the developer opened since they asked, by the `since` of the attention they saw. */
+  /** Agents the operator opened since they asked, by the `since` of the attention they saw. */
   readonly seen: Readonly<Record<string, number>>
-  /** zarg's last reply the developer has seen; newer ones preview in the bar. */
+  /** zarg's last reply the operator has seen; newer ones preview in the bar. */
   readonly readUpTo?: string
 }
 export const initialUi: Ui // { focus: "bar", sheet: false, pick: 0, other: false, agents: { toggled: {}, tree: 0 }, popover: { pick: 0 }, seen: {} }
@@ -446,7 +446,7 @@ export const answeringOther = (ui: Ui, s: SessionState) => {
   const q = question(s)
   return q !== undefined && ui.other && ui.chatting !== q.id && ui.answered !== q.id
 }
-/** The bar takes text: it has focus, and nothing is asked, or the developer chats about the question or types their own answer. */
+/** The bar takes text: it has focus, and nothing is asked, or the operator chats about the question or types their own answer. */
 export const typing = (ui: Ui, s: SessionState) => {
   const q = question(s)
   return ui.focus === "bar" && (q === undefined || ui.chatting === q.id || answeringOther(ui, s))
@@ -488,7 +488,7 @@ const slashFrom = (ui: Ui, s: SessionState) => {
   const q = s.thread.pendingInquiry
   return { ui: { ...focusBar(ui, s), ...(q !== undefined ? { chatting: q.id, other: false } : {}) }, draft: "/" }
 }
-/** g: the next agent that needs the developer, the ones not yet seen first, then tree order (zarg first). */
+/** g: the next agent that needs the operator, the ones not yet seen first, then tree order (zarg first). */
 const nextAttention = (ui: Ui, s: SessionState) => {
   const all = attentionOf(s.thread.rlms)
   if (all.length === 0) return { ui }
@@ -828,7 +828,7 @@ export const PULSE_MS = 500
 - [ ] **Step 2: Run** — Expected: FAIL (`pulse` undefined; `animating` false).
 - [ ] **Step 3: Implement.** In `agentRows`, for a node with attention: `const unseen = seen?.[n.id] !== n.attention.since`, the icon `unseen && now !== undefined && Math.floor(now / PULSE_MS) % 2 === 1 ? "◇" : "◆"`, and `pulse: unseen ? (Math.floor((now ?? 0) / PULSE_MS) % 2 === 0 ? "on" : "off") : undefined`. `animating` also returns true when any node's attention is unseen by `ui.seen`. In `app.tsx` pass `ui.seen`, and colour a row: `pulse === "on"` → attention colour `#fdd663` and the name upper-cased is not needed (colour only); `pulse === "off"` → normal colour with the ◇; seen attention → `#fdd663` steady. Opening an agent already marks it seen (`openAgent`, Task 4).
 - [ ] **Step 4: Run** — `mise run verify` — Expected: PASS.
-- [ ] **Step 5: Commit** — `git commit -m "feat(tui): attention pulses until the developer looks"`.
+- [ ] **Step 5: Commit** — `git commit -m "feat(tui): attention pulses until the operator looks"`.
 
 ---
 

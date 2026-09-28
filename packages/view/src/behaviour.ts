@@ -4,7 +4,7 @@ import { leafAt } from "./layout"
 import type { LayoutLeaf, LayoutSection } from "./schema"
 import type { ViewState } from "./reducer"
 
-/** What the developer has done in a view: the focused section, each tabs section's tab, each table's cursor and selection. */
+/** What the operator has done in a view: the focused section, each tabs section's tab, each table's cursor and selection. */
 export interface ViewUi {
   readonly focus: number
   readonly tabs: Readonly<Record<string, number>>

@@ -84,7 +84,7 @@ const slashFrom = (ui: Ui, s: SessionState) => {
   return { ui: { ...focusBar(ui, s), ...(q !== undefined ? { chatting: q.id, other: false } : {}) }, draft: "/" }
 }
 
-/** g: the next agent that needs the developer, the ones not yet seen first, then tree order (zarg first). */
+/** g: the next agent that needs the operator, the ones not yet seen first, then tree order (zarg first). */
 const nextAttention = (ui: Ui, s: SessionState) => {
   const all = attentionOf(s.thread.rlms)
   if (all.length === 0) return { ui }

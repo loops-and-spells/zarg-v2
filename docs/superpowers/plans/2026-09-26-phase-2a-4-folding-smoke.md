@@ -15,7 +15,7 @@
 - Run bun only as `mise x -- bun ...`.
 - Tests never call a real model: the stub `Model` answers plan requests (structured output) from a `plan` script, and a stub `Decisions` answers atomize and verify questions.
 - `mise run verify` must pass at the end of every task. Commit after every task, ending the message with `Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>`.
-- The live smoke test (`mise run smoke`) is outside `verify`. It warms a model on the developer's GPU (zarg-router may evict other models), so **ask the developer before running it**.
+- The live smoke test (`mise run smoke`) is outside `verify`. It warms a model on the contributor's GPU (zarg-router may evict other models), so **ask the contributor before running it**.
 - Every code block was prototyped and passes (`mise run verify`: 203 tests).
 
 ### Deliberate differences from the spec
@@ -966,9 +966,9 @@ git commit -m "feat(rlm): live smoke test (mise run smoke)
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 ```
 
-- [ ] **Step 3: Run it live (ask the developer first)**
+- [ ] **Step 3: Run it live (ask the operator first)**
 
-Ask the developer to confirm: warming `roles.driver` loads it on the GPU and zarg-router may evict other models; zarg-router must advertise `tools` for the model (restart the router service after commit `4b4da15e0`). Then:
+Ask the contributor to confirm: warming `roles.driver` loads it on the GPU and zarg-router may evict other models; zarg-router must advertise `tools` for the model (restart the router service after commit `4b4da15e0`). Then:
 
 Run: `mise run smoke`
 Expected: `warming …`, `warm after Ns`, then JSON with a `result` whose `findings` name the exports of `packages/graph/src/diff.ts` (`diff`, `isEmpty`) and `sources` including that file, plus `turns`, `tokens`, `seconds`. Record the output in the ledger. A failure here is a finding about the live system (router, model behavior, prompt), not a reason to change tests.

@@ -7,7 +7,7 @@ export const PROMPT = "zarg.prompt"
 export const PROMPT_DONE = "zarg.prompt.done"
 
 /**
- * Questions the core asks the developer itself (grants): they wait side by side, never behind zarg's own question,
+ * Questions the core asks the operator itself (grants): they wait side by side, never behind zarg's own question,
  * and every client shows them as popovers, first in first out. Each is answered by its id.
  */
 export const makePrompts = (log: ThreadLog, threadId = "main") => {
@@ -42,7 +42,7 @@ export const makePrompts = (log: ThreadLog, threadId = "main") => {
         yield* log.append(threadId, E.custom(PROMPT, { id, kind: "surface", question: item.title, options: [], view: item.view, agent: item.agent }))
         return id
       }),
-    /** The developer closed a popover (Esc), or its plugin did. */
+    /** The operator closed a popover (Esc), or its plugin did. */
     close: (id: string) =>
       Effect.gen(function* () {
         if (!shown.delete(id)) return { notice: "that question is no longer open" }

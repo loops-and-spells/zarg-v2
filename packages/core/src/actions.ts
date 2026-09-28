@@ -8,7 +8,7 @@ const owner = (agent: string) => {
   return at < 0 ? undefined : { plugin: agent.slice(0, at), id: agent.slice(at + 1) }
 }
 
-/** Actions on an agent's view go to its plugin's `act`; the core records what the developer applied (the findings gate). */
+/** Actions on an agent's view go to its plugin's `act`; the core records what the operator applied (the findings gate). */
 export const makeActions = (deps: {
   readonly invoke: Invoke
   readonly onApply?: (plugin: string, rows: ReadonlyArray<string>) => void
@@ -16,7 +16,7 @@ export const makeActions = (deps: {
   readonly withdraw?: (thread: string, agent: string) => void
   /** The surfaces an action declares it opens (`opens`), looked up in the view (its store key) it came from. */
   readonly opensOf?: (view: string, action: string) => ReadonlyArray<{ readonly surface: string; readonly agent?: string }> | undefined
-  /** Open a plugin's surfaces for its agents (local ids), as the developer's own gesture. */
+  /** Open a plugin's surfaces for its agents (local ids), as the operator's own gesture. */
   readonly open?: (plugin: string, surfaces: ReadonlyArray<{ readonly surface: string; readonly agent: string }>) => void
 }) => ({
   /** `view`: the view store key the action came from (a panel, popover or sheet of the agent); the agent's start view when absent. */
@@ -42,7 +42,7 @@ export const makeActions = (deps: {
       Effect.catch((e) => Effect.succeed({ notice: e.message })),
     )
   },
-  /** The developer answered a question in a plugin agent's conversation. */
+  /** The operator answered a question in a plugin agent's conversation. */
   answer: (thread: string, agent: string, question: string, answer: { readonly choice?: string; readonly other?: string }): Effect.Effect<{ readonly notice: string }> => {
     const o = owner(agent)
     if (o === undefined) return Effect.succeed({ notice: `${agent} has no conversation of its own` })
@@ -52,7 +52,7 @@ export const makeActions = (deps: {
       Effect.catch((e) => Effect.succeed({ notice: e.message })),
     )
   },
-  /** The developer wrote to a plugin agent. */
+  /** The operator wrote to a plugin agent. */
   message: (_thread: string, agent: string, text: string): Effect.Effect<{ readonly notice: string }> => {
     const o = owner(agent)
     if (o === undefined) return Effect.succeed({ notice: `${agent} has no conversation of its own` })

@@ -773,7 +773,7 @@ import { leafAt } from "./layout"
 import type { LayoutLeaf, LayoutSection } from "./schema"
 import type { ViewState } from "./reducer"
 
-/** What the developer has done in a view: the focused section, each tabs section's tab, each table's cursor and selection. */
+/** What the operator has done in a view: the focused section, each tabs section's tab, each table's cursor and selection. */
 export interface ViewUi {
   readonly focus: number
   readonly tabs: Readonly<Record<string, number>>
@@ -1121,7 +1121,7 @@ Extend `packages/core/test/plugin-agents.test.ts` (read it first; reuse its log 
     const log = await Effect.runPromise(makeLog(mkdtempSync(join(tmpdir(), "zarg-pa-")), (t) => t))
     const tester = layoutOf(defineView("tester", { steps: { kind: "log", role: "log" }, progress: { kind: "stats", role: "summary" } }))
     const on = pluginAgents(log, "main", (plugin, view) => (plugin === "rehearse" && view === "tester" ? tester : undefined))
-    on("rehearse", { event: "start", id: "tester-1", title: "tester", task: "The developer", view: "tester" })
+    on("rehearse", { event: "start", id: "tester-1", title: "tester", task: "The operator", view: "tester" })
     on("rehearse", { event: "step", id: "tester-1", text: "UX-1 ok" })
     on("rehearse", { event: "set", id: "tester-1", section: "progress", data: { items: [] } })
     threadViews(log, "main").flush()
@@ -1987,7 +1987,7 @@ const owner = (agent: string) => {
   return at < 0 ? undefined : { plugin: agent.slice(0, at), id: agent.slice(at + 1) }
 }
 
-/** Actions on an agent's view go to its plugin's `act`; the core records what the developer applied (the findings gate). */
+/** Actions on an agent's view go to its plugin's `act`; the core records what the operator applied (the findings gate). */
 export const makeActions = (deps: { readonly invoke: Invoke; readonly onApply?: (plugin: string, rows: ReadonlyArray<string>) => void }) => ({
   act: (_thread: string, agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>): Effect.Effect<{ readonly notice: string }> => {
     const o = owner(agent)

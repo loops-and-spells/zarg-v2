@@ -12,7 +12,7 @@ export const triage = (decide: Decide, finding: Finding, step: StepView | undefi
   Effect.gen(function* () {
     // The card is gone: nothing to fix.
     if (step === undefined) return { ...finding, real: 0, route: "drop" } satisfies Triaged
-    // A liked step is kept, not changed; a wanted feature is the developer's call.
+    // A liked step is kept, not changed; a wanted feature is the operator's call.
     if (finding.kind === "delight") return { ...finding, real: 1, route: "drop" } satisfies Triaged
     if (finding.kind === "feature") return { ...finding, real: 1, route: "ask" } satisfies Triaged
     const a = yield* decide({

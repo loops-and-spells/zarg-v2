@@ -27,14 +27,14 @@ interface Found { readonly run: string; readonly card: string; readonly chosen: 
 
 /**
  * The driver's side of plugin findings: a plugin never opens the write gate or commits; the driver does, here,
- * for findings the developer chose. Nodes a fix touches are kept per plugin and run on disk, so a triage spread
+ * for findings the operator chose. Nodes a fix touches are kept per plugin and run on disk, so a triage spread
  * over driver items commits them all.
  */
 export const findingsService = (ctx: {
   readonly dir: string
   readonly invoke: Invoke
   readonly guard: ReturnType<typeof askFirst>
-  /** What the developer applied, as the core recorded it. */
+  /** What the operator applied, as the core recorded it. */
   readonly chosen: ChosenFindings
   /** A plugin zarg ships: its own `chosen` (auto_apply) counts too. */
   readonly trusted: (plugin: string) => boolean
@@ -76,7 +76,7 @@ export const findingsService = (ctx: {
   })
 }
 
-/** Commit exactly these graph nodes' files (added, changed or removed); the developer's other edits stay out. */
+/** Commit exactly these graph nodes' files (added, changed or removed); the operator's other edits stay out. */
 export const commitGraph = (root: string, ids: ReadonlyArray<string>, message: string) =>
   Effect.gen(function* () {
     // Only files there now or known to git: a node a fix added and removed again has neither.

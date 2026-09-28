@@ -6,7 +6,7 @@ export type ConversationQuestion = NonNullable<(typeof ConversationData.Type)["q
 export const OTHER = "__other"
 export const CHAT = "__chat"
 
-/** What the developer is doing with the conversation's question: the highlighted row, typing their own answer, chatting about it, answered. */
+/** What the operator is doing with the conversation's question: the highlighted row, typing their own answer, chatting about it, answered. */
 export interface ConversationUi {
   readonly pick: number
   readonly other: boolean

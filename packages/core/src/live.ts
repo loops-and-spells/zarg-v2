@@ -75,12 +75,12 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     yield* surfaces.announce
     const snapshot = store.snapshot.pipe(Effect.mapError((e) => ({ _tag: e._tag, message: e.message })))
 
-    // Agents may read outside the repository (porting from another project) once the developer allows it.
+    // Agents may read outside the repository (porting from another project) once the operator allows it.
     const agentGrants = yield* makeGrants({ file: join(USER_DIR, "grants.json"), project: root })
     // /yolo (for every plugin) also lets agents' reads outside the repository through without asking.
     const control = yield* PluginControl
     const yoloControl = control.yolo
-    // The developer's applied findings, recorded by the core (the findings gate reads them).
+    // The operator's applied findings, recorded by the core (the findings gate reads them).
     const chosen = chosenFindings(join(root, ".zarg", "findings"))
     // A child's graph focus must name real nodes.
     const unknownIds = (ids: ReadonlyArray<string>) => Effect.map(store.snapshot, (snap) => ids.filter((id) => !snap.nodes.has(id))).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>))
@@ -128,13 +128,13 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       Effect.flatMap((a) => (a === undefined ? Effect.fail("agent-zarg is not installed") : a.start(agentHost))),
       Effect.catchCause((c) => Effect.succeed({ missing: Cause.pretty(c).split("\n")[0] ?? "it failed to start" })),
     )
-    // Without zarg the core still serves; say why where the developer (and a log) can see it.
+    // Without zarg the core still serves; say why where the operator (and a log) can see it.
     if (!("makeThread" in zarg)) yield* Effect.sync(() => console.error(`zarg-core: zarg is not loaded: ${zarg.missing}`))
     const makeThread = "makeThread" in zarg ? zarg.makeThread : (id: string, focus: ReadonlyArray<string>) => notLoaded(log, id, focus, zarg.missing)
     const threads = yield* makeThreads({
       makeThread,
       extra: reconcile?.threads ?? [],
-      // The developer's stop is for everything: service plugins that run in the background stop too.
+      // The operator's stop is for everything: service plugins that run in the background stop too.
       alsoStop: Effect.suspend(() =>
         Effect.forEach(host.manifests.filter((m) => (m.archetype === "service" || m.archetype === "agent") && m.methods.stop !== undefined), (m) => Effect.ignore(host.invoke(m.name, "stop", {})), { discard: true }),
       ),
@@ -197,7 +197,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       Semaphore.withPermits(turnOnLock, 1),
     )
     const actions = makeActions({ invoke: (plugin, method, params) => host.invoke(plugin, method, params), onApply: (plugin, rows) => chosen.add(plugin, rows),
-      // An action's `opens`, from the layout its view has now: the developer's own gesture opens them.
+      // An action's `opens`, from the layout its view has now: the operator's own gesture opens them.
       opensOf: (view, action) => {
         const layout = threadViews(log, "main").layout(view)
         if (layout === undefined) return undefined

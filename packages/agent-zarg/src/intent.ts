@@ -1,4 +1,4 @@
-/** One way to go on, offered when nothing is open: what the developer picks becomes their word to the driver. */
+/** One way to go on, offered when nothing is open: what the operator picks becomes their word to the driver. */
 export interface NextOption {
   readonly id: string
   readonly label: string
