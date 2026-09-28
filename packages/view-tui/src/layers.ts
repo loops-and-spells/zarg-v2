@@ -12,6 +12,7 @@ import {
   POPOVER_GUARD_MS as GUARD_MS,
   POPOVER_GUARD_MS,
   focusBar,
+  goBack,
   type Key,
   onAgentsKey,
   onSlashKey,
@@ -86,7 +87,17 @@ const nextAttention = (ui: Ui, s: SessionState) => {
 }
 
 /** g and / belong to every panel that is not a text input. */
-const common = (ui: Ui, w: ShellWorld, k: InputKey) => (k.ctrl === true || k.meta === true ? undefined : k.name === "g" ? nextAttention(ui, w.s) : k.name === "/" ? slashFrom(ui, w.s) : undefined)
+const common = (ui: Ui, w: ShellWorld, k: InputKey) =>
+  k.ctrl === true || k.meta === true
+    ? undefined
+    : k.name === "g"
+      ? nextAttention(ui, w.s)
+      : k.name === "/"
+        ? slashFrom(ui, w.s)
+        : // ⇥: back to the previous focus.
+          k.name === "tab" && k.shift !== true
+          ? { ui: goBack(ui, w.s) }
+          : undefined
 
 /** A view keyed `${agent}@${view}` belongs to that agent: its actions and answers go there. */
 const ownerOf = (key: string) => (key.includes("@") ? { agent: key.split("@")[0]! } : {})
@@ -247,20 +258,17 @@ export const SHELL: ReadonlyArray<Layer> = [
     handle: (ui, w, k) => {
       if (k.name === "pageup" || k.name === "pagedown") return { ui, action: { type: "scroll-talk", delta: k.name === "pageup" ? -10 : 10 } }
       if (k.name === "up" || k.name === "down") return { ui, action: { type: "scroll-talk", delta: k.name === "up" ? -1 : 1 } }
-      // With no agent open the sheet is all there is: Esc hands the keys to the agents list.
-      if (k.name === "escape") return { ui: ui.viewing === undefined ? { ...ui, sheet: false, focus: "agents" } : { ...ui, sheet: false } }
+      // Esc: zarg's focus goes back; the sheet over another focus closes.
+      if (k.name === "escape") return { ui: ui.main === "zarg" && !ui.sheet ? goBack(ui, w.s) : { ...ui, sheet: false } }
       return common(ui, w, k) ?? "pass"
     },
   },
   {
     id: "view",
-    when: (ui) => ui.focus === "tile" && !sheetShown(ui),
+    when: (ui) => ui.focus === "tile" && ui.main === "agent" && !sheetShown(ui),
     hints: (ui, w) => [{ keys: "Tab", does: "sections" }, { keys: "[ ]", does: "tabs" }, { keys: "Space", does: "select" }, { keys: "Esc", does: "close" }, ...agentKeys(ui, w.s)],
     handle: (ui, w, k) => {
-      if (k.name === "escape") {
-        const { viewing: _, view: __, ...rest } = ui
-        return { ui: rest }
-      }
+      if (k.name === "escape") return { ui: goBack(ui, w.s) }
       const c = common(ui, w, k)
       if (c !== undefined) return c
       const v = ui.viewing === undefined ? undefined : w.s.thread.views?.[ui.viewing]

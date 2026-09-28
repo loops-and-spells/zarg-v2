@@ -9,7 +9,11 @@ export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: stri
 } => {
   // Ctrl and Meta chords are the shell's, never an action's key.
   if (key.ctrl === true || key.meta === true) return { ui }
-  if (key.name === "tab") return { ui: focusNext(view, ui, key.shift === true ? -1 : 1) }
+  // ] [ move between sections, } { between a section's tabs (Tab is the shell's: back).
+  if (key.name === "]") return { ui: focusNext(view, ui, 1) }
+  if (key.name === "[") return { ui: focusNext(view, ui, -1) }
+  if (key.name === "}") return { ui: nextTab(view, ui, 1) }
+  if (key.name === "{") return { ui: nextTab(view, ui, -1) }
   // A conversation with a question: arrows pick an option, Enter answers the agent.
   const at = focused(view, ui)
   const leaf = at === undefined ? undefined : leafOf(view, ui, at.id)
@@ -24,8 +28,6 @@ export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: stri
   const s = focused(view, ui)
   const kind = s === undefined ? undefined : leafOf(view, ui, s.id)?.leaf.kind
   if (step !== 0 && kind !== "table" && kind !== "list") return { ui, scroll: step }
-  if (key.name === "]") return { ui: nextTab(view, ui, 1) }
-  if (key.name === "[") return { ui: nextTab(view, ui, -1) }
   if (key.name === "down") return { ui: moveRow(view, ui, 1) }
   if (key.name === "up") return { ui: moveRow(view, ui, -1) }
   if (key.name === "pagedown") return { ui: moveRow(view, ui, 10) }

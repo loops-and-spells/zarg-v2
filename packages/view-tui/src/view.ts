@@ -4,12 +4,20 @@ import { lintSlashInput, parseSlashInput, SLASH_COMMANDS, type SlashCycle, type 
 
 /** Where the keys go: the agents list, the tile area (the open agent's view, or a sheet), the message bar, or a panel. */
 export type Focus = "agents" | "tile" | "bar" | "panel"
+/** What the focus area shows: the grid of agents (home), one agent's view, zarg's conversation, the review queue. */
+export type Main = "grid" | "agent" | "zarg" | "review"
 
 /** UI-only state: what is focused and selected. Everything else comes from the session. */
 export interface Ui {
   readonly focus: Focus
   /** zarg's sheet covers the tile area (it also shows while no agent is open). */
   readonly sheet: boolean
+  /** What the focus area shows ("agent": the one `viewing` names). */
+  readonly main: Main
+  /** Where Esc and ⇥ go back to. */
+  readonly back: ReadonlyArray<{ readonly main: Main; readonly viewing?: string; readonly sheet?: boolean }>
+  /** The arrival rule ran (the sheet opened or not by whether agents work). */
+  readonly arrived: boolean
   /** The selected picker row. */
   readonly pick: number
   /** The inquiry `pick` belongs to; a new inquiry resets the selection. */
@@ -75,7 +83,7 @@ export const POPOVER_GUARD_MS = 300
 export const NAVIGATE_FRESH_MS = 10_000
 export { CHAT, OTHER }
 
-export const initialUi: Ui = { focus: "bar", sheet: false, pick: 0, other: false, agents: { toggled: {}, tree: 0 }, popover: { pick: 0 }, seen: {}, closedPanels: [] }
+export const initialUi: Ui = { focus: "bar", sheet: false, main: "grid", back: [], arrived: false, pick: 0, other: false, agents: { toggled: {}, tree: 0 }, popover: { pick: 0 }, seen: {}, closedPanels: [] }
 
 export interface PickerRow {
   readonly id: string
@@ -101,7 +109,7 @@ export const preselect = (inquiry: Inquiry) => Math.max(0, inquiry.options.findI
 
 /** A new inquiry preselects its recommended option (or the first); a new popover its recommended option; a shown sheet reads zarg's replies. */
 export const syncUi = (ui0: Ui, s: SessionState, now = Date.now()): Ui => {
-  const ui = withPanels(withNavigate(withPopover(withRead(withRunClock(ui0.agents.tree === s.thread.trees ? ui0 : { ...ui0, agents: { toggled: {}, tree: s.thread.trees } }, s, now), s), s, now), s, now), s)
+  const ui = withPanels(withNavigate(withPopover(withRead(withRunClock(withArrival(ui0.agents.tree === s.thread.trees ? ui0 : { ...ui0, agents: { toggled: {}, tree: s.thread.trees } }, s), s, now), s), s, now), s, now), s)
   const inquiry = s.thread.pendingInquiry
   if (inquiry === undefined) {
     if (ui.inquiryId === undefined && !ui.other && ui.chatting === undefined) return ui
@@ -135,8 +143,8 @@ const withNavigate = (ui: Ui, s: SessionState, now: number): Ui => {
     const { sheetView: _, ...fresh } = at
     return { ...fresh, sheet: true, sheetOf: n.view, focus: "tile" }
   }
-  const { view: _, sheetOf: __, ...rest } = at
-  return { ...rest, viewing: n.view, sheet: false, focus: "tile" }
+  const { sheetOf: _, ...rest } = at
+  return { ...goTo(rest, "agent", n.view), sheet: false, focus: "tile" }
 }
 /** Closed panels the core dropped are forgotten; a focused panel that went gives the tile the keys. */
 const withPanels = (ui: Ui, s: SessionState): Ui => {
@@ -173,7 +181,36 @@ export const zargLoaded = (s: SessionState) => s.thread.panels === undefined || 
 
 const question = (s: SessionState) => s.thread.pendingInquiry
 /** zarg's sheet covers the tile area: opened, or no agent is open. */
-export const sheetShown = (ui: Ui) => ui.sheet || ui.viewing === undefined
+export const sheetShown = (ui: Ui) => ui.sheet || ui.main === "zarg"
+
+/** Plugin agents (an id with ":") running or asking for the developer, not archived or deleted: work the grid shows. zarg and its RLMs are the conversation. */
+export const agentsWork = (s: SessionState) =>
+  Object.values(liveRlms(s)).some((n) => n.id.includes(":") && (n.status === "running" || n.attention !== undefined))
+
+/** Go to a focus, remembering where you were (the back stack). */
+export const goTo = (ui: Ui, main: Main, viewing?: string): Ui => {
+  // Where you were, and whether zarg's sheet was open over it: back puts both back.
+  const here = { main: ui.main, ...(ui.viewing !== undefined ? { viewing: ui.viewing } : {}), ...(ui.sheet ? { sheet: true } : {}) }
+  const same = here.main === main && here.viewing === viewing
+  const back = same ? ui.back : [...ui.back, here].slice(-20)
+  const { viewing: _, view: __, ...rest } = ui
+  return { ...rest, main, back, ...(main === "agent" && viewing !== undefined ? { viewing } : {}) }
+}
+/** Home: the grid, with zarg's sheet open when nothing is going on and closed when agents work. */
+export const goHome = (ui: Ui, s: SessionState): Ui => {
+  const { viewing: _, view: __, sheetOf: ___, ...rest } = ui
+  const idle = !agentsWork(s)
+  return { ...rest, main: "grid", back: [], sheet: idle, focus: idle && ui.focus === "bar" ? "bar" : "tile" }
+}
+/** Back one step; with nothing to go back to, home. */
+export const goBack = (ui: Ui, s: SessionState): Ui => {
+  const to = ui.back.at(-1)
+  if (to === undefined) return goHome(ui, s)
+  const { viewing: _, view: __, ...rest } = ui
+  return { ...rest, main: to.main, back: ui.back.slice(0, -1), sheet: to.sheet === true, ...(to.viewing !== undefined ? { viewing: to.viewing } : {}) }
+}
+/** The arrival rule, once: the grid, the sheet open when nothing is going on. */
+const withArrival = (ui: Ui, s: SessionState): Ui => (ui.arrived ? ui : { ...goHome(ui, s), arrived: true })
 /** Typing "Something else…" in the bar: the highlighted row is the free-text one. */
 export const answeringOther = (ui: Ui, s: SessionState) => {
   const q = question(s)
@@ -206,11 +243,10 @@ const seenNow = (ui: Ui, s: SessionState, id: string): Ui => {
 export const openAgent = (ui: Ui, s: SessionState, id: string): Ui => {
   const at = seenNow({ ...ui, agents: { ...ui.agents, cursor: id } }, s, id)
   if (id === "zarg") {
-    const { sheetOf: _, ...rest } = at
-    return { ...rest, sheet: true, focus: "tile" }
+    const { sheetOf: _, ...rest } = goTo(at, "zarg")
+    return { ...rest, sheet: false, focus: "tile" }
   }
-  const { view: _, ...rest } = at
-  return { ...rest, viewing: id, sheet: false, focus: "tile" }
+  return { ...goTo(at, "agent", id), sheet: false, focus: "tile" }
 }
 
 // The thread's status is stale once the core is down: nothing is working then.

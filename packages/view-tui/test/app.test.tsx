@@ -183,11 +183,14 @@ describe("tui frames", () => {
     expect(t.captureCharFrame()).toContain("› Login")
   })
 
-  test("Escape in the view closes it: zarg's sheet shows, its question takes the keys", async () => {
+  test("Escape in the view goes back to the grid; zarg's question waits in the bar, alt+m opens it", async () => {
     const t = await openTester({ width: 130, height: 22 })
     t.mockInput.pressEscape()
     await settle(t)
     expect(t.captureCharFrame()).not.toContain("tester-1  rehearse")
+    expect(t.captureCharFrame()).toContain("◆ zarg asks Which card first?")
+    t.mockInput.pressKey("m", { meta: true })
+    await settle(t)
     t.mockInput.pressArrow("up")
     await settle(t)
     expect(t.captureCharFrame()).toContain("› Login")
@@ -577,7 +580,7 @@ describe("the shell", () => {
     const f = t.captureCharFrame()
     expect(f).toContain("agents")
     expect(f).toContain("t1  rehearse")
-    expect(f).toContain("› message zarg… (alt+m or /)")
+    expect(f).toContain("zarg Hello.")
   })
   test("at 80×24 the agents fold to a strip above the tile area; alt+a unfolds them there", async () => {
     const t = await render(waiting, { width: 80, height: 24 })
@@ -664,7 +667,7 @@ test("no frames around the focus, the bar or the status line", async () => {
   const lines = t.captureCharFrame().split("\n").filter((l) => l.trim().length > 0)
   expect(lines.filter((l) => /[┌┐└┘]/.test(l))).toEqual([])
   // Right of the rail: the bar, then the status line.
-  expect(lines.at(-2)!.slice(24)).toMatch(/^ ›|^ ◆ zarg asks/)
+  expect(lines.at(-2)!.slice(24)).toMatch(/^ ›|^ ◆ zarg asks|^ zarg /)
   expect(lines.at(-1)!.slice(24)).toMatch(/^ core child · \w+ · thread main/)
 })
 test("an open agent's header names it without its plugin prefix or view key", async () => {

@@ -37,7 +37,7 @@ describe("the shell's layers", () => {
     expect(onKey(at({ focus: "bar" }), asking, key("down"), 0, "").by).toBe("picker")
   })
   test("a question never takes keys from another panel", () => {
-    expect(onKey(at({ focus: "tile", viewing: "rehearse:t1" }), { ...withView, thread: { ...withView.thread, pendingInquiry: inquiry } }, key("down"), 0).by).toBe("view")
+    expect(onKey(at({ main: "agent", focus: "tile", viewing: "rehearse:t1" }), { ...withView, thread: { ...withView.thread, pendingInquiry: inquiry } }, key("down"), 0).by).toBe("view")
     expect(onKey(at({ focus: "agents" }), asking, key("down"), 0).by).toBe("agents")
   })
   test("a popover takes every key but the global ones", () => {
@@ -53,18 +53,18 @@ describe("the shell's layers", () => {
     expect(onKey(r.ui, s, key("return"), 0).action).toEqual({ type: "answer-prompt", id: "p1", choice: "always" })
   })
   test("PgUp scrolls zarg's sheet; Esc collapses it back to the view", () => {
-    const ui = at({ focus: "tile", sheet: true, viewing: "rehearse:t1" })
+    const ui = at({ main: "agent", focus: "tile", sheet: true, viewing: "rehearse:t1" })
     expect(onKey(ui, withView, key("pageup"), 0).action).toEqual({ type: "scroll-talk", delta: -10 })
     expect(onKey(ui, withView, key("escape"), 0).ui).toMatchObject({ sheet: false, viewing: "rehearse:t1" })
   })
-  test("Enter on zarg's row opens the sheet; on another agent it opens its view and closes the sheet", () => {
+  test("Enter on zarg's row opens zarg's focus; on another agent it opens its view and closes the sheet", () => {
     const rlms = { zarg: { id: "zarg", parent: null, preset: "zarg", depth: 0, turns: 0, budget: 0, status: "running" as const, decisions: [] }, "rehearse:t1": { id: "rehearse:t1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 0, status: "running" as const, decisions: [] } }
     const s = { ...withView, thread: { ...withView.thread, rlms } }
-    expect(onKey(at({ focus: "agents", agents: { cursor: "zarg", toggled: {}, tree: 0 } }), s, key("return"), 0).ui).toMatchObject({ sheet: true, focus: "tile" })
+    expect(onKey(at({ focus: "agents", agents: { cursor: "zarg", toggled: {}, tree: 0 } }), s, key("return"), 0).ui).toMatchObject({ main: "zarg", focus: "tile" })
     expect(onKey(at({ focus: "agents", sheet: true, agents: { cursor: "rehearse:t1", toggled: {}, tree: 0 } }), s, key("return"), 0).ui).toMatchObject({ sheet: false, focus: "tile", viewing: "rehearse:t1" })
   })
   test("an agent's action key works only in its view", () => {
-    const ui = at({ focus: "tile", viewing: "rehearse:t1" })
+    const ui = at({ main: "agent", focus: "tile", viewing: "rehearse:t1" })
     expect(onKey(ui, withView, key("a"), 0).action).toMatchObject({ type: "act", action: "apply" })
     expect(onKey({ ...ui, focus: "agents" }, withView, key("a"), 0).action).toBeUndefined()
   })
@@ -129,20 +129,20 @@ describe("surfaces in the shell", () => {
     expect(onKey(at({}), s, key("escape"), 0).action).toEqual({ type: "close-prompt", id: "p1" })
   })
   test("Alt+down from the tile reaches a focusable bottom panel before the bar; one that takes no keys is skipped", () => {
-    const tile = at({ focus: "tile", viewing: "two:t1" })
+    const tile = at({ main: "agent", focus: "tile", viewing: "two:t1" })
     expect(onKey(tile, with_({ panels: [panel("onFocus")] }), key("down", { meta: true }), 0).ui).toMatchObject({ focus: "panel", panel: "two:status:two:t1" })
     expect(onKey(tile, with_({ panels: [panel("none")] }), key("down", { meta: true }), 0).ui.focus).toBe("bar")
     expect(onKey(tile, with_({ panels: [panel("onFocus", "right")] }), key("right", { meta: true }), 0).ui).toMatchObject({ focus: "panel" })
   })
   test("a focused panel takes its view's keys; Esc closes it and gives the tile the keys", () => {
     const s = with_({ panels: [panel("onFocus")] })
-    const ui = at({ focus: "panel", panel: "two:status:two:t1", viewing: "two:t1" })
+    const ui = at({ main: "agent", focus: "panel", panel: "two:status:two:t1", viewing: "two:t1" })
     expect(onKey(ui, s, key("down"), 0).ui.panelView?.rows.rows).toBe(1)
     expect(onKey(ui, s, key("a"), 0).action).toMatchObject({ type: "act", action: "apply", agent: "two:t1", view: "two:t1" })
     expect(onKey(ui, s, key("escape"), 0).ui).toMatchObject({ focus: "tile", closedPanels: ["two:status:two:t1"] })
   })
   test("a plugin's sheet takes its view's keys; Esc closes it", () => {
-    const ui = at({ focus: "tile", sheet: true, sheetOf: "two:t1", viewing: "two:t1" })
+    const ui = at({ main: "agent", focus: "tile", sheet: true, sheetOf: "two:t1", viewing: "two:t1" })
     expect(onKey(ui, with_({}), key("a"), 0).action).toMatchObject({ type: "act", action: "apply", agent: "two:t1" })
     const closed = onKey(ui, with_({}), key("escape"), 0).ui
     expect(closed.sheet).toBe(false)
@@ -171,7 +171,7 @@ describe("surface fixes", () => {
   const views = { "two:t1@x": { agent: "two:t1@x", layout: table, data: { rows: { rows: [{ id: "r1", cells: {} }] } } } }
   test("an action from a tile of another view acts on the agent the view belongs to", () => {
     const s: SessionState = { ...idle, thread: { ...idle.thread, views } }
-    expect(onKey(at({ focus: "tile", viewing: "two:t1@x" }), s, key("a"), 0).action).toMatchObject({ type: "act", action: "apply", agent: "two:t1", view: "two:t1@x" })
+    expect(onKey(at({ main: "agent", focus: "tile", viewing: "two:t1@x" }), s, key("a"), 0).action).toMatchObject({ type: "act", action: "apply", agent: "two:t1", view: "two:t1@x" })
   })
   test("a plugin popover that just showed takes no keys for a moment; its hints are its own", () => {
     const s: SessionState = { ...idle, thread: { ...idle.thread, views, prompts: [{ id: "p1", kind: "surface", question: "two ask", options: [], view: "two:t1@x", agent: "two:t1" }] } }

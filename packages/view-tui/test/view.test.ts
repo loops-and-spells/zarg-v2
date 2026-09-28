@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
 import { defineView, layoutOf } from "@zarg/view"
-import { ARCHIVED, treeRows, panelsShown, activate, answeringOther, attentionOf, attentionLine, CHAT, conversation, openAgent, EXIT_WINDOW_MS, initialUi, inputFocused, typing, OTHER, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/view"
+import { agentsWork, goBack, ARCHIVED, treeRows, panelsShown, activate, answeringOther, attentionOf, attentionLine, CHAT, conversation, openAgent, EXIT_WINDOW_MS, initialUi, inputFocused, typing, OTHER, onSubmit, pickerRows, agentDetail, agentRows, animating, SPINNER, slashActive, working, slashBox, statusLine, syncUi, type Ui } from "../src/view"
 import { onKey } from "../src/layers"
 
 const inquiry: Inquiry = {
@@ -86,7 +86,10 @@ describe("picker", () => {
 
   test("once the inquiry is answered the picker state clears", () => {
     const ui = { ...syncUi(initialUi, waiting), other: true, chatting: "inq-1" }
-    expect(syncUi(ui, running, 0)).toEqual({ ...initialUi, pick: 1, runningSince: 0 })
+    const cleared = syncUi(ui, running, 0)
+    expect(cleared).toMatchObject({ pick: 1, other: false })
+    expect(cleared.inquiryId).toBeUndefined()
+    expect(cleared.chatting).toBeUndefined()
   })
 })
 
@@ -222,17 +225,19 @@ describe("the agents pane", () => {
     expect(ui.focus).toBe("tile")
   })
 
-  test("with an agent's view open, its keys are the view's even while a question waits; Escape closes it and the sheet takes the question", () => {
+  test("with an agent's view open, its keys are the view's even while a question waits; Escape goes back and the bar takes the question", () => {
     const layout = layoutOf(defineView("t", { review: { kind: "tabs", role: "pinned", tabs: { findings: { kind: "table", columns: [{ id: "id", label: "id" }], selectable: true, actions: [{ id: "apply", label: "Apply", key: "a", on: "selection" }] } } } }))
     const views = { "rehearse:t-1": { agent: "rehearse:t-1", layout, data: { "review.findings": { rows: [{ id: "R-1", cells: {} }, { id: "R-2", cells: {} }] } } } }
     const asking: SessionState = { thread: { ...running.thread, status: "waiting", views, pendingInquiry: { id: "inq-9", question: "What next?", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }], allowOther: false, about: [] } }, core: "up" }
-    let ui: Ui = syncUi(openAgent({ ...initialUi }, asking, "rehearse:t-1"), asking)
+    let ui: Ui = syncUi(openAgent(syncUi(initialUi, asking), asking, "rehearse:t-1"), asking)
     const down = onKey(ui, asking, { name: "down" }, 0)
     expect(down.ui.pick).toBe(0)
     expect(down.ui.view?.rows["review.findings"]).toBe(1)
     expect(onKey(down.ui, asking, { name: "return" }, 0).action).toBeUndefined()
     ui = onKey(down.ui, asking, { name: "escape" }, 0).ui
+    expect(ui).toMatchObject({ main: "grid" })
     expect(ui.viewing).toBeUndefined()
+    ui = onKey(ui, asking, { name: "m", meta: true }, 0).ui
     expect(onKey(ui, asking, { name: "down" }, 0).ui.pick).toBe(1)
   })
 
@@ -294,7 +299,7 @@ describe("the agents pane", () => {
 
   test("arrows on the agents pane never move the picker", () => {
     const waiting: SessionState = { thread: { ...running.thread, status: "waiting", pendingInquiry: inquiry }, core: "up" }
-    const ui = syncUi({ ...initialUi, focus: "agents" }, waiting)
+    const ui = { ...syncUi(initialUi, waiting), focus: "agents" as const }
     expect(onKey(ui, waiting, { name: "up" }, 0).ui.pick).toBe(ui.pick)
   })
 })
@@ -395,16 +400,17 @@ describe("keys in an agent's view", () => {
   const layout = layoutOf(defineView("t", { steps: { kind: "log", role: "log" }, review: { kind: "tabs", role: "pinned", tabs: { findings: { kind: "table", columns: [{ id: "id", label: "id" }], selectable: true, actions: [{ id: "apply", label: "Apply", key: "a", on: "selection" }] }, likes: { kind: "table", columns: [] } } } }))
   const views = { "rehearse:t-1": { agent: "rehearse:t-1", layout, data: { "review.findings": { rows: [{ id: "R-1", cells: {} }, { id: "R-2", cells: {} }] } } } }
   const s = { ...running, thread: { ...running.thread, views } } as SessionState
-  const open = { ...initialUi, viewing: "rehearse:t-1", focus: "tile" as const }
-  test("the view opens on its table: space and a apply the selected rows, [ and ] switch tabs, Tab moves to the log", () => {
+  const open = { ...initialUi, main: "agent" as const, viewing: "rehearse:t-1", focus: "tile" as const }
+  test("the view opens on its table: space and a apply the selected rows, } { switch tabs, ] [ move between sections, Tab goes back", () => {
     let ui = onKey(open, s, { name: "down" }, 0).ui
     expect(ui.view?.focus).toBe(1)
     ui = onKey(ui, s, { name: "space" }, 0).ui
     const r = onKey(ui, s, { name: "a" }, 0)
     expect(r.action).toEqual({ type: "act", section: "review.findings", action: "apply", rows: ["R-2"], view: "rehearse:t-1" })
     expect(r.ui.view?.selected["review.findings"]).toEqual([])
-    expect(onKey(ui, s, { name: "]" }, 0).ui.view?.tabs.review).toBe(1)
-    expect(onKey(ui, s, { name: "tab" }, 0).ui.view?.focus).toBe(0)
+    expect(onKey(ui, s, { name: "}" }, 0).ui.view?.tabs.review).toBe(1)
+    expect(onKey(ui, s, { name: "]" }, 0).ui.view?.focus).toBe(0)
+    expect(onKey(ui, s, { name: "tab" }, 0).ui.main).toBe("grid")
   })
   test("Escape closes the view", () => {
     expect(onKey(open, s, { name: "escape" }, 0).ui.viewing).toBeUndefined()
@@ -417,7 +423,7 @@ describe("keys in an agent's view", () => {
     u = onKey(u, s, { name: "a" }, 0).ui
   })
   test("in a focused log, arrows and page keys scroll it", () => {
-    const log = onKey(open, s, { name: "tab" }, 0).ui
+    const log = onKey(open, s, { name: "]" }, 0).ui
     expect(onKey(log, s, { name: "up" }, 0).action).toEqual({ type: "scroll", delta: -1 })
     expect(onKey(log, s, { name: "pagedown" }, 0).action).toEqual({ type: "scroll", delta: 10 })
   })
@@ -466,10 +472,10 @@ describe("attention", () => {
     expect(attentionLine(rlms)).toBe("◆ zarg: asks: What next?   ◆ rehearse:tester-1: 2 findings to review")
   })
 
-  test("g opens the next agent that needs the developer, zarg by opening its sheet", () => {
+  test("g opens the next agent that needs the developer, zarg by opening its conversation", () => {
     const s = { ...running, thread: { ...running.thread, rlms } } as SessionState
     let ui = onKey({ ...initialUi, focus: "agents" }, s, { name: "g" }, 0).ui
-    expect(ui).toMatchObject({ focus: "tile", sheet: true })
+    expect(ui).toMatchObject({ focus: "tile", main: "zarg" })
     ui = onKey({ ...ui, focus: "agents" }, s, { name: "g" }, 0).ui
     expect(ui.viewing).toBe("rehearse:tester-1")
     expect(ui).toMatchObject({ focus: "tile", sheet: false })
@@ -520,7 +526,7 @@ describe("panels", () => {
   test("one shell panel per plugin; agent panels only while their agent is open", () => {
     const s = withPanels([p("a", "one", "bottom"), p("a2", "one", "bottom"), p("t", "two", "right", "agent", "two:t1")])
     expect(panelsShown(initialUi, s)).toEqual({ top: [], bottom: [expect.objectContaining({ id: "a" })], right: [] })
-    expect(panelsShown({ ...initialUi, viewing: "two:t1" }, s).right.map((x) => x.id)).toEqual(["t"])
+    expect(panelsShown({ ...initialUi, main: "agent", viewing: "two:t1" }, s).right.map((x) => x.id)).toEqual(["t"])
   })
   test("a closed panel the core drops and opens again shows again", () => {
     const ui = syncUi({ ...initialUi, closedPanels: ["a"] }, withPanels([]))
@@ -600,4 +606,40 @@ describe("archive", () => {
     expect(onKey(ui, s, { name: "D", shift: true }, 0).action).toEqual({ type: "archive", change: { delete: ["rehearse:t3"] } })
     expect(treeRows(ui, withArchived({}, ["rehearse:t3"]), 0).some((r) => r.id.includes("rehearse:t3"))).toBe(false)
   })
+})
+
+describe("focus", () => {
+  const plugin = (id: string, status: "running" | "done", extra = {}) => ({ id, parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status, decisions: [], ...extra })
+  const st = (rlms: Record<string, ReturnType<typeof plugin>>, extra = {}): SessionState => ({ thread: { ...initial("main"), rlms, ...extra }, core: "up" })
+  test("arrival: the grid, with zarg's sheet open when nothing is going on", () => {
+    expect(syncUi(initialUi, st({}))).toMatchObject({ main: "grid", sheet: true, arrived: true })
+    expect(syncUi(initialUi, st({ "p:t1": plugin("p:t1", "running") }))).toMatchObject({ main: "grid", sheet: false, focus: "tile" })
+  })
+  test("zarg's own RLMs are not agent work", () => {
+    expect(agentsWork(st({ "rlm-1": plugin("rlm-1", "running") }))).toBe(false)
+    expect(agentsWork(st({ "p:t1": plugin("p:t1", "done", { attention: { reason: "r", since: 1 } }) }))).toBe(true)
+    expect(agentsWork(st({ "p:t1": plugin("p:t1", "running") }, { archived: { "p:t1": { reason: "x", at: 0 } } }))).toBe(true)
+    expect(agentsWork(st({ "p:t1": plugin("p:t1", "done") }))).toBe(false)
+  })
+  test("the shell never opens or closes the sheet on its own after arrival", () => {
+    const ui = syncUi(initialUi, st({}))
+    expect(syncUi(ui, st({ "p:t1": plugin("p:t1", "running") })).sheet).toBe(true)
+  })
+  test("Esc with nothing to go back to goes home", () => {
+    const s = st({ "p:t1": plugin("p:t1", "running") })
+    const opened = openAgent(syncUi(initialUi, s), s, "p:t1")
+    expect(opened).toMatchObject({ main: "agent", viewing: "p:t1", back: [{ main: "grid" }] })
+    const back = goBack(opened, s)
+    expect(back).toMatchObject({ main: "grid", back: [] })
+    expect(goBack(back, s)).toMatchObject({ main: "grid", sheet: false, back: [] })
+  })
+})
+
+test("back puts zarg's sheet back as it was", () => {
+  const idle: SessionState = { thread: { ...initial("main"), rlms: { "rlm-2": { id: "rlm-2", parent: null, preset: "research", depth: 0, turns: 0, budget: 1, status: "done", decisions: [] } } }, core: "up" }
+  const home = syncUi(initialUi, idle)
+  expect(home.sheet).toBe(true)
+  const opened = openAgent(home, idle, "rlm-2")
+  expect(opened.sheet).toBe(false)
+  expect(goBack(opened, idle)).toMatchObject({ main: "grid", sheet: true })
 })
