@@ -4,7 +4,7 @@ export const FINDING_COLUMNS = [
   { id: "id", label: "id" },
   { id: "kind", label: "kind" },
   { id: "card", label: "card" },
-  { id: "severity", label: "severity" },
+  { id: "severity", label: "severity", order: ["high", "medium", "low"] },
   { id: "suggested", label: "suggested" },
   { id: "note", label: "note" },
 ]

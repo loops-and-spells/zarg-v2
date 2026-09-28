@@ -367,7 +367,7 @@ describe("tui frames", () => {
     expect(frame).toContain("UX-1: feel 1.80")
     expect(frame).toMatch(/Findings 1  Likes 0 ─/)
     // The view opens on its table: its highlighted row takes the action at once.
-    expect(t.captureCharFrame()).toContain("▍○ R-1  no error shown")
+    expect(t.captureCharFrame()).toContain("▍○ R-1   no error shown")
     // A click on a row's box ticks it.
     const lines = t.captureCharFrame().split("\n")
     const y = lines.findIndex((l) => l.includes("○ R-1"))
@@ -938,5 +938,67 @@ describe("action buttons", () => {
     const t = await render({ ...s, thread: { ...s.thread, views: { "rehearse:tester-1": withReport } } }, { width: 130, height: 40 })
     t.mockInput.pressKey("a", { meta: true }); await settle(t); t.mockInput.pressEnter(); await settle(t)
     expect(body(t).split("\n").filter((l) => l.includes("walked every")).length).toBeGreaterThanOrEqual(3)
+  })
+})
+
+describe("column menus", () => {
+  const tester = { id: "rehearse:tester-1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
+  const cols = [{ id: "id", label: "id" }, { id: "severity", label: "severity", order: ["high", "medium", "low"] }]
+  const rows = [
+    { id: "F1", cells: { id: "F1", severity: "low" } },
+    { id: "F2", cells: { id: "F2", severity: "high" } },
+    { id: "F3", cells: { id: "F3", severity: "medium" } },
+  ]
+  const state: SessionState = {
+    thread: {
+      ...initial("main"),
+      status: "running",
+      rlms: { "rehearse:tester-1": tester },
+      views: {
+        "rehearse:tester-1": {
+          agent: "rehearse:tester-1",
+          layout: { name: "tester", sections: [{ id: "findings", kind: "table" as const, role: "pinned" as const, title: "Findings", columns: cols, selectable: true, actions: [{ id: "apply", label: "Send to zarg", key: "a", on: "selection" as const }] }] },
+          data: { findings: { rows } },
+        },
+      },
+    },
+    core: "up",
+  }
+  const open = async () => {
+    const t = await render(state, { width: 130, height: 32 })
+    t.mockInput.pressKey("a", { meta: true }); await settle(t); t.mockInput.pressEnter(); await settle(t)
+    return t
+  }
+  const order = (t: Awaited<ReturnType<typeof render>>) => t.captureCharFrame().split("\n").flatMap((l) => l.match(/[○●] (F\d)/)?.[1] ?? [])
+  test("↑ to the header, → to severity, Enter opens its menu; a sort reorders the rows and marks the header", async () => {
+    const t = await open()
+    t.mockInput.pressArrow("up"); await settle(t)
+    t.mockInput.pressArrow("right"); await settle(t)
+    t.mockInput.pressEnter(); await settle(t)
+    const frame = t.captureCharFrame()
+    expect(frame).toContain("▲ high first")
+    expect(frame).toMatch(/○ medium\s+0\/1/)
+    t.mockInput.pressEnter(); await settle(t)
+    t.mockInput.pressEscape(); await settle(t)
+    expect(t.captureCharFrame()).not.toContain("▲ high first")
+    expect(t.captureCharFrame()).toContain("severity ▲")
+    expect(order(t)).toEqual(["F2", "F3", "F1"])
+  })
+  test("a click on a header opens its menu; a click on a value ticks its rows and the buttons show", async () => {
+    const t = await open()
+    let lines = t.captureCharFrame().split("\n")
+    const y = lines.findIndex((l) => /id\s+severity/.test(l))
+    await t.mockMouse.click(lines[y]!.indexOf("severity") + 1, y)
+    await settle(t)
+    lines = t.captureCharFrame().split("\n")
+    const v = lines.findIndex((l) => /○ high/.test(l))
+    expect(v).toBeGreaterThanOrEqual(0)
+    await t.mockMouse.click(lines[v]!.indexOf("high"), v)
+    await settle(t)
+    expect(t.captureCharFrame()).toMatch(/● high\s+1\/1/)
+    // Esc closes the menu; the ticked row and its buttons stay.
+    t.mockInput.pressEscape(); await settle(t)
+    expect(t.captureCharFrame()).toContain("● F2")
+    expect(t.captureCharFrame()).toContain("Send to zarg · 1")
   })
 })

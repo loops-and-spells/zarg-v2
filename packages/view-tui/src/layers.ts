@@ -1,5 +1,5 @@
 import type { SessionState } from "@zarg/client"
-import { dispatch, focused, type InputKey, type InputLayer, keyFor, type KeyHint, leafOf, printable, startUi, type ViewState, type ViewUi } from "@zarg/view"
+import { closeMenu, dispatch, focused, type InputKey, type InputLayer, keyFor, type KeyHint, leafOf, printable, startUi, type ViewState, type ViewUi } from "@zarg/view"
 import { gridCards, gridCursor } from "./grid"
 import { SLASH_COMMANDS } from "./commands"
 import { paletteEntries } from "./palette"
@@ -260,6 +260,7 @@ export const SHELL: ReadonlyArray<Layer> = [
     hints: () => [{ keys: "Esc", does: "close" }],
     handle: (ui, w, k) => {
       const p = focusedPanel(ui, w.s)!
+      if (k.name === "escape" && ui.panelView?.menu !== undefined) return { ui: { ...ui, panelView: closeMenu(ui.panelView) } }
       if (k.name === "escape") {
         const { panel: _, panelView: __, ...rest } = ui
         return { ui: { ...rest, focus: "tile", closedPanels: [...ui.closedPanels, closedKey(p)] } }
@@ -278,6 +279,7 @@ export const SHELL: ReadonlyArray<Layer> = [
     when: (ui) => ui.focus === "tile" && ui.sheet && ui.sheetOf !== undefined,
     hints: () => [{ keys: "Esc", does: "close" }],
     handle: (ui, w, k) => {
+      if (k.name === "escape" && ui.sheetView?.menu !== undefined) return { ui: { ...ui, sheetView: closeMenu(ui.sheetView) } }
       if (k.name === "escape") {
         const { sheetOf: _, sheetView: __, ...rest } = ui
         return { ui: { ...rest, sheet: false } }
@@ -305,8 +307,14 @@ export const SHELL: ReadonlyArray<Layer> = [
   {
     id: "view",
     when: (ui) => ui.focus === "tile" && ui.main === "agent" && !sheetShown(ui),
-    hints: (ui, w) => [{ keys: "] [", does: "sections" }, { keys: "} {", does: "tabs" }, { keys: "Space", does: "select" }, ...agentKeys(ui, w.s), { keys: "Esc", does: "back" }],
+    hints: (ui, w) =>
+      ui.view?.menu !== undefined
+        ? [{ keys: "↑↓", does: "move" }, { keys: "Enter", does: "apply" }, { keys: "Esc", does: "close" }]
+        : ui.view?.header !== undefined
+          ? [{ keys: "←→", does: "column" }, { keys: "Enter", does: "sort, select" }, { keys: "↓", does: "rows" }, { keys: "Esc", does: "back" }]
+          : [{ keys: "] [", does: "sections" }, { keys: "} {", does: "tabs" }, { keys: "Space", does: "select" }, ...agentKeys(ui, w.s), { keys: "Esc", does: "back" }],
     handle: (ui, w, k) => {
+      if (k.name === "escape" && ui.view?.menu !== undefined) return { ui: { ...ui, view: closeMenu(ui.view) } }
       if (k.name === "escape") return { ui: goBack(ui, w.s) }
       const c = common(ui, w, k)
       if (c !== undefined) return c

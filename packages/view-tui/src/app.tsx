@@ -1,7 +1,7 @@
 import { useKeyboard, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Panel, Session } from "@zarg/client"
-import { afterAction, hintsOf, keyFor, pickRow, startUi, THEME, toneColor } from "@zarg/view"
+import { afterAction, applyMenu, hintsOf, keyFor, pickHeader, pickRow, startUi, THEME, toneColor } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { registerCommands, SLASH_COMMANDS } from "./commands"
 import { fit, gauge, keyGlyphs } from "./look"
@@ -307,6 +307,14 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             onClear={(section) => {
               const v = props.session.state().thread.views?.[viewing]
               if (v !== undefined) setUi({ ...latest(), view: afterAction(latest().view ?? startUi(v), section) })
+            }}
+            onHeader={(section, col) => {
+              const v = props.session.state().thread.views?.[viewing]
+              if (v !== undefined) setUi({ ...latest(), focus: "tile", view: pickHeader(v, latest().view ?? startUi(v), section, col) })
+            }}
+            onMenuPick={(i) => {
+              const v = props.session.state().thread.views?.[viewing]
+              if (v !== undefined) setUi({ ...latest(), focus: "tile", view: applyMenu(v, latest().view ?? startUi(v), i) })
             }}
           />
         )}

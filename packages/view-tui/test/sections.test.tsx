@@ -132,6 +132,6 @@ describe("the terminal draws an agent's view", () => {
     const v = view(1)
     const withBreaks: ViewState = { ...v, data: { ...v.data, "review.findings": { rows: [{ id: "R-0", cells: { id: "R-0", note: "first line\nsecond line" } }] } } }
     const f = await frame(withBreaks, { ...initialViewUi, focus: 3 })
-    expect(f).toContain("R-0  first line second line")
+    expect(f).toContain("R-0   first line second line")
   })
 })

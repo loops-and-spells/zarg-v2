@@ -15,7 +15,8 @@ export const Action = Schema.Struct({
   /** Surfaces the action opens (for the acting agent, or another of the plugin's agents), without calling the plugin. */
   opens: Schema.optionalKey(Schema.Array(Schema.Struct({ surface: Schema.String, agent: Schema.optionalKey(Schema.String) }))),
 })
-export const Column = Schema.Struct({ id: Schema.String, label: Schema.String })
+/** A table column; `order` ranks its values for sorting (a severity's "high", "medium", "low"), else they sort as text with numbers as numbers. */
+export const Column = Schema.Struct({ id: Schema.String, label: Schema.String, order: Schema.optionalKey(Schema.Array(Schema.String)) })
 
 export const StatsData = Schema.Struct({
   items: Schema.Array(Schema.Struct({ label: Schema.String, value: Schema.String, tone: Schema.optionalKey(Tone) })),

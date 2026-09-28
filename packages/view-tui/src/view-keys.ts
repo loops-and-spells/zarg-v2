@@ -1,4 +1,4 @@
-import { actionFor, afterAction, type ConversationQuestion, conversationKey, focused, focusNext, leafOf, moveRow, nextTab, toggleSelect, type ViewState, type ViewUi } from "@zarg/view"
+import { actionFor, afterAction, applyMenu, closeMenu, menuMove, moveColumn, openMenu, type ConversationQuestion, conversationKey, focused, focusNext, leafOf, moveRow, nextTab, toggleSelect, type ViewState, type ViewUi } from "@zarg/view"
 
 /** A key in an open agent's view: focus, scroll a table's cursor, switch tabs, select, act. */
 export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: string; readonly shift?: boolean; readonly ctrl?: boolean; readonly meta?: boolean }): {
@@ -9,6 +9,18 @@ export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: stri
 } => {
   // Ctrl and Meta chords are the shell's, never an action's key.
   if (key.ctrl === true || key.meta === true) return { ui }
+  // A column's menu: ↑↓ move, Enter or Space apply, Esc closes it.
+  if (ui.menu !== undefined) {
+    if (key.name === "up" || key.name === "down") return { ui: menuMove(view, ui, key.name === "up" ? -1 : 1) }
+    if (key.name === "return" || key.name === "space") return { ui: applyMenu(view, ui) }
+    if (key.name === "escape") return { ui: closeMenu(ui) }
+    return { ui }
+  }
+  // On a table's header: ←→ columns, Enter or Space opens the column's menu (↓ goes back to the rows, below).
+  if (ui.header !== undefined) {
+    if (key.name === "left" || key.name === "right") return { ui: moveColumn(view, ui, key.name === "left" ? -1 : 1) }
+    if (key.name === "return" || key.name === "space") return { ui: openMenu(view, ui, ui.header.path, ui.header.col) }
+  }
   // ] [ move between sections, } { between a section's tabs (Tab is the shell's: back).
   if (key.name === "]") return { ui: focusNext(view, ui, 1) }
   if (key.name === "[") return { ui: focusNext(view, ui, -1) }

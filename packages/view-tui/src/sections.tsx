@@ -1,7 +1,7 @@
 import type { ScrollBoxRenderable } from "@opentui/core"
 import { type ReactNode, useEffect, useRef } from "react"
 import { useTerminalDimensions } from "@opentui/react"
-import { CHAT, type ConversationQuestion, conversationRows, keyFor, leafOf, OTHER, ordered, rowsOf, THEME, toneColor, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
+import { CHAT, type ConversationQuestion, conversationRows, keyFor, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, THEME, toneColor, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
 import { fit, gauge, heading } from "./look"
 
 /** The terminal's colour for a plugin's tone (the theme's, via `toneColor`). */
@@ -9,7 +9,7 @@ const fg = (t: unknown) => toneColor(t)
 const pad = (s: string, n: number) => (s.length > n ? `${s.slice(0, Math.max(0, n - 1))}…` : s.padEnd(n))
 const STATE_MARK = { busy: "⠼", waiting: "◌", done: "✓", flagged: "⚑" } as const
 
-interface LeafProps { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly leaf: LayoutLeaf; readonly focused: boolean; readonly width: number; readonly onPick?: (index: number) => void }
+interface LeafProps { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly leaf: LayoutLeaf; readonly focused: boolean; readonly width: number; readonly onPick?: (index: number) => void; readonly onHeader?: (col: number) => void }
 type Leaf = (p: LeafProps) => ReactNode
 
 /** A section's heading: its title (or its tabs, the current one marked), then a faint rule. */
@@ -86,22 +86,44 @@ const Log: Leaf = ({ view, path, width }) => (
     ))}
   </>
 )
-const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick }) => {
+type TableRow = { id: string; cells: Record<string, string>; tone?: string }
+/** A table's column widths and where each starts (after the gutter): as wide as their widest cell or label with its sort mark (at most 24); the last one takes what is left. */
+const tableLayout = (view: ViewState, path: string, leaf: LayoutLeaf, width: number) => {
   const cols = leaf.columns ?? []
-  const rows = ((view.data[path] as { rows?: ReadonlyArray<{ id: string; cells: Record<string, string>; tone?: string }> } | undefined)?.rows ?? [])
+  const rows = ((view.data[path] as { rows?: ReadonlyArray<TableRow> } | undefined)?.rows ?? [])
+  const gutter = leaf.selectable === true ? 3 : 2
+  const fixedWidths = cols.map((c, ci) => (ci === cols.length - 1 ? 0 : Math.min(24, Math.max(c.label.length + 2, ...rows.map((r) => (r.cells[c.id] ?? "").replace(/\s*\n\s*/g, " ").length)))))
+  const fixed = fixedWidths.reduce((a, w) => a + w + 2, 0)
+  const widths = fixedWidths.map((w) => (w === 0 ? Math.max(4, width - gutter - fixed) : w))
+  const starts = widths.map((_, i) => gutter + widths.slice(0, i).reduce((a, w) => a + w + 2, 0))
+  return { cols, rows, gutter, widths, starts }
+}
+const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onHeader }) => {
+  const { cols, gutter, widths } = tableLayout(view, path, leaf, width)
+  const rows = shownRows(view, ui, path) as ReadonlyArray<TableRow>
   const selectable = leaf.selectable === true
-  const gutter = selectable ? 3 : 2
-  // Columns as wide as their widest cell (at most 24); the last one takes what is left and is cut there.
-  const widths = cols.map((c, ci) => (ci === cols.length - 1 ? 0 : Math.min(24, Math.max(c.label.length, ...rows.map((r) => (r.cells[c.id] ?? "").replace(/\s*\n\s*/g, " ").length)))))
-  const fixed = widths.reduce((a, w) => a + w + 2, 0)
-  const cells = (get: (c: { id: string; label: string }) => string) =>
-    cols.map((c, ci) => (widths[ci] === 0 ? fit(get(c), Math.max(4, width - gutter - fixed)) : pad(fit(get(c), widths[ci]!), widths[ci]!))).join("  ")
+  const cells = (get: (c: { id: string; label: string }) => string) => cols.map((c, ci) => pad(fit(get(c), widths[ci]!), widths[ci]!)).join("  ")
   const cursor = ui.rows[path] ?? 0
   const sel = ui.selected[path] ?? []
+  const sort = ui.sort?.[path]
+  const onHead = focused && ui.header?.path === path ? ui.header.col : undefined
   if (rows.length === 0) return <text fg={THEME.dim}> nothing yet</text>
   return (
     <>
-      <text fg={THEME.dim} wrapMode="none">{`${" ".repeat(gutter)}${cells((c) => c.label)}`}</text>
+      {/* The header: each column's label, its sort mark, the header cursor; a click opens its menu. */}
+      <box style={{ flexDirection: "row", height: 1 }}>
+        <text wrapMode="none">{" ".repeat(gutter)}</text>
+        {cols.map((c, ci) => {
+          const mark = sort?.col === c.id ? (sort.dir === 1 ? " ▲" : " ▼") : ""
+          const here = onHead === ci
+          return [
+            <text key={c.id} wrapMode="none" onMouseDown={() => onHeader?.(ci)} {...(here ? { bg: THEME.accent } : {})} fg={here ? THEME.bg : mark !== "" ? THEME.accent : THEME.dim}>
+              {pad(fit(`${c.label}${mark}`, widths[ci]!), widths[ci]!)}
+            </text>,
+            ci < cols.length - 1 ? <text key={`${c.id} gap`}>{"  "}</text> : null,
+          ]
+        })}
+      </box>
       {rows.map((r, i) => {
         const on = focused && i === cursor
         const picked = sel.includes(r.id)
@@ -215,6 +237,46 @@ const buttonsOf = (view: ViewState, ui: ViewUi, leaf: { readonly path: string; r
   return rows.length > 0 && actions.length > 0 ? { rows, actions } : undefined
 }
 
+/** A column's menu under (or over) its header: the two sorts, a rule, then each value with how many of its rows are ticked. */
+const ColumnMenu = (p: { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly leaf: LayoutLeaf; readonly width: number; readonly up: boolean; readonly onPick?: (index: number) => void }) => {
+  const m = p.ui.menu!
+  const { cols, starts } = tableLayout(p.view, p.path, p.leaf, p.width)
+  const col = cols[m.col]
+  if (col === undefined) return null
+  const entries = menuEntries(p.view, p.ui)
+  const first = col.order?.[0]
+  const last = col.order?.at(-1)
+  const lines = entries.map((e) =>
+    e.kind === "sort"
+      ? { mark: e.active ? "✓ " : "  ", text: e.dir === 1 ? `▲ ${first !== undefined ? `${first} first` : "ascending"}` : `▼ ${last !== undefined ? `${last} first` : "descending"}`, count: "" }
+      : { mark: e.selected === 0 ? "○ " : e.selected === e.total ? "● " : "◐ ", text: e.value === "" ? "(empty)" : e.value, count: `${e.selected}/${e.total}` },
+  )
+  const inner = Math.min(p.width - 4, Math.max(col.label.length + 2, ...lines.map((l) => l.mark.length + l.text.length + l.count.length + 3)))
+  const height = entries.length + 3
+  const left = Math.max(0, Math.min(p.width - inner - 4, starts[m.col]! - 2))
+  return (
+    <box
+      zIndex={10}
+      style={{ position: "absolute", left, ...(p.up ? { top: 1 - height } : { top: 2 }), width: inner + 4, height, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: THEME.accent, backgroundColor: THEME.raised, paddingLeft: 1, paddingRight: 1 }}
+      title={` ${col.label} `}
+    >
+      {lines.map((l, i) => {
+        const on = i === m.pick
+        const text = fit(l.text, Math.max(1, inner - l.mark.length - l.count.length - 1))
+        return [
+          i === 2 ? <text key="rule" fg={THEME.faint} wrapMode="none">{"─".repeat(inner)}</text> : null,
+          <text key={i} wrapMode="none" onMouseDown={() => p.onPick?.(i)} {...(on ? { bg: THEME.selection } : {})}>
+            <span fg={THEME.accent}>{on ? "▍" : " "}</span>
+            <span fg={l.mark.trim() === "" || l.mark === "○ " ? THEME.dim : THEME.accent}>{l.mark}</span>
+            <span fg={on ? THEME.text : THEME.text}>{text.padEnd(inner - l.mark.length - l.count.length - 1)}</span>
+            <span fg={THEME.dim}>{l.count}</span>
+          </text>,
+        ]
+      })}
+    </box>
+  )
+}
+
 /** The largest share of the view each role may take; the log takes what is left. */
 const SHARE = { primary: "33%", pinned: "40%", aside: "25%" } as const
 
@@ -222,7 +284,7 @@ const SHARE = { primary: "33%", pinned: "40%", aside: "25%" } as const
 export type Scroller = (delta: number) => void
 
 /** An agent's view in the terminal: its sections stacked by role, each a heading over its own scrollbox. */
-export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly width?: number; readonly scroller?: { current?: Scroller | undefined }; readonly onPick?: (sectionId: string, index: number) => void; readonly onAct?: (section: string, action: string, rows: ReadonlyArray<string>) => void; readonly onClear?: (section: string) => void }) => {
+export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly width?: number; readonly scroller?: { current?: Scroller | undefined }; readonly onPick?: (sectionId: string, index: number) => void; readonly onAct?: (section: string, action: string, rows: ReadonlyArray<string>) => void; readonly onClear?: (section: string) => void; readonly onHeader?: (sectionId: string, col: number) => void; readonly onMenuPick?: (index: number) => void }) => {
   const dims = useTerminalDimensions()
   const width = Math.max(10, (props.width ?? dims.width) - 2)
   const all = ordered(props.view.layout)
@@ -277,8 +339,21 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
               style={{ flexGrow: 1, flexShrink: 1, minHeight: 1 }}
               {...(leaf.leaf.kind === "log" ? { stickyScroll: true, stickyStart: "bottom" as const } : {})}
             >
-              <Draw view={props.view} ui={props.ui} path={leaf.path} leaf={leaf.leaf} focused={focused} width={width} {...(props.onPick !== undefined ? { onPick: (i: number) => props.onPick!(s.id, i) } : {})} />
+              <Draw
+                view={props.view}
+                ui={props.ui}
+                path={leaf.path}
+                leaf={leaf.leaf}
+                focused={focused}
+                width={width}
+                {...(props.onPick !== undefined ? { onPick: (i: number) => props.onPick!(s.id, i) } : {})}
+                {...(props.onHeader !== undefined ? { onHeader: (c: number) => props.onHeader!(s.id, c) } : {})}
+              />
             </scrollbox>
+            {props.ui.menu?.path === leaf.path && leaf.leaf.kind === "table" ? (
+              // ponytail: sections in the view's lower half open their menu upward, a guess at where there is room; measure the section if it clips.
+              <ColumnMenu view={props.view} ui={props.ui} path={leaf.path} leaf={leaf.leaf} width={width} up={i >= all.length / 2} {...(props.onMenuPick !== undefined ? { onPick: props.onMenuPick } : {})} />
+            ) : null}
             {buttons !== undefined ? (
               <box style={{ flexShrink: 0, marginTop: 1, paddingLeft: 1 }}>
                 <Buttons actions={buttons.actions} count={buttons.rows.length} onPress={(id) => props.onAct!(leaf.path, id, buttons.rows)} {...(props.onClear !== undefined ? { onClear: () => props.onClear!(leaf.path) } : {})} />

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { actionFor, defineView, focusNext, initialViewUi, layoutOf, moveRow, nextTab, ordered, pickRow, startUi, toggleSelect, type ViewState } from "../src"
+import { actionFor, applyMenu, closeMenu, defineView, focusNext, initialViewUi, layoutOf, menuEntries, menuMove, moveColumn, moveRow, nextTab, openMenu, ordered, pickHeader, pickRow, shownRows, startUi, toggleSelect, type ViewState, type ViewUi } from "../src"
 
 const layout = layoutOf(
   defineView("tester", {
@@ -90,4 +90,74 @@ test("a view-level action fires from any section; keys.terminal works like key",
   expect(actionFor(view, { ...initialViewUi, focus: 1 }, "r")).toEqual({ section: undefined, action: "rerun", rows: [] })
   expect(actionFor(view, { ...initialViewUi, focus: 0 }, "a")).toEqual({ section: "t", action: "apply", rows: ["r1"] })
   expect(actionFor(view, { ...initialViewUi, focus: 0 }, "a", "web")).toBeUndefined()
+})
+
+describe("column header menus", () => {
+  const cols = [{ id: "id", label: "id" }, { id: "sev", label: "severity", order: ["high", "medium", "low"] }, { id: "kind", label: "kind" }]
+  const t: ViewState = {
+    agent: "t",
+    layout: layoutOf(defineView("t", { findings: { kind: "table", role: "pinned", columns: cols, selectable: true, actions: [{ id: "apply", label: "Apply", key: "a", on: "selection" }, { id: "open", label: "Open", key: "o", on: "row" }] } })),
+    data: {
+      findings: {
+        rows: [
+          { id: "F1", cells: { id: "F1", sev: "low", kind: "gap" } },
+          { id: "F2", cells: { id: "F2", sev: "high", kind: "nit" } },
+          { id: "F3", cells: { id: "F3", sev: "medium", kind: "gap" } },
+          { id: "F10", cells: { id: "F10", sev: "high", kind: "gap" } },
+        ],
+      },
+    },
+  }
+  const ids = (ui: ViewUi) => shownRows(t, ui, "findings").map((r) => r.id)
+  test("↑ from the first row reaches the header; ←→ move its column; ↓ goes back to the rows", () => {
+    let ui = startUi(t)
+    ui = moveRow(t, ui, -1)
+    expect(ui.header).toEqual({ path: "findings", col: 0 })
+    ui = moveColumn(t, ui, 1)
+    ui = moveColumn(t, ui, 5)
+    expect(ui.header?.col).toBe(2)
+    ui = moveRow(t, ui, 1)
+    expect(ui.header).toBeUndefined()
+    expect(ui.rows.findings ?? 0).toBe(0)
+  })
+  test("a sort from the menu orders the shown rows: a declared order, else numbers as numbers; again turns it off", () => {
+    let ui = openMenu(t, startUi(t), "findings", 1)
+    expect(menuEntries(t, ui).map((e) => (e.kind === "sort" ? `sort${e.dir}` : `${e.value} ${e.selected}/${e.total}`))).toEqual(["sort1", "sort-1", "high 0/2", "medium 0/1", "low 0/1"])
+    ui = applyMenu(t, ui, 0)
+    expect(ids(ui)).toEqual(["F2", "F10", "F3", "F1"])
+    ui = applyMenu(t, ui, 1)
+    expect(ids(ui)).toEqual(["F1", "F3", "F2", "F10"])
+    ui = applyMenu(t, ui, 1)
+    expect(ids(ui)).toEqual(["F1", "F2", "F3", "F10"])
+    ui = applyMenu(t, openMenu(t, ui, "findings", 0), 1)
+    expect(ids(ui)).toEqual(["F10", "F3", "F2", "F1"])
+  })
+  test("a value in the menu selects every row with it; again (all selected) unselects them; ticks add up", () => {
+    let ui = openMenu(t, startUi(t), "findings", 1)
+    ui = applyMenu(t, ui, 2)
+    expect(ui.selected.findings).toEqual(["F2", "F10"])
+    ui = applyMenu(t, openMenu(t, ui, "findings", 2), 2)
+    expect([...ui.selected.findings!].sort()).toEqual(["F1", "F10", "F2", "F3"])
+    ui = applyMenu(t, openMenu(t, ui, "findings", 1), 2)
+    expect([...ui.selected.findings!].sort()).toEqual(["F1", "F3"])
+  })
+  test("after a sort, the cursor and the actions follow the shown order", () => {
+    let ui = applyMenu(t, openMenu(t, startUi(t), "findings", 1), 0)
+    // Esc closes the menu with the cursor still on the header; ↓ goes back to the first row.
+    ui = moveRow(t, closeMenu(ui), 1)
+    expect(ui.header).toBeUndefined()
+    expect(actionFor(t, ui, "o")?.rows).toEqual(["F2"])
+    ui = moveRow(t, ui, 2)
+    expect(actionFor(t, ui, "o")?.rows).toEqual(["F3"])
+    ui = toggleSelect(t, ui)
+    expect(ui.selected.findings).toEqual(["F3"])
+  })
+  test("the menu's cursor moves within its entries; a click on a header focuses its table and opens the menu", () => {
+    let ui = openMenu(t, startUi(t), "findings", 2)
+    ui = menuMove(t, ui, 10)
+    expect(ui.menu?.pick).toBe(menuEntries(t, ui).length - 1)
+    ui = pickHeader(t, { ...startUi(t), focus: 0 }, "findings", 1)
+    expect(ui.menu).toEqual({ path: "findings", col: 1, pick: 0 })
+    expect(ui.header).toEqual({ path: "findings", col: 1 })
+  })
 })
