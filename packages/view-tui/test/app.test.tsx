@@ -692,3 +692,28 @@ test("a grant popover: rounded, its options on one line, no key line of its own"
   expect(f).not.toContain("←→ pick · Enter choose")
 })
 })
+
+describe("review fixes (look)", () => {
+  test("a view beside a right panel cuts its lines with … inside its own width", async () => {
+    const long = "word ".repeat(40)
+    const v = { ...viewState.thread.views!["rehearse:t1"]!, layout: { name: "t", sections: [{ id: "log", kind: "log" as const, role: "log" as const, title: "Steps" }] }, data: { log: { lines: [{ text: long }] } } }
+    const side = { id: "rehearse:side:rehearse:t1", plugin: "rehearse", agent: "rehearse:t1", view: "rehearse:t1@side", name: "side", scope: "agent" as const, edge: "right" as const, size: 30, input: "none" as const }
+    const zargBar = { id: "zarg:bar:zarg", plugin: "zarg", agent: "zarg", view: "zarg", name: "bar", scope: "shell" as const, edge: "bottom" as const, size: 1, input: "onFocus" as const }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, views: { ...viewState.thread.views, "rehearse:t1": v }, panels: [zargBar, side] } }, { width: 130, height: 24 })
+    t.mockInput.pressKey("a", { meta: true }); await settle(t); t.mockInput.pressEnter(); await settle(t)
+    const line = t.captureCharFrame().split("\n").find((l) => l.includes("word word"))!
+    expect(line).toContain("…")
+  })
+  test("at 80 columns the status line keeps its keys (the status gives way)", async () => {
+    const t = await render(waiting, { width: 80, height: 24 })
+    expect(t.captureCharFrame().split("\n").filter((l) => l.trim().length > 0).at(-1)).toContain("↑↓ pick")
+  })
+  test("a long zarg question in the bar keeps its keys; a long popover title keeps its count", async () => {
+    const long = { ...inquiry, question: "Which of these many interesting and important cards should we specify first given the agenda?" }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, status: "waiting", pendingInquiry: long } }, { width: 80, height: 24 })
+    t.mockInput.pressKey("a", { meta: true }); await settle(t); t.mockInput.pressEnter(); await settle(t)
+    expect(t.captureCharFrame()).toMatch(/…   ⏎ answer   \/ chat/)
+    const pop = await render({ ...idleState, thread: { ...idleState.thread, views: { "rehearse:run@status": { agent: "rehearse:run@status", layout: { name: "status", sections: [] }, data: {} } }, prompts: [{ id: "p1", kind: "surface", question: "q".repeat(120), options: [], view: "rehearse:run@status", agent: "rehearse:run" }, grantPrompt("p2")] } }, { width: 100, height: 24 })
+    expect(pop.captureCharFrame()).toContain("1 of 2")
+  })
+})

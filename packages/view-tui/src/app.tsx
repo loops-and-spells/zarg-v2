@@ -254,6 +254,9 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     </box>
   )
 
+  // The focus area's width: right of the rail, less its padding and any right-edge panels.
+  const rightWidth = panelsShown(ui, s).right.reduce((a, p) => a + p.size + 3, 0)
+  const focusWidth = Math.max(10, dims.width - railWidth - 4 - rightWidth)
   // An open agent's view: a header naming it (no plugin prefix, no view key) and a dim line of how it runs, then its sections.
   const agentId = viewing?.split("@")[0]
   const agentNode = agentId !== undefined ? s.thread.rlms[agentId] : undefined
@@ -263,9 +266,9 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       <box style={{ flexGrow: 1, flexDirection: "column", paddingLeft: 2, paddingRight: 2 }}>
         <text wrapMode="none">
           <span fg={THEME.accent}>
-            <b>{agentNode !== undefined ? displayName(agentNode) : agentId}</b>
+            <b>{fit(agentNode !== undefined ? displayName(agentNode) : (agentId ?? ""), focusWidth)}</b>
           </span>
-          <span fg={THEME.dim}>{agentNode !== undefined ? `  ${contextOf(agentNode)}` : ""}</span>
+          <span fg={THEME.dim}>{agentNode !== undefined ? fit(`  ${contextOf(agentNode)}`, Math.max(0, focusWidth - displayName(agentNode).length)) : ""}</span>
         </text>
         <text fg={THEME.dim} wrapMode="none">{[agentNode?.status ?? "", ...runLine].filter((x) => x.length > 0).join(" · ")}</text>
         <text> </text>
@@ -276,7 +279,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             view={s.thread.views[viewing]!}
             ui={ui.view ?? startUi(s.thread.views[viewing]!)}
             height={Math.max(8, dims.height - 8)}
-            width={dims.width - railWidth - 4}
+            width={focusWidth}
             scroller={scroller}
             onPick={(section, i) => {
               const v = props.session.state().thread.views?.[viewing]
@@ -321,7 +324,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       ) : line.tone === "question" && line.text.startsWith("◆ zarg asks ") ? (
         <text wrapMode="none">
           <span fg={THEME.attention}>{"◆ zarg asks "}</span>
-          <span fg={THEME.text}>{inquiry?.question ?? ""}</span>
+          <span fg={THEME.text}>{fit(inquiry?.question ?? "", Math.max(8, dims.width - railWidth - 1 - "◆ zarg asks ".length - "   ⏎ answer   / chat".length))}</span>
           <span fg={THEME.dim}>{"   ⏎ answer   / chat"}</span>
         </text>
       ) : (
@@ -361,7 +364,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       >
         <text wrapMode="none">
           <span fg={THEME.accent}>
-            <b>{head.question}</b>
+            <b>{fit(head.question, Math.max(8, popWidth - 4 - (queue.length > 1 ? `  1 of ${queue.length}`.length : 0)))}</b>
           </span>
           <span fg={THEME.dim}>{queue.length > 1 ? `  1 of ${queue.length}` : ""}</span>
         </text>
@@ -434,9 +437,9 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         <span fg={THEME.accent}>
           <b>{sheetViewState?.layout.name ?? "sheet"}</b>
         </span>
-        <span fg={THEME.dim}>{`  ${(() => { const n = s.thread.rlms[(ui.sheetOf ?? "").split("@")[0]!]; return n !== undefined ? displayName(n) : "" })()}   esc closes`}</span>
+        <span fg={THEME.dim}>{fit(`  ${(() => { const n = s.thread.rlms[(ui.sheetOf ?? "").split("@")[0]!]; return n !== undefined ? displayName(n) : "" })()}   esc closes`, Math.max(0, focusWidth - (sheetViewState?.layout.name ?? "sheet").length))}</span>
       </text>
-      {sheetViewState === undefined ? <text fg={THEME.dim}>no view yet</text> : <AgentView view={sheetViewState} ui={ui.sheetView ?? startUi(sheetViewState)} height={Math.max(6, dims.height - 8)} width={dims.width - railWidth - 4} />}
+      {sheetViewState === undefined ? <text fg={THEME.dim}>no view yet</text> : <AgentView view={sheetViewState} ui={ui.sheetView ?? startUi(sheetViewState)} height={Math.max(6, dims.height - 8)} width={focusWidth} />}
     </box>
   )
 
@@ -462,7 +465,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         {bar}
         <box style={{ height: 1, flexShrink: 0 }}>
           <text wrapMode="none">
-            <span fg={THEME.dim}>{status}</span>
+            {/* The keys come first: the status gives way on a narrow screen. */}
+            <span fg={THEME.dim}>{fit(status, Math.max(0, dims.width - railWidth - hints.length - 3))}</span>
             <span fg={THEME.dim}>{`   ${hints}`}</span>
           </text>
         </box>

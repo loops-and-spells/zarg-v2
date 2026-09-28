@@ -24,7 +24,7 @@ exports[`tui frames an inquiry: picker with the recommended option preselected a
                             Something else…                                                                   
                             Chat about this                                                                   
                          answer zarg above, or / to chat about it                                             
-                         core child · waiting · thread main · zarg-router:deepseek-v4.1-flash-exl3   ↑↓ pick  
+                         core child · waiting · thread main · zarg-router:de…   ↑↓ pick   ⏎ answer   esc leave
 "
 `;
 
@@ -52,6 +52,6 @@ exports[`tui frames a run error shows its kind and message in the conversation 1
                                                                                                               
                                                                                                               
                          › type a message, Enter to send                                                      
-                         core child · error · thread main · zarg-router:deepseek-v4.1-flash-exl3   ⏎ send   es
+                         core child · error · thread main · zarg-router:deepseek-v4.1-fl…   ⏎ send   esc leave
 "
 `;
