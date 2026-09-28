@@ -31,7 +31,7 @@ const GAPS_SHOWN = 8
 
 /** Appended to every driver task: its result is a message to the operator. */
 export const REPLY_RULE =
-  "Before any graph write, show the developer the exact change with Inquire.confirm({ change }) (each card as Given / When / Then lines) and write only what they add. Finish with `yield* Rlm.done({ value })`, where value is one or two sentences to the developer about what you did or found. No card renders, no ids-only lists."
+  "Before any graph write, show the developer the exact change with Inquire.confirm({ change }) (each card as By / Given / When / Then lines; every card names who acts in it with by, a persona) and write only what they add. Finish with `yield* Rlm.done({ value })`, where value is one or two sentences to the developer about what you did or found. No card renders, no ids-only lists."
 
 /** The longest reply shown; longer results are cut. */
 const REPLY_MAX = 600

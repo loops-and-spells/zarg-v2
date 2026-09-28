@@ -5,7 +5,7 @@ import { type Asker, confirmQuestion } from "@zarg/rlm"
 const ASK_FIRST: ServiceFailure = {
   _tag: "AskFirst",
   message:
-    "Requirements change only with the developer's say: show the exact change with Inquire.confirm({ change }) (each card as Given / When / Then lines), then write it once they add it. Any other question closes writes again.",
+    "Requirements change only with the developer's say: show the exact change with Inquire.confirm({ change }) (each card as By / Given / When / Then lines; every card names who acts in it with by, a persona), then write it once they add it. Any other question closes writes again.",
 }
 
 /**

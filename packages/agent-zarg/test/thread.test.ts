@@ -6,7 +6,7 @@ import { Effect, Fiber, Stream } from "effect"
 import type { AgendaItem } from "@zarg/plugin/server"
 import type { Asker, Rlm } from "@zarg/rlm"
 import { makeLog } from "@zarg/core"
-import { makeThread, OPEN_QUESTION, type ThreadDeps, WHAT_NEXT, WHAT_NEXT_GAPS } from "../src/thread"
+import { makeThread, OPEN_QUESTION, type ThreadDeps, WHAT_NEXT, WHAT_NEXT_GAPS, REPLY_RULE } from "../src/thread"
 import type { WireEvent } from "@zarg/core"
 
 type Driver = (spec: Rlm.RlmSpec, asker: Asker, observe: (e: Rlm.RlmEvent) => void) => Effect.Effect<Rlm.RlmOutcome, Rlm.RlmError>
@@ -459,4 +459,9 @@ describe("thread runs", () => {
     expect(JSON.stringify(events)).not.toContain("zt-secret")
     expect(JSON.stringify(events)).toContain("<redacted:ZT>")
   })
+})
+
+test("the driver shows every card with who acts in it (By), and names by when it writes one", () => {
+  expect(REPLY_RULE).toContain("By / Given / When / Then")
+  expect(REPLY_RULE).toContain("every card names who acts in it with by")
 })

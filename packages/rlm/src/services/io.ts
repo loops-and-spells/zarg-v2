@@ -55,7 +55,7 @@ export type Choice = typeof Choice.Type
 
 const Confirm = Schema.Struct({
   change: Schema.String.annotate({
-    description: "The exact change in the developer's words: each card as Given / When / Then lines (and any state edits), as it will be written.",
+    description: "The exact change in the operator's words: each card as By / Given / When / Then lines (and any state or persona edits), as it will be written.",
   }),
   about: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Card or state ids the change touches." }),
 })
