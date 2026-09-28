@@ -31,6 +31,27 @@ const canonical = (v: unknown): string =>
  * A plugin's agents in a thread's agents pane: their own stream, ids `<plugin>:<id>`, `step` lines as history,
  * and their views (the plugin's declared layouts, found by `layoutOf`).
  */
+type Many = (refs: ReadonlyArray<string>) => Effect.Effect<{ readonly entities: ReadonlyArray<{ readonly ref: string; readonly type: string; readonly id: string; readonly label: { readonly text: string; readonly tone: string; readonly glyph: string } }> }>
+
+/** A table section's ref columns get their labels (resolved by the host) before the data reaches clients. */
+export const withLabels = (layout: Layout, section: string, data: unknown, many: Many) =>
+  Effect.gen(function* () {
+    const leaves = layout.sections.flatMap((s) => (s.kind === "tabs" ? (s.tabs ?? []).map((t) => ({ ...t, id: `${s.id}.${t.id}` })) : [s]))
+    const leaf = leaves.find((s) => s.id === section) as { readonly columns?: ReadonlyArray<{ readonly id: string; readonly ref?: true }> } | undefined
+    const cols = (leaf?.columns ?? []).filter((c) => c.ref === true).map((c) => c.id)
+    const rows = (data as { readonly rows?: ReadonlyArray<{ readonly cells: Readonly<Record<string, string>> }> } | undefined)?.rows
+    if (cols.length === 0 || rows === undefined) return data
+    const refs = [...new Set(rows.flatMap((r) => cols.map((c) => r.cells[c] ?? "")).filter((s) => s.includes(":")))]
+    if (refs.length === 0) return data
+    const { entities } = yield* many(refs)
+    // Keyed by the ref as the plugin wrote it (with or without its version).
+    const labels = Object.fromEntries(refs.flatMap((ref) => {
+      const e = entities.find((x) => ref === x.ref || ref === `${x.type}:${x.id}`)
+      return e === undefined ? [] : [[ref, e.label]]
+    }))
+    return { ...(data as object), labels }
+  })
+
 export const pluginAgents = (
   log: ThreadLog,
   threadId: string,
@@ -40,7 +61,11 @@ export const pluginAgents = (
   prompts?: PromptQueue,
   /** The plugin's declared surfaces (its cards among them). */
   surfacesOf: (plugin: string) => ReadonlyArray<Surface> = () => [],
+  /** Resolves refs to labels (the host's entities) for tables' ref columns. */
+  many?: Many,
 ) => {
+  // Per view: labels resolve in order, so a later set never lands before an earlier one.
+  const pending = new Map<string, Promise<unknown>>()
   const streams = new Map<string, ReturnType<typeof makeActivity>>()
   const views = threadViews(log, threadId)
   const checkId = (id: unknown) => {
@@ -97,7 +122,16 @@ export const pluginAgents = (
     let a = streams.get(plugin)
     if (a === undefined) streams.set(plugin, (a = makeActivity(log, threadId, `${threadId}-${plugin}-agents`)))
     const id = `${plugin}:${e.id}`
-    if (e.event === "set") return views.set(keyFor(plugin, id, e.view), e.section, e.data)
+    if (e.event === "set") {
+      const key = keyFor(plugin, id, e.view)
+      const layout = e.view === undefined ? undefined : layoutOf(plugin, e.view)
+      if (many === undefined || layout === undefined) return views.set(key, e.section, e.data)
+      const next = (pending.get(key) ?? Promise.resolve())
+        .then(() => Effect.runPromise(withLabels(layout, e.section, e.data, many).pipe(Effect.orElseSucceed(() => e.data))))
+        .then((d) => views.set(key, e.section, d))
+      pending.set(key, next)
+      return
+    }
     if (e.event === "attention") return a.attention(id, typeof e.reason === "string" && e.reason.length > 0 ? e.reason.slice(0, 80) : undefined)
     if (e.event === "append") return views.append(keyFor(plugin, id, e.view), e.section, e.lines)
     if (e.event === "close") {

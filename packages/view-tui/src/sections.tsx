@@ -110,12 +110,20 @@ const Log: Leaf = ({ view, path, width }) => {
   )
 }
 type TableRow = { id: string; cells: Record<string, string>; tone?: string }
+type RefLabel = { readonly text: string; readonly tone: string; readonly glyph: string }
+/** What a cell shows: a ref column's label (glyph and text) when the core resolved one, else the value. */
+const cellText = (v: string, ref: boolean, labels: Readonly<Record<string, RefLabel>> | undefined) => {
+  const l = ref ? labels?.[v] : undefined
+  return l === undefined ? v : `${l.glyph} ${l.text}`
+}
+const labelsOf = (view: ViewState, path: string) => (view.data[path] as { labels?: Readonly<Record<string, RefLabel>> } | undefined)?.labels
 /** A table's column widths and where each starts (after the gutter): as wide as their widest cell or label with its sort mark (at most 24); the last one takes what is left. */
 const tableLayout = (view: ViewState, path: string, leaf: LayoutLeaf, width: number) => {
   const cols = leaf.columns ?? []
   const rows = ((view.data[path] as { rows?: ReadonlyArray<TableRow> } | undefined)?.rows ?? [])
   const gutter = leaf.selectable === true ? 3 : 2
-  const fixedWidths = cols.map((c, ci) => (ci === cols.length - 1 ? 0 : Math.min(24, Math.max(c.label.length + 2, ...rows.map((r) => (r.cells[c.id] ?? "").replace(/\s*\n\s*/g, " ").length)))))
+  const labels = labelsOf(view, path)
+  const fixedWidths = cols.map((c, ci) => (ci === cols.length - 1 ? 0 : Math.min(24, Math.max(c.label.length + 2, ...rows.map((r) => cellText(r.cells[c.id] ?? "", c.ref === true, labels).replace(/\s*\n\s*/g, " ").length)))))
   const fixed = fixedWidths.reduce((a, w) => a + w + 2, 0)
   const widths = fixedWidths.map((w) => (w === 0 ? Math.max(4, width - gutter - fixed) : w))
   const starts = widths.map((_, i) => gutter + widths.slice(0, i).reduce((a, w) => a + w + 2, 0))
@@ -142,6 +150,7 @@ const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onH
   const C = useColors()
   const fg = useToneFg()
   const { cols, gutter, widths } = tableLayout(view, path, leaf, width)
+  const labels = labelsOf(view, path)
   const rows = shownRows(view, ui, path) as ReadonlyArray<TableRow>
   const selectable = leaf.selectable === true
   const cells = (get: (c: { id: string; label: string }) => string) => cols.map((c, ci) => pad(fit(get(c), widths[ci]!), widths[ci]!)).join("  ")
@@ -179,10 +188,12 @@ const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onH
             <text wrapMode="none" onMouseDown={() => onPick?.(i)}>
               {cols.map((c, ci) => {
                 const v = r.cells[c.id] ?? ""
-                const col = c as { readonly tone?: string; readonly tones?: Readonly<Record<string, string>> }
+                const col = c as { readonly tone?: string; readonly tones?: Readonly<Record<string, string>>; readonly ref?: true }
+                // A ref cell draws its label in the label's tone (the entity's kind), unless the row has its own.
+                const label = col.ref === true ? labels?.[v] : undefined
                 return (
-                  <span key={c.id} fg={fg(r.tone ?? col.tones?.[v] ?? col.tone)}>
-                    {`${pad(fit(v, widths[ci]!), widths[ci]!)}${ci < cols.length - 1 ? "  " : ""}`}
+                  <span key={c.id} fg={fg(r.tone ?? label?.tone ?? col.tones?.[v] ?? col.tone)}>
+                    {`${pad(fit(cellText(v, col.ref === true, labels), widths[ci]!), widths[ci]!)}${ci < cols.length - 1 ? "  " : ""}`}
                   </span>
                 )
               })}
@@ -318,7 +329,7 @@ const buttonsOf = (view: ViewState, ui: ViewUi, leaf: { readonly path: string; r
 const cardHeight = (card: NonNullable<ReturnType<typeof cursorRow>>, view: ViewState, width: number, cap: number) => {
   const { cols, widths } = tableLayout(view, card.path, card.leaf, width)
   const lines = cols.reduce((a, c, i) => {
-    const v = card.row.cells?.[c.id] ?? ""
+    const v = cellText(card.row.cells?.[c.id] ?? "", c.ref === true, labelsOf(view, card.path))
     return i > 0 && v.replace(/\s*\n\s*/g, " ").length > widths[i]! ? a + 1 + v.split("\n").reduce((n, l) => n + Math.max(1, Math.ceil(l.length / Math.max(1, width - 4))), 0) : a
   }, 1)
   return Math.max(1, Math.min(cap, lines))
@@ -328,8 +339,10 @@ const RowCard = (p: { readonly card: NonNullable<ReturnType<typeof cursorRow>>; 
   const C = useColors()
   const fg = useToneFg()
   const { cols, widths } = tableLayout(p.view, p.card.path, p.card.leaf, p.width)
-  const text = (i: number) => (p.card.row.cells?.[cols[i]!.id] ?? "").replace(/\s*\n\s*/g, " ")
-  const long = cols.flatMap((c, i) => (i > 0 && text(i).length > widths[i]! ? [{ label: c.label, value: p.card.row.cells?.[c.id] ?? "" }] : []))
+  const labels = labelsOf(p.view, p.card.path)
+  const cell = (i: number) => cellText(p.card.row.cells?.[cols[i]!.id] ?? "", cols[i]!.ref === true, labels)
+  const text = (i: number) => cell(i).replace(/\s*\n\s*/g, " ")
+  const long = cols.flatMap((c, i) => (i > 0 && text(i).length > widths[i]! ? [{ label: c.label, value: cell(i) }] : []))
   const short = cols.flatMap((c, i) => (i > 0 && text(i) !== "" && text(i).length <= widths[i]! ? [`${c.label} ${text(i)}`] : []))
   return (
     // A shaded panel with an accent bar, so it never reads as another row; as tall as the row needs (`cardHeight`), a blank row above it; past its cap it scrolls.

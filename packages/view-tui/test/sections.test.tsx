@@ -199,3 +199,23 @@ test("a column's tone colours its cells, its tones by value (a severity's high, 
   expect(fgOf("low")).toBe(THEME.dim)
   expect(fgOf("UX-0003")).toBe(THEME.ok)
 })
+
+test("a ref cell draws its label: glyph and text in its tone", async () => {
+  const v: ViewState = {
+    agent: "t",
+    layout: layoutOf(defineView("t", { list: { kind: "table", role: "pinned", title: "F", columns: [{ id: "card", label: "card", ref: true }] } })),
+    data: { list: { rows: [{ id: "a", cells: { card: "gherkin/card:UX-0001" } }], labels: { "gherkin/card:UX-0001": { text: "UX-0001 Plugin asks", tone: "card", glyph: "◇" } } } },
+  }
+  const t = await testRender(<AgentView view={v} ui={initialViewUi} height={20} />, { width: 60, height: 20, exitOnCtrlC: false, exitSignals: [] })
+  destroy = () => t.renderer.destroy()
+  await t.renderOnce()
+  await Bun.sleep(5)
+  await t.renderOnce()
+  const f = t.captureCharFrame()
+  expect(f).toContain("◇ UX-0001 Plugin asks")
+  expect(f).not.toContain("gherkin/card:")
+  const hex = (c: { r: number; g: number; b: number }) => `#${[c.r, c.g, c.b].map((x) => Math.round(x * 255).toString(16).padStart(2, "0")).join("")}`
+  // The table row (the row card under it draws its first column in the accent).
+  const span = t.captureSpans().lines.filter((l) => !l.spans.some((s) => s.text.includes("┃"))).flatMap((l) => l.spans).find((s) => s.text.includes("UX-0001"))!
+  expect(hex(span.fg)).toBe(THEME.attention)
+})

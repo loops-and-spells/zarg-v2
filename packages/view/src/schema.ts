@@ -23,7 +23,7 @@ export const Action = Schema.Struct({
 /** What a column's menu offers beside sorting: ticking by value, nothing, ticking a numeric range (the cell's last number), or a search that sorts by match. */
 export const ColumnFilter = Schema.Union([Schema.Literals(["values", "none", "search"]), Schema.Struct({ range: Schema.Tuple([Schema.Number, Schema.Number]), step: Schema.optionalKey(Schema.Number) })])
 /** `tone` colours a column's cells; `tones` by value (a severity's "high" in error); a row's own tone wins over both. */
-export const Column = Schema.Struct({ id: Schema.String, label: Schema.String, order: Schema.optionalKey(Schema.Array(Schema.String)), filter: Schema.optionalKey(ColumnFilter), tone: Schema.optionalKey(Tone), tones: Schema.optionalKey(Schema.Record(Schema.String, Tone)) })
+export const Column = Schema.Struct({ id: Schema.String, label: Schema.String, order: Schema.optionalKey(Schema.Array(Schema.String)), filter: Schema.optionalKey(ColumnFilter), tone: Schema.optionalKey(Tone), tones: Schema.optionalKey(Schema.Record(Schema.String, Tone)), ref: Schema.optionalKey(Schema.Literal(true)) })
 
 export const StatsData = Schema.Struct({
   items: Schema.Array(Schema.Struct({ label: Schema.String, value: Schema.String, tone: Schema.optionalKey(Tone) })),
@@ -37,7 +37,7 @@ export const ListData = Schema.Struct({
 export const LogLine = Schema.Struct({ text: Schema.String, tone: Schema.optionalKey(Tone), at: Schema.optionalKey(Schema.Number) })
 export const LogData = Schema.Struct({ lines: Schema.Array(LogLine) })
 /** `search`: text a searchable table also matches a row by, beyond its cells (a note it does not show). */
-export const TableData = Schema.Struct({ rows: Schema.Array(Schema.Struct({ id: Schema.String, cells: Schema.Record(Schema.String, Schema.String), tone: Schema.optionalKey(Tone), search: Schema.optionalKey(Schema.String) })) })
+export const TableData = Schema.Struct({ rows: Schema.Array(Schema.Struct({ id: Schema.String, cells: Schema.Record(Schema.String, Schema.String), tone: Schema.optionalKey(Tone), search: Schema.optionalKey(Schema.String) })), labels: Schema.optionalKey(Schema.Record(Schema.String, Schema.Struct({ text: Schema.String, tone: Tone, glyph: Schema.String }))) })
 export const KeyValueData = Schema.Struct({ pairs: Schema.Array(Schema.Struct({ key: Schema.String, value: Schema.String })) })
 /** `rows`: for a text that follows a table, the text for each of its rows (by id); `markdown` when none fits. */
 export const TextData = Schema.Struct({ markdown: Schema.String, rows: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)) })
