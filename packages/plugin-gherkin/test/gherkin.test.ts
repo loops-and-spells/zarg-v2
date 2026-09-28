@@ -110,7 +110,7 @@ describe("gherkin rules", () => {
     const ids = await run(
       Effect.andThen(call("add-state", { text: "a lonely screen", terminal: true }), PluginHost.use((h) => h.agenda())),
     )
-    expect(ids.map((i) => i.id)).toEqual(["gherkin:unreached:S-0001", "gherkin:no-personas"])
+    expect(ids.map((i) => i.id)).toEqual(["gherkin:no-personas", "gherkin:unreached:S-0001"])
   })
 
   test("a card needs at least one Then", async () => {
