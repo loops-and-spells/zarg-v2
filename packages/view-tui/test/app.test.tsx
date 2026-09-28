@@ -1054,9 +1054,9 @@ describe("column filters and the row card", () => {
     return t
   }
   const body = (t: Awaited<ReturnType<typeof render>>) => t.captureCharFrame().split("\n").slice(0, -2)
-  test("the highlighted row shows in full at the top in place of the summary; a click on a row only moves the cursor, its mark ticks it", async () => {
+  test("the highlighted row shows in full under its table, the summary stays; a click on a row only moves the cursor, its mark ticks it", async () => {
     const t = await open()
-    expect(t.captureCharFrame()).not.toContain("32/9")
+    expect(t.captureCharFrame()).toContain("32/9")
     let lines = body(t)
     const y = lines.findIndex((l) => l.includes("F2   ") && l.includes("○"))
     await t.mockMouse.click(lines[y]!.indexOf("F2") + 4, y)
@@ -1170,15 +1170,24 @@ describe("tabs, the fixed card, breathing room", () => {
     expect(t.captureCharFrame()).toContain("▍○ L1")
     expect(ls[z + 1]!.slice(ls[z]!.indexOf("Likes"), ls[z]!.indexOf("Likes") + 7)).toBe("▔".repeat(7))
   })
-  test("the row card keeps one height whatever the row: the table below stays put", async () => {
+  test("the row card sits under its table, a blank row between, as tall as its row needs; the heading above stays put", async () => {
     const t = await open()
     t.mockInput.pressKey("]"); await settle(t)
     const at = () => lines(t).findIndex((l) => l.includes("Findings 2"))
     const before = at()
-    expect(t.captureCharFrame()).toContain("▍○ F1")
+    let ls = lines(t)
+    const last = ls.findIndex((l) => l.includes("○ F2"))
+    expect(ls[last + 1]!.slice(24).trim()).toBe("")
+    expect(ls[last + 2]).toContain("○ F1")
+    expect(ls.findIndex((l, i) => i > last && l.includes("a long note a long note"))).toBeGreaterThan(last + 2)
     t.mockInput.pressArrow("down"); await settle(t)
+    ls = lines(t)
     expect(t.captureCharFrame()).toContain("▍○ F2")
     expect(at()).toBe(before)
+    // A short row: a short card (its line, with its note inline).
+    const card = ls.findIndex((l, i) => i > last + 1 && l.includes("○ F2"))
+    expect(ls[card]).toContain("note short")
+    expect(ls.slice(card + 1).some((l) => l.includes("a long note a long"))).toBe(false)
   })
   test("a blank row between one section and the next", async () => {
     const t = await open()

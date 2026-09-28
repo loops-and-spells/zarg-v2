@@ -256,6 +256,15 @@ const buttonsOf = (view: ViewState, ui: ViewUi, leaf: { readonly path: string; r
   return rows.length > 0 && actions.length > 0 ? { rows, actions } : undefined
 }
 
+/** How tall a row card would be: its line, then each cut column's label and wrapped text; at most `cap`. */
+const cardHeight = (card: NonNullable<ReturnType<typeof cursorRow>>, view: ViewState, width: number, cap: number) => {
+  const { cols, widths } = tableLayout(view, card.path, card.leaf, width)
+  const lines = cols.reduce((a, c, i) => {
+    const v = card.row.cells?.[c.id] ?? ""
+    return i > 0 && v.replace(/\s*\n\s*/g, " ").length > widths[i]! ? a + 1 + v.split("\n").reduce((n, l) => n + Math.max(1, Math.ceil(l.length / Math.max(1, width - 2))), 0) : a
+  }, 1)
+  return Math.max(1, Math.min(cap, lines))
+}
 /** The row under a table's cursor, in full: its mark and first column, the short columns on one dim line, then each column its cell cuts, wrapped under its label. */
 const RowCard = (p: { readonly card: NonNullable<ReturnType<typeof cursorRow>>; readonly view: ViewState; readonly width: number; readonly height: number }) => {
   const { cols, widths } = tableLayout(p.view, p.card.path, p.card.leaf, p.width)
@@ -263,8 +272,8 @@ const RowCard = (p: { readonly card: NonNullable<ReturnType<typeof cursorRow>>; 
   const long = cols.flatMap((c, i) => (i > 0 && text(i).length > widths[i]! ? [{ label: c.label, value: p.card.row.cells?.[c.id] ?? "" }] : []))
   const short = cols.flatMap((c, i) => (i > 0 && text(i) !== "" && text(i).length <= widths[i]! ? [`${c.label} ${text(i)}`] : []))
   return (
-    // One height whatever the row, so the sections below stay put; a long row scrolls inside.
-    <scrollbox focusable={false} style={{ flexShrink: 0, height: p.height, marginBottom: 1 }}>
+    // As tall as the row needs (`cardHeight`), a blank row above it; past its cap it scrolls.
+    <scrollbox focusable={false} style={{ flexShrink: 0, height: p.height, marginTop: 1 }}>
       <text wrapMode="none">
         {p.card.leaf.selectable === true ? <span fg={p.card.selected ? THEME.accent : THEME.dim}>{p.card.selected ? "● " : "○ "}</span> : null}
         <span fg={fg(p.card.row.tone)}>
@@ -394,13 +403,11 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
   let seen = 0
   return (
     <box ref={root} style={{ flexDirection: "column", flexGrow: 1, overflow: "hidden" }}>
-      {card !== undefined ? <RowCard card={card} view={props.view} width={width} height={Math.max(3, Math.floor(props.height / 3))} /> : null}
       {all.map((s, i) => {
         const leaf = leafOf(props.view, props.ui, s.id)
         if (leaf === undefined) return null
         const Draw = renderers[leaf.leaf.kind]
         const focused = props.ui.focus === i
-        if (s.role === "summary" && s.kind === "stats" && card !== undefined) return null
         if (s.role === "summary" && s.kind === "stats")
           return (
             <box key={s.id} style={{ flexShrink: 0, height: 1, marginBottom: 1 }}>
@@ -413,7 +420,9 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
         const after = seen++ > 0
         const buttons = props.onAct === undefined ? undefined : buttonsOf(props.view, props.ui, leaf)
         // The buttons and the blank line above them.
-        const extra = buttons === undefined ? 0 : 2
+        // Its cursor row's card under it, and the blank row above that.
+        const cardRows = card !== undefined && card.path === leaf.path ? cardHeight(card, props.view, width, Math.max(3, Math.floor(props.height / 3))) : 0
+        const extra = (buttons === undefined ? 0 : 2) + (cardRows > 0 ? cardRows + 1 : 0)
         return (
           <box
             key={s.id}
@@ -469,6 +478,7 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
                 <Buttons actions={buttons.actions} count={buttons.rows.length} onPress={(id) => props.onAct!(leaf.path, id, buttons.rows)} {...(props.onClear !== undefined ? { onClear: () => props.onClear!(leaf.path) } : {})} />
               </box>
             ) : null}
+            {cardRows > 0 ? <RowCard card={card!} view={props.view} width={width} height={cardRows} /> : null}
           </box>
         )
       })}
