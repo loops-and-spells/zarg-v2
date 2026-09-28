@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0091",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0093",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0081",
+  "props": {
+    "title": "CLI actor finds a card's code",
+    "when": "the CLI actor asks for a card's code"
+  },
+  "type": "gherkin/card"
+}

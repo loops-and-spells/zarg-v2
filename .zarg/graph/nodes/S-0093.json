@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0093",
+  "props": {
+    "text": "each file line tagged with the card is listed"
+  },
+  "type": "gherkin/state"
+}

@@ -1,0 +1,18 @@
+{
+  "edges": [
+    {
+      "to": "S-0001",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0091",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0079",
+  "props": {
+    "title": "CLI actor finds the affected cards",
+    "when": "the CLI actor asks which cards changed since the last checkpoint"
+  },
+  "type": "gherkin/card"
+}

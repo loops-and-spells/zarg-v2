@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0095",
+  "props": {
+    "terminal": true,
+    "text": "the next affected list is empty"
+  },
+  "type": "gherkin/state"
+}

@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "S-0092",
+  "props": {
+    "terminal": true,
+    "text": "zarg reports the graph in sync"
+  },
+  "type": "gherkin/state"
+}
