@@ -2,7 +2,7 @@
 
 Date: 2026-09-27
 Status: design approved in conversation (JSON example reviewed; "support multiple by"), pending written review
-Touches: `@zarg/plugin-gherkin` (node type, edge, tools, lints, render, agenda, stories), `@zarg/agent-rehearse` (testers), the Driver Agent's graph writes, `intent/zarg.md`
+Touches: `@zarg/plugin-gherkin` (node type, edge, tools, lints, render, agenda, stories), `@zarg/agent-rehearse` (testers), the Driver Agent (asks about personas), `intent/zarg.md` (edge personas only)
 
 ## Outcome
 
@@ -50,15 +50,18 @@ UX-0079 CLI actor finds the affected cards
 - Testers: one per persona that at least one card names (every kind, agents included), roleplaying its `text`. No decision-model screening, no intent parsing. `/rehearse` can still narrow to named personas.
 - Stories: unchanged (edge-pair over all cards). A tester walks each story that has at least one card by its persona; it judges only those steps, and the other steps are its context ("what happened so far"), so the operator's tester sees the Driver Agent's question before answering it.
 - Findings keep the persona that reported them (as now, by name).
-- A graph without personas: rehearse refuses with "no personas: add one with gherkin/add-persona" (today's intent fallback is removed).
+- A graph without personas: rehearse refuses with "no personas yet: the Driver Agent asks about them" (today's intent fallback is removed once personas are in the graph).
 
-## Migration
+## Who manages personas
 
-A one-time, reviewable step (a CLI command the operator runs, `zarg personas seed`, printing what it would do with `--dry-run`):
+The Driver Agent, with the operator; nothing is built in (zarg specifies any product, so no persona list ships with it).
 
-- Creates P-0001 Operator (human), P-0002 CLI actor (cli), P-0003 Driver Agent, P-0004 Planner Agent, P-0005 Implementer Agent, P-0006 Plugin Agent (agent), with the texts from `intent/zarg.md`.
-- Links each card by its title prefix ("Operator …" → P-0001, "CLI actor …" → P-0002, "Driver Agent …" → P-0003, …). Cards whose title names no persona ("Verify passes", "A cold model warms up") are listed, not guessed; they land on the agenda as "Who does …?" for the Driver Agent to ask about.
-- `intent/zarg.md` keeps its "Affected users and systems" list as prose; zarg no longer reads it for testers.
+- **A new project:** with no personas in the graph, the agenda asks "Who uses this product?". The Driver Agent drafts personas from the intent's Personas section (the edges: who meets the product) and the conversation, and shows them with `Inquire.confirm` like any graph change; the operator accepts, edits or adds.
+- **New cards:** `add-card` needs `by`. The Driver Agent names the persona while drafting the card; when none fits, it proposes a new persona in the same confirmation.
+- **Existing cards without `by`:** one agenda item, "Who does these N cards?". The Driver Agent proposes the whole mapping (from each card's title and When) as one change; cards it cannot place it asks about one by one.
+- **The intent names edge personas only** (who meets the product from outside). Personas for the product's own internal actors (in this repo: the Driver, Planner, Implementer and Plugin Agents) live only in the graph, where cards need them.
+- **CLI actors** (the zarg-drive skill) follow the same rules through the same tools.
+- No migration command: this repo's graph gets its personas the same way, through the Driver Agent (or zarg-drive), confirmed by the operator.
 
 ## Errors
 
@@ -71,10 +74,10 @@ A one-time, reviewable step (a CLI command the operator runs, `zarg personas see
 
 - Gherkin plugin: add, edit and remove personas (refusals included); cards with one and with two `by` edges; the `By` line in render; agenda items for a card without `by` and an unused persona; `affected` ignores persona text edits, counts `by` changes; lints for name, text and kind.
 - Rehearse: testers come from personas (agents included, no screening); a tester judges only its persona's steps and sees the others as context; a card by two personas is judged by both testers; the no-personas refusal.
-- Seed: dry run prints the plan; a run creates the six personas, links cards by prefix, lists the rest; running it twice changes nothing.
+- Driver Agent: with no personas, its agenda asks who uses the product; a card without `by` yields one mapping item; a confirmed mapping links every card it names.
 
 ## Scope
 
-In: the persona node and `by` edge, their tools, lints, agenda items and render; rehearse's testers from personas; the seed command; the zarg-drive skill naming `by` on every new card.
+In: the persona node and `by` edge, their tools, lints, agenda items and render; rehearse's testers from personas; the Driver Agent asking about personas (new projects, cards without `by`); the zarg-drive skill naming `by` on every new card.
 
 Out: personas in the TUI (a persona filter on the review queue or the grid), per-persona settings for rehearse (budgets, models), personas for systems (git, model providers stay prose in the intent).

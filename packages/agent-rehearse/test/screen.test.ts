@@ -65,3 +65,9 @@ describe("rehearse screen", () => {
     expect((await Effect.runPromise(personasOf(md, decide))).map((p) => p.name)).toEqual(["The developer"])
   })
 })
+
+test("personas come from the intent's Personas section (the older Affected users heading still works)", async () => {
+  const md = "## Personas\n\n- **The operator**: the person shaping their product with zarg.\n\n## Inputs\n\n- The project's git repository.\n"
+  const decide = (req: DecisionRequest) => Effect.succeed({ person: noul(req.state.includes("operator") ? 0.9 : 0.1) })
+  expect((await Effect.runPromise(personasOf(md, decide))).map((p) => p.text)).toEqual(["**The operator**: the person shaping their product with zarg."])
+})

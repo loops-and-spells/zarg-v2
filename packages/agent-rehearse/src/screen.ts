@@ -49,11 +49,11 @@ export const screenStep = (decide: Decide, persona: Persona, prior: ReadonlyArra
 // the git repository 0.26, model providers 0.18, a payments API 0.23. People rank above systems, below 0.5.
 const PERSON_AT = 0.4
 
-/** One tester per person under "Affected users" in the intent; systems in that list are not testers. */
+/** One tester per person under "Personas" (or the older "Affected users") in the intent; systems in that list are not testers. */
 export const personasOf = (markdown: string, decide: Decide) =>
   Effect.gen(function* () {
     const lines = markdown.split("\n")
-    const at = lines.findIndex((l) => /^##\s+Affected users/.test(l))
+    const at = lines.findIndex((l) => /^##\s+(Personas|Affected users)/.test(l))
     if (at < 0) return [] as ReadonlyArray<Persona>
     const bullets: Array<string> = []
     for (const l of lines.slice(at + 1)) {
