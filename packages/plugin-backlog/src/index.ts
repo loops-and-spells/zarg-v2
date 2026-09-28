@@ -204,7 +204,8 @@ export default definePlugin({
       Effect.gen(function* () {
         const i = (yield* loadItems).find((x) => x.id === id)
         if (i === undefined) return `no plan ${id}`
-        if (i.status === to && needs === undefined) return `${id} is already in ${LANE_TITLES[to]}`
+        // The operator's move to the lane a plan is in does nothing, unless it clears what the plan needed of them; an agent's note is kept.
+        if (i.status === to && needs === undefined && i.needs === undefined && by === "operator") return `${id} is already in ${LANE_TITLES[to]}`
         const next = moved(i, to, by, what)
         yield* saveItem(needs !== undefined ? { ...next, needs } : next)
         if (to === "done") yield* markFeedback(i.feedback, "closed")

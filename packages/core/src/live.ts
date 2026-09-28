@@ -27,7 +27,7 @@ import { pluginAgents } from "./plugin-agents"
 import { forDriver, makeYolo, PluginControl, pluginHostLayer, trustedAgents, USER_DIR, vaultFrom, ZARG_ROOT } from "./plugins"
 import { STUB_MODEL, stubLayer } from "./stub"
 import { reasonOf, reconcileGate, type ReconcileSettings } from "./phases"
-import { checkoutProblem, commitGraph, gitRun, restoreGraph } from "@zarg/reconcile"
+import { checkoutProblem, commitGraph, gitRun, graphFiles } from "@zarg/reconcile"
 import { makePlanner } from "./planner"
 import { makeReconcile } from "./reconcile"
 import type { ReconcileAnswer } from "./server"
@@ -99,14 +99,15 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         pluginHost: pluginsFor(root, env, config, sensitive),
         affected: (before, after) => host.affected(before, after),
         onLanded: (cards) => void Effect.runFork(planner.landed(cards)),
+        onFailed: (cards) => void Effect.runFork(planner.failed(cards)),
       }).pipe(Effect.provideService(EffectScope.Scope, scope))
     // The Planner Agent: Ready plans on the Backlog are applied to the graph, then reconcile implements them.
     const planner = makePlanner({
       invoke: (plugin, method, params) => host.invoke(plugin, method, params),
-      call: (name, params) => host.call(name, params) as never,
-      exclusive: (effect) => host.exclusive(effect),
+      calls: (list) => host.calls(list) as never,
+      files: () => graphFiles(root),
+      exists: (card) => Effect.map(store.snapshot, (s) => s.nodes.has(card)).pipe(Effect.orElseSucceed(() => true)),
       commit: (ids, message) => commitGraph(root, ids, message),
-      restore: (ids) => restoreGraph(root, ids),
       notify: () => reconcile?.notify(),
       reconcileOn: () => reconcile !== undefined,
       running: () => Effect.map(host.entities.query({ type: "backlog/item", where: { status: "running" } }), (es) => es.map((e) => ({ id: e.id, data: e.data }))),

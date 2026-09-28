@@ -105,8 +105,9 @@ export const pluginAgents = (
       // Panels open any time; the rest take the screen or the keys, so only the operator's call opens them.
       if (s.kind !== "panel" && e.gesture !== true) throw new Error(`${s.name} is a ${s.kind}: it opens only while you handle the developer's call; ask for attention instead`)
       const id = `${plugin}:${o.agent}`
-      // Only for its own agents that exist: no surfaces for ids it made up.
-      if (!views.has(id)) throw new Error(`plugin ${plugin} has not started an agent ${o.agent}`)
+      // Only for its own agents that exist (or its nav items' views): no surfaces for ids it made up.
+      const nav = surfacesOf(plugin).some((n) => n.kind === "nav" && n.name === o.agent)
+      if (!views.has(id) && !nav) throw new Error(`plugin ${plugin} has not started an agent ${o.agent}`)
       if (s.kind === "popover" && prompts.shownFor(id, viewKey(views, id, s.view)) === undefined && prompts.shownBy(plugin)) throw new Error(`plugin ${plugin} already has a popover up: one at a time`)
       return { s, id }
     })

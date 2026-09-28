@@ -46,3 +46,7 @@ describe("backlog items", () => {
     expect(boardCard(item("B-01", { status: "running", agent: "Planner" }), all, new Set()).lines).toEqual([{ text: "Operator", tone: "persona" }, { text: "⠼ Planner", tone: "accent" }])
   })
 })
+
+test("a plan after a dropped or missing plan is not held back", () => {
+  expect(pickNext([item("B-01", { dropped: true }), item("B-02", { after: ["B-01", "B-09"] })], () => false)?.id).toBe("B-02")
+})

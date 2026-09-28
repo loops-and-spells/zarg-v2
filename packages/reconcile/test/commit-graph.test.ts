@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect } from "effect"
-import { commitGraph, restoreGraph } from "../src"
+import { commitGraph, graphFiles } from "../src"
 
 describe("commitGraph", () => {
   test("commitGraph commits only the files the triage touched, and skips nodes that came and went", async () => {
@@ -23,20 +23,31 @@ describe("commitGraph", () => {
     expect(new TextDecoder().decode(sh("show", "--name-only", "--format=", "HEAD").stdout).trim().split("\n")).toEqual([".zarg/graph/nodes/UX-0001.json"])
     expect(new TextDecoder().decode(sh("status", "--porcelain").stdout)).toContain("S-0099.json")
   })
-  test("restoreGraph puts tracked nodes back and removes new ones; other files stay", async () => {
+  test("graphFiles puts touched nodes back as they were before (the operator's uncommitted edits kept) and says which were dirty", async () => {
     const root = mkdtempSync(join(tmpdir(), "zarg-graph-restore-"))
     const sh = (...args: Array<string>) => Bun.spawnSync(["git", ...args], { cwd: root, env: process.env })
     sh("init", "-q")
     sh("config", "user.name", "zarg-test")
     sh("config", "user.email", "zarg-test@example.invalid")
+    const node = (id: string) => join(root, ".zarg", "graph", "nodes", `${id}.json`)
     mkdirSync(join(root, ".zarg", "graph", "nodes"), { recursive: true })
-    writeFileSync(join(root, ".zarg", "graph", "nodes", "S-0001.json"), "{}\n")
+    writeFileSync(node("S-0001"), "{}\n")
+    writeFileSync(node("S-0003"), "{}\n")
     sh("add", "-A")
     sh("commit", "-q", "-m", "base")
-    writeFileSync(join(root, ".zarg", "graph", "nodes", "S-0001.json"), '{"changed":true}\n')
-    writeFileSync(join(root, ".zarg", "graph", "nodes", "UX-0009.json"), "{}\n")
-    writeFileSync(join(root, ".zarg", "graph", "nodes", "S-0002.json"), "{}\n")
-    await Effect.runPromise(restoreGraph(root, ["S-0001", "UX-0009"]))
-    expect(new TextDecoder().decode(sh("status", "--porcelain").stdout).trim()).toBe("?? .zarg/graph/nodes/S-0002.json")
+    // The operator's uncommitted work: an edit, and a node of their own.
+    writeFileSync(node("S-0001"), '{"operator":true}\n')
+    writeFileSync(node("UX-0005"), '{"operator":true}\n')
+    const before = await Effect.runPromise(graphFiles(root))
+    // A plan changes those, adds one, and changes a clean one; then fails.
+    writeFileSync(node("S-0001"), '{"plan":true}\n')
+    writeFileSync(node("UX-0005"), '{"plan":true}\n')
+    writeFileSync(node("UX-0009"), '{"plan":true}\n')
+    writeFileSync(node("S-0003"), '{"plan":true}\n')
+    expect(await Effect.runPromise(before.dirty(["S-0001", "UX-0005", "UX-0009", "S-0003"]))).toEqual(["S-0001", "UX-0005"])
+    await Effect.runPromise(before.restore(["S-0001", "UX-0005", "UX-0009", "S-0003"]))
+    const read = (id: string) => Bun.file(node(id)).text()
+    expect([await read("S-0001"), await read("UX-0005"), await read("S-0003")]).toEqual(['{"operator":true}\n', '{"operator":true}\n', "{}\n"])
+    expect(await Bun.file(node("UX-0009")).exists()).toBe(false)
   })
 })

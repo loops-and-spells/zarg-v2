@@ -7,22 +7,31 @@ const item = (over: Record<string, unknown> = {}) => ({
   changes: [{ tool: "edit-state", params: { id: "S-0002", text: "x" } }, { tool: "add-card", params: { title: "y" } }],
   feedback: [], steps: [], status: "ready", events: [], ...over,
 })
-const setup = (o: { next?: unknown; fail?: string; reconcile?: boolean; running?: ReadonlyArray<unknown> } = {}) => {
+const setup = (o: { next?: unknown; fail?: string; reconcile?: boolean; running?: ReadonlyArray<unknown>; movedFails?: boolean; dirty?: ReadonlyArray<string>; gone?: ReadonlyArray<string> } = {}) => {
   const log: Array<unknown> = []
   let nexts = [o.next === undefined ? item() : o.next]
   const p = makePlanner({
     invoke: (plugin, method, params) =>
-      Effect.sync(() => {
-        log.push([plugin, method, params])
-        return method === "next" ? (nexts.shift() ?? null) : null
+      o.movedFails === true && method === "moved"
+        ? Effect.fail({ _tag: "PluginError", message: "disk full" })
+        : Effect.sync(() => {
+            log.push([plugin, method, params])
+            return method === "next" ? (nexts.shift() ?? null) : null
+          }),
+    // All of a plan's calls under one hold of the graph lock (the host's `calls`).
+    calls: (list) =>
+      Effect.gen(function* () {
+        const touched: Array<string> = []
+        for (const c of list) {
+          if (o.fail !== undefined && c.name === "gherkin/add-card") return yield* Effect.fail({ touched, error: { _tag: "LintFailed", message: `${c.name}: ${o.fail}` } })
+          log.push(["call", c.name, c.params])
+          touched.push(...(c.name.endsWith("add-card") ? ["UX-0009"] : c.name.endsWith("edit-state") ? ["S-0002"] : []))
+        }
+        return touched
       }),
-    call: (name, params) =>
-      o.fail !== undefined && name === "gherkin/add-card"
-        ? Effect.fail({ _tag: "LintFailed", message: o.fail })
-        : Effect.sync(() => (log.push(["call", name, params]), { message: "ok", added: name.endsWith("add-card") ? ["UX-0009"] : [], changed: name.endsWith("edit-state") ? ["S-0002"] : [], removed: [], warnings: [] })),
-    exclusive: (e) => e,
+    files: () => Effect.succeed({ restore: (ids: ReadonlyArray<string>) => Effect.sync(() => void log.push(["restore", ids])), dirty: (ids: ReadonlyArray<string>) => Effect.succeed(ids.filter((id) => (o.dirty ?? []).includes(id))) }),
+    exists: (card) => Effect.succeed(!(o.gone ?? []).includes(card)),
     commit: (ids, message) => Effect.sync(() => (log.push(["commit", ids, message]), "abcdef0123")),
-    restore: (ids) => Effect.sync(() => void log.push(["restore", ids])),
     notify: () => void log.push(["notify"]),
     reconcileOn: () => o.reconcile !== false,
     running: () => Effect.succeed((o.running ?? []) as never),
@@ -65,5 +74,26 @@ describe("the Planner", () => {
     const { p, log } = setup({ running: [{ id: "B-01", data: item({ status: "running", cards: [{ ref: "gherkin/card:UX-0001@abc" }, { ref: "gherkin/card:UX-0002@def" }] }) }, { id: "B-02", data: item({ id: "B-02", status: "running" }) }] })
     await Effect.runPromise(p.landed(["UX-0001"]))
     expect(log).toEqual([["backlog", "moved", { id: "B-02", to: "review", by: "reconcile", what: "landed" }]])
+  })
+  test("the Running move fails: nothing is applied", async () => {
+    const { p, log } = setup({ movedFails: true })
+    await Effect.runPromise(p.tick)
+    expect(log).toEqual([["backlog", "next", {}]])
+  })
+  test("a node the operator changed and has not committed: the apply is undone and the plan waits for them", async () => {
+    const { p, log } = setup({ dirty: ["S-0002"] })
+    await Effect.runPromise(p.tick)
+    expect(log.filter((l) => (l as Array<unknown>)[0] === "commit")).toEqual([])
+    expect(log).toContainEqual(["restore", ["S-0002", "UX-0009"]])
+    expect(log.at(-1)).toEqual(["backlog", "moved", { id: "B-01", to: "ready", by: "Planner", what: "waits for your graph edits", needs: "commit your uncommitted changes to S-0002 first (the plan changes them too)" }])
+  })
+  test("a failed pass on a plan's card puts it back in Ready for the operator; a card the plan removed counts as landed", async () => {
+    const { p, log } = setup({ gone: ["UX-0002"], running: [{ id: "B-01", data: item({ status: "running", cards: [{ ref: "gherkin/card:UX-0001@abc" }, { ref: "gherkin/card:UX-0002@def" }] }) }, { id: "B-03", data: item({ id: "B-03", status: "running", cards: [{ ref: "gherkin/card:UX-0007@abc" }] }) }] })
+    await Effect.runPromise(p.landed(["UX-0001"]))
+    await Effect.runPromise(p.failed(["UX-0007"]))
+    expect(log).toEqual([
+      ["backlog", "moved", { id: "B-01", to: "review", by: "reconcile", what: "landed" }],
+      ["backlog", "moved", { id: "B-03", to: "ready", by: "reconcile", what: "the pass failed on UX-0007", needs: "the reconcile pass failed on UX-0007: see the driver's agenda, then move it to Ready" }],
+    ])
   })
 })

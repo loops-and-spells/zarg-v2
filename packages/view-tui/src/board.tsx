@@ -9,13 +9,15 @@ type Lane = { readonly id: string; readonly title: string; readonly cards: Reado
 const FOLDED = 3
 const GAP = 2
 
-/** A title wrapped to a width, whole (never cut off). */
-const wrap = (t: string, w: number): ReadonlyArray<string> => {
+/** A title wrapped to a width, whole (a word longer than the width is split, never cut off). */
+export const wrap = (t: string, w: number): ReadonlyArray<string> => {
+  const width = Math.max(1, w)
+  const words = t.split(/\s+/).filter((x) => x.length > 0).flatMap((word) => word.match(new RegExp(`.{1,${width}}`, "g")) ?? [])
   const lines: Array<string> = [""]
-  for (const word of t.split(/\s+/).filter((x) => x.length > 0)) {
+  for (const word of words) {
     const next = `${lines.at(-1)!} ${word}`.trim()
-    if (next.length <= w || lines.at(-1)!.length === 0) lines[lines.length - 1] = next.length <= w ? next : word.slice(0, w)
-    else lines.push(word.slice(0, w))
+    if (next.length <= width) lines[lines.length - 1] = next
+    else lines.push(word)
   }
   return lines
 }
@@ -75,7 +77,8 @@ export const Board = (p: { readonly view: ViewState; readonly ui: ViewUi; readon
   const b = boardUi(p.view, p.ui, p.path)
   const folded = lanes.filter((l) => b.folded.includes(l.id)).length
   const open = lanes.length - folded
-  const laneWidth = open === 0 ? 0 : Math.max(8, Math.floor((p.width - folded * (FOLDED + 1) - open * GAP) / open))
+  // Open lanes share what the strips leave; on a narrow terminal they get narrow rather than run off the edge.
+  const laneWidth = open === 0 ? 0 : Math.max(4, Math.floor((p.width - folded * (FOLDED + 1) - open * GAP) / open))
   const scrolls = useRef(new Map<string, ScrollBoxRenderable>())
   // The cursor card stays in view: its lane scrolls to it (the others do not move).
   const cursorLane = lanes[b.lane]

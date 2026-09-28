@@ -42,3 +42,8 @@ describe("boards in the terminal", () => {
     expect(hex(stripe.fg)).toBe(T.error)
   })
 })
+
+import { wrap } from "../src/board"
+test("a word longer than the lane is split across lines, never cut off", () => {
+  expect(wrap("Scaffold supercalifragilistic models", 8)).toEqual(["Scaffold", "supercal", "ifragili", "stic", "models"])
+})

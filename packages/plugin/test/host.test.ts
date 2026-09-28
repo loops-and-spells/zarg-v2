@@ -339,3 +339,21 @@ describe("review fixes: the host", () => {
     expect(e.message).toContain("denied")
   })
 })
+
+describe("PluginHost.calls", () => {
+  test("runs tool calls in order under one hold of the lock; a failure says what was touched so far", async () => {
+    const out = await run(
+      Effect.gen(function* () {
+        const host = yield* PluginHost
+        const ok = yield* host.calls([{ name: "notes/add-topic", params: { name: "a" } }, { name: "notes/add-note", params: { text: "x", topic: "T-0001" } }])
+        const bad = yield* Effect.flip(host.calls([{ name: "notes/add-topic", params: { name: "b" } }, { name: "notes/add-note", params: { text: "y", topic: "T-0999" } }]))
+        // The lock is free again: a plain call goes through.
+        const after = yield* host.call("notes/add-topic", { name: "c" })
+        return { ok, bad: { touched: bad.touched, tag: bad.error._tag }, after: after.added }
+      }),
+    )
+    expect(out.ok).toEqual(["T-0001", "N-0001"])
+    expect(out.bad).toEqual({ touched: ["T-0002"], tag: "ToolError" })
+    expect(out.after).toEqual(["T-0003"])
+  })
+})

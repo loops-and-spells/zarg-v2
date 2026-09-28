@@ -38,6 +38,8 @@ export class PluginHost extends Context.Service<
     readonly manifests: ReadonlyArray<Manifest>
     /** Run a plugin method through the write pipeline: run it in its process, check, commit. */
     readonly call: (name: string, params: unknown, expect?: Expect) => Effect.Effect<CallResult, ToolError | LintFailed | GraphError>
+    /** Several tool calls in order under one hold of the write lock; on the first failure, what was touched so far and the error. */
+    readonly calls: (list: ReadonlyArray<{ readonly name: string; readonly params: unknown }>) => Effect.Effect<ReadonlyArray<string>, { readonly touched: ReadonlyArray<string>; readonly error: ToolError | LintFailed | GraphError }>
     /** Check the whole graph as if every node were new. */
     readonly lint: Effect.Effect<ReadonlyArray<Finding>, IoError>
     readonly agenda: (focus?: ReadonlySet<string>) => Effect.Effect<ReadonlyArray<AgendaItem>, IoError>
@@ -514,8 +516,9 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
       // Calls in this process run one at a time: each reads the snapshot its changes are checked
       // against, so two at once would pick the same new ids. Other processes are caught by `expect`.
       const lock = yield* Semaphore.make(1)
-      const call = (name: string, raw: unknown, expect: Expect = {}) =>
-        Semaphore.withPermits(lock, 1)(Effect.gen(function* () {
+      /** One tool call through the pipeline; the caller holds the lock. */
+      const callHeld = (name: string, raw: unknown, expect: Expect = {}) =>
+        Effect.gen(function* () {
           const [plugin, method] = name.split("/") as [string, string | undefined]
           const r = running.get(plugin)
           if (r === undefined || method === undefined || RESERVED.has(method) || r.manifest.methods[method] === undefined) {
@@ -552,7 +555,20 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
             removed: d.removed.map((n) => n.id),
             warnings: findings,
           }
-        }))
+        })
+      const call = (name: string, raw: unknown, expect: Expect = {}) => Semaphore.withPermits(lock, 1)(callHeld(name, raw, expect))
+      /** Several tool calls in order under one hold of the lock (no other write lands between them); stops at the first that fails. */
+      const calls = (list: ReadonlyArray<{ readonly name: string; readonly params: unknown }>) =>
+        Semaphore.withPermits(lock, 1)(
+          Effect.gen(function* () {
+            const touched: Array<string> = []
+            for (const c of list) {
+              const r = yield* callHeld(c.name, c.params).pipe(Effect.mapError((error) => ({ touched: [...touched], error })))
+              touched.push(...r.added, ...r.changed, ...r.removed)
+            }
+            return [...new Set(touched)]
+          }),
+        )
 
       const lint = Effect.flatMap(store.snapshot, (after) =>
         check(Snapshot.empty, after, [...after.nodes.values()].map((node) => ({ _tag: "Put", node }))),
@@ -668,6 +684,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         loadWaiting,
         get entities() { return entities! },
         call,
+        calls,
         lint,
         agenda,
         suggest,

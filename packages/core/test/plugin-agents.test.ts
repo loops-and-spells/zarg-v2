@@ -190,3 +190,20 @@ test("the same layout with its keys in another order is the same: pushes keep ea
   views.flush()
   expect(log.all().filter((e) => (e as { type?: string; activityType?: string }).type === "ACTIVITY_SNAPSHOT" && (e as { activityType?: string }).activityType === "zarg.view").length).toBe(1)
 })
+
+test("a plugin opens a sheet for its nav view's agent during the operator's call", async () => {
+  const { makeSurfaces } = await import("../src/surfaces")
+  const { makePrompts } = await import("../src/prompts")
+  const log = await Effect.runPromise(makeLog(mkdtempSync(join(tmpdir(), "zarg-pa-")), (t) => t))
+  const board = layoutOf(defineView("backlog", { board: { kind: "board", role: "primary" } }))
+  const item = layoutOf(defineView("item", { item: { kind: "text", role: "primary" } }))
+  const surfaces = makeSurfaces(log, "main")
+  const prompts = makePrompts(log) as never
+  const decl = [{ kind: "nav", name: "backlog", view: "backlog", label: "Backlog" }, { kind: "sheet", name: "item", view: "item" }] as const
+  const on = pluginAgents(log, "main", (_p, v) => (v === "backlog" ? board : v === "item" ? item : undefined), (_p, n) => decl.find((d) => d.name === n) as never, surfaces, prompts, () => decl as never)
+  on("backlog", { event: "set", id: "backlog", view: "backlog", section: "board", data: { lanes: [] } })
+  on("backlog", { event: "set", id: "backlog", view: "item", section: "item", data: { markdown: "B-01" } })
+  expect(() => on("backlog", { event: "open", surfaces: [{ surface: "item", agent: "backlog", focus: true }], gesture: true })).not.toThrow()
+  const nav = log.all().filter((e) => (e as { name?: string }).name === "zarg.navigate").map((e) => (e as unknown as { value: { kind: string; view: string } }).value)
+  expect(nav.at(-1)).toMatchObject({ kind: "sheet", view: "backlog:backlog@item" })
+})

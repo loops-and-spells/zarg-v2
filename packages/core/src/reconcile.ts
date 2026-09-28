@@ -24,6 +24,8 @@ export interface ReconcileDeps {
   readonly dbFile?: string
   /** A pass landed these cards (the Planner moves their plans to Review). */
   readonly onLanded?: (cards: ReadonlyArray<string>) => void
+  /** A pass failed on these cards (their plans go back to Ready, for the operator). */
+  readonly onFailed?: (cards: ReadonlyArray<string>) => void
 }
 
 const summary = (r: PassResult) => {
@@ -96,6 +98,7 @@ export const makeReconcile = (deps: ReconcileDeps) =>
                     : "The pass failed; see the driver's agenda."
               if (text !== undefined) for (const d of E.textMessage(`implement-${crypto.randomUUID()}`, "assistant", text)) emit("implement", d)
               if (exit._tag === "Success" && exit.value.status === "landed" && exit.value.landed.length > 0) deps.onLanded?.(exit.value.landed)
+              if (exit._tag === "Success" && exit.value.failed.length > 0 && !stopRequested) deps.onFailed?.(exit.value.failed)
               for (const t of ["plan", "implement"] as const) emit(t, E.runFinished(t, runId))
             }),
           ),

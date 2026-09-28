@@ -37,11 +37,17 @@ export const neighbour = (lane: Lane, dir: 1 | -1): Lane => LANES[Math.max(0, Ma
 /** An item moved to a lane, the move recorded. */
 export const moved = (item: Item, to: Lane, by: string, what?: string): Item => {
   const { agent: _, needs: __, ...rest } = item
-  return { ...rest, status: to, ...(to === "running" || to === "review" ? { agent: by } : {}), events: [...item.events, { what: `${item.status} → ${to}${what !== undefined ? `: ${what}` : ""}`, by }] }
+  // A note on a plan already in the lane (the Planner's commit) is its own event.
+  const what_ = item.status === to ? (what ?? to) : `${item.status} → ${to}${what !== undefined ? `: ${what}` : ""}`
+  return { ...rest, status: to, ...(to === "running" || to === "review" ? { agent: by } : {}), events: [...item.events, { what: what_, by }] }
 }
 
-/** Items it waits for that are not done. */
-export const waitingOn = (item: Item, all: ReadonlyArray<Item>) => (item.after ?? []).filter((id) => all.find((x) => x.id === id)?.status !== "done")
+/** Items it waits for that are not done (a dropped or missing one no longer holds it back). */
+export const waitingOn = (item: Item, all: ReadonlyArray<Item>) =>
+  (item.after ?? []).filter((id) => {
+    const x = all.find((i) => i.id === id)
+    return x !== undefined && x.dropped !== true && x.status !== "done"
+  })
 
 /** The Planner's next: the oldest Ready item whose after items are done and whose cards have not changed since it was drafted. */
 export const pickNext = (items: ReadonlyArray<Item>, changed: (ref: string) => boolean) =>

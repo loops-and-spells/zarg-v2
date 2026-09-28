@@ -76,4 +76,23 @@ describe("the backlog's plans", () => {
     expect(Object.values(out.lanes).flat()).toEqual([])
     expect((out.feedback as Array<{ state: string }>)[0]!.state).toBe("open")
   })
+  test("an agent's note on a plan already in its lane is kept; → Ready clears a failed apply's need of the operator", async () => {
+    const out = await run(() => Effect.gen(function* () {
+      const { card, feedback } = yield* setUp
+      const h = yield* PluginHost
+      yield* h.invoke("backlog", "plan", planOf(card.ref, feedback))
+      yield* h.invoke("backlog", "moved", { id: "B-01", to: "running", by: "Planner", what: "applying 1 change" })
+      yield* h.invoke("backlog", "moved", { id: "B-01", to: "running", by: "Planner", what: "applied in abc1234" })
+      yield* h.invoke("backlog", "moved", { id: "B-01", to: "ready", by: "Planner", what: "apply failed", needs: "gherkin/edit-state: bad" })
+      const blocked = yield* h.invoke("backlog", "next", {})
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: ["B-01"] })
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "ready", rows: [] })
+      const e = yield* h.entities.get("backlog/item:B-01")
+      return { blocked, e: e.data as { needs?: string; events: Array<{ what: string }> }, next: yield* h.invoke("backlog", "next", {}) }
+    }))
+    expect(out.blocked).toBeNull()
+    expect(out.e.events.map((x) => x.what)).toContain("applied in abc1234")
+    expect(out.e.needs).toBeUndefined()
+    expect((out.next as { id: string }).id).toBe("B-01")
+  })
 })
