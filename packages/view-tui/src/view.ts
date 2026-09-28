@@ -232,7 +232,7 @@ const withRunClock = (ui: Ui, s: SessionState, now: number): Ui => {
 }
 
 export const SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-const spin = (now: number) => SPINNER[Math.floor(now / 100) % SPINNER.length]!
+export const spin = (now: number) => SPINNER[Math.floor(now / 100) % SPINNER.length]!
 
 /** The line under the conversation while zarg works on a reply or a question: spinner, elapsed time, driver turn. */
 export const working = (ui: Ui, s: SessionState, now: number): string | undefined => {
@@ -293,11 +293,11 @@ export interface AgentRow {
 /** How often an unseen ◆ blinks. */
 export const PULSE_MS = 500
 
-const ICON: Record<RlmNode["status"], string> = { running: "●", done: "✓", failed: "✗", stopped: "■" }
+export const ICON: Record<RlmNode["status"], string> = { running: "●", done: "✓", failed: "✗", stopped: "■" }
 const BAR = 6
 
 // Children in id order; a node whose parent is unknown is a root.
-const childrenOf = (rlms: Readonly<Record<string, RlmNode>>) => {
+export const childrenOf = (rlms: Readonly<Record<string, RlmNode>>) => {
   const nodes = Object.values(rlms).sort((a, b) => idNumber(a.id) - idNumber(b.id))
   return (parent: string | null) => nodes.filter((n) => (parent === null ? n.parent === null || rlms[n.parent] === undefined : n.parent === parent))
 }
@@ -310,16 +310,16 @@ const driverRoot = (rlms: Readonly<Record<string, RlmNode>>): RlmNode | undefine
 }
 
 // Roots start open, everything below starts collapsed; `toggled` flips that per id.
-const isOpen = (rlms: Readonly<Record<string, RlmNode>>, agents: Agents, n: RlmNode) =>
+export const isOpen = (rlms: Readonly<Record<string, RlmNode>>, agents: Agents, n: RlmNode) =>
   agents.toggled[n.id] ?? (n.parent === null || rlms[n.parent] === undefined)
 
-interface Visible {
+export interface Visible {
   readonly node: RlmNode
   readonly prefix: string
   readonly hidden: ReadonlyArray<RlmNode>
 }
 
-const visible = (rlms: Readonly<Record<string, RlmNode>>, agents: Agents): ReadonlyArray<Visible> => {
+export const visible = (rlms: Readonly<Record<string, RlmNode>>, agents: Agents): ReadonlyArray<Visible> => {
   const children = childrenOf(rlms)
   const below = (n: RlmNode): Array<RlmNode> => children(n.id).flatMap((c) => [c, ...below(c)])
   const out: Array<Visible> = []
@@ -338,7 +338,7 @@ const visible = (rlms: Readonly<Record<string, RlmNode>>, agents: Agents): Reado
 }
 
 // The highlighted RLM: the cursor while its RLM exists, else the first root.
-const cursorOf = (rows: ReadonlyArray<Visible>, agents: Agents) =>
+export const cursorOf = (rows: ReadonlyArray<Visible>, agents: Agents) =>
   // On the Archived row or one of its agents, no live row is highlighted.
   agents.cursor !== undefined && isArchiveRow(agents.cursor) ? undefined : rows.some((r) => r.node.id === agents.cursor) ? agents.cursor : rows[0]?.node.id
 
@@ -353,7 +353,7 @@ export const liveRlms = (s: SessionState): Readonly<Record<string, RlmNode>> => 
   const deleted = new Set(s.thread.deleted ?? [])
   return Object.fromEntries(Object.entries(s.thread.rlms).filter(([id, n]) => n.status === "running" || (archived[id] === undefined && !deleted.has(id))))
 }
-const archivedNodes = (s: SessionState) => {
+export const archivedNodes = (s: SessionState) => {
   const deleted = new Set(s.thread.deleted ?? [])
   return Object.entries(s.thread.archived ?? {})
     .flatMap(([id, a]) => {

@@ -1,9 +1,11 @@
 import { useKeyboard, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Panel, Session } from "@zarg/client"
-import { hintsOf, pickRow, startUi } from "@zarg/view"
+import { hintsOf, pickRow, startUi, THEME } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { registerCommands } from "./commands"
+import { gauge } from "./look"
+import { railRows } from "./rail"
 import { onKey, SHELL } from "./layers"
 import { AgentView, type Scroller } from "./sections"
 import {
@@ -42,7 +44,7 @@ import {
 const COLORS = { you: "#8ab4f8", zarg: "#e8eaed", error: "#f28b82", notice: "#fdd663", dim: "#9aa0a6", accent: "#81c995", select: "#3c4043", hot: "#8ab4f8", popover: "#2d2f31", sheet: "#202124" }
 const TONE = { running: COLORS.zarg, done: COLORS.dim, failed: COLORS.error, stopped: COLORS.notice }
 const BAR_TONE = { question: COLORS.notice, working: COLORS.accent, reply: COLORS.dim, idle: COLORS.dim }
-const AGENTS_WIDTH = 30
+const AGENTS_WIDTH = 24
 
 /** A panel's name with its Alt letter coloured and underlined, then the chord. */
 const Title = (p: { readonly name: string; readonly letter: string; readonly focused: boolean; readonly extra?: string }) => {
@@ -136,10 +138,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const box = slashActive(ui, s) ? slashBox(draft, ui) : undefined
   const width = Math.max(0, ...(box?.rows ?? []).map((r) => r.label.length))
   // Agents spin only while the clock runs (not while a question waits on you).
-  const agents = treeRows(ui, s, moving ? now : undefined, AGENTS_WIDTH - 3, ui.seen)
-  const cursor = agents.find((a) => a.selected)?.id
-  // On an archived agent's row, the card shows that agent; on the Archived row, none.
-  const detail = cursor === ARCHIVED ? [] : agentDetail(s.thread.rlms, cursor?.replace(/^archived:/, ""))
+  const cursor = railRows(ui, s, undefined, AGENTS_WIDTH - 3).find((a) => a.selected)?.id
   // Keep the highlighted row on screen as the cursor moves through a tall tree.
   useEffect(() => {
     if (cursor !== undefined) agentsRef.current?.scrollChildIntoView(`agent-${cursor}`)
@@ -147,50 +146,71 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const asking = attentionOf(s.thread.rlms)
   const world = { s, now, draft }
 
+  // The rail: agents flat and indented on a raised strip; under 100 columns, only their glyphs until alt+a unfolds it.
+  const railWidth = narrow && ui.focus !== "agents" ? 3 : AGENTS_WIDTH
+  const rows = railRows(ui, s, moving ? now : undefined, AGENTS_WIDTH - 3)
+  const pick = (id: string) => {
+    const u = latest()
+    const st = props.session.state()
+    if (id === ARCHIVED) setUi({ ...u, focus: "agents", agents: { ...u.agents, cursor: ARCHIVED, toggled: { ...u.agents.toggled, [ARCHIVED]: u.agents.toggled[ARCHIVED] !== true } } })
+    else if (id.startsWith("archived:")) setUi(openAgent(u, st, id.slice("archived:".length)))
+    else setUi(activate(u, st, id))
+  }
   const agentsList = (
     <box
-      // Narrow, the list sits in the tile area: its click must not reach the tile's handler (which would hide it).
+      // Narrow, the unfolded rail sits over the focus: its click must not reach the focus's handler (which would fold it).
       onMouseDown={(e: { stopPropagation: () => void }) => {
         e.stopPropagation()
         setUi({ ...latest(), focus: "agents" })
       }}
-      style={{ ...(narrow ? { flexGrow: 1 } : { width: AGENTS_WIDTH, flexShrink: 0 }), flexDirection: "column", border: true, borderColor: ui.focus === "agents" ? COLORS.accent : COLORS.dim }}
+      style={{ ...(narrow && ui.focus === "agents" ? { flexGrow: 1 } : { width: railWidth, flexShrink: 0 }), flexDirection: "column", backgroundColor: THEME.raised, paddingLeft: 1, paddingRight: railWidth > 3 ? 1 : 0 }}
     >
-      <Title name={`Agents${asking.length > 0 ? ` ◆${asking.length}` : ""}`} letter="a" focused={ui.focus === "agents"} />
+      {railWidth > 3 ? (
+        <text wrapMode="none">
+          <span fg={ui.focus === "agents" ? THEME.accent : THEME.dim}>
+            <b>agents</b>
+          </span>
+          {asking.length > 0 ? <span fg={THEME.attention}>{`  ◆${asking.length}`}</span> : null}
+        </text>
+      ) : (
+        <text fg={asking.length > 0 ? THEME.attention : THEME.dim}>{asking.length > 0 ? "◆" : "·"}</text>
+      )}
+      <text> </text>
       {/* Never focusable: the shell's layers alone decide where keys go (a click must not hand a scrollbox the arrows). */}
       <scrollbox ref={agentsRef} focusable={false} style={{ flexGrow: 1 }}>
-        {agents.length === 0 ? <text fg={COLORS.dim}>no agents running</text> : null}
-        {agents.map((a) => (
-          <text
-            key={a.id}
-            id={`agent-${a.id}`}
-            // An unseen request blinks between the attention colour and plain; a seen one stays in the attention colour.
-            fg={a.pulse === "off" ? COLORS.zarg : a.attention ? COLORS.notice : TONE[a.tone]}
-            truncate
-            // The list's own handler (focus the list) must not run after the row gave its view the keys.
-            onMouseDown={(e: { stopPropagation: () => void }) => {
-              e.stopPropagation()
-              const u = latest()
-              const st = props.session.state()
-              if (a.id === ARCHIVED) setUi({ ...u, focus: "agents", agents: { ...u.agents, cursor: ARCHIVED, toggled: { ...u.agents.toggled, [ARCHIVED]: u.agents.toggled[ARCHIVED] !== true } } })
-              else if (a.id.startsWith("archived:")) setUi(openAgent(u, st, a.id.slice("archived:".length)))
-              else setUi(activate(u, st, a.id))
-            }}
-            {...((a.selected && ui.focus === "agents") || a.id === viewing ? { bg: COLORS.select } : {})}
-          >
-            {a.text}
-          </text>
-        ))}
+        {rows.length === 0 && railWidth > 3 ? <text fg={THEME.dim}>no agents yet</text> : null}
+        {rows.map((r) => {
+          const on = (r.selected && ui.focus === "agents") || r.id === viewing
+          const gap = Math.max(1, AGENTS_WIDTH - 3 - r.depth * 2 - 2 - r.name.length - r.note.length)
+          const g = r.gauge !== undefined ? gauge(r.gauge.done, r.gauge.total, AGENTS_WIDTH - 4 - r.depth * 2) : undefined
+          return (
+            <box
+              key={r.id}
+              id={`agent-${r.id}`}
+              style={{ flexDirection: "column", flexShrink: 0 }}
+              // The rail's own handler (focus the rail) must not run after the row gave its view the keys.
+              onMouseDown={(e: { stopPropagation: () => void }) => {
+                e.stopPropagation()
+                pick(r.id)
+              }}
+            >
+              <text wrapMode="none" {...(on ? { bg: THEME.selection } : {})}>
+                {railWidth > 3 ? <span>{"  ".repeat(r.depth)}</span> : null}
+                <span fg={THEME[r.glyphToken]}>{r.glyph}</span>
+                {railWidth > 3 ? <span fg={r.dimmed ? THEME.dim : THEME.text}>{on ? <b>{` ${r.name}`}</b> : ` ${r.name}`}</span> : null}
+                {railWidth > 3 ? <span fg={THEME.dim}>{`${" ".repeat(gap)}${r.note}`}</span> : null}
+              </text>
+              {g !== undefined && railWidth > 3 ? (
+                <text wrapMode="none">
+                  <span>{"  ".repeat(r.depth + 1)}</span>
+                  <span fg={THEME.accent}>{g.done}</span>
+                  <span fg={THEME.faint}>{g.rest}</span>
+                </text>
+              ) : null}
+            </box>
+          )
+        })}
       </scrollbox>
-      {detail.length > 0 ? (
-        <box style={{ flexDirection: "column", flexShrink: 0, border: ["top"], borderColor: COLORS.dim }}>
-          {detail.map((l, i) => (
-            <text key={i} fg={i === 0 ? COLORS.zarg : COLORS.dim} truncate>
-              {l}
-            </text>
-          ))}
-        </box>
-      ) : null}
     </box>
   )
 
@@ -299,10 +319,6 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       </box>
     )
 
-  // Narrow: the agents fold to one line of their rows, attention first.
-  const rest = agents.filter((a) => !a.attention).map((a) => a.id)
-  const stripText = [asking.length > 0 ? `◆${asking.length} ${asking.map((a) => a.id).join(", ")}` : "", ...rest].filter((x) => x.length > 0).join(" │ ")
-  const strip = stripText.length > dims.width - 16 ? `${stripText.slice(0, dims.width - 17)}…` : stripText
 
   const queue = queueOf(ui, s)
   const head = queue[0]
@@ -389,13 +405,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
 
   return (
     <box style={{ flexDirection: "row", width: "100%", height: "100%" }}>
-      {narrow ? null : agentsList}
+      {narrow && ui.focus === "agents" ? null : agentsList}
       <box style={{ flexDirection: "column", flexGrow: 1 }}>
-        {narrow ? (
-          <box onMouseDown={() => setUi({ ...latest(), focus: "agents" })} style={{ height: 1, flexShrink: 0 }}>
-            <Title name={`Agents ${strip}`} letter="a" focused={ui.focus === "agents"} />
-          </box>
-        ) : null}
         <box onMouseDown={() => setUi({ ...latest(), focus: "tile" })} style={{ flexGrow: 1, flexDirection: "column" }}>
           {shown.top.map(panelBox)}
           <box style={{ flexGrow: 1, flexDirection: "row" }}>

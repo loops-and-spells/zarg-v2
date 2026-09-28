@@ -121,7 +121,8 @@ describe("tui frames", () => {
   test("wide: the agents list, the open agent's view and zarg's bar; Alt+arrows move between them", async () => {
     const t = await openTester({ width: 130, height: 22 })
     const lines = t.captureCharFrame().split("\n")
-    expect(lines[1]).toMatch(/Agents ◆\d alt\+a.*v rehearse:tester-1 alt\+v/)
+    expect(lines[0]).toMatch(/^ agents  ◆\d/)
+    expect(t.captureCharFrame()).toContain("rehearse:tester-1 alt+v")
     // The open view has focus: arrows move its table, not zarg's question (which waits in the bar).
     t.mockInput.pressArrow("down")
     await settle(t)
@@ -143,8 +144,8 @@ describe("tui frames", () => {
   test("at 80×24 the strip lists attention above the view, and the bar sits under it", async () => {
     const t = await openTester({ width: 80, height: 24 })
     const lines = t.captureCharFrame().split("\n")
-    expect(lines[0]).toContain("◆")
-    expect(lines[0]).toContain("tester-1")
+    // The rail folds to its glyphs: the one asking shows ◆ at the left edge.
+    expect(lines.some((l) => l.slice(0, 3).includes("◆"))).toBe(true)
     const view = lines.findIndex((l) => l.includes("rehearse:tester-1 alt+v"))
     const bar = lines.findIndex((l) => l.includes("? Which card first?"))
     expect(view).toBeGreaterThan(0)
@@ -163,8 +164,7 @@ describe("tui frames", () => {
     t.mockInput.pressEnter()
     await settle(t)
     const lines = t.captureCharFrame().split("\n")
-    expect(lines[0]).toStartWith("Agents ◆1")
-    expect(lines[0]).toContain("tester-6")
+    expect(lines.some((l) => l.slice(0, 3).includes("◆"))).toBe(true)
     expect(t.captureCharFrame()).toContain("R-1")
     // The question waits in the bar; alt+m opens zarg's sheet with every option.
     t.mockInput.pressKey("m", { meta: true })
@@ -196,9 +196,9 @@ describe("tui frames", () => {
   test("with no agent open, zarg's sheet holds its messages and its question beside the agents list", async () => {
     const t = await render(waiting)
     const lines = t.captureCharFrame().split("\n")
-    expect(lines[1]).toContain("Agents")
-    expect(lines.find((l) => l.includes("zarg  The agenda is empty."))).toMatch(/^│/)
-    const q = lines.find((l) => l.startsWith("│") && l.includes("? Which card first?") && !l.includes("alt+m"))
+    expect(lines[0]).toContain("agents")
+    expect(lines.find((l) => l.includes("zarg  The agenda is empty."))).toMatch(/│zarg  The agenda is empty\./)
+    const q = lines.find((l) => l.includes("│? Which card first?") && !l.includes("alt+m"))
     expect(q).toMatch(/│\s*$/)
   })
 
@@ -210,11 +210,8 @@ describe("tui frames", () => {
     expect(frame).toContain("  Something else…")
     expect(frame).toContain("  Chat about this")
     expect(frame).not.toContain("Message")
-    expect(frame).toContain("▾ ● driver rlm-1       3/25")
-    expect(frame).toContain("  └ ✓ research rlm-2   2/15")
-    expect(frame).toContain("driver rlm-1 · running")
-    expect(frame).toContain("turn 3 of 25 · 5,847 tokens")
-    expect(frame).toContain("  single          yes  0.91")
+    expect(frame).toMatch(/▾ driver 1 +3\/25/)
+    expect(frame).toMatch(/ {3}✓ research 2 +done/)
     expect(frame).toContain("core child · waiting · thread main")
     expect(frame).toMatchSnapshot()
   })
@@ -274,7 +271,7 @@ describe("tui frames", () => {
     t.mockInput.pressKey("c", { ctrl: true })
     await settle(t)
     expect(t.calls).toEqual(["stop"])
-    expect(t.captureCharFrame()).toContain("Agents alt+a")
+    expect(t.captureCharFrame()).toContain("agents")
   })
 
   test("at 80 columns with a long thread and driver, the status line still shows the core state and thread status", async () => {
@@ -293,13 +290,12 @@ describe("tui frames", () => {
       Array.from({ length: 40 }, (_, i) => [`rlm-${i + 1}`, { id: `rlm-${i + 1}`, parent: i === 0 ? null : "rlm-1", preset: i === 0 ? "driver" : "research", depth: i === 0 ? 0 : 1, turns: 1, budget: 15, status: "done" as const, decisions: [] }]),
     )
     const t = await render({ thread: { ...initial("main"), status: "running", rlms }, core: "up" })
-    expect(t.captureCharFrame()).not.toContain("rlm-40 ")
+    expect(t.captureCharFrame()).not.toContain("research 40")
     t.mockInput.pressKey("a", { meta: true })
     await settle(t)
     for (let i = 0; i < 40; i++) t.mockInput.pressArrow("down")
     await settle(t)
-    expect(t.captureCharFrame()).toContain("research rlm-40")
-    expect(t.captureCharFrame()).toContain("research rlm-40 · done")
+    expect(t.captureCharFrame()).toContain("research 40")
   })
 
   test("while the driver works, the conversation ends with the animated working line", async () => {
@@ -383,7 +379,7 @@ describe("tui frames", () => {
       "rlm-3": { id: "rlm-3", parent: "rlm-2", preset: "research", depth: 2, turns: 1, budget: 15, status: "failed" as const, error: "budget", decisions: [] },
     }
     const t = await render({ thread: { ...initial("main"), status: "running", rlms }, core: "up" })
-    expect(t.captureCharFrame()).toContain("▸ ● research …   1/15  +1")
+    expect(t.captureCharFrame()).toMatch(/▸ research 2 +\+1/)
     expect(t.captureCharFrame()).not.toContain("rlm-3")
     t.mockInput.pressKey("a", { meta: true })
     t.mockInput.pressArrow("down")
@@ -391,12 +387,12 @@ describe("tui frames", () => {
     t.mockInput.pressArrow("down")
     await settle(t)
     const open = t.captureCharFrame()
-    expect(open).toContain("    └ ✗ research rl…   1/15")
-    expect(open).toContain("error  budget")
+    // Two levels down the name is cut to its room, the note stays.
+    expect(open).toMatch(/ {5}✗ researc… +failed/)
     t.mockInput.pressArrow("left")
     t.mockInput.pressArrow("left")
     await settle(t)
-    expect(t.captureCharFrame()).not.toContain("rlm-3")
+    expect(t.captureCharFrame()).not.toContain("failed")
   })
 
   test("typing / shows the command box; Tab completes; Enter runs the command", async () => {
@@ -524,13 +520,12 @@ describe("the shell", () => {
   test("the agents list runs full height on the left; the bar sits under the tile area only", async () => {
     const t = await render(idleState, wide)
     const lines = t.captureCharFrame().split("\n")
-    expect(lines[1]).toContain("Agents")
+    expect(lines[0]).toContain("agents")
     // The bar starts with the keys: you can type to zarg at once.
     const bar = lines.findIndex((l) => l.includes("message ›"))
     expect(bar).toBeGreaterThan(10)
-    // The agents list's border is still on the bar's row: the bar does not run under it.
-    expect(lines[bar]!.indexOf("message ›")).toBeGreaterThan(30)
-    expect(lines[bar]!.startsWith("│")).toBe(true)
+    // The rail runs down past the bar's row: the bar does not run under it.
+    expect(lines[bar]!.indexOf("message ›")).toBeGreaterThan(24)
   })
   test("with no agent open, zarg's sheet fills the tile area with its messages", async () => {
     const t = await render(idleState, wide)
@@ -580,16 +575,17 @@ describe("the shell", () => {
     t.mockInput.pressEnter()
     await settle(t)
     const f = t.captureCharFrame()
-    expect(f).toContain("Agents alt+a")
+    expect(f).toContain("agents")
     expect(f).toContain("v rehearse:t1 alt+v")
     expect(f).toContain("message zarg… (alt+m or /)")
   })
   test("at 80×24 the agents fold to a strip above the tile area; alt+a unfolds them there", async () => {
     const t = await render(waiting, { width: 80, height: 24 })
-    expect(t.captureCharFrame().split("\n")[0]).toContain("Agents")
+    // Folded: glyphs only, no names.
+    expect(t.captureCharFrame()).not.toContain("driver 1")
     t.mockInput.pressKey("a", { meta: true })
     await settle(t)
-    expect(t.captureCharFrame()).toContain("driver rlm-1")
+    expect(t.captureCharFrame()).toContain("driver 1")
   })
 })
 
@@ -600,12 +596,12 @@ describe("review fixes", () => {
     await settle(t)
     await t.mockMouse.click(20, 12)
     await settle(t)
-    expect(t.captureCharFrame()).toContain("● tester rehearse")
+    expect(t.captureCharFrame()).toMatch(/⠼ t1|● t1| t1 /)
   })
   test("a click on an agent's row opens its view with the keys: its action key acts", async () => {
     const t = await render(viewState, { width: 110, height: 24 })
     const lines = t.captureCharFrame().split("\n")
-    const y = lines.findIndex((l) => l.includes("● tester rehearse"))
+    const y = lines.findIndex((l) => / t1 /.test(l.slice(0, 24)))
     await t.mockMouse.click(5, y)
     await settle(t)
     t.mockInput.pressKey("a")
@@ -651,7 +647,7 @@ describe("archive", () => {
   const done = { id: "rehearse:t1", parent: null, preset: "tester", depth: 0, turns: 1, budget: 1, status: "done" as const, decisions: [] }
   test("x on a finished agent asks the core to archive it; archived ones wait in a folded row", async () => {
     const t = await render({ ...idleState, thread: { ...idleState.thread, rlms: { "rehearse:t1": done, "rehearse:t2": { ...done, id: "rehearse:t2" } }, archived: { "rehearse:t2": { reason: "ttl (24h)", at: Date.now() } } } }, { width: 110, height: 24 })
-    expect(t.captureCharFrame()).toContain("▸ Archived (1)")
+    expect(t.captureCharFrame()).toMatch(/▸ archived +1/)
     t.mockInput.pressKey("a", { meta: true })
     await settle(t)
     t.mockInput.pressKey("x")
