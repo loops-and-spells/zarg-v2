@@ -8,7 +8,7 @@ import type { GraphStore } from "@zarg/graph"
 import type { Bound } from "@zarg/kernel"
 import { Model } from "@zarg/model"
 import type { PluginHost } from "@zarg/plugin/server"
-import { type Asker, decisionsService, fsRead, graph, inquire, pluginService, Rlm, type RlmSettings, type Scope } from "@zarg/rlm"
+import { type Asker, decisionsService, entitiesService, fsRead, graph, inquire, pluginService, Rlm, type RlmSettings, type Scope } from "@zarg/rlm"
 import { askFirst } from "./driver"
 import { commitGraph, findingsService } from "./findings"
 import { judgeGaps } from "./gaps"
@@ -41,6 +41,9 @@ export const makeZarg = (host: AgentHost) =>
       const factory = (name: string, scope: Scope): Bound | undefined => {
         const ctx = { host: plugins, snapshot, scope }
         if (name === "Graph") return graph(ctx)
+        // Commands may write the graph (through its owner's tools): like graph writes, they wait for an answer.
+        if (name === "Entities") return guard.gate(entitiesService(ctx, { write: true }))
+        if (name === "Entities:read") return entitiesService(ctx, { write: false })
         // A plugin's agent methods, by the service name its manifest declares; graph writes wait for an answer.
         const plugin = plugins.manifests.find((m) => m.service === name)
         // Graph writes wait for the operator; service and agent plugins' tools (Rehearse.run) do not write the graph.

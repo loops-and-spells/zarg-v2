@@ -235,6 +235,7 @@
       "name": "@zarg/rlm",
       "dependencies": {
         "@zarg/decisions": "workspace:*",
+        "@zarg/entities": "workspace:*",
         "@zarg/graph": "workspace:*",
         "@zarg/kernel": "workspace:*",
         "@zarg/model": "workspace:*",

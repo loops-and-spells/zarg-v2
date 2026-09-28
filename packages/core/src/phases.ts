@@ -8,7 +8,7 @@ import type { Bound } from "@zarg/kernel"
 import { ConfigError, redact, type SensitiveValue } from "@zarg/model"
 import { PluginHost } from "@zarg/plugin/server"
 import { type Findings, GRAPH, gitRun, type ItemOutcome, type ReconcileSpec } from "@zarg/reconcile"
-import { fs, fsRead, graph, type Rlm, runCommand, type Scope, sh, verify } from "@zarg/rlm"
+import { entitiesService, fs, fsRead, graph, type Rlm, runCommand, type Scope, sh, verify } from "@zarg/rlm"
 
 /** `[reconcile]` in `.zarg/config.toml`. */
 export const ReconcileConfig = Schema.Struct({
@@ -155,6 +155,8 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
         const services = (name: string, scope: Scope): Bound | undefined => {
           const core = { root: cwd, scope, sensitive: deps.sensitive }
           if (name === "Graph") return graph({ host, snapshot, scope })
+          // Reading only: a plan or implement pass never commands another plugin's data.
+          if (name === "Entities:read") return entitiesService({ host, snapshot, scope }, { write: false })
           if (name === "Fs") return fs(core)
           if (name === "Fs:read") return fsRead(core)
           if (name === "Sh") return sh(core)

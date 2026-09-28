@@ -49,13 +49,13 @@ export const DEFAULT_BUDGET: Budget = { turns: 25, tokens: 400_000, wallMs: 30 *
 export const DEFAULT_PRESETS: Readonly<Record<string, Preset>> = {
   // The driver asks the operator; it never splits its task, so atomize would only add a Decisions round trip.
   // Its turns are light (pick options, ask, reply), and thinking was ~80% of each turn's time.
-  driver: { layer: ["Graph", "Gherkin", "Inquire", "Fs:read", "Decisions", "Findings", "Rehearse", "Rlm"], spawns: ["research"], atomize: false, reasoning: false, role: "driver", budget: { turns: 25 }, result: "text", verify: "none" },
+  driver: { layer: ["Graph", "Entities:read", "Gherkin", "Inquire", "Fs:read", "Decisions", "Findings", "Rehearse", "Rlm"], spawns: ["research"], atomize: false, reasoning: false, role: "driver", budget: { turns: 25 }, result: "text", verify: "none" },
   // Plan and implement phases (the reconcile loop): each runs per card in its own worktree.
-  plan: { layer: ["Graph", "Fs:read", "Decisions", "Rlm"], spawns: ["research"], role: "plan", budget: { turns: 20 }, result: "plan", verify: "none" },
+  plan: { layer: ["Graph", "Entities:read", "Fs:read", "Decisions", "Rlm"], spawns: ["research"], role: "plan", budget: { turns: 20 }, result: "plan", verify: "none" },
   "implement-card": { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: ["research"], role: "implement", budget: { turns: 25 }, result: "implement-card", verify: "gate" },
   fix: { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: [], role: "implement", budget: { turns: 15 }, result: "text", verify: "none" },
   resolve: { layer: ["Fs", "Sh", "Rlm"], spawns: [], role: "implement", budget: { turns: 10 }, result: "resolve", verify: "none" },
-  research: { layer: ["Graph", "Fs:read", "Decisions", "Rlm"], spawns: ["research"], role: "driver", budget: { turns: 15 }, result: "research", verify: "none" },
+  research: { layer: ["Graph", "Entities:read", "Fs:read", "Decisions", "Rlm"], spawns: ["research"], role: "driver", budget: { turns: 15 }, result: "research", verify: "none" },
 }
 
 /** `[rlm]` from config (already `${VAR}`-expanded), merged over the defaults. */
