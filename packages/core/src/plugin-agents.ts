@@ -61,6 +61,8 @@ export const pluginAgents = (
       if (s === undefined) throw new Error(`plugin ${plugin} declares no surface ${String(o.surface)}`)
       // A card is how the agent shows in the grid: there is nothing to open.
       if (s.kind === "card") throw new Error(`${s.name} is a card: it shows in the grid by itself`)
+      // A nav item is the operator's to open, from above the agents.
+      if (s.kind === "nav") throw new Error(`${s.name} is a nav item: the operator opens it`)
       // Panels open any time; the rest take the screen or the keys, so only the operator's call opens them.
       if (s.kind !== "panel" && e.gesture !== true) throw new Error(`${s.name} is a ${s.kind}: it opens only while you handle the developer's call; ask for attention instead`)
       const id = `${plugin}:${o.agent}`

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect } from "effect"
 import { makeLog } from "../src/log"
-import { makeSurfaces, NAVIGATE, PANELS, type PanelInstance } from "../src/surfaces"
+import { makeSurfaces, navItems, NAVIGATE, PANELS, type PanelInstance } from "../src/surfaces"
 
 const open = () => Effect.runPromise(makeLog(mkdtempSync(join(tmpdir(), "zarg-surf-")), (t) => t))
 const panel = (plugin: string, name: string, agent: string): PanelInstance => ({ id: `${plugin}:${name}:${agent}`, plugin, agent, view: agent, name, scope: "shell", edge: "bottom", size: 1, input: "none" })
@@ -32,4 +32,13 @@ test("a new core starts with no panels", async () => {
   makeSurfaces(log, "main").openPanel(panel("rehearse", "status", "rehearse:run"))
   await Effect.runPromise(makeSurfaces(log, "main").announce)
   expect(lastPanels(log)).toEqual([])
+})
+
+test("nav items: every loaded plugin's nav surfaces, each showing its view under its own agent id", () => {
+  const manifests = [
+    { name: "gherkin", surfaces: [{ kind: "nav", name: "journeys", view: "journeys", label: "Journeys" }, { kind: "tile", name: "main", view: "journeys" }] },
+    { name: "rehearse", surfaces: [{ kind: "panel", name: "status", view: "status", scope: "shell", edge: "bottom", size: 1, input: "none" }] },
+    { name: "bare" },
+  ]
+  expect(navItems(manifests)).toEqual([{ id: "gherkin:journeys", plugin: "gherkin", name: "journeys", label: "Journeys", view: "gherkin:journeys@journeys" }])
 })

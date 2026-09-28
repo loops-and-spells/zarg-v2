@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 import { GraphStore, Snapshot } from "@zarg/graph"
 import { PluginHost } from "@zarg/plugin/server"
-import { journeyFlow } from "../src/journeys"
+import { journeyFlow, journeysView } from "../src/journeys"
 import { call, pricing, run } from "./harness"
 
 /** A refusal's words: the tool's message, or every lint finding's. */
@@ -114,5 +114,45 @@ describe("journey flow", () => {
     expect(cardLines(journeyFlow(snap, "J-0001"))).toEqual(["UX-0001"])
     expect(cardLines(journeyFlow(snap, "J-0002"))).toEqual(["UX-0001"])
     expect(journeyFlow(Snapshot.make([journey("J-0001", "A")] as never), "J-0001")).toContain("No cards in this journey yet")
+  })
+})
+
+describe("the Journeys view", () => {
+  const nodes = [journey("J-0001", "Checkout"), journey("J-0002", "Browse"), state("S-1"), state("S-2"), card("UX-0001", "S-1", ["S-2"], ["J-0001", "J-0002"])]
+  test("lists journeys by name with their card counts; shows the chosen one's flow (else the first), as a code block", () => {
+    const v = journeysView(Snapshot.make(nodes as never), "J-0002")
+    expect(v.rows).toEqual([
+      { id: "J-0002", cells: { name: "Browse", cards: "1" } },
+      { id: "J-0001", cells: { name: "Checkout", cards: "1" } },
+    ])
+    expect(v.selected).toBe("J-0002")
+    expect(v.markdown.startsWith("```text\nBrowse  # J-0002")).toBe(true)
+    // A journey that is gone falls back to the first by name.
+    expect(journeysView(Snapshot.make(nodes as never), "J-0009").selected).toBe("J-0002")
+  })
+  test("no journeys: says how to make one", () => {
+    const v = journeysView(Snapshot.make([] as never), undefined)
+    expect(v.rows).toEqual([])
+    expect(v.markdown).toContain("No journeys yet")
+  })
+})
+
+describe("the Journeys nav item's view, through the host", () => {
+  test("open fills the view (first journey by name); show picks another; a rename shows on the next open", async () => {
+    const got = await run(
+      Effect.gen(function* () {
+        yield* pricing
+        yield* call("add-journey", { name: "Checkout" })
+        yield* call("add-journey", { name: "Browse" })
+        yield* call("link", { card: "UX-0004", edge: "in", journey: { id: "J-0001" } })
+        const act = (action: string, rows: ReadonlyArray<string> = []) => PluginHost.use((h) => h.invoke("gherkin", "act", { agent: "journeys", action, rows }))
+        const opened = yield* act("open")
+        const shown = yield* act("show", ["J-0001"])
+        yield* call("edit-journey", { id: "J-0001", name: "Buying" })
+        const again = yield* act("open")
+        return { opened, shown, again }
+      }),
+    )
+    expect(got).toEqual({ opened: { notice: "showing Browse" }, shown: { notice: "showing Checkout" }, again: { notice: "showing Buying" } })
   })
 })

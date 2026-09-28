@@ -20,7 +20,7 @@ import { threadViews } from "./views"
 import { notLoaded } from "./not-loaded"
 import { outsideReads } from "./outside"
 import { makePrompts } from "./prompts"
-import { makeSurfaces } from "./surfaces"
+import { makeSurfaces, NAV, navItems } from "./surfaces"
 import { makeActions } from "./actions"
 import { chosenFindings } from "./chosen"
 import { makeLog } from "./log"
@@ -142,10 +142,13 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // A plugin's grant question is asked on main, like any driver question.
     const main = yield* threads.get("main", [])
     // Plugins waiting on their grant load, then clients fetch their commands again.
-    const loadPlugins = Effect.andThen(host.loadWaiting, log.append("main", E.custom("zarg.plugins", {})))
+    // The loaded plugins' nav items, for every client (again whenever more plugins load).
+    const announceNav = Effect.suspend(() => log.append("main", E.activitySnapshot("main:nav", { items: navItems(host.manifests) }, NAV)))
+    const loadPlugins = Effect.andThen(host.loadWaiting, Effect.andThen(log.append("main", E.custom("zarg.plugins", {})), announceNav))
     const yolo = makeYolo(log, control.yolo, loadPlugins)
     // This core's YOLO state (on with --yolo, off otherwise): a replayed state from an earlier core must not linger.
     yield* yolo.announce
+    yield* announceNav
     // A plugin's agenda changed (findings to take up): the driver wakes if it waits on nothing.
     control.setAgendaChanged(() => Effect.runFork(main.wake))
     // Plugins' agents show in main's agents pane, each plugin in its own stream.

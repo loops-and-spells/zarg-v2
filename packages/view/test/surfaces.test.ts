@@ -30,3 +30,9 @@ test("a card names a stats headline, a log/list/table recent and an action of it
   expect(surfacesProblem([{ ...card, action: "nope" }], [tester])).toMatch(/action nope/)
   expect(surfacesProblem([{ ...card, view: "gone" }], [tester])).toMatch(/view gone/)
 })
+
+test("a nav item names a label and one of the plugin's views", () => {
+  expect(surfacesProblem([{ kind: "nav", name: "journeys", view: "run", label: "Journeys" }], [runLayout])).toBeUndefined()
+  expect(surfacesProblem([{ kind: "nav", name: "journeys", view: "run", label: "" }], [runLayout])).toMatch(/does not fit any kind/)
+  expect(surfacesProblem([{ kind: "nav", name: "journeys", view: "nope", label: "Journeys" }], [runLayout])).toMatch(/view nope/)
+})

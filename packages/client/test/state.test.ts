@@ -172,6 +172,12 @@ describe("surfaces", () => {
     expect(s.panels).toEqual([])
     expect(fold([ev("ACTIVITY_SNAPSHOT", { activityType: "zarg.panels", messageId: "main:panels", content: { panels: [panel] } }, "main")], initial("other")).panels).toEqual([panel])
   })
+  test("a nav snapshot sets the plugins' nav items; a later one replaces them", () => {
+    const item = { id: "gherkin:journeys", plugin: "gherkin", name: "journeys", label: "Journeys", view: "gherkin:journeys@journeys" }
+    const s = fold([ev("ACTIVITY_SNAPSHOT", { activityType: "zarg.nav", messageId: "main:nav", content: { items: [item] } })])
+    expect(s.nav).toEqual([item])
+    expect(fold([ev("ACTIVITY_SNAPSHOT", { activityType: "zarg.nav", messageId: "main:nav", content: { items: [item] } }), ev("ACTIVITY_SNAPSHOT", { activityType: "zarg.nav", messageId: "main:nav", content: { items: [] } })]).nav).toEqual([])
+  })
   test("a navigation request keeps its seq and time", () => {
     const e = ev("CUSTOM", { name: "zarg.navigate", value: { kind: "tile", view: "rehearse:t1", at: 123 } })
     expect(fold([e]).navigate).toEqual({ seq: e.seq, kind: "tile", view: "rehearse:t1", at: 123 })

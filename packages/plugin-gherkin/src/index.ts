@@ -1,13 +1,14 @@
 import { Effect, Schema } from "effect"
 import { diff, type Node, Snapshot } from "@zarg/graph/pure"
-import { definePlugin, Graph, PluginFailure } from "@zarg/plugin-sdk"
+import { definePlugin, Graph, PluginFailure, Views } from "@zarg/plugin-sdk"
 import { affectedCards } from "./affected"
 import { agenda, suggest } from "./agenda"
 import { Gherkin, PersonaView, StepParams, StepView, StoriesParams, StoriesResult } from "./contract"
 import type { Finding } from "./kit"
 import { clauseShape, journeyShape, personaShape, stateText } from "./lints"
 import { BY, CARD, CardProps, JOURNEY, JourneyProps, PERSONA, PersonaProps, personaName, personas, STATE, StateProps } from "./model"
-import { journeyList } from "./journeys"
+import { journeyList, journeysView } from "./journeys"
+import { JourneysView } from "./views"
 import { render } from "./render"
 import { planStories, stepView } from "./stories"
 import { tools } from "./tools"
@@ -41,7 +42,10 @@ export default definePlugin({
   archetype: "graph",
   implements: Gherkin,
   config: Schema.Struct({}),
-  scopes: { graph: "write" },
+  // agents: its Journeys view (the nav item's), which no agent row carries.
+  scopes: { graph: "write", agents: true },
+  views: [JourneysView],
+  surfaces: [{ kind: "nav", name: "journeys", view: "journeys", label: "Journeys" }],
   graph: {
     nodes: { state: StateProps, card: CardProps, persona: PersonaProps, journey: JourneyProps },
     edges: {
@@ -64,6 +68,11 @@ export default definePlugin({
     stories: { doc: "Stories for testers to walk.", params: StoriesParams, success: StoriesResult },
     step: { doc: "What a tester sees at a step.", params: StepParams, success: StepView },
     personas: { doc: "Personas, each with the cards that name it.", params: Schema.Struct({}), success: Schema.Array(PersonaView) },
+    act: {
+      doc: "The Journeys view: open (or refresh) it, or show a journey's flow.",
+      params: Schema.Struct({ agent: Schema.String, action: Schema.String, section: Schema.optionalKey(Schema.String), rows: Schema.Array(Schema.String) }),
+      success: Schema.Struct({ notice: Schema.String }),
+    },
     journeys: { doc: "Journeys, each with its cards.", params: Schema.Struct({}), success: Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String, cards: Schema.Array(Schema.String) })) },
     affected: {
       doc: "Cards a change affects.",
@@ -74,6 +83,9 @@ export default definePlugin({
   make: Effect.gen(function* () {
     const graph = yield* Graph
     const snap = graph.snapshot.pipe(Effect.orDie)
+    const views = yield* Views
+    // The journey the Journeys view shows; the first by name until the operator picks one.
+    let chosen: string | undefined
     const runTool = (t: (typeof tools)[number]) => (p: unknown) =>
       Effect.flatMap(snap, (s) => t.run(p as never, s)).pipe(Effect.mapError((e) => new PluginFailure({ tag: "ToolError", message: e.message })))
     return {
@@ -91,6 +103,17 @@ export default definePlugin({
         Effect.map(snap, (s) => planStories(s, strategy, focus === undefined || focus.length === 0 ? undefined : new Set(focus))),
       step: ({ card, via }: { card: string; via?: string }) => Effect.map(snap, (s) => stepView(s, card, via) ?? null),
       journeys: () => Effect.map(snap, journeyList),
+      // The nav item opens the view (and Refresh reloads it); Show (or Enter on a row) picks a journey.
+      act: ({ agent, action, rows }: { agent: string; action: string; rows: ReadonlyArray<string> }) =>
+        Effect.gen(function* () {
+          if (agent !== "journeys") return { notice: `gherkin has no agent ${agent}` }
+          if (action === "show" && rows[0] !== undefined) chosen = rows[0]
+          const v = journeysView(yield* snap, chosen)
+          chosen = v.selected
+          yield* views.set("journeys", JourneysView, "list", { rows: v.rows })
+          yield* views.set("journeys", JourneysView, "flow", { markdown: v.markdown })
+          return { notice: v.selected === undefined ? "no journeys yet" : `showing ${v.rows.find((r) => r.id === v.selected)?.cells.name ?? v.selected}` }
+        }).pipe(Effect.mapError((e) => new PluginFailure({ tag: "ViewError", message: String((e as { message?: unknown }).message ?? e) }))),
       personas: () =>
         Effect.map(snap, (s) =>
           personas(s).map((p) => ({ id: p.id, name: personaName(p), kind: p.props.kind as "human" | "cli" | "agent", text: String(p.props.text ?? ""), cards: Snapshot.inbound(s, p.id, BY).map((e) => e.from).sort() })),

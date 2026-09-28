@@ -10,7 +10,7 @@ export const surfacesProblem = (surfaces: unknown, layouts: ReadonlyArray<Layout
   const names = new Set<string>()
   for (const raw of surfaces) {
     const r = Schema.decodeUnknownExit(Surface)(raw)
-    if (r._tag !== "Success") return `surface ${String((raw as { name?: unknown } | null)?.name)} does not fit any kind (tile, panel, popover, sheet, card)`
+    if (r._tag !== "Success") return `surface ${String((raw as { name?: unknown } | null)?.name)} does not fit any kind (tile, panel, popover, sheet, card, nav)`
     const s = r.value
     if (!/^[a-z][a-z0-9-]*$/.test(s.name)) return `surface name "${s.name}" must be kebab-case`
     if (names.has(s.name)) return `surface ${s.name} is declared twice`

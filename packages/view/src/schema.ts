@@ -14,6 +14,8 @@ export const Action = Schema.Struct({
   on: Schema.Literals(["selection", "row", "none"]),
   /** Surfaces the action opens (for the acting agent, or another of the plugin's agents), without calling the plugin. */
   opens: Schema.optionalKey(Schema.Array(Schema.Struct({ surface: Schema.String, agent: Schema.optionalKey(Schema.String) }))),
+  /** The row's default: Enter on a highlighted row runs it (a table's first default wins). */
+  default: Schema.optionalKey(Schema.Boolean),
 })
 /** A table column; `order` ranks its values for sorting (a severity's "high", "medium", "low"), else they sort as text with numbers as numbers. */
 /** What a column's menu offers beside sorting: ticking by value, nothing, ticking a numeric range (the cell's last number), or a search that sorts by match. */
@@ -101,5 +103,7 @@ export const Surface = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("popover"), name: Schema.String, view: Schema.String }),
   Schema.Struct({ kind: Schema.Literal("sheet"), name: Schema.String, view: Schema.String }),
   Schema.Struct({ kind: Schema.Literal("card"), name: Schema.String, view: Schema.String, headline: Schema.String, recent: Schema.optionalKey(Schema.String), action: Schema.optionalKey(Schema.String) }),
+  /** A navigation item above the agents: the operator opens the plugin's view from it; the plugin fills it on `act` "open". */
+  Schema.Struct({ kind: Schema.Literal("nav"), name: Schema.String, view: Schema.String, label: Schema.NonEmptyString }),
 ])
 export type Surface = typeof Surface.Type

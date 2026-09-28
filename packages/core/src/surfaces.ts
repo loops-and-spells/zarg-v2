@@ -8,6 +8,27 @@ export const PANELS = "zarg.panels"
 /** A plugin asked for a tile or sheet to show (the operator's call opened it): a one-way request clients follow. */
 export const NAVIGATE = "zarg.navigate"
 
+/** The plugins' nav items (shown above the agents), one snapshot whenever plugins load. */
+export const NAV = "zarg.nav"
+
+/** A plugin's navigation item: its view shows under the agent id `${plugin}:${name}`, which no agent row has. */
+export interface NavItem {
+  readonly id: string
+  readonly plugin: string
+  readonly name: string
+  readonly label: string
+  /** The view store key the plugin fills (see `viewKey`). */
+  readonly view: string
+}
+
+/** Every nav surface of the given (loaded) plugins' manifests, in load order. */
+export const navItems = (manifests: ReadonlyArray<{ readonly name: string; readonly surfaces?: unknown }>): ReadonlyArray<NavItem> =>
+  manifests.flatMap((m) =>
+    (Array.isArray(m.surfaces) ? (m.surfaces as ReadonlyArray<{ kind?: unknown; name?: unknown; view?: unknown; label?: unknown }>) : [])
+      .filter((s) => s?.kind === "nav" && typeof s.name === "string" && typeof s.view === "string" && typeof s.label === "string")
+      .map((s) => ({ id: `${m.name}:${String(s.name)}`, plugin: m.name, name: String(s.name), label: String(s.label), view: `${m.name}:${String(s.name)}@${String(s.view)}` })),
+  )
+
 /** A panel a plugin opened for one of its agents. `id` is `${plugin}:${name}:${agent}`. */
 export interface PanelInstance {
   readonly id: string

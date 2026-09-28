@@ -45,3 +45,14 @@ export const journeyFlow = (snap: Snapshot.Snapshot, journey: string): string =>
   const apart = alone.map((c) => renderCard(snap, snap.nodes.get(c)!))
   return [head, ...blocks, ...(apart.length > 0 ? ["Not connected to the journey's other cards:", ...apart] : [])].join("\n\n")
 }
+
+/** The Journeys view's data: journeys by name with their card counts, and the chosen one's flow (else the first). */
+export const journeysView = (snap: Snapshot.Snapshot, chosen: string | undefined) => {
+  const all = [...journeyList(snap)].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+  const selected = all.some((j) => j.id === chosen) ? chosen : all[0]?.id
+  return {
+    rows: all.map((j) => ({ id: j.id, cells: { name: j.name, cards: String(j.cards.length) } })),
+    selected,
+    markdown: selected === undefined ? "No journeys yet. Add one with gherkin/add-journey, then tag cards with link {edge: \"in\"}." : `\`\`\`text\n${journeyFlow(snap, selected)}\n\`\`\``,
+  }
+}

@@ -33,6 +33,14 @@ export interface Prompt {
 }
 
 /** A panel a plugin opened for one of its agents, at an edge of the tile area. */
+/** A plugin's nav item: its label, and the view store key the plugin fills when it opens. */
+export interface NavItem {
+  readonly id: string
+  readonly plugin: string
+  readonly name: string
+  readonly label: string
+  readonly view: string
+}
 export interface Panel {
   readonly id: string
   readonly plugin: string
@@ -102,6 +110,8 @@ export interface ThreadState {
   readonly deleted?: ReadonlyArray<string>
   /** The panels plugins have open. */
   readonly panels?: ReadonlyArray<Panel>
+  /** The plugins' nav items, shown above the agents: each opens its plugin's view. */
+  readonly nav?: ReadonlyArray<NavItem>
   /** The last tile or sheet a plugin opened for the operator, with the event's seq and time. */
   readonly navigate?: { readonly seq: number; readonly kind: "tile" | "sheet"; readonly view: string; readonly at: number }
 }
@@ -139,6 +149,8 @@ export const reduce = (s: ThreadState, e: WireEvent): ThreadState => {
     return { ...s, seq: e.seq, prompts: e.name === "zarg.prompt" ? [...rest, prompt] : rest }
   }
   // Panels and navigation are the core's too.
+  if (e.type === "ACTIVITY_SNAPSHOT" && e.activityType === "zarg.nav" && e.seq > s.seq)
+    return { ...s, seq: e.seq, nav: ((e.content as { items?: ReadonlyArray<NavItem> } | undefined)?.items ?? []) }
   if (e.type === "ACTIVITY_SNAPSHOT" && e.activityType === "zarg.panels" && e.seq > s.seq)
     return { ...s, seq: e.seq, panels: ((e.content as { panels?: ReadonlyArray<Panel> } | undefined)?.panels ?? []) }
   if (e.type === "CUSTOM" && e.name === "zarg.navigate" && e.seq > s.seq) {

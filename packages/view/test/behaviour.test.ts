@@ -262,3 +262,14 @@ describe("tabs", () => {
     expect(moveColumn(t, { ...ui, header: { path: "review.findings", col: 0 } }, -1).tabs.review).toBe(0)
   })
 })
+
+test("Enter runs a table's default action on the highlighted row", () => {
+  const t: ViewState = {
+    agent: "t",
+    layout: layoutOf(defineView("t", { list: { kind: "table", role: "primary", columns: [{ id: "name", label: "name" }], actions: [{ id: "show", label: "Show", key: "s", on: "row", default: true }] } })),
+    data: { list: { rows: [{ id: "J-1", cells: { name: "a" } }, { id: "J-2", cells: { name: "b" } }] } },
+  }
+  const ui = moveRow(t, startUi(t), 1)
+  expect(actionFor(t, ui, "return")).toEqual({ section: "list", action: "show", rows: ["J-2"] })
+  expect(actionFor(t, ui, "s")).toEqual({ section: "list", action: "show", rows: ["J-2"] })
+})

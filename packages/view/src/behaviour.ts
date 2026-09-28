@@ -278,7 +278,7 @@ export const toggleSelect = (view: ViewState, ui: ViewUi): ViewUi => {
 /** The action a key triggers on a platform: the focused table's, else the view's own; undefined when none. */
 export const actionFor = (view: ViewState, ui: ViewUi, key: string, platform = "terminal"): { readonly section: string | undefined; readonly action: string; readonly rows: ReadonlyArray<string> } | undefined => {
   const c = current(view, ui)
-  const a = c !== undefined && c.leaf.kind === "table" ? (c.leaf.actions ?? []).find((x) => keyFor(x, platform) === key) : undefined
+  const a = c !== undefined && c.leaf.kind === "table" ? (c.leaf.actions ?? []).find((x) => keyFor(x, platform) === key || (key === "return" && x.default === true)) : undefined
   if (c === undefined || a === undefined) {
     const own = (view.layout.actions ?? []).find((x) => keyFor(x, platform) === key)
     return own === undefined ? undefined : { section: undefined, action: own.id, rows: [] }
