@@ -1,7 +1,7 @@
 import { useKeyboard, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Panel, Session } from "@zarg/client"
-import { afterAction, applyMenu, hintsOf, keyFor, menuAdjust, pickHeader, pickMark, pickRow, startUi, THEME, toneColor } from "@zarg/view"
+import { afterAction, applyMenu, hintsOf, keyFor, menuAdjust, pickHeader, pickMark, pickRow, pickTab, startUi, THEME, toneColor } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { registerCommands, SLASH_COMMANDS } from "./commands"
 import { fit, gauge, keyGlyphs } from "./look"
@@ -318,6 +318,10 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             onHeader={(section, col) => {
               const v = props.session.state().thread.views?.[viewing]
               if (v !== undefined) setUi({ ...latest(), focus: "tile", view: pickHeader(v, latest().view ?? startUi(v), section, col) })
+            }}
+            onTab={(section, i) => {
+              const v = props.session.state().thread.views?.[viewing]
+              if (v !== undefined) setUi({ ...latest(), focus: "tile", view: pickTab(v, latest().view ?? startUi(v), section, i) })
             }}
             onMark={(section, i) => {
               const v = props.session.state().thread.views?.[viewing]

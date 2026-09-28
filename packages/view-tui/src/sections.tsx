@@ -14,25 +14,37 @@ interface LeafProps { readonly view: ViewState; readonly ui: ViewUi; readonly pa
 type Leaf = (p: LeafProps) => ReactNode
 
 /** A section's heading: its title (or its tabs, the current one marked), then a faint rule. */
-export const Heading = (p: { readonly title: string; readonly width: number; readonly focused: boolean; readonly tabs?: ReadonlyArray<{ readonly label: string; readonly current: boolean }> }) => {
+export const Heading = (p: { readonly title: string; readonly width: number; readonly focused: boolean; readonly tabs?: ReadonlyArray<{ readonly label: string; readonly current: boolean; readonly empty?: boolean }>; readonly onTab?: (index: number) => void }) => {
   const colour = p.focused ? THEME.accent : THEME.dim
-  const label = p.tabs !== undefined ? p.tabs.map((t) => t.label).join("  ") : p.title
-  const h = heading(label, p.width)
-  return (
-    <text wrapMode="none">
-      {p.tabs !== undefined ? (
-        p.tabs.map((t, i) => (
-          <span key={i} fg={t.current ? colour : THEME.faint}>
-            {t.current ? <b>{`${i > 0 ? "  " : ""}${t.label}`}</b> : `${i > 0 ? "  " : ""}${t.label}`}
-          </span>
-        ))
-      ) : (
+  if (p.tabs === undefined) {
+    const h = heading(p.title, p.width)
+    return (
+      <text wrapMode="none">
         <span fg={colour}>
           <b>{h.title}</b>
         </span>
-      )}
-      <span fg={THEME.faint}>{h.rule}</span>
-    </text>
+        <span fg={THEME.faint}>{h.rule}</span>
+      </text>
+    )
+  }
+  // Tabs: each a click away; the current one bold and underlined (▔ on the row under it), an empty one faint.
+  const tabs = p.tabs
+  const label = tabs.map((t) => t.label).join("   ")
+  const h = heading(label, p.width)
+  const under = tabs.map((t) => (t.current ? "▔" : " ").repeat(t.label.length)).join("   ")
+  return (
+    <box style={{ flexDirection: "column", height: 2 }}>
+      <box style={{ flexDirection: "row", height: 1 }}>
+        {tabs.map((t, i) => [
+          i > 0 ? <text key={`gap${i}`}>{"   "}</text> : null,
+          <text key={i} wrapMode="none" onMouseDown={() => p.onTab?.(i)} fg={t.current ? (p.focused ? THEME.accent : THEME.text) : t.empty === true ? THEME.faint : THEME.dim}>
+            {t.current ? <b>{t.label}</b> : t.label}
+          </text>,
+        ])}
+        <text wrapMode="none" fg={THEME.faint}>{h.rule}</text>
+      </box>
+      <text wrapMode="none" fg={colour}>{under}</text>
+    </box>
   )
 }
 
@@ -194,7 +206,7 @@ export const renderers: Record<Exclude<SectionKind, "tabs">, Leaf> = { stats: St
 const count = (view: ViewState, path: string) => rowsOf(view, path).length
 /** A tabs section's tabs for its heading: each with its row count, the current one marked. */
 const tabsOf = (view: ViewState, ui: ViewUi, s: LayoutSection) =>
-  s.kind === "tabs" ? s.tabs.map((t, i) => ({ label: `${t.title ?? t.id} ${count(view, `${s.id}.${t.id}`)}`, current: i === (ui.tabs[s.id] ?? 0) })) : undefined
+  s.kind === "tabs" ? s.tabs.map((t, i) => ({ label: `${t.title ?? t.id} ${count(view, `${s.id}.${t.id}`)}`, current: i === (ui.tabs[s.id] ?? 0), empty: count(view, `${s.id}.${t.id}`) === 0 })) : undefined
 
 /** How tall a section would like to be: its content plus its frame (text counts its lines). */
 const wantedOf = (view: ViewState, ui: ViewUi, s: LayoutSection, width: number, measured?: number): number => {
@@ -209,8 +221,8 @@ const wantedOf = (view: ViewState, ui: ViewUi, s: LayoutSection, width: number, 
     : k === "keyvalue" ? ((view.data[leaf.path] as { pairs?: ReadonlyArray<unknown> } | undefined)?.pairs ?? []).length
     : k === "log" ? ((view.data[leaf.path] as { lines?: ReadonlyArray<unknown> } | undefined)?.lines ?? []).length
     : rowsOf(view, leaf.path).length + (k === "table" ? 1 : 0)
-  // Its content and its heading line.
-  return Math.max(1, content) + 1
+  // Its content and its heading (tabs take a second line, their underline).
+  return Math.max(1, content) + (s.kind === "tabs" ? 2 : 1)
 }
 type ButtonSpec = { readonly id: string; readonly label: string; readonly key?: string; readonly keys?: Readonly<Record<string, string>> }
 /** A selection's actions as buttons: the first filled with the accent (with the count), the rest quiet; each shows its key and runs on a click. */
@@ -250,9 +262,9 @@ const RowCard = (p: { readonly card: NonNullable<ReturnType<typeof cursorRow>>; 
   const text = (i: number) => (p.card.row.cells?.[cols[i]!.id] ?? "").replace(/\s*\n\s*/g, " ")
   const long = cols.flatMap((c, i) => (i > 0 && text(i).length > widths[i]! ? [{ label: c.label, value: p.card.row.cells?.[c.id] ?? "" }] : []))
   const short = cols.flatMap((c, i) => (i > 0 && text(i) !== "" && text(i).length <= widths[i]! ? [`${c.label} ${text(i)}`] : []))
-  const wanted = 1 + long.reduce((a, l) => a + 1 + Math.ceil(l.value.length / Math.max(1, p.width - 4)), 0)
   return (
-    <scrollbox focusable={false} style={{ flexShrink: 0, height: Math.min(p.height, wanted), marginBottom: 1 }}>
+    // One height whatever the row, so the sections below stay put; a long row scrolls inside.
+    <scrollbox focusable={false} style={{ flexShrink: 0, height: p.height, marginBottom: 1 }}>
       <text wrapMode="none">
         {p.card.leaf.selectable === true ? <span fg={p.card.selected ? THEME.accent : THEME.dim}>{p.card.selected ? "● " : "○ "}</span> : null}
         <span fg={fg(p.card.row.tone)}>
@@ -263,7 +275,9 @@ const RowCard = (p: { readonly card: NonNullable<ReturnType<typeof cursorRow>>; 
       {long.map((l) => (
         <box key={l.label} style={{ flexDirection: "column", flexShrink: 0 }}>
           <text fg={THEME.dim}>{l.label}</text>
-          <text fg={THEME.text} style={{ paddingLeft: 2 }}>{l.value}</text>
+          <box style={{ paddingLeft: 2 }}>
+            <text fg={THEME.text}>{l.value}</text>
+          </box>
         </box>
       ))}
     </scrollbox>
@@ -273,7 +287,7 @@ const RowCard = (p: { readonly card: NonNullable<ReturnType<typeof cursorRow>>; 
 /** The most entries a column menu shows before it scrolls. */
 const MENU_ROWS = 8
 /** A column's menu, dropped down under its header: its entries (at most `room`, scrolled to the highlighted one; ▴▾ when more), each a click away. */
-const ColumnMenu = (p: { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly leaf: LayoutLeaf; readonly width: number; readonly room: number; readonly onPick?: (index: number) => void; readonly onAdjust?: (index: number, dir: number) => void }) => {
+const ColumnMenu = (p: { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly leaf: LayoutLeaf; readonly width: number; readonly room: number; readonly top: number; readonly onPick?: (index: number) => void; readonly onAdjust?: (index: number, dir: number) => void }) => {
   const m = p.ui.menu!
   const { cols, starts } = tableLayout(p.view, p.path, p.leaf, p.width)
   const col = cols[m.col]
@@ -311,7 +325,7 @@ const ColumnMenu = (p: { readonly view: ViewState; readonly ui: ViewUi; readonly
   return (
     <box
       zIndex={10}
-      style={{ position: "absolute", left, top: 2, width: inner + 4, height: shown + 2, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: THEME.accent, backgroundColor: THEME.raised, paddingLeft: 1, paddingRight: 1 }}
+      style={{ position: "absolute", left, top: p.top, width: inner + 4, height: shown + 2, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: THEME.accent, backgroundColor: THEME.raised, paddingLeft: 1, paddingRight: 1 }}
       title={` ${col.label} ${more.up ? "▴" : ""}`}
       {...(more.down ? { bottomTitle: " ▾ " } : {})}
     >
@@ -350,7 +364,7 @@ const SHARE = { primary: "33%", pinned: "40%", aside: "25%" } as const
 export type Scroller = (delta: number) => void
 
 /** An agent's view in the terminal: its sections stacked by role, each a heading over its own scrollbox. */
-export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly width?: number; readonly scroller?: { current?: Scroller | undefined }; readonly onPick?: (sectionId: string, index: number) => void; readonly onAct?: (section: string, action: string, rows: ReadonlyArray<string>) => void; readonly onClear?: (section: string) => void; readonly onHeader?: (sectionId: string, col: number) => void; readonly onMenuPick?: (index: number) => void; readonly onMark?: (sectionId: string, index: number) => void; readonly onMenuAdjust?: (index: number, dir: number) => void }) => {
+export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly width?: number; readonly scroller?: { current?: Scroller | undefined }; readonly onPick?: (sectionId: string, index: number) => void; readonly onAct?: (section: string, action: string, rows: ReadonlyArray<string>) => void; readonly onClear?: (section: string) => void; readonly onHeader?: (sectionId: string, col: number) => void; readonly onMenuPick?: (index: number) => void; readonly onMark?: (sectionId: string, index: number) => void; readonly onMenuAdjust?: (index: number, dir: number) => void; readonly onTab?: (sectionId: string, index: number) => void }) => {
   const dims = useTerminalDimensions()
   const width = Math.max(10, (props.width ?? dims.width) - 2)
   const all = ordered(props.view.layout)
@@ -370,12 +384,14 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
   // Where each section and the view sit, as last laid out: a column menu drops down only as far as the view goes.
   const root = useRef<BoxRenderable | null>(null)
   const sectionBoxes = useRef(new Map<string, BoxRenderable>())
+  const headRowsOf = (id: string) => (props.view.layout.sections.find((x) => x.id === id)?.kind === "tabs" ? 2 : 1)
   const roomBelow = (id: string) => {
     const box = sectionBoxes.current.get(id)
-    return root.current === null || box === undefined ? MENU_ROWS + 2 : root.current.y + root.current.height - (box.y + 2)
+    return root.current === null || box === undefined ? MENU_ROWS + 2 : root.current.y + root.current.height - (box.y + headRowsOf(id) + 1)
   }
   // The focused table's cursor row, in full, in place of the summary.
   const card = cursorRow(props.view, props.ui)
+  let seen = 0
   return (
     <box ref={root} style={{ flexDirection: "column", flexGrow: 1, overflow: "hidden" }}>
       {card !== undefined ? <RowCard card={card} view={props.view} width={width} height={Math.max(3, Math.floor(props.height / 3))} /> : null}
@@ -392,6 +408,9 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
             </box>
           )
         const tabs = tabsOf(props.view, props.ui, s)
+        const headRows = tabs !== undefined ? 2 : 1
+        // A blank row between one section and the one before it.
+        const after = seen++ > 0
         const buttons = props.onAct === undefined ? undefined : buttonsOf(props.view, props.ui, leaf)
         // The buttons and the blank line above them.
         const extra = buttons === undefined ? 0 : 2
@@ -402,15 +421,16 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
             // Sections fit their content, capped by role, and shrink to their heading when the window is short.
             style={{
               flexDirection: "column",
-              minHeight: 2,
+              minHeight: headRows + 1,
               flexShrink: 1,
+              ...(after ? { marginTop: 1 } : {}),
               ...(s.role === "log" || s.role === "pinned"
                 ? { flexGrow: 1, flexBasis: 0, maxHeight: wantedOf(props.view, props.ui, s, width, heights[leaf.path]) + extra }
                 : { height: wantedOf(props.view, props.ui, s, width, heights[leaf.path]) + extra, maxHeight: s.role === "summary" ? 6 : SHARE[s.role as keyof typeof SHARE] }),
             }}
           >
-            <box style={{ height: 1, flexShrink: 0 }}>
-              <Heading title={s.title ?? s.id} width={width} focused={focused} {...(tabs !== undefined ? { tabs } : {})} />
+            <box style={{ height: headRows, flexShrink: 0 }}>
+              <Heading title={s.title ?? s.id} width={width} focused={focused} {...(tabs !== undefined ? { tabs } : {})} {...(props.onTab !== undefined ? { onTab: (k: number) => props.onTab!(s.id, k) } : {})} />
             </box>
             <scrollbox
               focusable={false}
@@ -439,6 +459,7 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
                 leaf={leaf.leaf}
                 width={width}
                 room={roomBelow(s.id)}
+                top={headRows + 1}
                 {...(props.onMenuPick !== undefined ? { onPick: props.onMenuPick } : {})}
                 {...(props.onMenuAdjust !== undefined ? { onAdjust: props.onMenuAdjust } : {})}
               />

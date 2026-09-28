@@ -204,9 +204,30 @@ export const applyMenu = (view: ViewState, ui: ViewUi, index?: number): ViewUi =
   if (e.kind === "tick-range" || e.kind === "tick-matches") return tickAll(at, m.path, tickable(view, ui))
   return at
 }
-/** On a header: ←→ move between its columns. */
-export const moveColumn = (view: ViewState, ui: ViewUi, dir: number): ViewUi =>
-  ui.header === undefined ? ui : { ...ui, header: { ...ui.header, col: Math.max(0, Math.min(columnsAt(view, ui.header.path).length - 1, ui.header.col + dir)) } }
+/** On a header: ←→ move between its columns; past the first or last column, to the previous or next tab's header. */
+export const moveColumn = (view: ViewState, ui: ViewUi, dir: number): ViewUi => {
+  const h = ui.header
+  if (h === undefined) return ui
+  const last = columnsAt(view, h.path).length - 1
+  const col = h.col + dir
+  const s = focused(view, ui)
+  if ((col < 0 || col > last) && s?.kind === "tabs") {
+    const at = ui.tabs[s.id] ?? 0
+    const to = at + (col < 0 ? -1 : 1)
+    const tab = s.tabs[to]
+    if (tab === undefined) return ui
+    const path = `${s.id}.${tab.id}`
+    return { ...closeMenu(ui), tabs: { ...ui.tabs, [s.id]: to }, header: { path, col: col < 0 ? Math.max(0, columnsAt(view, path).length - 1) : 0 } }
+  }
+  return { ...ui, header: { ...h, col: Math.max(0, Math.min(last, col)) } }
+}
+/** A click on a tab: its section takes focus and shows it. */
+export const pickTab = (view: ViewState, ui: ViewUi, sectionId: string, index: number): ViewUi => {
+  const focus = ordered(view.layout).findIndex((s) => s.id === sectionId)
+  if (focus < 0) return ui
+  const { header: _h, menu: _m, ...rest } = ui
+  return { ...rest, focus, tabs: { ...ui.tabs, [sectionId]: index } }
+}
 /** A click on a column's header: its table takes focus and the column's menu opens. */
 export const pickHeader = (view: ViewState, ui: ViewUi, sectionId: string, col: number): ViewUi => {
   const focus = ordered(view.layout).findIndex((s) => s.id === sectionId)
