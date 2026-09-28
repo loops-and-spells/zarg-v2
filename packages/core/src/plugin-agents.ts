@@ -34,6 +34,8 @@ export const pluginAgents = (
   surfaceOf: (plugin: string, name: string) => Surface | undefined = () => undefined,
   surfaces?: Surfaces,
   prompts?: PromptQueue,
+  /** The plugin's declared surfaces (its cards among them). */
+  surfacesOf: (plugin: string) => ReadonlyArray<Surface> = () => [],
 ) => {
   const streams = new Map<string, ReturnType<typeof makeActivity>>()
   const views = threadViews(log, threadId)
@@ -57,6 +59,8 @@ export const pluginAgents = (
       checkId(o.agent)
       const s = surfaceOf(plugin, String(o.surface))
       if (s === undefined) throw new Error(`plugin ${plugin} declares no surface ${String(o.surface)}`)
+      // A card is how the agent shows in the grid: there is nothing to open.
+      if (s.kind === "card") throw new Error(`${s.name} is a card: it shows in the grid by itself`)
       // Panels open any time; the rest take the screen or the keys, so only the developer's call opens them.
       if (s.kind !== "panel" && e.gesture !== true) throw new Error(`${s.name} is a ${s.kind}: it opens only while you handle the developer's call; ask for attention instead`)
       const id = `${plugin}:${o.agent}`
@@ -101,7 +105,9 @@ export const pluginAgents = (
     if (e.event === "start") {
       const layout = e.view === undefined ? DEFAULT_LAYOUT : layoutOf(plugin, e.view)
       if (layout === undefined) throw new Error(`plugin ${plugin} declares no view ${e.view}`)
-      views.start(id, layout)
+      // An agent whose view the plugin has a card for carries the card: the grid draws it from the view.
+      const card = surfacesOf(plugin).find((x) => x.kind === "card" && x.view === e.view)
+      views.start(id, card?.kind === "card" ? { ...layout, card: { headline: card.headline, ...(card.recent !== undefined ? { recent: card.recent } : {}), ...(card.action !== undefined ? { action: card.action } : {}) } } : layout)
       // Its other views start afresh too: a new run's panel never shows the last run's numbers.
       for (const key of views.keys().filter((k) => k.startsWith(`${id}@`))) views.start(key, views.layout(key)!)
     }

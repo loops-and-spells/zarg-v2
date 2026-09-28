@@ -83,7 +83,7 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
   const names = (def.views ?? []).map((v) => v.name)
   const twice = names.find((n, i) => names.indexOf(n) !== i)
   if (twice !== undefined) throw new Error(`plugin ${def.name}: view ${twice} is defined twice`)
-  const surfaces = surfacesProblem(def.surfaces, names)
+  const surfaces = surfacesProblem(def.surfaces, (def.views ?? []).map(layoutOf))
   if (surfaces !== undefined) throw new Error(`plugin ${def.name}: ${surfaces}`)
   const opens = opensProblem((def.views ?? []).map(layoutOf), def.surfaces ?? [])
   if (opens !== undefined) throw new Error(`plugin ${def.name}: ${opens}`)

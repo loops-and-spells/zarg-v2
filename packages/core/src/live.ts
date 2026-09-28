@@ -160,7 +160,11 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       const raw = Array.isArray(list) ? list.find((x: { name?: unknown } | null) => x?.name === name) : undefined
       return raw === undefined ? undefined : Schema.decodeUnknownSync(Surface)(raw)
     }
-    const agentEvents = pluginAgents(log, "main", layoutOf, surfaceOf, surfaces, prompts) as (plugin: string, event: unknown) => void
+    const surfacesOf = (plugin: string) => {
+      const list = host.manifests.find((m) => m.name === plugin)?.surfaces
+      return Array.isArray(list) ? list.map((x) => Schema.decodeUnknownSync(Surface)(x)) : []
+    }
+    const agentEvents = pluginAgents(log, "main", layoutOf, surfaceOf, surfaces, prompts, surfacesOf) as (plugin: string, event: unknown) => void
     control.setAgents(agentEvents)
     control.setAsk((q) =>
       prompts

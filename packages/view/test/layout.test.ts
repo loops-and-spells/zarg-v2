@@ -79,3 +79,8 @@ test("keys.terminal wins over key, in the check as at run time: a reserved one h
   const t = { t: { kind: "table" as const, role: "primary" as const, columns: [], actions: [{ id: "a", label: "A", key: "z", keys: { terminal: "return" }, on: "row" as const }] } }
   expect(() => defineView("v", t)).toThrow(/return, a key terminal keeps/)
 })
+
+test("review marks tables only", () => {
+  expect(() => defineView("v", { s: { kind: "log", role: "log", review: true } as never })).toThrow(/marks review but is a log/)
+  expect(layoutOf(defineView("v", { t: { kind: "table", role: "primary", columns: [], review: true } })).sections[0]).toMatchObject({ review: true })
+})

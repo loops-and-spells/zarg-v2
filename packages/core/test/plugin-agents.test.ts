@@ -87,6 +87,7 @@ const surfaceSetup = async (surfaces: ReadonlyArray<Surface>) => {
     (plugin, name) => (plugin === "rehearse" ? surfaces.find((s) => s.name === name) : undefined),
     makeSurfaces(log, "main"),
     makePrompts(log),
+    (plugin) => (plugin === "rehearse" ? surfaces : []),
   )
   const panels = () => ((log.all().filter((e) => e.type === "ACTIVITY_SNAPSHOT" && e.activityType === PANELS).at(-1)?.content ?? { panels: [] }) as { panels: ReadonlyArray<{ id: string }> }).panels.map((p) => p.id)
   return { log, on, panels }
@@ -151,4 +152,12 @@ test("a multi-surface open is all or nothing", async () => {
   on("rehearse", { event: "start", id: "t1", title: "tester", task: "t", view: "tester" })
   expect(() => on("rehearse", { event: "open", surfaces: [{ surface: "status", agent: "t1" }, { surface: "nope", agent: "t1" }], gesture: true })).toThrow(/nope/)
   expect(panels()).toEqual([])
+})
+
+test("an agent that starts with a view the plugin has a card for carries the card in its layout", async () => {
+  const { on, log } = await surfaceSetup([{ kind: "card", name: "tester", view: "tester", headline: "progress" }])
+  on("rehearse", { event: "start", id: "t1", title: "tester", task: "t", view: "tester" })
+  expect(threadViews(log, "main").layout("rehearse:t1")?.card).toEqual({ headline: "progress" })
+  on("rehearse", { event: "start", id: "t2", title: "tester", task: "t" })
+  expect(threadViews(log, "main").layout("rehearse:t2")?.card).toBeUndefined()
 })

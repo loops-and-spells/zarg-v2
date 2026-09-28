@@ -60,6 +60,8 @@ const leafFields = {
   columns: Schema.optionalKey(Schema.Array(Column)),
   selectable: Schema.optionalKey(Schema.Boolean),
   actions: Schema.optionalKey(Schema.Array(Action)),
+  /** A table whose rows join the review queue (every agent's review tables in one list). */
+  review: Schema.optionalKey(Schema.Boolean),
 }
 export const LayoutLeaf = Schema.Struct({ ...leafFields, kind: Schema.Literals(["stats", "list", "log", "table", "keyvalue", "text", "conversation"]) })
 export const LayoutSection = Schema.Union([
@@ -67,8 +69,12 @@ export const LayoutSection = Schema.Union([
   Schema.Struct({ id: Schema.String, title: Schema.optionalKey(Schema.String), kind: Schema.Literal("tabs"), role: Role, tabs: Schema.Array(LayoutLeaf) }),
 ])
 /** A view as the manifest and the wire carry it. */
-/** `actions`: the view's own actions, on no table (a rerun). */
-export const LayoutSchema = Schema.Struct({ name: Schema.String, sections: Schema.Array(LayoutSection), actions: Schema.optionalKey(Schema.Array(Action)) })
+/** How an agent looks in the grid: a stats headline (its gauge), recent lines, one action; sections of the view. */
+export const CardSpec = Schema.Struct({ headline: Schema.String, recent: Schema.optionalKey(Schema.String), action: Schema.optionalKey(Schema.String) })
+export type CardSpec = typeof CardSpec.Type
+
+/** `actions`: the view's own actions, on no table (a rerun). `card`: the agent's card, when its plugin declares one for this view. */
+export const LayoutSchema = Schema.Struct({ name: Schema.String, sections: Schema.Array(LayoutSection), actions: Schema.optionalKey(Schema.Array(Action)), card: Schema.optionalKey(CardSpec) })
 export type Layout = typeof LayoutSchema.Type
 export type LayoutSection = typeof LayoutSection.Type
 export type LayoutLeaf = typeof LayoutLeaf.Type
@@ -91,5 +97,6 @@ export const Surface = Schema.Union([
   }),
   Schema.Struct({ kind: Schema.Literal("popover"), name: Schema.String, view: Schema.String }),
   Schema.Struct({ kind: Schema.Literal("sheet"), name: Schema.String, view: Schema.String }),
+  Schema.Struct({ kind: Schema.Literal("card"), name: Schema.String, view: Schema.String, headline: Schema.String, recent: Schema.optionalKey(Schema.String), action: Schema.optionalKey(Schema.String) }),
 ])
 export type Surface = typeof Surface.Type

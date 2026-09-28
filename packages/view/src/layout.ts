@@ -7,7 +7,7 @@ type ColumnSpec = { readonly id: string; readonly label: string }
 type Role = "summary" | "primary" | "log" | "pinned" | "aside"
 export type LeafSpec =
   | { readonly kind: "stats" | "list" | "log" | "keyvalue" | "text" | "conversation"; readonly title?: string }
-  | { readonly kind: "table"; readonly title?: string; readonly columns: ReadonlyArray<ColumnSpec>; readonly selectable?: boolean; readonly actions?: ReadonlyArray<ActionSpec> }
+  | { readonly kind: "table"; readonly title?: string; readonly columns: ReadonlyArray<ColumnSpec>; readonly selectable?: boolean; readonly actions?: ReadonlyArray<ActionSpec>; readonly review?: boolean }
 export type SectionSpec = (LeafSpec & { readonly role: Role }) | { readonly kind: "tabs"; readonly role: Role; readonly title?: string; readonly tabs: Readonly<Record<string, LeafSpec>> }
 export type ViewSpec = Readonly<Record<string, SectionSpec>>
 export interface ViewDef<S extends ViewSpec> {
@@ -33,6 +33,7 @@ const NAME = /^[a-z][a-z0-9-]*$/
 const ID = /^[a-z][a-zA-Z0-9-]*$/
 
 const checkLeaf = (view: string, path: string, leaf: LeafSpec) => {
+  if ((leaf as { review?: unknown }).review === true && leaf.kind !== "table") throw new Error(`view ${view}: ${path} marks review but is a ${leaf.kind}, not a table`)
   const ids = leaf.kind === "table" ? (leaf.actions ?? []).map((a) => a.id) : []
   const dup = ids.find((id, i) => ids.indexOf(id) !== i)
   if (dup !== undefined) throw new Error(`view ${view}: action ${dup} appears twice in ${path}`)
@@ -62,7 +63,7 @@ const leafOf = (id: string, l: LeafSpec): LayoutLeaf => ({
   id,
   kind: l.kind,
   ...(l.title !== undefined ? { title: l.title } : {}),
-  ...(l.kind === "table" ? { columns: l.columns, ...(l.selectable !== undefined ? { selectable: l.selectable } : {}), ...(l.actions !== undefined ? { actions: l.actions } : {}) } : {}),
+  ...(l.kind === "table" ? { columns: l.columns, ...(l.selectable !== undefined ? { selectable: l.selectable } : {}), ...(l.actions !== undefined ? { actions: l.actions } : {}), ...(l.review === true ? { review: true } : {}) } : {}),
 })
 
 /** The view as data: what the manifest carries and the core sends. */
@@ -100,4 +101,12 @@ export const checkAppend = (layout: Layout, path: string, lines: unknown): { rea
   if (leaf.kind !== "log") return { ok: false, error: `view ${layout.name}: ${path} is not a log` }
   const r = Schema.decodeUnknownExit(LogData)({ lines })
   return r._tag === "Success" ? { ok: true, lines: r.value.lines } : { ok: false, error: `view ${layout.name}: lines for ${path} do not fit` }
+}
+
+/** Why a view's review marks are refused: only tables join the review queue. */
+export const reviewProblem = (layout: Layout): string | undefined => {
+  for (const s of layout.sections)
+    for (const [path, l] of s.kind === "tabs" ? s.tabs.map((t) => [`${s.id}.${t.id}`, t] as const) : [[s.id, s] as const])
+      if ((l as { review?: unknown }).review === true && l.kind !== "table") return `view ${layout.name}: ${path} marks review but is a ${l.kind}, not a table`
+  return undefined
 }
