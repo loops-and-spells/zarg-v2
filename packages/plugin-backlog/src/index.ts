@@ -1,6 +1,7 @@
 import { Effect, Schema, Semaphore } from "effect"
 import { Agenda, Config, definePlugin, Entities, Files, PluginFailure, Surfaces, Views } from "@zarg/plugin-sdk"
-import { Backlog, FiledEntry, ItemData, Lane, Moved, PlanParams } from "./contract"
+import { Backlog, Drafted, FiledEntry, ItemData, Lane, Moved, OnEntry, PlanParams, Propose, Rehearsed, Rehearsing, StageData } from "./contract"
+import { current, decide, fresh, type Stage, STAGE_TITLES, slug, startRefine, stepperAt } from "./stages"
 import { parseRef } from "@zarg/entities"
 import { ENTRY_ID, type Entry, entryId, stateOf, target, upsert } from "./feedback"
 import { boardCard, type Item, ITEM_ID, LANE_TITLES, LANES, moved, neighbour, nextId, pickNext } from "./items"
@@ -8,6 +9,7 @@ import { BacklogView, FeedbackView, ItemView } from "./views"
 
 const DIR = ".zarg/feedback"
 const ITEMS = ".zarg/backlog"
+const TRIAGE = ".zarg/triage"
 const STAGES = ["Triage", "Refine", "Re-rehearse", "Plan"] as const
 const Notice = Schema.Struct({ notice: Schema.String })
 const Act = Schema.Struct({ agent: Schema.String, action: Schema.String, section: Schema.optionalKey(Schema.String), rows: Schema.Array(Schema.String) })
@@ -31,7 +33,7 @@ export default definePlugin({
   archetype: "service",
   implements: Backlog,
   config: Schema.Struct({}),
-  scopes: { agents: true, fs: { read: [`${DIR}/**`, `${ITEMS}/**`], write: [`${DIR}/**`, `${ITEMS}/**`] }, entities: { read: ["gherkin/*"] } },
+  scopes: { agents: true, fs: { read: [`${DIR}/**`, `${ITEMS}/**`, `${TRIAGE}/**`], write: [`${DIR}/**`, `${ITEMS}/**`, `${TRIAGE}/**`] }, entities: { read: ["gherkin/*"] } },
   views: [FeedbackView, BacklogView, ItemView],
   surfaces: [
     { kind: "nav", name: "feedback", view: "feedback", label: "Feedback" },
@@ -62,6 +64,12 @@ export default definePlugin({
     "park-item": { doc: "Park a plan in Backlog.", params: Schema.Struct({ id: Schema.String }), success: Notice },
     "accept-item": { doc: "Accept a plan as done.", params: Schema.Struct({ id: Schema.String }), success: Notice },
     "drop-item": { doc: "Drop a plan (its feedback is open again).", params: Schema.Struct({ id: Schema.String }), success: Notice },
+    stages: { doc: "Every journey's triage stage (the Triage Agent's work list).", params: Schema.Struct({}), success: Schema.Array(StageData) },
+    feedbackOf: { doc: "A journey's open feedback that is on.", params: Schema.Struct({ journey: Schema.String }), success: Schema.Array(OnEntry) },
+    propose: { doc: "The Triage Agent's proposal for a card.", params: Propose, success: Schema.Null },
+    rehearsing: { doc: "The Triage Agent started (or waits for) a re-rehearse.", params: Rehearsing, success: Schema.Null },
+    rehearsed: { doc: "A re-rehearse's results: on to Plan, or back to Refine with fresh feedback.", params: Rehearsed, success: Schema.Null },
+    drafted: { doc: "The Triage Agent's drafted plan.", params: Drafted, success: Schema.Null },
     agenda: { doc: "Feedback files the backlog could not read, and plans that need the operator.", params: Schema.Struct({}), success: Schema.Array(Schema.Struct({ id: Schema.String, title: Schema.String, detail: Schema.String, about: Schema.Array(Schema.String), priority: Schema.Number })) },
   },
   make: Effect.gen(function* () {
@@ -98,21 +106,83 @@ export default definePlugin({
           ? Effect.succeed({ e, state: e.state })
           : Effect.map(entities.changed(e.ref).pipe(Effect.orElseSucceed(() => true)), (changed) => ({ e, state: stateOf(e, changed) })), { concurrency: 8 })
 
+    // Each journey's stage: one file each under .zarg/triage (a file that is not a stage is skipped).
+    const isStage = Schema.is(StageData)
+    const loadStages = Effect.gen(function* () {
+      const names = (yield* files.list(TRIAGE).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>))).filter((n) => n.endsWith(".json"))
+      const read = yield* Effect.forEach(names, (n) =>
+        files.read(`${TRIAGE}/${n}`).pipe(Effect.map((t) => { try { return JSON.parse(t) as unknown } catch { return undefined } }), Effect.orElseSucceed(() => undefined)))
+      return read.filter(isStage) as ReadonlyArray<Stage>
+    })
+    const stageOf = (j: string) => Effect.map(loadStages, (all) => all.find((x) => x.journey === j) ?? fresh(j))
+    const saveStage = (st: Stage) => files.write(`${TRIAGE}/${slug(st.journey)}.json`, `${JSON.stringify(st, null, 2)}\n`)
+    /** Change a journey's stage (one writer at a time); the Triage Agent wakes when its part comes. */
+    const updateStage = (j: string, f: (st: Stage) => Stage | string, wake = false) =>
+      Effect.gen(function* () {
+        const next = f(yield* stageOf(j))
+        if (typeof next === "string") return next
+        yield* saveStage(next)
+        if (wake) yield* ready
+        return undefined
+      }).pipe(writing.withPermits(1))
+    /** A journey's open feedback that is on (what Refine works from). */
+    const onEntries = (j: string) =>
+      Effect.gen(function* () {
+        const all = yield* withStates(yield* load)
+        return all.filter((x) => x.state === "open" && x.e.triage.on && (x.e.journeys.includes(j) || (j === NO_JOURNEY && x.e.journeys.length === 0))).map((x) => x.e)
+      })
+    const call = (c: { readonly tool: string; readonly params: unknown }) => `- gherkin/${c.tool} ${JSON.stringify(c.params)}`
+    /** What the selected journey's stage asks for now. */
+    const workOf = (st: Stage, on: number) => {
+      if (st.stage === "triage") return on === 0 ? "Turn feedback on (space) to refine it." : `**r** Refine the ${plural(on, "entry")} that are on: the Triage Agent proposes card changes for each card.`
+      if (st.stage === "refine") {
+        const p = current(st)
+        const done = st.proposals.filter((x) => x.status === "accepted" || x.status === "skipped").length
+        if (p === undefined) return "Every card decided."
+        if (p.status === "waiting") return `The Triage Agent is drafting a proposal for ${p.card} (${done + 1} of ${st.proposals.length}).${st.note !== undefined ? `\n\n${st.note}` : ""}`
+        return [
+          `**${p.card}** · proposal ${done + 1} of ${st.proposals.length}`,
+          "",
+          p.summary,
+          "",
+          ...p.changes.map(call),
+          ...(p.answers.length > 0 ? ["", `answers ${p.answers.join(", ")}`] : []),
+          ...((p.problems ?? []).length > 0 ? ["", `**Problems:** ${p.problems!.join("; ")}`] : []),
+          "",
+          "**a** Accept · **s** Skip",
+        ].join("\n")
+      }
+      if (st.stage === "rehearse") return `Re-rehearsing ${st.journey} on the drafted cards${st.run !== undefined ? ` (run ${st.run})` : ""}: ${plural(st.draft.length, "change")}.${st.note !== undefined ? `\n\n${st.note}` : ""}`
+      if (st.stage === "plan") {
+        const r = st.results
+        return [
+          ...(r !== undefined ? [`Re-rehearsed: ${plural(r.resolved.length, "entry")} resolved${r.fresh.length > 0 ? `, ${r.fresh.length} new (off)` : ""}.`, ""] : []),
+          ...(st.plan !== undefined ? [`**${st.plan.title}**`, "", ...st.plan.steps.map((x, k) => `${k + 1}. ${x}`), "", "**b** Backlog plan"] : ["The Triage Agent is drafting the plan."]),
+        ].join("\n")
+      }
+      return `Backlogged as ${st.item ?? "a plan"}.`
+    }
     let journey: string | undefined
     const refresh = Effect.gen(function* () {
       const all = yield* withStates(yield* load)
       const open = all.filter((x) => x.state === "open").map((x) => x.e)
       const byJourney = new Map<string, Array<Entry>>()
       for (const e of open) for (const j of e.journeys.length > 0 ? e.journeys : [NO_JOURNEY]) byJourney.set(j, [...(byJourney.get(j) ?? []), e])
-      const names = [...byJourney.keys()].sort((a, b) => (a === NO_JOURNEY ? 1 : b === NO_JOURNEY ? -1 : a.localeCompare(b)))
-      if (journey === undefined || !byJourney.has(journey)) journey = names[0]
-      const shown = journey === undefined ? [] : byJourney.get(journey)!
+      const stages = yield* loadStages
+      const staged = (j: string) => stages.find((x) => x.journey === j) ?? fresh(j)
+      // Journeys with open feedback, and those a stage is still working on.
+      const names = [...new Set([...byJourney.keys(), ...stages.filter((x) => x.stage !== "triage" && x.stage !== "planned").map((x) => x.journey)])].sort((a, b) => (a === NO_JOURNEY ? 1 : b === NO_JOURNEY ? -1 : a.localeCompare(b)))
+      if (journey === undefined || !names.includes(journey)) journey = names[0]
+      const shown = journey === undefined ? [] : (byJourney.get(journey) ?? [])
       const on = shown.filter((e) => e.triage.on).length
-      const stepper = STAGES.map((s, i) => (i === 0 ? `**● ${s}**` : `○ ${s}`)).join("  ───  ")
+      const st = journey === undefined ? undefined : staged(journey)
+      const at = st === undefined ? 0 : Math.min(3, stepperAt(st))
+      const stepper = STAGES.map((s, i) => (i < at || st?.stage === "planned" ? `✓ ${s}` : i === at ? `**● ${s}**` : `○ ${s}`)).join("  ───  ")
       yield* views.set("feedback", FeedbackView, "stage", {
         markdown: journey === undefined ? `${stepper}\n\nNo open feedback. Testers file it when they rehearse.` : `${stepper}\n\n**${journey}** · ${plural(shown.length, "entry")} · ${on} on`,
       })
-      yield* views.set("feedback", FeedbackView, "journeys", { rows: names.map((j) => ({ id: j, cells: { journey: j, open: String(byJourney.get(j)!.length), stage: "Triage" } })) })
+      yield* views.set("feedback", FeedbackView, "journeys", { rows: names.map((j) => ({ id: j, cells: { journey: j, open: String(byJourney.get(j)?.length ?? 0), stage: STAGE_TITLES[staged(j).stage] } })) })
+      yield* views.set("feedback", FeedbackView, "work", { markdown: st === undefined ? "" : workOf(st, on) })
       const sev = { high: 0, medium: 1, low: 2 } as const
       const sorted = [...shown].sort((a, b) => sev[a.severity] - sev[b.severity] || a.id.localeCompare(b.id))
       yield* views.set("feedback", FeedbackView, "feedback", {
@@ -275,6 +345,31 @@ export default definePlugin({
         }
         return action === "open" ? "Backlog" : `nothing to ${action}`
       })
+    const stageAct = (j: string, action: string) =>
+      Effect.gen(function* () {
+        if (action === "refine") {
+          const entries = yield* onEntries(j)
+          const refused = yield* updateStage(j, (st) => (st.stage === "triage" || st.stage === "planned" ? startRefine(st, entries) : `${j} is in ${STAGE_TITLES[st.stage]} already`), true)
+          return refused ?? `${j}: refining ${plural(new Set(entries.map((e) => target(e.ref))).size, "card")}`
+        }
+        if (action === "accept" || action === "skip") {
+          const before = yield* stageOf(j)
+          const card = current(before)?.card
+          const refused = yield* updateStage(j, (st) => decide(st, action), true)
+          if (refused !== undefined) return refused
+          const after = yield* stageOf(j)
+          return `${j}: ${action === "accept" ? "accepted" : "skipped"} ${card}${after.stage === "rehearse" ? "; re-rehearsing next" : ""}`
+        }
+        // Backlog plan: the draft, the cards it changes (at their versions now), the feedback that was on.
+        const st = yield* stageOf(j)
+        if (st.stage !== "plan" || st.plan === undefined) return `${j} has no plan to backlog yet`
+        const entries = yield* onEntries(j)
+        const cards = yield* Effect.forEach((st.cards ?? []).filter((c) => /^UX-/.test(c)), (c) => Effect.map(entities.version(`gherkin/card:${c}`).pipe(Effect.orElseSucceed(() => null)), (v) => (v === null ? [] : [{ ref: `gherkin/card:${c}@${v}` }])))
+        const worst = entries.map((e) => e.severity).sort((a, b) => ["high", "medium", "low"].indexOf(a) - ["high", "medium", "low"].indexOf(b))[0]
+        const { id } = yield* plan({ title: st.plan.title, journey: j, cards: cards.flat(), changes: st.draft, feedback: entries.map((e) => e.id), steps: st.plan.steps, ...(entries[0] !== undefined ? { persona: entries[0].persona } : {}), ...(worst !== undefined ? { severity: worst } : {}) })
+        yield* updateStage(j, (x) => ({ ...x, stage: "planned", item: id }))
+        return `${j}: backlogged as ${id}`
+      })
     const act = ({ agent, action, rows }: { agent: string; action: string; rows: ReadonlyArray<string> }) =>
       Effect.gen(function* () {
         if (agent === "backlog") {
@@ -284,6 +379,12 @@ export default definePlugin({
         }
         if (agent !== "feedback") return { notice: `backlog has no view ${agent}` }
         if (action === "journey" && rows[0] !== undefined) journey = rows[0]
+        if (["refine", "accept", "skip", "backlog"].includes(action)) {
+          if (journey === undefined) yield* refresh
+          const notice = journey === undefined ? "no journey with feedback" : yield* stageAct(journey, action)
+          yield* refresh
+          return { notice }
+        }
         if (action === "toggle")
           yield* Effect.gen(function* () {
             const all = yield* load
@@ -308,11 +409,29 @@ export default definePlugin({
         ]
       })
     const cmd = (f: Effect.Effect<string, unknown>) => Effect.andThen(f, (notice) => Effect.as(refreshBoard, { notice })).pipe(Effect.mapError(fail))
+    const nul = <E>(e: Effect.Effect<unknown, E>) => Effect.as(e, null).pipe(Effect.mapError(fail))
     return {
       file,
       status,
       act,
       agenda,
+      stages: () => loadStages.pipe(Effect.mapError(fail)),
+      feedbackOf: ({ journey: j }: { journey: string }) => Effect.map(onEntries(j), (es) => es.map((e) => ({ id: e.id, ref: e.ref, kind: e.kind, severity: e.severity, note: e.note, persona: e.persona }))).pipe(Effect.mapError(fail)),
+      propose: (p: typeof Propose.Type) =>
+        nul(updateStage(p.journey, (st) => ({ ...st, proposals: st.proposals.map((x) => (x.card === p.card && (x.status === "waiting" || x.status === "proposed") ? { card: p.card, changes: p.changes, answers: p.answers, summary: p.summary, status: "proposed" as const, ...(p.problems !== undefined && p.problems.length > 0 ? { problems: p.problems } : {}) } : x)) }))),
+      rehearsing: (p: typeof Rehearsing.Type) =>
+        nul(updateStage(p.journey, (st) => ({ ...st, ...(p.run !== undefined ? { run: p.run } : {}), ...(p.cards !== undefined ? { cards: p.cards } : {}), ...(p.note !== undefined ? { note: p.note } : {}) }))),
+      rehearsed: (p: typeof Rehearsed.Type) =>
+        nul(
+          updateStage(p.journey, (st) => {
+            const { run: _r, note: _n, ...rest } = st
+            const results = { resolved: p.resolved, fresh: p.fresh }
+            // Fresh findings that are on send the journey back to Refine: one waiting proposal per card.
+            if (p.next === "refine") return { ...rest, stage: "refine" as const, results, proposals: [...st.proposals, ...[...new Set(p.fresh.map((f) => f.card))].map((card) => ({ card, changes: [], answers: [], summary: "", status: "waiting" as const }))], ...(p.cards !== undefined ? { cards: p.cards } : {}) }
+            return { ...rest, stage: "plan" as const, results, ...(p.cards !== undefined ? { cards: p.cards } : {}) }
+          }, true),
+        ),
+      drafted: (p: typeof Drafted.Type) => nul(updateStage(p.journey, (st) => ({ ...st, plan: { title: p.title, steps: p.steps } }))),
       plan,
       next,
       moved: ({ id, to, by, what, needs }: { id: string; to: Item["status"]; by: string; what?: string; needs?: string }) => Effect.as(move(id, to, by, what, needs), null).pipe(Effect.mapError(fail)),

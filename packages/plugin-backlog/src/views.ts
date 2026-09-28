@@ -19,6 +19,13 @@ export const FeedbackView = defineView("feedback", {
     title: "",
     toggle: true,
     search: true,
+    // Each stage's step, as buttons (a button outside its stage says why it does nothing).
+    actions: [
+      { id: "refine", label: "Refine", key: "r", on: "none" },
+      { id: "accept", label: "Accept", key: "a", on: "none" },
+      { id: "skip", label: "Skip", key: "s", on: "none" },
+      { id: "backlog", label: "Backlog plan", key: "b", on: "none" },
+    ],
     columns: [
       { id: "card", label: "card", ref: true, filter: "none" },
       { id: "severity", label: "severity", order: ["high", "medium", "low"], filter: "values", tones: { high: "severity.high", medium: "severity.medium", low: "severity.low" } },
@@ -29,6 +36,8 @@ export const FeedbackView = defineView("feedback", {
   },
   // The highlighted entry in full, and its card as the tester saw it.
   detail: { kind: "text", role: "pinned", title: "", follows: "feedback", beside: "feedback" },
+  // The stage's work: the proposal to decide, the re-rehearse, the drafted plan.
+  work: { kind: "text", role: "aside", title: "" },
 })
 
 /** The Backlog (the `backlog` nav item): plans on a kanban the agents move; ⏎ opens one in the drawer. */
