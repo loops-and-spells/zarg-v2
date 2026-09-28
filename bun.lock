@@ -235,6 +235,12 @@
         "@zarg/provider-zarg-router": "workspace:*",
       },
     },
+    "packages/tokens": {
+      "name": "@zarg/tokens",
+      "dependencies": {
+        "effect": "^4.0.0-rc.117",
+      },
+    },
     "packages/view": {
       "name": "@zarg/view",
       "dependencies": {
@@ -400,6 +406,8 @@
     "@zarg/reconcile": ["@zarg/reconcile@workspace:packages/reconcile"],
 
     "@zarg/rlm": ["@zarg/rlm@workspace:packages/rlm"],
+
+    "@zarg/tokens": ["@zarg/tokens@workspace:packages/tokens"],
 
     "@zarg/view": ["@zarg/view@workspace:packages/view"],
 
