@@ -20,7 +20,8 @@ export const Action = Schema.Struct({
 /** A table column; `order` ranks its values for sorting (a severity's "high", "medium", "low"), else they sort as text with numbers as numbers. */
 /** What a column's menu offers beside sorting: ticking by value, nothing, ticking a numeric range (the cell's last number), or a search that sorts by match. */
 export const ColumnFilter = Schema.Union([Schema.Literals(["values", "none", "search"]), Schema.Struct({ range: Schema.Tuple([Schema.Number, Schema.Number]), step: Schema.optionalKey(Schema.Number) })])
-export const Column = Schema.Struct({ id: Schema.String, label: Schema.String, order: Schema.optionalKey(Schema.Array(Schema.String)), filter: Schema.optionalKey(ColumnFilter) })
+/** `tone` colours a column's cells; `tones` by value (a severity's "high" in error); a row's own tone wins over both. */
+export const Column = Schema.Struct({ id: Schema.String, label: Schema.String, order: Schema.optionalKey(Schema.Array(Schema.String)), filter: Schema.optionalKey(ColumnFilter), tone: Schema.optionalKey(Tone), tones: Schema.optionalKey(Schema.Record(Schema.String, Tone)) })
 
 export const StatsData = Schema.Struct({
   items: Schema.Array(Schema.Struct({ label: Schema.String, value: Schema.String, tone: Schema.optionalKey(Tone) })),

@@ -1374,6 +1374,21 @@ describe("table search and a detail beside its list", () => {
     expect(t.captureCharFrame()).toContain("UX-0035")
     expect(t.captureCharFrame()).not.toContain("2 of 3")
   })
+  test("the search field stays at the top while the rows scroll under it", async () => {
+    const many = Array.from({ length: 40 }, (_, i) => ({ id: `M${i}`, cells: { card: `UX-${String(i).padStart(4, "0")}`, kind: "gap" } }))
+    const v = state.thread.views!["rehearse:tester-1"]!
+    const long = { ...state, thread: { ...state.thread, views: { "rehearse:tester-1": { ...v, data: { ...v.data, findings: { rows: many } } } } } }
+    const t = await render(long, { width: 130, height: 24 })
+    t.mockInput.pressKey("a", { meta: true }); await settle(t); t.mockInput.pressEnter(); await settle(t)
+    for (let i = 0; i < 35; i++) t.mockInput.pressArrow("down")
+    await settle(t); await Bun.sleep(30); await settle(t)
+    const ls = lines(t)
+    expect(t.captureCharFrame()).toContain("UX-0035")
+    expect(t.captureCharFrame()).not.toContain("UX-0000")
+    const field = ls.findIndex((l) => l.includes("⌕ search"))
+    expect(field).toBeGreaterThan(0)
+    expect(field).toBeLessThan(ls.findIndex((l) => l.includes("UX-0035")))
+  })
   test("Enter leaves the field with the search kept; a click on the field types into it again", async () => {
     const t = await open()
     t.mockInput.pressKey("f"); await settle(t)

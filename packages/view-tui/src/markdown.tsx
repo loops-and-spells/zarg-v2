@@ -16,7 +16,7 @@ const syntaxStyle = SyntaxStyle.fromStyles({
 })
 
 /** Code zarg highlights itself (its Gherkin): each token kind in a theme colour. */
-const highlight = { keyword: THEME.accent, id: THEME.attention, comment: THEME.dim, title: THEME.text, flow: THEME.accent, string: THEME.ok, number: THEME.attention }
+const highlight = { keyword: THEME.accent, id: THEME.attention, comment: THEME.dim, title: THEME.text, flow: THEME.accent, string: THEME.ok, number: THEME.attention, persona: THEME.accent, journey: THEME.ok }
 
 // @card UX-0076
 export const RichText = (p: { content: string; width: number; streaming?: boolean; onHeight?: (height: number) => void }) => (

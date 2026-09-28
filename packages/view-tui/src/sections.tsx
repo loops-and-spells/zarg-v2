@@ -136,17 +136,9 @@ const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onH
   const sel = ui.selected[path] ?? []
   const sort = ui.sort?.[path]
   const onHead = focused && ui.header?.path === path ? ui.header.col : undefined
-  const field = leaf.search === true ? <SearchField view={view} ui={ui} path={path} width={width} {...(onSearch !== undefined ? { onSearch } : {})} /> : null
-  if (rows.length === 0)
-    return (
-      <>
-        {field}
-        <text fg={THEME.dim}>{ui.search?.[path] !== undefined ? " nothing matches" : " nothing yet"}</text>
-      </>
-    )
+  if (rows.length === 0) return <text fg={THEME.dim}>{ui.search?.[path] !== undefined ? " nothing matches" : " nothing yet"}</text>
   return (
     <>
-      {field}
       {/* The header: each column's label, its sort mark, the header cursor; a click opens its menu. */}
       <box style={{ flexDirection: "row", height: 1 }}>
         <text wrapMode="none">{" ".repeat(gutter)}</text>
@@ -170,8 +162,17 @@ const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onH
             <text wrapMode="none" onMouseDown={() => (selectable ? onMark : onPick)?.(i)}>
               <Gutter cursor={on} selectable={selectable} selected={picked} />
             </text>
-            <text wrapMode="none" onMouseDown={() => onPick?.(i)} fg={picked || on ? THEME.text : fg(r.tone)}>
-              {cells((c) => r.cells[c.id] ?? "")}
+            {/* Each cell in its colour: the row's tone, else its column's (by value, then the column's own). */}
+            <text wrapMode="none" onMouseDown={() => onPick?.(i)}>
+              {cols.map((c, ci) => {
+                const v = r.cells[c.id] ?? ""
+                const col = c as { readonly tone?: string; readonly tones?: Readonly<Record<string, string>> }
+                return (
+                  <span key={c.id} fg={fg(r.tone ?? col.tones?.[v] ?? col.tone)}>
+                    {`${pad(fit(v, widths[ci]!), widths[ci]!)}${ci < cols.length - 1 ? "  " : ""}`}
+                  </span>
+                )
+              })}
             </text>
           </box>
         )
@@ -482,6 +483,12 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
             <box style={{ height: headRows, flexShrink: 0, ...(headRows === 0 ? { visible: false } : {}) }}>
               <Heading title={s.title ?? s.id} width={width} focused={focused} {...(tabs !== undefined ? { tabs } : {})} {...(props.onTab !== undefined ? { onTab: (k: number) => props.onTab!(s.id, k) } : {})} />
             </box>
+            {/* A searchable table's field sits above its scroll area: it stays while the rows scroll. */}
+            {leaf.leaf.kind === "table" && leaf.leaf.search === true ? (
+              <box style={{ height: 1, flexShrink: 0 }}>
+                <SearchField view={props.view} ui={props.ui} path={leaf.path} width={width} {...(props.onSearch !== undefined ? { onSearch: () => props.onSearch!(s.id, leaf.path) } : {})} />
+              </box>
+            ) : null}
             <scrollbox
               focusable={false}
               ref={(r: ScrollBoxRenderable | null) => void (r === null ? boxes.current.delete(s.id) : boxes.current.set(s.id, r))}

@@ -16,7 +16,7 @@ describe("gherkin", () => {
   test("By and In lines, the journey head, and the flow's arrows with the ids they point at", () => {
     expect(show("gherkin", "Checkout  # J-0001 · 2 cards\n  By    Operator  # P-0001\n→ UX-0002 or UX-0003 (branches)\n↺ back to UX-0001")).toEqual([
       ["title:Checkout", "  ", "comment:# J-0001 · 2 cards"],
-      ["  ", "keyword:By", "    Operator", "  ", "comment:# P-0001"],
+      ["  ", "keyword:By", "    ", "persona:Operator", "  ", "comment:# P-0001"],
       ["flow:→", " ", "id:UX-0002", " or ", "id:UX-0003", " (branches)"],
       ["flow:↺", " back to ", "id:UX-0001"],
     ])
@@ -24,6 +24,15 @@ describe("gherkin", () => {
   test("every line keeps all its text: joining the pieces gives the source back", () => {
     const src = 'UX-1 t\n  And   a "b" c  # S-1\nNot connected to the journey\'s other cards:\n\n  weird\tline'
     expect(highlight("gherkin", src).map((l) => l.map((s) => s.text).join("")).join("\n")).toBe(src)
+  })
+})
+
+describe("gherkin: who and where", () => {
+  test("a By line's names are personas, an In line's are journeys (commas between them are plain)", () => {
+    expect(show("gherkin", "  By    Operator, Driver Agent\n  In    Set up, Reconcile  # J-0002, J-0004")).toEqual([
+      ["  ", "keyword:By", "    ", "persona:Operator", ", ", "persona:Driver Agent"],
+      ["  ", "keyword:In", "    ", "journey:Set up", ", ", "journey:Reconcile", "  ", "comment:# J-0002, J-0004"],
+    ])
   })
 })
 

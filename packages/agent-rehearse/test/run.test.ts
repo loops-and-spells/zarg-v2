@@ -123,10 +123,9 @@ describe("rehearse runs in the plugin", () => {
     const detail = t.pushes.filter((p) => p.agent === "run" && p.path === "detail").at(-1)?.data as { rows: Record<string, string> }
     const md = detail.rows[row!.id]!
     expect(md).toContain("card B")
-    expect(md).toContain("by Operator")
-    expect(md).toContain("in Checkout")
     expect(md).toContain("B is unclear")
-    expect(md).toContain("```gherkin\nGiven before B\nWhen  do B\nThen  after B\n```")
+    // Who and where on the card's By / In lines, so the highlighter colours them.
+    expect(md).toContain("```gherkin\nBy    Operator\nIn    Checkout\nGiven before B\nWhen  do B\nThen  after B\n```")
   })
 
   test("the tables list the findings; apply sends only the chosen ones to the agenda and says so to the host", async () => {

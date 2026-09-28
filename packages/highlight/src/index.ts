@@ -4,7 +4,7 @@
  * from a line to its spans, and every line's spans join back to the line exactly.
  */
 
-export type Token = "keyword" | "id" | "comment" | "title" | "flow" | "string" | "number"
+export type Token = "keyword" | "id" | "comment" | "title" | "flow" | "string" | "number" | "persona" | "journey"
 export interface Span {
   readonly text: string
   readonly token?: Token
@@ -40,7 +40,12 @@ const gherkin = (line: string): Line => {
   const card = /^(UX-\d+)( +)(.*)$/.exec(line)
   if (card !== null) return [...span(card[1]!, "id"), ...span(card[2]!), ...span(card[3]!, "title")]
   const step = /^(\s*)(Given|And|When|Then|By|In)\b(.*)$/.exec(line)
-  if (step !== null) return [...span(step[1]!), ...span(step[2]!, "keyword"), ...withComment(step[3]!, prose)]
+  if (step !== null) {
+    // By names personas, In journeys: each name its token, the commas and spaces plain.
+    const names = step[2] === "By" ? "persona" : step[2] === "In" ? "journey" : undefined
+    const body = names === undefined ? prose : (t: string) => splitBy(t, /[^,\s][^,]*[^,\s]|[^,\s]/g, names)
+    return [...span(step[1]!), ...span(step[2]!, "keyword"), ...withComment(step[3]!, body)]
+  }
   const flow = /^(→|↺)(.*)$/.exec(line)
   if (flow !== null) return [...span(flow[1]!, "flow"), ...splitBy(flow[2]!, ID, "id")]
   const head = /^(\S.*?)(\s{2,})(#.*)$/.exec(line)

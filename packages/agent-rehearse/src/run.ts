@@ -82,11 +82,10 @@ const findingDetail = (x: { readonly id: string; readonly card: string; readonly
   [
     `**${step?.title ?? x.card}**  `,
     `\`${x.card}\`${x.id !== "" ? ` · ${x.id}` : ""}  `,
-    `by ${x.personas.join(", ") || "—"} · in ${(step?.journeys ?? []).join(", ") || "no journey"}  `,
     `${x.kind} · ${x.severity}`,
     "",
     x.note,
-    ...(step !== undefined ? ["", "```gherkin", `Given ${step.given}`, `When  ${step.when}`, ...step.thens.map((t, i) => `${i === 0 ? "Then" : "And "}  ${t}`), "```"] : []),
+    ...(step !== undefined ? ["", "```gherkin", ...(x.personas.length > 0 ? [`By    ${x.personas.join(", ")}`] : []), ...((step.journeys ?? []).length > 0 ? [`In    ${step.journeys!.join(", ")}`] : []), `Given ${step.given}`, `When  ${step.when}`, ...step.thens.map((t, i) => `${i === 0 ? "Then" : "And "}  ${t}`), "```"] : []),
   ].join("\n")
 
 const DIR = ".zarg/rehearse"

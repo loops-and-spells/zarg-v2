@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { testRender } from "@opentui/react/test-utils"
 import { act } from "react"
-import { defineView, initialViewUi, layoutOf, type ViewState } from "@zarg/view"
+import { defineView, initialViewUi, layoutOf, THEME, type ViewState } from "@zarg/view"
 import { AgentView, type Scroller } from "../src/sections"
 
 const tester = layoutOf(
@@ -176,4 +176,23 @@ test("a section titled with an empty string draws no heading: its content starts
   const lines = (await frame(v)).split("\n")
   expect(lines[0]).toMatch(/^\s+journey/)
   expect(lines.some((l) => l.startsWith("Flow ─"))).toBe(true)
+})
+
+test("a column's tone colours its cells, its tones by value (a severity's high, medium, low); a row's own tone wins", async () => {
+  const v: ViewState = {
+    agent: "t",
+    layout: layoutOf(defineView("t", { list: { kind: "table", role: "pinned", title: "F", columns: [{ id: "card", label: "card", tone: "warn" }, { id: "sev", label: "severity", tones: { high: "error", low: "dim" } }] } })),
+    data: { list: { rows: [{ id: "a", cells: { card: "UX-0001", sev: "high" } }, { id: "b", cells: { card: "UX-0002", sev: "low" } }, { id: "c", cells: { card: "UX-0003", sev: "high" }, tone: "ok" }] } },
+  }
+  const t = await testRender(<AgentView view={v} ui={{ ...initialViewUi, rows: { list: 1 } }} height={30} />, { width: 60, height: 30, exitOnCtrlC: false, exitSignals: [] })
+  destroy = () => t.renderer.destroy()
+  await t.renderOnce()
+  await Bun.sleep(5)
+  await t.renderOnce()
+  const hex = (c: { r: number; g: number; b: number }) => `#${[c.r, c.g, c.b].map((x) => Math.round(x * 255).toString(16).padStart(2, "0")).join("")}`
+  const fgOf = (text: string, nth = 0) => hex(t.captureSpans().lines.flatMap((l) => l.spans).filter((s) => s.text.includes(text))[nth]!.fg)
+  expect(fgOf("UX-0001")).toBe(THEME.attention)
+  expect(fgOf("high")).toBe(THEME.error)
+  expect(fgOf("low")).toBe(THEME.dim)
+  expect(fgOf("UX-0003")).toBe(THEME.ok)
 })
