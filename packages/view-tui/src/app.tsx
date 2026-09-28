@@ -224,22 +224,22 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   )
 
   const busyLine = working(ui, s, now)
-  // Over another focus the sheet is an inset bottom sheet (rounded, the focus showing around it); as zarg's own focus it fills the area.
+  // Over another focus the sheet is an inset bottom sheet: a raised block with a half-block lip, rising from the bar, the focus showing around it. As zarg's own focus it fills the area.
+  // No box-drawing border: its glyphs sit mid-cell, so a filled border leaves half a cell of fill outside the line.
   const overSheet = ui.sheet && ui.main !== "zarg"
-  const sheetFrame = overSheet ? { border: true, borderStyle: "rounded" as const } : { border: ["top" as const] }
   // zarg's conversation as a sheet over the focus: raised, an accent rule on top, messages, then zarg's question as the picker.
   const LABEL = { you: { text: "you  ", fg: THEME.dim }, zarg: { text: "zarg  ", fg: THEME.accent }, error: { text: "!  ", fg: THEME.error }, notice: { text: "·  ", fg: THEME.attention } } as const
   const sheet = (
-    <box style={{ flexGrow: 1, flexDirection: "column", backgroundColor: THEME.raised, ...sheetFrame, borderColor: ui.focus === "tile" ? THEME.accent : THEME.line, paddingLeft: 2, paddingRight: 2 }}>
-      <box style={{ height: 1, flexShrink: 0 }}>
+    <box style={{ flexGrow: 1, flexDirection: "column", backgroundColor: THEME.raised }}>
+      <box style={{ height: 1, flexShrink: 0, backgroundColor: THEME.shade, paddingLeft: 2 }}>
         <text wrapMode="none">
-          <span fg={THEME.accent}>
+          <span fg={ui.focus === "tile" ? THEME.accent : THEME.text}>
             <b>zarg</b>
           </span>
           {overSheet ? <span fg={THEME.dim}>{"   esc closes"}</span> : null}
         </text>
       </box>
-      <scrollbox ref={talkRef} focusable={false} style={{ flexGrow: 1, flexShrink: 1, minHeight: 0 }} stickyScroll stickyStart="bottom">
+      <scrollbox ref={talkRef} focusable={false} style={{ flexGrow: 1, flexShrink: 1, minHeight: 0, paddingLeft: 2, paddingRight: 2 }} stickyScroll stickyStart="bottom">
         {conversation(s).map((l, i) => (
           <text key={i}>
             <span fg={LABEL[l.kind].fg}>{LABEL[l.kind].text}</span>
@@ -249,7 +249,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         {busyLine !== undefined ? <text fg={THEME.accent}>{busyLine}</text> : null}
       </scrollbox>
       {inquiry !== undefined && ui.chatting !== inquiry.id ? (
-        <box style={{ flexDirection: "column", flexShrink: 0, paddingTop: 1 }}>
+        <box style={{ flexDirection: "column", flexShrink: 0, backgroundColor: THEME.shade, paddingLeft: 2, paddingRight: 2 }}>
           <text fg={THEME.attention}>
             <b>{inquiry.question}</b>
           </text>
@@ -445,14 +445,18 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   // A plugin's sheet over the tile area: its view, rounded like zarg's.
   const sheetViewState = ui.sheetOf !== undefined ? s.thread.views?.[ui.sheetOf] : undefined
   const pluginSheet = (
-    <box style={{ flexGrow: 1, flexDirection: "column", backgroundColor: THEME.raised, ...sheetFrame, borderColor: ui.focus === "tile" ? THEME.accent : THEME.line, paddingLeft: 2, paddingRight: 2 }}>
-      <text wrapMode="none" style={{ flexShrink: 0 }}>
-        <span fg={THEME.accent}>
-          <b>{sheetViewState?.layout.name ?? "sheet"}</b>
-        </span>
-        <span fg={THEME.dim}>{fit(`  ${(() => { const n = s.thread.rlms[(ui.sheetOf ?? "").split("@")[0]!]; return n !== undefined ? displayName(n) : "" })()}   esc closes`, Math.max(0, focusWidth - (sheetViewState?.layout.name ?? "sheet").length))}</span>
-      </text>
-      {sheetViewState === undefined ? <text fg={THEME.dim}>no view yet</text> : <AgentView view={sheetViewState} ui={ui.sheetView ?? startUi(sheetViewState)} height={Math.max(6, dims.height - 8)} width={focusWidth} />}
+    <box style={{ flexGrow: 1, flexDirection: "column", backgroundColor: THEME.raised }}>
+      <box style={{ height: 1, flexShrink: 0, backgroundColor: THEME.shade, paddingLeft: 2 }}>
+        <text wrapMode="none">
+          <span fg={ui.focus === "tile" ? THEME.accent : THEME.text}>
+            <b>{sheetViewState?.layout.name ?? "sheet"}</b>
+          </span>
+          <span fg={THEME.dim}>{fit(`  ${(() => { const n = s.thread.rlms[(ui.sheetOf ?? "").split("@")[0]!]; return n !== undefined ? displayName(n) : "" })()}   esc closes`, Math.max(0, focusWidth - 4 - (sheetViewState?.layout.name ?? "sheet").length))}</span>
+        </text>
+      </box>
+      <box style={{ flexGrow: 1, flexDirection: "column", paddingLeft: 2, paddingRight: 2 }}>
+        {sheetViewState === undefined ? <text fg={THEME.dim}>no view yet</text> : <AgentView view={sheetViewState} ui={ui.sheetView ?? startUi(sheetViewState)} height={Math.max(6, dims.height - 8)} width={focusWidth} />}
+      </box>
     </box>
   )
 
@@ -620,6 +624,9 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
               {narrow && ui.focus === "agents" ? agentsList : ui.main === "zarg" ? sheet : ui.main === "grid" ? grid : ui.main === "review" ? review : view}
               {!(narrow && ui.focus === "agents") && overSheet ? (
                 <box style={{ position: "absolute", left: 3, right: 3, bottom: 0, height: Math.max(8, Math.floor(areaHeight * 0.65)), flexDirection: "column" }}>
+                  <text fg={THEME.shade} bg={THEME.bg} wrapMode="none" style={{ flexShrink: 0 }}>
+                    {"▄".repeat(Math.max(0, focusWidth - 2))}
+                  </text>
                   {ui.sheetOf !== undefined ? pluginSheet : sheet}
                 </box>
               ) : null}

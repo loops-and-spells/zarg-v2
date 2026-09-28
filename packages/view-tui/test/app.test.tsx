@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { testRender } from "@opentui/react/test-utils"
 import { type Answer, initial, type Inquiry, type Session, type SessionState } from "@zarg/client"
+import { THEME } from "@zarg/view"
 import { App } from "../src/app"
 import { POPOVER_GUARD_MS } from "../src/view"
 
@@ -845,8 +846,26 @@ describe("the inset sheet", () => {
     const talk = lines.findIndex((l) => l.includes("zarg  Hello."))
     expect(card).toBeGreaterThanOrEqual(0)
     expect(talk).toBeGreaterThan(card)
-    // Inset: the sheet's border starts a few columns right of the focus area's edge.
-    const top = lines.findIndex((l, i) => i > card && /╭─* ?zarg|╭─{3,}/.test(l.slice(24)))
-    expect(top).toBeGreaterThan(card)
+    // Inset: a half-block lip a few columns right of the focus area's edge, then the header; no box-drawing border.
+    const lip = lines.findIndex((l, i) => i > card && l.slice(24).includes("▄▄▄"))
+    expect(lip).toBeGreaterThan(card)
+    expect(lines[lip]!.indexOf("▄")).toBe(27)
+    expect(lines[lip + 1]).toContain("zarg   esc closes")
+    // The fill lines up with its edges: every cell of the header row, from the lip's first column to its last, is shaded; the conversation below is raised.
+    const spans = t.captureSpans()
+    const bgAt = (row: number, col: number) => {
+      let x = 0
+      for (const sp of spans.lines[row]!.spans) {
+        if (col < x + sp.width) return sp.bg
+        x += sp.width
+      }
+      return undefined
+    }
+    const hex = (c: { r: number; g: number; b: number } | undefined) => (c === undefined ? "" : `#${[c.r, c.g, c.b].map((v) => Math.round(v * 255).toString(16).padStart(2, "0")).join("")}`)
+    const last = lines[lip]!.lastIndexOf("▄")
+    expect(hex(bgAt(lip + 1, 27))).toBe(THEME.shade)
+    expect(hex(bgAt(lip + 1, last))).toBe(THEME.shade)
+    expect(hex(bgAt(lip + 1, 26))).toBe(THEME.bg)
+    expect(hex(bgAt(lip + 2, 27))).toBe(THEME.raised)
   })
 })

@@ -9,20 +9,20 @@ exports[`tui frames an inquiry: picker with the recommended option preselected a
                                                                                                               
                                                                                                               
                                                                                                               
-                           ╭──────────────────────────────────────────────────────────────────────────────╮   
-                           │  zarg   esc closes                                                           │   
-                           │  zarg  The agenda is empty.                                                  │   
-                           │                                                                              │   
-                           │                                                                              │   
-                           │                                                                              │   
-                           │                                                                              │   
-                           │                                                                              │   
-                           │  Which card first?                                                           │   
-                           │    Login                                                                     │   
-                           │  › Checkout (recommended) — most used                                        │   
-                           │    Something else…                                                           │   
-                           │    Chat about this                                                           │   
-                           ╰──────────────────────────────────────────────────────────────────────────────╯   
+                           ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+                             zarg   esc closes                                                                
+                             zarg  The agenda is empty.                                                       
+                                                                                                              
+                                                                                                              
+                                                                                                              
+                                                                                                              
+                                                                                                              
+                                                                                                              
+                             Which card first?                                                                
+                               Login                                                                          
+                             › Checkout (recommended) — most used                                             
+                               Something else…                                                                
+                               Chat about this                                                                
                          answer zarg above, or / to chat about it                                             
                          core child · waiting · thread main · zarg-router:de…   ↑↓ pick   ⏎ answer   esc leave
 "
@@ -37,20 +37,20 @@ exports[`tui frames a run error shows its kind and message in the conversation 1
                                                                                                               
                                                                                                               
                                                                                                               
-                           ╭──────────────────────────────────────────────────────────────────────────────╮   
-                           │  zarg   esc closes                                                           │   
-                           │  !  model: zarg-router is not reachable                                      │   
-                           │                                                                              │   
-                           │                                                                              │   
-                           │                                                                              │   
-                           │                                                                              │   
-                           │                                                                              │   
-                           │                                                                              │   
-                           │                                                                              │   
-                           │                                                                              │   
-                           │                                                                              │   
-                           │                                                                              │   
-                           ╰──────────────────────────────────────────────────────────────────────────────╯   
+                           ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+                             zarg   esc closes                                                                
+                             !  model: zarg-router is not reachable                                           
+                                                                                                              
+                                                                                                              
+                                                                                                              
+                                                                                                              
+                                                                                                              
+                                                                                                              
+                                                                                                              
+                                                                                                              
+                                                                                                              
+                                                                                                              
+                                                                                                              
                          › type a message, Enter to send                                                      
                          core child · error · thread main · zarg-router:deepseek-v4.1-fl…   ⏎ send   esc leave
 "
