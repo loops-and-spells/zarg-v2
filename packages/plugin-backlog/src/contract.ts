@@ -17,8 +17,35 @@ export type FiledEntry = typeof FiledEntry.Type
 export const FeedbackState = Schema.Literals(["open", "stale", "planned", "closed"])
 export type FeedbackState = typeof FeedbackState.Type
 
-/** The backlog's surface for other plugins: file feedback, ask where it stands. */
+/** A plan: the cards it changes (refs with the version drafted on), the gherkin tool calls that change them, the feedback it closes. */
+export const PlanParams = Schema.Struct({
+  title: Schema.String,
+  journey: Schema.String,
+  cards: Schema.Array(Schema.Struct({ ref: Schema.String, to: Schema.optionalKey(Schema.String) })),
+  changes: Schema.Array(Schema.Struct({ tool: Schema.String, params: Schema.Unknown })),
+  feedback: Schema.Array(Schema.String),
+  steps: Schema.Array(Schema.String),
+  after: Schema.optionalKey(Schema.Array(Schema.String)),
+  persona: Schema.optionalKey(Schema.String),
+  severity: Schema.optionalKey(Severity),
+})
+export type PlanParams = typeof PlanParams.Type
+export const Lane = Schema.Literals(["backlog", "ready", "running", "review", "done"])
+export const Moved = Schema.Struct({ id: Schema.String, to: Lane, by: Schema.String, what: Schema.optionalKey(Schema.String), needs: Schema.optionalKey(Schema.String) })
+export const ItemData = Schema.Struct({
+  ...PlanParams.fields,
+  id: Schema.String,
+  status: Lane,
+  agent: Schema.optionalKey(Schema.String),
+  dropped: Schema.optionalKey(Schema.Boolean),
+  needs: Schema.optionalKey(Schema.String),
+  events: Schema.Array(Schema.Struct({ what: Schema.String, by: Schema.String })),
+})
+/** The backlog's surface for other plugins: file feedback and ask where it stands; add a plan, take the next, record a move. */
 export const Backlog = pluginContract("backlog", {
   file: { params: Schema.Struct({ entries: Schema.Array(FiledEntry) }), success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
   status: { params: Schema.Struct({ ids: Schema.Array(Schema.String) }), success: Schema.Array(Schema.Struct({ id: Schema.String, state: FeedbackState, on: Schema.Boolean })) },
+  plan: { params: PlanParams, success: Schema.Struct({ id: Schema.String }) },
+  next: { params: Schema.Struct({}), success: Schema.NullOr(ItemData) },
+  moved: { params: Moved, success: Schema.Null },
 })

@@ -30,3 +30,20 @@ export const FeedbackView = defineView("feedback", {
   // The highlighted entry in full, and its card as the tester saw it.
   detail: { kind: "text", role: "pinned", title: "", follows: "feedback", beside: "feedback" },
 })
+
+/** The Backlog (the `backlog` nav item): plans on a kanban the agents move; ⏎ opens one in the drawer. */
+export const BacklogView = defineView("backlog", { board: { kind: "board", role: "primary", title: "" } })
+
+/** The drawer (a sheet over the board): one plan in full, and where it can go next. */
+export const ItemView = defineView(
+  "item",
+  { item: { kind: "text", role: "primary", title: "" } },
+  {
+    actions: [
+      { id: "ready", label: "→ Ready", key: "r", on: "none" },
+      { id: "park", label: "Park", key: "p", on: "none" },
+      { id: "done", label: "Done", key: "d", on: "none" },
+      { id: "drop", label: "Drop", key: "X", on: "none" },
+    ],
+  },
+)
