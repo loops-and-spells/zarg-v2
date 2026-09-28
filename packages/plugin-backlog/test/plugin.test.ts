@@ -71,4 +71,44 @@ describe("the backlog's feedback", () => {
     expect(out.feedback.length).toBe(1)
     expect(out.e.label).toEqual({ text: "gap on UX-0001: No path when the operator denies.", tone: "attention", glyph: "◇" })
   })
+  test("an entry file of the wrong shape, or whose id is not its name, is skipped (named on the agenda); the view still fills", async () => {
+    const out = await run((seen, root) => Effect.gen(function* () {
+      const card = yield* setUp
+      mkdirSync(join(root, ".zarg/feedback"), { recursive: true })
+      writeFileSync(join(root, ".zarg/feedback/F-0000abcd.json"), JSON.stringify({ id: "F-0000abcd", ref: card.ref, note: "n", triage: { on: true }, journeys: ["Set up"] }))
+      writeFileSync(join(root, ".zarg/feedback/F-1111abcd.json"), JSON.stringify({ ...report(card.ref, "copied"), id: "F-2222abcd", count: 1, triage: { on: true, why: "w", by: "agent" } }))
+      const h = yield* PluginHost
+      yield* h.invoke("backlog", "file", { entries: [report(card.ref)] })
+      const notice = yield* h.invoke("backlog", "act", { agent: "feedback", action: "open", rows: [] })
+      return { notice, feedback: rows(seen, "feedback"), detail: seen.get("feedback/detail"), agenda: (yield* h.agenda()).map((i) => i.id) }
+    }))
+    expect(out.feedback.length).toBe(1)
+    expect(out.detail).toBeDefined()
+    expect(out.agenda).toEqual(expect.arrayContaining(["backlog:bad-file:F-0000abcd.json", "backlog:bad-file:F-1111abcd.json"]))
+  })
+  test("reports filed at once all count; a flip while a file lands keeps the operator's call", async () => {
+    const out = await run((seen) => Effect.gen(function* () {
+      const card = yield* setUp
+      const h = yield* PluginHost
+      const file = (run: string) => h.invoke("backlog", "file", { entries: [{ ...report(card.ref), from: { agent: "rehearse", run } }] })
+      const { ids } = (yield* file("r-0")) as { ids: string[] }
+      yield* Effect.all([file("r-1"), h.invoke("backlog", "act", { agent: "feedback", action: "toggle", rows: ids }), file("r-2")], { concurrency: "unbounded" })
+      const e = yield* h.entities.get(`backlog/feedback:${ids[0]}`)
+      return e.data as { count: number; triage: { on: boolean; by: string } }
+    }))
+    expect(out.count).toBe(3)
+    expect([out.triage.on, out.triage.by]).toEqual([false, "operator"])
+  })
+  test("one run filing the same report again (a restart) does not count it twice; a ref without a version is refused, the rest filed", async () => {
+    const out = await run(() => Effect.gen(function* () {
+      const card = yield* setUp
+      const h = yield* PluginHost
+      yield* h.invoke("backlog", "file", { entries: [report(card.ref)] })
+      const again = (yield* h.invoke("backlog", "file", { entries: [report(card.ref), report("gherkin/card:UX-0001", "no version")] })) as { ids: string[] }
+      const e = yield* h.entities.get(`backlog/feedback:${again.ids[0]}`)
+      return { ids: again.ids, count: (e.data as { count: number }).count }
+    }))
+    expect(out.count).toBe(1)
+    expect(out.ids[1]).toBe("")
+  })
 })

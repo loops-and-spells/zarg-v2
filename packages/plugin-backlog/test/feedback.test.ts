@@ -22,7 +22,7 @@ describe("feedback entries", () => {
   test("the same report twice is one entry, count 2; the operator's toggle is kept", () => {
     const first = upsert(undefined, filed())
     const flipped = { ...first, triage: { on: false, why: first.triage.why, by: "operator" as const } }
-    const again = upsert(flipped, filed({ triage: { on: true, why: "fix · real 0.90" }, journeys: ["Reconcile"] }))
+    const again = upsert(flipped, filed({ triage: { on: true, why: "fix · real 0.90" }, journeys: ["Reconcile"], from: { agent: "rehearse", run: "r-2" } }))
     expect([again.count, again.triage.on, again.triage.by]).toEqual([2, false, "operator"])
     expect(again.journeys).toEqual(["Set up", "Reconcile"])
   })

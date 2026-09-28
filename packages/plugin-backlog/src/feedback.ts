@@ -8,6 +8,8 @@ export type Entry = Omit<FiledEntry, "triage"> & {
   readonly triage: { readonly on: boolean; readonly why: string; readonly by: "agent" | "operator" }
   /** Set once a plan takes it (`planned`) or it is resolved (`closed`); otherwise its state follows its ref. */
   readonly state?: "planned" | "closed"
+  /** The runs that reported it (`agent:run`): one run filing again (after a restart) does not count twice. */
+  readonly runs?: ReadonlyArray<string>
 }
 
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim()
@@ -15,10 +17,18 @@ const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim()
 export const entryId = (f: Pick<FiledEntry, "ref" | "kind" | "note">) => `F-${versionOf({ ref: f.ref, kind: f.kind, note: norm(f.note) }).slice(0, 8)}`
 
 /** File a report: new, or counted again; the operator's call stands, the agent's is replaced by its latest. */
-export const upsert = (had: Entry | undefined, f: FiledEntry): Entry =>
-  had === undefined
-    ? { ...f, id: entryId(f), count: 1, triage: { ...f.triage, by: "agent" } }
-    : { ...had, count: had.count + 1, journeys: [...new Set([...had.journeys, ...f.journeys])], triage: had.triage.by === "operator" ? had.triage : { ...f.triage, by: "agent" } }
+export const upsert = (had: Entry | undefined, f: FiledEntry): Entry => {
+  const run = `${f.from.agent}:${f.from.run}`
+  if (had === undefined) return { ...f, id: entryId(f), count: 1, runs: [run], triage: { ...f.triage, by: "agent" } }
+  const runs = had.runs ?? [`${had.from.agent}:${had.from.run}`]
+  return {
+    ...had,
+    count: runs.includes(run) ? had.count : had.count + 1,
+    runs: runs.includes(run) ? runs : [...runs, run],
+    journeys: [...new Set([...had.journeys, ...f.journeys])],
+    triage: had.triage.by === "operator" ? had.triage : { ...f.triage, by: "agent" },
+  }
+}
 
 export const stateOf = (e: Entry, changed: boolean): FeedbackState => e.state ?? (changed ? "stale" : "open")
 
@@ -27,8 +37,4 @@ export const target = (ref: string) => {
   const r = parseRef(ref)
   return r === undefined ? ref : `${r.type}:${r.id}`
 }
-/** A malformed file is not an entry. */
-export const isEntry = (v: unknown): v is Entry => {
-  const e = v as Partial<Entry> | null
-  return e !== null && typeof e === "object" && typeof e.id === "string" && typeof e.ref === "string" && typeof e.note === "string" && typeof e.triage?.on === "boolean" && Array.isArray(e.journeys)
-}
+export const ENTRY_ID = /^F-[0-9a-f]{8}$/

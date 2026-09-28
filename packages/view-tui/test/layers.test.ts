@@ -195,3 +195,12 @@ describe("focus review fixes (keys)", () => {
     expect(ui.palette?.pick).toBe(9)
   })
 })
+
+import { defineView as dv, layoutOf as lo } from "@zarg/view"
+test("a focused toggle table says on the status line that space flips a row; a board says how to fold and move", () => {
+  const withToggle = (kind: "toggle" | "board"): SessionState => ({ ...idle, thread: { ...idle.thread, views: { "backlog:feedback": { agent: "backlog:feedback", layout: lo(kind === "toggle" ? dv("f", { list: { kind: "table", role: "primary", columns: [{ id: "c", label: "c" }], toggle: true } }) : dv("b", { board: { kind: "board", role: "primary" } })), data: {} } } } })
+  const at = { ...initialUi, focus: "tile" as const, main: "agent" as const, viewing: "backlog:feedback" }
+  const hints = (s: SessionState) => hintsOf(SHELL, at as never, { s, now: 0, draft: "" }, 6)
+  expect(hints(withToggle("toggle"))).toEqual(expect.arrayContaining([{ keys: "Space", does: "flip" }]))
+  expect(hints(withToggle("board"))).toEqual(expect.arrayContaining([{ keys: "z Z", does: "fold" }, { keys: "⇧←→", does: "move" }]))
+})

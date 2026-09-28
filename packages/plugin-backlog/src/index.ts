@@ -1,7 +1,8 @@
-import { Effect, Schema } from "effect"
+import { Effect, Schema, Semaphore } from "effect"
 import { Config, definePlugin, Entities, Files, PluginFailure, Views } from "@zarg/plugin-sdk"
 import { Backlog, FiledEntry } from "./contract"
-import { type Entry, isEntry, stateOf, target, upsert, entryId } from "./feedback"
+import { parseRef } from "@zarg/entities"
+import { ENTRY_ID, type Entry, entryId, stateOf, target, upsert } from "./feedback"
 import { FeedbackView } from "./views"
 
 const DIR = ".zarg/feedback"
@@ -14,7 +15,9 @@ const EntryData = Schema.Struct({
   count: Schema.Number,
   triage: Schema.Struct({ on: Schema.Boolean, why: Schema.String, by: Schema.Literals(["agent", "operator"]) }),
   state: Schema.optionalKey(Schema.Literals(["planned", "closed"])),
+  runs: Schema.optionalKey(Schema.Array(Schema.String)),
 })
+const isEntry = Schema.is(EntryData)
 const NO_JOURNEY = "—"
 const plural = (n: number, s: string) => `${n} ${s}${n === 1 ? "" : "s"}`
 const fail = (e: unknown) => new PluginFailure({ tag: "BacklogError", message: String((e as { message?: unknown })?.message ?? e) })
@@ -36,22 +39,31 @@ export default definePlugin({
     file: { doc: "File feedback (the same report on the same version again counts it).", params: Schema.Struct({ entries: Schema.Array(FiledEntry) }), success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
     status: { doc: "Where feedback stands.", params: Schema.Struct({ ids: Schema.Array(Schema.String) }), success: Schema.Array(Schema.Struct({ id: Schema.String, state: Schema.Literals(["open", "stale", "planned", "closed"]), on: Schema.Boolean })) },
     act: { doc: "The Feedback view: open it, show a journey, flip an entry.", params: Act, success: Notice },
+    agenda: { doc: "Feedback files the backlog could not read.", params: Schema.Struct({}), success: Schema.Array(Schema.Struct({ id: Schema.String, title: Schema.String, detail: Schema.String, about: Schema.Array(Schema.String), priority: Schema.Number })) },
   },
   make: Effect.gen(function* () {
     const files = yield* Files
     const views = yield* Views
     const entities = yield* Entities
     yield* Config
+    // Files that are not entries (a hand edit, a merge, another format): skipped, and named on the agenda.
+    let bad: ReadonlyArray<string> = []
     // ponytail: every call reads the folder; an index file when there are thousands of entries.
     const load = Effect.gen(function* () {
-      const names = yield* files.list(DIR).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>))
-      const read = yield* Effect.forEach(names.filter((n) => n.endsWith(".json")), (n) =>
+      const names = (yield* files.list(DIR).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>))).filter((n) => n.endsWith(".json"))
+      const read = yield* Effect.forEach(names, (n) =>
         files.read(`${DIR}/${n}`).pipe(
           Effect.map((t) => { try { return JSON.parse(t) as unknown } catch { return undefined } }),
           Effect.orElseSucceed(() => undefined),
+          Effect.map((v) => ({ n, v })),
         ))
-      return read.filter(isEntry)
+      // An entry is its own file: its id is its name, so a copy under another name is not a second entry.
+      const ok = (x: { n: string; v: unknown }) => isEntry(x.v) && ENTRY_ID.test(x.v.id) && x.n === `${x.v.id}.json`
+      bad = read.filter((x) => !ok(x)).map((x) => x.n)
+      return read.filter(ok).map((x) => x.v as Entry)
     })
+    // One writer at a time: filing and flipping read, change and write the same files.
+    const writing = yield* Semaphore.make(1)
     const save = (e: Entry) => files.write(`${DIR}/${e.id}.json`, `${JSON.stringify(e, null, 2)}\n`)
     /** Each entry with its state now: open, or stale once its entity changed (or went). */
     const withStates = (es: ReadonlyArray<Entry>) =>
@@ -99,18 +111,23 @@ export default definePlugin({
       return { journeys: names.length, open: open.length }
     })
 
+    /** Each entry filed, or "" where it was refused (a ref without a version) or could not be saved; the rest are filed. */
     const file = ({ entries }: { entries: ReadonlyArray<FiledEntry> }) =>
       Effect.gen(function* () {
         const had = new Map((yield* load).map((e) => [e.id, e]))
         const ids: Array<string> = []
         for (const f of entries) {
+          if (parseRef(f.ref)?.version === undefined) {
+            ids.push("")
+            continue
+          }
           const e = upsert(had.get(entryId(f)), f)
-          had.set(e.id, e)
-          yield* save(e)
-          ids.push(e.id)
+          const saved = yield* Effect.match(save(e), { onFailure: () => false, onSuccess: () => true })
+          if (saved) had.set(e.id, e)
+          ids.push(saved ? e.id : "")
         }
         return { ids }
-      }).pipe(Effect.mapError(fail))
+      }).pipe(writing.withPermits(1), Effect.mapError(fail))
     const status = ({ ids }: { ids: ReadonlyArray<string> }) =>
       Effect.gen(function* () {
         const all = yield* withStates((yield* load).filter((e) => ids.includes(e.id)))
@@ -120,22 +137,28 @@ export default definePlugin({
       Effect.gen(function* () {
         if (agent !== "feedback") return { notice: `backlog has no view ${agent}` }
         if (action === "journey" && rows[0] !== undefined) journey = rows[0]
-        if (action === "toggle") {
-          const all = yield* load
-          for (const id of rows) {
-            const e = all.find((x) => x.id === id)
-            if (e !== undefined) yield* save({ ...e, triage: { on: !e.triage.on, why: e.triage.why, by: "operator" } })
-          }
-        }
+        if (action === "toggle")
+          yield* Effect.gen(function* () {
+            const all = yield* load
+            for (const id of rows) {
+              const e = all.find((x) => x.id === id)
+              if (e !== undefined) yield* save({ ...e, triage: { on: !e.triage.on, why: e.triage.why, by: "operator" } })
+            }
+          }).pipe(writing.withPermits(1))
         const r = yield* refresh
         return { notice: action === "toggle" ? `${plural(rows.length, "entry")} flipped` : r.open === 0 ? "no open feedback" : `${plural(r.open, "open entry")} in ${plural(r.journeys, "journey")}` }
       }).pipe(Effect.mapError(fail))
 
     const byIds = (ids: ReadonlyArray<string>) => Effect.map(load, (all) => all.filter((e) => ids.includes(e.id)).map((e) => ({ id: e.id, data: e })))
+    const agenda = () =>
+      Effect.map(load, () =>
+        bad.map((n) => ({ id: `backlog:bad-file:${n}`, title: `Feedback file ${DIR}/${n} is not a feedback entry`, detail: "The backlog skips it. Fix or remove the file (an entry's id is its file name).", about: [], priority: 2 })),
+      )
     return {
       file,
       status,
       act,
+      agenda,
       entities: {
         feedback: {
           get: byIds,

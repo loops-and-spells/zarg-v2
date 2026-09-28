@@ -8,8 +8,6 @@ export const FEEDBACK_COLUMNS = [
   { id: "severity", label: "severity", order: ["high", "medium", "low"], filter: "values", tones: { high: "severity.high", medium: "severity.medium", low: "severity.low" } },
   { id: "now", label: "now", filter: "values", tones: { open: "attention", off: "dim", stale: "dim", planned: "accent", closed: "ok" } },
 ] as const
-// Kept for tests that read the column tones.
-export const FINDING_COLUMNS = FEEDBACK_COLUMNS
 const review = {
   kind: "tabs",
   role: "pinned",

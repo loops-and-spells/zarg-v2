@@ -6,7 +6,6 @@ export interface RehearseSettings {
   readonly realKeep: number
   readonly realDrop: number
   readonly inFlight: number
-  /** `auto_apply`: local fixes go to the driver on their own; off, the operator picks findings to apply. */
   /** The model role for diagnosis and the report. */
   readonly role: string
 }

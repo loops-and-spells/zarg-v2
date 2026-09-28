@@ -238,3 +238,21 @@ test("a toggle table marks rows on [●] or off [ ]; an off row is faint", async
   const span = t.captureSpans().lines.flatMap((l) => l.spans).find((s) => s.text.includes("dropped"))!
   expect(hex(span.fg)).toBe(THEME.faint)
 })
+
+test("a click on a toggle row's mark asks the plugin to flip it", async () => {
+  const v: ViewState = {
+    agent: "t",
+    layout: layoutOf(defineView("t", { list: { kind: "table", role: "pinned", title: "F", toggle: true, columns: [{ id: "c", label: "c" }] } })),
+    data: { list: { rows: [{ id: "a", cells: { c: "kept" }, on: true }, { id: "b", cells: { c: "dropped" }, on: false }] } },
+  }
+  const acts: Array<[string, string, ReadonlyArray<string>]> = []
+  const t = await testRender(<AgentView view={v} ui={initialViewUi} height={20} onAct={(s, a, r) => void acts.push([s, a, r])} />, { width: 60, height: 20, exitOnCtrlC: false, exitSignals: [] })
+  destroy = () => t.renderer.destroy()
+  await t.renderOnce()
+  await Bun.sleep(5)
+  await t.renderOnce()
+  const lines = t.captureCharFrame().split("\n")
+  const y = lines.findIndex((l) => l.includes("dropped"))
+  await t.mockMouse.click(lines[y]!.indexOf("["), y)
+  expect(acts).toEqual([["list", "toggle", ["b"]]])
+})

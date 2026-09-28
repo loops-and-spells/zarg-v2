@@ -338,9 +338,9 @@ export const makeRehearse = (deps: RunDeps) =>
         )
         const toFile = filing.filter((x) => x !== undefined)
         const filed = toFile.length === 0 ? { ids: [] as ReadonlyArray<string> } : yield* deps.file(toFile.map((x) => x.entry)).pipe(Effect.orElseSucceed(() => ({ ids: [] as ReadonlyArray<string> })))
-        yield* update((r) => ({ ...r, status: "done", findings, report: text, filed: Object.fromEntries(toFile.flatMap((x, i) => (filed.ids[i] !== undefined ? [[x.id, filed.ids[i]!]] : []))) }))
+        yield* update((r) => ({ ...r, status: "done", findings, report: text, filed: Object.fromEntries(toFile.flatMap((x, i) => (filed.ids[i] !== undefined && filed.ids[i] !== "" ? [[x.id, filed.ids[i]!]] : []))) }))
         const unreached = rec.unreachable > 0 ? ` · ${rec.unreachable} unreachable` : ""
-        yield* quiet(deps.agents.status({ id: "run", progress: { done: all, total: all }, text: `${plural(filed.ids.length, "feedback entry")} filed · triage in Feedback${unreached}` }))
+        yield* quiet(deps.agents.status({ id: "run", progress: { done: all, total: all }, text: `${plural(filed.ids.filter((x) => x !== "").length, "feedback entry")} filed · triage in Feedback${unreached}` }))
         yield* quiet(deps.views.set("run", RunView, "report", { markdown: text }))
         yield* refresh
         yield* quiet(deps.agents.end({ id: "run", ok: true }))
@@ -415,8 +415,10 @@ export const makeRehearse = (deps: RunDeps) =>
         const views = new Map<string, StepView | undefined>()
         yield* Effect.forEach([...new Set(r.findings.map((f) => f.card))], (c) => Effect.map(deps.step(c).pipe(Effect.orElseSucceed(() => null)), (v) => void views.set(c, v ?? undefined)), { discard: true })
         const filed = r.filed ?? {}
-        const states = new Map((yield* deps.status(Object.values(filed)).pipe(Effect.orElseSucceed(() => []))).map((x) => [x.id, x.state === "open" && !x.on ? "off" : x.state]))
-        const now = (f: Triaged) => (filed[f.id] === undefined ? "not filed" : states.get(filed[f.id]!) ?? "open")
+        // Unknown when the backlog does not answer: never guessed to be open.
+        const answer = yield* deps.status(Object.values(filed)).pipe(Effect.orElseSucceed(() => undefined))
+        const states = new Map((answer ?? []).map((x) => [x.id, x.state === "open" && !x.on ? "off" : x.state]))
+        const now = (f: Triaged) => (filed[f.id] === undefined ? "not filed" : answer === undefined ? "unknown" : states.get(filed[f.id]!) ?? "unknown")
         const tables = (fs: ReadonlyArray<Triaged>) => ({
           feedback: { rows: fs.filter((f) => f.kind !== "delight").map((f) => { const row = findingRow(shape(f), views.get(f.card)); return { ...row, cells: { ...row.cells, now: now(f) } } }) },
           likes: { rows: fs.filter((f) => f.kind === "delight").map((f) => findingRow(shape(f), views.get(f.card))) },

@@ -112,6 +112,18 @@ const common = (ui: Ui, w: ShellWorld, k: InputKey) =>
 /** A view keyed `${agent}@${view}` belongs to that agent: its actions and answers go there. */
 const ownerOf = (key: string) => (key.includes("@") ? { agent: key.split("@")[0]! } : {})
 
+/** Keys a focused section has of its own (not actions): a toggle table's space, a board's folds and moves. */
+const sectionHints = (ui: Ui, s: SessionState): ReadonlyArray<KeyHint> => {
+  const v = ui.viewing === undefined ? undefined : s.thread.views?.[ui.viewing]
+  if (v === undefined) return []
+  const vu = ui.view ?? startUi(v)
+  const at = focused(v, vu)
+  const leaf = at === undefined ? undefined : leafOf(v, vu, at.id)?.leaf
+  if (leaf?.kind === "table" && leaf.toggle === true) return [{ keys: "Space", does: "flip" }]
+  if (leaf?.kind === "board") return [{ keys: "Enter", does: "open" }, { keys: "⇧←→", does: "move" }, { keys: "z Z", does: "fold" }]
+  return []
+}
+
 /** A view's own keys on the terminal: its focused table's actions, then the view's. */
 const viewKeyHints = (v: ViewState, vu: ViewUi): ReadonlyArray<KeyHint> => {
   const at = focused(v, vu)
@@ -309,8 +321,8 @@ export const SHELL: ReadonlyArray<Layer> = [
         ? [{ keys: "↑↓", does: "move" }, { keys: "Enter", does: "apply" }, { keys: "Esc", does: "close" }]
         : ui.view?.header !== undefined
           ? [{ keys: "←→", does: "column" }, { keys: "Enter", does: "sort, select" }, { keys: "↓", does: "rows" }, { keys: "Esc", does: "back" }]
-          : // The view's actions are buttons in the view: the status line keeps no view keys.
-            [{ keys: "Esc", does: "back" }],
+          : // The view's actions are buttons in the view: the status line keeps no view keys, but the few keys a section has of its own.
+            [...sectionHints(ui, w.s), { keys: "Esc", does: "back" }],
     handle: (ui, w, k) => {
       // Esc closes an open menu or clears a search being typed (the view's keys handle both); else it goes back.
       if (k.name === "escape" && ui.view?.menu === undefined && ui.view?.searching === undefined) return { ui: goBack(ui, w.s) }

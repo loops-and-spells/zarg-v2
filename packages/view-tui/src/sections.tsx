@@ -10,7 +10,7 @@ import { useColors, useToneFg } from "./theme"
 const pad = (s: string, n: number) => (s.length > n ? `${s.slice(0, Math.max(0, n - 1))}…` : s.padEnd(n))
 const STATE_MARK = { busy: "⠼", waiting: "◌", done: "✓", flagged: "⚑" } as const
 
-interface LeafProps { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly leaf: LayoutLeaf; readonly focused: boolean; readonly width: number; readonly onHeight?: (height: number) => void; readonly onPick?: (index: number) => void; readonly onMark?: (index: number) => void; readonly onHeader?: (col: number) => void; readonly onSearch?: () => void }
+interface LeafProps { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly leaf: LayoutLeaf; readonly focused: boolean; readonly width: number; readonly onHeight?: (height: number) => void; readonly onPick?: (index: number) => void; readonly onMark?: (index: number) => void; readonly onToggle?: (index: number) => void; readonly onHeader?: (col: number) => void; readonly onSearch?: () => void }
 type Leaf = (p: LeafProps) => ReactNode
 
 /** A section's heading: its title (or its tabs, the current one marked), then a faint rule. */
@@ -147,7 +147,7 @@ const SearchField = (p: { readonly view: ViewState; readonly ui: ViewUi; readonl
     </text>
   )
 }
-const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onHeader, onSearch }) => {
+const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onToggle, onHeader, onSearch }) => {
   const C = useColors()
   const fg = useToneFg()
   const { cols, gutter, widths } = tableLayout(view, path, leaf, width)
@@ -182,7 +182,7 @@ const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onH
         return (
           // A click on the row moves the cursor there; a click on its mark ticks it.
           <box key={r.id} id={`row-${path}-${i}`} style={{ flexDirection: "row", height: 1, ...(on ? { backgroundColor: C.selection } : {}) }}>
-            <text wrapMode="none" onMouseDown={() => (selectable ? onMark : onPick)?.(i)}>
+            <text wrapMode="none" onMouseDown={() => (leaf.toggle === true ? onToggle : selectable ? onMark : onPick)?.(i)}>
               <Gutter cursor={on} selectable={selectable} selected={leaf.toggle === true ? (r as { on?: boolean }).on === true : picked} toggle={leaf.toggle === true} />
             </text>
             {/* Each cell in its colour: the row's tone, else its column's (by value, then the column's own). */}
@@ -555,6 +555,15 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
                 {...(props.onPick !== undefined ? { onPick: (i: number) => props.onPick!(s.id, i) } : {})}
                 {...(props.onHeader !== undefined ? { onHeader: (c: number) => props.onHeader!(s.id, c) } : {})}
                 {...(props.onMark !== undefined ? { onMark: (k: number) => props.onMark!(s.id, k) } : {})}
+                {...(props.onAct !== undefined
+                  ? {
+                      // A click on a toggle row's mark flips it, as space does.
+                      onToggle: (k: number) => {
+                        const row = shownRows(props.view, props.ui, leaf.path)[k]
+                        if (row !== undefined) props.onAct!(leaf.path, "toggle", [row.id])
+                      },
+                    }
+                  : {})}
                 {...(props.onSearch !== undefined ? { onSearch: () => props.onSearch!(s.id, leaf.path) } : {})}
               />
             </scrollbox>

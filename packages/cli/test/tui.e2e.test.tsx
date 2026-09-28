@@ -44,7 +44,7 @@ describe("tui end to end", () => {
       opened.session.start()
       // The backlog (and rehearse, which needs it) have no load grant in this test's user dir: the core asks in
       // popovers, one at a time. Not now keeps them unloaded.
-      await frameUntil(t, (f) => f.includes("grant") && f.includes("Plugin backlog wants to load"))
+      await frameUntil(t, (f) => f.includes("grant") && f.includes("wants to load"))
       for (let i = 0; i < 2 && t.captureCharFrame().includes("wants to load"); i++) {
         t.mockInput.pressArrow("right")
         await t.renderOnce()
