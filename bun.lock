@@ -187,6 +187,7 @@
     "packages/plugin-gherkin": {
       "name": "@zarg/plugin-gherkin",
       "dependencies": {
+        "@zarg/entities": "workspace:*",
         "@zarg/graph": "workspace:*",
         "@zarg/plugin-sdk": "workspace:*",
         "effect": "^4.0.0-rc.117",

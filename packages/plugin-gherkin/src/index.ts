@@ -1,3 +1,5 @@
+import { versionOf } from "@zarg/entities"
+import { cardLabel, cardVersion } from "./entities"
 import { Effect, Schema } from "effect"
 import { diff, type Node, Snapshot } from "@zarg/graph/pure"
 import { definePlugin, Graph, PluginFailure, Views } from "@zarg/plugin-sdk"
@@ -46,6 +48,13 @@ export default definePlugin({
   scopes: { graph: "write", agents: true },
   views: [JourneysView],
   surfaces: [{ kind: "nav", name: "journeys", view: "journeys", label: "Journeys" }],
+  // As entities: the host serves get and query from the graph; gherkin labels them, and versions a card by what a tester reads.
+  entities: {
+    card: { doc: "A user action: Given, When, Then, and who acts in it.", data: CardProps, tone: "card", glyph: "◇", ops: ["label", "version", "context"] },
+    state: { doc: "A Given or Then sentence.", data: StateProps, tone: "state", glyph: "○", ops: ["label"] },
+    persona: { doc: "Someone who acts in cards.", data: PersonaProps, tone: "persona", glyph: "◎", ops: ["label"] },
+    journey: { doc: "A named group of cards.", data: JourneyProps, tone: "journey", glyph: "↝", ops: ["label"], open: "journeys" },
+  },
   graph: {
     nodes: { state: StateProps, card: CardProps, persona: PersonaProps, journey: JourneyProps },
     edges: {
@@ -86,7 +95,25 @@ export default definePlugin({
     const views = yield* Views
     const runTool = (t: (typeof tools)[number]) => (p: unknown) =>
       Effect.flatMap(snap, (s) => t.run(p as never, s)).pipe(Effect.mapError((e) => new PluginFailure({ tag: "ToolError", message: e.message })))
+    // Entity handlers read the graph as it is now; `get` feeds the other ops (the host serves get itself).
+    const nodes = (ids: ReadonlyArray<string>) => Effect.map(snap, (s) => ids.flatMap((id) => { const n = s.nodes.get(id); return n === undefined ? [] : [{ id, data: { props: n.props, edges: n.edges } }] }))
+    type E = { readonly id: string; readonly data: { readonly props: Readonly<Record<string, unknown>> } }
+    // ponytail: the snapshot the latest get read; concurrent calls may see a newer one (still current). Pass it per call if that matters.
+    let seen: Snapshot.Snapshot | undefined
+    const current = (ids: ReadonlyArray<string>) => Effect.flatMap(snap, (s) => ((seen = s), nodes(ids)))
+    const entities = {
+      card: {
+        get: current,
+        label: (e: E) => (seen !== undefined ? cardLabel(seen, e.id) : undefined) ?? e.id,
+        version: (e: E) => (seen !== undefined ? cardVersion(seen, e.id) : undefined) ?? versionOf(e.data),
+        context: (e: E) => Effect.map(snap, (s) => render(s, new Set([e.id]))),
+      },
+      state: { get: nodes, label: (e: E) => String(e.data.props.text ?? e.id) },
+      persona: { get: nodes, label: (e: E) => String(e.data.props.name ?? e.id) },
+      journey: { get: nodes, label: (e: E) => String(e.data.props.name ?? e.id) },
+    }
     return {
+      entities,
       ...(Object.fromEntries(tools.map((t) => [t.name, runTool(t)])) as Record<string, (p: unknown) => Effect.Effect<any, PluginFailure>>),
       validate: ({ changes }: { changes: ReadonlyArray<unknown> }) => Effect.sync(() => ({ findings: validateProps(changes) })),
       lint: ({ before, after }: { before: { nodes: ReadonlyArray<unknown> }; after: { nodes: ReadonlyArray<unknown> } }) =>
