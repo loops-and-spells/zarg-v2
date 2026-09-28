@@ -65,7 +65,9 @@ const waiting: SessionState = {
 
 let destroy: (() => void) | undefined
 afterEach(() => destroy?.())
-const render = async (state: SessionState, size = { width: 110, height: 24 }) => {
+const render = async (state0: SessionState, size = { width: 110, height: 24 }) => {
+  // As a live session: the core's events have arrived (the arrival rule waits for them).
+  const state = state0.thread.seq === 0 ? { ...state0, thread: { ...state0.thread, seq: 1 } } : state0
   const fake = fakeSession(state)
   let exited = false
   const t = await testRender(<App session={fake.session} meta={meta} onExit={() => (exited = true)} />, { ...size, ...RENDERER })
@@ -802,5 +804,29 @@ describe("focuses", () => {
     const asked = { ...s, thread: { ...s.thread, rlms: { ...s.thread.rlms, "p:a": { ...s.thread.rlms["p:a"]!, attention: { reason: "3 findings to review", since: 1 } } } } }
     const t = await render(asked, big)
     expect(t.captureCharFrame().split("\n").filter((l) => l.trim().length > 0).at(-1)).toContain("◆ a 3 findings to review")
+  })
+})
+
+describe("focus review fixes (frames)", () => {
+  test("^k over zarg's open sheet: the typing goes to the palette, never to zarg", async () => {
+    const t = await render(idleState, { width: 130, height: 32 })
+    t.mockInput.pressKey("k", { ctrl: true })
+    await settle(t)
+    await t.mockInput.typeText("review")
+    t.mockInput.pressEnter()
+    await settle(t)
+    expect(t.calls.filter((c) => c.startsWith("send"))).toEqual([])
+    expect(t.captureCharFrame()).toContain("review")
+  })
+  test("attaching: the replay arrives after the first frame, and agents at work keep the sheet closed", async () => {
+    const fake = fakeSession({ thread: { ...initial("main") }, core: "up" })
+    const t = await testRender(<App session={fake.session} meta={meta} onExit={() => {}} />, { width: 130, height: 32, ...RENDERER })
+    destroy = () => t.renderer.destroy()
+    await t.renderOnce()
+    const n = { id: "p:a", parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [], row: { text: "walking p:a" } }
+    fake.update({ thread: { ...initial("main"), seq: 30, rlms: { "p:a": n }, messages: [{ id: "m1", role: "assistant", text: "Hello." }] }, core: "up" })
+    await settle(t)
+    expect(t.captureCharFrame()).toContain("walking p:a")
+    expect(t.captureCharFrame()).not.toContain("zarg  Hello.")
   })
 })

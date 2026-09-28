@@ -181,3 +181,17 @@ describe("surface fixes", () => {
     expect(hintsOf(SHELL, ui, { s, now: 0, draft: "" }).map((h) => h.keys)).toEqual(["Esc", "a"])
   })
 })
+
+describe("focus review fixes (keys)", () => {
+  test("an agent view's hints name its real keys", () => {
+    const ui = at({ main: "agent", focus: "tile", viewing: "rehearse:t1" })
+    const keys = hintsOf(SHELL, ui, { s: withView, now: 0, draft: "" }).map((h) => `${h.keys} ${h.does}`)
+    expect(keys).toEqual(expect.arrayContaining(["] [ sections", "} { tabs", "Esc back"]))
+  })
+  test("the palette's highlight stays on the ten entries it shows", () => {
+    const many = { ...idle, thread: { ...idle.thread, rlms: Object.fromEntries(Array.from({ length: 14 }, (_, i) => [`p:t${i}`, { id: `p:t${i}`, parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }])) } }
+    let ui = at({ palette: { query: "", pick: 0 } })
+    for (let i = 0; i < 15; i++) ui = onKey(ui, many, key("down"), 0).ui
+    expect(ui.palette?.pick).toBe(9)
+  })
+})

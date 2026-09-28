@@ -1,6 +1,6 @@
 import type { SessionState } from "@zarg/client"
 import { dispatch, focused, type InputKey, type InputLayer, keyFor, type KeyHint, leafOf, printable, startUi, type ViewState, type ViewUi } from "@zarg/view"
-import { gridCards } from "./grid"
+import { gridCards, gridCursor } from "./grid"
 import { SLASH_COMMANDS } from "./commands"
 import { paletteEntries } from "./palette"
 import { reviewActs, reviewGroups } from "./review"
@@ -200,7 +200,8 @@ export const SHELL: ReadonlyArray<Layer> = [
       if (k.name === "escape") return { ui: close() }
       const entries = paletteEntries(w.s, p.query, SLASH_COMMANDS)
       const pick = Math.min(p.pick, Math.max(0, entries.length - 1))
-      if (k.name === "down") return { ui: { ...ui, palette: { ...p, pick: Math.min(entries.length - 1, pick + 1) } } }
+      // The highlight stays on the ten entries the palette shows.
+      if (k.name === "down") return { ui: { ...ui, palette: { ...p, pick: Math.max(0, Math.min(Math.min(entries.length, 10) - 1, pick + 1)) } } }
       if (k.name === "up") return { ui: { ...ui, palette: { ...p, pick: Math.max(0, pick - 1) } } }
       if (k.name === "backspace") return { ui: { ...ui, palette: { query: p.query.slice(0, -1), pick: 0 } } }
       if (printable(k)) return { ui: { ...ui, palette: { query: p.query + (k.name === "space" ? " " : k.name), pick: 0 } } }
@@ -304,7 +305,7 @@ export const SHELL: ReadonlyArray<Layer> = [
   {
     id: "view",
     when: (ui) => ui.focus === "tile" && ui.main === "agent" && !sheetShown(ui),
-    hints: (ui, w) => [{ keys: "Tab", does: "sections" }, { keys: "[ ]", does: "tabs" }, { keys: "Space", does: "select" }, { keys: "Esc", does: "close" }, ...agentKeys(ui, w.s)],
+    hints: (ui, w) => [{ keys: "] [", does: "sections" }, { keys: "} {", does: "tabs" }, { keys: "Space", does: "select" }, ...agentKeys(ui, w.s), { keys: "Esc", does: "back" }],
     handle: (ui, w, k) => {
       if (k.name === "escape") return { ui: goBack(ui, w.s) }
       const c = common(ui, w, k)
@@ -331,12 +332,17 @@ export const SHELL: ReadonlyArray<Layer> = [
     handle: (ui, w, k) => {
       const c = common(ui, w, k)
       if (c !== undefined) return c
+      if (k.name === "escape") return { ui: goBack(ui, w.s) }
       const cards = gridCards(ui, w.s)
       if (cards.length === 0) return "pass"
       const cols = w.gridCols ?? 2
       const page = w.gridPage ?? 4
-      const at = Math.min(ui.grid.cursor, cards.length - 1)
-      const to = (i: number) => ({ ui: { ...ui, grid: { cursor: Math.max(0, Math.min(cards.length - 1, i)) } } })
+      const at = gridCursor(ui, cards)
+      // The cursor follows its agent: a card moving (attention first) keeps it on the same agent.
+      const to = (i: number) => {
+        const cursor = Math.max(0, Math.min(cards.length - 1, i))
+        return { ui: { ...ui, grid: { cursor, id: cards[cursor]!.id } } }
+      }
       if (k.name === "left") return to(at - 1)
       if (k.name === "right") return to(at + 1)
       if (k.name === "up") return to(at - cols)
@@ -354,8 +360,16 @@ export const SHELL: ReadonlyArray<Layer> = [
   {
     id: "review",
     when: (ui) => ui.focus === "tile" && ui.main === "review" && !ui.sheet,
-    hints: () => [{ keys: "↑↓", does: "move" }, { keys: "Space", does: "select" }, { keys: "Enter", does: "open agent" }],
+    hints: (_ui, w) => {
+      const seen = new Set<string>()
+      const acts = reviewGroups(w.s).flatMap((g) => g.actions).flatMap((a) => {
+        const key = keyFor(a, "terminal")
+        return key === undefined || seen.has(key) ? [] : (seen.add(key), [{ keys: key, does: a.label.toLowerCase() }])
+      })
+      return [{ keys: "↑↓", does: "move" }, { keys: "Space", does: "select" }, ...acts, { keys: "Enter", does: "open agent" }, { keys: "Esc", does: "back" }]
+    },
     handle: (ui, w, k) => {
+      if (k.name === "escape") return { ui: goBack(ui, w.s) }
       const c = common(ui, w, k)
       if (c !== undefined) return c
       const groups = reviewGroups(w.s)

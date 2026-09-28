@@ -5,7 +5,7 @@ import { onKey } from "../src/layers"
 import { initialUi, syncUi, type Ui } from "../src/view"
 
 const plugin = (id: string, status: "running" | "done", extra: Partial<RlmNode> = {}): RlmNode => ({ id, parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status, decisions: [], ...extra })
-const st = (rlms: Record<string, RlmNode>, extra: Partial<SessionState["thread"]> = {}): SessionState => ({ thread: { ...initial("main"), rlms, ...extra }, core: "up" })
+const st = (rlms: Record<string, RlmNode>, extra: Partial<SessionState["thread"]> = {}): SessionState => ({ thread: { ...initial("main"), seq: 1, rlms, ...extra }, core: "up" })
 const z = plugin("zarg", "running", { preset: "zarg" })
 const rlm = plugin("rlm-1", "running", { preset: "driver" })
 
@@ -54,5 +54,24 @@ describe("the grid", () => {
     expect(moved.ui.grid.cursor).toBe(1)
     expect(onKey(ui, s, { name: "return" }, 0).ui).toMatchObject({ main: "agent", viewing: "p:t1" })
     expect(onKey(ui, s, { name: "a" }, 0).action).toEqual({ type: "act", section: "findings", action: "apply", rows: ["R-1"], agent: "p:t1", view: "p:t1" })
+  })
+})
+
+describe("grid review fixes", () => {
+  test("the cursor follows its agent when the order changes", () => {
+    const s = st({ "p:a": plugin("p:a", "running"), "p:b": plugin("p:b", "running") })
+    const on = onKey({ ...syncUi(initialUi, s), focus: "tile" }, s, { name: "right" }, 0).ui
+    const reordered = st({ "p:a": plugin("p:a", "running"), "p:b": plugin("p:b", "running"), "p:c": plugin("p:c", "done", { attention: { reason: "r", since: 1 } }) })
+    const after = syncUi(on, reordered)
+    expect(onKey(after, reordered, { name: "return" }, 0).ui).toMatchObject({ viewing: "p:b" })
+  })
+  test("Esc on the grid goes back", () => {
+    const s = st({ "p:a": plugin("p:a", "running") })
+    const ui: Ui = { ...syncUi(initialUi, s), focus: "tile", back: [{ main: "review" }] }
+    expect(onKey(ui, s, { name: "escape" }, 0).ui.main).toBe("review")
+  })
+  test("the grid's shape: two columns beside the rail at 100 columns; one when the terminal is narrow", () => {
+    expect(gridShape(72, 26)).toMatchObject({ cols: 2 })
+    expect(gridShape(73, 20, true)).toMatchObject({ cols: 1 })
   })
 })

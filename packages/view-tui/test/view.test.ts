@@ -610,7 +610,7 @@ describe("archive", () => {
 
 describe("focus", () => {
   const plugin = (id: string, status: "running" | "done", extra = {}) => ({ id, parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status, decisions: [], ...extra })
-  const st = (rlms: Record<string, ReturnType<typeof plugin>>, extra = {}): SessionState => ({ thread: { ...initial("main"), rlms, ...extra }, core: "up" })
+  const st = (rlms: Record<string, ReturnType<typeof plugin>>, extra = {}): SessionState => ({ thread: { ...initial("main"), seq: 1, rlms, ...extra }, core: "up" })
   test("arrival: the grid, with zarg's sheet open when nothing is going on", () => {
     expect(syncUi(initialUi, st({}))).toMatchObject({ main: "grid", sheet: true, arrived: true })
     expect(syncUi(initialUi, st({ "p:t1": plugin("p:t1", "running") }))).toMatchObject({ main: "grid", sheet: false, focus: "tile" })
@@ -636,10 +636,32 @@ describe("focus", () => {
 })
 
 test("back puts zarg's sheet back as it was", () => {
-  const idle: SessionState = { thread: { ...initial("main"), rlms: { "rlm-2": { id: "rlm-2", parent: null, preset: "research", depth: 0, turns: 0, budget: 1, status: "done", decisions: [] } } }, core: "up" }
+  const idle: SessionState = { thread: { ...initial("main"), seq: 1, rlms: { "rlm-2": { id: "rlm-2", parent: null, preset: "research", depth: 0, turns: 0, budget: 1, status: "done", decisions: [] } } }, core: "up" }
   const home = syncUi(initialUi, idle)
   expect(home.sheet).toBe(true)
   const opened = openAgent(home, idle, "rlm-2")
   expect(opened.sheet).toBe(false)
   expect(goBack(opened, idle)).toMatchObject({ main: "grid", sheet: true })
+})
+
+describe("focus review fixes", () => {
+  const plugin = (id: string, status: "running" | "done", extra = {}) => ({ id, parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status, decisions: [], ...extra })
+  test("arrival waits for the core's events: an empty first state decides nothing", () => {
+    const empty: SessionState = { thread: { ...initial("main") }, core: "up" }
+    const ui = syncUi(initialUi, empty)
+    expect(ui.arrived).toBe(false)
+    const replayed: SessionState = { thread: { ...initial("main"), seq: 40, rlms: { "p:t1": plugin("p:t1", "running") } }, core: "up" }
+    expect(syncUi(ui, replayed)).toMatchObject({ arrived: true, sheet: false, main: "grid" })
+  })
+  test("the bar's input never has the keys while the palette is open", () => {
+    const idle: SessionState = { thread: { ...initial("main"), seq: 1 }, core: "up" }
+    const ui = { ...syncUi(initialUi, idle), palette: { query: "", pick: 0 } }
+    expect(inputFocused(ui, idle)).toBe(false)
+  })
+  test("the palette closes when a popover arrives", () => {
+    const idle: SessionState = { thread: { ...initial("main"), seq: 1 }, core: "up" }
+    const ui = { ...syncUi(initialUi, idle), palette: { query: "rev", pick: 0 } }
+    const grant = { id: "p1", question: "Plugin x wants to load.", options: [{ id: "always", label: "Allow" }], kind: "grant" as const }
+    expect(syncUi(ui, { ...idle, thread: { ...idle.thread, prompts: [grant] } }).palette).toBeUndefined()
+  })
 })

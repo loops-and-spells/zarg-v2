@@ -41,13 +41,22 @@ export const reviewGroups = (s: SessionState): ReadonlyArray<ReviewGroup> => {
   )
 }
 
-/** A key over the selection (the cursor row when nothing is selected): one act per agent and table, with its rows only. */
+/**
+ * A key over the selection (the cursor row when nothing still-shown is selected): one act per agent and table, with its
+ * rows only; an action on "row" takes the cursor row, one on "none" no rows — as in the agent's own view.
+ */
 export const reviewActs = (groups: ReadonlyArray<ReviewGroup>, cursor: number, selected: ReadonlyArray<string>, key: string) => {
   const all = groups.flatMap((g) => g.rows)
-  const picked = selected.length > 0 ? selected : all[cursor] !== undefined ? [all[cursor]!.key] : []
+  const here = all[cursor]
+  // Rows can be resolved under a selection: only keys the queue still shows count.
+  const live = selected.filter((k) => all.some((r) => r.key === k))
+  const picked = live.length > 0 ? live : here !== undefined ? [here.key] : []
   return groups.flatMap((g) => {
     const a = g.actions.find((x) => keyFor(x, "terminal") === key)
-    const rows = g.rows.filter((r) => picked.includes(r.key)).map((r) => r.row.id)
-    return a === undefined || rows.length === 0 ? [] : [{ agent: g.agent, section: g.section, action: a.id, rows }]
+    if (a === undefined) return []
+    const onCursor = here !== undefined && g.rows.some((r) => r.key === here.key)
+    if (a.on === "none") return onCursor ? [{ agent: g.agent, section: g.section, action: a.id, rows: [] as ReadonlyArray<string> }] : []
+    const rows = a.on === "row" ? (onCursor ? [here!.row.id] : []) : g.rows.filter((r) => picked.includes(r.key)).map((r) => r.row.id)
+    return rows.length === 0 ? [] : [{ agent: g.agent, section: g.section, action: a.id, rows }]
   })
 }

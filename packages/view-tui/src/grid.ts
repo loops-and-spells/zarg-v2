@@ -84,5 +84,14 @@ export const gridCards = (ui: Ui, s: SessionState): ReadonlyArray<Card> => {
     .map(({ n }) => cardOf(ui, s, n))
 }
 
-/** How many cards fit in the focus area: about 44×10 a card, at least one column and two rows. */
-export const gridShape = (width: number, height: number) => ({ cols: Math.max(1, Math.floor(width / 44)), rows: Math.max(2, Math.floor(height / 10)) })
+/** How many cards fit in the focus area: about 44×10 a card, two columns once there are 68, one on a narrow terminal; at least two rows. */
+export const gridShape = (width: number, height: number, narrow = false) => ({
+  cols: narrow ? 1 : Math.max(width >= 68 ? 2 : 1, Math.floor(width / 44)),
+  rows: Math.max(2, Math.floor(height / 10)),
+})
+
+/** Where the grid's cursor is: on its agent's card when that card still shows, else its last place. */
+export const gridCursor = (ui: Ui, cards: ReadonlyArray<Card>) => {
+  const byId = ui.grid.id === undefined ? -1 : cards.findIndex((c) => c.id === ui.grid.id)
+  return byId >= 0 ? byId : Math.max(0, Math.min(ui.grid.cursor, cards.length - 1))
+}

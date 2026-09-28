@@ -5,7 +5,7 @@ import { hintsOf, pickRow, startUi, THEME, toneColor } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { registerCommands, SLASH_COMMANDS } from "./commands"
 import { fit, gauge, keyGlyphs } from "./look"
-import { type Card, gridCards, gridShape } from "./grid"
+import { type Card, gridCards, gridCursor, gridShape } from "./grid"
 import { paletteEntries } from "./palette"
 import { contextOf, displayName, railRows } from "./rail"
 import { reviewGroups } from "./review"
@@ -82,6 +82,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const inputRef = useRef<InputRenderable | null>(null)
   const agentsRef = useRef<ScrollBoxRenderable | null>(null)
   const talkRef = useRef<ScrollBoxRenderable | null>(null)
+  const reviewRef = useRef<ScrollBoxRenderable | null>(null)
   const setDraft = (text: string) => {
     draftRef.current = text
     setDraftState(text)
@@ -452,11 +453,11 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
 
   // The grid: agents as cards, paginated; the cursor's card in the accent colour; a click or ⏎ opens it.
   const areaHeight = Math.max(6, dims.height - 2 - shown.bottom.reduce((a, p) => a + p.size + 1, 0))
-  const shape = gridShape(focusWidth, areaHeight - 1)
+  const shape = gridShape(focusWidth, areaHeight - 1, narrow)
   const perPage = shape.cols * shape.rows
   gridRef.current = { gridCols: shape.cols, gridPage: perPage }
   const cards = gridCards(ui, s)
-  const cursorAt = Math.min(ui.grid.cursor, Math.max(0, cards.length - 1))
+  const cursorAt = gridCursor(ui, cards)
   const page = Math.floor(cursorAt / perPage)
   const pages = Math.max(1, Math.ceil(cards.length / perPage))
   const cardW = Math.max(12, Math.floor(focusWidth / shape.cols) - 4)
@@ -490,7 +491,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         <text wrapMode="none" fg={c.starting && c.headline === undefined ? THEME.dim : c.attention ? THEME.attention : THEME.text}>
           {fit(c.headline ?? (c.starting ? "starting…" : ""), cardW)}
         </text>
-        {cardH >= 8
+        {/* Short cards (a narrow terminal) keep the headline and gauge; roomy ones add recent lines. */}
+        {!narrow && cardH >= 8
           ? c.recent.map((r, n) => (
               <text key={n} wrapMode="none" fg={THEME.dim}>
                 {fit(r.text, cardW)}
@@ -531,6 +533,13 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const groups = reviewGroups(s)
   const reviewRows = groups.flatMap((g) => g.rows)
   const reviewAt = Math.min(ui.review.cursor, Math.max(0, reviewRows.length - 1))
+  const reviewKey = reviewRows[reviewAt]?.key
+  // The review queue's cursor row stays on screen as it moves.
+  useEffect(() => {
+    if (reviewKey === undefined) return
+    const t = setTimeout(() => reviewRef.current?.scrollChildIntoView(`review-${reviewKey}`), 0)
+    return () => clearTimeout(t)
+  }, [reviewKey])
   const review = (
     <box style={{ flexGrow: 1, flexDirection: "column", paddingLeft: 2, paddingRight: 2 }}>
       <text wrapMode="none">
@@ -541,7 +550,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       </text>
       <text> </text>
       {groups.length === 0 ? <text fg={THEME.dim}>nothing to review</text> : null}
-      <scrollbox focusable={false} style={{ flexGrow: 1 }}>
+      <scrollbox ref={reviewRef} focusable={false} style={{ flexGrow: 1 }}>
         {groups.map((g) => (
           <box key={`${g.agent}|${g.section}`} style={{ flexDirection: "column", flexShrink: 0 }}>
             <Heading title={g.name} width={focusWidth} focused={false} />
@@ -549,7 +558,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
               const on = reviewRows[reviewAt]?.key === r.key
               const picked = ui.review.selected.includes(r.key)
               return (
-                <text key={r.key} wrapMode="none" {...(on ? { bg: THEME.selection } : {})}>
+                <text key={r.key} id={`review-${r.key}`} wrapMode="none" {...(on ? { bg: THEME.selection } : {})}>
                   <span fg={THEME.accent}>{on ? "▍" : " "}</span>
                   <span fg={picked ? THEME.accent : THEME.dim}>{picked ? "● " : "○ "}</span>
                   <span fg={picked || on ? THEME.text : toneColor(r.row.tone)}>{fit(g.columns.map((c) => r.row.cells[c.id] ?? "").join("  "), focusWidth - 4)}</span>

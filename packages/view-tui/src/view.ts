@@ -19,7 +19,7 @@ export interface Ui {
   /** The arrival rule ran (the sheet opened or not by whether agents work). */
   readonly arrived: boolean
   /** The grid's highlighted card (its page follows from it). */
-  readonly grid: { readonly cursor: number }
+  readonly grid: { readonly cursor: number; readonly id?: string }
   /** The review queue: the highlighted row (over every group) and the selected rows' keys. */
   readonly review: { readonly cursor: number; readonly selected: ReadonlyArray<string> }
   /** ^k: the query typed and the highlighted entry, while the palette is open. */
@@ -132,8 +132,10 @@ const withRead = (ui: Ui, s: SessionState): Ui => {
   const last = lastReply(s)?.id
   return sheetShown(ui) && last !== undefined && last !== ui.readUpTo ? { ...ui, readUpTo: last } : ui
 }
-const withPopover = (ui: Ui, s: SessionState, now: number): Ui => {
-  const head = queueOf(ui, s)[0]
+const withPopover = (ui0: Ui, s: SessionState, now: number): Ui => {
+  const head = queueOf(ui0, s)[0]
+  // A popover takes the keys: an open palette closes rather than sit under it.
+  const ui = head !== undefined && ui0.palette !== undefined ? (({ palette: _, ...rest }) => rest)(ui0) : ui0
   if (head === undefined) return ui.popover.id === undefined ? ui : { ...ui, popover: { pick: 0 } }
   if (head.id === ui.popover.id) return ui
   return { ...ui, popover: { id: head.id, pick: Math.max(0, head.options.findIndex((o) => o.recommended === true)), since: now } }
@@ -222,7 +224,8 @@ const withGrid = (ui: Ui, s: SessionState): Ui => {
   return cursor === ui.grid.cursor ? ui : { ...ui, grid: { cursor } }
 }
 /** The arrival rule, once: the grid, the sheet open when nothing is going on. */
-const withArrival = (ui: Ui, s: SessionState): Ui => (ui.arrived ? ui : { ...goHome(ui, s), arrived: true })
+// It waits for the core's events (a TUI attaching sees an empty thread until the replay arrives).
+const withArrival = (ui: Ui, s: SessionState): Ui => (ui.arrived || (s.thread.seq === 0 && s.core === "up") ? ui : { ...goHome(ui, s), arrived: true })
 /** Typing "Something else…" in the bar: the highlighted row is the free-text one. */
 export const answeringOther = (ui: Ui, s: SessionState) => {
   const q = question(s)
@@ -237,7 +240,7 @@ export const typing = (ui: Ui, s: SessionState) => {
 // A stopped core cannot take an answer, and a prompt without options cannot be answered: neither holds the keys.
 export const queueOf = (_ui: Ui, s: SessionState): ReadonlyArray<Prompt> => (s.core === "down" ? [] : (s.thread.prompts ?? []).filter((p) => p.kind === "surface" || p.options.length > 0))
 /** The bar's input has the keys: it takes text and no popover is up. */
-export const inputFocused = (ui: Ui, s: SessionState) => typing(ui, s) && queueOf(ui, s).length === 0
+export const inputFocused = (ui: Ui, s: SessionState) => typing(ui, s) && queueOf(ui, s).length === 0 && ui.palette === undefined
 /** The bar takes focus; while zarg asks, the sheet opens with the question. */
 export const focusBar = (ui: Ui, s: SessionState): Ui => {
   // Without zarg there is no bar to type in.

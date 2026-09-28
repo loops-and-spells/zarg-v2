@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { initial, type RlmNode, type SessionState } from "@zarg/client"
-import { onKey } from "../src/layers"
+import { onKey, SHELL } from "../src/layers"
+import { hintsOf } from "@zarg/view"
 import { reviewActs, reviewGroups } from "../src/review"
 import { initialUi, syncUi, type Ui } from "../src/view"
 
@@ -50,5 +51,20 @@ describe("the review queue", () => {
     expect(acted.action).toEqual({ type: "review-acts", acts: [{ agent: "p:a", section: "findings", action: "apply", rows: ["R-1", "R-3"] }] })
     expect(acted.ui.review.selected).toEqual([])
     expect(onKey(ui, s, { name: "return" }, 0).ui).toMatchObject({ main: "agent", viewing: "p:a" })
+  })
+})
+
+describe("review fixes", () => {
+  test("a stale selection falls back to the cursor row; on: row acts on the cursor row only", () => {
+    const g = reviewGroups(st())
+    expect(reviewActs(g, 0, ["p:a|findings|GONE"], "a")).toEqual([{ agent: "p:a", section: "findings", action: "apply", rows: ["R-1"] }])
+    const rowOnly = g.map((x) => ({ ...x, actions: [{ id: "open", label: "Open", key: "o", on: "row" as const }] }))
+    expect(reviewActs(rowOnly, 1, ["p:a|findings|R-1", "p:b|findings|R-2"], "o")).toEqual([{ agent: "p:a", section: "findings", action: "open", rows: ["R-3"] }])
+  })
+  test("Esc in the review queue goes back; its status line lists its action keys", () => {
+    const s = st()
+    const ui: Ui = { ...syncUi(initialUi, s), main: "review", sheet: false, focus: "tile", back: [{ main: "grid" }] }
+    expect(onKey(ui, s, { name: "escape" }, 0).ui.main).toBe("grid")
+    expect(hintsOf(SHELL, ui, { s, now: 0, draft: "" }).map((h) => h.keys)).toEqual(expect.arrayContaining(["a", "d", "Esc"]))
   })
 })
