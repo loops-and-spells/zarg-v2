@@ -117,6 +117,8 @@ export const pluginHostLayer = (opts: {
   /** The decision model and model roles for service plugins. */
   readonly decide?: HostOptions["decide"]
   readonly complete?: HostOptions["complete"]
+  /** False for one-shot commands (the CLI): background plugins do not start with the host. */
+  readonly startServices?: boolean
 }): Layer.Layer<PluginHost | PluginControl, PluginConfigError, GraphStore> => {
   const zargRoot = opts.zargRoot ?? ZARG_ROOT
   const userDir = opts.userDir ?? USER_DIR
@@ -151,6 +153,7 @@ export const pluginHostLayer = (opts: {
         notices: theirs.notices,
         userDir,
         projectRoot: opts.root,
+        ...(opts.startServices === false ? { startServices: false } : {}),
         ...(opts.decide !== undefined ? { decide: opts.decide } : {}),
         ...(opts.complete !== undefined ? { complete: opts.complete } : {}),
         agendaChanged: (plugin) => agendaChanged(plugin),

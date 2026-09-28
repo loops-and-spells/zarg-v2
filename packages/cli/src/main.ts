@@ -8,7 +8,8 @@ import { pluginHostLayer } from "@zarg/core/plugins"
 import { graphDir, root } from "./root"
 
 // Graph commands run the project's plugins in their own locked processes, like the core (no secrets here).
-const services = Layer.provideMerge(pluginHostLayer({ root }), graphLayer(graphDir)).pipe(
+// A command runs and exits: background plugins (rehearse, the Triage Agent) start only when a command calls them.
+const services = Layer.provideMerge(pluginHostLayer({ root, startServices: false }), graphLayer(graphDir)).pipe(
   Layer.provideMerge(BunServices.layer),
 )
 

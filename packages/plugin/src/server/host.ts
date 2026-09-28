@@ -103,6 +103,8 @@ export interface HostOptions {
   readonly agents?: (plugin: string, event: unknown) => void
   /** A plugin said its agenda changed. */
   readonly agendaChanged?: (plugin: string) => void
+  /** False: service and agent plugins are not started with the host (a one-shot command); a call still starts one. */
+  readonly startServices?: boolean
   /** Per plugin: decisions and tokens per hour. */
   readonly budget?: (plugin: string) => { readonly decisionsPerHour: number; readonly tokensPerHour: number } | undefined
 }
@@ -379,7 +381,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         }
         const r: Running = { manifest: m, process: spawned.value, restarts, disabled: false, inflight: 0, gestures: 0, served: served(powers), asking: () => asking }
         // A service plugin's services start now, not on its first call: a run a restart cut short resumes.
-        if (m.archetype === "service" || m.archetype === "agent") yield* Effect.forkDetach(Effect.ignore(spawned.value.call("$start", {})))
+        if ((m.archetype === "service" || m.archetype === "agent") && opts.startServices !== false) yield* Effect.forkDetach(Effect.ignore(spawned.value.call("$start", {})))
         return r
       })
       // Checked and started together (a slow plugin does not hold up the others), kept in their given order.
