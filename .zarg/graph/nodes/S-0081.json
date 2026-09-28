@@ -1,8 +1,0 @@
-{
-  "edges": [],
-  "id": "S-0081",
-  "props": {
-    "text": "the renderer works without a zarg core"
-  },
-  "type": "gherkin/state"
-}

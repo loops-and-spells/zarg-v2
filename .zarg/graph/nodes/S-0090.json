@@ -2,7 +2,8 @@
   "edges": [],
   "id": "S-0090",
   "props": {
-    "text": "resizing the view reevaluates whether the diagram fits"
+    "terminal": true,
+    "text": "a wider window draws it once it fits"
   },
   "type": "gherkin/state"
 }

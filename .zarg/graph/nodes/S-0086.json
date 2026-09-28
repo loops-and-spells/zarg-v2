@@ -2,7 +2,8 @@
   "edges": [],
   "id": "S-0086",
   "props": {
-    "text": "the Mermaid fence renders as a Unicode diagram"
+    "terminal": true,
+    "text": "the diagram is drawn in box-drawing characters"
   },
   "type": "gherkin/state"
 }

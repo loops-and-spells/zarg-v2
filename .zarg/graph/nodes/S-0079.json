@@ -2,7 +2,7 @@
   "edges": [],
   "id": "S-0079",
   "props": {
-    "text": "Markdown renders inside the existing OpenTUI view"
+    "text": "the Markdown shows formatted: headings, lists, tables, code, links"
   },
   "type": "gherkin/state"
 }

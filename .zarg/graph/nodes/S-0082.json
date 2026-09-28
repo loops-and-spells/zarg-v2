@@ -2,7 +2,8 @@
   "edges": [],
   "id": "S-0082",
   "props": {
-    "text": "streamed Markdown remains readable as content arrives"
+    "terminal": true,
+    "text": "a reply stays readable while it streams in"
   },
   "type": "gherkin/state"
 }

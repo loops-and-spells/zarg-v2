@@ -2,7 +2,8 @@
   "edges": [],
   "id": "S-0085",
   "props": {
-    "text": "rendered content determines section height within the existing layout limits"
+    "terminal": true,
+    "text": "the section grows to fit it, within its share"
   },
   "type": "gherkin/state"
 }

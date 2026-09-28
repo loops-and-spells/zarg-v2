@@ -1,9 +1,0 @@
-{
-  "edges": [],
-  "id": "S-0078",
-  "props": {
-    "entry": true,
-    "text": "the developer embeds Markdown in an OpenTUI application"
-  },
-  "type": "gherkin/state"
-}

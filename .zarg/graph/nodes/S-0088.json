@@ -2,7 +2,8 @@
   "edges": [],
   "id": "S-0088",
   "props": {
-    "text": "the Mermaid source remains readable"
+    "terminal": true,
+    "text": "its Mermaid source shows as code"
   },
   "type": "gherkin/state"
 }

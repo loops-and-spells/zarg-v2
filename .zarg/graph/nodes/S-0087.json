@@ -2,7 +2,8 @@
   "edges": [],
   "id": "S-0087",
   "props": {
-    "text": "surrounding Markdown retains its formatting"
+    "terminal": true,
+    "text": "the text around it stays formatted"
   },
   "type": "gherkin/state"
 }

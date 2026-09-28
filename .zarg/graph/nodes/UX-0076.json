@@ -1,26 +1,22 @@
 {
   "edges": [
     {
-      "to": "S-0008",
+      "to": "S-0085",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0076",
       "type": "gherkin/arrives"
     },
     {
-      "to": "S-0083",
-      "type": "gherkin/then"
-    },
-    {
-      "to": "S-0084",
-      "type": "gherkin/then"
-    },
-    {
-      "to": "S-0085",
+      "to": "S-0079",
       "type": "gherkin/then"
     }
   ],
   "id": "UX-0076",
   "props": {
-    "title": "Developer reads rich agent output",
-    "when": "the developer opens agent output containing Markdown"
+    "title": "Developer reads an agent's formatted report",
+    "when": "the agent's report or message holds Markdown"
   },
   "type": "gherkin/card"
 }

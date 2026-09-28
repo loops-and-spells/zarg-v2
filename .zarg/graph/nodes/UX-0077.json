@@ -1,22 +1,22 @@
 {
   "edges": [
     {
-      "to": "S-0078",
-      "type": "gherkin/arrives"
-    },
-    {
       "to": "S-0086",
       "type": "gherkin/then"
     },
     {
       "to": "S-0087",
       "type": "gherkin/then"
+    },
+    {
+      "to": "S-0079",
+      "type": "gherkin/arrives"
     }
   ],
   "id": "UX-0077",
   "props": {
-    "title": "Developer reads a Mermaid diagram",
-    "when": "the developer reads a supported Mermaid fence that fits the view"
+    "title": "Developer sees a diagram",
+    "when": "the text holds a Mermaid diagram that fits the window"
   },
   "type": "gherkin/card"
 }

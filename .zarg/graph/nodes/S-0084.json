@@ -1,8 +1,0 @@
-{
-  "edges": [],
-  "id": "S-0084",
-  "props": {
-    "text": "agent conversation messages render Markdown through the shared library"
-  },
-  "type": "gherkin/state"
-}
