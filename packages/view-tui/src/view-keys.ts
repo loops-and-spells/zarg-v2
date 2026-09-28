@@ -1,4 +1,4 @@
-import { actionFor, afterAction, applyMenu, closeMenu, menuAdjust, menuEntries, menuMove, menuQuery, printable, setSearch, moveColumn, openMenu, type ConversationQuestion, conversationKey, focused, focusNext, leafOf, moveRow, nextTab, toggleSelect, type ViewState, type ViewUi } from "@zarg/view"
+import { actionFor, afterAction, applyMenu, closeMenu, menuAdjust, menuEntries, menuMove, menuQuery, printable, setSearch, moveColumn, openMenu, type ConversationQuestion, conversationKey, focused, focusNext, leafOf, moveRow, nextTab, toggleAct, toggleSelect, type ViewState, type ViewUi } from "@zarg/view"
 
 /** A key in an open agent's view: focus, scroll a table's cursor, switch tabs, select, act. */
 export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: string; readonly shift?: boolean; readonly ctrl?: boolean; readonly meta?: boolean }): {
@@ -66,7 +66,10 @@ export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: stri
   if (key.name === "up") return { ui: moveRow(view, ui, -1) }
   if (key.name === "pagedown") return { ui: moveRow(view, ui, 10) }
   if (key.name === "pageup") return { ui: moveRow(view, ui, -10) }
-  if (key.name === "space") return { ui: toggleSelect(view, ui) }
+  if (key.name === "space") {
+    const flip = toggleAct(view, ui)
+    return flip !== undefined ? { ui, act: flip } : { ui: toggleSelect(view, ui) }
+  }
   const a = actionFor(view, ui, key.name)
   return a === undefined ? { ui } : { ui: afterAction(ui, a.section), act: a }
 }

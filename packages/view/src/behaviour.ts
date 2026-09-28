@@ -285,6 +285,14 @@ export const toggleSelect = (view: ViewState, ui: ViewUi): ViewUi => {
   return { ...ui, selected: { ...ui.selected, [c.path]: sel.includes(row.id) ? sel.filter((x) => x !== row.id) : [...sel, row.id] } }
 }
 
+/** On a toggle table, the flip of the highlighted row (the plugin keeps whether it is on). */
+export const toggleAct = (view: ViewState, ui: ViewUi): { readonly section: string; readonly action: "toggle"; readonly rows: ReadonlyArray<string> } | undefined => {
+  const c = current(view, ui)
+  if (c === undefined || c.leaf.kind !== "table" || c.leaf.toggle !== true) return undefined
+  const row = shownRows(view, ui, c.path)[ui.rows[c.path] ?? 0]
+  return row === undefined ? undefined : { section: c.path, action: "toggle", rows: [row.id] }
+}
+
 /** The action a key triggers on a platform: the focused table's, else the view's own; undefined when none. */
 export const actionFor = (view: ViewState, ui: ViewUi, key: string, platform = "terminal"): { readonly section: string | undefined; readonly action: string; readonly rows: ReadonlyArray<string> } | undefined => {
   const c = current(view, ui)

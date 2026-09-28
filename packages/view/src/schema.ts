@@ -37,7 +37,7 @@ export const ListData = Schema.Struct({
 export const LogLine = Schema.Struct({ text: Schema.String, tone: Schema.optionalKey(Tone), at: Schema.optionalKey(Schema.Number) })
 export const LogData = Schema.Struct({ lines: Schema.Array(LogLine) })
 /** `search`: text a searchable table also matches a row by, beyond its cells (a note it does not show). */
-export const TableData = Schema.Struct({ rows: Schema.Array(Schema.Struct({ id: Schema.String, cells: Schema.Record(Schema.String, Schema.String), tone: Schema.optionalKey(Tone), search: Schema.optionalKey(Schema.String) })), labels: Schema.optionalKey(Schema.Record(Schema.String, Schema.Struct({ text: Schema.String, tone: Tone, glyph: Schema.String }))) })
+export const TableData = Schema.Struct({ rows: Schema.Array(Schema.Struct({ id: Schema.String, cells: Schema.Record(Schema.String, Schema.String), tone: Schema.optionalKey(Tone), search: Schema.optionalKey(Schema.String), on: Schema.optionalKey(Schema.Boolean) })), labels: Schema.optionalKey(Schema.Record(Schema.String, Schema.Struct({ text: Schema.String, tone: Tone, glyph: Schema.String }))) })
 export const KeyValueData = Schema.Struct({ pairs: Schema.Array(Schema.Struct({ key: Schema.String, value: Schema.String })) })
 /** `rows`: for a text that follows a table, the text for each of its rows (by id); `markdown` when none fits. */
 export const TextData = Schema.Struct({ markdown: Schema.String, rows: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)) })
@@ -78,6 +78,8 @@ const leafFields = {
   beside: Schema.optionalKey(Schema.String),
   /** A table with a search field: a query keeps the rows it matches, best first. */
   search: Schema.optionalKey(Schema.Boolean),
+  /** A table whose rows are on or off (the row's `on`), kept by the plugin: space asks it to flip one (`act "toggle"`). */
+  toggle: Schema.optionalKey(Schema.Boolean),
 }
 export const LayoutLeaf = Schema.Struct({ ...leafFields, kind: Schema.Literals(["stats", "list", "log", "table", "keyvalue", "text", "conversation"]) })
 export const LayoutSection = Schema.Union([

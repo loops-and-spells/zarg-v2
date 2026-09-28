@@ -219,3 +219,22 @@ test("a ref cell draws its label: glyph and text in its tone", async () => {
   const span = t.captureSpans().lines.filter((l) => !l.spans.some((s) => s.text.includes("┃"))).flatMap((l) => l.spans).find((s) => s.text.includes("UX-0001"))!
   expect(hex(span.fg)).toBe(THEME.attention)
 })
+
+test("a toggle table marks rows on [●] or off [ ]; an off row is faint", async () => {
+  const v: ViewState = {
+    agent: "t",
+    layout: layoutOf(defineView("t", { list: { kind: "table", role: "pinned", title: "F", toggle: true, columns: [{ id: "c", label: "c" }] } })),
+    data: { list: { rows: [{ id: "a", cells: { c: "kept" }, on: true }, { id: "b", cells: { c: "dropped" }, on: false }] } },
+  }
+  const t = await testRender(<AgentView view={v} ui={{ ...initialViewUi, focus: -1 }} height={20} />, { width: 60, height: 20, exitOnCtrlC: false, exitSignals: [] })
+  destroy = () => t.renderer.destroy()
+  await t.renderOnce()
+  await Bun.sleep(5)
+  await t.renderOnce()
+  const f = t.captureCharFrame()
+  expect(f).toMatch(/\[●\] kept/)
+  expect(f).toMatch(/\[ \] dropped/)
+  const hex = (c: { r: number; g: number; b: number }) => `#${[c.r, c.g, c.b].map((x) => Math.round(x * 255).toString(16).padStart(2, "0")).join("")}`
+  const span = t.captureSpans().lines.flatMap((l) => l.spans).find((s) => s.text.includes("dropped"))!
+  expect(hex(span.fg)).toBe(THEME.faint)
+})

@@ -67,12 +67,12 @@ const Stats: Leaf = ({ view, path, width }) => {
   )
 }
 /** The gutter: the cursor's ▍ and, in a selectable table, ○ or ●. */
-const Gutter = (p: { readonly cursor: boolean; readonly selectable: boolean; readonly selected: boolean }) => {
+const Gutter = (p: { readonly cursor: boolean; readonly selectable: boolean; readonly selected: boolean; readonly toggle?: boolean }) => {
   const C = useColors()
   return (
     <>
       <span fg={C.accent}>{p.cursor ? "▍" : " "}</span>
-      {p.selectable ? <span fg={p.selected ? C.accent : C.dim}>{p.selected ? "● " : "○ "}</span> : <span> </span>}
+      {p.toggle === true ? <span fg={p.selected ? C.ok : C.faint}>{p.selected ? "[●] " : "[ ] "}</span> : p.selectable ? <span fg={p.selected ? C.accent : C.dim}>{p.selected ? "● " : "○ "}</span> : <span> </span>}
     </>
   )
 }
@@ -121,7 +121,7 @@ const labelsOf = (view: ViewState, path: string) => (view.data[path] as { labels
 const tableLayout = (view: ViewState, path: string, leaf: LayoutLeaf, width: number) => {
   const cols = leaf.columns ?? []
   const rows = ((view.data[path] as { rows?: ReadonlyArray<TableRow> } | undefined)?.rows ?? [])
-  const gutter = leaf.selectable === true ? 3 : 2
+  const gutter = leaf.toggle === true ? 5 : leaf.selectable === true ? 3 : 2
   const labels = labelsOf(view, path)
   const fixedWidths = cols.map((c, ci) => (ci === cols.length - 1 ? 0 : Math.min(24, Math.max(c.label.length + 2, ...rows.map((r) => cellText(r.cells[c.id] ?? "", c.ref === true, labels).replace(/\s*\n\s*/g, " ").length)))))
   const fixed = fixedWidths.reduce((a, w) => a + w + 2, 0)
@@ -182,7 +182,7 @@ const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onH
           // A click on the row moves the cursor there; a click on its mark ticks it.
           <box key={r.id} id={`row-${path}-${i}`} style={{ flexDirection: "row", height: 1, ...(on ? { backgroundColor: C.selection } : {}) }}>
             <text wrapMode="none" onMouseDown={() => (selectable ? onMark : onPick)?.(i)}>
-              <Gutter cursor={on} selectable={selectable} selected={picked} />
+              <Gutter cursor={on} selectable={selectable} selected={leaf.toggle === true ? (r as { on?: boolean }).on === true : picked} toggle={leaf.toggle === true} />
             </text>
             {/* Each cell in its colour: the row's tone, else its column's (by value, then the column's own). */}
             <text wrapMode="none" onMouseDown={() => onPick?.(i)}>
@@ -192,7 +192,7 @@ const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onH
                 // A ref cell draws its label in the label's tone (the entity's kind), unless the row has its own.
                 const label = col.ref === true ? labels?.[v] : undefined
                 return (
-                  <span key={c.id} fg={fg(r.tone ?? label?.tone ?? col.tones?.[v] ?? col.tone)}>
+                  <span key={c.id} fg={leaf.toggle === true && (r as { on?: boolean }).on !== true ? C.faint : fg(r.tone ?? label?.tone ?? col.tones?.[v] ?? col.tone)}>
                     {`${pad(fit(cellText(v, col.ref === true, labels), widths[ci]!), widths[ci]!)}${ci < cols.length - 1 ? "  " : ""}`}
                   </span>
                 )

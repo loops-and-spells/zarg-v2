@@ -665,3 +665,21 @@ describe("focus review fixes", () => {
     expect(syncUi(ui, { ...idle, thread: { ...idle.thread, prompts: [grant] } }).palette).toBeUndefined()
   })
 })
+
+import { viewKeys } from "../src/view-keys"
+import { defineView as defineToggleView, initialViewUi as toggleUi, layoutOf as toggleLayout } from "@zarg/view"
+describe("space on tables", () => {
+  const view = (toggle: boolean) => ({
+    agent: "backlog:feedback",
+    layout: toggleLayout(defineToggleView("t", { list: { kind: "table", role: "primary", columns: [{ id: "c", label: "c" }], ...(toggle ? { toggle: true } : { selectable: true }) } })),
+    data: { list: { rows: [{ id: "a", cells: { c: "A" }, on: true }] } },
+  })
+  test("space on a toggle table asks the plugin to flip the row", () => {
+    expect(viewKeys(view(true), toggleUi, { name: "space" }).act).toEqual({ section: "list", action: "toggle", rows: ["a"] })
+  })
+  test("space on a selectable table still ticks", () => {
+    const r = viewKeys(view(false), toggleUi, { name: "space" })
+    expect(r.act).toBeUndefined()
+    expect(r.ui.selected.list).toEqual(["a"])
+  })
+})
