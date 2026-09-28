@@ -35,7 +35,8 @@ export const LogLine = Schema.Struct({ text: Schema.String, tone: Schema.optiona
 export const LogData = Schema.Struct({ lines: Schema.Array(LogLine) })
 export const TableData = Schema.Struct({ rows: Schema.Array(Schema.Struct({ id: Schema.String, cells: Schema.Record(Schema.String, Schema.String), tone: Schema.optionalKey(Tone) })) })
 export const KeyValueData = Schema.Struct({ pairs: Schema.Array(Schema.Struct({ key: Schema.String, value: Schema.String })) })
-export const TextData = Schema.Struct({ markdown: Schema.String })
+/** `rows`: for a text that follows a table, the text for each of its rows (by id); `markdown` when none fits. */
+export const TextData = Schema.Struct({ markdown: Schema.String, rows: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)) })
 
 /** A question an agent asks in its conversation. `kind: "grant"`: a permission question, answered only with its options. */
 export const QuestionData = Schema.Struct({
@@ -67,6 +68,8 @@ const leafFields = {
   actions: Schema.optionalKey(Schema.Array(Action)),
   /** A table whose rows join the review queue (every agent's review tables in one list). */
   review: Schema.optionalKey(Schema.Boolean),
+  /** A text that follows a table (its section id): it shows the text for that table's highlighted row. */
+  follows: Schema.optionalKey(Schema.String),
 }
 export const LayoutLeaf = Schema.Struct({ ...leafFields, kind: Schema.Literals(["stats", "list", "log", "table", "keyvalue", "text", "conversation"]) })
 export const LayoutSection = Schema.Union([

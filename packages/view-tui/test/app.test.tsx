@@ -1223,12 +1223,18 @@ describe("nav items above the agents", () => {
       name: "journeys",
       sections: [
         { id: "list", kind: "table" as const, role: "primary" as const, title: "Journeys", columns: [{ id: "name", label: "journey" }, { id: "cards", label: "cards" }], actions: [{ id: "show", label: "Show", key: "s", on: "row" as const, default: true }] },
-        { id: "flow", kind: "text" as const, role: "pinned" as const, title: "Flow" },
+        { id: "flow", kind: "text" as const, role: "pinned" as const, title: "Flow", follows: "list" },
       ],
     },
     data: {
       list: { rows: [{ id: "J-0002", cells: { name: "Browse", cards: "1" } }, { id: "J-0001", cells: { name: "Checkout", cards: "2" } }] },
-      flow: { markdown: "```text\nBrowse  # J-0002 · 1 card\n\nUX-0001 Visitor opens pricing\n  Given the visitor is on the home page  # S-0001\n```" },
+      flow: {
+        markdown: "No journeys yet.",
+        rows: {
+          "J-0002": "```text\nBrowse  # J-0002 · 1 card\n\nUX-0001 Visitor opens pricing\n  Given the visitor is on the home page  # S-0001\n```",
+          "J-0001": "```text\nCheckout  # J-0001 · 2 cards\n\nUX-0004 Payment succeeds\n```",
+        },
+      },
     },
   }
   const tester = { id: "rehearse:t1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
@@ -1257,10 +1263,27 @@ describe("nav items above the agents", () => {
     expect(frame).not.toContain("gherkin:journeys")
     expect(frame).toContain("Browse")
     expect(frame).toContain("Given the visitor is on the home page")
-    // Enter on a row shows that journey.
+    // Moving the highlight to another journey shows its flow at once (no round trip to the plugin).
     t.mockInput.pressArrow("down"); await settle(t)
+    expect(t.captureCharFrame()).toContain("Checkout  # J-0001")
+    expect(t.captureCharFrame()).not.toContain("Browse  # J-0002")
+    expect(t.calls.filter((c) => c.startsWith("act"))).toEqual(["act gherkin:journeys open "])
+  })
+
+  test("a column menu drops over the Flow below it: nothing of the Flow shows through", async () => {
+    const t = await render(state, big)
+    t.mockInput.pressKey("a", { meta: true }); await settle(t)
+    t.mockInput.pressArrow("up"); await settle(t)
     t.mockInput.pressEnter(); await settle(t)
-    expect(t.calls).toContain("act gherkin:journeys show J-0001")
+    t.mockInput.pressArrow("up"); await settle(t)
+    t.mockInput.pressEnter(); await settle(t)
+    const lines = t.captureCharFrame().split("\n")
+    const top = lines.findIndex((l) => l.includes("╭─ journey"))
+    const bottom = lines.findIndex((l, i) => i > top && l.includes("╰"))
+    const inside = lines.slice(top, bottom + 1).join("\n")
+    expect(top).toBeGreaterThan(0)
+    // The Flow heading and text sit under the menu here: they must not show inside its box.
+    expect(inside).not.toMatch(/Flow|Given the visitor/)
   })
 
   test("a click on the nav item opens it too", async () => {

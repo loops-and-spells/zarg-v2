@@ -1,7 +1,7 @@
 import type { BoxRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { useTerminalDimensions } from "@opentui/react"
-import { CHAT, type ConversationQuestion, conversationRows, cursorRow, filterOf, keyFor, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, THEME, toneColor, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
+import { CHAT, type ConversationQuestion, conversationRows, cursorRow, filterOf, followedText, keyFor, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, THEME, toneColor, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
 import { fit, gauge, heading } from "./look"
 import { RichText } from "./markdown"
 
@@ -166,7 +166,8 @@ const KeyValue: Leaf = ({ view, path, width }) => (
   </>
 )
 // @card UX-0076
-const Text: Leaf = ({ view, path, width, onHeight }) => <RichText content={(view.data[path] as { markdown?: string } | undefined)?.markdown ?? ""} width={width} {...(onHeight !== undefined ? { onHeight } : {})} />
+// A text that follows a table shows the text for its highlighted row.
+const Text: Leaf = ({ view, ui, path, width, onHeight }) => <RichText content={followedText(view, ui, path)} width={width} {...(onHeight !== undefined ? { onHeight } : {})} />
 
 // A plugin agent's conversation: its messages, then its question with the options (arrows and Enter answer it).
 const Conversation: Leaf = ({ view, ui, path, width, onHeight }) => {
@@ -427,6 +428,8 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
           <box
             key={s.id}
             ref={(b: BoxRenderable | null) => void (b === null ? sectionBoxes.current.delete(s.id) : sectionBoxes.current.set(s.id, b))}
+            // A column menu drops over the sections below: its section draws above them while it is open.
+            {...(props.ui.menu?.path === leaf.path ? { zIndex: 5 } : {})}
             // Sections fit their content, capped by role, and shrink to their heading when the window is short.
             style={{
               flexDirection: "column",

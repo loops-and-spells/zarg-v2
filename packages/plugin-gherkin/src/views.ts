@@ -1,16 +1,15 @@
 import { defineView } from "@zarg/plugin-sdk"
 
-/** Journeys, above the agents (the `journeys` nav item): every journey, and the chosen one's cards as Gherkin. */
+/** Journeys, above the agents (the `journeys` nav item): every journey, and the highlighted one's cards as Gherkin. */
 export const JourneysView = defineView("journeys", {
   list: {
     kind: "table",
     role: "primary",
     title: "Journeys",
-    columns: [{ id: "name", label: "journey" }, { id: "cards", label: "cards" }],
-    actions: [
-      { id: "show", label: "Show", key: "s", on: "row", default: true },
-      { id: "open", label: "Refresh", key: "r", on: "none" },
-    ],
+    // Sorting only: a journey is picked by moving to it.
+    columns: [{ id: "name", label: "journey", filter: "none" }, { id: "cards", label: "cards", filter: "none" }],
+    actions: [{ id: "open", label: "Refresh", key: "r", on: "none" }],
   },
-  flow: { kind: "text", role: "pinned", title: "Flow" },
+  // The highlighted journey's cards as Gherkin.
+  flow: { kind: "text", role: "pinned", title: "Flow", follows: "list" },
 })

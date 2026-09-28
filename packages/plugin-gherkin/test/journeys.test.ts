@@ -119,26 +119,24 @@ describe("journey flow", () => {
 
 describe("the Journeys view", () => {
   const nodes = [journey("J-0001", "Checkout"), journey("J-0002", "Browse"), state("S-1"), state("S-2"), card("UX-0001", "S-1", ["S-2"], ["J-0001", "J-0002"])]
-  test("lists journeys by name with their card counts; shows the chosen one's flow (else the first), as a code block", () => {
-    const v = journeysView(Snapshot.make(nodes as never), "J-0002")
+  test("lists journeys by name with their card counts; every journey's flow, by row, as a code block", () => {
+    const v = journeysView(Snapshot.make(nodes as never))
     expect(v.rows).toEqual([
       { id: "J-0002", cells: { name: "Browse", cards: "1" } },
       { id: "J-0001", cells: { name: "Checkout", cards: "1" } },
     ])
-    expect(v.selected).toBe("J-0002")
-    expect(v.markdown.startsWith("```text\nBrowse  # J-0002")).toBe(true)
-    // A journey that is gone falls back to the first by name.
-    expect(journeysView(Snapshot.make(nodes as never), "J-0009").selected).toBe("J-0002")
+    expect(v.flows["J-0002"]!.startsWith("```text\nBrowse  # J-0002")).toBe(true)
+    expect(v.flows["J-0001"]!.startsWith("```text\nCheckout  # J-0001")).toBe(true)
   })
-  test("no journeys: says how to make one", () => {
-    const v = journeysView(Snapshot.make([] as never), undefined)
+  test("no journeys: no rows, no flows (the view says how to make one)", () => {
+    const v = journeysView(Snapshot.make([] as never))
     expect(v.rows).toEqual([])
-    expect(v.markdown).toContain("No journeys yet")
+    expect(v.flows).toEqual({})
   })
 })
 
 describe("the Journeys nav item's view, through the host", () => {
-  test("open fills the view (first journey by name); show picks another; a rename shows on the next open", async () => {
+  test("open fills the view; a rename shows on the next open", async () => {
     const got = await run(
       Effect.gen(function* () {
         yield* pricing
@@ -147,12 +145,11 @@ describe("the Journeys nav item's view, through the host", () => {
         yield* call("link", { card: "UX-0004", edge: "in", journey: { id: "J-0001" } })
         const act = (action: string, rows: ReadonlyArray<string> = []) => PluginHost.use((h) => h.invoke("gherkin", "act", { agent: "journeys", action, rows }))
         const opened = yield* act("open")
-        const shown = yield* act("show", ["J-0001"])
         yield* call("edit-journey", { id: "J-0001", name: "Buying" })
         const again = yield* act("open")
-        return { opened, shown, again }
+        return { opened, again }
       }),
     )
-    expect(got).toEqual({ opened: { notice: "showing Browse" }, shown: { notice: "showing Checkout" }, again: { notice: "showing Buying" } })
+    expect(got).toEqual({ opened: { notice: "2 journeys: Browse, Checkout" }, again: { notice: "2 journeys: Browse, Buying" } })
   })
 })

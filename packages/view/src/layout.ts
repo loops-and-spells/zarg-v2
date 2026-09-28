@@ -6,7 +6,9 @@ export type ActionSpec = { readonly id: string; readonly label: string; readonly
 type ColumnSpec = { readonly id: string; readonly label: string }
 type Role = "summary" | "primary" | "log" | "pinned" | "aside"
 export type LeafSpec =
-  | { readonly kind: "stats" | "list" | "log" | "keyvalue" | "text" | "conversation"; readonly title?: string }
+  | { readonly kind: "stats" | "list" | "log" | "keyvalue" | "conversation"; readonly title?: string }
+  /** `follows`: a table's section id; the text shows its `rows` entry for that table's highlighted row. */
+  | { readonly kind: "text"; readonly title?: string; readonly follows?: string }
   | { readonly kind: "table"; readonly title?: string; readonly columns: ReadonlyArray<ColumnSpec>; readonly selectable?: boolean; readonly actions?: ReadonlyArray<ActionSpec>; readonly review?: boolean }
 export type SectionSpec = (LeafSpec & { readonly role: Role }) | { readonly kind: "tabs"; readonly role: Role; readonly title?: string; readonly tabs: Readonly<Record<string, LeafSpec>> }
 export type ViewSpec = Readonly<Record<string, SectionSpec>>
@@ -63,6 +65,7 @@ const leafOf = (id: string, l: LeafSpec): LayoutLeaf => ({
   id,
   kind: l.kind,
   ...(l.title !== undefined ? { title: l.title } : {}),
+  ...(l.kind === "text" && l.follows !== undefined ? { follows: l.follows } : {}),
   ...(l.kind === "table" ? { columns: l.columns, ...(l.selectable !== undefined ? { selectable: l.selectable } : {}), ...(l.actions !== undefined ? { actions: l.actions } : {}), ...(l.review === true ? { review: true } : {}) } : {}),
 })
 

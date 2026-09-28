@@ -84,8 +84,6 @@ export default definePlugin({
     const graph = yield* Graph
     const snap = graph.snapshot.pipe(Effect.orDie)
     const views = yield* Views
-    // The journey the Journeys view shows; the first by name until the operator picks one.
-    let chosen: string | undefined
     const runTool = (t: (typeof tools)[number]) => (p: unknown) =>
       Effect.flatMap(snap, (s) => t.run(p as never, s)).pipe(Effect.mapError((e) => new PluginFailure({ tag: "ToolError", message: e.message })))
     return {
@@ -103,16 +101,14 @@ export default definePlugin({
         Effect.map(snap, (s) => planStories(s, strategy, focus === undefined || focus.length === 0 ? undefined : new Set(focus))),
       step: ({ card, via }: { card: string; via?: string }) => Effect.map(snap, (s) => stepView(s, card, via) ?? null),
       journeys: () => Effect.map(snap, journeyList),
-      // The nav item opens the view (and Refresh reloads it); Show (or Enter on a row) picks a journey.
-      act: ({ agent, action, rows }: { agent: string; action: string; rows: ReadonlyArray<string> }) =>
+      // The nav item opens the view (Refresh reloads it): every journey, with every journey's flow for the one highlighted.
+      act: ({ agent }: { agent: string; action: string; rows: ReadonlyArray<string> }) =>
         Effect.gen(function* () {
           if (agent !== "journeys") return { notice: `gherkin has no agent ${agent}` }
-          if (action === "show" && rows[0] !== undefined) chosen = rows[0]
-          const v = journeysView(yield* snap, chosen)
-          chosen = v.selected
+          const v = journeysView(yield* snap)
           yield* views.set("journeys", JourneysView, "list", { rows: v.rows })
-          yield* views.set("journeys", JourneysView, "flow", { markdown: v.markdown })
-          return { notice: v.selected === undefined ? "no journeys yet" : `showing ${v.rows.find((r) => r.id === v.selected)?.cells.name ?? v.selected}` }
+          yield* views.set("journeys", JourneysView, "flow", { markdown: 'No journeys yet. Add one with gherkin/add-journey, then tag cards with link {edge: "in"}.', rows: v.flows })
+          return { notice: v.rows.length === 0 ? "no journeys yet" : `${v.rows.length} journey${v.rows.length === 1 ? "" : "s"}: ${v.rows.map((r) => r.cells.name).join(", ")}` }
         }).pipe(Effect.mapError((e) => new PluginFailure({ tag: "ViewError", message: String((e as { message?: unknown }).message ?? e) }))),
       personas: () =>
         Effect.map(snap, (s) =>

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { actionFor, applyMenu, closeMenu, defineView, focusNext, initialViewUi, layoutOf, menuEntries, menuMove, moveColumn, moveRow, nextTab, cursorRow, filterOf, pickTab, menuAdjust, menuQuery, openMenu, ordered, pickHeader, pickMark, pickRow, shownRows, startUi, toggleSelect, type ViewState, type ViewUi } from "../src"
+import { actionFor, applyMenu, closeMenu, defineView, focusNext, initialViewUi, layoutOf, menuEntries, menuMove, moveColumn, moveRow, nextTab, cursorRow, filterOf, followedText, pickTab, menuAdjust, menuQuery, openMenu, ordered, pickHeader, pickMark, pickRow, shownRows, startUi, toggleSelect, type ViewState, type ViewUi } from "../src"
 
 const layout = layoutOf(
   defineView("tester", {
@@ -272,4 +272,16 @@ test("Enter runs a table's default action on the highlighted row", () => {
   const ui = moveRow(t, startUi(t), 1)
   expect(actionFor(t, ui, "return")).toEqual({ section: "list", action: "show", rows: ["J-2"] })
   expect(actionFor(t, ui, "s")).toEqual({ section: "list", action: "show", rows: ["J-2"] })
+})
+
+test("a text that follows a table shows the text for the table's highlighted row (else its own)", () => {
+  const t: ViewState = {
+    agent: "t",
+    layout: layoutOf(defineView("t", { list: { kind: "table", role: "primary", columns: [{ id: "name", label: "name" }], actions: [{ id: "r", label: "Refresh", key: "r", on: "none" }] }, flow: { kind: "text", role: "pinned", follows: "list" } })),
+    data: { list: { rows: [{ id: "J-1", cells: { name: "a" } }, { id: "J-2", cells: { name: "b" } }] }, flow: { markdown: "none picked", rows: { "J-1": "flow one", "J-2": "flow two" } } },
+  }
+  const ui = startUi(t)
+  expect(followedText(t, ui, "flow")).toBe("flow one")
+  expect(followedText(t, moveRow(t, ui, 1), "flow")).toBe("flow two")
+  expect(followedText({ ...t, data: { ...t.data, flow: { markdown: "none picked" } } }, ui, "flow")).toBe("none picked")
 })

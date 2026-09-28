@@ -318,3 +318,12 @@ export const cursorRow = (view: ViewState, ui: ViewUi) => {
 
 /** After an action ran: that table's selection clears. */
 export const afterAction = (ui: ViewUi, section: string | undefined): ViewUi => (section === undefined ? ui : { ...ui, selected: { ...ui.selected, [section]: [] } })
+
+/** A text section's words: for one that follows a table, the text for that table's highlighted row (else its own). */
+export const followedText = (view: ViewState, ui: ViewUi, path: string): string => {
+  const d = view.data[path] as { readonly markdown?: string; readonly rows?: Readonly<Record<string, string>> } | undefined
+  const leaf = leafAt(view.layout, path)
+  const table = leaf?.follows === undefined ? undefined : leafOf(view, ui, leaf.follows)
+  const row = table === undefined ? undefined : shownRows(view, ui, table.path)[ui.rows[table.path] ?? 0]
+  return (row !== undefined ? d?.rows?.[row.id] : undefined) ?? d?.markdown ?? ""
+}
