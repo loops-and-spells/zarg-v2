@@ -45,7 +45,7 @@ describe("the backlog's feedback", () => {
     }))
     expect(out.row.on).toBe(false)
     // Why it is off is in the detail beside the list, not a column.
-    expect(Object.keys(out.row.cells)).not.toContain("why")
+    expect(Object.keys(out.row.cells)).toEqual(["card", "severity", "kind"])
     expect(out.detail).toContain("off (your call: fix · real 0.80)")
     expect(out.status).toEqual([{ id: out.row.id, state: "open", on: false }])
   })
@@ -135,7 +135,8 @@ describe("the backlog's feedback", () => {
       const card = yield* setUp
       const h = yield* PluginHost
       yield* h.invoke("backlog", "file", { entries: [{ ...report(card.ref, "In A."), journeys: ["A"] }, { ...report(card.ref, "In B."), journeys: ["B"] }] })
-      const shown = () => rows(seen, "feedback").map((r) => r.cells.feedback)
+      // The note is in the detail beside the list, not a column.
+      const shown = () => rows(seen, "feedback").map((r) => ((seen.get("feedback/detail") as { rows: Record<string, string> }).rows[r.id]!.match(/In [AB]\./) ?? [""])[0])
       yield* h.invoke("backlog", "act", { agent: "feedback", action: "open", rows: [] })
       const first = shown()
       yield* h.invoke("backlog", "act", { agent: "feedback", action: "journey", section: "journeys", rows: ["B"] })
