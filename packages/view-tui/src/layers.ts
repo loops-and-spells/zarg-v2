@@ -112,11 +112,6 @@ const common = (ui: Ui, w: ShellWorld, k: InputKey) =>
 /** A view keyed `${agent}@${view}` belongs to that agent: its actions and answers go there. */
 const ownerOf = (key: string) => (key.includes("@") ? { agent: key.split("@")[0]! } : {})
 
-/** The open agent's own keys on the terminal: the focused table's actions, then the view's. */
-const agentKeys = (ui: Ui, s: SessionState): ReadonlyArray<KeyHint> => {
-  const v = ui.viewing === undefined ? undefined : s.thread.views?.[ui.viewing]
-  return v === undefined ? [] : viewKeyHints(v, ui.view ?? startUi(v))
-}
 /** A view's own keys on the terminal: its focused table's actions, then the view's. */
 const viewKeyHints = (v: ViewState, vu: ViewUi): ReadonlyArray<KeyHint> => {
   const at = focused(v, vu)
@@ -314,7 +309,8 @@ export const SHELL: ReadonlyArray<Layer> = [
         ? [{ keys: "↑↓", does: "move" }, { keys: "Enter", does: "apply" }, { keys: "Esc", does: "close" }]
         : ui.view?.header !== undefined
           ? [{ keys: "←→", does: "column" }, { keys: "Enter", does: "sort, select" }, { keys: "↓", does: "rows" }, { keys: "Esc", does: "back" }]
-          : [{ keys: "] [", does: "sections" }, { keys: "} {", does: "tabs" }, { keys: "Space", does: "select" }, ...agentKeys(ui, w.s), { keys: "Esc", does: "back" }],
+          : // The view's actions are buttons in the view: the status line keeps no view keys.
+            [{ keys: "Esc", does: "back" }],
     handle: (ui, w, k) => {
       if (k.name === "escape" && ui.view?.menu !== undefined) return { ui: { ...ui, view: closeMenu(ui.view) } }
       if (k.name === "escape") return { ui: goBack(ui, w.s) }
@@ -370,14 +366,8 @@ export const SHELL: ReadonlyArray<Layer> = [
   {
     id: "review",
     when: (ui) => ui.focus === "tile" && ui.main === "review" && !ui.sheet,
-    hints: (_ui, w) => {
-      const seen = new Set<string>()
-      const acts = reviewGroups(w.s).flatMap((g) => g.actions).flatMap((a) => {
-        const key = keyFor(a, "terminal")
-        return key === undefined || seen.has(key) ? [] : (seen.add(key), [{ keys: key, does: a.label.toLowerCase() }])
-      })
-      return [{ keys: "↑↓", does: "move" }, { keys: "Space", does: "select" }, ...acts, { keys: "Enter", does: "open agent" }, { keys: "Esc", does: "back" }]
-    },
+    // The queue's actions are buttons under it: the status line keeps no view keys.
+    hints: () => [{ keys: "Enter", does: "open agent" }, { keys: "Esc", does: "back" }],
     handle: (ui, w, k) => {
       if (k.name === "escape") return { ui: goBack(ui, w.s) }
       const c = common(ui, w, k)

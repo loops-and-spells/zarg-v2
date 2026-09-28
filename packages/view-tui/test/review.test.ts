@@ -61,10 +61,10 @@ describe("review fixes", () => {
     const rowOnly = g.map((x) => ({ ...x, actions: [{ id: "open", label: "Open", key: "o", on: "row" as const }] }))
     expect(reviewActs(rowOnly, 1, ["p:a|findings|R-1", "p:b|findings|R-2"], "o")).toEqual([{ agent: "p:a", section: "findings", action: "open", rows: ["R-3"] }])
   })
-  test("Esc in the review queue goes back; its status line lists its action keys", () => {
+  test("Esc in the review queue goes back; its status line keeps no action keys (they are buttons under the queue)", () => {
     const s = st()
     const ui: Ui = { ...syncUi(initialUi, s), main: "review", sheet: false, focus: "tile", back: [{ main: "grid" }] }
     expect(onKey(ui, s, { name: "escape" }, 0).ui.main).toBe("grid")
-    expect(hintsOf(SHELL, ui, { s, now: 0, draft: "" }).map((h) => h.keys)).toEqual(expect.arrayContaining(["a", "d", "Esc"]))
+    expect(hintsOf(SHELL, ui, { s, now: 0, draft: "" }).map((h) => h.keys)).toEqual(["Enter", "Esc"])
   })
 })

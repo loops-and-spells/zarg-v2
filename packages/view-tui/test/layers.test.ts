@@ -183,10 +183,10 @@ describe("surface fixes", () => {
 })
 
 describe("focus review fixes (keys)", () => {
-  test("an agent view's hints name its real keys", () => {
+  test("an agent view's status line keeps no view keys (its actions are buttons in the view): only Esc back", () => {
     const ui = at({ main: "agent", focus: "tile", viewing: "rehearse:t1" })
     const keys = hintsOf(SHELL, ui, { s: withView, now: 0, draft: "" }).map((h) => `${h.keys} ${h.does}`)
-    expect(keys).toEqual(expect.arrayContaining(["] [ sections", "} { tabs", "Esc back"]))
+    expect(keys).toEqual(["Esc back"])
   })
   test("the palette's highlight stays on the ten entries it shows", () => {
     const many = { ...idle, thread: { ...idle.thread, rlms: Object.fromEntries(Array.from({ length: 14 }, (_, i) => [`p:t${i}`, { id: `p:t${i}`, parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }])) } }

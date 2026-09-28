@@ -907,36 +907,50 @@ describe("action buttons", () => {
     await t.mockMouse.click(lines[y]!.indexOf(text) + 1, y)
     await settle(t)
   }
-  test("in an agent's view: selected rows show the table's selection actions as buttons under the list; a click sends them", async () => {
+  // The status line: the last line of the frame.
+  const statusOf = (t: Awaited<ReturnType<typeof render>>) => t.captureCharFrame().split("\n").filter((l) => l.trim() !== "").at(-1)!
+  test("in an agent's view: a table's actions are buttons under it, always there; none ticked, they act on the highlighted row", async () => {
     const t = await render(withFindings(false), { width: 130, height: 32 })
     t.mockInput.pressKey("a", { meta: true }); await settle(t); t.mockInput.pressEnter(); await settle(t)
-    expect(body(t)).not.toContain("Send to zarg")
+    expect(body(t)).toContain("Send to zarg")
+    expect(body(t)).not.toContain("Send to zarg ·")
+    // The status line keeps no view keys: the buttons carry them.
+    expect(statusOf(t)).not.toContain("Send to zarg")
+    expect(statusOf(t)).not.toContain("sections")
+    await clickOn(t, "Send to zarg")
+    expect(t.calls).toContain("act rehearse:tester-1 apply R-1")
+  })
+  test("ticked rows: the buttons count them and act on them; sent, the count goes and the buttons stay", async () => {
+    const t = await render(withFindings(false), { width: 130, height: 32 })
+    t.mockInput.pressKey("a", { meta: true }); await settle(t); t.mockInput.pressEnter(); await settle(t)
     await clickOn(t, "○ R-2")
     const lines = t.captureCharFrame().split("\n")
-    const button = lines.findIndex((l) => l.includes("Send to zarg"))
+    const button = lines.findIndex((l) => l.includes("Send to zarg · 1"))
     expect(button).toBeGreaterThan(lines.findIndex((l) => l.includes("● R-2")))
     expect(lines[button]).toContain("Dismiss")
     await clickOn(t, "Send to zarg")
     expect(t.calls).toContain("act rehearse:tester-1 apply R-2")
-    // Sent: the selection clears and the buttons go.
-    expect(body(t)).not.toContain("Send to zarg")
+    expect(body(t)).not.toContain("Send to zarg ·")
+    expect(body(t)).toContain("Send to zarg")
   })
-  test("in the review queue: the same buttons under the queue; a click acts on the selected rows' agent", async () => {
+  test("in the review queue: the same buttons under the queue, always there; a click acts on the selected rows' agent", async () => {
     const t = await render(withFindings(true), { width: 130, height: 32 })
     t.mockInput.pressKey("k", { ctrl: true }); await settle(t)
     await t.mockInput.typeText("review"); t.mockInput.pressEnter(); await settle(t)
-    expect(body(t)).not.toContain("Send to zarg")
+    expect(body(t)).toContain("Dismiss")
+    expect(statusOf(t)).not.toContain("dismiss")
     t.mockInput.pressKey(" "); await settle(t)
     await clickOn(t, "Dismiss")
     expect(t.calls).toContain("act rehearse:tester-1 dismiss R-1")
-    expect(body(t)).not.toContain("Dismiss")
+    expect(body(t)).toContain("Dismiss")
   })
-  test("Clear drops the selection: the buttons go and nothing is sent", async () => {
+  test("Clear drops the selection: the count and Clear go, nothing is sent", async () => {
     const t = await render(withFindings(false), { width: 130, height: 32 })
     t.mockInput.pressKey("a", { meta: true }); await settle(t); t.mockInput.pressEnter(); await settle(t)
     await clickOn(t, "○ R-2")
     await clickOn(t, "Clear")
-    expect(body(t)).not.toContain("Send to zarg")
+    expect(body(t)).not.toContain("Send to zarg ·")
+    expect(body(t)).not.toContain("Clear")
     expect(body(t)).toContain("○ R-2")
     expect(t.calls.filter((c) => c.startsWith("act"))).toEqual([])
   })

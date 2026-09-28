@@ -671,7 +671,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   }, [reviewKey])
   // Its buttons: the selection actions of the tables the selected rows are in, once each.
   const reviewPicked = ui.review.selected.filter((k) => reviewRows.some((r) => r.key === k))
-  const reviewButtons = [...new Map(groups.filter((g) => g.rows.some((r) => reviewPicked.includes(r.key))).flatMap((g) => g.actions.filter((a) => a.on === "selection")).map((a) => [a.id, a] as const)).values()]
+  // Always there (the status line carries no view keys): every table's actions, once each; they take the ticked rows, else the highlighted one.
+  const reviewButtons = [...new Map(groups.flatMap((g) => g.actions).map((a) => [a.id, a] as const)).values()]
   const review = (
     <box style={{ flexGrow: 1, flexDirection: "column", paddingLeft: 2, paddingRight: 2 }}>
       <text wrapMode="none">
@@ -701,7 +702,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           </box>
         ))}
       </scrollbox>
-      {reviewPicked.length > 0 && reviewButtons.length > 0 ? (
+      {reviewRows.length > 0 && reviewButtons.length > 0 ? (
         <box style={{ flexShrink: 0, marginTop: 1, paddingLeft: 1 }}>
           <Buttons
             actions={reviewButtons}
@@ -712,7 +713,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
               if (acts.length > 0) act({ type: "review-acts", acts })
               setUi({ ...latest(), review: { ...latest().review, selected: [] } })
             }}
-            onClear={() => setUi({ ...latest(), review: { ...latest().review, selected: [] } })}
+            {...(reviewPicked.length > 0 ? { onClear: () => setUi({ ...latest(), review: { ...latest().review, selected: [] } }) } : {})}
           />
         </box>
       ) : null}

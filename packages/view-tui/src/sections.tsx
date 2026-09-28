@@ -237,7 +237,7 @@ export const Buttons = (p: { readonly actions: ReadonlyArray<ButtonSpec>; readon
       return (
         <text key={a.id} wrapMode="none" onMouseDown={() => p.onPress(a.id)} style={{ marginRight: 2 }}>
           <span fg={fill}>▐</span>
-          <span fg={i === 0 ? THEME.bg : THEME.text} bg={fill}>{i === 0 ? ` ${a.label} · ${p.count} ` : ` ${a.label} `}</span>
+          <span fg={i === 0 ? THEME.bg : THEME.text} bg={fill}>{i === 0 && p.count > 0 ? ` ${a.label} · ${p.count} ` : ` ${a.label} `}</span>
           {key !== undefined ? <span fg={i === 0 ? THEME.raised : THEME.dim} bg={fill}>{` ${key} `}</span> : null}
           <span fg={fill}>▌</span>
         </text>
@@ -250,13 +250,23 @@ export const Buttons = (p: { readonly actions: ReadonlyArray<ButtonSpec>; readon
     ) : null}
   </box>
 )
-/** A selectable table's buttons: its `selection` actions, once rows it still shows are selected. */
+/**
+ * A table's buttons: all its actions, always there (the status line carries no view keys). The ticked rows it still
+ * shows are counted; an action takes them, or the highlighted row when none are ticked (a row action: always it).
+ */
 const buttonsOf = (view: ViewState, ui: ViewUi, leaf: { readonly path: string; readonly leaf: LayoutLeaf }) => {
-  if (leaf.leaf.kind !== "table" || leaf.leaf.selectable !== true) return undefined
+  if (leaf.leaf.kind !== "table" || (leaf.leaf.actions ?? []).length === 0) return undefined
   const all = rowsOf(view, leaf.path)
   const rows = (ui.selected[leaf.path] ?? []).filter((id) => all.some((r) => r.id === id))
-  const actions = (leaf.leaf.actions ?? []).filter((a) => a.on === "selection")
-  return rows.length > 0 && actions.length > 0 ? { rows, actions } : undefined
+  const here = shownRows(view, ui, leaf.path)[ui.rows[leaf.path] ?? 0]?.id
+  const rowsFor = (id: string): ReadonlyArray<string> | undefined => {
+    const a = (leaf.leaf.actions ?? []).find((x) => x.id === id)
+    if (a === undefined) return undefined
+    if (a.on === "none") return []
+    const picked = a.on === "selection" && rows.length > 0 ? rows : here !== undefined ? [here] : []
+    return picked.length > 0 ? picked : undefined
+  }
+  return { rows, actions: leaf.leaf.actions ?? [], rowsFor }
 }
 
 /** How tall a row card would be: its line, then each cut column's label and wrapped text; at most `cap`. */
@@ -483,7 +493,15 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
             ) : null}
             {buttons !== undefined ? (
               <box style={{ flexShrink: 0, marginTop: 1, paddingLeft: 1 }}>
-                <Buttons actions={buttons.actions} count={buttons.rows.length} onPress={(id) => props.onAct!(leaf.path, id, buttons.rows)} {...(props.onClear !== undefined ? { onClear: () => props.onClear!(leaf.path) } : {})} />
+                <Buttons
+                  actions={buttons.actions}
+                  count={buttons.rows.length}
+                  onPress={(id) => {
+                    const rows = buttons.rowsFor(id)
+                    if (rows !== undefined) props.onAct!(leaf.path, id, rows)
+                  }}
+                  {...(props.onClear !== undefined && buttons.rows.length > 0 ? { onClear: () => props.onClear!(leaf.path) } : {})}
+                />
               </box>
             ) : null}
             {cardRows > 0 ? <RowCard card={card!} view={props.view} width={width} height={cardRows} /> : null}
