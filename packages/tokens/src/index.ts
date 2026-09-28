@@ -70,6 +70,7 @@ const TRUECOLOR: Readonly<Record<ColorName, string>> = {
   green: "#9ece6a",
   red: "#f7768e",
 }
+export const COLOR_NAMES = Object.keys(TRUECOLOR) as ReadonlyArray<ColorName>
 const hex = (r: number, g: number, b: number) => `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`
 /** xterm's 256 colours past the 16 system ones: a 6×6×6 cube, then 24 greys. */
 const XTERM_256: ReadonlyArray<string> = (() => {
@@ -174,8 +175,9 @@ export class Theme extends Context.Service<Theme, ThemeService>()("@zarg/tokens/
   static readonly layer = Layer.effect(
     Theme,
     Effect.gen(function* () {
+      // Its colours come from whatever Palette is provided (the service, not the table).
       const p = yield* Palette
-      return makeTheme(PALETTES[p.platform], p.platform)
+      return makeTheme(Object.fromEntries(COLOR_NAMES.map((n) => [n, p.color(n)])) as Record<ColorName, ColorValue>, p.platform)
     }),
   )
 }
