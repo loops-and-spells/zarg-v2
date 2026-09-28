@@ -129,6 +129,20 @@
         "typescript5": "npm:typescript@5.9",
       },
     },
+    "packages/markdown": {
+      "name": "@zarg/markdown",
+      "dependencies": {
+        "beautiful-mermaid": "^1.1.3",
+      },
+      "devDependencies": {
+        "@types/react": "^19.3.0",
+      },
+      "peerDependencies": {
+        "@opentui/core": "^0.5.12",
+        "@opentui/react": "0.5.12",
+        "react": "19",
+      },
+    },
     "packages/model": {
       "name": "@zarg/model",
       "dependencies": {
@@ -233,6 +247,7 @@
         "@opentui/core": "^0.5.12",
         "@opentui/react": "0.5.12",
         "@zarg/client": "workspace:*",
+        "@zarg/markdown": "workspace:*",
         "@zarg/view": "workspace:*",
         "effect": "^4.0.0-rc.117",
         "react": "19",
@@ -355,6 +370,8 @@
 
     "@zarg/kernel": ["@zarg/kernel@workspace:packages/kernel"],
 
+    "@zarg/markdown": ["@zarg/markdown@workspace:packages/markdown"],
+
     "@zarg/model": ["@zarg/model@workspace:packages/model"],
 
     "@zarg/plugin": ["@zarg/plugin@workspace:packages/plugin"],
@@ -377,6 +394,8 @@
 
     "ansi-regex": ["ansi-regex@6.3.0", "", {}, "sha512-WpDfL7NO6j7tH88IDBNVdUJxDh9nmCteAVW9dsep846XdwF4naCBK+/tGLX3KJgcpgMRXCFlTM2hKGoK9FsdrQ=="],
 
+    "beautiful-mermaid": ["beautiful-mermaid@1.1.3", "", { "dependencies": { "elkjs": "^0.11.0", "entities": "^7.0.1" } }, "sha512-TItrtrAyHp1vwFfFVYauWGrquouk/6SS21Aq3RsxindSYZODcN4xYrPZD6BiZRU+o5mKJzDPz9MUSMvELdylyg=="],
+
     "bun-ffi-structs": ["bun-ffi-structs@0.3.1", "", { "peerDependencies": { "typescript": "^5" } }, "sha512-3gM7PpVWLyrwxWjcilSiGuhWanhZivvo6l0u573NziPH6f/gwk6McbaYgn7oJWov6pKGRTDbrg94W5DcJsKTtQ=="],
 
     "bun-types": ["bun-types@1.4.2", "", { "dependencies": { "@types/node": "*" } }, "sha512-bxV1FgK7yBIzjRe5zBozIM4Bem11ZJcCXSrjWRG3YWLt8yFDePu4cLjpebO8OvPeIE9trbyPF4fuj3Cia4Fj3w=="],
@@ -387,7 +406,11 @@
 
     "effect": ["effect@4.0.0-rc.117", "", {}, "sha512-UUyi9QiOW4nySFIBM3KnYbNMd9EZliOdKfBcyLD0mPMPheO2fkuXS5y0opjWc9oqzlJxPQICEGm8gGw3kh9j/w=="],
 
+    "elkjs": ["elkjs@0.11.1", "", {}, "sha512-zxxR9k+rx5ktMwT/FwyLdPCrq7xN6e4VGGHH8hA01vVYKjTFik7nHOxBnAYtrgYUB1RpAiLvA1/U2YraWxyKKg=="],
+
     "emoji-regex": ["emoji-regex@10.6.0", "", {}, "sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A=="],
+
+    "entities": ["entities@7.0.1", "", {}, "sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA=="],
 
     "get-east-asian-width": ["get-east-asian-width@1.7.0", "", {}, "sha512-XjH1AECxf0giL2V1aU8vKyRR2ppRUb5c0EvT7zuJTokQ74bNo52zOtghqdWIqrhUD79fo3x0WfKZdOqxF6LG1Q=="],
 

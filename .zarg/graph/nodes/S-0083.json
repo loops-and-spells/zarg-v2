@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0083",
+  "props": {
+    "text": "agent text sections render Markdown through the shared library"
+  },
+  "type": "gherkin/state"
+}

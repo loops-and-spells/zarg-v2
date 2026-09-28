@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0087",
+  "props": {
+    "text": "surrounding Markdown retains its formatting"
+  },
+  "type": "gherkin/state"
+}

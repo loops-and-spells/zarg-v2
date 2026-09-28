@@ -1,0 +1,30 @@
+{
+  "edges": [
+    {
+      "to": "S-0078",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0079",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0080",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0081",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0082",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0075",
+  "props": {
+    "title": "Developer embeds Markdown rendering",
+    "when": "the developer supplies Markdown to the reusable renderer"
+  },
+  "type": "gherkin/card"
+}

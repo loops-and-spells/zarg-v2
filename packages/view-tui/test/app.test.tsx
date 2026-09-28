@@ -87,6 +87,16 @@ const settle = async (t: { renderOnce: () => Promise<void>; waitForVisualIdle: (
 }
 
 describe("tui frames", () => {
+  // @card UX-0076
+  test("zarg's sheet renders Mermaid inside agent messages", async () => {
+    const t = await render({ thread: { ...initial("main"), messages: [{ id: "m1", role: "assistant", text: "```mermaid\nflowchart LR\nA[Read] --> B[Render]\n```" }] }, core: "up" })
+    const frame = t.captureCharFrame()
+    expect(frame).toContain("Read")
+    expect(frame).toContain("Render")
+    expect(frame).not.toContain("A[Read]")
+    expect(frame).toMatch(/[┌╭]/)
+  })
+
   test("a click in zarg's sheet never gives its scrollbox the arrow keys: the agents list keeps them", async () => {
     const many = Array.from({ length: 40 }, (_, i) => ({ id: `m${i}`, role: "assistant" as const, text: `message ${i}` }))
     const { pendingInquiry: _, ...quiet } = waiting.thread

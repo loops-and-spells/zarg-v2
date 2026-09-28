@@ -10,6 +10,7 @@ import { paletteEntries } from "./palette"
 import { contextOf, displayName, railRows } from "./rail"
 import { reviewActs, reviewGroups } from "./review"
 import { Buttons, Heading } from "./sections"
+import { RichText } from "./markdown"
 import { onKey, SHELL } from "./layers"
 import { AgentView, type Scroller } from "./sections"
 import {
@@ -224,6 +225,9 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   )
 
   const busyLine = working(ui, s, now)
+  // The focus area's width: right of the rail, less its padding and any right-edge panels.
+  const rightWidth = panelsShown(ui, s).right.reduce((a, p) => a + p.size + 3, 0)
+  const focusWidth = Math.max(10, dims.width - railWidth - 4 - rightWidth)
   // Over another focus the sheet is an inset bottom sheet: a raised block with a half-block lip, rising from the bar, the focus showing around it. As zarg's own focus it fills the area.
   // No box-drawing border: its glyphs sit mid-cell, so a filled border leaves half a cell of fill outside the line.
   const overSheet = ui.sheet && ui.main !== "zarg"
@@ -240,7 +244,13 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         </text>
       </box>
       <scrollbox ref={talkRef} focusable={false} style={{ flexGrow: 1, flexShrink: 1, minHeight: 0, paddingLeft: 2, paddingRight: 2 }} stickyScroll stickyStart="bottom">
-        {conversation(s).map((l, i) => (
+        {/* @card UX-0076 */}
+        {conversation(s).map((l, i) => l.kind === "zarg" ? (
+          <box key={i} flexDirection="row" flexShrink={0}>
+            <text width={6} fg={LABEL[l.kind].fg}>{LABEL[l.kind].text}</text>
+            <RichText content={l.text} width={focusWidth - 6 - (overSheet ? 6 : 0)} streaming={s.thread.status === "running"} />
+          </box>
+        ) : (
           <text key={i}>
             <span fg={LABEL[l.kind].fg}>{LABEL[l.kind].text}</span>
             <span fg={l.kind === "error" ? THEME.error : THEME.text}>{l.text}</span>
@@ -267,9 +277,6 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     </box>
   )
 
-  // The focus area's width: right of the rail, less its padding and any right-edge panels.
-  const rightWidth = panelsShown(ui, s).right.reduce((a, p) => a + p.size + 3, 0)
-  const focusWidth = Math.max(10, dims.width - railWidth - 4 - rightWidth)
   // An open agent's view: a header naming it (no plugin prefix, no view key) and a dim line of how it runs, then its sections.
   const agentId = viewing?.split("@")[0]
   const agentNode = agentId !== undefined ? s.thread.rlms[agentId] : undefined

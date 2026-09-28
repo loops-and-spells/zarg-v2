@@ -1,0 +1,26 @@
+{
+  "edges": [
+    {
+      "to": "S-0078",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0088",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0089",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0090",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0078",
+  "props": {
+    "title": "Developer reads Mermaid source fallback",
+    "when": "the developer reads an incomplete, unsupported, invalid, or oversized Mermaid fence"
+  },
+  "type": "gherkin/card"
+}

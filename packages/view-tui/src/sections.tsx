@@ -1,15 +1,16 @@
 import type { BoxRenderable, ScrollBoxRenderable } from "@opentui/core"
-import { type ReactNode, useEffect, useRef } from "react"
+import { type ReactNode, useEffect, useRef, useState } from "react"
 import { useTerminalDimensions } from "@opentui/react"
 import { CHAT, type ConversationQuestion, conversationRows, cursorRow, filterOf, keyFor, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, THEME, toneColor, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
 import { fit, gauge, heading } from "./look"
+import { RichText } from "./markdown"
 
 /** The terminal's colour for a plugin's tone (the theme's, via `toneColor`). */
 const fg = (t: unknown) => toneColor(t)
 const pad = (s: string, n: number) => (s.length > n ? `${s.slice(0, Math.max(0, n - 1))}…` : s.padEnd(n))
 const STATE_MARK = { busy: "⠼", waiting: "◌", done: "✓", flagged: "⚑" } as const
 
-interface LeafProps { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly leaf: LayoutLeaf; readonly focused: boolean; readonly width: number; readonly onPick?: (index: number) => void; readonly onMark?: (index: number) => void; readonly onHeader?: (col: number) => void }
+interface LeafProps { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly leaf: LayoutLeaf; readonly focused: boolean; readonly width: number; readonly onHeight?: (height: number) => void; readonly onPick?: (index: number) => void; readonly onMark?: (index: number) => void; readonly onHeader?: (col: number) => void }
 type Leaf = (p: LeafProps) => ReactNode
 
 /** A section's heading: its title (or its tabs, the current one marked), then a faint rule. */
@@ -152,20 +153,20 @@ const KeyValue: Leaf = ({ view, path, width }) => (
     ))}
   </>
 )
-// The one kind that wraps: prose.
-const Text: Leaf = ({ view, path }) => <text fg={THEME.text}>{(view.data[path] as { markdown?: string } | undefined)?.markdown ?? ""}</text>
+// @card UX-0076
+const Text: Leaf = ({ view, path, width, onHeight }) => <RichText content={(view.data[path] as { markdown?: string } | undefined)?.markdown ?? ""} width={width} {...(onHeight !== undefined ? { onHeight } : {})} />
 
 // A plugin agent's conversation: its messages, then its question with the options (arrows and Enter answer it).
-const Conversation: Leaf = ({ view, ui, path }) => {
-  const d = view.data[path] as { messages?: ReadonlyArray<{ id: string; role: string; text: string }>; question?: ConversationQuestion } | undefined
+const Conversation: Leaf = ({ view, ui, path, width, onHeight }) => {
+  const d = view.data[path] as { messages?: ReadonlyArray<{ id: string; role: string; text: string }>; question?: ConversationQuestion; status?: string } | undefined
   const q = d?.question
   return (
-    <>
-      {(d?.messages ?? []).map((m) => (
-        <text key={m.id}>
-          <span fg={m.role === "user" ? THEME.dim : THEME.accent}>{m.role === "user" ? "you   " : "agent "}</span>
-          <span fg={THEME.text}>{m.text}</span>
-        </text>
+    <box flexDirection="column" flexShrink={0} onSizeChange={function () { onHeight?.(this.height) }}>
+      {(d?.messages ?? []).map((m, i) => (
+        <box key={m.id} flexDirection="row" flexShrink={0}>
+          <text width={6} fg={m.role === "user" ? THEME.dim : THEME.accent}>{m.role === "user" ? "you   " : "agent "}</text>
+          {m.role === "user" ? <text fg={THEME.text} width={Math.max(1, width - 6)}>{m.text}</text> : <RichText content={m.text} width={width - 6} streaming={d?.status === "working" && i === (d.messages?.length ?? 0) - 1} />}
+        </box>
       ))}
       {q === undefined ? null : (
         <text fg={THEME.attention}>
@@ -183,7 +184,7 @@ const Conversation: Leaf = ({ view, ui, path }) => {
                 {r.recommended ? <span fg={THEME.dim}>{"   recommended"}</span> : null}
               </text>
             ))}
-    </>
+    </box>
   )
 }
 
@@ -196,10 +197,11 @@ const tabsOf = (view: ViewState, ui: ViewUi, s: LayoutSection) =>
   s.kind === "tabs" ? s.tabs.map((t, i) => ({ label: `${t.title ?? t.id} ${count(view, `${s.id}.${t.id}`)}`, current: i === (ui.tabs[s.id] ?? 0) })) : undefined
 
 /** How tall a section would like to be: its content plus its frame (text counts its lines). */
-const wantedOf = (view: ViewState, ui: ViewUi, s: LayoutSection, width: number): number => {
+const wantedOf = (view: ViewState, ui: ViewUi, s: LayoutSection, width: number, measured?: number): number => {
   const leaf = leafOf(view, ui, s.id)
   if (leaf === undefined) return 3
   const k = leaf.leaf.kind
+  if ((k === "text" || k === "conversation") && measured !== undefined) return Math.max(1, measured) + 1
   const content =
     k === "stats" ? 1
     // Prose wraps: each paragraph line takes as many rows as its length needs.
@@ -352,6 +354,7 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
   const dims = useTerminalDimensions()
   const width = Math.max(10, (props.width ?? dims.width) - 2)
   const all = ordered(props.view.layout)
+  const [heights, setHeights] = useState<Record<string, number>>({})
   const boxes = useRef(new Map<string, ScrollBoxRenderable>())
   if (props.scroller !== undefined) props.scroller.current = (delta) => boxes.current.get(all[props.ui.focus]?.id ?? "")?.scrollBy(delta)
   // The focused table's highlighted row stays on screen as the cursor moves.
@@ -402,8 +405,8 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
               minHeight: 2,
               flexShrink: 1,
               ...(s.role === "log" || s.role === "pinned"
-                ? { flexGrow: 1, flexBasis: 0, maxHeight: wantedOf(props.view, props.ui, s, width) + extra }
-                : { height: wantedOf(props.view, props.ui, s, width) + extra, maxHeight: s.role === "summary" ? 6 : SHARE[s.role as keyof typeof SHARE] }),
+                ? { flexGrow: 1, flexBasis: 0, maxHeight: wantedOf(props.view, props.ui, s, width, heights[leaf.path]) + extra }
+                : { height: wantedOf(props.view, props.ui, s, width, heights[leaf.path]) + extra, maxHeight: s.role === "summary" ? 6 : SHARE[s.role as keyof typeof SHARE] }),
             }}
           >
             <box style={{ height: 1, flexShrink: 0 }}>
@@ -422,6 +425,7 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
                 leaf={leaf.leaf}
                 focused={focused}
                 width={width}
+                onHeight={(height) => setHeights((prev) => prev[leaf.path] === height ? prev : { ...prev, [leaf.path]: height })}
                 {...(props.onPick !== undefined ? { onPick: (i: number) => props.onPick!(s.id, i) } : {})}
                 {...(props.onHeader !== undefined ? { onHeader: (c: number) => props.onHeader!(s.id, c) } : {})}
                 {...(props.onMark !== undefined ? { onMark: (k: number) => props.onMark!(s.id, k) } : {})}

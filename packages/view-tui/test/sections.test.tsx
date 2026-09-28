@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { testRender } from "@opentui/react/test-utils"
+import { act } from "react"
 import { defineView, initialViewUi, layoutOf, type ViewState } from "@zarg/view"
 import { AgentView, type Scroller } from "../src/sections"
 
@@ -43,6 +44,36 @@ const frame = async (v: ViewState, ui = initialViewUi, size = { width: 100, heig
 }
 
 describe("the terminal draws an agent's view", () => {
+  // @card UX-0076
+  test("text sections size themselves to rendered Markdown diagrams", async () => {
+    const v: ViewState = {
+      agent: "writer",
+      layout: { name: "writer", sections: [{ id: "report", kind: "text", role: "primary", title: "Report" }] },
+      data: { report: { markdown: "```mermaid\nflowchart TD\nA[Start] --> B[Finish]\n```" } },
+    }
+    const t = await testRender(<AgentView view={v} ui={initialViewUi} height={60} />, { width: 100, height: 60, exitOnCtrlC: false, exitSignals: [] })
+    destroy = () => t.renderer.destroy()
+    for (let i = 0; i < 5; i++) await act(async () => { await t.renderOnce(); await Bun.sleep(5) })
+    const f = t.captureCharFrame()
+    expect(f).not.toContain("A[Start]")
+    expect(f).toContain("Finish")
+    expect(f.split("\n").filter((line) => line.includes("└")).length).toBe(2)
+  })
+
+  // @card UX-0076
+  test("agent conversation messages render Mermaid through the shared renderer", async () => {
+    const v: ViewState = {
+      agent: "writer",
+      layout: { name: "writer", sections: [{ id: "talk", kind: "conversation", role: "primary", title: "Conversation" }] },
+      data: { talk: { messages: [{ id: "m1", role: "agent", text: "```mermaid\nflowchart LR\nA[Read] --> B[Render]\n```" }] } },
+    }
+    const f = await frame(v, initialViewUi, { width: 100, height: 60 })
+    expect(f).toContain("agent")
+    expect(f).toContain("Render")
+    expect(f).not.toContain("A[Read]")
+    expect(f).toMatch(/[┌╭]/)
+  })
+
   test("summary on top, then workers and steps, the review tables pinned at the bottom", async () => {
     const f = await frame(view(3))
     const lines = f.split("\n")

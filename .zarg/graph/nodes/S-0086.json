@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0086",
+  "props": {
+    "text": "the Mermaid fence renders as a Unicode diagram"
+  },
+  "type": "gherkin/state"
+}

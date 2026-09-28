@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0079",
+  "props": {
+    "text": "Markdown renders inside the existing OpenTUI view"
+  },
+  "type": "gherkin/state"
+}

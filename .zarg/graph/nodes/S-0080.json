@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0080",
+  "props": {
+    "text": "headings, emphasis, lists, tables, links, code blocks retain their formatting"
+  },
+  "type": "gherkin/state"
+}

@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0082",
+  "props": {
+    "text": "streamed Markdown remains readable as content arrives"
+  },
+  "type": "gherkin/state"
+}

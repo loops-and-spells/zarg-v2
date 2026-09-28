@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0090",
+  "props": {
+    "text": "resizing the view reevaluates whether the diagram fits"
+  },
+  "type": "gherkin/state"
+}
