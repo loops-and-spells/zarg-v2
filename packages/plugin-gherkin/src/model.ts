@@ -40,3 +40,24 @@ export const similarity = (a: string, b: string): number => {
   const both = [...x].filter((w) => y.has(w)).length
   return both / (x.size + y.size - both)
 }
+
+export const PERSONA = "gherkin/persona"
+export const BY = "gherkin/by"
+
+export const PersonaProps = Schema.Struct({
+  /** Short and unique; the prefix of its cards' titles ("Operator", "CLI actor", "Driver Agent"). */
+  name: Schema.NonEmptyString,
+  kind: Schema.Literals(["human", "cli", "agent"]),
+  /** What a tester roleplays: who they are, how they reach the product, what they can and cannot see. */
+  text: Schema.NonEmptyString,
+})
+
+export const personas = (snap: Snapshot.Snapshot) => Snapshot.byType(snap, PERSONA)
+export const personaName = (n: Node): string => String(n.props.name ?? "")
+export const findPersona = (snap: Snapshot.Snapshot, ref: { readonly id: string } | { readonly name: string }): Node | undefined => {
+  if ("id" in ref) {
+    const n = snap.nodes.get(ref.id)
+    return n?.type === PERSONA ? n : undefined
+  }
+  return personas(snap).find((p) => normalize(personaName(p)) === normalize(ref.name))
+}

@@ -1,5 +1,5 @@
 import { type Node, Snapshot } from "@zarg/graph/pure"
-import { ARRIVES, cards, GIVEN, states, text, THEN } from "./model"
+import { ARRIVES, BY, cards, GIVEN, personaName, states, text, THEN } from "./model"
 
 const line = (keyword: string, snap: Snapshot.Snapshot, id: string) => {
   const state = snap.nodes.get(id)
@@ -10,8 +10,11 @@ const renderCard = (snap: Snapshot.Snapshot, card: Node): string => {
   const targets = (type: string) => Snapshot.out(snap, card.id, type).map((e) => e.to)
   const givens = [...targets(ARRIVES), ...targets(GIVEN)]
   const thens = targets(THEN)
+  const by = targets(BY)
+  const names = by.map((id) => { const n = snap.nodes.get(id); return n === undefined ? `<missing ${id}>` : personaName(n) })
   return [
     `${card.id} ${String(card.props.title)}`,
+    ...(by.length > 0 ? [`  By    ${names.join(", ")}  # ${by.join(", ")}`] : []),
     ...givens.map((id, i) => line(i === 0 ? "Given" : "And", snap, id)),
     `  When  ${String(card.props.when)}`,
     ...thens.map((id, i) => line(i === 0 ? "Then" : "And", snap, id)),

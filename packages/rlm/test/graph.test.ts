@@ -16,7 +16,8 @@ const withGraph = <A>(scope: Scope, body: (k: Kernel.Kernel) => Effect.Effect<A>
     const host = yield* PluginHost
     const store = yield* GraphStore
     yield* host.call("gherkin/add-state", { text: "the home page is shown", entry: true })
-    yield* host.call("gherkin/add-card", { title: "Open pricing", when: "the user opens pricing", arrives: { id: "S-0001" }, then: [{ text: "the plan picker is shown", terminal: true }] })
+    yield* host.call("gherkin/add-persona", { name: "User", kind: "human", text: "Someone using the product." })
+    yield* host.call("gherkin/add-card", { title: "Open pricing", when: "the user opens pricing", by: [{ name: "User" }], arrives: { id: "S-0001" }, then: [{ text: "the plan picker is shown", terminal: true }] })
     yield* host.call("gherkin/add-state", { text: "an unrelated screen", entry: true, terminal: true })
     const ctx = { host, snapshot: store.snapshot.pipe(Effect.mapError((e) => ({ _tag: e._tag, message: e.message }))), scope }
     const services = [graph(ctx), pluginService(gherkin.manifest, ctx)!]

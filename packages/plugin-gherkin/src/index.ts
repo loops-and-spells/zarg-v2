@@ -6,7 +6,7 @@ import { agenda, suggest } from "./agenda"
 import { Gherkin, StepParams, StepView, StoriesParams, StoriesResult } from "./contract"
 import type { Finding } from "./kit"
 import { clauseShape, stateText } from "./lints"
-import { CARD, CardProps, STATE, StateProps } from "./model"
+import { CARD, CardProps, PERSONA, PersonaProps, STATE, StateProps } from "./model"
 import { render } from "./render"
 import { planStories, stepView } from "./stories"
 import { tools } from "./tools"
@@ -17,7 +17,7 @@ const Findings = Schema.Struct({ findings: Schema.Array(Schema.Unknown) })
 const Items = Schema.Array(Schema.Unknown)
 const snapshotOf = (j: { readonly nodes: ReadonlyArray<unknown> }) => Snapshot.make(j.nodes as ReadonlyArray<Node>)
 
-const PROPS: Record<string, Schema.Codec<any, any>> = { [STATE]: StateProps, [CARD]: CardProps }
+const PROPS: Record<string, Schema.Codec<any, any>> = { [STATE]: StateProps, [CARD]: CardProps, [PERSONA]: PersonaProps }
 
 /** Node props, as the host's structural check used to do in-process. */
 const validateProps = (changes: ReadonlyArray<unknown>): ReadonlyArray<Finding> =>
@@ -42,11 +42,13 @@ export default definePlugin({
   config: Schema.Struct({}),
   scopes: { graph: "write" },
   graph: {
-    nodes: { state: StateProps, card: CardProps },
+    nodes: { state: StateProps, card: CardProps, persona: PersonaProps },
     edges: {
       arrives: { from: "card", to: "state", min: 1, max: 1 },
       given: { from: "card", to: "state", max: 3 },
       then: { from: "card", to: "state", min: 1, max: 5 },
+      // Who acts in the card; none is an agenda item, not a structural error.
+      by: { from: "card", to: "persona" },
     },
   },
   methods: {

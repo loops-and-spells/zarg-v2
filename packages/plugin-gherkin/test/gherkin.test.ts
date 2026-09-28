@@ -10,6 +10,7 @@ describe("pricing example", () => {
     expect(text).toBe(
       [
         "UX-0003 Visitor picks Pro",
+        "  By    Visitor  # P-0001",
         "  Given the plan picker is shown  # S-0002",
         "  When  the visitor picks Pro",
         "  Then  the payment form is shown  # S-0004",
@@ -59,10 +60,10 @@ describe("pricing example", () => {
     const out = await run(
       Effect.gen(function* () {
         yield* pricing
-        yield* call("add-card", { title: "Visitor submits the account form", when: "the visitor submits the form", arrives: { id: "S-0003" }, then: [{ text: "the account is created" }] })
+        yield* call("add-card", { title: "Visitor submits the account form", when: "the visitor submits the form", by: [{ id: "P-0001" }], arrives: { id: "S-0003" }, then: [{ text: "the account is created" }] })
         const all = yield* PluginHost.use((h) => h.suggest())
         const focused = yield* PluginHost.use((h) => h.suggest(new Set(["S-0001"])))
-        yield* call("add-card", { title: "Visitor opens docs", when: 'the visitor clicks "Docs"', arrives: { id: "S-0001" }, then: [{ text: "the docs are shown" }] })
+        yield* call("add-card", { title: "Visitor opens docs", when: 'the visitor clicks "Docs"', by: [{ id: "P-0001" }], arrives: { id: "S-0001" }, then: [{ text: "the docs are shown" }] })
         const branched = yield* PluginHost.use((h) => h.suggest())
         return { all, focused, branched }
       }),
@@ -114,7 +115,7 @@ describe("gherkin rules", () => {
 
   test("a card needs at least one Then", async () => {
     const err = await run(
-      Effect.flip(call("add-card", { title: "t", when: "the user waits", arrives: { text: "a page is shown" }, then: [] })),
+      Effect.andThen(call("add-persona", { name: "User", kind: "human", text: "Someone using the product." }), Effect.flip(call("add-card", { title: "t", when: "the user waits", by: [{ name: "User" }], arrives: { text: "a page is shown" }, then: [] }))),
     )
     expect(err._tag).toBe("LintFailed")
     expect(err._tag === "LintFailed" && err.findings[0]?.code).toBe("too-few-edges")
@@ -122,7 +123,7 @@ describe("gherkin rules", () => {
 
   test("more than five Thens is rejected", async () => {
     const then = [1, 2, 3, 4, 5, 6].map((i) => ({ text: `outcome number ${i} is shown` }))
-    const err = await run(Effect.flip(call("add-card", { title: "t", when: "the user acts", arrives: { text: "start" }, then })))
+    const err = await run(Effect.andThen(call("add-persona", { name: "User", kind: "human", text: "Someone using the product." }), Effect.flip(call("add-card", { title: "t", when: "the user acts", by: [{ name: "User" }], arrives: { text: "start" }, then }))))
     expect(err._tag === "LintFailed" && err.findings.map((f) => f.code)).toContain("too-many-edges")
   })
 
@@ -196,7 +197,7 @@ describe("gherkin rules", () => {
     const err = await run(
       Effect.andThen(
         pricing,
-        Effect.flip(call("add-card", { title: "t", when: "the user acts", arrives: { id: "S-0001" }, then: [{ id: "S-0002" }, { id: "S-0002" }] })),
+        Effect.flip(call("add-card", { title: "t", when: "the user acts", by: [{ id: "P-0001" }], arrives: { id: "S-0001" }, then: [{ id: "S-0002" }, { id: "S-0002" }] })),
       ),
     )
     expect(err._tag === "LintFailed" && err.findings.map((f) => f.code)).toContain("duplicate-edge")

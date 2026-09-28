@@ -25,7 +25,8 @@ describe("zarg cli", () => {
   // @card UX-0002
   test("tool call writes the graph and render shows it", () => {
     expect(json("tool", "call", "gherkin/add-state", '{"text":"the home page is shown","entry":true}').added).toEqual(["S-0001"])
-    const r = json("tool", "call", "gherkin/add-card", JSON.stringify({ title: "Open pricing", when: "the user clicks Pricing", arrives: { id: "S-0001" }, then: [{ text: "the plan picker is shown" }] }))
+    json("tool", "call", "gherkin/add-persona", JSON.stringify({ name: "User", kind: "human", text: "Someone using the product." }))
+    const r = json("tool", "call", "gherkin/add-card", JSON.stringify({ title: "Open pricing", when: "the user clicks Pricing", by: [{ name: "User" }], arrives: { id: "S-0001" }, then: [{ text: "the plan picker is shown" }] }))
     expect(r.message).toBe("created UX-0001; new states S-0002")
     expect(zarg("render").out).toContain("Then  the plan picker is shown  # S-0002")
   })
@@ -84,7 +85,7 @@ describe("zarg cli", () => {
 
   test("diff --since a ref without a graph reports everything as added; a bad ref is an error", () => {
     const emptyTree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
-    expect(json("diff", "--since", emptyTree).added.map((n: { id: string }) => n.id)).toEqual(["S-0001", "S-0002", "UX-0001"])
+    expect(json("diff", "--since", emptyTree).added.map((n: { id: string }) => n.id)).toEqual(["P-0001", "S-0001", "S-0002", "UX-0001"])
     const r = zarg("diff", "--since", "no-such-ref")
     expect(r.code).toBe(1)
     expect(JSON.parse(r.err).error).toBe("IoError")
@@ -172,7 +173,8 @@ describe("zarg affected and checkpoint", () => {
     g("init", "-q")
     try {
       zargIn(root, "tool", "call", "gherkin/add-state", '{"text":"the home page is shown","entry":true}')
-      zargIn(root, "tool", "call", "gherkin/add-card", JSON.stringify({ title: "Open pricing", when: "the user clicks Pricing", arrives: { id: "S-0001" }, then: [{ text: "the plan picker is shown" }] }))
+      zargIn(root, "tool", "call", "gherkin/add-persona", JSON.stringify({ name: "User", kind: "human", text: "Someone using the product." }))
+      zargIn(root, "tool", "call", "gherkin/add-card", JSON.stringify({ title: "Open pricing", when: "the user clicks Pricing", by: [{ name: "User" }], arrives: { id: "S-0001" }, then: [{ text: "the plan picker is shown" }] }))
       const a = JSON.parse(zargIn(root, "affected").out)
       expect(a).toMatchObject({ cards: ["UX-0001"], removed: [] })
       const c = JSON.parse(zargIn(root, "checkpoint").out)
