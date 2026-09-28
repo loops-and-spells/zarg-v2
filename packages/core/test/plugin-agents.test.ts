@@ -161,3 +161,32 @@ test("an agent that starts with a view the plugin has a card for carries the car
   on("rehearse", { event: "start", id: "t2", title: "tester", task: "t" })
   expect(threadViews(log, "main").layout("rehearse:t2")?.card).toBeUndefined()
 })
+
+test("a view kept from an earlier core whose plugin now declares a different layout starts again with the new one", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "zarg-pa-"))
+  const log = await Effect.runPromise(makeLog(dir, (t) => t))
+  const before = layoutOf(defineView("journeys", { list: { kind: "table", role: "primary", columns: [{ id: "name", label: "journey" }] }, flow: { kind: "text", role: "pinned" } }))
+  const after = layoutOf(defineView("journeys", { list: { kind: "table", role: "primary", columns: [{ id: "name", label: "journey" }] }, flow: { kind: "text", role: "pinned", follows: "list" } }))
+  pluginAgents(log, "main", () => before)("gherkin", { event: "set", id: "journeys", view: "journeys", section: "flow", data: { markdown: "old" } })
+  threadViews(log, "main").flush()
+  // A new core, the plugin updated: the next push starts the view afresh with the layout it declares now.
+  const log2 = await Effect.runPromise(makeLog(dir, (t) => t))
+  pluginAgents(log2, "main", () => after)("gherkin", { event: "set", id: "journeys", view: "journeys", section: "flow", data: { markdown: "none", rows: { "J-1": "one" } } })
+  const views = threadViews(log2, "main")
+  views.flush()
+  expect(views.layout("gherkin:journeys@journeys")).toEqual(after)
+})
+
+test("the same layout with its keys in another order is the same: pushes keep each other's data", async () => {
+  const log = await Effect.runPromise(makeLog(mkdtempSync(join(tmpdir(), "zarg-pa-")), (t) => t))
+  const a = layoutOf(defineView("journeys", { list: { kind: "table", role: "primary", columns: [{ id: "name", label: "journey" }] }, flow: { kind: "text", role: "pinned", follows: "list" } }))
+  // The same layout, its keys written in another order (as a replayed or decoded copy may have them).
+  const reorder = (v: unknown): unknown => (Array.isArray(v) ? v.map(reorder) : v !== null && typeof v === "object" ? Object.fromEntries(Object.entries(v).reverse().map(([k, x]) => [k, reorder(x)])) : v)
+  let calls = 0
+  const on = pluginAgents(log, "main", () => (calls++ === 0 ? a : (reorder(a) as typeof a)))
+  on("gherkin", { event: "set", id: "journeys", view: "journeys", section: "list", data: { rows: [{ id: "J-1", cells: { name: "a" } }] } })
+  on("gherkin", { event: "set", id: "journeys", view: "journeys", section: "flow", data: { markdown: "x" } })
+  const views = threadViews(log, "main")
+  views.flush()
+  expect(log.all().filter((e) => (e as { type?: string; activityType?: string }).type === "ACTIVITY_SNAPSHOT" && (e as { activityType?: string }).activityType === "zarg.view").length).toBe(1)
+})

@@ -23,6 +23,10 @@ export type AgentEvent =
 
 const ID = /^[A-Za-z0-9._-]{1,64}$/
 
+/** JSON with every object's keys sorted: two layouts compare equal whatever order their keys were written in. */
+const canonical = (v: unknown): string =>
+  JSON.stringify(v, (_k, x: unknown) => (x !== null && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a.localeCompare(b))) : x))
+
 /**
  * A plugin's agents in a thread's agents pane: their own stream, ids `<plugin>:<id>`, `step` lines as history,
  * and their views (the plugin's declared layouts, found by `layoutOf`).
@@ -45,11 +49,17 @@ export const pluginAgents = (
   /** The store key of one of the plugin's views for an agent, started with its layout when it is new. */
   const keyFor = (plugin: string, id: string, view: string | undefined) => {
     const key = viewKey(views, id, view)
-    if (!views.has(key) && view !== undefined) {
-      const layout = layoutOf(plugin, view)
+    if (view === undefined) return key
+    const layout = layoutOf(plugin, view)
+    if (!views.has(key)) {
       if (layout === undefined) throw new Error(`plugin ${plugin} declares no view ${view}`)
       views.start(key, layout)
+      return key
     }
+    // A view kept from an earlier core (the thread log replays it) whose plugin now declares another layout: start
+    // it again with the one declared now (its grid card, if any, kept), so new sections and links take effect.
+    const { card, ...kept } = views.layout(key) ?? { sections: [] as ReadonlyArray<never> }
+    if (layout !== undefined && canonical(kept) !== canonical(layout)) views.start(key, card !== undefined ? { ...layout, card } : layout)
     return key
   }
   const open = (plugin: string, e: Extract<AgentEvent, { event: "open" }>) => {
