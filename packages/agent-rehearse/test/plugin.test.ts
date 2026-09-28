@@ -20,7 +20,6 @@ describe("rehearse as a loaded plugin", () => {
   test("/rehearse walks gherkin's stories through the host and leaves findings for the developer", async () => {
     const root = mkdtempSync(join(tmpdir(), "zt-rehearse-"))
     mkdirSync(join(root, "intent"))
-    writeFileSync(join(root, "intent/zarg.md"), "---\npersonas:\n  - name: The operator\n    text: The operator, through the zarg TUI.\n---\n")
     const plugins = await Promise.all([
       build(join(import.meta.dir, "../../plugin-gherkin/src/index.ts"), join(import.meta.dir, "../../plugin-gherkin")),
       build(join(import.meta.dir, "../src/index.ts"), join(import.meta.dir, "..")),

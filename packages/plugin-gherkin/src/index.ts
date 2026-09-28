@@ -3,10 +3,10 @@ import { diff, type Node, Snapshot } from "@zarg/graph/pure"
 import { definePlugin, Graph, PluginFailure } from "@zarg/plugin-sdk"
 import { affectedCards } from "./affected"
 import { agenda, suggest } from "./agenda"
-import { Gherkin, StepParams, StepView, StoriesParams, StoriesResult } from "./contract"
+import { Gherkin, PersonaView, StepParams, StepView, StoriesParams, StoriesResult } from "./contract"
 import type { Finding } from "./kit"
 import { clauseShape, personaShape, stateText } from "./lints"
-import { CARD, CardProps, PERSONA, PersonaProps, STATE, StateProps } from "./model"
+import { BY, CARD, CardProps, PERSONA, PersonaProps, personaName, personas, STATE, StateProps } from "./model"
 import { render } from "./render"
 import { planStories, stepView } from "./stories"
 import { tools } from "./tools"
@@ -60,6 +60,7 @@ export default definePlugin({
     render: { doc: "Gherkin text.", params: Schema.Struct({ focus: Schema.optionalKey(Schema.Array(Schema.String)) }), success: Schema.String },
     stories: { doc: "Stories for testers to walk.", params: StoriesParams, success: StoriesResult },
     step: { doc: "What a tester sees at a step.", params: StepParams, success: StepView },
+    personas: { doc: "Personas, each with the cards that name it.", params: Schema.Struct({}), success: Schema.Array(PersonaView) },
     affected: {
       doc: "Cards a change affects.",
       params: Schema.Struct({ before: SnapshotJson, after: SnapshotJson }),
@@ -85,6 +86,10 @@ export default definePlugin({
       stories: ({ strategy, focus }: { strategy: "edge-pair" | "teleport"; focus?: ReadonlyArray<string> }) =>
         Effect.map(snap, (s) => planStories(s, strategy, focus === undefined || focus.length === 0 ? undefined : new Set(focus))),
       step: ({ card, via }: { card: string; via?: string }) => Effect.map(snap, (s) => stepView(s, card, via) ?? null),
+      personas: () =>
+        Effect.map(snap, (s) =>
+          personas(s).map((p) => ({ id: p.id, name: personaName(p), kind: p.props.kind as "human" | "cli" | "agent", text: String(p.props.text ?? ""), cards: Snapshot.inbound(s, p.id, BY).map((e) => e.from).sort() })),
+        ),
       affected: ({ before, after }: { before: { nodes: ReadonlyArray<unknown> }; after: { nodes: ReadonlyArray<unknown> } }) =>
         Effect.sync(() => affectedCards(snapshotOf(before), snapshotOf(after))),
     } as never

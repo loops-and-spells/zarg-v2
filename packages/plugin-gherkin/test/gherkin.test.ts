@@ -80,6 +80,10 @@ describe("pricing example", () => {
 })
 
 describe("rehearse", () => {
+  test("personas: each with the cards that name it", async () => {
+    const ps = await run(Effect.andThen(pricing, PluginHost.use((h) => h.invoke("gherkin", "personas", {}))))
+    expect(ps).toEqual([{ id: "P-0001", name: "Visitor", kind: "human", text: "Someone choosing a plan on the website.", cards: ["UX-0001", "UX-0002", "UX-0003", "UX-0004", "UX-0005"] }])
+  })
   test("stories and steps come from the graph plugin", async () => {
     const out = await run(
       Effect.gen(function* () {

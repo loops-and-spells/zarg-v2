@@ -17,8 +17,17 @@ export const StepView = Schema.NullOr(
   }),
 )
 
-/** Gherkin's read surface for other plugins: story planning and step views for testers. */
+export const PersonaView = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  kind: Schema.Literals(["human", "cli", "agent"]),
+  text: Schema.String,
+  cards: Schema.Array(Schema.String),
+})
+
+/** Gherkin's read surface for other plugins: story planning, step views and personas for testers. */
 export const Gherkin = pluginContract("gherkin", {
   stories: { params: StoriesParams, success: StoriesResult },
   step: { params: StepParams, success: StepView },
+  personas: { params: Schema.Struct({}), success: Schema.Array(PersonaView) },
 })

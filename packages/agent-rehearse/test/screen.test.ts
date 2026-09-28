@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 import type { Answer, DecisionRequest } from "../src/types"
 import { rehearseSettings } from "../src/settings"
-import { personasOf, screenStep } from "../src/screen"
+import { screenStep } from "../src/screen"
 import type { StepView } from "../src/types"
 
 const s = rehearseSettings({}, "rehearse")
@@ -47,21 +47,4 @@ describe("rehearse screen", () => {
     expect(await Effect.runPromise(screenStep(() => Effect.fail("down"), persona, [], step(), s))).toBeUndefined()
   })
 
-  test("personas: every intent's frontmatter personas, in file order; the body is never read", () => {
-    const a = "---\npersonas:\n  - name: Operator\n    kind: human\n    text: The person shaping their product with zarg.\n---\n## Personas\n\n- Someone in the prose\n"
-    const b = "---\npersonas:\n  - name: CLI actor\n    text: A coding agent working through the CLI.\n---\n"
-    expect(personasOf([a, b])).toEqual([
-      { name: "Operator", text: "The person shaping their product with zarg." },
-      { name: "CLI actor", text: "A coding agent working through the CLI." },
-    ])
-  })
-
-  test("two testers never share a name: their answers are kept apart", () => {
-    const md = "---\npersonas:\n  - name: Shopper\n    text: On mobile.\n  - name: Shopper\n    text: On desktop.\n---\n"
-    expect(personasOf([md]).map((p) => p.name)).toEqual(["Shopper", "Shopper (2)"])
-  })
-
-  test("an intent without personas, a persona without name or text, or broken frontmatter adds no tester", () => {
-    expect(personasOf(["# Intent\n\n## Affected users\n\n- Shoppers\n", "---\npersonas:\n  - name: Nameless text missing\n---\n", "---\npersonas: [\n"])).toEqual([])
-  })
 })

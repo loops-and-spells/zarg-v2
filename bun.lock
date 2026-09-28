@@ -20,7 +20,6 @@
     "packages/agent-rehearse": {
       "name": "@zarg/agent-rehearse",
       "dependencies": {
-        "@zarg/frontmatter": "workspace:*",
         "@zarg/plugin-gherkin": "workspace:*",
         "@zarg/plugin-sdk": "workspace:*",
         "effect": "^4.0.0-rc.117",

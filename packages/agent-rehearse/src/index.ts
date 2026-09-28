@@ -67,6 +67,7 @@ export default definePlugin({
     const attention = yield* Attention
     const config = (yield* Config).value as Record<string, unknown>
     const r = yield* makeRehearse({
+      personas: () => gherkin.personas({}),
       stories: (strategy, focus) => gherkin.stories({ strategy, ...(focus !== undefined ? { focus } : {}) }),
       step: (card, via) => gherkin.step({ card, ...(via !== undefined ? { via } : {}) }),
       decide: (req) => decisions.decide(req),

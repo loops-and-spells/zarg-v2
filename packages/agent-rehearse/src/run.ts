@@ -1,6 +1,6 @@
 import { Deferred, Effect, Fiber, Semaphore } from "effect"
 import { consolidate, diagnose, report } from "./findings"
-import { personasOf, screenStep, stepHash } from "./screen"
+import { screenStep, stepHash } from "./screen"
 import type { RehearseSettings } from "./settings"
 import { RunView, StatusView, TesterView } from "./views"
 import { triage } from "./triage"
@@ -30,8 +30,16 @@ export interface RunRecord {
 }
 export interface Started { readonly run: string; readonly stories: number; readonly steps: number; readonly personas: ReadonlyArray<string> }
 
+/** A tester's own card: one its persona acts in (a record from before personas: every card). */
+export const ownCard = (p: Persona, card: string) => p.cards === undefined || p.cards.includes(card)
+/** The steps a tester screens: story prefixes that end at its own card. */
+const stepsFor = (p: Persona, stories: ReadonlyArray<ReadonlyArray<string>>) =>
+  new Set(stories.flatMap((s) => s.flatMap((c, i) => (ownCard(p, c) ? [s.slice(0, i + 1).join(">")] : [])))).size
+
 /** The plugin's powers, as the run uses them (plain functions, so tests can stub them). */
 export interface RunDeps {
+  /** The graph's personas, each with the cards it acts in (gherkin's `personas`). */
+  readonly personas: () => Effect.Effect<ReadonlyArray<{ readonly name: string; readonly text: string; readonly cards: ReadonlyArray<string> }>, unknown>
   readonly stories: (strategy: "edge-pair" | "teleport", focus?: ReadonlyArray<string>) => Effect.Effect<{ readonly stories: ReadonlyArray<ReadonlyArray<string>>; readonly unreachable: number }, unknown>
   readonly step: (card: string, via?: string) => Effect.Effect<StepView | null, unknown>
   readonly decide: Decide
@@ -113,8 +121,7 @@ export const makeRehearse = (deps: RunDeps) =>
         // Stories share prefixes and run at once: the first fiber at a prefix screens it, the others wait for it.
         const inFlight = new Map<string, Deferred.Deferred<void>>()
         // Progress per tester: distinct steps (story prefixes) checked out of those to check, so it only goes up.
-        const toCheck = new Set(rec.stories.flatMap((s) => s.map((_, i) => s.slice(0, i + 1).join(">")))).size
-        const all = toCheck * rec.personas.length
+        const all = rec.personas.reduce((n, p) => n + stepsFor(p, rec.stories), 0)
         let allChecked = 0
         // Model calls holding one of the `in_flight` slots right now (across testers).
         let busySlots = 0
@@ -128,6 +135,7 @@ export const makeRehearse = (deps: RunDeps) =>
           (persona, pi) =>
             Effect.gen(function* () {
               const id = `tester-${pi + 1}`
+              const toCheck = stepsFor(persona, rec.stories)
               const checked = new Set<string>()
               let flagged = 0
               const showProgress = quiet(
@@ -169,11 +177,11 @@ export const makeRehearse = (deps: RunDeps) =>
               )
               const found: Array<{ readonly id: string; readonly cells: Record<string, string> }> = []
               yield* Effect.forEach(
-                rec.stories,
-                (story, si) =>
+                // Only stories this persona acts in; each keeps its number in the run.
+                rec.stories.map((story, si) => ({ story, n: si + 1 })).filter(({ story }) => story.some((c) => ownCard(persona, c))),
+                ({ story, n }) =>
                   Effect.gen(function* () {
                     const prior: Array<StepView> = []
-                    const n = si + 1
                     const pathAt = (i: number) => story.slice(0, i + 1).map((c, ci) => (ci === i ? `[${c}]` : c)).join(" ▸ ")
                     for (let i = 0; i < story.length; i++) {
                       const key = `${persona.name}|${story.slice(0, i + 1).join(">")}`
@@ -181,6 +189,11 @@ export const makeRehearse = (deps: RunDeps) =>
                       yield* showWorkers
                       const step = yield* viewOf(story[i]!, story[i - 1])
                       if (step === undefined) break
+                      // Another persona's step: context for what follows, never screened or counted.
+                      if (!ownCard(persona, step.card)) {
+                        prior.push(step)
+                        continue
+                      }
                       const waiting = inFlight.get(key)
                       if (waiting !== undefined) {
                         walking.set(n, { path: pathAt(i), state: "waiting", detail: `waits at ${step.card}` })
@@ -303,11 +316,12 @@ export const makeRehearse = (deps: RunDeps) =>
           // No focus, or an empty one, is every story.
           const focus = opts.focus !== undefined && opts.focus.length > 0 ? opts.focus : undefined
           const planned = yield* deps.stories(strategy, focus).pipe(Effect.orElseSucceed(() => ({ stories: [], unreachable: 0 })))
-          const names = yield* deps.list("intent").pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>))
-          const texts = yield* Effect.forEach(names.filter((n) => n.endsWith(".md")), (n) => deps.read(`intent/${n}`).pipe(Effect.orElseSucceed(() => "")))
-          const all = personasOf(texts)
-          const personas = opts.personas !== undefined ? all.filter((p) => opts.personas!.includes(p.name)) : all
-          if (personas.length === 0) return { refused: "no testers: no intent lists personas in its frontmatter (personas: [{ name, text }])" }
+          const graph = yield* deps.personas().pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<{ readonly name: string; readonly text: string; readonly cards: ReadonlyArray<string> }>))
+          if (graph.length === 0) return { refused: "no personas yet: the Driver Agent asks about them" }
+          const acting = graph.filter((p) => p.cards.length > 0)
+          if (acting.length === 0) return { refused: "no persona acts in any card" }
+          const personas = opts.personas !== undefined ? acting.filter((p) => opts.personas!.includes(p.name)) : acting
+          if (personas.length === 0) return { refused: `no such personas: ${opts.personas!.join(", ")}` }
           const startedAt = yield* deps.now.pipe(Effect.orElseSucceed(() => 0))
           const run = `r-${(yield* deps.uuid.pipe(Effect.orElseSucceed(() => String(startedAt)))).slice(0, 8)}`
           const rec: RunRecord = { run, startedAt, status: "running", strategy, focus: focus ?? [], personas, stories: planned.stories, unreachable: planned.unreachable, screened: {}, raw: [], infra: [], findings: [], applying: [], resolved: [] }

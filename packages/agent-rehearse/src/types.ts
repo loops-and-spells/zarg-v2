@@ -11,7 +11,7 @@ export interface StepView {
   readonly fork: ReadonlyArray<{ readonly card: string; readonly when: string }>
   readonly hasFailure: boolean
 }
-export interface Persona { readonly name: string; readonly text: string }
+export interface Persona { readonly name: string; readonly text: string; readonly cards?: ReadonlyArray<string> }
 export type Reason = "feel" | "fail" | "fork" | "seam"
 export interface Screened { readonly feel: number; readonly fail: number; readonly arrive: number; readonly fork?: number; readonly flags: ReadonlyArray<Reason> }
 export type Kind = "friction" | "gap" | "contradiction" | "transition" | "feature" | "delight"

@@ -1,4 +1,3 @@
-import { parse } from "@zarg/frontmatter"
 // packages/core/src/rehearse/screen.ts
 import { hash } from "./hash"
 import { Effect } from "effect"
@@ -46,26 +45,3 @@ export const screenStep = (decide: Decide, persona: Persona, prior: ReadonlyArra
     return { feel, fail, arrive, ...(fork !== undefined ? { fork } : {}), flags } satisfies Screened
   }).pipe(Effect.orElseSucceed(() => undefined))
 
-/** One tester per persona in the intents' frontmatter (`personas: [{ name, text }]`), in file order; the prose is never read. */
-export const personasOf = (intents: ReadonlyArray<string>): ReadonlyArray<Persona> => {
-  const listed = intents.flatMap((md) => {
-    let data: { readonly [key: string]: unknown }
-    try {
-      data = parse(md).data
-    } catch {
-      return []
-    }
-    const ps = Array.isArray(data.personas) ? (data.personas as ReadonlyArray<unknown>) : []
-    return ps.flatMap((p) => {
-      const o = (p ?? {}) as { readonly name?: unknown; readonly text?: unknown }
-      return typeof o.name === "string" && o.name !== "" && typeof o.text === "string" && o.text !== "" ? [{ name: o.name, text: o.text }] : []
-    })
-  })
-  // Names key each tester's answers: a repeated name gets a number.
-  const seen = new Map<string, number>()
-  return listed.map((p) => {
-    const n = (seen.get(p.name) ?? 0) + 1
-    seen.set(p.name, n)
-    return { name: n === 1 ? p.name : `${p.name} (${n})`, text: p.text }
-  })
-}

@@ -1,16 +1,15 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { makeRehearse, type RunDeps } from "../src/run"
+import { makeRehearse, ownCard, type RunDeps } from "../src/run"
 import { rehearseSettings } from "../src/settings"
 import type { Answer, DecisionRequest, StepView } from "../src/types"
 
-const INTENT = "---\npersonas:\n  - name: The operator\n    text: The operator, through the zarg TUI.\n---\n# Intent\n"
 const noul = (p: number): Answer => ({ type: "noul", answer: p >= 0.5, probability: p, confidence: 0 })
 
-type Opts = { inFlight?: number; slowWrite?: number; down?: boolean; slowDecide?: number; auto?: boolean; intent?: string; unreachable?: number; files?: Map<string, string>; cardText?: (card: string) => string }
+type Opts = { inFlight?: number; slowWrite?: number; down?: boolean; slowDecide?: number; auto?: boolean; unreachable?: number; personas?: ReadonlyArray<{ name: string; text: string; cards: ReadonlyArray<string> }>; files?: Map<string, string>; cardText?: (card: string) => string }
 const setup = (o: Opts = {}) =>
   Effect.gen(function* () {
-    const files = o.files ?? new Map<string, string>([["intent/zarg.md", o.intent ?? INTENT]])
+    const files = o.files ?? new Map<string, string>()
     const decisions: Array<DecisionRequest> = []
     const llm = { n: 0 }
     const events: Array<{ event: string; id: string; text?: string; progress?: { done: number; total: number } }> = []
@@ -22,6 +21,7 @@ const setup = (o: Opts = {}) =>
     let ids = 0
     const view = (card: string): StepView => ({ card, title: card, given: `before ${card}`, when: o.cardText?.(card) ?? `do ${card}`, thens: [`after ${card}`], fork: [], hasFailure: false })
     const deps: RunDeps = {
+      personas: () => Effect.succeed(o.personas ?? [{ name: "Operator", text: "The operator, through the zarg TUI.", cards: ["A", "B", "C", "D"] }]),
       stories: () => Effect.succeed({ stories: [["A", "B", "C"], ["A", "B", "D"]], unreachable: o.unreachable ?? 0 }),
       step: (card) => Effect.succeed(view(card)),
       decide: (req) =>
@@ -165,12 +165,12 @@ describe("rehearse runs in the plugin", () => {
         const t = yield* setup()
         yield* t.r.start({})
         const second = yield* t.r.start({})
-        const none = yield* (yield* setup({ intent: "# Intent\n" })).r.start({})
+        const none = yield* (yield* setup({ personas: [] })).r.start({})
         return { second, none }
       }),
     )
     expect(out.second).toMatchObject({ refused: expect.stringContaining("is still going") })
-    expect(out.none).toMatchObject({ refused: expect.stringContaining("no testers") })
+    expect(out.none).toMatchObject({ refused: expect.stringContaining("no personas yet") })
   })
 
   test("a decision-model outage leaves steps unscreened and counted; only the report reaches the model", async () => {
@@ -181,7 +181,7 @@ describe("rehearse runs in the plugin", () => {
   })
 
   test("a run left running resumes from its record without screening finished steps again", async () => {
-    const files = new Map<string, string>([["intent/zarg.md", INTENT]])
+    const files = new Map<string, string>()
     const run = "r-resume"
     files.set(".zarg/rehearse/index.json", JSON.stringify([run]))
     files.set(
@@ -316,4 +316,27 @@ test("the run's view lists its testers: each with its progress and findings", as
   expect(list.items.map((i) => i.id)).toEqual(t.r.record(t.run)!.personas.map((_, i) => `tester-${i + 1}`))
   expect(list.items.every((i) => i.state === "done")).toBe(true)
   expect(list.items[0]!.detail).toMatch(/\d+\/\d+ steps · \d+ found/)
+})
+
+describe("testers from the graph's personas", () => {
+  test("no personas: refused, so the Driver Agent asks; personas that act in no card: refused", async () => {
+    const none = await Effect.runPromise(Effect.flatMap(setup({ personas: [] }), (t) => t.r.start({})))
+    expect(none).toEqual({ refused: "no personas yet: the Driver Agent asks about them" })
+    const idle = await Effect.runPromise(Effect.flatMap(setup({ personas: [{ name: "Ghost", text: "nobody", cards: [] }] }), (t) => t.r.start({})))
+    expect(idle).toEqual({ refused: "no persona acts in any card" })
+  })
+
+  test("a tester walks only stories with its cards; others' steps are context", async () => {
+    const t = await finish({ personas: [{ name: "Operator", text: "The operator.", cards: ["A", "C"] }, { name: "Driver Agent", text: "The agent.", cards: ["B", "D"] }] })
+    const screenedBy = (who: string) => t.decisions.filter((d) => d.questions.feel !== undefined && d.state.startsWith(`You are ${who}`)).map((d) => /The next step[\s\S]*When do (\w)/.exec(d.state)![1])
+    // The operator judges A and C, never B or D; it sees B as what happened before C.
+    expect([...new Set(screenedBy("The operator."))].sort()).toEqual(["A", "C"])
+    expect(t.decisions.some((d) => d.state.startsWith("You are The operator.") && /do B[\s\S]*The next step[\s\S]*When do C/.test(d.state))).toBe(true)
+    expect([...new Set(screenedBy("The agent."))].sort()).toEqual(["B", "D"])
+  })
+
+  test("a record from before personas walks every card", () => {
+    expect(ownCard({ name: "Operator", text: "The operator." }, "Z")).toBe(true)
+    expect(ownCard({ name: "Operator", text: "The operator.", cards: ["A"] }, "Z")).toBe(false)
+  })
 })
