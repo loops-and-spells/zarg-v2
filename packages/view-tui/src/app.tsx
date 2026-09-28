@@ -1,11 +1,15 @@
 import { useKeyboard, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Panel, Session } from "@zarg/client"
-import { hintsOf, pickRow, startUi, THEME } from "@zarg/view"
+import { hintsOf, pickRow, startUi, THEME, toneColor } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
-import { registerCommands } from "./commands"
+import { registerCommands, SLASH_COMMANDS } from "./commands"
 import { fit, gauge, keyGlyphs } from "./look"
+import { type Card, gridCards, gridShape } from "./grid"
+import { paletteEntries } from "./palette"
 import { contextOf, displayName, railRows } from "./rail"
+import { reviewGroups } from "./review"
+import { Heading } from "./sections"
 import { onKey, SHELL } from "./layers"
 import { AgentView, type Scroller } from "./sections"
 import {
@@ -99,6 +103,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     return () => clearInterval(timer)
   }, [moving])
   const scroller = useRef<Scroller | undefined>(undefined)
+  // The grid's shape as last drawn: the keys move by its columns and pages.
+  const gridRef = useRef({ gridCols: 2, gridPage: 4 })
 
   const act = (action: Action | undefined) => {
     if (action === undefined) return
@@ -110,6 +116,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     else if (action.type === "scroll-talk") talkRef.current?.scrollBy(action.delta)
     else if (action.type === "answer-prompt") void props.session.answerPrompt(action.id, action.choice)
     else if (action.type === "close-prompt") void props.session.closePrompt(action.id)
+    else if (action.type === "review-acts") for (const a of action.acts) void props.session.act(a.agent, a.action, a.section, a.rows)
     else if (action.type === "archive") void props.session.archive(action.change)
     else if (action.type === "answer-agent") {
       const agent = action.agent ?? latest().viewing?.split("@")[0]
@@ -122,7 +129,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   }
 
   useKeyboard((key) => {
-    const r = onKey(latest(), props.session.state(), { name: key.name, ctrl: key.ctrl, shift: key.shift, meta: key.meta || key.option }, Date.now(), draftRef.current)
+    const r = onKey(latest(), props.session.state(), { name: key.name, ctrl: key.ctrl, shift: key.shift, meta: key.meta || key.option }, Date.now(), draftRef.current, gridRef.current)
     setUi(r.ui)
     if (r.draft !== undefined) {
       // Write into the input now, so a key typed right after Tab lands after the completion.
@@ -443,11 +450,150 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     </box>
   )
 
+  // The grid: agents as cards, paginated; the cursor's card in the accent colour; a click or ⏎ opens it.
+  const areaHeight = Math.max(6, dims.height - 2 - shown.bottom.reduce((a, p) => a + p.size + 1, 0))
+  const shape = gridShape(focusWidth, areaHeight - 1)
+  const perPage = shape.cols * shape.rows
+  gridRef.current = { gridCols: shape.cols, gridPage: perPage }
+  const cards = gridCards(ui, s)
+  const cursorAt = Math.min(ui.grid.cursor, Math.max(0, cards.length - 1))
+  const page = Math.floor(cursorAt / perPage)
+  const pages = Math.max(1, Math.ceil(cards.length / perPage))
+  const cardW = Math.max(12, Math.floor(focusWidth / shape.cols) - 4)
+  const cardH = Math.floor((areaHeight - 1) / shape.rows)
+  const cardBox = (c: Card, i: number) => {
+    const on = page * perPage + i === cursorAt
+    const g = c.gauge !== undefined ? gauge(c.gauge.done, c.gauge.total, Math.max(4, cardW - 10)) : undefined
+    return (
+      <box
+        key={c.id}
+        onMouseDown={(e: { stopPropagation: () => void }) => {
+          e.stopPropagation()
+          setUi(openAgent(latest(), props.session.state(), c.id))
+        }}
+        style={{ flexGrow: 1, flexBasis: 0, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: on && ui.focus === "tile" ? THEME.accent : THEME.line, paddingLeft: 1, paddingRight: 1 }}
+      >
+        <text wrapMode="none">
+          <span fg={THEME[c.glyphToken]}>{`${c.glyph} `}</span>
+          <span fg={THEME.text}>
+            <b>{fit(c.name, cardW - 2)}</b>
+          </span>
+          <span fg={THEME.dim}>{fit(`  ${c.context}`, Math.max(0, cardW - 2 - c.name.length))}</span>
+        </text>
+        {g !== undefined ? (
+          <text wrapMode="none">
+            <span fg={c.attention ? THEME.attention : THEME.accent}>{g.done}</span>
+            <span fg={THEME.faint}>{g.rest}</span>
+            <span fg={THEME.dim}>{`  ${c.gauge!.done}/${c.gauge!.total}`}</span>
+          </text>
+        ) : null}
+        <text wrapMode="none" fg={c.starting && c.headline === undefined ? THEME.dim : c.attention ? THEME.attention : THEME.text}>
+          {fit(c.headline ?? (c.starting ? "starting…" : ""), cardW)}
+        </text>
+        {cardH >= 8
+          ? c.recent.map((r, n) => (
+              <text key={n} wrapMode="none" fg={THEME.dim}>
+                {fit(r.text, cardW)}
+              </text>
+            ))
+          : null}
+        <box style={{ flexGrow: 1 }} />
+        {c.action !== undefined ? <text fg={THEME.faint} wrapMode="none">{`${c.action.key} ${c.action.label}`}</text> : null}
+      </box>
+    )
+  }
+  const shownCards = cards.slice(page * perPage, page * perPage + perPage)
+  const grid = (
+    <box style={{ flexGrow: 1, flexDirection: "column", paddingLeft: 1, paddingRight: 1 }}>
+      <text wrapMode="none">
+        <span fg={ui.focus === "tile" ? THEME.accent : THEME.dim}>
+          <b> all agents</b>
+        </span>
+        <span fg={THEME.dim}>{pages > 1 ? `   page ${page + 1} of ${pages}   ` : "   "}</span>
+        <span fg={THEME.faint}>{pages > 1 ? Array.from({ length: pages }, (_, i) => (i === page ? "●" : "○")).join("") : ""}</span>
+      </text>
+      {cards.length === 0 ? (
+        <text fg={THEME.dim}>{"   no agents yet · / to start one with zarg"}</text>
+      ) : (
+        Array.from({ length: shape.rows }, (_, r) => shownCards.slice(r * shape.cols, r * shape.cols + shape.cols)).filter((row) => row.length > 0).map((row, r) => (
+          <box key={r} style={{ height: cardH, flexShrink: 0, flexDirection: "row" }}>
+            {row.map((c, i) => cardBox(c, r * shape.cols + i))}
+            {Array.from({ length: shape.cols - row.length }, (_, i) => (
+              <box key={`gap-${i}`} style={{ flexGrow: 1, flexBasis: 0 }} />
+            ))}
+          </box>
+        ))
+      )}
+    </box>
+  )
+
+  // The review queue: every review table of every agent, one heading per table, ○/● selection, the cursor row.
+  const groups = reviewGroups(s)
+  const reviewRows = groups.flatMap((g) => g.rows)
+  const reviewAt = Math.min(ui.review.cursor, Math.max(0, reviewRows.length - 1))
+  const review = (
+    <box style={{ flexGrow: 1, flexDirection: "column", paddingLeft: 2, paddingRight: 2 }}>
+      <text wrapMode="none">
+        <span fg={ui.focus === "tile" ? THEME.accent : THEME.dim}>
+          <b>review</b>
+        </span>
+        <span fg={THEME.dim}>{`   ${reviewRows.length} open · ${new Set(groups.map((g) => g.agent)).size} agents`}</span>
+      </text>
+      <text> </text>
+      {groups.length === 0 ? <text fg={THEME.dim}>nothing to review</text> : null}
+      <scrollbox focusable={false} style={{ flexGrow: 1 }}>
+        {groups.map((g) => (
+          <box key={`${g.agent}|${g.section}`} style={{ flexDirection: "column", flexShrink: 0 }}>
+            <Heading title={g.name} width={focusWidth} focused={false} />
+            {g.rows.map((r) => {
+              const on = reviewRows[reviewAt]?.key === r.key
+              const picked = ui.review.selected.includes(r.key)
+              return (
+                <text key={r.key} wrapMode="none" {...(on ? { bg: THEME.selection } : {})}>
+                  <span fg={THEME.accent}>{on ? "▍" : " "}</span>
+                  <span fg={picked ? THEME.accent : THEME.dim}>{picked ? "● " : "○ "}</span>
+                  <span fg={picked || on ? THEME.text : toneColor(r.row.tone)}>{fit(g.columns.map((c) => r.row.cells[c.id] ?? "").join("  "), focusWidth - 4)}</span>
+                </text>
+              )
+            })}
+            <text> </text>
+          </box>
+        ))}
+      </scrollbox>
+    </box>
+  )
+
+  // ^k: a rounded box over everything: the query, then what it finds.
+  const found = ui.palette === undefined ? [] : paletteEntries(s, ui.palette.query, SLASH_COMMANDS)
+  const palWidth = Math.min(60, dims.width - 4)
+  const palette =
+    ui.palette === undefined ? null : (
+      <box style={{ position: "absolute", left: Math.max(0, Math.floor((dims.width - palWidth) / 2)), top: 3, width: palWidth, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: THEME.accent, backgroundColor: THEME.raised, paddingLeft: 1, paddingRight: 1 }}>
+        <text wrapMode="none">
+          <span fg={THEME.accent}>{"› "}</span>
+          <span fg={THEME.text}>{ui.palette.query}</span>
+          <span fg={THEME.accent}>▎</span>
+        </text>
+        <text fg={THEME.faint} wrapMode="none">{"─".repeat(palWidth - 4)}</text>
+        {found.length === 0 ? <text fg={THEME.dim}>nothing matches</text> : null}
+        {found.slice(0, 10).map((e, i) => (
+          <text key={e.id} wrapMode="none" {...(i === Math.min(ui.palette!.pick, found.length - 1) ? { bg: THEME.selection } : {})}>
+            <span fg={THEME.dim}>{`${e.glyph} `}</span>
+            <span fg={THEME.text}>{fit(e.label, 24).padEnd(24)}</span>
+            <span fg={THEME.dim}>{fit(`  ${e.detail}`, palWidth - 30)}</span>
+          </text>
+        ))}
+      </box>
+    )
+
   // The status line: where things stand, then the keys of what has focus (glyphs, three spaces apart).
   const hints = hintsOf(SHELL, ui, world)
     .map((h) => `${keyGlyphs(h.keys)} ${h.does}`)
     .join("   ")
-  const status = ` ${[statusLine(s, props.meta), ...(s.notice !== undefined ? [s.notice] : [])].join("   ")}`
+  const firstAsking = attentionOf(s.thread.rlms)[0]
+  const askingNode = firstAsking === undefined ? undefined : s.thread.rlms[firstAsking.id]
+  // Who asks first (it must survive a narrow line), then where things stand.
+  const status = ` ${[...(askingNode !== undefined ? [`◆ ${displayName(askingNode)} ${firstAsking!.reason}`] : []), statusLine(s, props.meta), ...(s.notice !== undefined ? [s.notice] : [])].join("   ")}`
 
   return (
     <box style={{ flexDirection: "row", width: "100%", height: "100%", backgroundColor: THEME.bg }}>
@@ -456,7 +602,9 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         <box onMouseDown={() => setUi({ ...latest(), focus: "tile" })} style={{ flexGrow: 1, flexDirection: "column" }}>
           {shown.top.map(panelBox)}
           <box style={{ flexGrow: 1, flexDirection: "row" }}>
-            <box style={{ flexGrow: 1, flexDirection: "column" }}>{narrow && ui.focus === "agents" ? agentsList : ui.sheet && ui.sheetOf !== undefined ? pluginSheet : sheetShown(ui) ? sheet : view}</box>
+            <box style={{ flexGrow: 1, flexDirection: "column" }}>
+              {narrow && ui.focus === "agents" ? agentsList : ui.sheet && ui.sheetOf !== undefined ? pluginSheet : sheetShown(ui) ? sheet : ui.main === "grid" ? grid : ui.main === "review" ? review : view}
+            </box>
             {shown.right.map(panelBox)}
           </box>
           {shown.bottom.map(panelBox)}
@@ -472,6 +620,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         </box>
       </box>
       {popover}
+      {palette}
     </box>
   )
 }

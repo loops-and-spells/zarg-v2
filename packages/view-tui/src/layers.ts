@@ -390,4 +390,5 @@ export const SHELL: ReadonlyArray<Layer> = [
 ]
 
 /** What a key does: the next UI state, maybe an action for the session and a new draft for the bar, and which layer took it. */
-export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: string) => dispatch(SHELL, ui, { s, now, draft: draft ?? "" }, key)
+export const onKey = (ui: Ui, s: SessionState, key: Key, now: number, draft?: string, grid?: { readonly gridCols: number; readonly gridPage: number }) =>
+  dispatch(SHELL, ui, { s, now, draft: draft ?? "", ...(grid ?? {}) }, key)
