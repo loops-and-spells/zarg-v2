@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import { fixturePlugin, hostWith } from "./fixtures"
+import { bundle, fixturePlugin, hostWith } from "./fixtures"
 
 // The notes fixture plus a tool that removes a topic.
 const NOTES_SOURCE = readFileSync(join(import.meta.dir, "fixtures/notes/index.ts"), "utf8")
@@ -84,5 +84,33 @@ export default definePlugin({
     const [a, b, r] = await Promise.all([fixturePlugin(board()), fixturePlugin(board("other")), fixturePlugin(reader)])
     const out = await Effect.runPromise(hostWith([a!, b!, r!], (h) => Effect.all([h.invoke("reader", "read", { ref: "board/item:B-1" }), h.invoke("reader", "read", { ref: "other/item:B-1" })]), { yolo: { on: () => true } }))
     expect(out).toEqual(["First", "NotAllowed"])
+  })
+  test("graph kinds' data is typed as served: { props, edges }", async () => {
+    const out = await Effect.runPromise(hostWith([await fixturePlugin(NOTES_SOURCE)], (h) => Effect.succeed(h.entities.types().find((t) => t.type === "notes/topic")!.data)))
+    const schema = (out as { schema: { properties: Record<string, { properties?: Record<string, unknown> }> } }).schema
+    expect(Object.keys(schema.properties)).toEqual(["props", "edges"])
+    expect(Object.keys(schema.properties.props!.properties!)).toEqual(["name"])
+  })
+  test("a command to a graph plugin's tool goes through its write pipeline (it commits)", async () => {
+    const src = NOTES_SOURCE.replace('graph: { nodes:', 'entities: { topic: { doc: "Topics.", data: Schema.Struct({ name: Schema.String }), tone: "accent", glyph: "#", commands: { note: "add-note" } } },\n  graph: { nodes:')
+    const out = await Effect.runPromise(hostWith([await fixturePlugin(src)], (h) => Effect.gen(function* () {
+      yield* h.call("notes/add-topic", { name: "pricing" })
+      yield* h.entities.command("notes/topic:T-0001", "note", { text: "cheap", topic: "T-0001" })
+      return yield* h.entities.get("notes/note:N-0001")
+    })))
+    expect(out.label.text).toBe("cheap")
+  })
+  test("an owner that answers with the wrong shape fails only its own refs", async () => {
+    const good = await fixturePlugin(board())
+    const other = await fixturePlugin(board("other"))
+    const bad = { ...other, bundle: bundle(`{ $start: async () => null, $entity: async () => ({}) }`).replace("module.exports.default = {", 'module.exports.default = { name: "other", service: "Other", archetype: "service",') }
+    const out = await Effect.runPromise(hostWith([good, bad], (h) => h.entities.many(["board/item:B-1", "other/item:B-1"])))
+    expect(out.entities.map((e) => e.ref.split("@")[0])).toEqual(["board/item:B-1"])
+    expect(out.failed.map((f) => [f.ref, f._tag])).toEqual([["other/item:B-1", "ProviderFailed"]])
+  })
+  test("a plugin method's own failure tag stays PluginError for its callers (entity tags are for the entities power)", async () => {
+    const p = await fixturePlugin(board().replace('rename: ({ id, title }) => Effect.succeed(id + "=" + title),', 'rename: () => Effect.fail(new PluginFailure({ tag: "NotFound", message: "gone" })),'))
+    const err = await Effect.runPromise(hostWith([p], (h) => Effect.flip(h.invoke("board", "rename", { id: "B-1", title: "x" }))))
+    expect(err._tag).toBe("PluginError")
   })
 })

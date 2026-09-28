@@ -583,6 +583,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           const r = running.get(owner)
           return r === undefined ? Effect.fail({ message: `${owner} is not running` }) : invoke(r, "$entity", p)
         },
+        write: (owner, method, params) => call(`${owner}/${method}`, params).pipe(Effect.mapError((e) => ({ _tag: e._tag, message: e._tag === "LintFailed" ? e.findings.map((f) => f.message).join("; ") : String((e as { message?: unknown }).message ?? e._tag) }))),
         invoke: (owner, method, params) => {
           const r = running.get(owner)
           return r === undefined ? Effect.fail({ _tag: "PluginCrashed", message: `${owner} is not running` }) : invoke(r, method, params)

@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import type { Layout, Surface } from "@zarg/view"
+import { checkSet, type Layout, type Surface } from "@zarg/view"
 import type { Rlm } from "@zarg/rlm"
 import { makeActivity } from "./activity"
 import type { ThreadLog } from "./log"
@@ -31,14 +31,18 @@ const canonical = (v: unknown): string =>
  * A plugin's agents in a thread's agents pane: their own stream, ids `<plugin>:<id>`, `step` lines as history,
  * and their views (the plugin's declared layouts, found by `layoutOf`).
  */
+/** A section's ref columns (tabs' sections as `tabs.tab`). */
+const refColumns = (layout: Layout, section: string): ReadonlyArray<string> => {
+  const leaves = layout.sections.flatMap((s) => (s.kind === "tabs" ? (s.tabs ?? []).map((t) => ({ ...t, id: `${s.id}.${t.id}` })) : [s]))
+  const leaf = leaves.find((s) => s.id === section) as { readonly columns?: ReadonlyArray<{ readonly id: string; readonly ref?: true }> } | undefined
+  return (leaf?.columns ?? []).filter((c) => c.ref === true).map((c) => c.id)
+}
 type Many = (refs: ReadonlyArray<string>) => Effect.Effect<{ readonly entities: ReadonlyArray<{ readonly ref: string; readonly type: string; readonly id: string; readonly label: { readonly text: string; readonly tone: string; readonly glyph: string } }> }>
 
 /** A table section's ref columns get their labels (resolved by the host) before the data reaches clients. */
 export const withLabels = (layout: Layout, section: string, data: unknown, many: Many) =>
   Effect.gen(function* () {
-    const leaves = layout.sections.flatMap((s) => (s.kind === "tabs" ? (s.tabs ?? []).map((t) => ({ ...t, id: `${s.id}.${t.id}` })) : [s]))
-    const leaf = leaves.find((s) => s.id === section) as { readonly columns?: ReadonlyArray<{ readonly id: string; readonly ref?: true }> } | undefined
-    const cols = (leaf?.columns ?? []).filter((c) => c.ref === true).map((c) => c.id)
+    const cols = refColumns(layout, section)
     const rows = (data as { readonly rows?: ReadonlyArray<{ readonly cells: Readonly<Record<string, string>> }> } | undefined)?.rows
     if (cols.length === 0 || rows === undefined) return data
     const refs = [...new Set(rows.flatMap((r) => cols.map((c) => r.cells[c] ?? "")).filter((s) => s.includes(":")))]
@@ -125,11 +129,17 @@ export const pluginAgents = (
     if (e.event === "set") {
       const key = keyFor(plugin, id, e.view)
       const layout = e.view === undefined ? undefined : layoutOf(plugin, e.view)
-      if (many === undefined || layout === undefined) return views.set(key, e.section, e.data)
+      if (many === undefined || layout === undefined || refColumns(layout, e.section).length === 0) return views.set(key, e.section, e.data)
+      // Bad data is refused now, to the plugin, as for any set; only the labels wait.
+      const checked = checkSet(views.layout(key) ?? layout, e.section, e.data)
+      if (!checked.ok) throw new Error(checked.error)
+      // A lookup that fails (or dies) leaves the data without labels; nothing here can stop the view's later sets.
       const next = (pending.get(key) ?? Promise.resolve())
-        .then(() => Effect.runPromise(withLabels(layout, e.section, e.data, many).pipe(Effect.orElseSucceed(() => e.data))))
+        .then(() => Effect.runPromise(withLabels(layout, e.section, e.data, many).pipe(Effect.catchCause(() => Effect.succeed(e.data)))))
         .then((d) => views.set(key, e.section, d))
+        .catch(() => undefined)
       pending.set(key, next)
+      void next.then(() => { if (pending.get(key) === next) pending.delete(key) })
       return
     }
     if (e.event === "attention") return a.attention(id, typeof e.reason === "string" && e.reason.length > 0 ? e.reason.slice(0, 80) : undefined)

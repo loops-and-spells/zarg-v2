@@ -1,11 +1,11 @@
-import { Data, Effect } from "effect"
+import { Cause, Data, Effect } from "effect"
 import { type Entity, formatRef, type Label, parseRef, type Query, refProblem, versionOf } from "@zarg/entities"
 import { rank } from "@zarg/bm25"
 import { hash, Snapshot } from "@zarg/graph"
 import type { Manifest } from "./loaded"
 
 export class EntityError extends Data.TaggedError("EntityError")<{ readonly tag: "NotFound" | "UnknownType" | "NotAllowed" | "ProviderFailed" | "OutOfScope"; readonly message: string }> {}
-export interface Kind { readonly type: string; readonly owner: string; readonly doc: string; readonly tone: string; readonly glyph: string; readonly commands: Readonly<Record<string, string>>; readonly open?: string; readonly data: unknown; readonly ops: ReadonlySet<string>; readonly graph: boolean }
+export interface Kind { readonly type: string; readonly owner: string; readonly ownerGraph: boolean; readonly doc: string; readonly tone: string; readonly glyph: string; readonly commands: Readonly<Record<string, string>>; readonly open?: string; readonly data: unknown; readonly ops: ReadonlySet<string>; readonly graph: boolean }
 
 /** Every type the loaded plugins own: declared kinds plus graph node kinds (the owner's declaration overrides). A type is `<plugin>/<kind>`, so one plugin owns it (the host already refuses a second plugin of one name). */
 export const registry = (manifests: ReadonlyArray<Manifest>): ReadonlyMap<string, Kind> => {
@@ -16,7 +16,13 @@ export const registry = (manifests: ReadonlyArray<Manifest>): ReadonlyMap<string
     for (const k of new Set([...graphKinds, ...Object.keys(declared)])) {
       const type = `${m.name}/${k}`
       const d = declared[k]
-      kinds.set(type, { type, owner: m.name, doc: d?.doc ?? `${k} nodes of ${m.name}`, tone: d?.tone ?? "dim", glyph: d?.glyph ?? "·", commands: d?.commands ?? {}, ...(d?.open !== undefined ? { open: d.open } : {}), data: d?.data ?? m.graph?.nodes[k], ops: new Set(d?.ops ?? []), graph: graphKinds.includes(k) })
+      const graph = graphKinds.includes(k)
+      const doc = (d?.data ?? m.graph?.nodes[k]) as { readonly schema?: unknown; readonly definitions?: Record<string, unknown> } | undefined
+      // A graph kind is served as the node's props and edges: its data is typed that way.
+      const data = graph
+        ? { schema: { type: "object", properties: { props: doc?.schema ?? {}, edges: { type: "array", items: { type: "object", properties: { type: { type: "string" }, to: { type: "string" } }, required: ["type", "to"] } } }, required: ["props", "edges"] }, definitions: doc?.definitions ?? {} }
+        : doc
+      kinds.set(type, { type, owner: m.name, ownerGraph: m.archetype === "graph", doc: d?.doc ?? `${k} nodes of ${m.name}`, tone: d?.tone ?? "dim", glyph: d?.glyph ?? "·", commands: d?.commands ?? {}, ...(d?.open !== undefined ? { open: d.open } : {}), data, ops: new Set(d?.ops ?? []), graph })
     }
   }
   return kinds
@@ -29,6 +35,8 @@ export interface Backend {
   readonly kinds: ReadonlyMap<string, Kind>
   /** The owner's `$entity` method. */
   readonly provider: (owner: string, p: { readonly op: string; readonly kind: string; readonly ids?: ReadonlyArray<string>; readonly query?: unknown }) => Effect.Effect<unknown, { readonly message: string }>
+  /** A graph plugin's command: through the write pipeline (validate, lints, commit), like any tool call. */
+  readonly write: (owner: string, method: string, params: unknown) => Effect.Effect<unknown, { readonly _tag: string; readonly message: string }>
   /** The owner's command method. */
   readonly invoke: (owner: string, method: string, params: unknown) => Effect.Effect<unknown, { readonly _tag: string; readonly message: string }>
   readonly snapshot: Effect.Effect<Snapshot.Snapshot, unknown>
@@ -76,7 +84,8 @@ export const makeEntities = (b: Backend) => {
         byType.set(r.type, [...(byType.get(r.type) ?? []), { ref, id: r.id }])
       }
       const parts = yield* Effect.forEach([...byType], ([type, wanted]) =>
-        Effect.match(fetch(b.kinds.get(type)!, wanted.map((w) => w.id)), {
+        // A reply of the wrong shape (a defect, not a failure) fails its own refs only.
+        Effect.match(fetch(b.kinds.get(type)!, wanted.map((w) => w.id)).pipe(Effect.catchCause((c) => Effect.fail(Cause.hasFails(c) ? Cause.squash(c) as EntityError : err("ProviderFailed", `${type}: its provider answered with the wrong shape`)))), {
           onFailure: (e) => (wanted.forEach((w) => failed.push({ ref: w.ref, _tag: e.tag, message: e.message })), [] as ReadonlyArray<Entity>),
           onSuccess: (es) => (wanted.filter((w) => !es.some((e) => e.id === w.id)).forEach((w) => failed.push({ ref: w.ref, _tag: "NotFound", message: `no ${w.ref}` })), es),
         }), { concurrency: "unbounded" })
@@ -121,7 +130,8 @@ export const makeEntities = (b: Backend) => {
       if (!allowed(caller, k.type, "command")) return yield* Effect.fail(err("NotAllowed", `${caller} may not command ${k.type}`))
       const method = k.commands[name]
       if (method === undefined) return yield* Effect.fail(err("NotFound", `${k.type} has no command ${name}; it has ${Object.keys(k.commands).join(", ") || "none"}`))
-      return yield* Effect.mapError(b.invoke(k.owner, method, { ...(args as object), id: r.id }), (e) => err("ProviderFailed", `${k.type}.${name}: ${e.message}`))
+      const params = { ...(args as object), id: r.id }
+      return yield* Effect.mapError(k.ownerGraph ? b.write(k.owner, method, params) : b.invoke(k.owner, method, params), (e) => err("ProviderFailed", `${k.type}.${name}: ${e.message}`))
     })
   const label = (ref: string, caller?: string) => Effect.map(get(ref, caller), (e) => e.label)
   const types = () => [...b.kinds.values()].map((k) => ({ type: k.type, doc: k.doc, tone: k.tone, glyph: k.glyph, commands: Object.keys(k.commands), ...(k.open !== undefined ? { open: k.open } : {}), data: k.data }))

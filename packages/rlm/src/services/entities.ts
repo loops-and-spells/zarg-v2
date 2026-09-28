@@ -43,7 +43,14 @@ export const entitiesService = (ctx: GraphContext, opts: { readonly write: boole
   const handlers = {
     get: ({ ref }: { ref: string }) => Effect.flatMap(inScope(ref), () => Effect.mapError(e.get(ref), fail)),
     many: ({ refs }: { refs: ReadonlyArray<string> }) => Effect.flatMap(Effect.forEach(refs, inScope), () => e.many(refs)),
-    query: (q: never) => Effect.mapError(e.query(q), fail),
+    // Graph entities outside the RLM's scope are left out, as `get` refuses them.
+    query: (q: never) =>
+      Effect.gen(function* () {
+        const found = yield* Effect.mapError(e.query(q), fail)
+        const snap = yield* Effect.orElseSucceed(ctx.snapshot, () => undefined)
+        const visible = snap === undefined ? undefined : scopeSet(snap, ctx.scope)
+        return visible === undefined ? found : found.filter((x) => !snap!.nodes.has(x.id) || visible.has(x.id))
+      }),
     version: ({ ref }: { ref: string }) => Effect.flatMap(inScope(ref), () => Effect.mapError(e.version(ref), fail)),
     changed: ({ ref }: { ref: string }) => Effect.flatMap(inScope(ref), () => Effect.mapError(e.changed(ref), fail)),
     label: ({ ref }: { ref: string }) => Effect.flatMap(inScope(ref), () => Effect.mapError(e.label(ref), fail)),
