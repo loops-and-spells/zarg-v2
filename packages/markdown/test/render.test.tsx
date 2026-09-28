@@ -88,3 +88,17 @@ test.each([
   expect(frame.trim().length).toBeGreaterThan(0)
   expect(frame).not.toContain(header)
 })
+
+test("a gherkin fence is highlighted with the host's colours: keywords, ids, comments; the text is unchanged", async () => {
+  const colours = { keyword: "#ff0000", id: "#00ff00", comment: "#0000ff" }
+  const src = "```gherkin\nUX-0001 Operator answers\n  Given the question is shown  # S-0001\n```"
+  const t = await testRender(<Markdown content={src} width={60} syntaxStyle={style} highlight={colours} />, { width: 60, height: 10, exitOnCtrlC: false, exitSignals: [] })
+  destroy = () => t.renderer.destroy()
+  await t.renderOnce(); await Bun.sleep(20); await t.renderOnce()
+  expect(t.captureCharFrame()).toContain("Given the question is shown  # S-0001")
+  const hex = (c: { r: number; g: number; b: number }) => `#${[c.r, c.g, c.b].map((v) => Math.round(v * 255).toString(16).padStart(2, "0")).join("")}`
+  const fgOf = (word: string) => t.captureSpans().lines.flatMap((l) => l.spans).find((s) => s.text.includes(word))
+  expect(hex(fgOf("Given")!.fg)).toBe("#ff0000")
+  expect(hex(fgOf("UX-0001")!.fg)).toBe("#00ff00")
+  expect(hex(fgOf("# S-0001")!.fg)).toBe("#0000ff")
+})

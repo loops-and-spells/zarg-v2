@@ -125,8 +125,8 @@ describe("the Journeys view", () => {
       { id: "J-0002", cells: { name: "Browse", cards: "1" } },
       { id: "J-0001", cells: { name: "Checkout", cards: "1" } },
     ])
-    expect(v.flows["J-0002"]!.startsWith("```text\nBrowse  # J-0002")).toBe(true)
-    expect(v.flows["J-0001"]!.startsWith("```text\nCheckout  # J-0001")).toBe(true)
+    expect(v.flows["J-0002"]!.startsWith("```gherkin\nBrowse  # J-0002")).toBe(true)
+    expect(v.flows["J-0001"]!.startsWith("```gherkin\nCheckout  # J-0001")).toBe(true)
   })
   test("no journeys: no rows, no flows (the view says how to make one)", () => {
     const v = journeysView(Snapshot.make([] as never))

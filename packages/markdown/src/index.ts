@@ -1,4 +1,5 @@
-import { CodeRenderable, createMarkdownCodeBlockRenderer, TextRenderable, type ColorInput, type MarkdownOptions, type RenderContext } from "@opentui/core"
+import { CodeRenderable, createMarkdownCodeBlockRenderer, fg, StyledText, TextRenderable, type ColorInput, type MarkdownOptions, type RenderContext } from "@opentui/core"
+import { highlight, languages, type Token } from "@zarg/highlight"
 import { parseMermaid, renderMermaidASCII } from "beautiful-mermaid"
 
 // The backend consumes prefixes silently. Accept complete basic flowchart statements only;
@@ -51,9 +52,24 @@ const graphFits = (source: string): boolean => {
 
 // @card UX-0077
 // @card UX-0078
+/** Colours for highlighted code blocks, by token kind (the host's theme); a kind without one is plain text. */
+export type Highlight = Partial<Record<Token, ColorInput>>
+
+/** A code block in a language `@zarg/highlight` knows, drawn with the host's colours. */
+const highlighted = (ctx: RenderContext, lang: string, source: string, options: { fg?: ColorInput; highlight: Highlight }) => {
+  const plain = options.fg ?? "#ffffff"
+  const chunks = highlight(lang, source).flatMap((line, i) => [
+    ...(i > 0 ? [fg(plain)("\n")] : []),
+    ...line.map((s) => fg((s.token !== undefined ? options.highlight[s.token] : undefined) ?? plain)(s.text)),
+  ])
+  return new TextRenderable(ctx, { content: new StyledText(chunks), wrapMode: "none" })
+}
+
 /** An OpenTUI Markdown code-block hook. Recreate it when the available column width changes. */
-export const mermaidRenderer = (ctx: RenderContext, options: { width: number; fg?: ColorInput }): NonNullable<MarkdownOptions["renderNode"]> => {
+export const mermaidRenderer = (ctx: RenderContext, options: { width: number; fg?: ColorInput; highlight?: Highlight }): NonNullable<MarkdownOptions["renderNode"]> => {
   const diagram = createMarkdownCodeBlockRenderer({
+    // Languages zarg highlights itself (its Gherkin): only when the host gives colours.
+    ...(options.highlight === undefined ? {} : Object.fromEntries(Object.keys(languages).map((lang) => [lang, (token: { text: string }) => highlighted(ctx, lang, token.text, { ...(options.fg !== undefined ? { fg: options.fg } : {}), highlight: options.highlight! })]))),
     mermaid: (token) => {
       const lines = token.raw.trimEnd().split(/\r?\n/)
       const fence = /^ {0,3}(`{3,}|~{3,})/.exec(lines[0] ?? "")?.[1]

@@ -127,6 +127,9 @@
         "@effect/platform-bun": "^4.0.0-rc.117",
       },
     },
+    "packages/highlight": {
+      "name": "@zarg/highlight",
+    },
     "packages/kernel": {
       "name": "@zarg/kernel",
       "dependencies": {
@@ -137,6 +140,7 @@
     "packages/markdown": {
       "name": "@zarg/markdown",
       "dependencies": {
+        "@zarg/highlight": "workspace:*",
         "beautiful-mermaid": "^1.1.3",
       },
       "devDependencies": {
@@ -374,6 +378,8 @@
     "@zarg/frontmatter": ["@zarg/frontmatter@workspace:packages/frontmatter"],
 
     "@zarg/graph": ["@zarg/graph@workspace:packages/graph"],
+
+    "@zarg/highlight": ["@zarg/highlight@workspace:packages/highlight"],
 
     "@zarg/kernel": ["@zarg/kernel@workspace:packages/kernel"],
 

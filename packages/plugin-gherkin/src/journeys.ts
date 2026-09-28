@@ -51,6 +51,6 @@ export const journeysView = (snap: Snapshot.Snapshot) => {
   const all = [...journeyList(snap)].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
   return {
     rows: all.map((j) => ({ id: j.id, cells: { name: j.name, cards: String(j.cards.length) } })),
-    flows: Object.fromEntries(all.map((j) => [j.id, `\`\`\`text\n${journeyFlow(snap, j.id)}\n\`\`\``])) as Record<string, string>,
+    flows: Object.fromEntries(all.map((j) => [j.id, `\`\`\`gherkin\n${journeyFlow(snap, j.id)}\n\`\`\``])) as Record<string, string>,
   }
 }

@@ -1231,7 +1231,7 @@ describe("nav items above the agents", () => {
       flow: {
         markdown: "No journeys yet.",
         rows: {
-          "J-0002": "```text\nBrowse  # J-0002 · 1 card\n\nUX-0001 Visitor opens pricing\n  Given the visitor is on the home page  # S-0001\n```",
+          "J-0002": "```gherkin\nBrowse  # J-0002 · 1 card\n\nUX-0001 Visitor opens pricing\n  Given the visitor is on the home page  # S-0001\n```",
           "J-0001": "```text\nCheckout  # J-0001 · 2 cards\n\nUX-0004 Payment succeeds\n```",
         },
       },
@@ -1263,6 +1263,9 @@ describe("nav items above the agents", () => {
     expect(frame).not.toContain("gherkin:journeys")
     expect(frame).toContain("Browse")
     expect(frame).toContain("Given the visitor is on the home page")
+    // The flow is highlighted: its keywords in the accent colour.
+    const given = t.captureSpans().lines.flatMap((l) => l.spans).find((sp) => sp.text.includes("Given"))!
+    expect(`#${[given.fg.r, given.fg.g, given.fg.b].map((v) => Math.round(v * 255).toString(16).padStart(2, "0")).join("")}`).toBe(THEME.accent)
     // Moving the highlight to another journey shows its flow at once (no round trip to the plugin).
     t.mockInput.pressArrow("down"); await settle(t)
     expect(t.captureCharFrame()).toContain("Checkout  # J-0001")

@@ -26,6 +26,7 @@ packages/<name>/
 ## Packages
 
 - `packages/graph` (`@zarg/graph`): JSON graph store under `.zarg/graph`: snapshot, queries, diff.
+- `packages/highlight` (`@zarg/highlight`): syntax highlighting as data, no dependencies: `highlight(lang, source)` → lines of spans with token kinds (keyword, id, comment, title, flow, string, number); platforms map kinds to their theme. Knows zarg's Gherkin; `@zarg/markdown` draws those fences with the host's colours.
 - `packages/frontmatter` (`@zarg/frontmatter`): the parsable data at the top of a Markdown file (a YAML subset, no dependencies, so it runs in the plugin sandbox): `parse(md) → { data, body }`, `stringify`. Intents keep `personas` and `next` there, plans `card`, `hash`, `title`.
 - `packages/bm25` (`@zarg/bm25`): Okapi BM25 over short texts (`bm25(docs).score(query)`, `rank`), with a light stemmer; no dependencies.
 - `packages/plugin` (`@zarg/plugin/server`, `@zarg/plugin/runtime`): the plugin runtime (each plugin in its own locked-down Bun process with `ses`, powers served by the host), grants (`~/.config/zarg/grants.json`), `PluginHost` and the write pipeline. Plugins load only through it; a test fails if another package imports a plugin.

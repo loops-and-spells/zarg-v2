@@ -15,6 +15,7 @@
     "@types/react": "^19.3.0"
   },
   "dependencies": {
+    "@zarg/highlight": "workspace:*",
     "beautiful-mermaid": "^1.1.3"
   }
 }

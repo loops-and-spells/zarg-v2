@@ -15,8 +15,11 @@ const syntaxStyle = SyntaxStyle.fromStyles({
   number: { fg: THEME.attention },
 })
 
+/** Code zarg highlights itself (its Gherkin): each token kind in a theme colour. */
+const highlight = { keyword: THEME.accent, id: THEME.attention, comment: THEME.dim, title: THEME.text, flow: THEME.accent, string: THEME.ok, number: THEME.attention }
+
 // @card UX-0076
 export const RichText = (p: { content: string; width: number; streaming?: boolean; onHeight?: (height: number) => void }) => (
-  <Markdown content={p.content} width={Math.max(1, p.width)} syntaxStyle={syntaxStyle} fg={THEME.text} streaming={p.streaming ?? false}
+  <Markdown content={p.content} width={Math.max(1, p.width)} syntaxStyle={syntaxStyle} fg={THEME.text} highlight={highlight} streaming={p.streaming ?? false}
     tableOptions={{ style: "columns", wrapMode: "word" }} onSizeChange={function () { p.onHeight?.(this.height) }} />
 )
