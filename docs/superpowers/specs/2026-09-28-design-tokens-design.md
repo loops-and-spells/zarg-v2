@@ -50,14 +50,35 @@ A platform may override an alias where its palette needs it (the 16-colour termi
 
 Each value is `{ fg: string }` plus, where a platform needs it, `{ bold?: true, faint?: true }`. Types make every platform give every base key; a test checks aliases resolve and every key exists on every platform.
 
-## Choosing a palette (terminal)
+## The Theme service (Effect)
 
-`COLORTERM=truecolor|24bit` → truecolor; `TERM` containing `256color` → ansi256; else ansi16. `[theme] colors = "truecolor" | "256" | "16"` in zarg's config overrides. Tests use truecolor.
+The theme is an Effect service; code yields it, a Layer decides which palette it is.
+
+```ts
+// @zarg/tokens
+export class Theme extends Context.Service<Theme, {
+  /** The platform palette in use. */
+  readonly platform: Platform  // "terminal.truecolor" | "terminal.ansi256" | "terminal.ansi16" | "web.dark" | "web.light"
+  /** A key's value on this platform (aliases resolved). */
+  readonly value: (key: TokenKey) => TokenValue  // { fg, bold?, faint? }
+  /** A plugin's tone (a plugin key or an old tone name) as a key; unknown or not allowed: `text`. */
+  readonly tone: (tone: unknown) => TokenKey
+}>()("@zarg/tokens/Theme") {
+  /** A fixed palette (tests, the web, a config setting). */
+  static readonly fixed: (platform: Platform) => Layer.Layer<Theme>
+  /** The terminal's palette: `[theme] colors` in the config, else COLORTERM / TERM (read through Effect's Config). */
+  static readonly terminal: Layer.Layer<Theme, ConfigError>
+}
+```
+
+- Choosing a terminal palette (`Theme.terminal`): `[theme] colors = "truecolor" | "256" | "16"` wins; else `COLORTERM=truecolor|24bit` → truecolor, `TERM` containing `256color` → ansi256, else ansi16. It reads its inputs through Effect `Config`, so a test provides them (`ConfigProvider.fromMap`) instead of touching the environment.
+- The TUI's entry (`runTui`) builds the Theme from `Theme.terminal`, yields it once, and hands it to the React tree (a `ThemeContext` provider at the app root; components read it with `useTheme()`). React components never reach the environment or Effect themselves.
+- Everything else that colours (the Markdown highlight map, a future web renderer, a CLI printing coloured output) yields `Theme` or reads it from the context it was given. Tests provide `Theme.fixed("terminal.truecolor")` (or 16, to check weight-only differences).
 
 ## Consumers
 
-- `@zarg/view`: `THEME` becomes `palette("terminal.truecolor")` (kept for the TUI's existing uses); `toneToken` / `toneColor` resolve token keys and the old tones through the tokens; the `Tone` schema accepts the plugin keys (intent, identity, severity, `dim`) and the old tones.
-- `@zarg/view-tui`: draws with the chosen terminal palette (one `useTokens()` value from the app root; weight attributes where the palette asks).
+- `@zarg/view`: the `Tone` schema accepts the plugin keys (intent, identity, severity, `dim`) and the old tones; `THEME`, `toneToken` and `toneColor` go (their callers move to `Theme`).
+- `@zarg/view-tui`: every colour from `useTheme().value(key)` (weight attributes where the palette asks); `App` takes the Theme as a prop from `runTui`, and tests render with `Theme.fixed(...)`.
 - The TUI's highlight map comes from the syntax and identity keys (`id → card`, `persona`, `journey`).
 - Rehearse and Gherkin views: `tone: "card"`, `tone: "journey"`, `tones: { high: "severity.high", medium: "severity.medium", low: "severity.low" }`.
 
@@ -71,11 +92,12 @@ Each value is `{ fg: string }` plus, where a platform needs it, `{ bold?: true, 
 
 - Tokens: every alias resolves to a base key; every platform has every base key; ansi256 values are the nearest to truecolor (a sample checked by hand); ansi16 marks surfaces by weight.
 - View: tone names and token keys resolve to the same colours; the plugin-key check refuses surfaces and statuses.
-- TUI: the palette choice from `COLORTERM` / `TERM` / config; frames under the 16-colour palette still tell the cursor row and ticked rows apart.
+- Theme service: `Theme.terminal` under each `COLORTERM` / `TERM` / config combination (a `ConfigProvider` map, never the real environment); `Theme.fixed` for each platform; `tone` maps old tones and refuses keys plugins may not name.
+- TUI: `App` rendered with `Theme.fixed("terminal.ansi16")` still tells the cursor row and ticked rows apart.
 - Rehearse and Gherkin: their views use identity and severity keys and pass the check.
 
 ## Scope
 
-In: the package, the four palettes, aliases, the palette choice, `@zarg/view` and the TUI reading from it, the plugin-key check, rehearse's and gherkin's views on identity keys.
+In: the package with the `Theme` service and its Layers, the four palettes, aliases, the palette choice, `@zarg/view` and the TUI reading from it, the plugin-key check, rehearse's and gherkin's views on identity keys.
 
 Out: user themes, a web renderer (the web palette is data only until one exists), per-plugin colour overrides.
