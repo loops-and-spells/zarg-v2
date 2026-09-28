@@ -116,6 +116,12 @@
         "effect": "^4.0.0-rc.117",
       },
     },
+    "packages/entities": {
+      "name": "@zarg/entities",
+      "dependencies": {
+        "effect": "^4.0.0-rc.117",
+      },
+    },
     "packages/frontmatter": {
       "name": "@zarg/frontmatter",
     },
@@ -383,6 +389,8 @@
     "@zarg/core": ["@zarg/core@workspace:packages/core"],
 
     "@zarg/decisions": ["@zarg/decisions@workspace:packages/decisions"],
+
+    "@zarg/entities": ["@zarg/entities@workspace:packages/entities"],
 
     "@zarg/frontmatter": ["@zarg/frontmatter@workspace:packages/frontmatter"],
 
