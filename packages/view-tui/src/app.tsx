@@ -1,15 +1,15 @@
 import { useKeyboard, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Panel, Session } from "@zarg/client"
-import { hintsOf, pickRow, startUi, THEME, toneColor } from "@zarg/view"
+import { afterAction, hintsOf, keyFor, pickRow, startUi, THEME, toneColor } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { registerCommands, SLASH_COMMANDS } from "./commands"
 import { fit, gauge, keyGlyphs } from "./look"
 import { type Card, gridCards, gridCursor, gridShape } from "./grid"
 import { paletteEntries } from "./palette"
 import { contextOf, displayName, railRows } from "./rail"
-import { reviewGroups } from "./review"
-import { Heading } from "./sections"
+import { reviewActs, reviewGroups } from "./review"
+import { Buttons, Heading } from "./sections"
 import { onKey, SHELL } from "./layers"
 import { AgentView, type Scroller } from "./sections"
 import {
@@ -298,6 +298,12 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
               const v = props.session.state().thread.views?.[viewing]
               if (v !== undefined) setUi({ ...latest(), focus: "tile", view: pickRow(v, latest().view ?? startUi(v), section, i) })
             }}
+            onAct={(section, action, rows) => {
+              const v = props.session.state().thread.views?.[viewing]
+              if (v === undefined) return
+              act({ type: "act", section, action, rows, view: v.agent })
+              setUi({ ...latest(), view: afterAction(latest().view ?? startUi(v), section) })
+            }}
           />
         )}
       </box>
@@ -455,7 +461,16 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         </text>
       </box>
       <box style={{ flexGrow: 1, flexDirection: "column", paddingLeft: 2, paddingRight: 2 }}>
-        {sheetViewState === undefined ? <text fg={THEME.dim}>no view yet</text> : <AgentView view={sheetViewState} ui={ui.sheetView ?? startUi(sheetViewState)} height={Math.max(6, dims.height - 8)} width={focusWidth} />}
+        {sheetViewState === undefined ? <text fg={THEME.dim}>no view yet</text> : <AgentView
+            view={sheetViewState}
+            ui={ui.sheetView ?? startUi(sheetViewState)}
+            height={Math.max(6, dims.height - 8)}
+            width={focusWidth}
+            onAct={(section, action, rows) => {
+              act({ type: "act", section, action, rows, agent: sheetViewState.agent.split("@")[0]!, view: sheetViewState.agent })
+              setUi({ ...latest(), sheetView: afterAction(latest().sheetView ?? startUi(sheetViewState), section) })
+            }}
+          />}
       </box>
     </box>
   )
@@ -549,6 +564,9 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     const t = setTimeout(() => reviewRef.current?.scrollChildIntoView(`review-${reviewKey}`), 0)
     return () => clearTimeout(t)
   }, [reviewKey])
+  // Its buttons: the selection actions of the tables the selected rows are in, once each.
+  const reviewPicked = ui.review.selected.filter((k) => reviewRows.some((r) => r.key === k))
+  const reviewButtons = [...new Map(groups.filter((g) => g.rows.some((r) => reviewPicked.includes(r.key))).flatMap((g) => g.actions.filter((a) => a.on === "selection")).map((a) => [a.id, a] as const)).values()]
   const review = (
     <box style={{ flexGrow: 1, flexDirection: "column", paddingLeft: 2, paddingRight: 2 }}>
       <text wrapMode="none">
@@ -578,6 +596,20 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           </box>
         ))}
       </scrollbox>
+      {reviewPicked.length > 0 && reviewButtons.length > 0 ? (
+        <box style={{ flexShrink: 0, marginTop: 1, paddingLeft: 1 }}>
+          <Buttons
+            actions={reviewButtons}
+            count={reviewPicked.length}
+            onPress={(id) => {
+              const key = keyFor(reviewButtons.find((a) => a.id === id)!, "terminal")
+              const acts = key === undefined ? [] : reviewActs(groups, reviewAt, reviewPicked, key)
+              if (acts.length > 0) act({ type: "review-acts", acts })
+              setUi({ ...latest(), review: { ...latest().review, selected: [] } })
+            }}
+          />
+        </box>
+      ) : null}
     </box>
   )
 

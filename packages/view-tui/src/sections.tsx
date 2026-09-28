@@ -1,7 +1,7 @@
 import type { ScrollBoxRenderable } from "@opentui/core"
 import { type ReactNode, useEffect, useRef } from "react"
 import { useTerminalDimensions } from "@opentui/react"
-import { CHAT, type ConversationQuestion, conversationRows, leafOf, OTHER, ordered, rowsOf, THEME, toneColor, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
+import { CHAT, type ConversationQuestion, conversationRows, keyFor, leafOf, OTHER, ordered, rowsOf, THEME, toneColor, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
 import { fit, gauge, heading } from "./look"
 
 /** The terminal's colour for a plugin's tone (the theme's, via `toneColor`). */
@@ -182,6 +182,33 @@ const wantedOf = (view: ViewState, ui: ViewUi, s: LayoutSection): number => {
   // Its content and its heading line.
   return Math.max(1, content) + 1
 }
+type ButtonSpec = { readonly id: string; readonly label: string; readonly key?: string; readonly keys?: Readonly<Record<string, string>> }
+/** A selection's actions as buttons: the first filled with the accent (with the count), the rest quiet; each shows its key and runs on a click. */
+export const Buttons = (p: { readonly actions: ReadonlyArray<ButtonSpec>; readonly count: number; readonly onPress: (id: string) => void }) => (
+  <box style={{ flexDirection: "row", height: 1, flexShrink: 0 }}>
+    {p.actions.map((a, i) => {
+      const fill = i === 0 ? THEME.accent : THEME.line
+      const key = keyFor(a, "terminal")
+      return (
+        <text key={a.id} wrapMode="none" onMouseDown={() => p.onPress(a.id)} style={{ marginRight: 2 }}>
+          <span fg={fill}>▐</span>
+          <span fg={i === 0 ? THEME.bg : THEME.text} bg={fill}>{i === 0 ? ` ${a.label} · ${p.count} ` : ` ${a.label} `}</span>
+          {key !== undefined ? <span fg={i === 0 ? THEME.raised : THEME.dim} bg={fill}>{` ${key} `}</span> : null}
+          <span fg={fill}>▌</span>
+        </text>
+      )
+    })}
+  </box>
+)
+/** A selectable table's buttons: its `selection` actions, once rows it still shows are selected. */
+const buttonsOf = (view: ViewState, ui: ViewUi, leaf: { readonly path: string; readonly leaf: LayoutLeaf }) => {
+  if (leaf.leaf.kind !== "table" || leaf.leaf.selectable !== true) return undefined
+  const all = rowsOf(view, leaf.path)
+  const rows = (ui.selected[leaf.path] ?? []).filter((id) => all.some((r) => r.id === id))
+  const actions = (leaf.leaf.actions ?? []).filter((a) => a.on === "selection")
+  return rows.length > 0 && actions.length > 0 ? { rows, actions } : undefined
+}
+
 /** The largest share of the view each role may take; the log takes what is left. */
 const SHARE = { primary: "33%", pinned: "40%", aside: "25%" } as const
 
@@ -189,7 +216,7 @@ const SHARE = { primary: "33%", pinned: "40%", aside: "25%" } as const
 export type Scroller = (delta: number) => void
 
 /** An agent's view in the terminal: its sections stacked by role, each a heading over its own scrollbox. */
-export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly width?: number; readonly scroller?: { current?: Scroller | undefined }; readonly onPick?: (sectionId: string, index: number) => void }) => {
+export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly width?: number; readonly scroller?: { current?: Scroller | undefined }; readonly onPick?: (sectionId: string, index: number) => void; readonly onAct?: (section: string, action: string, rows: ReadonlyArray<string>) => void }) => {
   const dims = useTerminalDimensions()
   const width = Math.max(10, (props.width ?? dims.width) - 2)
   const all = ordered(props.view.layout)
@@ -219,6 +246,9 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
             </box>
           )
         const tabs = tabsOf(props.view, props.ui, s)
+        const buttons = props.onAct === undefined ? undefined : buttonsOf(props.view, props.ui, leaf)
+        // The buttons and the blank line above them.
+        const extra = buttons === undefined ? 0 : 2
         return (
           <box
             key={s.id}
@@ -228,8 +258,8 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
               minHeight: 2,
               flexShrink: 1,
               ...(s.role === "log" || s.role === "pinned"
-                ? { flexGrow: 1, flexBasis: 0, maxHeight: wantedOf(props.view, props.ui, s) }
-                : { height: wantedOf(props.view, props.ui, s), maxHeight: s.role === "summary" ? 6 : SHARE[s.role as keyof typeof SHARE] }),
+                ? { flexGrow: 1, flexBasis: 0, maxHeight: wantedOf(props.view, props.ui, s) + extra }
+                : { height: wantedOf(props.view, props.ui, s) + extra, maxHeight: s.role === "summary" ? 6 : SHARE[s.role as keyof typeof SHARE] }),
             }}
           >
             <box style={{ height: 1, flexShrink: 0 }}>
@@ -243,6 +273,11 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
             >
               <Draw view={props.view} ui={props.ui} path={leaf.path} leaf={leaf.leaf} focused={focused} width={width} {...(props.onPick !== undefined ? { onPick: (i: number) => props.onPick!(s.id, i) } : {})} />
             </scrollbox>
+            {buttons !== undefined ? (
+              <box style={{ flexShrink: 0, marginTop: 1, paddingLeft: 1 }}>
+                <Buttons actions={buttons.actions} count={buttons.rows.length} onPress={(id) => props.onAct!(leaf.path, id, buttons.rows)} />
+              </box>
+            ) : null}
           </box>
         )
       })}

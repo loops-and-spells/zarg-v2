@@ -869,3 +869,56 @@ describe("the inset sheet", () => {
     expect(hex(bgAt(lip + 2, 27))).toBe(THEME.raised)
   })
 })
+
+describe("action buttons", () => {
+  const acts = [{ id: "apply", label: "Send to zarg", key: "a", on: "selection" as const }, { id: "dismiss", label: "Dismiss", key: "d", on: "selection" as const }]
+  const tester = { id: "rehearse:tester-1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
+  const withFindings = (review: boolean): SessionState => ({
+    thread: {
+      ...initial("main"),
+      status: "running",
+      rlms: { "rehearse:tester-1": tester },
+      views: {
+        "rehearse:tester-1": {
+          agent: "rehearse:tester-1",
+          layout: { name: "tester", sections: [{ id: "findings", kind: "table" as const, role: "pinned" as const, title: "Findings", columns: [{ id: "id", label: "id" }], selectable: true, actions: acts, ...(review ? { review: true } : {}) }] },
+          data: { findings: { rows: [{ id: "R-1", cells: { id: "R-1" } }, { id: "R-2", cells: { id: "R-2" } }] } },
+        },
+      },
+    },
+    core: "up",
+  })
+  // The frame above the status line (which lists the keys, labels and all).
+  const body = (t: Awaited<ReturnType<typeof render>>) => t.captureCharFrame().split("\n").slice(0, -2).join("\n")
+  const clickOn = async (t: Awaited<ReturnType<typeof render>>, text: string) => {
+    const lines = body(t).split("\n")
+    const y = lines.findIndex((l) => l.includes(text))
+    expect(y).toBeGreaterThanOrEqual(0)
+    await t.mockMouse.click(lines[y]!.indexOf(text) + 1, y)
+    await settle(t)
+  }
+  test("in an agent's view: selected rows show the table's selection actions as buttons under the list; a click sends them", async () => {
+    const t = await render(withFindings(false), { width: 130, height: 32 })
+    t.mockInput.pressKey("a", { meta: true }); await settle(t); t.mockInput.pressEnter(); await settle(t)
+    expect(body(t)).not.toContain("Send to zarg")
+    await clickOn(t, "○ R-2")
+    const lines = t.captureCharFrame().split("\n")
+    const button = lines.findIndex((l) => l.includes("Send to zarg"))
+    expect(button).toBeGreaterThan(lines.findIndex((l) => l.includes("● R-2")))
+    expect(lines[button]).toContain("Dismiss")
+    await clickOn(t, "Send to zarg")
+    expect(t.calls).toContain("act rehearse:tester-1 apply R-2")
+    // Sent: the selection clears and the buttons go.
+    expect(body(t)).not.toContain("Send to zarg")
+  })
+  test("in the review queue: the same buttons under the queue; a click acts on the selected rows' agent", async () => {
+    const t = await render(withFindings(true), { width: 130, height: 32 })
+    t.mockInput.pressKey("k", { ctrl: true }); await settle(t)
+    await t.mockInput.typeText("review"); t.mockInput.pressEnter(); await settle(t)
+    expect(body(t)).not.toContain("Send to zarg")
+    t.mockInput.pressKey(" "); await settle(t)
+    await clickOn(t, "Dismiss")
+    expect(t.calls).toContain("act rehearse:tester-1 dismiss R-1")
+    expect(body(t)).not.toContain("Dismiss")
+  })
+})
