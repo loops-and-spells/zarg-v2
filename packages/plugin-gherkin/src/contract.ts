@@ -14,6 +14,9 @@ export const StepView = Schema.NullOr(
     via: Schema.optionalKey(Schema.Struct({ card: Schema.String, when: Schema.String })),
     fork: Schema.Array(Schema.Struct({ card: Schema.String, when: Schema.String })),
     hasFailure: Schema.Boolean,
+    // Optional for plugins built against an older contract.
+    journeys: Schema.optionalKey(Schema.Array(Schema.String)),
+    by: Schema.optionalKey(Schema.Array(Schema.String)),
   }),
 )
 

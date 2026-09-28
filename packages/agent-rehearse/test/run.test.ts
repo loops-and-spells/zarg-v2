@@ -19,7 +19,7 @@ const setup = (o: Opts = {}) =>
     const pushes: Array<{ agent: string; path: string; data?: unknown; lines?: unknown; view?: string }> = []
     const attention: Array<[string, string | undefined]> = []
     let ids = 0
-    const view = (card: string): StepView => ({ card, title: card, given: `before ${card}`, when: o.cardText?.(card) ?? `do ${card}`, thens: [`after ${card}`], fork: [], hasFailure: false })
+    const view = (card: string): StepView => ({ card, title: `card ${card}`, given: `before ${card}`, when: o.cardText?.(card) ?? `do ${card}`, thens: [`after ${card}`], fork: [], hasFailure: false, journeys: ["Checkout"], by: ["Operator"] })
     const deps: RunDeps = {
       personas: () => Effect.succeed(o.personas ?? [{ name: "Operator", text: "The operator, through the zarg TUI.", cards: ["A", "B", "C", "D"] }]),
       stories: () => Effect.succeed({ stories: [["A", "B", "C"], ["A", "B", "D"]], unreachable: o.unreachable ?? 0 }),
@@ -112,6 +112,21 @@ describe("rehearse runs in the plugin", () => {
     expect(t.r.agenda()).toEqual([])
     expect(t.changed()).toBe(0)
     expect(t.events.filter((e) => e.id === "run" && e.event === "status").at(-1)?.text).toBe("1 finding to review")
+  })
+
+  test("each finding: card, journey, kind and severity in the list, everything in its search text, and in full in the detail beside it", async () => {
+    const t = await finish()
+    const [row] = rowsNow(t.pushes, "run", "review.findings") as ReadonlyArray<{ id: string; cells: Record<string, string>; search?: string }>
+    expect(row!.cells).toEqual({ card: "B", journey: "Checkout", kind: "friction", severity: "medium" })
+    expect(row!.search).toContain("B is unclear")
+    expect(row!.search).toContain("Operator")
+    const detail = t.pushes.filter((p) => p.agent === "run" && p.path === "detail").at(-1)?.data as { rows: Record<string, string> }
+    const md = detail.rows[row!.id]!
+    expect(md).toContain("card B")
+    expect(md).toContain("by Operator")
+    expect(md).toContain("in Checkout")
+    expect(md).toContain("B is unclear")
+    expect(md).toContain("```gherkin\nGiven before B\nWhen  do B\nThen  after B\n```")
   })
 
   test("the tables list the findings; apply sends only the chosen ones to the agenda and says so to the host", async () => {
@@ -261,8 +276,11 @@ describe("rehearse runs in the plugin", () => {
     const id = t.r.record(t.run)!.findings[0]!.id
     expect(t.pushes.find((p) => p.agent === "run" && p.path === "report")?.data).toEqual({ markdown: "Testers stalled at B." })
     expect(await Effect.runPromise(t.r.act("apply", "review.findings", [id]))).toEqual({ notice: "sent 1 finding to zarg" })
-    const last = t.pushes.filter((p) => p.agent === "run" && p.path === "review.findings").at(-1)!.data as { rows: ReadonlyArray<{ cells: Record<string, string> }> }
-    expect(last.rows[0]!.cells.note).toStartWith("✓ ")
+    // Sent: its row turns green in the list, and the detail says so.
+    const last = t.pushes.filter((p) => p.agent === "run" && p.path === "review.findings").at(-1)!.data as { rows: ReadonlyArray<{ id: string; tone?: string }> }
+    expect(last.rows[0]!.tone).toBe("ok")
+    const detail = t.pushes.filter((p) => p.agent === "run" && p.path === "detail").at(-1)!.data as { rows: Record<string, string> }
+    expect(detail.rows[last.rows[0]!.id]).toContain("✓ sent to zarg")
   })
 
   test("while a run goes, actions are refused and the last run's tables do not replace the live ones", async () => {

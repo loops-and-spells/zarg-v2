@@ -1,12 +1,11 @@
 import { defineView } from "@zarg/plugin-sdk"
 
+// The list keeps what you scan by; the detail beside it has the rest (the note, the card, who and where).
 export const FINDING_COLUMNS = [
-  { id: "id", label: "id", filter: "none" },
-  { id: "kind", label: "kind", filter: "values" },
   { id: "card", label: "card", filter: "none" },
+  { id: "journey", label: "journey", filter: "values" },
+  { id: "kind", label: "kind", filter: "values" },
   { id: "severity", label: "severity", order: ["high", "medium", "low"], filter: "values" },
-  { id: "suggested", label: "suggested", filter: { range: [0, 1], step: 0.05 } },
-  { id: "note", label: "note", filter: "search" },
 ] as const
 const ACTIONS = [
   { id: "apply", label: "Send to zarg", key: "a", on: "selection" },
@@ -16,8 +15,8 @@ const review = {
   kind: "tabs",
   role: "pinned",
   tabs: {
-    findings: { kind: "table", title: "Findings", columns: FINDING_COLUMNS, selectable: true, actions: ACTIONS },
-    likes: { kind: "table", title: "Likes", columns: FINDING_COLUMNS, selectable: true, actions: ACTIONS },
+    findings: { kind: "table", title: "Findings", columns: FINDING_COLUMNS, selectable: true, actions: ACTIONS, search: true },
+    likes: { kind: "table", title: "Likes", columns: FINDING_COLUMNS, selectable: true, actions: ACTIONS, search: true },
   },
 } as const
 // The run's findings (every tester's, consolidated) join the review queue; a tester's own are the same ones, so they stay out.
@@ -29,6 +28,8 @@ export const TesterView = defineView("tester", {
   workers: { kind: "list", role: "primary", title: "Workers" },
   steps: { kind: "log", role: "log", title: "Steps" },
   review,
+  // The highlighted finding in full, beside the list.
+  detail: { kind: "text", role: "pinned", title: "", follows: "review", beside: "review" },
 })
 
 /** The whole run: progress over every tester, its testers, the report, every finding (sent to zarg from here). */
@@ -37,6 +38,7 @@ export const RunView = defineView("run", {
   testers: { kind: "list", role: "primary", title: "Testers" },
   report: { kind: "text", role: "aside", title: "Report" },
   review: runReview,
+  detail: { kind: "text", role: "pinned", title: "", follows: "review", beside: "review" },
 })
 
 /** The run in one line, in a status panel whatever is open. */

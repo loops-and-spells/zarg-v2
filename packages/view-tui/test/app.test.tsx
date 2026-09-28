@@ -1315,3 +1315,75 @@ describe("nav items above the agents", () => {
     expect(t.captureCharFrame()).toContain("Checkout")
   })
 })
+
+describe("table search and a detail beside its list", () => {
+  const tester = { id: "rehearse:tester-1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
+  const rows = [
+    { id: "F1", cells: { card: "UX-0035", kind: "transition" }, search: "The prior step promised local-first ordering" },
+    { id: "F2", cells: { card: "UX-0062", kind: "friction" }, search: "The grant question names scope and target" },
+    { id: "F3", cells: { card: "UX-0062", kind: "gap" }, search: "No failure path when the operator denies the grant" },
+  ]
+  const state: SessionState = {
+    thread: {
+      ...initial("main"),
+      status: "running",
+      rlms: { "rehearse:tester-1": tester },
+      views: {
+        "rehearse:tester-1": {
+          agent: "rehearse:tester-1",
+          layout: {
+            name: "tester",
+            sections: [
+              { id: "findings", kind: "table" as const, role: "pinned" as const, title: "Findings", search: true, selectable: true, columns: [{ id: "card", label: "card" }, { id: "kind", label: "kind" }], actions: [{ id: "apply", label: "Send to zarg", key: "a", on: "selection" as const }] },
+              { id: "detail", kind: "text" as const, role: "pinned" as const, title: "", follows: "findings", beside: "findings" },
+            ],
+          },
+          data: { findings: { rows }, detail: { markdown: "", rows: { F1: "local-first ordering detail", F2: "grant question detail", F3: "failure path detail" } } },
+        },
+      },
+    },
+    core: "up",
+  }
+  const open = async () => {
+    const t = await render(state, { width: 130, height: 32 })
+    t.mockInput.pressKey("a", { meta: true }); await settle(t); t.mockInput.pressEnter(); await settle(t)
+    return t
+  }
+  const lines = (t: Awaited<ReturnType<typeof render>>) => t.captureCharFrame().split("\n")
+  test("the detail sits beside its list: the list on the left, the highlighted row's detail on the right, from the list's top", async () => {
+    const t = await open()
+    const ls = lines(t)
+    const top = ls.findIndex((l) => l.includes("Findings ─"))
+    expect(ls[top]).toContain("local-first ordering detail")
+    expect(ls[top]!.indexOf("local-first")).toBeGreaterThan(ls[top]!.indexOf("Findings"))
+    // Moving the highlight changes the detail beside it.
+    t.mockInput.pressArrow("down"); await settle(t)
+    expect(lines(t)[top]).toContain("grant question detail")
+  })
+  test("f types into the search: the list narrows, best first, with a count; the typing reaches no shell key; Esc brings every row back", async () => {
+    const t = await open()
+    expect(t.captureCharFrame()).toContain("⌕ search")
+    t.mockInput.pressKey("f"); await settle(t)
+    await t.mockInput.typeText("grant g/"); await settle(t)
+    t.mockInput.pressBackspace(); t.mockInput.pressBackspace(); t.mockInput.pressBackspace(); await settle(t)
+    const frame = t.captureCharFrame()
+    expect(frame).toContain("⌕ grant▎")
+    expect(frame).toContain("2 of 3")
+    expect(frame).not.toContain("UX-0035")
+    t.mockInput.pressEscape(); await settle(t)
+    expect(t.captureCharFrame()).toContain("UX-0035")
+    expect(t.captureCharFrame()).not.toContain("2 of 3")
+  })
+  test("Enter leaves the field with the search kept; a click on the field types into it again", async () => {
+    const t = await open()
+    t.mockInput.pressKey("f"); await settle(t)
+    await t.mockInput.typeText("prior"); await settle(t)
+    t.mockInput.pressEnter(); await settle(t)
+    expect(t.captureCharFrame()).toContain("1 of 3")
+    expect(t.captureCharFrame()).not.toContain("⌕ prior▎")
+    const ls = lines(t)
+    const y = ls.findIndex((l) => l.includes("⌕ prior"))
+    await t.mockMouse.click(ls[y]!.indexOf("⌕") + 2, y); await settle(t)
+    expect(t.captureCharFrame()).toContain("⌕ prior▎")
+  })
+})

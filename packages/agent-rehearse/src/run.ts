@@ -71,6 +71,24 @@ export interface RunDeps {
   readonly settings: RehearseSettings
 }
 
+/** A finding as its row: what the list shows, and every word a search should find. */
+const findingRow = (x: { readonly id: string; readonly card: string; readonly kind: string; readonly severity: string; readonly note: string; readonly personas: ReadonlyArray<string> }, step: StepView | undefined) => ({
+  id: x.id,
+  cells: { card: x.card, journey: step?.journeys !== undefined && step.journeys.length > 0 ? step.journeys.join(", ") : "—", kind: x.kind, severity: x.severity },
+  search: [x.id, x.card, step?.title ?? "", ...(step?.journeys ?? []), ...x.personas, x.kind, x.severity, x.note].join(" "),
+})
+/** A finding in full, for the detail beside the list: its card and title, who and where, the note, the card as specified. */
+const findingDetail = (x: { readonly id: string; readonly card: string; readonly kind: string; readonly severity: string; readonly note: string; readonly personas: ReadonlyArray<string> }, step: StepView | undefined) =>
+  [
+    `**${step?.title ?? x.card}**  `,
+    `\`${x.card}\`${x.id !== "" ? ` · ${x.id}` : ""}  `,
+    `by ${x.personas.join(", ") || "—"} · in ${(step?.journeys ?? []).join(", ") || "no journey"}  `,
+    `${x.kind} · ${x.severity}`,
+    "",
+    x.note,
+    ...(step !== undefined ? ["", "```gherkin", `Given ${step.given}`, `When  ${step.when}`, ...step.thens.map((t, i) => `${i === 0 ? "Then" : "And "}  ${t}`), "```"] : []),
+  ].join("\n")
+
 const DIR = ".zarg/rehearse"
 const INDEX = `${DIR}/index.json`
 const DISMISSED = `${DIR}/dismissed.json`
@@ -175,7 +193,7 @@ export const makeRehearse = (deps: RunDeps) =>
                   deps.views.set(id, TesterView, "workers", { items: [...walking.entries()].map(([n, w]) => ({ id: `s${n}`, text: `story ${n}  ${w.path}`, detail: w.detail, state: w.state })) }),
                 ),
               )
-              const found: Array<{ readonly id: string; readonly cells: Record<string, string> }> = []
+              const found: Array<{ readonly id: string; readonly cells: Record<string, string>; readonly search: string; readonly detail: string }> = []
               yield* Effect.forEach(
                 // Only stories this persona acts in; each keeps its number in the run.
                 rec.stories.map((story, si) => ({ story, n: si + 1 })).filter(({ story }) => story.some((c) => ownCard(persona, c))),
@@ -245,9 +263,15 @@ export const makeRehearse = (deps: RunDeps) =>
                         yield* quiet(deps.views.append(id, TesterView, "steps", [{ text: `${step.card}: ${said}`, ...(screened !== undefined && screened.flags.length > 0 ? { tone: "warn" as const } : {}) }]))
                         // This tester's findings, as it diagnoses them (the consolidated ones replace them when the run is done).
                         if (d !== undefined && !("infra" in d) && d.findings.length > 0) {
-                          for (const f of d.findings) found.push({ id: `${key}#${found.length}`, cells: { id: "", kind: f.kind, card: f.card, severity: f.severity, suggested: "", note: f.note } })
-                          yield* quiet(deps.views.set(id, TesterView, "review.findings", { rows: found.filter((r) => r.cells.kind !== "delight") }))
-                          yield* quiet(deps.views.set(id, TesterView, "review.likes", { rows: found.filter((r) => r.cells.kind === "delight") }))
+                          for (const f of d.findings) {
+                            const x = { id: `${key}#${found.length}`, card: f.card, kind: f.kind, severity: f.severity, note: f.note, personas: [persona.name] }
+                            const at = f.card === step.card ? step : yield* viewOf(f.card)
+                            found.push({ ...findingRow(x, at), detail: findingDetail({ ...x, id: "" }, at) })
+                          }
+                          const strip = (r: (typeof found)[number]) => ({ id: r.id, cells: r.cells, search: r.search })
+                          yield* quiet(deps.views.set(id, TesterView, "review.findings", { rows: found.filter((r) => r.cells.kind !== "delight").map(strip) }))
+                          yield* quiet(deps.views.set(id, TesterView, "review.likes", { rows: found.filter((r) => r.cells.kind === "delight").map(strip) }))
+                          yield* quiet(deps.views.set(id, TesterView, "detail", { markdown: "", rows: Object.fromEntries(found.map((r) => [r.id, r.detail])) }))
                         }
                         yield* progress(key, screened?.flags.length ?? 0)
                         yield* Deferred.succeed(done, undefined)
@@ -375,29 +399,38 @@ export const makeRehearse = (deps: RunDeps) =>
           priority: 1,
         }))
 
-    const rowOf = (r: RunRecord, f: Triaged) => ({
-      id: f.id,
-      cells: { id: f.id, kind: f.kind, card: f.card, severity: f.severity, suggested: `${f.route} ${f.real.toFixed(2)}`, note: `${chosen(r, f) ? "✓ " : ""}${f.notes.join(" / ")}` },
-    })
+    /** A consolidated finding in the list (✓ once sent to zarg) and in full beside it. */
+    const shape = (r: RunRecord, f: Triaged) => ({ id: f.id, card: f.card, kind: f.kind, severity: f.severity, note: `${chosen(r, f) ? "✓ sent to zarg · " : ""}${f.notes.join(" / ")}`, personas: f.personas })
+    const rowOf = (r: RunRecord, f: Triaged, step: StepView | undefined) => ({ ...findingRow(shape(r, f), step), ...(chosen(r, f) ? { tone: "ok" as const } : {}) })
     /** The review tables of the newest finished run: every finding on the run, each tester's own on it. */
     const refresh = Effect.suspend(() => {
       const r = latest()
       // A run going owns the agents' tables (its raw findings); the last run's would replace them.
       if (r === undefined || going() !== undefined) return Effect.void
       const shown = r.findings.filter((f) => !isDismissed(f) && !r.resolved.includes(f.id))
-      const tables = (fs: ReadonlyArray<Triaged>) => ({ findings: { rows: fs.filter((f) => f.kind !== "delight").map((f) => rowOf(r, f)) }, likes: { rows: fs.filter((f) => f.kind === "delight").map((f) => rowOf(r, f)) } })
+      // Each card as gherkin serves it now (its title, journeys and Given / When / Then), once.
+      const views = new Map<string, StepView | undefined>()
+      const load = Effect.forEach([...new Set(shown.map((f) => f.card))], (c) => Effect.map(deps.step(c).pipe(Effect.orElseSucceed(() => null)), (v) => void views.set(c, v ?? undefined)), { discard: true })
+      const tables = (fs: ReadonlyArray<Triaged>) => ({
+        findings: { rows: fs.filter((f) => f.kind !== "delight").map((f) => rowOf(r, f, views.get(f.card))) },
+        likes: { rows: fs.filter((f) => f.kind === "delight").map((f) => rowOf(r, f, views.get(f.card))) },
+        detail: { markdown: "", rows: Object.fromEntries(fs.map((f) => [f.id, findingDetail(shape(r, f), views.get(f.card))])) },
+      })
       const agents = [{ id: "run", view: RunView as typeof TesterView | typeof RunView, fs: shown }, ...r.personas.map((p, i) => ({ id: `tester-${i + 1}`, view: TesterView as typeof TesterView | typeof RunView, fs: shown.filter((f) => f.personas.includes(p.name)) }))]
       // Findings the operator has not acted on yet (applied, dismissed or resolved).
       const toReview = (fs: ReadonlyArray<Triaged>) => fs.filter((f) => !r.applying.includes(f.id)).length
-      return Effect.forEach(
-        agents,
-        (a) => {
-          const t = tables(a.fs)
-          const n = toReview(a.fs)
-          const ask = a.id === "run" ? Effect.void : quiet(n > 0 ? deps.attention.request(a.id, `${plural(n, "finding")} to review`) : deps.attention.clear(a.id))
-          return Effect.andThen(Effect.andThen(quiet(deps.views.set(a.id, a.view, "review.findings", t.findings)), quiet(deps.views.set(a.id, a.view, "review.likes", t.likes))), ask)
-        },
-        { discard: true },
+      return Effect.andThen(
+        load,
+        Effect.forEach(
+          agents,
+          (a) => {
+            const t = tables(a.fs)
+            const n = toReview(a.fs)
+            const ask = a.id === "run" ? Effect.void : quiet(n > 0 ? deps.attention.request(a.id, `${plural(n, "finding")} to review`) : deps.attention.clear(a.id))
+            return Effect.andThen(Effect.andThen(Effect.andThen(quiet(deps.views.set(a.id, a.view, "review.findings", t.findings)), quiet(deps.views.set(a.id, a.view, "review.likes", t.likes))), quiet(deps.views.set(a.id, a.view, "detail", t.detail))), ask)
+          },
+          { discard: true },
+        ),
       )
     })
     /** An action on selected rows: apply (to the driver) or dismiss. */

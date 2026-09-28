@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { actionFor, applyMenu, closeMenu, defineView, focusNext, initialViewUi, layoutOf, menuEntries, menuMove, moveColumn, moveRow, nextTab, cursorRow, filterOf, followedText, pickTab, menuAdjust, menuQuery, openMenu, ordered, pickHeader, pickMark, pickRow, shownRows, startUi, toggleSelect, type ViewState, type ViewUi } from "../src"
+import { actionFor, applyMenu, closeMenu, defineView, focusNext, initialViewUi, layoutOf, menuEntries, menuMove, moveColumn, moveRow, nextTab, cursorRow, filterOf, followedText, searchCount, setSearch, pickTab, menuAdjust, menuQuery, openMenu, ordered, pickHeader, pickMark, pickRow, shownRows, startUi, toggleSelect, type ViewState, type ViewUi } from "../src"
 
 const layout = layoutOf(
   defineView("tester", {
@@ -284,4 +284,38 @@ test("a text that follows a table shows the text for the table's highlighted row
   expect(followedText(t, ui, "flow")).toBe("flow one")
   expect(followedText(t, moveRow(t, ui, 1), "flow")).toBe("flow two")
   expect(followedText({ ...t, data: { ...t.data, flow: { markdown: "none picked" } } }, ui, "flow")).toBe("none picked")
+})
+
+describe("table search", () => {
+  const t: ViewState = {
+    agent: "t",
+    layout: layoutOf(defineView("t", { list: { kind: "table", role: "primary", search: true, selectable: true, columns: [{ id: "card", label: "card" }, { id: "kind", label: "kind" }] } })),
+    data: {
+      list: {
+        rows: [
+          { id: "F1", cells: { card: "UX-0035", kind: "transition" }, search: "The prior step promised local-first ordering" },
+          { id: "F2", cells: { card: "UX-0062", kind: "friction" }, search: "The grant question names scope and target" },
+          { id: "F3", cells: { card: "UX-0062", kind: "gap" }, search: "No failure path when the operator denies the grant" },
+        ],
+      },
+    },
+  }
+  const ids = (ui: ViewUi) => shownRows(t, ui, "list").map((r) => r.id)
+  test("a query keeps the rows it matches (cells and hidden search text), best first; a blank one shows them all", () => {
+    let ui = setSearch(t, startUi(t), "list", "grant")
+    expect(ids(ui).sort()).toEqual(["F2", "F3"])
+    ui = setSearch(t, ui, "list", "friction")
+    expect(ids(ui)).toEqual(["F2"])
+    ui = setSearch(t, ui, "list", "  ")
+    expect(ids(ui)).toEqual(["F1", "F2", "F3"])
+    expect(searchCount(t, setSearch(t, startUi(t), "list", "grant"), "list")).toEqual({ shown: 2, all: 3 })
+  })
+  test("a new query puts the cursor on the best match; ticks survive a search", () => {
+    let ui = moveRow(t, startUi(t), 2)
+    ui = toggleSelect(t, ui)
+    ui = setSearch(t, ui, "list", "prior")
+    expect(ui.rows.list).toBe(0)
+    expect(ui.selected.list).toEqual(["F3"])
+    expect(actionFor({ ...t, layout: layoutOf(defineView("t", { list: { kind: "table", role: "primary", search: true, selectable: true, columns: [{ id: "card", label: "card" }], actions: [{ id: "a", label: "A", key: "a", on: "row" }] } })) }, ui, "a")?.rows).toEqual(["F1"])
+  })
 })

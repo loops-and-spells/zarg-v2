@@ -390,6 +390,12 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
               const v = props.session.state().thread.views?.[viewing]
               if (v !== undefined) setUi({ ...latest(), focus: "tile", view: pickHeader(v, latest().view ?? startUi(v), section, col) })
             }}
+            onSearch={(section, path) => {
+              const v = props.session.state().thread.views?.[viewing]
+              if (v === undefined) return
+              const vu = pickTab(v, latest().view ?? startUi(v), section, latest().view?.tabs[section] ?? 0)
+              setUi({ ...latest(), focus: "tile", view: { ...vu, searching: path } })
+            }}
             onTab={(section, i) => {
               const v = props.session.state().thread.views?.[viewing]
               if (v !== undefined) setUi({ ...latest(), focus: "tile", view: pickTab(v, latest().view ?? startUi(v), section, i) })

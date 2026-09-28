@@ -62,7 +62,8 @@ const highlighted = (ctx: RenderContext, lang: string, source: string, options: 
     ...(i > 0 ? [fg(plain)("\n")] : []),
     ...line.map((s) => fg((s.token !== undefined ? options.highlight[s.token] : undefined) ?? plain)(s.text)),
   ])
-  return new TextRenderable(ctx, { content: new StyledText(chunks), wrapMode: "none" })
+  // Wrapped by word: a narrow pane (a detail beside a list) must not cut the code off.
+  return new TextRenderable(ctx, { content: new StyledText(chunks), wrapMode: "word" })
 }
 
 /** An OpenTUI Markdown code-block hook. Recreate it when the available column width changes. */

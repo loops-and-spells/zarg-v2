@@ -64,8 +64,18 @@ describe("stories", () => {
       via: { card: "A", when: "the visitor opens the cart" },
       fork: [{ card: "D", when: "the visitor pays" }],
       hasFailure: true,
+      journeys: [],
+      by: [],
     })
     expect(stepView(graph, "D")?.hasFailure).toBe(false)
+    // Its journeys and personas, by name (none here).
+    expect(stepView(graph, "B")).toMatchObject({ journeys: [], by: [] })
+    const tagged = Snapshot.make([
+      ...graph.nodes.values(),
+      { id: "J-0001", type: "gherkin/journey", props: { name: "Checkout" }, edges: [] },
+      { id: "P-0001", type: "gherkin/persona", props: { name: "Visitor", kind: "human", text: "x" }, edges: [] },
+    ].map((n) => (n.id === "B" ? { ...n, edges: [...n.edges, { type: "gherkin/in", to: "J-0001" }, { type: "gherkin/by", to: "P-0001" }] } : n)) as never)
+    expect(stepView(tagged, "B")).toMatchObject({ journeys: ["Checkout"], by: ["Visitor"] })
     expect(stepView(graph, "nope")).toBeUndefined()
   })
 })

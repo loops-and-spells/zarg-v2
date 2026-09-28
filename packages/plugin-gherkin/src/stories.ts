@@ -1,6 +1,6 @@
 // packages/plugin-gherkin/src/stories.ts
 import { Snapshot } from "@zarg/graph/pure"
-import { ARRIVES, cards, text, THEN } from "./model"
+import { ARRIVES, BY, cards, IN, journeyName, personaName, text, THEN } from "./model"
 
 export interface StepView {
   readonly card: string
@@ -11,6 +11,9 @@ export interface StepView {
   readonly via?: { readonly card: string; readonly when: string }
   readonly fork: ReadonlyArray<{ readonly card: string; readonly when: string }>
   readonly hasFailure: boolean
+  /** The journeys the card is in, and the personas who act in it, by name. */
+  readonly journeys: ReadonlyArray<string>
+  readonly by: ReadonlyArray<string>
 }
 
 const arrivesOf = (snap: Snapshot.Snapshot, card: string) => snap.nodes.get(card)?.edges.find((e) => e.type === ARRIVES)?.to
@@ -103,5 +106,7 @@ export const stepView = (snap: Snapshot.Snapshot, card: string, via?: string): S
     fork: nextOf(snap, card).map((c) => ({ card: c, when: whenOf(c) })),
     // Another card leaves the same state: an alternative outcome (a failure case or a choice) exists.
     hasFailure: Snapshot.inbound(snap, from, ARRIVES).length > 1,
+    journeys: Snapshot.out(snap, card, IN).flatMap((e) => { const n = snap.nodes.get(e.to); return n === undefined ? [] : [journeyName(n)] }),
+    by: Snapshot.out(snap, card, BY).flatMap((e) => { const n = snap.nodes.get(e.to); return n === undefined ? [] : [personaName(n)] }),
   }
 }

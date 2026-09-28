@@ -1,7 +1,7 @@
 import type { BoxRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { useTerminalDimensions } from "@opentui/react"
-import { CHAT, type ConversationQuestion, conversationRows, cursorRow, filterOf, followedText, keyFor, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, THEME, toneColor, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
+import { CHAT, type ConversationQuestion, conversationRows, cursorRow, filterOf, followedText, keyFor, searchCount, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, THEME, toneColor, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
 import { fit, gauge, heading } from "./look"
 import { RichText } from "./markdown"
 
@@ -10,7 +10,7 @@ const fg = (t: unknown) => toneColor(t)
 const pad = (s: string, n: number) => (s.length > n ? `${s.slice(0, Math.max(0, n - 1))}…` : s.padEnd(n))
 const STATE_MARK = { busy: "⠼", waiting: "◌", done: "✓", flagged: "⚑" } as const
 
-interface LeafProps { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly leaf: LayoutLeaf; readonly focused: boolean; readonly width: number; readonly onHeight?: (height: number) => void; readonly onPick?: (index: number) => void; readonly onMark?: (index: number) => void; readonly onHeader?: (col: number) => void }
+interface LeafProps { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly leaf: LayoutLeaf; readonly focused: boolean; readonly width: number; readonly onHeight?: (height: number) => void; readonly onPick?: (index: number) => void; readonly onMark?: (index: number) => void; readonly onHeader?: (col: number) => void; readonly onSearch?: () => void }
 type Leaf = (p: LeafProps) => ReactNode
 
 /** A section's heading: its title (or its tabs, the current one marked), then a faint rule. */
@@ -111,7 +111,23 @@ const tableLayout = (view: ViewState, path: string, leaf: LayoutLeaf, width: num
   const starts = widths.map((_, i) => gutter + widths.slice(0, i).reduce((a, w) => a + w + 2, 0))
   return { cols, rows, gutter, widths, starts }
 }
-const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onHeader }) => {
+/** A searchable table's field: idle, or its query (with the cursor while typing) and how many rows it keeps. */
+const SearchField = (p: { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly width: number; readonly onSearch?: () => void }) => {
+  const q = p.ui.search?.[p.path]
+  const typing = p.ui.searching === p.path
+  const n = searchCount(p.view, p.ui, p.path)
+  const right = q !== undefined ? `${n.shown} of ${n.all}${typing ? "   esc" : ""}` : "f"
+  const left = q !== undefined || typing ? `${q ?? ""}${typing ? "▎" : ""}` : "search"
+  return (
+    <text wrapMode="none" onMouseDown={() => p.onSearch?.()} bg={typing ? THEME.selection : THEME.raised}>
+      <span fg={typing ? THEME.accent : THEME.dim}>{" ⌕ "}</span>
+      <span fg={q !== undefined || typing ? THEME.text : THEME.faint}>{fit(left, Math.max(1, p.width - 6 - right.length))}</span>
+      <span>{" ".repeat(Math.max(1, p.width - 4 - fit(left, Math.max(1, p.width - 6 - right.length)).length - right.length))}</span>
+      <span fg={THEME.dim}>{right}</span>
+    </text>
+  )
+}
+const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onHeader, onSearch }) => {
   const { cols, gutter, widths } = tableLayout(view, path, leaf, width)
   const rows = shownRows(view, ui, path) as ReadonlyArray<TableRow>
   const selectable = leaf.selectable === true
@@ -120,9 +136,17 @@ const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onH
   const sel = ui.selected[path] ?? []
   const sort = ui.sort?.[path]
   const onHead = focused && ui.header?.path === path ? ui.header.col : undefined
-  if (rows.length === 0) return <text fg={THEME.dim}> nothing yet</text>
+  const field = leaf.search === true ? <SearchField view={view} ui={ui} path={path} width={width} {...(onSearch !== undefined ? { onSearch } : {})} /> : null
+  if (rows.length === 0)
+    return (
+      <>
+        {field}
+        <text fg={THEME.dim}>{ui.search?.[path] !== undefined ? " nothing matches" : " nothing yet"}</text>
+      </>
+    )
   return (
     <>
+      {field}
       {/* The header: each column's label, its sort mark, the header cursor; a click opens its menu. */}
       <box style={{ flexDirection: "row", height: 1 }}>
         <text wrapMode="none">{" ".repeat(gutter)}</text>
@@ -223,7 +247,7 @@ const wantedOf = (view: ViewState, ui: ViewUi, s: LayoutSection, width: number, 
     : k === "text" ? ((view.data[leaf.path] as { markdown?: string } | undefined)?.markdown ?? "").split("\n").reduce((a, l) => a + Math.max(1, Math.ceil(l.length / Math.max(1, width))), 0)
     : k === "keyvalue" ? ((view.data[leaf.path] as { pairs?: ReadonlyArray<unknown> } | undefined)?.pairs ?? []).length
     : k === "log" ? ((view.data[leaf.path] as { lines?: ReadonlyArray<unknown> } | undefined)?.lines ?? []).length
-    : rowsOf(view, leaf.path).length + (k === "table" ? 1 : 0)
+    : rowsOf(view, leaf.path).length + (k === "table" ? 1 + (leaf.leaf.search === true ? 1 : 0) : 0)
   // Its content and its heading (tabs take a second line, their underline).
   return Math.max(1, content) + headRowsOfSection(s)
 }
@@ -386,7 +410,7 @@ const SHARE = { primary: "33%", pinned: "40%", aside: "25%" } as const
 export type Scroller = (delta: number) => void
 
 /** An agent's view in the terminal: its sections stacked by role, each a heading over its own scrollbox. */
-export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly width?: number; readonly scroller?: { current?: Scroller | undefined }; readonly onPick?: (sectionId: string, index: number) => void; readonly onAct?: (section: string, action: string, rows: ReadonlyArray<string>) => void; readonly onClear?: (section: string) => void; readonly onHeader?: (sectionId: string, col: number) => void; readonly onMenuPick?: (index: number) => void; readonly onMark?: (sectionId: string, index: number) => void; readonly onMenuAdjust?: (index: number, dir: number) => void; readonly onTab?: (sectionId: string, index: number) => void }) => {
+export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly width?: number; readonly scroller?: { current?: Scroller | undefined }; readonly onPick?: (sectionId: string, index: number) => void; readonly onAct?: (section: string, action: string, rows: ReadonlyArray<string>) => void; readonly onClear?: (section: string) => void; readonly onHeader?: (sectionId: string, col: number) => void; readonly onMenuPick?: (index: number) => void; readonly onMark?: (sectionId: string, index: number) => void; readonly onMenuAdjust?: (index: number, dir: number) => void; readonly onTab?: (sectionId: string, index: number) => void; readonly onSearch?: (sectionId: string, path: string) => void }) => {
   const dims = useTerminalDimensions()
   const width = Math.max(10, (props.width ?? dims.width) - 2)
   const all = ordered(props.view.layout)
@@ -417,9 +441,8 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
   const followed = cursor0 !== undefined && props.view.layout.sections.some((x) => x.kind !== "tabs" && x.follows !== undefined && leafOf(props.view, props.ui, x.follows)?.path === cursor0.path)
   const card = followed ? undefined : cursor0
   let seen = 0
-  return (
-    <box ref={root} style={{ flexDirection: "column", flexGrow: 1, overflow: "hidden" }}>
-      {all.map((s, i) => {
+  /** One section at a width: its heading, its content, its menu, buttons and row card; `style` replaces its own box style (a side of a pair). */
+  const drawSection = (s: LayoutSection, i: number, width: number, style?: Record<string, unknown>) => {
         const leaf = leafOf(props.view, props.ui, s.id)
         if (leaf === undefined) return null
         const Draw = renderers[leaf.leaf.kind]
@@ -446,7 +469,7 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
             // A column menu drops over the sections below: its section draws above them while it is open.
             {...(props.ui.menu?.path === leaf.path ? { zIndex: 5 } : {})}
             // Sections fit their content, capped by role, and shrink to their heading when the window is short.
-            style={{
+            style={style ?? {
               flexDirection: "column",
               minHeight: headRows + 1,
               flexShrink: 1,
@@ -476,6 +499,7 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
                 {...(props.onPick !== undefined ? { onPick: (i: number) => props.onPick!(s.id, i) } : {})}
                 {...(props.onHeader !== undefined ? { onHeader: (c: number) => props.onHeader!(s.id, c) } : {})}
                 {...(props.onMark !== undefined ? { onMark: (k: number) => props.onMark!(s.id, k) } : {})}
+                {...(props.onSearch !== undefined ? { onSearch: () => props.onSearch!(s.id, leaf.path) } : {})}
               />
             </scrollbox>
             {props.ui.menu?.path === leaf.path && leaf.leaf.kind === "table" ? (
@@ -505,6 +529,26 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
               </box>
             ) : null}
             {cardRows > 0 ? <RowCard card={card!} view={props.view} width={width} height={cardRows} /> : null}
+          </box>
+        )
+  }
+  return (
+    <box ref={root} style={{ flexDirection: "column", flexGrow: 1, overflow: "hidden" }}>
+      {all.map((s, i) => {
+        // A section drawn beside another is drawn with it.
+        const beside = s.kind !== "tabs" ? s.beside : undefined
+        if (beside !== undefined && all.some((x) => x.id === beside)) return null
+        const partner = all.findIndex((x) => x.kind !== "tabs" && x.beside === s.id)
+        if (partner < 0) return drawSection(s, i, width)
+        // A list and its detail side by side: the list takes 55% (46 to 64 columns: its columns and its buttons), the detail the rest.
+        const left = Math.max(46, Math.min(Math.floor(width * 0.55), 64))
+        const right = Math.max(10, width - left - 3)
+        const leaf = leafOf(props.view, props.ui, s.id)
+        const after = seen++ > 0
+        return (
+          <box key={`${s.id}+${all[partner]!.id}`} style={{ flexDirection: "row", flexGrow: 1, flexBasis: 0, flexShrink: 1, minHeight: 3, ...(after ? { marginTop: 1 } : {}), ...(leaf !== undefined ? { maxHeight: Math.max(wantedOf(props.view, props.ui, s, width, heights[leaf.path]) + 4, wantedOf(props.view, props.ui, all[partner]!, right, heights[leafOf(props.view, props.ui, all[partner]!.id)?.path ?? ""]) + 1) } : {}) }}>
+            {drawSection(s, i, left, { flexDirection: "column", width: left, flexShrink: 0 })}
+            {drawSection(all[partner]!, partner, right, { flexDirection: "column", flexGrow: 1, border: ["left"], borderColor: THEME.line, paddingLeft: 1 })}
           </box>
         )
       })}

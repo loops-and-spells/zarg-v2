@@ -10,6 +10,9 @@ export interface StepView {
   readonly via?: { readonly card: string; readonly when: string }
   readonly fork: ReadonlyArray<{ readonly card: string; readonly when: string }>
   readonly hasFailure: boolean
+  /** The card's journeys and personas, by name (absent from an older gherkin). */
+  readonly journeys?: ReadonlyArray<string>
+  readonly by?: ReadonlyArray<string>
 }
 export interface Persona { readonly name: string; readonly text: string; readonly cards?: ReadonlyArray<string> }
 export type Reason = "feel" | "fail" | "fork" | "seam"

@@ -16,6 +16,10 @@ export interface ViewUi {
   readonly header?: { readonly path: string; readonly col: number }
   /** A column's open menu and its highlighted entry. */
   readonly menu?: { readonly path: string; readonly col: number; readonly pick: number; readonly query?: string; readonly range?: readonly [number, number] }
+  /** Each searchable table's query. */
+  readonly search?: Readonly<Record<string, string>>
+  /** The table whose search field has the keys (typing goes there). */
+  readonly searching?: string
 }
 export const initialViewUi: ViewUi = { focus: 0, tabs: {}, rows: {}, selected: {} }
 
@@ -84,6 +88,12 @@ export const filterOf = (view: ViewState, path: string, colIndex: number): Filte
 /** A table's rows in the order they show: by match to its search, by its sort, else the plugin's. */
 export const shownRows = (view: ViewState, ui: ViewUi, path: string): ReadonlyArray<{ readonly id: string }> => {
   const rows = cellsAt(view, path)
+  // A search keeps the rows it matches, best first (whatever the sort).
+  const q = ui.search?.[path]
+  if (q !== undefined && q.trim() !== "") {
+    const score = rank(rows.map((r) => [...Object.values(r.cells ?? {}), (r as { search?: string }).search ?? ""].join(" ")), q)
+    return rows.map((r, i) => ({ r, s: score[i] ?? 0 })).filter((x) => x.s > 0).sort((a, b) => b.s - a.s).map((x) => x.r)
+  }
   const by = ui.sort?.[path]
   const col = by === undefined ? undefined : columnsAt(view, path).find((c) => c.id === by.col)
   if (by === undefined || col === undefined) return rows
@@ -327,3 +337,11 @@ export const followedText = (view: ViewState, ui: ViewUi, path: string): string 
   const row = table === undefined ? undefined : shownRows(view, ui, table.path)[ui.rows[table.path] ?? 0]
   return (row !== undefined ? d?.rows?.[row.id] : undefined) ?? d?.markdown ?? ""
 }
+
+/** A table's search: the query (a blank one ends it); the cursor goes to the best match. */
+export const setSearch = (_view: ViewState, ui: ViewUi, path: string, query: string): ViewUi => {
+  const { [path]: _, ...others } = ui.search ?? {}
+  return { ...ui, search: query.trim() === "" ? others : { ...others, [path]: query }, rows: { ...ui.rows, [path]: 0 } }
+}
+/** How many rows a search shows, of all. */
+export const searchCount = (view: ViewState, ui: ViewUi, path: string) => ({ shown: shownRows(view, ui, path).length, all: rowsOf(view, path).length })

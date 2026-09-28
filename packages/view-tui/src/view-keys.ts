@@ -1,4 +1,4 @@
-import { actionFor, afterAction, applyMenu, closeMenu, menuAdjust, menuEntries, menuMove, menuQuery, printable, moveColumn, openMenu, type ConversationQuestion, conversationKey, focused, focusNext, leafOf, moveRow, nextTab, toggleSelect, type ViewState, type ViewUi } from "@zarg/view"
+import { actionFor, afterAction, applyMenu, closeMenu, menuAdjust, menuEntries, menuMove, menuQuery, printable, setSearch, moveColumn, openMenu, type ConversationQuestion, conversationKey, focused, focusNext, leafOf, moveRow, nextTab, toggleSelect, type ViewState, type ViewUi } from "@zarg/view"
 
 /** A key in an open agent's view: focus, scroll a table's cursor, switch tabs, select, act. */
 export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: string; readonly shift?: boolean; readonly ctrl?: boolean; readonly meta?: boolean }): {
@@ -9,6 +9,21 @@ export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: stri
 } => {
   // Ctrl and Meta chords are the shell's, never an action's key.
   if (key.ctrl === true || key.meta === true) return { ui }
+  // A table's search field has the keys: typing edits the query; Enter or an arrow leaves it (the search stays); Esc clears it.
+  if (ui.searching !== undefined) {
+    const path = ui.searching
+    const q = ui.search?.[path] ?? ""
+    const { searching: _, ...off } = ui
+    if (key.name === "escape") return { ui: setSearch(view, off, path, "") }
+    if (key.name === "return" || key.name === "down" || key.name === "up") return { ui: off }
+    if (printable(key)) return { ui: setSearch(view, ui, path, key.name === "backspace" ? q.slice(0, -1) : `${q}${key.name === "space" ? " " : key.name}`) }
+    return { ui }
+  }
+  {
+    const here = focused(view, ui)
+    const t = here === undefined ? undefined : leafOf(view, ui, here.id)
+    if (key.name === "f" && t !== undefined && t.leaf.kind === "table" && t.leaf.search === true && ui.menu === undefined) return { ui: { ...ui, searching: t.path } }
+  }
   // A column's menu: ↑↓ move, Enter or Space apply, Esc closes it.
   if (ui.menu !== undefined) {
     if (key.name === "up" || key.name === "down") return { ui: menuMove(view, ui, key.name === "up" ? -1 : 1) }
