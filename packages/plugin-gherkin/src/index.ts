@@ -5,7 +5,7 @@ import { affectedCards } from "./affected"
 import { agenda, suggest } from "./agenda"
 import { Gherkin, StepParams, StepView, StoriesParams, StoriesResult } from "./contract"
 import type { Finding } from "./kit"
-import { clauseShape, stateText } from "./lints"
+import { clauseShape, personaShape, stateText } from "./lints"
 import { CARD, CardProps, PERSONA, PersonaProps, STATE, StateProps } from "./model"
 import { render } from "./render"
 import { planStories, stepView } from "./stories"
@@ -77,7 +77,7 @@ export default definePlugin({
       lint: ({ before, after }: { before: { nodes: ReadonlyArray<unknown> }; after: { nodes: ReadonlyArray<unknown> } }) =>
         Effect.sync(() => {
           const ctx = { before: snapshotOf(before), after: snapshotOf(after), diff: diff(snapshotOf(before), snapshotOf(after)) }
-          return { findings: [clauseShape, stateText].flatMap((l) => l(ctx)) }
+          return { findings: [clauseShape, stateText, personaShape].flatMap((l) => l(ctx)) }
         }),
       agenda: () => Effect.map(snap, agenda),
       suggest: () => Effect.map(snap, suggest),

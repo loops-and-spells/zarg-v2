@@ -72,3 +72,26 @@ describe("personas", () => {
     )
   })
 })
+
+/** A refusal's words: the tool's message, or every lint finding's. */
+const said = (e: { readonly _tag: string; readonly message?: string; readonly findings?: ReadonlyArray<{ readonly message: string }> }) =>
+  e._tag === "LintFailed" ? (e.findings ?? []).map((f) => f.message).join("\n") : String(e.message ?? e)
+describe("persona lints", () => {
+  test("a name over 4 words, a text over 60 words: refused", async () => {
+    await run(
+      Effect.gen(function* () {
+        expect(said(yield* Effect.flip(call("add-persona", { name: "the one who pays the bills", kind: "human", text: "x" })))).toContain("at most 4 words")
+        expect(said(yield* Effect.flip(call("add-persona", { name: "Payer", kind: "human", text: "word ".repeat(61) })))).toContain("at most 60 words")
+      }),
+    )
+  })
+  test("a persona renamed to another's name is refused", async () => {
+    await run(
+      Effect.gen(function* () {
+        yield* call("add-persona", { name: "Operator", kind: "human", text: "x" })
+        yield* call("add-persona", { name: "Driver Agent", kind: "agent", text: "y" })
+        expect(said(yield* Effect.flip(call("edit-persona", { id: "P-0002", name: "OPERATOR" })))).toContain("P-0001")
+      }),
+    )
+  })
+})

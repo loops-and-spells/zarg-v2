@@ -1,6 +1,6 @@
 import type { Node } from "@zarg/graph/pure"
 import type { Finding, Lint } from "./kit"
-import { CARD, normalize, similarity, STATE, states, text } from "./model"
+import { CARD, normalize, PERSONA, personaName, personas, similarity, STATE, states, text } from "./model"
 
 const MAX_WORDS = 15
 
@@ -49,3 +49,20 @@ export const stateText: Lint = (ctx) =>
           return []
         }),
     )
+const words = (s: string) => s.trim().split(/\s+/).filter((w) => w !== "").length
+
+/** A persona: a short unique name (its cards' title prefix), a roleplay text a tester can hold. */
+export const personaShape: Lint = (ctx) =>
+  touched(ctx)
+    .filter((n) => n.type === PERSONA)
+    .flatMap((n): ReadonlyArray<Finding> => {
+      const out: Array<Finding> = []
+      const name = personaName(n)
+      if (words(name) > 4) out.push({ severity: "error", code: "persona-name-long", message: `${n.id}: "${name}" has ${words(name)} words; a persona name has at most 4 words`, about: [n.id] })
+      const text = String(n.props.text ?? "")
+      if (words(text) > 60) out.push({ severity: "error", code: "persona-text-long", message: `${n.id}: its text has ${words(text)} words; keep it to at most 60 words`, about: [n.id] })
+      for (const o of personas(ctx.after)) {
+        if (o.id !== n.id && normalize(personaName(o)) === normalize(name)) out.push({ severity: "error", code: "duplicate-persona", message: `${n.id} has the name of ${o.id} ("${personaName(o)}"); use ${o.id}`, about: [n.id, o.id] })
+      }
+      return out
+    })
