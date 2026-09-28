@@ -84,8 +84,8 @@ describe("the terminal draws an agent's view", () => {
   test("a selectable table: ○ on each row, ● on selected ones, ▍ on the cursor", async () => {
     const ui = { ...initialViewUi, focus: 3, rows: { "review.findings": 1 }, selected: { "review.findings": ["R-0"] } }
     const lines = (await frame(view(3), ui)).split("\n")
-    expect(lines.find((l) => l.includes("R-0"))).toMatch(/● R-0/)
-    expect(lines.find((l) => l.includes("R-1"))).toMatch(/▍○ R-1/)
+    expect(lines.findLast((l) => l.includes("R-0"))).toMatch(/● R-0/)
+    expect(lines.findLast((l) => l.includes("R-1"))).toMatch(/▍○ R-1/)
     expect(lines.find((l) => l.includes("R-2"))).toMatch(/ ○ R-2/)
   })
 

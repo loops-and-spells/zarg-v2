@@ -1,7 +1,7 @@
-import type { ScrollBoxRenderable } from "@opentui/core"
+import type { BoxRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { type ReactNode, useEffect, useRef } from "react"
 import { useTerminalDimensions } from "@opentui/react"
-import { CHAT, type ConversationQuestion, conversationRows, keyFor, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, THEME, toneColor, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
+import { CHAT, type ConversationQuestion, conversationRows, cursorRow, filterOf, keyFor, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, THEME, toneColor, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
 import { fit, gauge, heading } from "./look"
 
 /** The terminal's colour for a plugin's tone (the theme's, via `toneColor`). */
@@ -9,7 +9,7 @@ const fg = (t: unknown) => toneColor(t)
 const pad = (s: string, n: number) => (s.length > n ? `${s.slice(0, Math.max(0, n - 1))}…` : s.padEnd(n))
 const STATE_MARK = { busy: "⠼", waiting: "◌", done: "✓", flagged: "⚑" } as const
 
-interface LeafProps { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly leaf: LayoutLeaf; readonly focused: boolean; readonly width: number; readonly onPick?: (index: number) => void; readonly onHeader?: (col: number) => void }
+interface LeafProps { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly leaf: LayoutLeaf; readonly focused: boolean; readonly width: number; readonly onPick?: (index: number) => void; readonly onMark?: (index: number) => void; readonly onHeader?: (col: number) => void }
 type Leaf = (p: LeafProps) => ReactNode
 
 /** A section's heading: its title (or its tabs, the current one marked), then a faint rule. */
@@ -98,7 +98,7 @@ const tableLayout = (view: ViewState, path: string, leaf: LayoutLeaf, width: num
   const starts = widths.map((_, i) => gutter + widths.slice(0, i).reduce((a, w) => a + w + 2, 0))
   return { cols, rows, gutter, widths, starts }
 }
-const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onHeader }) => {
+const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onHeader }) => {
   const { cols, gutter, widths } = tableLayout(view, path, leaf, width)
   const rows = shownRows(view, ui, path) as ReadonlyArray<TableRow>
   const selectable = leaf.selectable === true
@@ -114,7 +114,7 @@ const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onHeader })
       <box style={{ flexDirection: "row", height: 1 }}>
         <text wrapMode="none">{" ".repeat(gutter)}</text>
         {cols.map((c, ci) => {
-          const mark = sort?.col === c.id ? (sort.dir === 1 ? " ▲" : " ▼") : ""
+          const mark = sort?.col === c.id ? (sort.query !== undefined ? " ⌕" : sort.dir === 1 ? " ▲" : " ▼") : ""
           const here = onHead === ci
           return [
             <text key={c.id} wrapMode="none" onMouseDown={() => onHeader?.(ci)} {...(here ? { bg: THEME.accent } : {})} fg={here ? THEME.bg : mark !== "" ? THEME.accent : THEME.dim}>
@@ -128,10 +128,15 @@ const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onHeader })
         const on = focused && i === cursor
         const picked = sel.includes(r.id)
         return (
-          <text key={r.id} id={`row-${path}-${i}`} onMouseDown={() => onPick?.(i)} wrapMode="none" {...(on ? { bg: THEME.selection } : {})}>
-            <Gutter cursor={on} selectable={selectable} selected={picked} />
-            <span fg={picked || on ? THEME.text : fg(r.tone)}>{cells((c) => r.cells[c.id] ?? "")}</span>
-          </text>
+          // A click on the row moves the cursor there; a click on its mark ticks it.
+          <box key={r.id} id={`row-${path}-${i}`} style={{ flexDirection: "row", height: 1, ...(on ? { backgroundColor: THEME.selection } : {}) }}>
+            <text wrapMode="none" onMouseDown={() => (selectable ? onMark : onPick)?.(i)}>
+              <Gutter cursor={on} selectable={selectable} selected={picked} />
+            </text>
+            <text wrapMode="none" onMouseDown={() => onPick?.(i)} fg={picked || on ? THEME.text : fg(r.tone)}>
+              {cells((c) => r.cells[c.id] ?? "")}
+            </text>
+          </box>
         )
       })}
     </>
@@ -237,8 +242,36 @@ const buttonsOf = (view: ViewState, ui: ViewUi, leaf: { readonly path: string; r
   return rows.length > 0 && actions.length > 0 ? { rows, actions } : undefined
 }
 
-/** A column's menu under (or over) its header: the two sorts, a rule, then each value with how many of its rows are ticked. */
-const ColumnMenu = (p: { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly leaf: LayoutLeaf; readonly width: number; readonly up: boolean; readonly onPick?: (index: number) => void }) => {
+/** The row under a table's cursor, in full: its mark and first column, the short columns on one dim line, then each column its cell cuts, wrapped under its label. */
+const RowCard = (p: { readonly card: NonNullable<ReturnType<typeof cursorRow>>; readonly view: ViewState; readonly width: number; readonly height: number }) => {
+  const { cols, widths } = tableLayout(p.view, p.card.path, p.card.leaf, p.width)
+  const text = (i: number) => (p.card.row.cells?.[cols[i]!.id] ?? "").replace(/\s*\n\s*/g, " ")
+  const long = cols.flatMap((c, i) => (i > 0 && text(i).length > widths[i]! ? [{ label: c.label, value: p.card.row.cells?.[c.id] ?? "" }] : []))
+  const short = cols.flatMap((c, i) => (i > 0 && text(i) !== "" && text(i).length <= widths[i]! ? [`${c.label} ${text(i)}`] : []))
+  const wanted = 1 + long.reduce((a, l) => a + 1 + Math.ceil(l.value.length / Math.max(1, p.width - 4)), 0)
+  return (
+    <scrollbox focusable={false} style={{ flexShrink: 0, height: Math.min(p.height, wanted), marginBottom: 1 }}>
+      <text wrapMode="none">
+        {p.card.leaf.selectable === true ? <span fg={p.card.selected ? THEME.accent : THEME.dim}>{p.card.selected ? "● " : "○ "}</span> : null}
+        <span fg={fg(p.card.row.tone)}>
+          <b>{cols.length > 0 ? text(0) : p.card.row.id}</b>
+        </span>
+        <span fg={THEME.dim}>{fit(`  ${short.join(" · ")}`, Math.max(0, p.width - 4 - (cols.length > 0 ? text(0) : p.card.row.id).length))}</span>
+      </text>
+      {long.map((l) => (
+        <box key={l.label} style={{ flexDirection: "column", flexShrink: 0 }}>
+          <text fg={THEME.dim}>{l.label}</text>
+          <text fg={THEME.text} style={{ paddingLeft: 2 }}>{l.value}</text>
+        </box>
+      ))}
+    </scrollbox>
+  )
+}
+
+/** The most entries a column menu shows before it scrolls. */
+const MENU_ROWS = 8
+/** A column's menu, dropped down under its header: its entries (at most `room`, scrolled to the highlighted one; ▴▾ when more), each a click away. */
+const ColumnMenu = (p: { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly leaf: LayoutLeaf; readonly width: number; readonly room: number; readonly onPick?: (index: number) => void; readonly onAdjust?: (index: number, dir: number) => void }) => {
   const m = p.ui.menu!
   const { cols, starts } = tableLayout(p.view, p.path, p.leaf, p.width)
   const col = cols[m.col]
@@ -246,32 +279,63 @@ const ColumnMenu = (p: { readonly view: ViewState; readonly ui: ViewUi; readonly
   const entries = menuEntries(p.view, p.ui)
   const first = col.order?.[0]
   const last = col.order?.at(-1)
-  const lines = entries.map((e) =>
-    e.kind === "sort"
-      ? { mark: e.active ? "✓ " : "  ", text: e.dir === 1 ? `▲ ${first !== undefined ? `${first} first` : "ascending"}` : `▼ ${last !== undefined ? `${last} first` : "descending"}`, count: "" }
-      : { mark: e.selected === 0 ? "○ " : e.selected === e.total ? "● " : "◐ ", text: e.value === "" ? "(empty)" : e.value, count: `${e.selected}/${e.total}` },
-  )
-  const inner = Math.min(p.width - 4, Math.max(col.label.length + 2, ...lines.map((l) => l.mark.length + l.text.length + l.count.length + 3)))
-  const height = entries.length + 3
+  // Bounds in one width, so ◂ and ▸ stay put as they change.
+  const f = filterOf(p.view, p.path, m.col)
+  const whole = typeof f === "object" && [f.range[0], f.range[1], f.step ?? 1].every(Number.isInteger)
+  const num = (n: number) => (whole ? String(n) : n.toFixed(2)).padStart(typeof f === "object" ? Math.max(...f.range.map((b) => (whole ? String(b) : b.toFixed(2)).length)) : 0)
+  const lines = entries.map((e) => {
+    switch (e.kind) {
+      case "sort":
+        return { mark: e.active ? "✓ " : "  ", text: e.dir === 1 ? `▲ ${first !== undefined ? `${first} first` : "ascending"}` : `▼ ${last !== undefined ? `${last} first` : "descending"}`, count: "" }
+      case "value":
+        return { mark: e.selected === 0 ? "○ " : e.selected === e.total ? "● " : "◐ ", text: e.value === "" ? "(empty)" : e.value, count: `${e.selected}/${e.total}` }
+      case "from":
+      case "to":
+        return { mark: "  ", text: `${e.kind === "from" ? "from" : "to  "}  ◂ ${num(e.value)} ▸`, count: "" }
+      case "tick-range":
+      case "tick-matches":
+        return { mark: e.count > 0 && e.selected === e.count ? "● " : e.selected > 0 ? "◐ " : "○ ", text: e.kind === "tick-range" ? "tick those in range" : "tick the matches", count: `${e.selected}/${e.count}` }
+      case "query":
+        return { mark: "⌕ ", text: e.text === "" ? "type to search" : `${e.text}▎`, count: "", dim: e.text === "" }
+      case "match":
+        return { mark: e.active ? "✓ " : "  ", text: "sort by match", count: "" }
+    }
+  })
+  const inner = Math.min(p.width - 4, Math.max(col.label.length + 4, 18, ...lines.map((l) => l.mark.length + l.text.length + l.count.length + 3)))
+  const shown = Math.max(1, Math.min(entries.length, MENU_ROWS, p.room - 2))
+  const start = Math.max(0, Math.min(entries.length - shown, m.pick - Math.floor(shown / 2)))
   const left = Math.max(0, Math.min(p.width - inner - 4, starts[m.col]! - 2))
+  const more = { up: start > 0, down: start + shown < entries.length }
   return (
     <box
       zIndex={10}
-      style={{ position: "absolute", left, ...(p.up ? { top: 1 - height } : { top: 2 }), width: inner + 4, height, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: THEME.accent, backgroundColor: THEME.raised, paddingLeft: 1, paddingRight: 1 }}
-      title={` ${col.label} `}
+      style={{ position: "absolute", left, top: 2, width: inner + 4, height: shown + 2, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: THEME.accent, backgroundColor: THEME.raised, paddingLeft: 1, paddingRight: 1 }}
+      title={` ${col.label} ${more.up ? "▴" : ""}`}
+      {...(more.down ? { bottomTitle: " ▾ " } : {})}
     >
-      {lines.map((l, i) => {
+      {lines.slice(start, start + shown).map((l, k) => {
+        const i = start + k
         const on = i === m.pick
-        const text = fit(l.text, Math.max(1, inner - l.mark.length - l.count.length - 1))
-        return [
-          i === 2 ? <text key="rule" fg={THEME.faint} wrapMode="none">{"─".repeat(inner)}</text> : null,
+        const e = entries[i]!
+        const room = Math.max(1, inner - 1 - l.mark.length - l.count.length)
+        if (e.kind === "from" || e.kind === "to")
+          return (
+            <box key={i} style={{ flexDirection: "row", height: 1, ...(on ? { backgroundColor: THEME.selection } : {}) }}>
+              <text wrapMode="none" fg={THEME.accent}>{on ? "▍" : " "}</text>
+              <text wrapMode="none" fg={THEME.dim}>{`  ${e.kind === "from" ? "from" : "to  "}  `}</text>
+              <text wrapMode="none" fg={THEME.accent} onMouseDown={() => p.onAdjust?.(i, -1)}>{"◂"}</text>
+              <text wrapMode="none" fg={THEME.text}>{` ${num(e.value)} `}</text>
+              <text wrapMode="none" fg={THEME.accent} onMouseDown={() => p.onAdjust?.(i, 1)}>{"▸"}</text>
+            </box>
+          )
+        return (
           <text key={i} wrapMode="none" onMouseDown={() => p.onPick?.(i)} {...(on ? { bg: THEME.selection } : {})}>
             <span fg={THEME.accent}>{on ? "▍" : " "}</span>
-            <span fg={l.mark.trim() === "" || l.mark === "○ " ? THEME.dim : THEME.accent}>{l.mark}</span>
-            <span fg={on ? THEME.text : THEME.text}>{text.padEnd(inner - l.mark.length - l.count.length - 1)}</span>
+            <span fg={l.mark === "○ " || l.mark === "  " ? THEME.dim : THEME.accent}>{l.mark}</span>
+            <span fg={"dim" in l && l.dim === true ? THEME.dim : THEME.text}>{fit(l.text, room).padEnd(room)}</span>
             <span fg={THEME.dim}>{l.count}</span>
-          </text>,
-        ]
+          </text>
+        )
       })}
     </box>
   )
@@ -284,7 +348,7 @@ const SHARE = { primary: "33%", pinned: "40%", aside: "25%" } as const
 export type Scroller = (delta: number) => void
 
 /** An agent's view in the terminal: its sections stacked by role, each a heading over its own scrollbox. */
-export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly width?: number; readonly scroller?: { current?: Scroller | undefined }; readonly onPick?: (sectionId: string, index: number) => void; readonly onAct?: (section: string, action: string, rows: ReadonlyArray<string>) => void; readonly onClear?: (section: string) => void; readonly onHeader?: (sectionId: string, col: number) => void; readonly onMenuPick?: (index: number) => void }) => {
+export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly width?: number; readonly scroller?: { current?: Scroller | undefined }; readonly onPick?: (sectionId: string, index: number) => void; readonly onAct?: (section: string, action: string, rows: ReadonlyArray<string>) => void; readonly onClear?: (section: string) => void; readonly onHeader?: (sectionId: string, col: number) => void; readonly onMenuPick?: (index: number) => void; readonly onMark?: (sectionId: string, index: number) => void; readonly onMenuAdjust?: (index: number, dir: number) => void }) => {
   const dims = useTerminalDimensions()
   const width = Math.max(10, (props.width ?? dims.width) - 2)
   const all = ordered(props.view.layout)
@@ -300,13 +364,24 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
     const t = setTimeout(() => boxes.current.get(focusedSection.id)?.scrollChildIntoView(`row-${current.path}-${cursor}`), 0)
     return () => clearTimeout(t)
   }, [focusedSection?.id, current?.path, cursor])
+  // Where each section and the view sit, as last laid out: a column menu drops down only as far as the view goes.
+  const root = useRef<BoxRenderable | null>(null)
+  const sectionBoxes = useRef(new Map<string, BoxRenderable>())
+  const roomBelow = (id: string) => {
+    const box = sectionBoxes.current.get(id)
+    return root.current === null || box === undefined ? MENU_ROWS + 2 : root.current.y + root.current.height - (box.y + 2)
+  }
+  // The focused table's cursor row, in full, in place of the summary.
+  const card = cursorRow(props.view, props.ui)
   return (
-    <box style={{ flexDirection: "column", flexGrow: 1, overflow: "hidden" }}>
+    <box ref={root} style={{ flexDirection: "column", flexGrow: 1, overflow: "hidden" }}>
+      {card !== undefined ? <RowCard card={card} view={props.view} width={width} height={Math.max(3, Math.floor(props.height / 3))} /> : null}
       {all.map((s, i) => {
         const leaf = leafOf(props.view, props.ui, s.id)
         if (leaf === undefined) return null
         const Draw = renderers[leaf.leaf.kind]
         const focused = props.ui.focus === i
+        if (s.role === "summary" && s.kind === "stats" && card !== undefined) return null
         if (s.role === "summary" && s.kind === "stats")
           return (
             <box key={s.id} style={{ flexShrink: 0, height: 1, marginBottom: 1 }}>
@@ -320,6 +395,7 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
         return (
           <box
             key={s.id}
+            ref={(b: BoxRenderable | null) => void (b === null ? sectionBoxes.current.delete(s.id) : sectionBoxes.current.set(s.id, b))}
             // Sections fit their content, capped by role, and shrink to their heading when the window is short.
             style={{
               flexDirection: "column",
@@ -348,11 +424,20 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
                 width={width}
                 {...(props.onPick !== undefined ? { onPick: (i: number) => props.onPick!(s.id, i) } : {})}
                 {...(props.onHeader !== undefined ? { onHeader: (c: number) => props.onHeader!(s.id, c) } : {})}
+                {...(props.onMark !== undefined ? { onMark: (k: number) => props.onMark!(s.id, k) } : {})}
               />
             </scrollbox>
             {props.ui.menu?.path === leaf.path && leaf.leaf.kind === "table" ? (
-              // ponytail: sections in the view's lower half open their menu upward, a guess at where there is room; measure the section if it clips.
-              <ColumnMenu view={props.view} ui={props.ui} path={leaf.path} leaf={leaf.leaf} width={width} up={i >= all.length / 2} {...(props.onMenuPick !== undefined ? { onPick: props.onMenuPick } : {})} />
+              <ColumnMenu
+                view={props.view}
+                ui={props.ui}
+                path={leaf.path}
+                leaf={leaf.leaf}
+                width={width}
+                room={roomBelow(s.id)}
+                {...(props.onMenuPick !== undefined ? { onPick: props.onMenuPick } : {})}
+                {...(props.onMenuAdjust !== undefined ? { onAdjust: props.onMenuAdjust } : {})}
+              />
             ) : null}
             {buttons !== undefined ? (
               <box style={{ flexShrink: 0, marginTop: 1, paddingLeft: 1 }}>

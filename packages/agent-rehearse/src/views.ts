@@ -1,13 +1,13 @@
 import { defineView } from "@zarg/plugin-sdk"
 
 export const FINDING_COLUMNS = [
-  { id: "id", label: "id" },
-  { id: "kind", label: "kind" },
-  { id: "card", label: "card" },
-  { id: "severity", label: "severity", order: ["high", "medium", "low"] },
-  { id: "suggested", label: "suggested" },
-  { id: "note", label: "note" },
-]
+  { id: "id", label: "id", filter: "none" },
+  { id: "kind", label: "kind", filter: "values" },
+  { id: "card", label: "card", filter: "none" },
+  { id: "severity", label: "severity", order: ["high", "medium", "low"], filter: "values" },
+  { id: "suggested", label: "suggested", filter: { range: [0, 1], step: 0.05 } },
+  { id: "note", label: "note", filter: "search" },
+] as const
 const ACTIONS = [
   { id: "apply", label: "Send to zarg", key: "a", on: "selection" },
   { id: "dismiss", label: "Dismiss", key: "d", on: "selection" },

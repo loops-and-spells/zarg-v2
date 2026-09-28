@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { actionFor, applyMenu, closeMenu, defineView, focusNext, initialViewUi, layoutOf, menuEntries, menuMove, moveColumn, moveRow, nextTab, openMenu, ordered, pickHeader, pickRow, shownRows, startUi, toggleSelect, type ViewState, type ViewUi } from "../src"
+import { actionFor, applyMenu, closeMenu, defineView, focusNext, initialViewUi, layoutOf, menuEntries, menuMove, moveColumn, moveRow, nextTab, cursorRow, filterOf, menuAdjust, menuQuery, openMenu, ordered, pickHeader, pickMark, pickRow, shownRows, startUi, toggleSelect, type ViewState, type ViewUi } from "../src"
 
 const layout = layoutOf(
   defineView("tester", {
@@ -67,11 +67,15 @@ describe("view behaviour", () => {
   })
 
   test("picking a row (a click or a tap) focuses its section, moves the cursor there and toggles it", () => {
+    // A click on a row only moves the cursor there; a click on its mark ticks it.
     let ui = pickRow(view, initialViewUi, "review", 2)
     expect(ui.focus).toBe(2)
     expect(ui.rows["review.findings"]).toBe(2)
-    expect(ui.selected["review.findings"]).toEqual(["R-3"])
-    ui = pickRow(view, ui, "review", 2)
+    expect(ui.selected["review.findings"] ?? []).toEqual([])
+    ui = pickMark(view, ui, "review", 1)
+    expect(ui.rows["review.findings"]).toBe(1)
+    expect(ui.selected["review.findings"]).toEqual(["R-2"])
+    ui = pickMark(view, ui, "review", 1)
     expect(ui.selected["review.findings"]).toEqual([])
   })
 })
@@ -122,7 +126,7 @@ describe("column header menus", () => {
   })
   test("a sort from the menu orders the shown rows: a declared order, else numbers as numbers; again turns it off", () => {
     let ui = openMenu(t, startUi(t), "findings", 1)
-    expect(menuEntries(t, ui).map((e) => (e.kind === "sort" ? `sort${e.dir}` : `${e.value} ${e.selected}/${e.total}`))).toEqual(["sort1", "sort-1", "high 0/2", "medium 0/1", "low 0/1"])
+    expect(menuEntries(t, ui).map((e) => (e.kind === "sort" ? `sort${e.dir}` : e.kind === "value" ? `${e.value} ${e.selected}/${e.total}` : e.kind))).toEqual(["sort1", "sort-1", "high 0/2", "medium 0/1", "low 0/1"])
     ui = applyMenu(t, ui, 0)
     expect(ids(ui)).toEqual(["F2", "F10", "F3", "F1"])
     ui = applyMenu(t, ui, 1)
@@ -159,5 +163,69 @@ describe("column header menus", () => {
     ui = pickHeader(t, { ...startUi(t), focus: 0 }, "findings", 1)
     expect(ui.menu).toEqual({ path: "findings", col: 1, pick: 0 })
     expect(ui.header).toEqual({ path: "findings", col: 1 })
+  })
+})
+
+describe("column filters", () => {
+  const cols = [
+    { id: "id", label: "id", filter: "none" as const },
+    { id: "kind", label: "kind" },
+    { id: "score", label: "suggested", filter: { range: [0, 1] as const, step: 0.25 } },
+    { id: "note", label: "note", filter: "search" as const },
+    { id: "many", label: "many" },
+  ]
+  const rows = [
+    { id: "F1", cells: { id: "F1", kind: "gap", score: "fix 0.9", note: "the card was declined at checkout", many: "a" } },
+    { id: "F2", cells: { id: "F2", kind: "nit", score: "decide 0.3", note: "login copy unclear", many: "b" } },
+    { id: "F3", cells: { id: "F3", kind: "gap", score: "fix 0.6", note: "no receipt after checkout", many: "c" } },
+  ]
+  const t: ViewState = {
+    agent: "t",
+    layout: layoutOf(defineView("t", { findings: { kind: "table", role: "pinned", columns: cols, selectable: true } })),
+    data: { findings: { rows: [...rows, ...Array.from({ length: 9 }, (_, i) => ({ id: `X${i}`, cells: { id: `X${i}`, kind: "gap", score: "", note: "", many: `m${i}` } }))] } },
+  }
+  const kinds = (ui: ViewUi) => menuEntries(t, ui).map((e) => e.kind)
+  const open = (col: number) => openMenu(t, startUi(t), "findings", col)
+  test("each column's menu: sorts only, values, a range, a search; undeclared with over 10 values sorts only", () => {
+    expect(filterOf(t, "findings", 0)).toBe("none")
+    expect(kinds(open(0))).toEqual(["sort", "sort"])
+    expect(filterOf(t, "findings", 1)).toBe("values")
+    expect(kinds(open(1))).toEqual(["sort", "sort", "value", "value"])
+    expect(kinds(open(2))).toEqual(["sort", "sort", "from", "to", "tick-range"])
+    expect(kinds(open(3))).toEqual(["query", "sort", "sort", "match", "tick-matches"])
+    expect(filterOf(t, "findings", 4)).toBe("none")
+  })
+  test("a range: ←→ move its bounds by the step within the column's range (from never past to); tick ticks the rows whose last number is inside", () => {
+    let ui = menuMove(t, open(2), 2)
+    ui = menuAdjust(t, ui, 1)
+    ui = menuAdjust(t, ui, 1)
+    expect(menuEntries(t, ui)[2]).toEqual({ kind: "from", value: 0.5 })
+    ui = menuAdjust(t, menuMove(t, ui, 1), -1)
+    expect(menuEntries(t, ui)[3]).toEqual({ kind: "to", value: 0.75 })
+    expect(menuEntries(t, ui)[4]).toEqual({ kind: "tick-range", count: 1, selected: 0 })
+    ui = applyMenu(t, ui, 4)
+    expect(ui.selected.findings).toEqual(["F3"])
+    ui = applyMenu(t, ui, 4)
+    expect(ui.selected.findings).toEqual([])
+    ui = menuMove(t, ui, -2)
+    for (let i = 0; i < 10; i++) ui = menuAdjust(t, ui, -1)
+    expect(menuEntries(t, ui)[2]).toEqual({ kind: "from", value: 0 })
+  })
+  test("a search: the query sorts the rows by match as it is typed; tick ticks the matches; a blank query ends the match sort", () => {
+    let ui = menuQuery(t, open(3), "checkouts")
+    expect(menuEntries(t, ui)[0]).toEqual({ kind: "query", text: "checkouts" })
+    expect(shownRows(t, ui, "findings").slice(0, 2).map((r) => r.id).sort()).toEqual(["F1", "F3"])
+    expect(ui.sort?.findings?.query).toBe("checkouts")
+    expect(menuEntries(t, ui)[4]).toEqual({ kind: "tick-matches", count: 2, selected: 0 })
+    ui = applyMenu(t, ui, 4)
+    expect([...ui.selected.findings!].sort()).toEqual(["F1", "F3"])
+    ui = menuQuery(t, ui, "  ")
+    expect(ui.sort?.findings).toBeUndefined()
+    expect(shownRows(t, ui, "findings")[0]!.id).toBe("F1")
+  })
+  test("the row under the cursor, for a platform's row card: none on the header or off a table", () => {
+    const ui = startUi(t)
+    expect(cursorRow(t, ui)?.row.id).toBe("F1")
+    expect(cursorRow(t, moveRow(t, ui, -1))).toBeUndefined()
   })
 })

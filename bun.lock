@@ -52,6 +52,9 @@
         "@zarg/client": "workspace:*",
       },
     },
+    "packages/bm25": {
+      "name": "@zarg/bm25",
+    },
     "packages/cli": {
       "name": "@zarg/cli",
       "bin": {
@@ -212,6 +215,7 @@
     "packages/view": {
       "name": "@zarg/view",
       "dependencies": {
+        "@zarg/bm25": "workspace:*",
         "effect": "^4.0.0-rc.117",
       },
       "devDependencies": {
@@ -336,6 +340,8 @@
     "@zarg/agent-rehearse": ["@zarg/agent-rehearse@workspace:packages/agent-rehearse"],
 
     "@zarg/agent-zarg": ["@zarg/agent-zarg@workspace:packages/agent-zarg"],
+
+    "@zarg/bm25": ["@zarg/bm25@workspace:packages/bm25"],
 
     "@zarg/cli": ["@zarg/cli@workspace:packages/cli"],
 

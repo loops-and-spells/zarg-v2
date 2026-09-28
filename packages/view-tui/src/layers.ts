@@ -95,8 +95,10 @@ const nextAttention = (ui: Ui, s: SessionState) => {
 }
 
 /** g and / belong to every panel that is not a text input. */
+/** A column menu open in the view, the sheet or a panel: it owns the plain keys (its search takes the typing). */
+const menuOpen = (ui: Ui) => [ui.view, ui.sheetView, ui.panelView].some((v) => v?.menu !== undefined)
 const common = (ui: Ui, w: ShellWorld, k: InputKey) =>
-  k.ctrl === true || k.meta === true
+  k.ctrl === true || k.meta === true || menuOpen(ui)
     ? undefined
     : k.name === "g"
       ? nextAttention(ui, w.s)

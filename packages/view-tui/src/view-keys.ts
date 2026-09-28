@@ -1,4 +1,4 @@
-import { actionFor, afterAction, applyMenu, closeMenu, menuMove, moveColumn, openMenu, type ConversationQuestion, conversationKey, focused, focusNext, leafOf, moveRow, nextTab, toggleSelect, type ViewState, type ViewUi } from "@zarg/view"
+import { actionFor, afterAction, applyMenu, closeMenu, menuAdjust, menuEntries, menuMove, menuQuery, printable, moveColumn, openMenu, type ConversationQuestion, conversationKey, focused, focusNext, leafOf, moveRow, nextTab, toggleSelect, type ViewState, type ViewUi } from "@zarg/view"
 
 /** A key in an open agent's view: focus, scroll a table's cursor, switch tabs, select, act. */
 export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: string; readonly shift?: boolean; readonly ctrl?: boolean; readonly meta?: boolean }): {
@@ -12,8 +12,15 @@ export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: stri
   // A column's menu: ↑↓ move, Enter or Space apply, Esc closes it.
   if (ui.menu !== undefined) {
     if (key.name === "up" || key.name === "down") return { ui: menuMove(view, ui, key.name === "up" ? -1 : 1) }
-    if (key.name === "return" || key.name === "space") return { ui: applyMenu(view, ui) }
     if (key.name === "escape") return { ui: closeMenu(ui) }
+    if (key.name === "left" || key.name === "right") return { ui: menuAdjust(view, ui, key.name === "left" ? -1 : 1) }
+    // A search menu owns the typing (space too); Enter still applies the highlighted entry.
+    const search = menuEntries(view, ui)[0]?.kind === "query"
+    if (key.name === "return" || (key.name === "space" && !search)) return { ui: applyMenu(view, ui) }
+    if (search && printable(key)) {
+      const q = ui.menu.query ?? ""
+      return { ui: menuQuery(view, ui, key.name === "backspace" ? q.slice(0, -1) : `${q}${key.name === "space" ? " " : key.name}`) }
+    }
     return { ui }
   }
   // On a table's header: ←→ columns, Enter or Space opens the column's menu (↓ goes back to the rows, below).

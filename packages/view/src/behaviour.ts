@@ -1,3 +1,4 @@
+import { rank } from "@zarg/bm25"
 import { keyFor } from "./keys"
 import { leafAt } from "./layout"
 import type { LayoutLeaf, LayoutSection } from "./schema"
@@ -10,11 +11,11 @@ export interface ViewUi {
   readonly rows: Readonly<Record<string, number>>
   readonly selected: Readonly<Record<string, ReadonlyArray<string>>>
   /** Each table's sort: a column and its direction (1 ascending). */
-  readonly sort?: Readonly<Record<string, { readonly col: string; readonly dir: 1 | -1 }>>
+  readonly sort?: Readonly<Record<string, { readonly col: string; readonly dir: 1 | -1; readonly query?: string }>>
   /** The cursor on a table's header row, at a column. */
   readonly header?: { readonly path: string; readonly col: number }
   /** A column's open menu and its highlighted entry. */
-  readonly menu?: { readonly path: string; readonly col: number; readonly pick: number }
+  readonly menu?: { readonly path: string; readonly col: number; readonly pick: number; readonly query?: string; readonly range?: readonly [number, number] }
 }
 export const initialViewUi: ViewUi = { focus: 0, tabs: {}, rows: {}, selected: {} }
 
@@ -51,8 +52,11 @@ export const rowsOf = (view: ViewState, path: string): ReadonlyArray<{ readonly 
 }
 
 type Cells = { readonly id: string; readonly cells?: Readonly<Record<string, string>> }
-type Col = { readonly id: string; readonly label: string; readonly order?: ReadonlyArray<string> }
+type Filter = "values" | "none" | "search" | { readonly range: readonly [number, number]; readonly step?: number }
+type Col = { readonly id: string; readonly label: string; readonly order?: ReadonlyArray<string>; readonly filter?: Filter }
 const columnsAt = (view: ViewState, path: string): ReadonlyArray<Col> => leafAt(view.layout, path)?.columns ?? []
+const cellsAt = (view: ViewState, path: string) => rowsOf(view, path) as ReadonlyArray<Cells>
+const cell = (r: Cells, col: Col) => r.cells?.[col.id] ?? ""
 /** Two values of a column in ascending order: its declared order first (unknown values after), else text with numbers as numbers. */
 const compare = (col: Col) => (a: string, b: string) => {
   const rank = (v: string) => {
@@ -61,58 +65,144 @@ const compare = (col: Col) => (a: string, b: string) => {
   }
   return rank(a) - rank(b) || a.localeCompare(b, undefined, { numeric: true })
 }
-/** A table's rows in the order they show: its sort's, else the plugin's. */
+/** A cell's number: the last one in it ("fix 0.83" is 0.83). */
+const numberIn = (text: string): number | undefined => {
+  const m = text.match(/-?\d+(?:\.\d+)?/g)
+  return m === null ? undefined : Number(m.at(-1))
+}
+/** Each row's match for a query in a column (BM25; 0: none), in the plugin's row order. */
+const matches = (view: ViewState, path: string, col: Col, query: string) => rank(cellsAt(view, path).map((r) => cell(r, col)), query)
+
+/** What a column's menu offers: its declared filter, else ticking by value when it has 10 values or fewer, else sorting only. */
+export const filterOf = (view: ViewState, path: string, colIndex: number): Filter => {
+  const col = columnsAt(view, path)[colIndex]
+  if (col === undefined) return "none"
+  if (col.filter !== undefined) return col.filter
+  return new Set(cellsAt(view, path).map((r) => cell(r, col))).size <= 10 ? "values" : "none"
+}
+
+/** A table's rows in the order they show: by match to its search, by its sort, else the plugin's. */
 export const shownRows = (view: ViewState, ui: ViewUi, path: string): ReadonlyArray<{ readonly id: string }> => {
-  const rows = rowsOf(view, path) as ReadonlyArray<Cells>
+  const rows = cellsAt(view, path)
   const by = ui.sort?.[path]
   const col = by === undefined ? undefined : columnsAt(view, path).find((c) => c.id === by.col)
   if (by === undefined || col === undefined) return rows
+  if (by.query !== undefined) {
+    const score = matches(view, path, col, by.query)
+    return rows.map((r, i) => ({ r, s: score[i] ?? 0 })).sort((x, y) => y.s - x.s).map((x) => x.r)
+  }
   const cmp = compare(col)
-  return [...rows].sort((x, y) => by.dir * cmp(x.cells?.[col.id] ?? "", y.cells?.[col.id] ?? ""))
+  return [...rows].sort((x, y) => by.dir * cmp(cell(x, col), cell(y, col)))
 }
 
 export type MenuEntry =
   | { readonly kind: "sort"; readonly dir: 1 | -1; readonly active: boolean }
   | { readonly kind: "value"; readonly value: string; readonly selected: number; readonly total: number }
-/** The open menu's entries: the two sorts, then each value of its column with how many of its rows are selected. */
+  | { readonly kind: "from" | "to"; readonly value: number }
+  | { readonly kind: "tick-range" | "tick-matches"; readonly count: number; readonly selected: number }
+  | { readonly kind: "query"; readonly text: string }
+  | { readonly kind: "match"; readonly active: boolean }
+const menuCol = (view: ViewState, ui: ViewUi) => (ui.menu === undefined ? undefined : columnsAt(view, ui.menu.path)[ui.menu.col])
+const rangeOf = (view: ViewState, ui: ViewUi): readonly [number, number] => {
+  const f = ui.menu === undefined ? "none" : filterOf(view, ui.menu.path, ui.menu.col)
+  return ui.menu?.range ?? (typeof f === "object" ? f.range : [0, 1])
+}
+/** The rows a menu's tick entry would tick: inside the range, or matching the query. */
+const tickable = (view: ViewState, ui: ViewUi): ReadonlyArray<string> => {
+  const m = ui.menu
+  const col = menuCol(view, ui)
+  if (m === undefined || col === undefined) return []
+  const rows = cellsAt(view, m.path)
+  if (filterOf(view, m.path, m.col) === "search") {
+    const score = matches(view, m.path, col, m.query ?? "")
+    return rows.filter((_, i) => (score[i] ?? 0) > 0).map((r) => r.id)
+  }
+  const [lo, hi] = rangeOf(view, ui)
+  return rows.filter((r) => {
+    const n = numberIn(cell(r, col))
+    return n !== undefined && n >= lo - 1e-9 && n <= hi + 1e-9
+  }).map((r) => r.id)
+}
+/** The open menu's entries, by the column's filter: its sorts, then its values, its range or its search. */
 export const menuEntries = (view: ViewState, ui: ViewUi): ReadonlyArray<MenuEntry> => {
   const m = ui.menu
-  const col = m === undefined ? undefined : columnsAt(view, m.path)[m.col]
+  const col = menuCol(view, ui)
   if (m === undefined || col === undefined) return []
-  const rows = rowsOf(view, m.path) as ReadonlyArray<Cells>
+  const rows = cellsAt(view, m.path)
   const sel = ui.selected[m.path] ?? []
-  const values = [...new Set(rows.map((r) => r.cells?.[col.id] ?? ""))].sort(compare(col))
   const by = ui.sort?.[m.path]
+  const sorts = ([1, -1] as const).map((dir) => ({ kind: "sort" as const, dir, active: by?.col === col.id && by.query === undefined && by.dir === dir }))
+  const ticks = (kind: "tick-range" | "tick-matches") => {
+    const ids = tickable(view, ui)
+    return { kind, count: ids.length, selected: ids.filter((id) => sel.includes(id)).length }
+  }
+  const f = filterOf(view, m.path, m.col)
+  if (f === "none") return sorts
+  if (f === "search") return [{ kind: "query", text: m.query ?? "" }, ...sorts, { kind: "match", active: by?.col === col.id && by.query !== undefined }, ticks("tick-matches")]
+  if (typeof f === "object") {
+    const [lo, hi] = rangeOf(view, ui)
+    return [...sorts, { kind: "from", value: lo }, { kind: "to", value: hi }, ticks("tick-range")]
+  }
+  const values = [...new Set(rows.map((r) => cell(r, col)))].sort(compare(col))
   return [
-    ...([1, -1] as const).map((dir) => ({ kind: "sort" as const, dir, active: by?.col === col.id && by.dir === dir })),
+    ...sorts,
     ...values.map((value) => {
-      const of = rows.filter((r) => (r.cells?.[col.id] ?? "") === value)
+      const of = rows.filter((r) => cell(r, col) === value)
       return { kind: "value" as const, value, selected: of.filter((r) => sel.includes(r.id)).length, total: of.length }
     }),
   ]
 }
-export const openMenu = (_view: ViewState, ui: ViewUi, path: string, col: number): ViewUi => ({ ...ui, header: { path, col }, menu: { path, col, pick: 0 } })
+export const openMenu = (_view: ViewState, ui: ViewUi, path: string, col: number): ViewUi => {
+  const by = ui.sort?.[path]
+  const query = by?.query !== undefined && ui.menu === undefined ? { query: by.query } : {}
+  return { ...ui, header: { path, col }, menu: { path, col, pick: 0, ...query } }
+}
 export const closeMenu = (ui: ViewUi): ViewUi => {
   const { menu: _, ...rest } = ui
   return rest
 }
 export const menuMove = (view: ViewState, ui: ViewUi, delta: number): ViewUi =>
   ui.menu === undefined ? ui : { ...ui, menu: { ...ui.menu, pick: Math.max(0, Math.min(menuEntries(view, ui).length - 1, ui.menu.pick + delta)) } }
-/** An entry of the open menu (the highlighted one by default): a sort sets it (again: off), a value ticks all its rows (all ticked: unticks them). */
+/** ←→ on a range's bound: one step, inside the column's range, from never past to. */
+export const menuAdjust = (view: ViewState, ui: ViewUi, dir: number): ViewUi => {
+  const m = ui.menu
+  const e = menuEntries(view, ui)[m?.pick ?? -1]
+  const f = m === undefined ? "none" : filterOf(view, m.path, m.col)
+  if (m === undefined || typeof f !== "object" || e === undefined || (e.kind !== "from" && e.kind !== "to")) return ui
+  const step = f.step ?? (f.range[1] - f.range[0]) / 20
+  const [lo, hi] = rangeOf(view, ui)
+  const round = (n: number) => Math.round(n / step) * step
+  const next: readonly [number, number] =
+    e.kind === "from" ? [Math.max(f.range[0], Math.min(hi, round(lo + dir * step))), hi] : [lo, Math.min(f.range[1], Math.max(lo, round(hi + dir * step)))]
+  return { ...ui, menu: { ...m, range: next } }
+}
+/** A search menu's query: the rows sort by match as it changes; a blank one ends the match sort. */
+export const menuQuery = (view: ViewState, ui: ViewUi, query: string): ViewUi => {
+  const m = ui.menu
+  const col = menuCol(view, ui)
+  if (m === undefined || col === undefined) return ui
+  const { [m.path]: _, ...others } = ui.sort ?? {}
+  return { ...ui, menu: { ...m, query }, sort: query.trim() === "" ? others : { ...others, [m.path]: { col: col.id, dir: -1, query } } }
+}
+/** Tick every id (all ticked already: untick them). */
+const tickAll = (ui: ViewUi, path: string, ids: ReadonlyArray<string>): ViewUi => {
+  const sel = ui.selected[path] ?? []
+  const all = ids.length > 0 && ids.every((id) => sel.includes(id))
+  return { ...ui, selected: { ...ui.selected, [path]: all ? sel.filter((id) => !ids.includes(id)) : [...sel, ...ids.filter((id) => !sel.includes(id))] } }
+}
+/** An entry of the open menu (the highlighted one by default): a sort sets it (again: off), a value, a range or the matches tick their rows (all ticked: untick). */
 export const applyMenu = (view: ViewState, ui: ViewUi, index?: number): ViewUi => {
   const m = ui.menu
   const e = menuEntries(view, ui)[index ?? m?.pick ?? 0]
-  const col = m === undefined ? undefined : columnsAt(view, m.path)[m.col]
+  const col = menuCol(view, ui)
   if (m === undefined || e === undefined || col === undefined) return ui
   const at = { ...ui, menu: { ...m, pick: index ?? m.pick } }
-  if (e.kind === "sort") {
-    const { [m.path]: _, ...others } = ui.sort ?? {}
-    return { ...at, sort: e.active ? others : { ...others, [m.path]: { col: col.id, dir: e.dir } } }
-  }
-  const ids = (rowsOf(view, m.path) as ReadonlyArray<Cells>).filter((r) => (r.cells?.[col.id] ?? "") === e.value).map((r) => r.id)
-  const sel = ui.selected[m.path] ?? []
-  const next = e.selected === e.total ? sel.filter((id) => !ids.includes(id)) : [...sel, ...ids.filter((id) => !sel.includes(id))]
-  return { ...at, selected: { ...ui.selected, [m.path]: next } }
+  const { [m.path]: _, ...others } = ui.sort ?? {}
+  if (e.kind === "sort") return { ...at, sort: e.active ? others : { ...others, [m.path]: { col: col.id, dir: e.dir } } }
+  if (e.kind === "match") return (m.query ?? "").trim() === "" ? at : { ...at, sort: e.active ? others : { ...others, [m.path]: { col: col.id, dir: -1, query: m.query! } } }
+  if (e.kind === "value") return tickAll(at, m.path, cellsAt(view, m.path).filter((r) => cell(r, col) === e.value).map((r) => r.id))
+  if (e.kind === "tick-range" || e.kind === "tick-matches") return tickAll(at, m.path, tickable(view, ui))
+  return at
 }
 /** On a header: ←→ move between its columns. */
 export const moveColumn = (view: ViewState, ui: ViewUi, dir: number): ViewUi =>
@@ -121,7 +211,7 @@ export const moveColumn = (view: ViewState, ui: ViewUi, dir: number): ViewUi =>
 export const pickHeader = (view: ViewState, ui: ViewUi, sectionId: string, col: number): ViewUi => {
   const focus = ordered(view.layout).findIndex((s) => s.id === sectionId)
   const c = focus < 0 ? undefined : leafOf(view, { ...ui, focus }, sectionId)
-  return c === undefined ? ui : openMenu(view, { ...ui, focus }, c.path, col)
+  return c === undefined ? ui : openMenu(view, { ...closeMenu(ui), focus }, c.path, col)
 }
 
 const current = (view: ViewState, ui: ViewUi) => {
@@ -180,7 +270,7 @@ export const actionFor = (view: ViewState, ui: ViewUi, key: string, platform = "
   return a.on !== "none" && rows.length === 0 ? undefined : { section: c.path, action: a.id, rows }
 }
 
-/** A click or tap on a row: its section takes focus, the cursor moves there, and a selectable row toggles. */
+/** A click or tap on a row: its section takes focus and the cursor moves there (its mark ticks it: `pickMark`). */
 export const pickRow = (view: ViewState, ui: ViewUi, sectionId: string, index: number): ViewUi => {
   const focus = ordered(view.layout).findIndex((s) => s.id === sectionId)
   if (focus < 0) return ui
@@ -188,8 +278,21 @@ export const pickRow = (view: ViewState, ui: ViewUi, sectionId: string, index: n
   const c = leafOf(view, at, sectionId)
   if (c === undefined) return at
   const { header: _h, menu: _m, ...off } = at
-  const moved = { ...off, rows: { ...at.rows, [c.path]: index } }
-  return c.leaf.kind === "table" && c.leaf.selectable === true ? toggleSelect(view, moved) : moved
+  return { ...off, rows: { ...at.rows, [c.path]: index } }
+}
+/** A click or tap on a row's mark: the cursor moves there and a selectable row toggles. */
+export const pickMark = (view: ViewState, ui: ViewUi, sectionId: string, index: number): ViewUi => {
+  const moved = pickRow(view, ui, sectionId, index)
+  const c = leafOf(view, moved, sectionId)
+  return c !== undefined && c.leaf.kind === "table" && c.leaf.selectable === true ? toggleSelect(view, moved) : moved
+}
+
+/** The row under a focused table's cursor (not on its header), for a platform's row card. */
+export const cursorRow = (view: ViewState, ui: ViewUi) => {
+  const c = current(view, ui)
+  if (c === undefined || c.leaf.kind !== "table" || ui.header?.path === c.path) return undefined
+  const row = shownRows(view, ui, c.path)[ui.rows[c.path] ?? 0] as Cells & { readonly tone?: string } | undefined
+  return row === undefined ? undefined : { path: c.path, leaf: c.leaf, row, selected: (ui.selected[c.path] ?? []).includes(row.id) }
 }
 
 /** After an action ran: that table's selection clears. */

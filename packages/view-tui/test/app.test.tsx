@@ -370,7 +370,7 @@ describe("tui frames", () => {
     expect(t.captureCharFrame()).toContain("▍○ R-1   no error shown")
     // A click on a row's box ticks it.
     const lines = t.captureCharFrame().split("\n")
-    const y = lines.findIndex((l) => l.includes("○ R-1"))
+    const y = lines.findIndex((l) => l.includes("▍○ R-1"))
     await t.mockMouse.click(lines[y]!.indexOf("○"), y)
     await settle(t)
     expect(t.captureCharFrame()).toContain("● R-1")
@@ -1000,5 +1000,114 @@ describe("column menus", () => {
     t.mockInput.pressEscape(); await settle(t)
     expect(t.captureCharFrame()).toContain("● F2")
     expect(t.captureCharFrame()).toContain("Send to zarg · 1")
+  })
+})
+
+describe("column filters and the row card", () => {
+  const tester = { id: "rehearse:tester-1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
+  const long = "The checkout step says pay but never says what happens when the card is declined; the tester had to guess and gave up on the purchase entirely."
+  const cols = [
+    { id: "id", label: "id", filter: "none" as const },
+    { id: "sev", label: "severity", order: ["high", "medium", "low"], filter: "values" as const },
+    { id: "suggested", label: "suggested", filter: { range: [0, 1] as const, step: 0.1 } },
+    { id: "note", label: "note", filter: "search" as const },
+  ]
+  const rows = [
+    { id: "F1", cells: { id: "F1", sev: "low", suggested: "fix 0.2", note: "login copy is unclear" } },
+    { id: "F2", cells: { id: "F2", sev: "high", suggested: "fix 0.9", note: long } },
+    ...Array.from({ length: 10 }, (_, i) => ({ id: `G${i}`, cells: { id: `G${i}`, sev: `s${i}`, suggested: "", note: `other ${i}` } })),
+  ]
+  const state = (height: number): SessionState => ({
+    thread: {
+      ...initial("main"),
+      status: "running",
+      rlms: { "rehearse:tester-1": tester },
+      views: {
+        "rehearse:tester-1": {
+          agent: "rehearse:tester-1",
+          layout: {
+            name: "tester",
+            sections: [
+              { id: "progress", kind: "stats" as const, role: "summary" as const },
+              { id: "findings", kind: "table" as const, role: "pinned" as const, title: "Findings", columns: cols, selectable: true, actions: [{ id: "apply", label: "Send to zarg", key: "a", on: "selection" as const }] },
+            ],
+          },
+          data: { progress: { items: [{ label: "steps", value: `${height}/9` }] }, findings: { rows } },
+        },
+      },
+    },
+    core: "up",
+  })
+  const open = async (height = 32) => {
+    const t = await render(state(height), { width: 130, height })
+    t.mockInput.pressKey("a", { meta: true }); await settle(t); t.mockInput.pressEnter(); await settle(t)
+    return t
+  }
+  const body = (t: Awaited<ReturnType<typeof render>>) => t.captureCharFrame().split("\n").slice(0, -2)
+  test("the highlighted row shows in full at the top in place of the summary; a click on a row only moves the cursor, its mark ticks it", async () => {
+    const t = await open()
+    expect(t.captureCharFrame()).not.toContain("32/9")
+    let lines = body(t)
+    const y = lines.findIndex((l) => l.includes("F2   ") && l.includes("○"))
+    await t.mockMouse.click(lines[y]!.indexOf("F2") + 4, y)
+    await settle(t)
+    const frame = t.captureCharFrame()
+    expect(frame).toContain("gave up on the purchase entirely.")
+    expect(frame).toContain("▍○ F2")
+    expect(frame).not.toContain("Send to zarg ·")
+    lines = body(t)
+    const z = lines.findIndex((l) => l.includes("▍○ F2"))
+    await t.mockMouse.click(lines[z]!.indexOf("○"), z)
+    await settle(t)
+    expect(t.captureCharFrame()).toContain("▍● F2")
+  })
+  test("a menu drops down under its header and never past the view: it scrolls, with ▾ when more is below", async () => {
+    const t = await open(24)
+    t.mockInput.pressArrow("up"); await settle(t)
+    t.mockInput.pressArrow("right"); await settle(t)
+    t.mockInput.pressEnter(); await settle(t)
+    const lines = t.captureCharFrame().split("\n")
+    const head = lines.findIndex((l) => /id\s+severity/.test(l))
+    const top = lines.findIndex((l) => l.includes("╭─ severity"))
+    const bottom = lines.findIndex((l, i) => i > top && l.includes("╰"))
+    const bar = lines.findIndex((l) => l.includes("● zarg") || l.includes("type a message"))
+    expect(top).toBe(head + 1)
+    expect(bottom).toBeGreaterThan(top)
+    expect(bottom).toBeLessThan(bar < 0 ? lines.length - 1 : bar)
+    expect(lines[bottom]).toContain("▾")
+  })
+  test("a search menu takes the typing (g and / too) and sorts the rows by match as you type", async () => {
+    const t = await open()
+    t.mockInput.pressArrow("up"); await settle(t)
+    for (let i = 0; i < 3; i++) { t.mockInput.pressArrow("right"); await settle(t) }
+    t.mockInput.pressEnter(); await settle(t)
+    await t.mockInput.typeText("g/declined")
+    await settle(t)
+    expect(t.captureCharFrame()).toContain("g/declined▎")
+    for (let i = 0; i < 10; i++) { t.mockInput.pressBackspace(); await settle(t) }
+    await t.mockInput.typeText("declined"); await settle(t)
+    t.mockInput.pressEscape(); await settle(t)
+    const rowsNow = t.captureCharFrame().split("\n").flatMap((l) => l.match(/[○●] (F\d|G\d)\s/)?.[1] ?? [])
+    expect(rowsNow[0]).toBe("F2")
+    expect(t.captureCharFrame()).toContain("note ⌕")
+  })
+  test("a range menu: a click on ▸ moves the bound, and its tick ticks the rows inside", async () => {
+    const t = await open()
+    t.mockInput.pressArrow("up"); await settle(t)
+    for (let i = 0; i < 2; i++) { t.mockInput.pressArrow("right"); await settle(t) }
+    t.mockInput.pressEnter(); await settle(t)
+    let lines = t.captureCharFrame().split("\n")
+    const y = lines.findIndex((l) => l.includes("from") && l.includes("◂"))
+    for (let i = 0; i < 5; i++) {
+      await t.mockMouse.click(lines[y]!.indexOf("▸"), y)
+      await settle(t)
+    }
+    expect(t.captureCharFrame()).toMatch(/from\s+◂ 0\.50 ▸/)
+    t.mockInput.pressArrow("down"); await settle(t)
+    t.mockInput.pressArrow("down"); await settle(t)
+    t.mockInput.pressArrow("down"); await settle(t)
+    t.mockInput.pressEnter(); await settle(t)
+    lines = t.captureCharFrame().split("\n")
+    expect(t.captureCharFrame()).toMatch(/● tick those in range\s+1\/1/)
   })
 })

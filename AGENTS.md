@@ -26,6 +26,7 @@ packages/<name>/
 ## Packages
 
 - `packages/graph` (`@zarg/graph`): JSON graph store under `.zarg/graph`: snapshot, queries, diff.
+- `packages/bm25` (`@zarg/bm25`): Okapi BM25 over short texts (`bm25(docs).score(query)`, `rank`), with a light stemmer; no dependencies.
 - `packages/plugin` (`@zarg/plugin/server`, `@zarg/plugin/runtime`): the plugin runtime (each plugin in its own locked-down Bun process with `ses`, powers served by the host), grants (`~/.config/zarg/grants.json`), `PluginHost` and the write pipeline. Plugins load only through it; a test fails if another package imports a plugin.
 - `packages/plugin-sdk` (`@zarg/plugin-sdk`, `@zarg/plugin-sdk/tools`): `definePlugin`, `defineView` and the power services plugins yield (`Secrets`, `Http`, `Files`, `Graph`, `Config`, `Agents`, `Views`, `Surfaces`, `Attention`, `Conversation`, …); a plugin declares `surfaces` (where its views show; a `card` is how an agent looks in the grid) and marks tables `review: true` for the review queue; manifests, the checked build and `testPlugin`.
 - `packages/plugin-gherkin` (`@zarg/plugin-gherkin`, contract `@zarg/plugin-gherkin/contract`): atomic Gherkin user action graph (states and cards).
