@@ -31,7 +31,7 @@ export const PlanParams = Schema.Struct({
 })
 export type PlanParams = typeof PlanParams.Type
 export const Lane = Schema.Literals(["backlog", "ready", "running", "review", "done"])
-export const Moved = Schema.Struct({ id: Schema.String, to: Lane, by: Schema.String, what: Schema.optionalKey(Schema.String), needs: Schema.optionalKey(Schema.String) })
+export const Moved = Schema.Struct({ id: Schema.String, to: Lane, by: Schema.String, what: Schema.optionalKey(Schema.String), needs: Schema.optionalKey(Schema.String), cards: Schema.optionalKey(Schema.Array(Schema.String)) })
 export const ItemData = Schema.Struct({
   ...PlanParams.fields,
   id: Schema.String,
@@ -45,7 +45,7 @@ const DraftCalls = Schema.Array(Schema.Struct({ tool: Schema.String, params: Sch
 export const StageData = Schema.Struct({
   journey: Schema.String,
   stage: Schema.Literals(["triage", "refine", "rehearse", "plan", "planned"]),
-  proposals: Schema.Array(Schema.Struct({ card: Schema.String, changes: DraftCalls, answers: Schema.Array(Schema.String), summary: Schema.String, status: Schema.Literals(["waiting", "proposed", "accepted", "skipped"]), problems: Schema.optionalKey(Schema.Array(Schema.String)) })),
+  proposals: Schema.Array(Schema.Struct({ card: Schema.String, changes: DraftCalls, answers: Schema.Array(Schema.String), summary: Schema.String, status: Schema.Literals(["waiting", "proposed", "accepted", "skipped"]), problems: Schema.optionalKey(Schema.Array(Schema.String)), fromFresh: Schema.optionalKey(Schema.Boolean) })),
   draft: DraftCalls,
   cards: Schema.optionalKey(Schema.Array(Schema.String)),
   run: Schema.optionalKey(Schema.String),
@@ -53,9 +53,12 @@ export const StageData = Schema.Struct({
   plan: Schema.optionalKey(Schema.Struct({ title: Schema.String, steps: Schema.Array(Schema.String) })),
   item: Schema.optionalKey(Schema.String),
   note: Schema.optionalKey(Schema.String),
+  inputs: Schema.optionalKey(Schema.Array(Schema.String)),
+  dismissed: Schema.optionalKey(Schema.Array(Schema.Struct({ card: Schema.String, kind: Schema.String }))),
 })
 export const Propose = Schema.Struct({ journey: Schema.String, card: Schema.String, changes: DraftCalls, answers: Schema.Array(Schema.String), summary: Schema.String, problems: Schema.optionalKey(Schema.Array(Schema.String)) })
-export const Rehearsing = Schema.Struct({ journey: Schema.String, run: Schema.optionalKey(Schema.String), cards: Schema.optionalKey(Schema.Array(Schema.String)), note: Schema.optionalKey(Schema.String) })
+export const Rehearsing = Schema.Struct({ journey: Schema.String, run: Schema.optionalKey(Schema.String), cards: Schema.optionalKey(Schema.Array(Schema.String)), note: Schema.optionalKey(Schema.String), clear: Schema.optionalKey(Schema.Boolean) })
+export const Redraft = Schema.Struct({ journey: Schema.String, problems: Schema.Array(Schema.String) })
 export const Rehearsed = Schema.Struct({
   journey: Schema.String,
   resolved: Schema.Array(Schema.String),
@@ -64,7 +67,7 @@ export const Rehearsed = Schema.Struct({
   cards: Schema.optionalKey(Schema.Array(Schema.String)),
 })
 export const Drafted = Schema.Struct({ journey: Schema.String, title: Schema.String, steps: Schema.Array(Schema.String) })
-export const OnEntry = Schema.Struct({ id: Schema.String, ref: Schema.String, kind: Schema.String, severity: Schema.String, note: Schema.String, persona: Schema.String })
+export const OnEntry = Schema.Struct({ id: Schema.String, ref: Schema.String, kind: Schema.String, severity: Schema.String, note: Schema.String, persona: Schema.String, on: Schema.Boolean })
 /** The backlog's surface for other plugins: file feedback and ask where it stands; add a plan, take the next, record a move. */
 export const Backlog = pluginContract("backlog", {
   file: { params: Schema.Struct({ entries: Schema.Array(FiledEntry) }), success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
@@ -78,4 +81,5 @@ export const Backlog = pluginContract("backlog", {
   rehearsing: { params: Rehearsing, success: Schema.Null },
   rehearsed: { params: Rehearsed, success: Schema.Null },
   drafted: { params: Drafted, success: Schema.Null },
+  redraft: { params: Redraft, success: Schema.Null },
 })

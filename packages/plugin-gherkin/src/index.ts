@@ -38,6 +38,16 @@ const validateProps = (changes: ReadonlyArray<unknown>): ReadonlyArray<Finding> 
 
 const toolMethods = Object.fromEntries(tools.map((t) => [t.name, { doc: t.description, params: t.params, success: ToolResult, agents: true as const }]))
 
+const EDGES = {
+  arrives: { from: "card", to: "state", min: 1, max: 1 },
+  given: { from: "card", to: "state", max: 3 },
+  then: { from: "card", to: "state", min: 1, max: 5 },
+  // Who acts in the card; none is an agenda item, not a structural error.
+  by: { from: "card", to: "persona" },
+  // The journeys a card belongs to (any number; none is fine).
+  in: { from: "card", to: "journey" },
+}
+
 /** The atomic Gherkin user action graph (states and cards), running in its own locked process. */
 export default definePlugin({
   name: "gherkin",
@@ -58,15 +68,7 @@ export default definePlugin({
   },
   graph: {
     nodes: { state: StateProps, card: CardProps, persona: PersonaProps, journey: JourneyProps },
-    edges: {
-      arrives: { from: "card", to: "state", min: 1, max: 1 },
-      given: { from: "card", to: "state", max: 3 },
-      then: { from: "card", to: "state", min: 1, max: 5 },
-      // Who acts in the card; none is an agenda item, not a structural error.
-      by: { from: "card", to: "persona" },
-      // The journeys a card belongs to (any number; none is fine).
-      in: { from: "card", to: "journey" },
-    },
+    edges: EDGES,
   },
   methods: {
     ...toolMethods,
@@ -96,7 +98,7 @@ export default definePlugin({
     const snap = graph.snapshot.pipe(Effect.orDie)
     const views = yield* Views
     // The graph as a draft would leave it (the graph itself when there is none).
-    const drafted = (draft: Draft | undefined) => (draft === undefined || draft.length === 0 ? snap : Effect.flatMap(snap, (s) => Effect.map(applyDraft(s, draft, tools), (a) => a.snapshot)))
+    const drafted = (draft: Draft | undefined) => (draft === undefined || draft.length === 0 ? snap : Effect.flatMap(snap, (s) => Effect.map(applyDraft(s, draft, tools, EDGES), (a) => a.snapshot)))
     const runTool = (t: (typeof tools)[number]) => (p: unknown) =>
       Effect.flatMap(snap, (s) => t.run(p as never, s)).pipe(Effect.mapError((e) => new PluginFailure({ tag: "ToolError", message: e.message })))
     // Entity handlers read the graph as it is now; `get` feeds the other ops (the host serves get itself).
@@ -131,7 +133,7 @@ export default definePlugin({
       stories: ({ strategy, focus, draft }: { strategy: "edge-pair" | "teleport"; focus?: ReadonlyArray<string>; draft?: Draft }) =>
         Effect.map(drafted(draft), (s) => planStories(s, strategy, focus === undefined || focus.length === 0 ? undefined : new Set(focus))),
       step: ({ card, via, draft }: { card: string; via?: string; draft?: Draft }) => Effect.map(drafted(draft), (s) => stepView(s, card, via) ?? null),
-      dryRun: ({ draft }: { draft: Draft }) => Effect.flatMap(snap, (s) => dryRun(s, draft, tools, (c) => validateProps(c), [clauseShape, stateText, personaShape, journeyShape])),
+      dryRun: ({ draft }: { draft: Draft }) => Effect.flatMap(snap, (s) => dryRun(s, draft, tools, (c) => validateProps(c), [clauseShape, stateText, personaShape, journeyShape], EDGES)),
       journeys: () => Effect.map(snap, journeyList),
       // The nav item opens the view (Refresh reloads it): every journey, with every journey's flow for the one highlighted.
       act: ({ agent }: { agent: string; action: string; rows: ReadonlyArray<string> }) =>

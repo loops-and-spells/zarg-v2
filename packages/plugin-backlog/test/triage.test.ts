@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { existsSync } from "node:fs"
+import { readdirSync } from "node:fs"
 import { join } from "node:path"
 import { Effect } from "effect"
 import { PluginHost } from "@zarg/plugin/server"
@@ -47,7 +47,7 @@ describe("the triage hub's stages", () => {
       const plan = work(seen)
       const backlogged = (yield* press("backlog")).notice
       const item = yield* h.entities.get("backlog/item:B-01")
-      return { refine, waiting, early, proposal, accepted, afterAccept, stages, plan, backlogged, item: item.data as { changes: unknown[]; cards: Array<{ ref: string }>; feedback: string[]; status: string }, file: existsSync(join(root, ".zarg/triage/set-up.json")), status: yield* h.invoke("backlog", "status", { ids }), ids }
+      return { refine, waiting, early, proposal, accepted, afterAccept, stages, plan, backlogged, item: item.data as { changes: unknown[]; cards: Array<{ ref: string }>; feedback: string[]; status: string }, file: readdirSync(join(root, ".zarg/triage")).some((n) => /^set-up-[0-9a-f]{6}\.json$/.test(n)), status: yield* h.invoke("backlog", "status", { ids }), ids }
     }))
     expect(out.refine).toBe("Set up: refining 1 card")
     expect(out.waiting).toContain("The Triage Agent is drafting a proposal for UX-0001")
@@ -64,5 +64,23 @@ describe("the triage hub's stages", () => {
     expect(out.item.feedback).toEqual(out.ids)
     expect(out.file).toBe(true)
     expect((out.status as Array<{ state: string }>)[0]!.state).toBe("planned")
+  })
+  test("Plan anyway leaves a re-rehearse that will not settle; an empty draft is not backlogged; a double b backlogs once", async () => {
+    const out = await run(() => Effect.gen(function* () {
+      const { ids } = yield* setUp()
+      const h = yield* PluginHost
+      yield* press("refine")
+      yield* h.invoke("backlog", "propose", { journey: "Set up", card: "UX-0001", changes: [{ tool: "edit-state", params: { id: "S-0002", text: "asked: once, always, deny" } }], answers: ids, summary: "s" })
+      yield* press("accept")
+      const now = (yield* press("plan-now")).notice
+      yield* h.invoke("backlog", "drafted", { journey: "Set up", title: "T", steps: [] })
+      yield* h.invoke("backlog", "rehearsing", { journey: "Set up", cards: ["UX-0001"] })
+      const [a, b] = yield* Effect.all([press("backlog"), press("backlog")], { concurrency: "unbounded" })
+      const items = yield* h.entities.query({ type: "backlog/item" })
+      return { now, notices: [a.notice, b.notice].sort(), items: items.length }
+    }))
+    expect(out.now).toBe("Set up: planning with what is accepted")
+    expect(out.notices).toEqual(["Set up has no plan to backlog yet", "Set up: backlogged as B-01"])
+    expect(out.items).toBe(1)
   })
 })

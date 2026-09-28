@@ -25,7 +25,7 @@ export const StepView = Schema.NullOr(
 export const JourneyView = Schema.Struct({ id: Schema.String, name: Schema.String, cards: Schema.Array(Schema.String) })
 export const DryRunParams = Schema.Struct({ draft: Draft })
 /** A draft checked like a write: ok, or its problems (a tool's error, a lint); the nodes it would touch. */
-export const DryRunResult = Schema.Struct({ ok: Schema.Boolean, problems: Schema.Array(Schema.String), touched: Schema.Array(Schema.String), messages: Schema.Array(Schema.String) })
+export const DryRunResult = Schema.Struct({ ok: Schema.Boolean, problems: Schema.Array(Schema.String), touched: Schema.Array(Schema.String), cards: Schema.Array(Schema.String), messages: Schema.Array(Schema.String) })
 export const PersonaView = Schema.Struct({
   id: Schema.String,
   name: Schema.String,

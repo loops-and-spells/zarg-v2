@@ -11,8 +11,18 @@ interface Plan {
 export interface PlannerDeps {
   /** The backlog's methods (`next`, `moved`). */
   readonly invoke: (plugin: string, method: string, params: unknown) => Effect.Effect<unknown, Failure>
-  /** A plan's tool calls, in order, under one hold of the graph's write lock (the host's `calls`); the nodes they touched. */
-  readonly calls: (list: ReadonlyArray<{ readonly name: string; readonly params: unknown }>) => Effect.Effect<ReadonlyArray<string>, { readonly touched: ReadonlyArray<string>; readonly error: Failure }>
+  /**
+   * A plan's tool calls, in order, under one hold of the graph's write lock (the host's `calls`): `before` (what the
+   * files were), `failure` (undo) and `after` (check and commit) run under the same hold, so no other write lands between.
+   */
+  readonly calls: <B, R>(
+    list: ReadonlyArray<{ readonly name: string; readonly params: unknown }>,
+    hooks: { readonly before: Effect.Effect<B>; readonly failure: (b: B, touched: ReadonlyArray<string>) => Effect.Effect<void, unknown>; readonly after: (b: B, touched: ReadonlyArray<string>) => Effect.Effect<R> },
+  ) => Effect.Effect<{ readonly touched: ReadonlyArray<string>; readonly before: B; readonly after: R }, { readonly touched: ReadonlyArray<string>; readonly error: Failure }>
+  /** The graph now (to know which cards a plan affected). */
+  readonly snapshot: Effect.Effect<unknown, unknown>
+  /** The cards a change between two graphs affects (the plugins' `affected`). */
+  readonly affected: (before: unknown, after: unknown) => Effect.Effect<{ readonly cards: ReadonlyArray<string> }, unknown>
   /** The graph's node files now: put touched ones back to these bytes; name the touched ones the operator had changed. */
   readonly files: () => Effect.Effect<{ readonly restore: (ids: ReadonlyArray<string>) => Effect.Effect<void, unknown>; readonly dirty: (ids: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<string>, unknown> }, unknown>
   /** Whether a card is still in the graph (a plan may remove one). */
@@ -34,33 +44,50 @@ const cardIds = (p: Plan) => p.cards.map((c) => parseRef(c.ref)?.id ?? "")
  */
 export const makePlanner = (d: PlannerDeps) => {
   const lock = Effect.runSync(Semaphore.make(1))
-  const moved = (id: string, to: string, by: string, what: string, needs?: string) => d.invoke("backlog", "moved", { id, to, by, what, ...(needs !== undefined ? { needs } : {}) })
+  const moved = (id: string, to: string, by: string, what: string, needs?: string, cards?: ReadonlyArray<string>) =>
+    d.invoke("backlog", "moved", { id, to, by, what, ...(needs !== undefined ? { needs } : {}), ...(cards !== undefined && cards.length > 0 ? { cards } : {}) })
   const tick = Effect.gen(function* () {
     const plan = (yield* d.invoke("backlog", "next", {}).pipe(Effect.orElseSucceed(() => null))) as Plan | null
     if (plan === null) return
     // Running before anything changes (a restart halfway never applies it twice); a plan that cannot be marked is not applied.
     const marked = yield* Effect.exit(moved(plan.id, "running", "Planner", `applying ${plan.changes.length} change${plan.changes.length === 1 ? "" : "s"}`))
     if (marked._tag === "Failure") return
-    const files = yield* d.files()
-    const applied = yield* Effect.exit(d.calls(plan.changes.map((c) => ({ name: `gherkin/${c.tool}`, params: c.params }))))
+    type Files = Effect.Success<ReturnType<PlannerDeps["files"]>>
+    const applied = yield* Effect.exit(
+      d.calls(
+        plan.changes.map((c) => ({ name: `gherkin/${c.tool}`, params: c.params })),
+        {
+          before: Effect.all({ files: d.files().pipe(Effect.orDie), graph: d.snapshot.pipe(Effect.orElseSucceed(() => undefined)) }),
+          failure: (b: { files: Files; graph: unknown }, touched) => b.files.restore(touched),
+          // Under the same hold: a node the operator changed and has not committed would be swept into this commit.
+          after: (b: { files: Files; graph: unknown }, touched) =>
+            Effect.gen(function* () {
+              const dirty = yield* b.files.dirty(touched).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>))
+              if (dirty.length > 0) {
+                yield* Effect.ignore(b.files.restore(touched))
+                return { dirty, sha: undefined as string | undefined, graph: undefined as unknown }
+              }
+              const sha = yield* d.commit(touched, `req: ${plan.title} (${plan.id})`).pipe(Effect.orElseSucceed(() => undefined))
+              return { dirty, sha, graph: yield* d.snapshot.pipe(Effect.orElseSucceed(() => undefined)) }
+            }),
+        },
+      ),
+    )
     if (applied._tag === "Failure") {
       const e = applied.cause.reasons.find((r) => r._tag === "Fail") as { error?: { touched: ReadonlyArray<string>; error: Failure } } | undefined
-      yield* Effect.ignore(files.restore(e?.error?.touched ?? []))
       yield* Effect.ignore(moved(plan.id, "ready", "Planner", "apply failed", e?.error !== undefined ? why(e.error.error) : "the apply failed"))
       return
     }
-    const touched = applied.value
-    // A node the operator changed and has not committed would be swept into this commit: undo, and let them commit first.
-    const dirty = yield* files.dirty(touched).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>))
+    const { dirty, sha, graph } = applied.value.after
     if (dirty.length > 0) {
-      yield* Effect.ignore(files.restore(touched))
       yield* Effect.ignore(moved(plan.id, "ready", "Planner", "waits for your graph edits", `commit your uncommitted changes to ${dirty.join(", ")} first (the plan changes them too)`))
       return
     }
-    const sha = yield* d.commit(touched, `req: ${plan.title} (${plan.id})`).pipe(Effect.orElseSucceed(() => undefined))
+    // The cards the plan affected (a reworded state's cards, a new card): the ones a landed pass must cover.
+    const cards = applied.value.before.graph === undefined || graph === undefined ? [] : (yield* d.affected(applied.value.before.graph, graph).pipe(Effect.orElseSucceed(() => ({ cards: [] as ReadonlyArray<string> })))).cards
     const at = sha === undefined ? "applied (nothing to commit)" : `applied in ${sha.slice(0, 7)}`
-    if (!d.reconcileOn()) return yield* Effect.ignore(moved(plan.id, "review", "Planner", `${at}; reconcile is off: implement by hand`))
-    yield* Effect.ignore(moved(plan.id, "running", "Planner", at))
+    if (!d.reconcileOn()) return yield* Effect.ignore(moved(plan.id, "review", "Planner", `${at}; reconcile is off: implement by hand`, undefined, cards))
+    yield* Effect.ignore(moved(plan.id, "running", "Planner", at, undefined, cards))
     d.notify()
   }).pipe(lock.withPermits(1))
 

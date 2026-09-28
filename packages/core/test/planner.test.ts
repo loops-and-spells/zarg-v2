@@ -18,17 +18,23 @@ const setup = (o: { next?: unknown; fail?: string; reconcile?: boolean; running?
             log.push([plugin, method, params])
             return method === "next" ? (nexts.shift() ?? null) : null
           }),
-    // All of a plan's calls under one hold of the graph lock (the host's `calls`).
-    calls: (list) =>
+    // All of a plan's calls under one hold of the graph lock (the host's `calls`), with its hooks.
+    calls: (list, hooks) =>
       Effect.gen(function* () {
+        const b = yield* hooks.before
         const touched: Array<string> = []
         for (const c of list) {
-          if (o.fail !== undefined && c.name === "gherkin/add-card") return yield* Effect.fail({ touched, error: { _tag: "LintFailed", message: `${c.name}: ${o.fail}` } })
+          if (o.fail !== undefined && c.name === "gherkin/add-card") {
+            yield* Effect.ignore(hooks.failure(b, touched))
+            return yield* Effect.fail({ touched, error: { _tag: "LintFailed", message: `${c.name}: ${o.fail}` } })
+          }
           log.push(["call", c.name, c.params])
           touched.push(...(c.name.endsWith("add-card") ? ["UX-0009"] : c.name.endsWith("edit-state") ? ["S-0002"] : []))
         }
-        return touched
+        return { touched, before: b, after: yield* hooks.after(b, touched) }
       }),
+    snapshot: Effect.succeed("graph"),
+    affected: () => Effect.succeed({ cards: ["UX-0001", "UX-0009"] }),
     files: () => Effect.succeed({ restore: (ids: ReadonlyArray<string>) => Effect.sync(() => void log.push(["restore", ids])), dirty: (ids: ReadonlyArray<string>) => Effect.succeed(ids.filter((id) => (o.dirty ?? []).includes(id))) }),
     exists: (card) => Effect.succeed(!(o.gone ?? []).includes(card)),
     commit: (ids, message) => Effect.sync(() => (log.push(["commit", ids, message]), "abcdef0123")),
@@ -49,7 +55,7 @@ describe("the Planner", () => {
       ["call", "gherkin/edit-state", { id: "S-0002", text: "x" }],
       ["call", "gherkin/add-card", { title: "y" }],
       ["commit", ["S-0002", "UX-0009"], "req: Grant prompt (B-01)"],
-      ["backlog", "moved", { id: "B-01", to: "running", by: "Planner", what: "applied in abcdef0" }],
+      ["backlog", "moved", { id: "B-01", to: "running", by: "Planner", what: "applied in abcdef0", cards: ["UX-0001", "UX-0009"] }],
       ["notify"],
     ])
   })
@@ -63,7 +69,7 @@ describe("the Planner", () => {
   test("with reconcile off the plan goes to Review, to be implemented by hand", async () => {
     const { p, log } = setup({ reconcile: false })
     await Effect.runPromise(p.tick)
-    expect(log.at(-1)).toEqual(["backlog", "moved", { id: "B-01", to: "review", by: "Planner", what: "applied in abcdef0; reconcile is off: implement by hand" }])
+    expect(log.at(-1)).toEqual(["backlog", "moved", { id: "B-01", to: "review", by: "Planner", what: "applied in abcdef0; reconcile is off: implement by hand", cards: ["UX-0001", "UX-0009"] }])
   })
   test("nothing Ready: nothing happens", async () => {
     const { p, log } = setup({ next: null })

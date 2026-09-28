@@ -29,6 +29,12 @@ export interface Affected {
   readonly removed: ReadonlyArray<string>
 }
 
+export interface CallsHooks<B, R> {
+  readonly before?: Effect.Effect<B>
+  readonly failure?: (before: B, touched: ReadonlyArray<string>) => Effect.Effect<void, unknown>
+  readonly after?: (before: B, touched: ReadonlyArray<string>) => Effect.Effect<R>
+}
+
 export class PluginHost extends Context.Service<
   PluginHost,
   {
@@ -38,8 +44,11 @@ export class PluginHost extends Context.Service<
     readonly manifests: ReadonlyArray<Manifest>
     /** Run a plugin method through the write pipeline: run it in its process, check, commit. */
     readonly call: (name: string, params: unknown, expect?: Expect) => Effect.Effect<CallResult, ToolError | LintFailed | GraphError>
-    /** Several tool calls in order under one hold of the write lock; on the first failure, what was touched so far and the error. */
-    readonly calls: (list: ReadonlyArray<{ readonly name: string; readonly params: unknown }>) => Effect.Effect<ReadonlyArray<string>, { readonly touched: ReadonlyArray<string>; readonly error: ToolError | LintFailed | GraphError }>
+    /**
+     * Several tool calls in order under one hold of the write lock; on the first failure, what was touched so far and
+     * the error. `before`, `failure` and `after` run under the same hold (no other write can land between them).
+     */
+    readonly calls: <B = undefined, R = undefined>(list: ReadonlyArray<{ readonly name: string; readonly params: unknown }>, hooks?: CallsHooks<B, R>) => Effect.Effect<{ readonly touched: ReadonlyArray<string>; readonly before: B; readonly after: R }, { readonly touched: ReadonlyArray<string>; readonly error: ToolError | LintFailed | GraphError }>
     /** Check the whole graph as if every node were new. */
     readonly lint: Effect.Effect<ReadonlyArray<Finding>, IoError>
     readonly agenda: (focus?: ReadonlySet<string>) => Effect.Effect<ReadonlyArray<AgendaItem>, IoError>
@@ -560,15 +569,24 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         })
       const call = (name: string, raw: unknown, expect: Expect = {}) => Semaphore.withPermits(lock, 1)(callHeld(name, raw, expect))
       /** Several tool calls in order under one hold of the lock (no other write lands between them); stops at the first that fails. */
-      const calls = (list: ReadonlyArray<{ readonly name: string; readonly params: unknown }>) =>
+      const calls = <B = undefined, R = undefined>(list: ReadonlyArray<{ readonly name: string; readonly params: unknown }>, hooks: CallsHooks<B, R> = {}) =>
         Semaphore.withPermits(lock, 1)(
           Effect.gen(function* () {
+            // Everything under the one hold: what was there before, the calls, then undoing or finishing them.
+            const b = (hooks.before === undefined ? undefined : yield* hooks.before) as B
             const touched: Array<string> = []
             for (const c of list) {
-              const r = yield* callHeld(c.name, c.params).pipe(Effect.mapError((error) => ({ touched: [...touched], error })))
-              touched.push(...r.added, ...r.changed, ...r.removed)
+              const r = yield* Effect.exit(callHeld(c.name, c.params))
+              if (r._tag === "Failure") {
+                const error = r.cause.reasons.find((x) => x._tag === "Fail") as { error?: ToolError | LintFailed | GraphError } | undefined
+                if (hooks.failure !== undefined) yield* Effect.ignore(hooks.failure(b, [...new Set(touched)]))
+                return yield* Effect.fail({ touched: [...new Set(touched)], error: error?.error ?? new ToolError({ message: `${c.name} failed` }) })
+              }
+              touched.push(...r.value.added, ...r.value.changed, ...r.value.removed)
             }
-            return [...new Set(touched)]
+            const t = [...new Set(touched)]
+            const after = (hooks.after === undefined ? undefined : yield* hooks.after(b, t)) as R
+            return { touched: t, before: b, after }
           }),
         )
 

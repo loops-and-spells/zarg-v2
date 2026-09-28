@@ -58,4 +58,29 @@ describe("drafts", () => {
     expect(out.stories.stories.flat()).toContain("UX-0006")
     expect(out.journeys).toEqual([])
   })
+  test("the edge limits a write checks are checked after each call: a card's last then, a sixth then", async () => {
+    const out = await run(
+      Effect.gen(function* () {
+        yield* pricing
+        const h = yield* PluginHost
+        const lastThen = (yield* h.invoke("gherkin", "dryRun", { draft: [{ tool: "unlink", params: { card: "UX-0001", edge: "then", state: "S-0002" } }, { tool: "link", params: { card: "UX-0001", edge: "then", state: { text: "a new then" } } }] })) as { ok: boolean; problems: string[] }
+        const six = (yield* h.invoke("gherkin", "dryRun", { draft: [1, 2, 3, 4, 5].map((i) => ({ tool: "link", params: { card: "UX-0001", edge: "then", state: { text: `then number ${i}` } } })) })) as { ok: boolean; problems: string[] }
+        return { lastThen, six }
+      }),
+    )
+    expect(out.lastThen.ok).toBe(false)
+    expect(out.lastThen.problems.join(" ")).toMatch(/UX-0001.*then/)
+    expect(out.six.ok).toBe(false)
+    expect(out.six.problems.join(" ")).toMatch(/UX-0001.*then/)
+  })
+  test("a draft names the cards it affects: a reworded state's cards, a new card", async () => {
+    const out = await run(
+      Effect.gen(function* () {
+        yield* pricing
+        const h = yield* PluginHost
+        return (yield* h.invoke("gherkin", "dryRun", { draft })) as { cards: string[] }
+      }),
+    )
+    expect(out.cards).toEqual(["UX-0001", "UX-0002", "UX-0003", "UX-0006"])
+  })
 })

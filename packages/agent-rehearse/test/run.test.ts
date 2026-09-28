@@ -222,6 +222,18 @@ describe("rehearse runs in the plugin", () => {
     expect(t.decisions.filter((d) => d.questions.feel).length).toBe(2)
   })
 
+  test("a stopped run tells the core (a re-rehearse waiting on it starts again)", async () => {
+    const t = await Effect.runPromise(
+      Effect.gen(function* () {
+        const t = yield* setup({ slowDecide: 20 })
+        yield* t.r.start({})
+        yield* t.r.stop
+        return t
+      }),
+    )
+    expect(t.agendaChanges.n).toBe(1)
+  })
+
   test("stop keeps the partial record, marked stopped", async () => {
     const t = await Effect.runPromise(
       Effect.gen(function* () {

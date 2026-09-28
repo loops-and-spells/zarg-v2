@@ -25,6 +25,7 @@ export const FeedbackView = defineView("feedback", {
       { id: "accept", label: "Accept", key: "a", on: "none" },
       { id: "skip", label: "Skip", key: "s", on: "none" },
       { id: "backlog", label: "Backlog plan", key: "b", on: "none" },
+      { id: "plan-now", label: "Plan anyway", key: "n", on: "none" },
     ],
     columns: [
       { id: "card", label: "card", ref: true, filter: "none" },

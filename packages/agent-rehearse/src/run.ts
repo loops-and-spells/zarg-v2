@@ -402,6 +402,7 @@ export const makeRehearse = (deps: RunDeps) =>
       if (r?.status === "running") {
         yield* save({ ...r, status: "stopped" })
         yield* quiet(deps.agents.end({ id: "run", ok: false, message: "stopped" }))
+        yield* quiet(deps.agendaChanged)
       }
     })
     /** A run a restart cut short continues where it was. */

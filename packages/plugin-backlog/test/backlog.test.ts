@@ -82,16 +82,17 @@ describe("the backlog's plans", () => {
       const h = yield* PluginHost
       yield* h.invoke("backlog", "plan", planOf(card.ref, feedback))
       yield* h.invoke("backlog", "moved", { id: "B-01", to: "running", by: "Planner", what: "applying 1 change" })
-      yield* h.invoke("backlog", "moved", { id: "B-01", to: "running", by: "Planner", what: "applied in abc1234" })
+      yield* h.invoke("backlog", "moved", { id: "B-01", to: "running", by: "Planner", what: "applied in abc1234", cards: ["UX-0001", "UX-0009"] })
       yield* h.invoke("backlog", "moved", { id: "B-01", to: "ready", by: "Planner", what: "apply failed", needs: "gherkin/edit-state: bad" })
       const blocked = yield* h.invoke("backlog", "next", {})
       yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: ["B-01"] })
       yield* h.invoke("backlog", "act", { agent: "backlog", action: "ready", rows: [] })
       const e = yield* h.entities.get("backlog/item:B-01")
-      return { blocked, e: e.data as { needs?: string; events: Array<{ what: string }> }, next: yield* h.invoke("backlog", "next", {}) }
+      return { blocked, e: e.data as { needs?: string; events: Array<{ what: string }>; cards: Array<{ ref: string }> }, next: yield* h.invoke("backlog", "next", {}) }
     }))
     expect(out.blocked).toBeNull()
     expect(out.e.events.map((x) => x.what)).toContain("applied in abc1234")
+    expect((out.e as unknown as { cards: Array<{ ref: string }> }).cards.map((c) => c.ref.split("@")[0])).toEqual(["gherkin/card:UX-0001", "gherkin/card:UX-0009"])
     expect(out.e.needs).toBeUndefined()
     expect((out.next as { id: string }).id).toBe("B-01")
   })

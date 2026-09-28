@@ -104,7 +104,9 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // The Planner Agent: Ready plans on the Backlog are applied to the graph, then reconcile implements them.
     const planner = makePlanner({
       invoke: (plugin, method, params) => host.invoke(plugin, method, params),
-      calls: (list) => host.calls(list) as never,
+      calls: (list, hooks) => host.calls(list, hooks) as never,
+      snapshot: store.snapshot,
+      affected: (before, after) => host.affected(before as never, after as never),
       files: () => graphFiles(root),
       exists: (card) => Effect.map(store.snapshot, (s) => s.nodes.has(card)).pipe(Effect.orElseSucceed(() => true)),
       commit: (ids, message) => commitGraph(root, ids, message),

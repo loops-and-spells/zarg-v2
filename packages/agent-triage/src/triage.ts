@@ -13,8 +13,9 @@ export interface StageView {
   readonly run?: string
   readonly results?: { readonly resolved: ReadonlyArray<string>; readonly fresh: ReadonlyArray<Fresh> }
   readonly plan?: { readonly title: string; readonly steps: ReadonlyArray<string> }
+  readonly dismissed?: ReadonlyArray<{ readonly card: string; readonly kind: string }>
 }
-type OnEntry = { readonly id: string; readonly ref: string; readonly kind: string; readonly severity: string; readonly note: string; readonly persona: string }
+type OnEntry = { readonly id: string; readonly ref: string; readonly kind: string; readonly severity: string; readonly note: string; readonly persona: string; readonly on: boolean }
 type Step = { readonly card: string; readonly title: string; readonly given: string; readonly when: string; readonly thens: ReadonlyArray<string>; readonly by?: ReadonlyArray<string> } | null
 
 /** The Triage Agent's powers, as plain functions (the plugin wires them to its contracts; tests stub them). */
@@ -23,10 +24,12 @@ export interface TriageDeps {
   readonly feedbackOf: (journey: string) => Effect.Effect<ReadonlyArray<OnEntry>, unknown>
   readonly journeys: () => Effect.Effect<ReadonlyArray<{ readonly id: string; readonly name: string; readonly cards: ReadonlyArray<string> }>, unknown>
   readonly step: (card: string, draft: Draft) => Effect.Effect<Step, unknown>
-  readonly dryRun: (draft: Draft) => Effect.Effect<{ readonly ok: boolean; readonly problems: ReadonlyArray<string>; readonly touched: ReadonlyArray<string> }, unknown>
+  readonly dryRun: (draft: Draft) => Effect.Effect<{ readonly ok: boolean; readonly problems: ReadonlyArray<string>; readonly touched: ReadonlyArray<string>; readonly cards: ReadonlyArray<string> }, unknown>
   readonly complete: (req: { readonly messages: ReadonlyArray<{ readonly role: "system" | "user"; readonly content: string }>; readonly maxTokens?: number }) => Effect.Effect<{ readonly text: string }, unknown>
   readonly propose: (p: { readonly journey: string; readonly card: string; readonly changes: Draft; readonly answers: ReadonlyArray<string>; readonly summary: string; readonly problems?: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
-  readonly rehearsing: (p: { readonly journey: string; readonly run?: string; readonly cards?: ReadonlyArray<string>; readonly note?: string }) => Effect.Effect<void, unknown>
+  readonly rehearsing: (p: { readonly journey: string; readonly run?: string; readonly cards?: ReadonlyArray<string>; readonly note?: string; readonly clear?: boolean }) => Effect.Effect<void, unknown>
+  /** The accepted draft fails as a whole: back to Refine with the problems. */
+  readonly redraft: (p: { readonly journey: string; readonly problems: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
   readonly rehearsed: (p: { readonly journey: string; readonly resolved: ReadonlyArray<string>; readonly fresh: ReadonlyArray<Fresh>; readonly next: "plan" | "refine"; readonly cards?: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
   readonly drafted: (p: { readonly journey: string; readonly title: string; readonly steps: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
   readonly run: (p: { readonly focus: ReadonlyArray<string>; readonly draft: Draft; readonly file: false }) => Effect.Effect<{ readonly run?: string; readonly refused?: string }, unknown>
@@ -50,14 +53,15 @@ export const jsonIn = (text: string): unknown => {
 const TOOLS = [
   'edit-state {"id":"S-0002","text":"…"}: reword a Given/Then sentence (every card using it changes)',
   'edit-card {"id":"UX-0001","title":"…","when":"…"}: change a card\'s title or When',
-  'add-state {"text":"…"}: a new sentence',
-  'add-card {"title":"Who does what","when":"the one action","by":[{"name":"Operator"}],"arrives":{"id":"S-0001"},"then":[{"text":"…"}]}: a new card (states by {id} or {text}; 1-5 thens)',
-  'link {"from":"UX-0001","edge":"then","to":"S-0009"} / unlink {...}: add or remove one of a card\'s edges',
+  'add-card {"title":"Who does what","when":"the one action","by":[{"name":"Operator"}],"arrives":{"id":"S-0001"},"then":[{"text":"…"}]}: a new card (1-5 thens)',
+  'link {"card":"UX-0001","edge":"then","state":{"text":"…"}}: add a then (or given; arrives replaces the Given)',
+  'unlink {"card":"UX-0001","edge":"then","state":"S-0002"}: remove one (a card keeps at least one then)',
 ].join("\n")
-const SYSTEM = [
+export const SYSTEM = [
   "You refine a product's requirements: Gherkin cards (Given, When, Then) that testers found problems with.",
   "Propose the smallest change to the graph that answers the feedback, as gherkin tool calls in order. Clauses at most 15 words; never 'if' (one card per case).",
   `Tools:\n${TOOLS}`,
+  "Refer to states that exist by id; name every new state by text (its id is made when the plan is applied, so never guess one).",
   'Answer with JSON only: {"changes":[{"tool":"…","params":{…}}],"answers":["F-…"],"summary":"one sentence for the operator"}.',
 ].join("\n\n")
 const stepText = (s: Step) => (s === null ? "(this card is not in the graph)" : [`${s.card} ${s.title}`, ...(s.by !== undefined && s.by.length > 0 ? [`By    ${s.by.join(", ")}`] : []), `Given ${s.given}`, `When  ${s.when}`, ...s.thens.map((t, i) => `${i === 0 ? "Then" : "And "}  ${t}`)].join("\n"))
@@ -66,7 +70,9 @@ const cardOf = (ref: string) => parseRef(ref)?.id ?? ref
 /** The Triage Agent: the agent's part of each journey's stage, whenever the core wakes it. */
 export const makeTriage = (d: TriageDeps) => {
   const quiet = <A>(e: Effect.Effect<A, unknown>) => Effect.ignore(e)
-  const ask = (user: string) => Effect.map(d.complete({ messages: [{ role: "system", content: SYSTEM }, { role: "user", content: user }], maxTokens: 4096 }).pipe(Effect.orElseSucceed(() => ({ text: "" }))), (r) => r.text)
+  /** The model's answer; undefined when it did not answer at all (an outage, not a bad answer). */
+  const ask = (user: string) => Effect.map(d.complete({ messages: [{ role: "system", content: SYSTEM }, { role: "user", content: user }], maxTokens: 4096 }).pipe(Effect.orElseSucceed(() => undefined)), (r) => r?.text)
+  const OUTAGE = "The driver model did not answer; the Triage Agent tries again on the next wake."
   const parseProposal = (text: string) => {
     const v = jsonIn(text) as { changes?: unknown; answers?: unknown; summary?: unknown } | undefined
     if (v === undefined || !Array.isArray(v.changes) || !v.changes.every((c) => typeof (c as { tool?: unknown })?.tool === "string")) return undefined
@@ -76,7 +82,7 @@ export const makeTriage = (d: TriageDeps) => {
   /** One card's proposal: from the model, dry-run over the draft so far; one retry with what was wrong. */
   const proposeFor = (st: StageView, card: string) =>
     Effect.gen(function* () {
-      const entries = (yield* d.feedbackOf(st.journey).pipe(Effect.orElseSucceed(() => []))).filter((e) => cardOf(e.ref) === card)
+      const entries = (yield* d.feedbackOf(st.journey).pipe(Effect.orElseSucceed(() => []))).filter((e) => e.on && cardOf(e.ref) === card)
       const fresh = (st.results?.fresh ?? []).filter((f) => f.card === card)
       const step = yield* d.step(card, st.draft).pipe(Effect.orElseSucceed(() => null))
       const base = [
@@ -92,7 +98,10 @@ export const makeTriage = (d: TriageDeps) => {
       let prompt = base
       let last: { problems: ReadonlyArray<string>; proposal?: ReturnType<typeof parseProposal> } = { problems: [] }
       for (let attempt = 0; attempt < 2; attempt++) {
-        const proposal = parseProposal(yield* ask(prompt))
+        const answer = yield* ask(prompt)
+        // No answer at all: the proposal stays waiting, and the operator is told why.
+        if (answer === undefined) return yield* d.rehearsing({ journey: st.journey, note: OUTAGE })
+        const proposal = parseProposal(answer)
         if (proposal === undefined) {
           last = { problems: ["the Triage Agent could not draft a proposal: skip this card"] }
           prompt = `${base}\n\nYour last answer was not the JSON asked for. Answer with the JSON only.`
@@ -107,24 +116,32 @@ export const makeTriage = (d: TriageDeps) => {
       yield* d.propose({ journey: st.journey, card, changes: p?.changes ?? [], answers: p?.answers ?? [], summary: p?.summary ?? "", ...(last.problems.length > 0 ? { problems: last.problems } : {}) })
     })
 
-  /** Re-rehearse: start a run over the draft, or read the one going. */
+  /** Re-rehearse: check the whole draft, start a run over it (again, when one stopped), or read the one going. */
   const rehearse = (st: StageView) =>
     Effect.gen(function* () {
-      if (st.run === undefined) {
-        const dry = yield* d.dryRun(st.draft).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: [], touched: [] as ReadonlyArray<string> })))
+      const start = Effect.gen(function* () {
+        const dry = yield* d.dryRun(st.draft).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: ["the dry-run failed"], touched: [] as ReadonlyArray<string>, cards: [] as ReadonlyArray<string> })))
+        // Accepted one by one, the changes may not fit together: back to Refine before any run.
+        if (!dry.ok) return yield* d.redraft({ journey: st.journey, problems: dry.problems })
         const journey = (yield* d.journeys().pipe(Effect.orElseSucceed(() => []))).find((j) => j.name === st.journey)
-        const focus = [...new Set([...(journey?.cards ?? []), ...dry.touched.filter((id) => /^UX-/.test(id))])]
+        const focus = [...new Set([...(journey?.cards ?? []), ...dry.cards])]
+        // Nothing to walk: an empty focus would walk the whole graph.
+        if (focus.length === 0) return yield* d.rehearsed({ journey: st.journey, resolved: [], fresh: [], next: "plan", cards: dry.cards })
         const started: { readonly run?: string; readonly refused?: string } = yield* d.run({ focus, draft: st.draft, file: false }).pipe(Effect.orElseSucceed(() => ({ refused: "rehearse did not answer" })))
-        if (started.run === undefined) return yield* d.rehearsing({ journey: st.journey, note: `waits: ${started.refused ?? "rehearse did not start"}` })
-        return yield* d.rehearsing({ journey: st.journey, run: started.run, cards: dry.touched })
-      }
+        if (started.run === undefined) return yield* d.rehearsing({ journey: st.journey, clear: true, note: `waits: ${started.refused ?? "rehearse did not start"}` })
+        return yield* d.rehearsing({ journey: st.journey, run: started.run, cards: dry.cards })
+      })
+      if (st.run === undefined) return yield* start
       const r = yield* d.result(st.run).pipe(Effect.orElseSucceed(() => ({ status: "unknown", findings: [] })))
       if (r.status === "running") return
-      if (r.status !== "done") return yield* d.rehearsing({ journey: st.journey, note: `the re-rehearse ${r.status === "stopped" ? "stopped" : "is gone"}: it starts again on the next wake` })
+      // A run that stopped, or is gone: start another.
+      if (r.status !== "done") return yield* start
       const entries = yield* d.feedbackOf(st.journey).pipe(Effect.orElseSucceed(() => []))
       const same = (card: string, kind: string) => r.findings.some((f) => f.card === card && f.kind === kind)
-      const resolved = entries.filter((e) => !same(cardOf(e.ref), e.kind)).map((e) => e.id)
-      const fresh = r.findings.filter((f) => f.on && !entries.some((e) => cardOf(e.ref) === f.card && e.kind === f.kind)).map(({ on: _, ...f }) => f)
+      const resolved = entries.filter((e) => e.on && !same(cardOf(e.ref), e.kind)).map((e) => e.id)
+      // Fresh: new to this journey — not an entry already (on or off), not one the operator skipped.
+      const known = (f: { card: string; kind: string }) => entries.some((e) => cardOf(e.ref) === f.card && e.kind === f.kind) || (st.dismissed ?? []).some((x) => x.card === f.card && x.kind === f.kind)
+      const fresh = r.findings.filter((f) => f.on && !known(f)).map(({ on: _, ...f }) => f)
       yield* d.rehearsed({ journey: st.journey, resolved, fresh, next: fresh.length > 0 ? "refine" : "plan", ...(st.cards !== undefined ? { cards: st.cards } : {}) })
     })
 
@@ -135,6 +152,7 @@ export const makeTriage = (d: TriageDeps) => {
       const text = yield* ask(
         [`Journey: ${st.journey}`, "Accepted changes:", ...accepted.map((p) => `- ${p.card}: ${p.summary}`), "", 'Write the plan: {"title":"at most 8 words","steps":["one line per step"]}. JSON only.'].join("\n"),
       )
+      if (text === undefined) return yield* d.rehearsing({ journey: st.journey, note: OUTAGE })
       const v = jsonIn(text) as { title?: unknown; steps?: unknown } | undefined
       const title = typeof v?.title === "string" && v.title.length > 0 ? v.title : `${st.journey}: ${accepted.length} card${accepted.length === 1 ? "" : "s"} refined`
       const steps = Array.isArray(v?.steps) && v.steps.every((x) => typeof x === "string") ? (v.steps as ReadonlyArray<string>) : accepted.map((p) => `${p.card}: ${p.summary}`)

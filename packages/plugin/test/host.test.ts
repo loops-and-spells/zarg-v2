@@ -345,7 +345,7 @@ describe("PluginHost.calls", () => {
     const out = await run(
       Effect.gen(function* () {
         const host = yield* PluginHost
-        const ok = yield* host.calls([{ name: "notes/add-topic", params: { name: "a" } }, { name: "notes/add-note", params: { text: "x", topic: "T-0001" } }])
+        const ok = (yield* host.calls([{ name: "notes/add-topic", params: { name: "a" } }, { name: "notes/add-note", params: { text: "x", topic: "T-0001" } }])).touched
         const bad = yield* Effect.flip(host.calls([{ name: "notes/add-topic", params: { name: "b" } }, { name: "notes/add-note", params: { text: "y", topic: "T-0999" } }]))
         // The lock is free again: a plain call goes through.
         const after = yield* host.call("notes/add-topic", { name: "c" })

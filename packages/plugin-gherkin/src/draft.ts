@@ -1,6 +1,24 @@
 import { Effect, Schema } from "effect"
 import { type Change, diff, Snapshot } from "@zarg/graph/pure"
+import { affectedCards } from "./affected"
 import type { Finding, Lint, Tool } from "./kit"
+
+/** Edge limits per edge type (the plugin's graph spec): the host checks them on every write. */
+export type EdgeLimits = Readonly<Record<string, { readonly from: string; readonly min?: number; readonly max?: number }>>
+/** A node's edges against the limits, as the host's structural check would find them. */
+const structure = (snap: Snapshot.Snapshot, ids: ReadonlyArray<string>, limits: EdgeLimits) =>
+  ids.flatMap((id) => {
+    const n = snap.nodes.get(id)
+    if (n === undefined) return []
+    const own = Object.entries(limits).filter(([, l]) => n.type === `gherkin/${l.from}`)
+    return [
+      ...own.flatMap(([edge, l]) => {
+        const count = n.edges.filter((e) => e.type === `gherkin/${edge}`).length
+        return (l.min !== undefined && count < l.min) || (l.max !== undefined && count > l.max) ? [`${id} has ${count} ${edge} edge${count === 1 ? "" : "s"}; it needs ${l.min ?? 0}${l.max !== undefined ? `-${l.max}` : " or more"}`] : []
+      }),
+      ...n.edges.filter((e) => !snap.nodes.has(e.to)).map((e) => `${id} points at ${e.to}, which is not in the graph`),
+    ]
+  })
 
 /** A draft: gherkin tool calls, in order, applied over the graph in memory (it never writes the graph). */
 export type Draft = ReadonlyArray<{ readonly tool: string; readonly params: unknown }>
@@ -9,7 +27,7 @@ export type Draft = ReadonlyArray<{ readonly tool: string; readonly params: unkn
  * The graph as it would be after a draft: each call runs on the snapshot the calls before it made, so a card can
  * arrive from a state added earlier in the same draft (the same ids the Planner gets applying it in order).
  */
-export const applyDraft = (snap: Snapshot.Snapshot, draft: Draft, tools: ReadonlyArray<Tool>) =>
+export const applyDraft = (snap: Snapshot.Snapshot, draft: Draft, tools: ReadonlyArray<Tool>, limits?: EdgeLimits) =>
   Effect.gen(function* () {
     let now = snap
     const changes: Array<Change> = []
@@ -32,7 +50,14 @@ export const applyDraft = (snap: Snapshot.Snapshot, draft: Draft, tools: Readonl
         problems.push(`${c.tool}: ${e?.error?.message ?? "failed"}`)
         continue
       }
-      now = Snapshot.applyChanges(now, r.value.changes)
+      const next = Snapshot.applyChanges(now, r.value.changes)
+      // As a write would: each call's result must hold the graph's edge limits (a later call cannot repair it).
+      const broken = limits === undefined ? [] : structure(next, r.value.changes.map((ch) => (ch._tag === "Put" ? ch.node.id : ch.id)), limits)
+      if (broken.length > 0) {
+        problems.push(...broken.map((b) => `${c.tool}: ${b}`))
+        continue
+      }
+      now = next
       changes.push(...r.value.changes)
       messages.push(r.value.message)
     }
@@ -40,11 +65,13 @@ export const applyDraft = (snap: Snapshot.Snapshot, draft: Draft, tools: Readonl
   })
 
 /** A draft checked as the write pipeline would: its tools, the props it writes, and every lint over what changed. */
-export const dryRun = (snap: Snapshot.Snapshot, draft: Draft, tools: ReadonlyArray<Tool>, validate: (changes: ReadonlyArray<Change>) => ReadonlyArray<Finding>, lints: ReadonlyArray<Lint>) =>
-  Effect.map(applyDraft(snap, draft, tools), (a) => {
+export const dryRun = (snap: Snapshot.Snapshot, draft: Draft, tools: ReadonlyArray<Tool>, validate: (changes: ReadonlyArray<Change>) => ReadonlyArray<Finding>, lints: ReadonlyArray<Lint>, limits?: EdgeLimits) =>
+  Effect.map(applyDraft(snap, draft, tools, limits), (a) => {
     const d = diff(snap, a.snapshot)
     const findings = [...validate(a.changes), ...lints.flatMap((l) => l({ before: snap, after: a.snapshot, diff: d }))].filter((f) => f.severity === "error")
     const problems = [...a.problems, ...findings.map((f) => f.message)]
     const touched = [...new Set(a.changes.map((c) => (c._tag === "Put" ? c.node.id : c.id)))]
-    return { ok: problems.length === 0, problems, touched, messages: a.messages }
+    // The cards to re-implement: added or changed, or using a reworded state (as the reconcile loop will see it).
+    const cards = affectedCards(snap, a.snapshot).cards
+    return { ok: problems.length === 0, problems, touched, cards, messages: a.messages }
   })
