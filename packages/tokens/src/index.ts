@@ -104,20 +104,21 @@ const each = (f: (h: string) => ColorValue) => Object.fromEntries(Object.entries
 export const PALETTES: Readonly<Record<Platform, Readonly<Record<ColorName, ColorValue>>>> = {
   "terminal.truecolor": each((h) => ({ fg: h })),
   "terminal.ansi256": each((h) => ({ fg: nearest(h, XTERM_256) })),
-  // 16 colours: the slates collapse to black and bright black; weight tells the rest apart.
+  // 16 colours, colour alone (the TUI draws fg only): the slates collapse to black, the cursor row is navy so grey
+  // text stays readable on it, and the hues are the bright ones so they read on black.
   "terminal.ansi16": {
     ink: { fg: "#c0c0c0" },
     "slate.950": { fg: "#000000" },
     "slate.900": { fg: "#000000" },
     "slate.850": { fg: "#000000" },
-    "slate.800": { fg: "#808080" },
+    "slate.800": { fg: "#000080" },
     "slate.700": { fg: "#808080" },
     "gray.400": { fg: "#c0c0c0" },
     "gray.500": { fg: "#808080" },
-    "gray.600": { fg: "#808080", faint: true },
-    blue: { fg: "#0000ff", bold: true },
-    amber: { fg: "#808000", bold: true },
-    green: { fg: "#008000" },
+    "gray.600": { fg: "#808080" },
+    blue: { fg: "#00ffff" },
+    amber: { fg: "#ffff00" },
+    green: { fg: "#00ff00" },
     red: { fg: "#ff0000" },
   },
   "web.dark": each((h) => ({ fg: h })),
@@ -144,7 +145,7 @@ const paletteOf = (platform: Platform) => ({ platform, color: (name: ColorName):
 export class Palette extends Context.Service<Palette, { readonly platform: Platform; readonly color: (name: ColorName) => ColorValue }>()("@zarg/tokens/Palette") {
   /** One platform's palette (tests, the web, a config setting). */
   static readonly on = (platform: Platform) => Layer.succeed(Palette, paletteOf(platform))
-  /** The terminal's: ZARG_THEME_COLORS (the config's `[theme] colors`) wins; else COLORTERM; else TERM. */
+  /** The terminal's: ZARG_THEME_COLORS (truecolor, 256, 16) wins; else COLORTERM; else TERM. (`[theme] colors` in config.toml: not read yet.) */
   static readonly terminal = Layer.effect(
     Palette,
     Effect.gen(function* () {

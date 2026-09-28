@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { ConfigProvider, Effect, Layer } from "effect"
-import { ALIASES, BASE, makeTheme, Palette, PALETTES, type Platform, Theme } from "../src"
+import { ALIASES, BASE, makeTheme, Palette, PALETTES, PLUGIN_KEYS, type Platform, Theme, type TokenKey } from "../src"
 
 const platforms = Object.keys(PALETTES) as ReadonlyArray<Platform>
 const keys = [...Object.keys(BASE), ...Object.keys(ALIASES)]
@@ -27,6 +27,15 @@ describe("tokens", () => {
     expect(themeOn("terminal.ansi256").value("accent").fg).toBe("#87afff")
     const t16 = themeOn("terminal.ansi16")
     expect(t16.value("selection").fg).not.toBe(t16.value("ground").fg)
+  })
+  test("on every palette, text and every plugin key stays readable on the cursor row (differs from selection)", () => {
+    for (const p of Object.keys(PALETTES) as ReadonlyArray<Platform>) {
+      const t = makeTheme(PALETTES[p], p)
+      for (const k of ["text", "faint", ...PLUGIN_KEYS] as ReadonlyArray<TokenKey>) expect(`${p} ${k} ${t.value(k).fg}`).not.toBe(`${p} ${k} ${t.value("selection").fg}`)
+    }
+  })
+  test("no palette leans on weight: colour alone tells keys apart (platforms draw fg only)", () => {
+    for (const p of Object.values(PALETTES)) for (const v of Object.values(p)) expect(v.bold === undefined && v.faint === undefined).toBe(true)
   })
   test("plugin tones: plugin keys and old tones map; shell keys and unknowns fall to text", () => {
     const th = makeTheme(PALETTES["terminal.truecolor"], "terminal.truecolor")

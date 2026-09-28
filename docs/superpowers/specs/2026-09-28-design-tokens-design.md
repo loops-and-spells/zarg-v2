@@ -44,7 +44,7 @@ export const ALIASES = { card: "attention", state: "text", persona: "accent", jo
 
 - `terminal.truecolor`: today's hex values (`THEME`), unchanged: `slate.950 #0f1115`, `slate.900 #161a21`, `slate.850 #1a1f28`, `slate.800 #1f2533`, `slate.700 #262b35`, `ink #d7dce2`, `gray.500 #6b7280`, `gray.600 #3b4150`, `blue #7aa2f7`, `amber #e0af68`, `green #9ece6a`, `red #f7768e`.
 - `terminal.ansi256`: the nearest of the 256 colours to each truecolor value.
-- `terminal.ansi16`: the 16 ANSI colours; where the slates collapse to one or two, the difference is carried by weight (`ink` bold where it sits on `slate.800`, `gray.600` faint).
+- `terminal.ansi16`: the 16 ANSI colours, by colour alone (the terminal draws `fg` only): the slates collapse to black, the cursor row (`slate.800`) is navy so grey text stays readable on it, and hues are the bright ones (cyan for blue, yellow for amber, lime for green) so they read on black. `[theme] colors` in config.toml is not read yet: `ZARG_THEME_COLORS` sets it.
 - `web.dark` (the truecolor hexes as CSS values) and `web.light` (a light ground, the same hues darkened for contrast: WCAG AA for text on `ground`).
 
 Each colour's value is `{ fg: string, bold?: true, faint?: true }`. Types make every palette give every colour name; a test checks every key resolves to a colour on every palette.
