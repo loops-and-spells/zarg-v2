@@ -18,6 +18,8 @@ export const Action = Schema.Struct({
   opens: Schema.optionalKey(Schema.Array(Schema.Struct({ surface: Schema.String, agent: Schema.optionalKey(Schema.String) }))),
   /** The row's default: Enter on a highlighted row runs it (a table's first default wins). */
   default: Schema.optionalKey(Schema.Boolean),
+  /** Runs whenever the table's cursor lands on another row (a list whose choice fills the rest of the view). */
+  highlight: Schema.optionalKey(Schema.Boolean),
 })
 /** A table column; `order` ranks its values for sorting (a severity's "high", "medium", "low"), else they sort as text with numbers as numbers. */
 /** What a column's menu offers beside sorting: ticking by value, nothing, ticking a numeric range (the cell's last number), or a search that sorts by match. */

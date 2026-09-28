@@ -296,6 +296,15 @@ export const toggleAct = (view: ViewState, ui: ViewUi): { readonly section: stri
   return row === undefined ? undefined : { section: c.path, action: "toggle", rows: [row.id] }
 }
 
+/** For each table with a `highlight` action, that action on its highlighted row: the platform runs it when the row changes. */
+export const highlightActs = (view: ViewState, ui: ViewUi): ReadonlyArray<{ readonly section: string; readonly action: string; readonly rows: ReadonlyArray<string> }> =>
+  ordered(view.layout).flatMap((s) => {
+    const c = leafOf(view, ui, s.id)
+    const a = c !== undefined && c.leaf.kind === "table" ? (c.leaf.actions ?? []).find((x) => x.highlight === true) : undefined
+    const row = a === undefined ? undefined : shownRows(view, ui, c!.path)[ui.rows[c!.path] ?? 0]
+    return row === undefined ? [] : [{ section: c!.path, action: a!.id, rows: [row.id] }]
+  })
+
 /** A board's cursor and folds (clamped to its lanes and cards when read). */
 export const boardUi = (view: ViewState, ui: ViewUi, path: string): BoardUi => {
   const lanes = (view.data[path] as { lanes?: ReadonlyArray<{ id: string; cards: ReadonlyArray<{ id: string }> }> } | undefined)?.lanes ?? []

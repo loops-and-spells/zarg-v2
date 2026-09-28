@@ -4,13 +4,13 @@ import { defineView } from "@zarg/plugin-sdk"
 export const FeedbackView = defineView("feedback", {
   // The stepper for the selected journey, and how much of its feedback is on.
   stage: { kind: "text", role: "summary", title: "" },
-  // Journeys with feedback; Enter shows one.
+  // Journeys with feedback; the highlighted one shows its feedback.
   journeys: {
     kind: "table",
     role: "primary",
     title: "",
     columns: [{ id: "journey", label: "journey", tone: "journey", filter: "none" }, { id: "open", label: "open", filter: "none" }, { id: "stage", label: "stage", filter: "values" }],
-    actions: [{ id: "journey", label: "Show", on: "row", default: true }],
+    actions: [{ id: "journey", label: "Show", on: "row", default: true, highlight: true }],
   },
   // The journey's open feedback: each on or off (the agent's first call, yours to flip).
   feedback: {

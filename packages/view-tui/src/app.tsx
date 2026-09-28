@@ -1,7 +1,7 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Panel, Session } from "@zarg/client"
-import { afterAction, applyMenu, hintsOf, keyFor, menuAdjust, pickHeader, pickMark, pickRow, pickTab, startUi } from "@zarg/view"
+import { afterAction, applyMenu, highlightActs, hintsOf, keyFor, menuAdjust, pickHeader, pickMark, pickRow, pickTab, startUi } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { registerCommands, SLASH_COMMANDS } from "./commands"
 import { fit, gauge, keyGlyphs } from "./look"
@@ -142,6 +142,19 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   useEffect(() => {
     if (cursor !== undefined) agentsRef.current?.scrollChildIntoView(`agent-${cursor}`)
   }, [cursor])
+  // A list whose highlight fills the view: the plugin hears each row the cursor lands on (not the one it opens on).
+  const openView = viewing !== undefined ? s.thread.views?.[viewing] : undefined
+  const highlighted = openView === undefined ? undefined : JSON.stringify([viewing, highlightActs(openView, ui.view ?? startUi(openView))])
+  const lastHighlight = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    const before = lastHighlight.current
+    lastHighlight.current = highlighted
+    if (highlighted === undefined || before === undefined || before === highlighted) return
+    const [was, prev] = JSON.parse(before) as [string, ReadonlyArray<{ section: string; action: string; rows: ReadonlyArray<string> }>]
+    const [now, acts] = JSON.parse(highlighted) as [string, ReadonlyArray<{ section: string; action: string; rows: ReadonlyArray<string> }>]
+    if (was !== now || openView === undefined) return
+    for (const a of acts) if (!prev.some((p) => p.section === a.section && p.rows[0] === a.rows[0])) act({ type: "act", section: a.section, action: a.action, rows: a.rows, view: openView.agent })
+  }, [highlighted])
   const asking = attentionOf(s.thread.rlms)
   const world = { s, now, draft }
 

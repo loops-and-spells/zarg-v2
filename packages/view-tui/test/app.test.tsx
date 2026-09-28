@@ -392,6 +392,26 @@ describe("tui frames", () => {
     expect(t.calls).toContain("act rehearse:tester-1 apply R-1")
   })
 
+  test("a list whose highlight fills the view: moving the cursor tells the plugin the row, once per row", async () => {
+    const agent = { id: "backlog:feedback", parent: null, preset: "view", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
+    const view = {
+      agent: "backlog:feedback",
+      layout: { name: "feedback", sections: [{ id: "journeys", kind: "table" as const, role: "primary" as const, title: "", columns: [{ id: "journey", label: "journey" }], actions: [{ id: "journey", label: "Show", on: "row" as const, default: true, highlight: true }] }] },
+      data: { journeys: { rows: [{ id: "Set up", cells: { journey: "Set up" } }, { id: "Reconcile", cells: { journey: "Reconcile" } }] } },
+    }
+    const t = await render({ thread: { ...initial("main"), status: "running", rlms: { "backlog:feedback": agent }, views: { "backlog:feedback": view } }, core: "up" })
+    t.mockInput.pressKey("a", { meta: true })
+    await settle(t)
+    t.mockInput.pressEnter()
+    await settle(t)
+    t.mockInput.pressKey("v", { meta: true })
+    t.mockInput.pressArrow("down")
+    await settle(t)
+    await Bun.sleep(30)
+    await settle(t)
+    expect(t.calls.filter((c) => c.startsWith("act"))).toEqual(["act backlog:feedback journey Reconcile"])
+  })
+
   test("the agents pane folds: → opens a child's subtree, ← closes it", async () => {
     const rlms = {
       "rlm-1": { id: "rlm-1", parent: null, preset: "driver", depth: 0, turns: 1, budget: 25, status: "running" as const, decisions: [] },

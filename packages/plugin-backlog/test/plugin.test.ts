@@ -127,4 +127,19 @@ describe("the backlog's feedback", () => {
     expect(out.row.on).toBe(false)
     expect(out.ms).toBeLessThan(500)
   }, 60000)
+  test("a journey shows its own feedback; opening the view again starts on the first journey, where the cursor is", async () => {
+    const out = await run((seen) => Effect.gen(function* () {
+      const card = yield* setUp
+      const h = yield* PluginHost
+      yield* h.invoke("backlog", "file", { entries: [{ ...report(card.ref, "In A."), journeys: ["A"] }, { ...report(card.ref, "In B."), journeys: ["B"] }] })
+      const shown = () => rows(seen, "feedback").map((r) => r.cells.feedback)
+      yield* h.invoke("backlog", "act", { agent: "feedback", action: "open", rows: [] })
+      const first = shown()
+      yield* h.invoke("backlog", "act", { agent: "feedback", action: "journey", section: "journeys", rows: ["B"] })
+      const b = shown()
+      yield* h.invoke("backlog", "act", { agent: "feedback", action: "open", rows: [] })
+      return { first, b, again: shown() }
+    }))
+    expect(out).toEqual({ first: ["In A."], b: ["In B."], again: ["In A."] })
+  })
 })

@@ -416,6 +416,8 @@ export default definePlugin({
         }
         if (agent !== "feedback") return { notice: `backlog has no view ${agent}` }
         if (action === "journey" && rows[0] !== undefined) journey = rows[0]
+        // The view opens with its cursor on the first journey: show that one.
+        if (action === "open") journey = undefined
         if (["refine", "accept", "skip", "backlog", "plan-now"].includes(action)) {
           if (journey === undefined) yield* refresh
           const notice = journey === undefined ? "no journey with feedback" : yield* stageAct(journey, action)
