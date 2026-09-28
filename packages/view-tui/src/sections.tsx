@@ -213,7 +213,7 @@ const wantedOf = (view: ViewState, ui: ViewUi, s: LayoutSection, width: number, 
   const leaf = leafOf(view, ui, s.id)
   if (leaf === undefined) return 3
   const k = leaf.leaf.kind
-  if ((k === "text" || k === "conversation") && measured !== undefined) return Math.max(1, measured) + 1
+  if ((k === "text" || k === "conversation") && measured !== undefined) return Math.max(1, measured) + (s.kind === "tabs" ? 2 : 1)
   const content =
     k === "stats" ? 1
     // Prose wraps: each paragraph line takes as many rows as its length needs.
