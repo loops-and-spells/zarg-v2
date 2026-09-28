@@ -921,4 +921,22 @@ describe("action buttons", () => {
     expect(t.calls).toContain("act rehearse:tester-1 dismiss R-1")
     expect(body(t)).not.toContain("Dismiss")
   })
+  test("Clear drops the selection: the buttons go and nothing is sent", async () => {
+    const t = await render(withFindings(false), { width: 130, height: 32 })
+    t.mockInput.pressKey("a", { meta: true }); await settle(t); t.mockInput.pressEnter(); await settle(t)
+    await clickOn(t, "○ R-2")
+    await clickOn(t, "Clear")
+    expect(body(t)).not.toContain("Send to zarg")
+    expect(body(t)).toContain("○ R-2")
+    expect(t.calls.filter((c) => c.startsWith("act"))).toEqual([])
+  })
+  test("a long one-paragraph text section shows as many wrapped lines as fit its share, not one", async () => {
+    const long = "The testers walked every journey. ".repeat(20)
+    const s = withFindings(false)
+    const v = s.thread.views!["rehearse:tester-1"]!
+    const withReport = { ...v, layout: { ...v.layout, sections: [{ id: "report", kind: "text" as const, role: "aside" as const, title: "Report" }, ...v.layout.sections] }, data: { ...v.data, report: { markdown: long } } }
+    const t = await render({ ...s, thread: { ...s.thread, views: { "rehearse:tester-1": withReport } } }, { width: 130, height: 40 })
+    t.mockInput.pressKey("a", { meta: true }); await settle(t); t.mockInput.pressEnter(); await settle(t)
+    expect(body(t).split("\n").filter((l) => l.includes("walked every")).length).toBeGreaterThanOrEqual(3)
+  })
 })

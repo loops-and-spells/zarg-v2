@@ -169,13 +169,14 @@ const tabsOf = (view: ViewState, ui: ViewUi, s: LayoutSection) =>
   s.kind === "tabs" ? s.tabs.map((t, i) => ({ label: `${t.title ?? t.id} ${count(view, `${s.id}.${t.id}`)}`, current: i === (ui.tabs[s.id] ?? 0) })) : undefined
 
 /** How tall a section would like to be: its content plus its frame (text counts its lines). */
-const wantedOf = (view: ViewState, ui: ViewUi, s: LayoutSection): number => {
+const wantedOf = (view: ViewState, ui: ViewUi, s: LayoutSection, width: number): number => {
   const leaf = leafOf(view, ui, s.id)
   if (leaf === undefined) return 3
   const k = leaf.leaf.kind
   const content =
     k === "stats" ? 1
-    : k === "text" ? ((view.data[leaf.path] as { markdown?: string } | undefined)?.markdown ?? "").split("\n").length
+    // Prose wraps: each paragraph line takes as many rows as its length needs.
+    : k === "text" ? ((view.data[leaf.path] as { markdown?: string } | undefined)?.markdown ?? "").split("\n").reduce((a, l) => a + Math.max(1, Math.ceil(l.length / Math.max(1, width))), 0)
     : k === "keyvalue" ? ((view.data[leaf.path] as { pairs?: ReadonlyArray<unknown> } | undefined)?.pairs ?? []).length
     : k === "log" ? ((view.data[leaf.path] as { lines?: ReadonlyArray<unknown> } | undefined)?.lines ?? []).length
     : rowsOf(view, leaf.path).length + (k === "table" ? 1 : 0)
@@ -184,7 +185,7 @@ const wantedOf = (view: ViewState, ui: ViewUi, s: LayoutSection): number => {
 }
 type ButtonSpec = { readonly id: string; readonly label: string; readonly key?: string; readonly keys?: Readonly<Record<string, string>> }
 /** A selection's actions as buttons: the first filled with the accent (with the count), the rest quiet; each shows its key and runs on a click. */
-export const Buttons = (p: { readonly actions: ReadonlyArray<ButtonSpec>; readonly count: number; readonly onPress: (id: string) => void }) => (
+export const Buttons = (p: { readonly actions: ReadonlyArray<ButtonSpec>; readonly count: number; readonly onPress: (id: string) => void; readonly onClear?: () => void }) => (
   <box style={{ flexDirection: "row", height: 1, flexShrink: 0 }}>
     {p.actions.map((a, i) => {
       const fill = i === 0 ? THEME.accent : THEME.line
@@ -198,6 +199,11 @@ export const Buttons = (p: { readonly actions: ReadonlyArray<ButtonSpec>; readon
         </text>
       )
     })}
+    {p.onClear !== undefined ? (
+      <text wrapMode="none" onMouseDown={p.onClear}>
+        <span fg={THEME.dim}>{" Clear "}</span>
+      </text>
+    ) : null}
   </box>
 )
 /** A selectable table's buttons: its `selection` actions, once rows it still shows are selected. */
@@ -216,7 +222,7 @@ const SHARE = { primary: "33%", pinned: "40%", aside: "25%" } as const
 export type Scroller = (delta: number) => void
 
 /** An agent's view in the terminal: its sections stacked by role, each a heading over its own scrollbox. */
-export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly width?: number; readonly scroller?: { current?: Scroller | undefined }; readonly onPick?: (sectionId: string, index: number) => void; readonly onAct?: (section: string, action: string, rows: ReadonlyArray<string>) => void }) => {
+export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly width?: number; readonly scroller?: { current?: Scroller | undefined }; readonly onPick?: (sectionId: string, index: number) => void; readonly onAct?: (section: string, action: string, rows: ReadonlyArray<string>) => void; readonly onClear?: (section: string) => void }) => {
   const dims = useTerminalDimensions()
   const width = Math.max(10, (props.width ?? dims.width) - 2)
   const all = ordered(props.view.layout)
@@ -258,8 +264,8 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
               minHeight: 2,
               flexShrink: 1,
               ...(s.role === "log" || s.role === "pinned"
-                ? { flexGrow: 1, flexBasis: 0, maxHeight: wantedOf(props.view, props.ui, s) + extra }
-                : { height: wantedOf(props.view, props.ui, s) + extra, maxHeight: s.role === "summary" ? 6 : SHARE[s.role as keyof typeof SHARE] }),
+                ? { flexGrow: 1, flexBasis: 0, maxHeight: wantedOf(props.view, props.ui, s, width) + extra }
+                : { height: wantedOf(props.view, props.ui, s, width) + extra, maxHeight: s.role === "summary" ? 6 : SHARE[s.role as keyof typeof SHARE] }),
             }}
           >
             <box style={{ height: 1, flexShrink: 0 }}>
@@ -275,7 +281,7 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
             </scrollbox>
             {buttons !== undefined ? (
               <box style={{ flexShrink: 0, marginTop: 1, paddingLeft: 1 }}>
-                <Buttons actions={buttons.actions} count={buttons.rows.length} onPress={(id) => props.onAct!(leaf.path, id, buttons.rows)} />
+                <Buttons actions={buttons.actions} count={buttons.rows.length} onPress={(id) => props.onAct!(leaf.path, id, buttons.rows)} {...(props.onClear !== undefined ? { onClear: () => props.onClear!(leaf.path) } : {})} />
               </box>
             ) : null}
           </box>

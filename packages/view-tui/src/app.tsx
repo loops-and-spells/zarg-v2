@@ -304,6 +304,10 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
               act({ type: "act", section, action, rows, view: v.agent })
               setUi({ ...latest(), view: afterAction(latest().view ?? startUi(v), section) })
             }}
+            onClear={(section) => {
+              const v = props.session.state().thread.views?.[viewing]
+              if (v !== undefined) setUi({ ...latest(), view: afterAction(latest().view ?? startUi(v), section) })
+            }}
           />
         )}
       </box>
@@ -470,6 +474,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
               act({ type: "act", section, action, rows, agent: sheetViewState.agent.split("@")[0]!, view: sheetViewState.agent })
               setUi({ ...latest(), sheetView: afterAction(latest().sheetView ?? startUi(sheetViewState), section) })
             }}
+            onClear={(section) => setUi({ ...latest(), sheetView: afterAction(latest().sheetView ?? startUi(sheetViewState), section) })}
           />}
       </box>
     </box>
@@ -607,6 +612,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
               if (acts.length > 0) act({ type: "review-acts", acts })
               setUi({ ...latest(), review: { ...latest().review, selected: [] } })
             }}
+            onClear={() => setUi({ ...latest(), review: { ...latest().review, selected: [] } })}
           />
         </box>
       ) : null}
