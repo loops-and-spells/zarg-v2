@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@zarg/bm25": "workspace:*",
+    "@zarg/tokens": "workspace:*",
     "effect": "^4.0.0-rc.117"
   },
   "peerDependencies": {

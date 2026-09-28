@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { testRender } from "@opentui/react/test-utils"
 import { act } from "react"
-import { defineView, initialViewUi, layoutOf, THEME, type ViewState } from "@zarg/view"
+import { defineView, initialViewUi, layoutOf, type ViewState } from "@zarg/view"
 import { AgentView, type Scroller } from "../src/sections"
+import { colorsOf, DEFAULT_THEME } from "../src/theme"
+
+const THEME = colorsOf(DEFAULT_THEME)
 
 const tester = layoutOf(
   defineView("tester", {

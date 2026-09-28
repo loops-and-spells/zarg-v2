@@ -1,12 +1,11 @@
 import type { BoxRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { useTerminalDimensions } from "@opentui/react"
-import { CHAT, type ConversationQuestion, conversationRows, cursorRow, filterOf, followedText, keyFor, searchCount, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, THEME, toneColor, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
+import { CHAT, type ConversationQuestion, conversationRows, cursorRow, filterOf, followedText, keyFor, searchCount, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
 import { fit, gauge, heading } from "./look"
 import { RichText } from "./markdown"
+import { useColors, useToneFg } from "./theme"
 
-/** The terminal's colour for a plugin's tone (the theme's, via `toneColor`). */
-const fg = (t: unknown) => toneColor(t)
 const pad = (s: string, n: number) => (s.length > n ? `${s.slice(0, Math.max(0, n - 1))}…` : s.padEnd(n))
 const STATE_MARK = { busy: "⠼", waiting: "◌", done: "✓", flagged: "⚑" } as const
 
@@ -15,7 +14,8 @@ type Leaf = (p: LeafProps) => ReactNode
 
 /** A section's heading: its title (or its tabs, the current one marked), then a faint rule. */
 export const Heading = (p: { readonly title: string; readonly width: number; readonly focused: boolean; readonly tabs?: ReadonlyArray<{ readonly label: string; readonly current: boolean; readonly empty?: boolean }>; readonly onTab?: (index: number) => void }) => {
-  const colour = p.focused ? THEME.accent : THEME.dim
+  const C = useColors()
+  const colour = p.focused ? C.accent : C.dim
   if (p.tabs === undefined) {
     const h = heading(p.title, p.width)
     return (
@@ -23,7 +23,7 @@ export const Heading = (p: { readonly title: string; readonly width: number; rea
         <span fg={colour}>
           <b>{h.title}</b>
         </span>
-        <span fg={THEME.faint}>{h.rule}</span>
+        <span fg={C.faint}>{h.rule}</span>
       </text>
     )
   }
@@ -37,11 +37,11 @@ export const Heading = (p: { readonly title: string; readonly width: number; rea
       <box style={{ flexDirection: "row", height: 1 }}>
         {tabs.map((t, i) => [
           i > 0 ? <text key={`gap${i}`}>{"   "}</text> : null,
-          <text key={i} wrapMode="none" onMouseDown={() => p.onTab?.(i)} fg={t.current ? (p.focused ? THEME.accent : THEME.text) : t.empty === true ? THEME.faint : THEME.dim}>
+          <text key={i} wrapMode="none" onMouseDown={() => p.onTab?.(i)} fg={t.current ? (p.focused ? C.accent : C.text) : t.empty === true ? C.faint : C.dim}>
             {t.current ? <b>{t.label}</b> : t.label}
           </text>,
         ])}
-        <text wrapMode="none" fg={THEME.faint}>{h.rule}</text>
+        <text wrapMode="none" fg={C.faint}>{h.rule}</text>
       </box>
       <text wrapMode="none" fg={colour}>{under}</text>
     </box>
@@ -49,56 +49,66 @@ export const Heading = (p: { readonly title: string; readonly width: number; rea
 }
 
 const Stats: Leaf = ({ view, path, width }) => {
+  const C = useColors()
+  const fg = useToneFg()
   const d = view.data[path] as { items?: ReadonlyArray<{ label: string; value: string; tone?: string }>; progress?: { done: number; total: number } } | undefined
   const g = d?.progress !== undefined ? gauge(d.progress.done, d.progress.total, 24) : undefined
   return (
     <text wrapMode="none">
-      {g !== undefined ? <span fg={THEME.accent}>{g.done}</span> : null}
-      {g !== undefined ? <span fg={THEME.faint}>{`${g.rest}  `}</span> : null}
+      {g !== undefined ? <span fg={C.accent}>{g.done}</span> : null}
+      {g !== undefined ? <span fg={C.faint}>{`${g.rest}  `}</span> : null}
       {(d?.items ?? []).map((i, n) => (
         <span key={n}>
-          <span fg={i.tone !== undefined ? fg(i.tone) : THEME.text}>{`${n > 0 ? "   " : ""}${fit(i.value, width)}`}</span>
-          <span fg={THEME.dim}>{` ${i.label}`}</span>
+          <span fg={i.tone !== undefined ? fg(i.tone) : C.text}>{`${n > 0 ? "   " : ""}${fit(i.value, width)}`}</span>
+          <span fg={C.dim}>{` ${i.label}`}</span>
         </span>
       ))}
     </text>
   )
 }
 /** The gutter: the cursor's ▍ and, in a selectable table, ○ or ●. */
-const Gutter = (p: { readonly cursor: boolean; readonly selectable: boolean; readonly selected: boolean }) => (
-  <>
-    <span fg={THEME.accent}>{p.cursor ? "▍" : " "}</span>
-    {p.selectable ? <span fg={p.selected ? THEME.accent : THEME.dim}>{p.selected ? "● " : "○ "}</span> : <span> </span>}
-  </>
-)
+const Gutter = (p: { readonly cursor: boolean; readonly selectable: boolean; readonly selected: boolean }) => {
+  const C = useColors()
+  return (
+    <>
+      <span fg={C.accent}>{p.cursor ? "▍" : " "}</span>
+      {p.selectable ? <span fg={p.selected ? C.accent : C.dim}>{p.selected ? "● " : "○ "}</span> : <span> </span>}
+    </>
+  )
+}
 const List: Leaf = ({ view, ui, path, focused, width }) => {
+  const C = useColors()
+  const fg = useToneFg()
   const items = (view.data[path] as { items?: ReadonlyArray<{ id: string; text: string; detail?: string; state?: keyof typeof STATE_MARK; tone?: string }> } | undefined)?.items ?? []
   const row = ui.rows[path] ?? 0
   return (
     <>
-      {items.length === 0 ? <text fg={THEME.dim}> nothing yet</text> : null}
+      {items.length === 0 ? <text fg={C.dim}> nothing yet</text> : null}
       {items.map((it, i) => {
         const cursor = focused && i === row
-        const tone = it.state === "waiting" || it.state === "done" ? THEME.dim : it.state === "flagged" ? THEME.attention : fg(it.tone)
+        const tone = it.state === "waiting" || it.state === "done" ? C.dim : it.state === "flagged" ? C.attention : fg(it.tone)
         const text = fit(it.text, Math.max(8, width - 6 - (it.detail?.length ?? 0)))
         return (
-          <text key={it.id} wrapMode="none" {...(cursor ? { bg: THEME.selection } : {})}>
+          <text key={it.id} wrapMode="none" {...(cursor ? { bg: C.selection } : {})}>
             <Gutter cursor={cursor} selectable={false} selected={false} />
             <span fg={tone}>{`${it.state !== undefined ? STATE_MARK[it.state] : " "} ${text}`}</span>
-            {it.detail !== undefined ? <span fg={THEME.dim}>{`  ${it.detail}`}</span> : null}
+            {it.detail !== undefined ? <span fg={C.dim}>{`  ${it.detail}`}</span> : null}
           </text>
         )
       })}
     </>
   )
 }
-const Log: Leaf = ({ view, path, width }) => (
-  <>
-    {((view.data[path] as { lines?: ReadonlyArray<{ text: string; tone?: string }> } | undefined)?.lines ?? []).map((l, i) => (
-      <text key={i} fg={fg(l.tone)} wrapMode="none">{fit(l.text, width)}</text>
-    ))}
-  </>
-)
+const Log: Leaf = ({ view, path, width }) => {
+  const fg = useToneFg()
+  return (
+    <>
+      {((view.data[path] as { lines?: ReadonlyArray<{ text: string; tone?: string }> } | undefined)?.lines ?? []).map((l, i) => (
+        <text key={i} fg={fg(l.tone)} wrapMode="none">{fit(l.text, width)}</text>
+      ))}
+    </>
+  )
+}
 type TableRow = { id: string; cells: Record<string, string>; tone?: string }
 /** A table's column widths and where each starts (after the gutter): as wide as their widest cell or label with its sort mark (at most 24); the last one takes what is left. */
 const tableLayout = (view: ViewState, path: string, leaf: LayoutLeaf, width: number) => {
@@ -113,21 +123,24 @@ const tableLayout = (view: ViewState, path: string, leaf: LayoutLeaf, width: num
 }
 /** A searchable table's field: idle, or its query (with the cursor while typing) and how many rows it keeps. */
 const SearchField = (p: { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly width: number; readonly onSearch?: () => void }) => {
+  const C = useColors()
   const q = p.ui.search?.[p.path]
   const typing = p.ui.searching === p.path
   const n = searchCount(p.view, p.ui, p.path)
   const right = q !== undefined ? `${n.shown} of ${n.all}${typing ? "   esc" : ""}` : "f"
   const left = q !== undefined || typing ? `${q ?? ""}${typing ? "▎" : ""}` : "search"
   return (
-    <text wrapMode="none" onMouseDown={() => p.onSearch?.()} bg={typing ? THEME.selection : THEME.raised}>
-      <span fg={typing ? THEME.accent : THEME.dim}>{" ⌕ "}</span>
-      <span fg={q !== undefined || typing ? THEME.text : THEME.faint}>{fit(left, Math.max(1, p.width - 6 - right.length))}</span>
+    <text wrapMode="none" onMouseDown={() => p.onSearch?.()} bg={typing ? C.selection : C.raised}>
+      <span fg={typing ? C.accent : C.dim}>{" ⌕ "}</span>
+      <span fg={q !== undefined || typing ? C.text : C.faint}>{fit(left, Math.max(1, p.width - 6 - right.length))}</span>
       <span>{" ".repeat(Math.max(1, p.width - 4 - fit(left, Math.max(1, p.width - 6 - right.length)).length - right.length))}</span>
-      <span fg={THEME.dim}>{right}</span>
+      <span fg={C.dim}>{right}</span>
     </text>
   )
 }
 const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onHeader, onSearch }) => {
+  const C = useColors()
+  const fg = useToneFg()
   const { cols, gutter, widths } = tableLayout(view, path, leaf, width)
   const rows = shownRows(view, ui, path) as ReadonlyArray<TableRow>
   const selectable = leaf.selectable === true
@@ -136,7 +149,7 @@ const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onH
   const sel = ui.selected[path] ?? []
   const sort = ui.sort?.[path]
   const onHead = focused && ui.header?.path === path ? ui.header.col : undefined
-  if (rows.length === 0) return <text fg={THEME.dim}>{ui.search?.[path] !== undefined ? " nothing matches" : " nothing yet"}</text>
+  if (rows.length === 0) return <text fg={C.dim}>{ui.search?.[path] !== undefined ? " nothing matches" : " nothing yet"}</text>
   return (
     <>
       {/* The header: each column's label, its sort mark, the header cursor; a click opens its menu. */}
@@ -146,7 +159,7 @@ const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onH
           const mark = sort?.col === c.id ? (sort.query !== undefined ? " ⌕" : sort.dir === 1 ? " ▲" : " ▼") : ""
           const here = onHead === ci
           return [
-            <text key={c.id} wrapMode="none" onMouseDown={() => onHeader?.(ci)} {...(here ? { bg: THEME.accent } : {})} fg={here ? THEME.bg : mark !== "" ? THEME.accent : THEME.dim}>
+            <text key={c.id} wrapMode="none" onMouseDown={() => onHeader?.(ci)} {...(here ? { bg: C.accent } : {})} fg={here ? C.bg : mark !== "" ? C.accent : C.dim}>
               {pad(fit(`${c.label}${mark}`, widths[ci]!), widths[ci]!)}
             </text>,
             ci < cols.length - 1 ? <text key={`${c.id} gap`}>{"  "}</text> : null,
@@ -158,7 +171,7 @@ const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onH
         const picked = sel.includes(r.id)
         return (
           // A click on the row moves the cursor there; a click on its mark ticks it.
-          <box key={r.id} id={`row-${path}-${i}`} style={{ flexDirection: "row", height: 1, ...(on ? { backgroundColor: THEME.selection } : {}) }}>
+          <box key={r.id} id={`row-${path}-${i}`} style={{ flexDirection: "row", height: 1, ...(on ? { backgroundColor: C.selection } : {}) }}>
             <text wrapMode="none" onMouseDown={() => (selectable ? onMark : onPick)?.(i)}>
               <Gutter cursor={on} selectable={selectable} selected={picked} />
             </text>
@@ -180,34 +193,38 @@ const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onH
     </>
   )
 }
-const KeyValue: Leaf = ({ view, path, width }) => (
-  <>
-    {((view.data[path] as { pairs?: ReadonlyArray<{ key: string; value: string }> } | undefined)?.pairs ?? []).map((p) => (
-      <text key={p.key} wrapMode="none">
-        <span fg={THEME.dim}>{pad(p.key, 14)}</span>
-        <span fg={THEME.text}>{` ${fit(p.value, Math.max(4, width - 15))}`}</span>
-      </text>
-    ))}
-  </>
-)
+const KeyValue: Leaf = ({ view, path, width }) => {
+  const C = useColors()
+  return (
+    <>
+      {((view.data[path] as { pairs?: ReadonlyArray<{ key: string; value: string }> } | undefined)?.pairs ?? []).map((p) => (
+        <text key={p.key} wrapMode="none">
+          <span fg={C.dim}>{pad(p.key, 14)}</span>
+          <span fg={C.text}>{` ${fit(p.value, Math.max(4, width - 15))}`}</span>
+        </text>
+      ))}
+    </>
+  )
+}
 // @card UX-0076
 // A text that follows a table shows the text for its highlighted row.
 const Text: Leaf = ({ view, ui, path, width, onHeight }) => <RichText content={followedText(view, ui, path)} width={width} {...(onHeight !== undefined ? { onHeight } : {})} />
 
 // A plugin agent's conversation: its messages, then its question with the options (arrows and Enter answer it).
 const Conversation: Leaf = ({ view, ui, path, width, onHeight }) => {
+  const C = useColors()
   const d = view.data[path] as { messages?: ReadonlyArray<{ id: string; role: string; text: string }>; question?: ConversationQuestion; status?: string } | undefined
   const q = d?.question
   return (
     <box flexDirection="column" flexShrink={0} onSizeChange={function () { onHeight?.(this.height) }}>
       {(d?.messages ?? []).map((m, i) => (
         <box key={m.id} flexDirection="row" flexShrink={0}>
-          <text width={6} fg={m.role === "user" ? THEME.dim : THEME.accent}>{m.role === "user" ? "you   " : "agent "}</text>
-          {m.role === "user" ? <text fg={THEME.text} width={Math.max(1, width - 6)}>{m.text}</text> : <RichText content={m.text} width={width - 6} streaming={d?.status === "working" && i === (d.messages?.length ?? 0) - 1} />}
+          <text width={6} fg={m.role === "user" ? C.dim : C.accent}>{m.role === "user" ? "you   " : "agent "}</text>
+          {m.role === "user" ? <text fg={C.text} width={Math.max(1, width - 6)}>{m.text}</text> : <RichText content={m.text} width={width - 6} streaming={d?.status === "working" && i === (d.messages?.length ?? 0) - 1} />}
         </box>
       ))}
       {q === undefined ? null : (
-        <text fg={THEME.attention}>
+        <text fg={C.attention}>
           <b>{q.question}</b>
         </text>
       )}
@@ -217,9 +234,9 @@ const Conversation: Leaf = ({ view, ui, path, width, onHeight }) => {
             .filter((r) => r.id !== OTHER && r.id !== CHAT)
             .map((r) => (
               <text key={r.id} wrapMode="none">
-                <span fg={THEME.accent}>{r.selected ? "› " : "  "}</span>
-                <span fg={THEME.text}>{r.label}</span>
-                {r.recommended ? <span fg={THEME.dim}>{"   recommended"}</span> : null}
+                <span fg={C.accent}>{r.selected ? "› " : "  "}</span>
+                <span fg={C.text}>{r.label}</span>
+                {r.recommended ? <span fg={C.dim}>{"   recommended"}</span> : null}
               </text>
             ))}
     </box>
@@ -254,27 +271,30 @@ const wantedOf = (view: ViewState, ui: ViewUi, s: LayoutSection, width: number, 
 }
 type ButtonSpec = { readonly id: string; readonly label: string; readonly key?: string; readonly keys?: Readonly<Record<string, string>> }
 /** A selection's actions as buttons: the first filled with the accent (with the count), the rest quiet; each shows its key and runs on a click. */
-export const Buttons = (p: { readonly actions: ReadonlyArray<ButtonSpec>; readonly count: number; readonly onPress: (id: string) => void; readonly onClear?: () => void }) => (
-  <box style={{ flexDirection: "row", height: 1, flexShrink: 0 }}>
-    {p.actions.map((a, i) => {
-      const fill = i === 0 ? THEME.accent : THEME.line
-      const key = keyFor(a, "terminal")
-      return (
-        <text key={a.id} wrapMode="none" onMouseDown={() => p.onPress(a.id)} style={{ marginRight: 2 }}>
-          <span fg={fill}>▐</span>
-          <span fg={i === 0 ? THEME.bg : THEME.text} bg={fill}>{i === 0 && p.count > 0 ? ` ${a.label} · ${p.count} ` : ` ${a.label} `}</span>
-          {key !== undefined ? <span fg={i === 0 ? THEME.raised : THEME.dim} bg={fill}>{` ${key} `}</span> : null}
-          <span fg={fill}>▌</span>
+export const Buttons = (p: { readonly actions: ReadonlyArray<ButtonSpec>; readonly count: number; readonly onPress: (id: string) => void; readonly onClear?: () => void }) => {
+  const C = useColors()
+  return (
+    <box style={{ flexDirection: "row", height: 1, flexShrink: 0 }}>
+      {p.actions.map((a, i) => {
+        const fill = i === 0 ? C.accent : C.line
+        const key = keyFor(a, "terminal")
+        return (
+          <text key={a.id} wrapMode="none" onMouseDown={() => p.onPress(a.id)} style={{ marginRight: 2 }}>
+            <span fg={fill}>▐</span>
+            <span fg={i === 0 ? C.bg : C.text} bg={fill}>{i === 0 && p.count > 0 ? ` ${a.label} · ${p.count} ` : ` ${a.label} `}</span>
+            {key !== undefined ? <span fg={i === 0 ? C.raised : C.dim} bg={fill}>{` ${key} `}</span> : null}
+            <span fg={fill}>▌</span>
+          </text>
+        )
+      })}
+      {p.onClear !== undefined ? (
+        <text wrapMode="none" onMouseDown={p.onClear}>
+          <span fg={C.dim}>{" Clear "}</span>
         </text>
-      )
-    })}
-    {p.onClear !== undefined ? (
-      <text wrapMode="none" onMouseDown={p.onClear}>
-        <span fg={THEME.dim}>{" Clear "}</span>
-      </text>
-    ) : null}
-  </box>
-)
+      ) : null}
+    </box>
+  )
+}
 /**
  * A table's buttons: all its actions, always there (the status line carries no view keys). The ticked rows it still
  * shows are counted; an action takes them, or the highlighted row when none are ticked (a row action: always it).
@@ -305,25 +325,27 @@ const cardHeight = (card: NonNullable<ReturnType<typeof cursorRow>>, view: ViewS
 }
 /** The row under a table's cursor, in full: its mark and first column, the short columns on one dim line, then each column its cell cuts, wrapped under its label. */
 const RowCard = (p: { readonly card: NonNullable<ReturnType<typeof cursorRow>>; readonly view: ViewState; readonly width: number; readonly height: number }) => {
+  const C = useColors()
+  const fg = useToneFg()
   const { cols, widths } = tableLayout(p.view, p.card.path, p.card.leaf, p.width)
   const text = (i: number) => (p.card.row.cells?.[cols[i]!.id] ?? "").replace(/\s*\n\s*/g, " ")
   const long = cols.flatMap((c, i) => (i > 0 && text(i).length > widths[i]! ? [{ label: c.label, value: p.card.row.cells?.[c.id] ?? "" }] : []))
   const short = cols.flatMap((c, i) => (i > 0 && text(i) !== "" && text(i).length <= widths[i]! ? [`${c.label} ${text(i)}`] : []))
   return (
     // A shaded panel with an accent bar, so it never reads as another row; as tall as the row needs (`cardHeight`), a blank row above it; past its cap it scrolls.
-    <box style={{ flexShrink: 0, height: p.height, marginTop: 1, marginBottom: 1, border: ["left"], borderStyle: "heavy", borderColor: THEME.accent, backgroundColor: THEME.shade, paddingLeft: 1, paddingRight: 1 }}>
+    <box style={{ flexShrink: 0, height: p.height, marginTop: 1, marginBottom: 1, border: ["left"], borderStyle: "heavy", borderColor: C.accent, backgroundColor: C.shade, paddingLeft: 1, paddingRight: 1 }}>
       <scrollbox focusable={false} style={{ flexGrow: 1 }}>
         <text wrapMode="none">
-          <span fg={p.card.row.tone !== undefined ? fg(p.card.row.tone) : THEME.accent}>
+          <span fg={p.card.row.tone !== undefined ? fg(p.card.row.tone) : C.accent}>
             <b>{cols.length > 0 ? text(0) : p.card.row.id}</b>
           </span>
-          {p.card.selected ? <span fg={THEME.accent}>{"  ● ticked"}</span> : null}
-          <span fg={THEME.dim}>{fit(`  ${short.join(" · ")}`, Math.max(0, p.width - 6 - (cols.length > 0 ? text(0) : p.card.row.id).length - (p.card.selected ? 10 : 0)))}</span>
+          {p.card.selected ? <span fg={C.accent}>{"  ● ticked"}</span> : null}
+          <span fg={C.dim}>{fit(`  ${short.join(" · ")}`, Math.max(0, p.width - 6 - (cols.length > 0 ? text(0) : p.card.row.id).length - (p.card.selected ? 10 : 0)))}</span>
         </text>
         {long.map((l) => (
           <box key={l.label} style={{ flexDirection: "column", flexShrink: 0 }}>
-            <text fg={THEME.dim}>{l.label}</text>
-            <text fg={THEME.text}>{l.value}</text>
+            <text fg={C.dim}>{l.label}</text>
+            <text fg={C.text}>{l.value}</text>
           </box>
         ))}
       </scrollbox>
@@ -335,6 +357,7 @@ const RowCard = (p: { readonly card: NonNullable<ReturnType<typeof cursorRow>>; 
 const MENU_ROWS = 8
 /** A column's menu, dropped down under its header: its entries (at most `room`, scrolled to the highlighted one; ▴▾ when more), each a click away. */
 const ColumnMenu = (p: { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly leaf: LayoutLeaf; readonly width: number; readonly room: number; readonly top: number; readonly onPick?: (index: number) => void; readonly onAdjust?: (index: number, dir: number) => void }) => {
+  const C = useColors()
   const m = p.ui.menu!
   const { cols, starts } = tableLayout(p.view, p.path, p.leaf, p.width)
   const col = cols[m.col]
@@ -372,7 +395,7 @@ const ColumnMenu = (p: { readonly view: ViewState; readonly ui: ViewUi; readonly
   return (
     <box
       zIndex={10}
-      style={{ position: "absolute", left, top: p.top, width: inner + 4, height: shown + 2, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: THEME.accent, backgroundColor: THEME.raised, paddingLeft: 1, paddingRight: 1 }}
+      style={{ position: "absolute", left, top: p.top, width: inner + 4, height: shown + 2, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: C.accent, backgroundColor: C.raised, paddingLeft: 1, paddingRight: 1 }}
       title={` ${col.label} ${more.up ? "▴" : ""}`}
       {...(more.down ? { bottomTitle: " ▾ " } : {})}
     >
@@ -383,20 +406,20 @@ const ColumnMenu = (p: { readonly view: ViewState; readonly ui: ViewUi; readonly
         const room = Math.max(1, inner - 1 - l.mark.length - l.count.length)
         if (e.kind === "from" || e.kind === "to")
           return (
-            <box key={i} style={{ flexDirection: "row", height: 1, ...(on ? { backgroundColor: THEME.selection } : {}) }}>
-              <text wrapMode="none" fg={THEME.accent}>{on ? "▍" : " "}</text>
-              <text wrapMode="none" fg={THEME.dim}>{`  ${e.kind === "from" ? "from" : "to  "}  `}</text>
-              <text wrapMode="none" fg={THEME.accent} onMouseDown={() => p.onAdjust?.(i, -1)}>{"◂"}</text>
-              <text wrapMode="none" fg={THEME.text}>{` ${num(e.value)} `}</text>
-              <text wrapMode="none" fg={THEME.accent} onMouseDown={() => p.onAdjust?.(i, 1)}>{"▸"}</text>
+            <box key={i} style={{ flexDirection: "row", height: 1, ...(on ? { backgroundColor: C.selection } : {}) }}>
+              <text wrapMode="none" fg={C.accent}>{on ? "▍" : " "}</text>
+              <text wrapMode="none" fg={C.dim}>{`  ${e.kind === "from" ? "from" : "to  "}  `}</text>
+              <text wrapMode="none" fg={C.accent} onMouseDown={() => p.onAdjust?.(i, -1)}>{"◂"}</text>
+              <text wrapMode="none" fg={C.text}>{` ${num(e.value)} `}</text>
+              <text wrapMode="none" fg={C.accent} onMouseDown={() => p.onAdjust?.(i, 1)}>{"▸"}</text>
             </box>
           )
         return (
-          <text key={i} wrapMode="none" onMouseDown={() => p.onPick?.(i)} {...(on ? { bg: THEME.selection } : {})}>
-            <span fg={THEME.accent}>{on ? "▍" : " "}</span>
-            <span fg={l.mark === "○ " || l.mark === "  " ? THEME.dim : THEME.accent}>{l.mark}</span>
-            <span fg={"dim" in l && l.dim === true ? THEME.dim : THEME.text}>{fit(l.text, room).padEnd(room)}</span>
-            <span fg={THEME.dim}>{l.count}</span>
+          <text key={i} wrapMode="none" onMouseDown={() => p.onPick?.(i)} {...(on ? { bg: C.selection } : {})}>
+            <span fg={C.accent}>{on ? "▍" : " "}</span>
+            <span fg={l.mark === "○ " || l.mark === "  " ? C.dim : C.accent}>{l.mark}</span>
+            <span fg={"dim" in l && l.dim === true ? C.dim : C.text}>{fit(l.text, room).padEnd(room)}</span>
+            <span fg={C.dim}>{l.count}</span>
           </text>
         )
       })}
@@ -412,6 +435,7 @@ export type Scroller = (delta: number) => void
 
 /** An agent's view in the terminal: its sections stacked by role, each a heading over its own scrollbox. */
 export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly width?: number; readonly scroller?: { current?: Scroller | undefined }; readonly onPick?: (sectionId: string, index: number) => void; readonly onAct?: (section: string, action: string, rows: ReadonlyArray<string>) => void; readonly onClear?: (section: string) => void; readonly onHeader?: (sectionId: string, col: number) => void; readonly onMenuPick?: (index: number) => void; readonly onMark?: (sectionId: string, index: number) => void; readonly onMenuAdjust?: (index: number, dir: number) => void; readonly onTab?: (sectionId: string, index: number) => void; readonly onSearch?: (sectionId: string, path: string) => void }) => {
+  const C = useColors()
   const dims = useTerminalDimensions()
   const width = Math.max(10, (props.width ?? dims.width) - 2)
   const all = ordered(props.view.layout)
@@ -555,7 +579,7 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
         return (
           <box key={`${s.id}+${all[partner]!.id}`} style={{ flexDirection: "row", flexGrow: 1, flexBasis: 0, flexShrink: 1, minHeight: 3, ...(after ? { marginTop: 1 } : {}), ...(leaf !== undefined ? { maxHeight: Math.max(wantedOf(props.view, props.ui, s, width, heights[leaf.path]) + 4, wantedOf(props.view, props.ui, all[partner]!, right, heights[leafOf(props.view, props.ui, all[partner]!.id)?.path ?? ""]) + 1) } : {}) }}>
             {drawSection(s, i, left, { flexDirection: "column", width: left, flexShrink: 0 })}
-            {drawSection(all[partner]!, partner, right, { flexDirection: "column", flexGrow: 1, border: ["left"], borderColor: THEME.line, paddingLeft: 1 })}
+            {drawSection(all[partner]!, partner, right, { flexDirection: "column", flexGrow: 1, border: ["left"], borderColor: C.line, paddingLeft: 1 })}
           </box>
         )
       })}

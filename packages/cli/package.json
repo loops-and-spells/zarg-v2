@@ -10,6 +10,7 @@
     "@zarg/plugin": "workspace:*",
     "@zarg/plugin-sdk": "workspace:*",
     "@zarg/reconcile": "workspace:*",
+    "@zarg/tokens": "workspace:*",
     "@zarg/view-tui": "workspace:*",
     "effect": "^4.0.0-rc.117",
     "react": "19"

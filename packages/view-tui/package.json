@@ -10,6 +10,7 @@
     "@opentui/react": "0.5.12",
     "@zarg/client": "workspace:*",
     "@zarg/markdown": "workspace:*",
+    "@zarg/tokens": "workspace:*",
     "@zarg/view": "workspace:*",
     "effect": "^4.0.0-rc.117",
     "react": "19"

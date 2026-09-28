@@ -1,7 +1,9 @@
+import { PLUGIN_TONES } from "@zarg/tokens"
 import { Schema } from "effect"
 
 /** What a line or cell means; each platform picks its own colour for it. */
-export const Tone = Schema.Literals(["normal", "ok", "warn", "error", "dim", "accent"])
+/** A plugin names a tone: an intent, identity or severity key (or dim), or an old tone name (`@zarg/tokens`). */
+export const Tone = Schema.Literals(PLUGIN_TONES)
 /** What a section is for; each platform places roles its own way. */
 export const Role = Schema.Literals(["summary", "primary", "log", "pinned", "aside"])
 /** An action on a table: on the selected rows (or the highlighted one), on the highlighted row, or on none. */

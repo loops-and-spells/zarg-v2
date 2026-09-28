@@ -1,6 +1,6 @@
 import { Effect, Layer, Schema, Stream } from "effect"
 import type { Contract } from "./contract"
-import { layoutOf, opensProblem, type Surface, surfacesProblem, type ViewDef } from "@zarg/view"
+import { layoutOf, opensProblem, type Surface, surfacesProblem, tonesProblem, type ViewDef } from "@zarg/view"
 import { conversations } from "./conversation"
 import { Agenda, Agents, Attention, Clock, Conversation, Config, Decisions, Files, Graph, Http, Models, PluginFailure, type RawPowers, Secrets, servicesFrom, Surfaces, Views } from "./services"
 
@@ -87,6 +87,8 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
   if (surfaces !== undefined) throw new Error(`plugin ${def.name}: ${surfaces}`)
   const opens = opensProblem((def.views ?? []).map(layoutOf), def.surfaces ?? [])
   if (opens !== undefined) throw new Error(`plugin ${def.name}: ${opens}`)
+  const tones = tonesProblem((def.views ?? []).map(layoutOf))
+  if (tones !== undefined) throw new Error(`plugin ${def.name}: ${tones}`)
   const serve = (raw: RawPowers) => {
     const s = servicesFrom(raw)
     const talks = conversations(raw)

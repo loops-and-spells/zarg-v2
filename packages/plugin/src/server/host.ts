@@ -1,5 +1,5 @@
 import { Cause, Context, Data, Effect, Exit, Layer, type Redacted, Scope, Semaphore } from "effect"
-import { keysProblem, type Layout, opensProblem, reviewProblem, surfacesProblem } from "@zarg/view"
+import { keysProblem, type Layout, opensProblem, reviewProblem, surfacesProblem, tonesProblem } from "@zarg/view"
 import { diff, type Expect, GraphStore, type GraphError, hash, type IoError, type Loaded, Snapshot } from "@zarg/graph"
 import { type Ask, type Grants, type ManifestScopes, makePowers, PLUGIN_NAME, PluginCallError, type PluginProcess, scopesDigest, served, spawnPlugin, warnings } from "../runtime"
 import type { LoadedPlugin, Manifest } from "./loaded"
@@ -116,6 +116,8 @@ const manifestProblem = (m: Manifest): string | undefined => {
   if (review !== undefined) return review
   const surfaces = surfacesProblem(m.surfaces, views as ReadonlyArray<Layout>)
   if (surfaces !== undefined) return surfaces
+  const tones = (() => { try { return tonesProblem(views as ReadonlyArray<Layout>) } catch { return "a view is malformed" } })()
+  if (tones !== undefined) return tones
   return opensProblem(views as ReadonlyArray<Layout>, Array.isArray(m.surfaces) ? (m.surfaces as ReadonlyArray<{ name: string }>) : [])
 }
 

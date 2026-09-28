@@ -1,12 +1,13 @@
 import { useKeyboard, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Panel, Session } from "@zarg/client"
-import { afterAction, applyMenu, hintsOf, keyFor, menuAdjust, pickHeader, pickMark, pickRow, pickTab, startUi, THEME, toneColor } from "@zarg/view"
+import { afterAction, applyMenu, hintsOf, keyFor, menuAdjust, pickHeader, pickMark, pickRow, pickTab, startUi } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { registerCommands, SLASH_COMMANDS } from "./commands"
 import { fit, gauge, keyGlyphs } from "./look"
 import { type Card, gridCards, gridCursor, gridShape } from "./grid"
 import { paletteEntries } from "./palette"
+import { colorsOf, DEFAULT_THEME, ThemeContext, type ThemeService, toneFg } from "./theme"
 import { contextOf, displayName, railRows } from "./rail"
 import { reviewActs, reviewGroups } from "./review"
 import { Buttons, Heading } from "./sections"
@@ -43,38 +44,20 @@ import {
   slashBox,
   statusLine,
   syncUi,
-  titleHot,
   typing,
   type Ui,
   working,
 } from "./view"
 
-const COLORS = { you: "#8ab4f8", zarg: "#e8eaed", error: "#f28b82", notice: "#fdd663", dim: "#9aa0a6", accent: "#81c995", select: "#3c4043", hot: "#8ab4f8", popover: "#2d2f31", sheet: "#202124" }
-const TONE = { running: COLORS.zarg, done: COLORS.dim, failed: COLORS.error, stopped: COLORS.notice }
-const BAR_TONE = { question: COLORS.notice, working: COLORS.accent, reply: COLORS.dim, idle: COLORS.dim }
 const AGENTS_WIDTH = 24
-
-/** A panel's name with its Alt letter coloured and underlined, then the chord. */
-const Title = (p: { readonly name: string; readonly letter: string; readonly focused: boolean; readonly extra?: string }) => {
-  const t = titleHot(p.name, p.letter)
-  const fg = p.focused ? COLORS.accent : COLORS.dim
-  return (
-    <text wrapMode="none" truncate>
-      <span fg={fg}>{t.before}</span>
-      <span fg={COLORS.hot}>
-        <u>{t.letter}</u>
-      </span>
-      <span fg={fg}>{t.after}</span>
-      <span fg={COLORS.dim}>{` alt+${p.letter}${p.extra ?? ""}`}</span>
-    </text>
-  )
-}
 
 /**
  * The zarg TUI: the agents list on the left, the open agent's view (or zarg's sheet) in the tile area, the message
  * bar under it, grant popovers over everything, and the status line.
  */
-export const App = (props: { readonly session: Session; readonly meta: Meta; readonly onExit: () => void }) => {
+export const App = (props: { readonly session: Session; readonly meta: Meta; readonly onExit: () => void; readonly theme?: ThemeService }) => {
+  const theme = props.theme ?? DEFAULT_THEME
+  const C = colorsOf(theme)
   const s = useSyncExternalStore(props.session.subscribe, props.session.state)
   // UI state lives in a ref so several keys in one frame each see the previous key's result.
   const uiRef = useRef<Ui>(initialUi)
@@ -180,8 +163,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const nav = s.thread.nav ?? []
   const agentCount = rows.filter((r) => !r.id.startsWith("archived:") && r.id !== ARCHIVED).length
   const band = (label: string, count: string, countColor: string) => (
-    <text wrapMode="none" bg={THEME.line}>
-      <span fg={THEME.text}>
+    <text wrapMode="none" bg={C.line}>
+      <span fg={C.text}>
         <b>{` ${label}`}</b>
       </span>
       <span>{" ".repeat(Math.max(1, inner - 1 - label.length - count.length - 1))}</span>
@@ -193,7 +176,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const railLine = (r: { readonly glyph: string; readonly glyphColor: string; readonly name: string; readonly note: string; readonly noteColor?: string; readonly guide: string; readonly on: boolean; readonly dimmed: boolean; readonly onPick?: () => void }) => (
     <text
       wrapMode="none"
-      {...(r.on ? { bg: THEME.selection } : {})}
+      {...(r.on ? { bg: C.selection } : {})}
       {...(r.onPick !== undefined
         ? {
             onMouseDown: (e: { stopPropagation: () => void }) => {
@@ -203,12 +186,12 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           }
         : {})}
     >
-      <span fg={THEME.accent}>{r.on ? "▍" : " "}</span>
-      {wide ? <span fg={THEME.faint}>{` ${r.guide}`}</span> : null}
+      <span fg={C.accent}>{r.on ? "▍" : " "}</span>
+      {wide ? <span fg={C.faint}>{` ${r.guide}`}</span> : null}
       <span fg={r.glyphColor}>{r.glyph}</span>
-      {wide ? <span fg={r.dimmed ? THEME.dim : THEME.text}>{r.on ? <b>{` ${railName(r)}`}</b> : ` ${railName(r)}`}</span> : null}
+      {wide ? <span fg={r.dimmed ? C.dim : C.text}>{r.on ? <b>{` ${railName(r)}`}</b> : ` ${railName(r)}`}</span> : null}
       {wide ? <span>{" ".repeat(Math.max(1, inner - 5 - r.guide.length - railName(r).length - r.note.length))}</span> : null}
-      {wide ? <span fg={r.noteColor ?? THEME.dim}>{`${r.note} `}</span> : null}
+      {wide ? <span fg={r.noteColor ?? C.dim}>{`${r.note} `}</span> : null}
     </text>
   )
   /** A child's guide: ├ or └ at its own depth (the last of its siblings in the rows shown gets └). */
@@ -232,39 +215,39 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         e.stopPropagation()
         setUi({ ...latest(), focus: "agents" })
       }}
-      style={{ ...(narrow && ui.focus === "agents" ? { flexGrow: 1 } : { width: railWidth, flexShrink: 0 }), flexDirection: "column", backgroundColor: THEME.raised, border: ["right"], borderColor: THEME.line }}
+      style={{ ...(narrow && ui.focus === "agents" ? { flexGrow: 1 } : { width: railWidth, flexShrink: 0 }), flexDirection: "column", backgroundColor: C.raised, border: ["right"], borderColor: C.line }}
     >
       {/* zarg, and where you are. */}
       {wide ? (
         <>
           <box style={{ height: 1, flexShrink: 0 }} />
           <text wrapMode="none" style={{ height: 1, flexShrink: 0 }}>
-            <span fg={THEME.accent}>
+            <span fg={C.accent}>
               <b>{" ◆ zarg"}</b>
             </span>
           </text>
-          <text fg={THEME.dim} wrapMode="none" style={{ height: 1, flexShrink: 0 }}>{fit(`   ${props.meta.repo !== undefined ? `${props.meta.repo} · ` : ""}${props.meta.threadId}`, inner)}</text>
+          <text fg={C.dim} wrapMode="none" style={{ height: 1, flexShrink: 0 }}>{fit(`   ${props.meta.repo !== undefined ? `${props.meta.repo} · ` : ""}${props.meta.threadId}`, inner)}</text>
           <box style={{ height: 1, flexShrink: 0 }} />
         </>
       ) : (
-        <text fg={THEME.accent}>{"◆"}</text>
+        <text fg={C.accent}>{"◆"}</text>
       )}
       {/* VIEWS: plugins' views (Journeys, …); a click or Enter opens one. */}
-      {nav.length > 0 && wide ? band("VIEWS", String(nav.length), THEME.dim) : null}
+      {nav.length > 0 && wide ? band("VIEWS", String(nav.length), C.dim) : null}
       {nav.map((n) => {
         const id = `${NAV}${n.id}`
         const on = (ui.agents.cursor === id && ui.focus === "agents") || n.view === viewing
         return (
           <box key={id} style={{ flexShrink: 0, height: 1 }}>
-            {railLine({ glyph: "▤", glyphColor: on ? THEME.accent : THEME.dim, name: n.label, note: "", guide: "", on, dimmed: false, onPick: () => pick(id) })}
+            {railLine({ glyph: "▤", glyphColor: on ? C.accent : C.dim, name: n.label, note: "", guide: "", on, dimmed: false, onPick: () => pick(id) })}
           </box>
         )
       })}
       {/* AGENTS: the tree; ◆ in the header counts those asking. */}
-      {wide ? <box style={{ height: 1, flexShrink: 0, ...(nav.length > 0 ? { marginTop: 1 } : {}) }}>{band("AGENTS", asking.length > 0 ? `◆${asking.length}` : String(agentCount), asking.length > 0 ? THEME.attention : THEME.dim)}</box> : <text fg={asking.length > 0 ? THEME.attention : THEME.dim}>{asking.length > 0 ? "◆" : "·"}</text>}
+      {wide ? <box style={{ height: 1, flexShrink: 0, ...(nav.length > 0 ? { marginTop: 1 } : {}) }}>{band("AGENTS", asking.length > 0 ? `◆${asking.length}` : String(agentCount), asking.length > 0 ? C.attention : C.dim)}</box> : <text fg={asking.length > 0 ? C.attention : C.dim}>{asking.length > 0 ? "◆" : "·"}</text>}
       {/* Never focusable: the shell's layers alone decide where keys go (a click must not hand a scrollbox the arrows). */}
       <scrollbox ref={agentsRef} focusable={false} style={{ flexGrow: 1 }}>
-        {rows.length === 0 && wide ? <text fg={THEME.dim}>{"  no agents yet"}</text> : null}
+        {rows.length === 0 && wide ? <text fg={C.dim}>{"  no agents yet"}</text> : null}
         {rows.map((r, i) => {
           const on = (r.selected && ui.focus === "agents") || r.id === viewing
           const guide = guideOf(i)
@@ -280,12 +263,12 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
                 pick(r.id)
               }}
             >
-              {railLine({ glyph: r.glyph, glyphColor: THEME[r.glyphToken], name: r.name, note: r.note, ...(r.note === "asks" || /found/.test(r.note) ? { noteColor: THEME.attention } : {}), guide, on, dimmed: r.dimmed })}
+              {railLine({ glyph: r.glyph, glyphColor: theme.value(r.glyphToken).fg, name: r.name, note: r.note, ...(r.note === "asks" || /found/.test(r.note) ? { noteColor: C.attention } : {}), guide, on, dimmed: r.dimmed })}
               {g !== undefined && wide ? (
                 <text wrapMode="none">
                   <span>{`   ${" ".repeat(guide.length)}`}</span>
-                  <span fg={THEME.accent}>{g.done}</span>
-                  <span fg={THEME.faint}>{g.rest}</span>
+                  <span fg={C.accent}>{g.done}</span>
+                  <span fg={C.faint}>{g.rest}</span>
                 </text>
               ) : null}
             </box>
@@ -303,15 +286,15 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   // No box-drawing border: its glyphs sit mid-cell, so a filled border leaves half a cell of fill outside the line.
   const overSheet = ui.sheet && ui.main !== "zarg"
   // zarg's conversation as a sheet over the focus: raised, an accent rule on top, messages, then zarg's question as the picker.
-  const LABEL = { you: { text: "you  ", fg: THEME.dim }, zarg: { text: "zarg  ", fg: THEME.accent }, error: { text: "!  ", fg: THEME.error }, notice: { text: "·  ", fg: THEME.attention } } as const
+  const LABEL = { you: { text: "you  ", fg: C.dim }, zarg: { text: "zarg  ", fg: C.accent }, error: { text: "!  ", fg: C.error }, notice: { text: "·  ", fg: C.attention } } as const
   const sheet = (
-    <box style={{ flexGrow: 1, flexDirection: "column", backgroundColor: THEME.raised }}>
-      <box style={{ height: 1, flexShrink: 0, backgroundColor: THEME.shade, paddingLeft: 2 }}>
+    <box style={{ flexGrow: 1, flexDirection: "column", backgroundColor: C.raised }}>
+      <box style={{ height: 1, flexShrink: 0, backgroundColor: C.shade, paddingLeft: 2 }}>
         <text wrapMode="none">
-          <span fg={ui.focus === "tile" ? THEME.accent : THEME.text}>
+          <span fg={ui.focus === "tile" ? C.accent : C.text}>
             <b>zarg</b>
           </span>
-          {overSheet ? <span fg={THEME.dim}>{"   esc closes"}</span> : null}
+          {overSheet ? <span fg={C.dim}>{"   esc closes"}</span> : null}
         </text>
       </box>
       <scrollbox ref={talkRef} focusable={false} style={{ flexGrow: 1, flexShrink: 1, minHeight: 0, paddingLeft: 2, paddingRight: 2 }} stickyScroll stickyStart="bottom">
@@ -324,23 +307,23 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         ) : (
           <text key={i}>
             <span fg={LABEL[l.kind].fg}>{LABEL[l.kind].text}</span>
-            <span fg={l.kind === "error" ? THEME.error : THEME.text}>{l.text}</span>
+            <span fg={l.kind === "error" ? C.error : C.text}>{l.text}</span>
           </text>
         ))}
-        {busyLine !== undefined ? <text fg={THEME.accent}>{busyLine}</text> : null}
+        {busyLine !== undefined ? <text fg={C.accent}>{busyLine}</text> : null}
       </scrollbox>
       {inquiry !== undefined && ui.chatting !== inquiry.id ? (
-        <box style={{ flexDirection: "column", flexShrink: 0, backgroundColor: THEME.shade, paddingLeft: 2, paddingRight: 2 }}>
-          <text fg={THEME.attention}>
+        <box style={{ flexDirection: "column", flexShrink: 0, backgroundColor: C.shade, paddingLeft: 2, paddingRight: 2 }}>
+          <text fg={C.attention}>
             <b>{inquiry.question}</b>
           </text>
           {pickerRows(inquiry, ui.pick).map((r) => (
-            <text key={r.id} wrapMode="none" {...(r.selected ? { bg: THEME.selection } : {})}>
-              <span fg={THEME.accent}>{r.selected ? "› " : "  "}</span>
-              <span fg={r.id === OTHER || r.id === CHAT ? THEME.dim : THEME.text}>{r.label}</span>
-              {r.recommended ? <span fg={THEME.dim}>{" (recommended)"}</span> : null}
-              {r.selected && r.why !== undefined ? <span fg={THEME.dim}>{` — ${r.why}`}</span> : null}
-              {r.selected && r.id === OTHER ? <span fg={THEME.dim}>{"  (type it below)"}</span> : null}
+            <text key={r.id} wrapMode="none" {...(r.selected ? { bg: C.selection } : {})}>
+              <span fg={C.accent}>{r.selected ? "› " : "  "}</span>
+              <span fg={r.id === OTHER || r.id === CHAT ? C.dim : C.text}>{r.label}</span>
+              {r.recommended ? <span fg={C.dim}>{" (recommended)"}</span> : null}
+              {r.selected && r.why !== undefined ? <span fg={C.dim}>{` — ${r.why}`}</span> : null}
+              {r.selected && r.id === OTHER ? <span fg={C.dim}>{"  (type it below)"}</span> : null}
             </text>
           ))}
         </box>
@@ -356,15 +339,15 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     viewing === undefined ? null : (
       <box style={{ flexGrow: 1, flexDirection: "column", paddingLeft: 2, paddingRight: 2 }}>
         <text wrapMode="none">
-          <span fg={THEME.accent}>
+          <span fg={C.accent}>
             <b>{fit(agentNode !== undefined ? displayName(agentNode) : ((s.thread.nav ?? []).find((n) => n.view === viewing)?.label ?? agentId ?? ""), focusWidth)}</b>
           </span>
-          <span fg={THEME.dim}>{agentNode !== undefined ? fit(`  ${contextOf(agentNode)}`, Math.max(0, focusWidth - displayName(agentNode).length)) : ""}</span>
+          <span fg={C.dim}>{agentNode !== undefined ? fit(`  ${contextOf(agentNode)}`, Math.max(0, focusWidth - displayName(agentNode).length)) : ""}</span>
         </text>
-        {agentNode !== undefined ? <text fg={THEME.dim} wrapMode="none">{[agentNode.status, ...runLine].filter((x) => x.length > 0).join(" · ")}</text> : null}
+        {agentNode !== undefined ? <text fg={C.dim} wrapMode="none">{[agentNode.status, ...runLine].filter((x) => x.length > 0).join(" · ")}</text> : null}
         <text> </text>
         {s.thread.views?.[viewing] === undefined ? (
-          <text fg={THEME.dim}>no view yet</text>
+          <text fg={C.dim}>no view yet</text>
         ) : (
           <AgentView
             view={s.thread.views[viewing]!}
@@ -424,16 +407,16 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const line = barLine(ui, s, now)
   // The bar: one raised line — the typing, zarg's question, its latest reply, or the prompt.
   const bar = (
-    <box onMouseDown={() => setUi(focusBar(latest(), props.session.state()))} style={{ height: 1, flexShrink: 0, flexDirection: "row", backgroundColor: THEME.raised, paddingLeft: 1 }}>
+    <box onMouseDown={() => setUi(focusBar(latest(), props.session.state()))} style={{ height: 1, flexShrink: 0, flexDirection: "row", backgroundColor: C.raised, paddingLeft: 1 }}>
       {typing(ui, s) ? (
         <>
-          <text fg={THEME.accent} wrapMode="none">{label === "message ›" ? "› " : `${label} `}</text>
+          <text fg={C.accent} wrapMode="none">{label === "message ›" ? "› " : `${label} `}</text>
           <input
             ref={inputRef}
             focused={inputFocused(ui, s)}
             value={draft}
             placeholder={answeringOther(ui, s) ? "your own answer, Enter to send" : chatting ? "ask about the question; Esc goes back to the options" : "type a message, Enter to send"}
-            style={{ flexGrow: 1, backgroundColor: THEME.raised, focusedBackgroundColor: THEME.raised, textColor: THEME.text, focusedTextColor: THEME.text, placeholderColor: THEME.faint }}
+            style={{ flexGrow: 1, backgroundColor: C.raised, focusedBackgroundColor: C.raised, textColor: C.text, focusedTextColor: C.text, placeholderColor: C.faint }}
             onInput={(text: string) => {
               setDraft(text)
               // Typing picks the box afresh: no highlighted row.
@@ -452,12 +435,12 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         </>
       ) : line.tone === "question" && line.text.startsWith("◆ zarg asks ") ? (
         <text wrapMode="none">
-          <span fg={THEME.attention}>{"◆ zarg asks "}</span>
-          <span fg={THEME.text}>{fit(inquiry?.question ?? "", Math.max(8, dims.width - railWidth - 1 - "◆ zarg asks ".length - "   ⏎ answer   / chat".length))}</span>
-          <span fg={THEME.dim}>{"   ⏎ answer   / chat"}</span>
+          <span fg={C.attention}>{"◆ zarg asks "}</span>
+          <span fg={C.text}>{fit(inquiry?.question ?? "", Math.max(8, dims.width - railWidth - 1 - "◆ zarg asks ".length - "   ⏎ answer   / chat".length))}</span>
+          <span fg={C.dim}>{"   ⏎ answer   / chat"}</span>
         </text>
       ) : (
-        <text wrapMode="none" fg={line.tone === "working" ? THEME.accent : line.tone === "question" ? THEME.attention : line.tone === "idle" && line.text.startsWith("›") ? THEME.faint : THEME.dim}>
+        <text wrapMode="none" fg={line.tone === "working" ? C.accent : line.tone === "question" ? C.attention : line.tone === "idle" && line.text.startsWith("›") ? C.faint : C.dim}>
           {line.text}
         </text>
       )}
@@ -466,17 +449,17 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
 
   const slash =
     box === undefined ? null : (
-      <box style={{ flexDirection: "column", flexShrink: 0, backgroundColor: THEME.raised, paddingLeft: 1 }}>
-        <text fg={THEME.dim} wrapMode="none">{box.title}</text>
+      <box style={{ flexDirection: "column", flexShrink: 0, backgroundColor: C.raised, paddingLeft: 1 }}>
+        <text fg={C.dim} wrapMode="none">{box.title}</text>
         {box.rows.map((r) => (
-          <text key={r.label} wrapMode="none" {...(r.selected ? { bg: THEME.selection } : {})}>
-            <span fg={THEME.accent}>{r.selected ? "› " : "  "}</span>
-            <span fg={THEME.text}>{r.label.padEnd(width)}</span>
-            <span fg={THEME.dim}>{`  ${r.desc}`}</span>
+          <text key={r.label} wrapMode="none" {...(r.selected ? { bg: C.selection } : {})}>
+            <span fg={C.accent}>{r.selected ? "› " : "  "}</span>
+            <span fg={C.text}>{r.label.padEnd(width)}</span>
+            <span fg={C.dim}>{`  ${r.desc}`}</span>
           </text>
         ))}
-        {box.hint !== undefined ? <text fg={THEME.dim}>{`  ${box.hint}`}</text> : null}
-        {box.lint !== undefined ? <text fg={THEME.error}>{`✗ ${box.lint}`}</text> : null}
+        {box.hint !== undefined ? <text fg={C.dim}>{`  ${box.hint}`}</text> : null}
+        {box.lint !== undefined ? <text fg={C.error}>{`✗ ${box.lint}`}</text> : null}
       </box>
     )
 
@@ -489,33 +472,33 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     head === undefined ? null : head.kind === "surface" ? (
       // A plugin's popover: its view, over everything; Esc closes it.
       <box
-        style={{ position: "absolute", left: Math.max(0, Math.floor((dims.width - popWidth) / 2)), top: 3, width: popWidth, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: THEME.accent, backgroundColor: THEME.raised, paddingLeft: 1, paddingRight: 1 }}
+        style={{ position: "absolute", left: Math.max(0, Math.floor((dims.width - popWidth) / 2)), top: 3, width: popWidth, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: C.accent, backgroundColor: C.raised, paddingLeft: 1, paddingRight: 1 }}
       >
         <text wrapMode="none">
-          <span fg={THEME.accent}>
+          <span fg={C.accent}>
             <b>{fit(head.question, Math.max(8, popWidth - 4 - (queue.length > 1 ? `  1 of ${queue.length}`.length : 0)))}</b>
           </span>
-          <span fg={THEME.dim}>{queue.length > 1 ? `  1 of ${queue.length}` : ""}</span>
+          <span fg={C.dim}>{queue.length > 1 ? `  1 of ${queue.length}` : ""}</span>
         </text>
-        {headView === undefined ? <text fg={THEME.dim}>no view yet</text> : <AgentView view={headView} ui={ui.popover.view ?? startUi(headView)} height={Math.max(6, Math.floor(dims.height / 2))} width={popWidth - 2} />}
+        {headView === undefined ? <text fg={C.dim}>no view yet</text> : <AgentView view={headView} ui={ui.popover.view ?? startUi(headView)} height={Math.max(6, Math.floor(dims.height / 2))} width={popWidth - 2} />}
       </box>
     ) : (
       <box
-        style={{ position: "absolute", left: Math.max(0, Math.floor((dims.width - popWidth) / 2)), top: 3, width: popWidth, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: THEME.attention, backgroundColor: THEME.raised, paddingLeft: 1, paddingRight: 1 }}
+        style={{ position: "absolute", left: Math.max(0, Math.floor((dims.width - popWidth) / 2)), top: 3, width: popWidth, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: C.attention, backgroundColor: C.raised, paddingLeft: 1, paddingRight: 1 }}
       >
         <text wrapMode="none">
-          <span fg={THEME.attention}>
+          <span fg={C.attention}>
             <b>grant</b>
           </span>
-          <span fg={THEME.dim}>{queue.length > 1 ? `  1 of ${queue.length} · next: ${fit(queue[1]!.question, 30)}` : ""}</span>
+          <span fg={C.dim}>{queue.length > 1 ? `  1 of ${queue.length} · next: ${fit(queue[1]!.question, 30)}` : ""}</span>
         </text>
-        <text fg={THEME.text}>{head.question}</text>
+        <text fg={C.text}>{head.question}</text>
         <text> </text>
         <box style={{ flexDirection: "row", height: 1 }}>
           {head.options.map((o, i) => {
             const on = i === Math.min(ui.popover.pick, head.options.length - 1)
             return (
-              <text key={o.id} fg={on ? THEME.text : THEME.dim} onMouseDown={() => act({ type: "answer-prompt", id: head.id, choice: o.id })} {...(on ? { bg: THEME.selection } : {})}>
+              <text key={o.id} fg={on ? C.text : C.dim} onMouseDown={() => act({ type: "answer-prompt", id: head.id, choice: o.id })} {...(on ? { bg: C.selection } : {})}>
                 {`${on ? "› " : "  "}${o.label}   `}
               </text>
             )
@@ -540,11 +523,11 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         style={{ ...size, flexDirection: "column", paddingLeft: 2, paddingRight: 1 }}
       >
         <box style={{ flexDirection: "row", height: 1, flexShrink: 0 }}>
-          <text fg={focusedHere ? THEME.accent : THEME.dim} wrapMode="none">
+          <text fg={focusedHere ? C.accent : C.dim} wrapMode="none">
             <b>{`${p.name} `}</b>
           </text>
           <text
-            fg={THEME.faint}
+            fg={C.faint}
             onMouseDown={(e: { stopPropagation: () => void }) => {
               e.stopPropagation()
               const u = latest()
@@ -561,17 +544,17 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   // A plugin's sheet over the tile area: its view, rounded like zarg's.
   const sheetViewState = ui.sheetOf !== undefined ? s.thread.views?.[ui.sheetOf] : undefined
   const pluginSheet = (
-    <box style={{ flexGrow: 1, flexDirection: "column", backgroundColor: THEME.raised }}>
-      <box style={{ height: 1, flexShrink: 0, backgroundColor: THEME.shade, paddingLeft: 2 }}>
+    <box style={{ flexGrow: 1, flexDirection: "column", backgroundColor: C.raised }}>
+      <box style={{ height: 1, flexShrink: 0, backgroundColor: C.shade, paddingLeft: 2 }}>
         <text wrapMode="none">
-          <span fg={ui.focus === "tile" ? THEME.accent : THEME.text}>
+          <span fg={ui.focus === "tile" ? C.accent : C.text}>
             <b>{sheetViewState?.layout.name ?? "sheet"}</b>
           </span>
-          <span fg={THEME.dim}>{fit(`  ${(() => { const n = s.thread.rlms[(ui.sheetOf ?? "").split("@")[0]!]; return n !== undefined ? displayName(n) : "" })()}   esc closes`, Math.max(0, focusWidth - 4 - (sheetViewState?.layout.name ?? "sheet").length))}</span>
+          <span fg={C.dim}>{fit(`  ${(() => { const n = s.thread.rlms[(ui.sheetOf ?? "").split("@")[0]!]; return n !== undefined ? displayName(n) : "" })()}   esc closes`, Math.max(0, focusWidth - 4 - (sheetViewState?.layout.name ?? "sheet").length))}</span>
         </text>
       </box>
       <box style={{ flexGrow: 1, flexDirection: "column", paddingLeft: 2, paddingRight: 2 }}>
-        {sheetViewState === undefined ? <text fg={THEME.dim}>no view yet</text> : <AgentView
+        {sheetViewState === undefined ? <text fg={C.dim}>no view yet</text> : <AgentView
             view={sheetViewState}
             ui={ui.sheetView ?? startUi(sheetViewState)}
             height={Math.max(6, dims.height - 8)}
@@ -607,35 +590,35 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           e.stopPropagation()
           setUi(openAgent(latest(), props.session.state(), c.id))
         }}
-        style={{ flexGrow: 1, flexBasis: 0, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: on && ui.focus === "tile" ? THEME.accent : THEME.line, paddingLeft: 1, paddingRight: 1 }}
+        style={{ flexGrow: 1, flexBasis: 0, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: on && ui.focus === "tile" ? C.accent : C.line, paddingLeft: 1, paddingRight: 1 }}
       >
         <text wrapMode="none">
-          <span fg={THEME[c.glyphToken]}>{`${c.glyph} `}</span>
-          <span fg={THEME.text}>
+          <span fg={theme.value(c.glyphToken).fg}>{`${c.glyph} `}</span>
+          <span fg={C.text}>
             <b>{fit(c.name, cardW - 2)}</b>
           </span>
-          <span fg={THEME.dim}>{fit(`  ${c.context}`, Math.max(0, cardW - 2 - c.name.length))}</span>
+          <span fg={C.dim}>{fit(`  ${c.context}`, Math.max(0, cardW - 2 - c.name.length))}</span>
         </text>
         {g !== undefined ? (
           <text wrapMode="none">
-            <span fg={c.attention ? THEME.attention : THEME.accent}>{g.done}</span>
-            <span fg={THEME.faint}>{g.rest}</span>
-            <span fg={THEME.dim}>{`  ${c.gauge!.done}/${c.gauge!.total}`}</span>
+            <span fg={c.attention ? C.attention : C.accent}>{g.done}</span>
+            <span fg={C.faint}>{g.rest}</span>
+            <span fg={C.dim}>{`  ${c.gauge!.done}/${c.gauge!.total}`}</span>
           </text>
         ) : null}
-        <text wrapMode="none" fg={c.starting && c.headline === undefined ? THEME.dim : c.attention ? THEME.attention : THEME.text}>
+        <text wrapMode="none" fg={c.starting && c.headline === undefined ? C.dim : c.attention ? C.attention : C.text}>
           {fit(c.headline ?? (c.starting ? "starting…" : ""), cardW)}
         </text>
         {/* Short cards (a narrow terminal) keep the headline and gauge; roomy ones add recent lines. */}
         {!narrow && cardH >= 8
           ? c.recent.map((r, n) => (
-              <text key={n} wrapMode="none" fg={THEME.dim}>
+              <text key={n} wrapMode="none" fg={C.dim}>
                 {fit(r.text, cardW)}
               </text>
             ))
           : null}
         <box style={{ flexGrow: 1 }} />
-        {c.action !== undefined ? <text fg={THEME.faint} wrapMode="none">{`${c.action.key} ${c.action.label}`}</text> : null}
+        {c.action !== undefined ? <text fg={C.faint} wrapMode="none">{`${c.action.key} ${c.action.label}`}</text> : null}
       </box>
     )
   }
@@ -643,14 +626,14 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const grid = (
     <box style={{ flexGrow: 1, flexDirection: "column", paddingLeft: 1, paddingRight: 1 }}>
       <text wrapMode="none">
-        <span fg={ui.focus === "tile" ? THEME.accent : THEME.dim}>
+        <span fg={ui.focus === "tile" ? C.accent : C.dim}>
           <b> all agents</b>
         </span>
-        <span fg={THEME.dim}>{pages > 1 ? `   page ${page + 1} of ${pages}   ` : "   "}</span>
-        <span fg={THEME.faint}>{pages > 1 ? Array.from({ length: pages }, (_, i) => (i === page ? "●" : "○")).join("") : ""}</span>
+        <span fg={C.dim}>{pages > 1 ? `   page ${page + 1} of ${pages}   ` : "   "}</span>
+        <span fg={C.faint}>{pages > 1 ? Array.from({ length: pages }, (_, i) => (i === page ? "●" : "○")).join("") : ""}</span>
       </text>
       {cards.length === 0 ? (
-        <text fg={THEME.dim}>{"   no agents yet · / to start one with zarg"}</text>
+        <text fg={C.dim}>{"   no agents yet · / to start one with zarg"}</text>
       ) : (
         Array.from({ length: shape.rows }, (_, r) => shownCards.slice(r * shape.cols, r * shape.cols + shape.cols)).filter((row) => row.length > 0).map((row, r) => (
           <box key={r} style={{ height: cardH, flexShrink: 0, flexDirection: "row" }}>
@@ -682,13 +665,13 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const review = (
     <box style={{ flexGrow: 1, flexDirection: "column", paddingLeft: 2, paddingRight: 2 }}>
       <text wrapMode="none">
-        <span fg={ui.focus === "tile" ? THEME.accent : THEME.dim}>
+        <span fg={ui.focus === "tile" ? C.accent : C.dim}>
           <b>review</b>
         </span>
-        <span fg={THEME.dim}>{`   ${reviewRows.length} open · ${new Set(groups.map((g) => g.agent)).size} agents`}</span>
+        <span fg={C.dim}>{`   ${reviewRows.length} open · ${new Set(groups.map((g) => g.agent)).size} agents`}</span>
       </text>
       <text> </text>
-      {groups.length === 0 ? <text fg={THEME.dim}>nothing to review</text> : null}
+      {groups.length === 0 ? <text fg={C.dim}>nothing to review</text> : null}
       <scrollbox ref={reviewRef} focusable={false} style={{ flexGrow: 1 }}>
         {groups.map((g) => (
           <box key={`${g.agent}|${g.section}`} style={{ flexDirection: "column", flexShrink: 0 }}>
@@ -697,10 +680,10 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
               const on = reviewRows[reviewAt]?.key === r.key
               const picked = ui.review.selected.includes(r.key)
               return (
-                <text key={r.key} id={`review-${r.key}`} wrapMode="none" {...(on ? { bg: THEME.selection } : {})}>
-                  <span fg={THEME.accent}>{on ? "▍" : " "}</span>
-                  <span fg={picked ? THEME.accent : THEME.dim}>{picked ? "● " : "○ "}</span>
-                  <span fg={picked || on ? THEME.text : toneColor(r.row.tone)}>{fit(g.columns.map((c) => r.row.cells[c.id] ?? "").join("  "), focusWidth - 4)}</span>
+                <text key={r.key} id={`review-${r.key}`} wrapMode="none" {...(on ? { bg: C.selection } : {})}>
+                  <span fg={C.accent}>{on ? "▍" : " "}</span>
+                  <span fg={picked ? C.accent : C.dim}>{picked ? "● " : "○ "}</span>
+                  <span fg={picked || on ? C.text : toneFg(theme, r.row.tone)}>{fit(g.columns.map((c) => r.row.cells[c.id] ?? "").join("  "), focusWidth - 4)}</span>
                 </text>
               )
             })}
@@ -731,19 +714,19 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const palWidth = Math.min(60, dims.width - 4)
   const palette =
     ui.palette === undefined ? null : (
-      <box style={{ position: "absolute", left: Math.max(0, Math.floor((dims.width - palWidth) / 2)), top: 3, width: palWidth, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: THEME.accent, backgroundColor: THEME.raised, paddingLeft: 1, paddingRight: 1 }}>
+      <box style={{ position: "absolute", left: Math.max(0, Math.floor((dims.width - palWidth) / 2)), top: 3, width: palWidth, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: C.accent, backgroundColor: C.raised, paddingLeft: 1, paddingRight: 1 }}>
         <text wrapMode="none">
-          <span fg={THEME.accent}>{"› "}</span>
-          <span fg={THEME.text}>{ui.palette.query}</span>
-          <span fg={THEME.accent}>▎</span>
+          <span fg={C.accent}>{"› "}</span>
+          <span fg={C.text}>{ui.palette.query}</span>
+          <span fg={C.accent}>▎</span>
         </text>
-        <text fg={THEME.faint} wrapMode="none">{"─".repeat(palWidth - 4)}</text>
-        {found.length === 0 ? <text fg={THEME.dim}>nothing matches</text> : null}
+        <text fg={C.faint} wrapMode="none">{"─".repeat(palWidth - 4)}</text>
+        {found.length === 0 ? <text fg={C.dim}>nothing matches</text> : null}
         {found.slice(0, 10).map((e, i) => (
-          <text key={e.id} wrapMode="none" {...(i === Math.min(ui.palette!.pick, found.length - 1) ? { bg: THEME.selection } : {})}>
-            <span fg={THEME.dim}>{`${e.glyph} `}</span>
-            <span fg={THEME.text}>{fit(e.label, 24).padEnd(24)}</span>
-            <span fg={THEME.dim}>{fit(`  ${e.detail}`, palWidth - 30)}</span>
+          <text key={e.id} wrapMode="none" {...(i === Math.min(ui.palette!.pick, found.length - 1) ? { bg: C.selection } : {})}>
+            <span fg={C.dim}>{`${e.glyph} `}</span>
+            <span fg={C.text}>{fit(e.label, 24).padEnd(24)}</span>
+            <span fg={C.dim}>{fit(`  ${e.detail}`, palWidth - 30)}</span>
           </text>
         ))}
       </box>
@@ -759,7 +742,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const status = ` ${[...(askingNode !== undefined ? [`◆ ${displayName(askingNode)} ${firstAsking!.reason}`] : []), statusLine(s, props.meta), ...(s.notice !== undefined ? [s.notice] : [])].join("   ")}`
 
   return (
-    <box style={{ flexDirection: "row", width: "100%", height: "100%", backgroundColor: THEME.bg }}>
+    <ThemeContext.Provider value={theme}>
+    <box style={{ flexDirection: "row", width: "100%", height: "100%", backgroundColor: C.bg }}>
       {narrow && ui.focus === "agents" ? null : agentsList}
       <box style={{ flexDirection: "column", flexGrow: 1 }}>
         <box onMouseDown={() => setUi({ ...latest(), focus: "tile" })} style={{ flexGrow: 1, flexDirection: "column" }}>
@@ -769,7 +753,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
               {narrow && ui.focus === "agents" ? agentsList : ui.main === "zarg" ? sheet : ui.main === "grid" ? grid : ui.main === "review" ? review : view}
               {!(narrow && ui.focus === "agents") && overSheet ? (
                 <box style={{ position: "absolute", left: 3, right: 3, bottom: 0, height: Math.max(8, Math.floor(areaHeight * 0.65)), flexDirection: "column" }}>
-                  <text fg={THEME.shade} bg={THEME.bg} wrapMode="none" style={{ flexShrink: 0 }}>
+                  <text fg={C.shade} bg={C.bg} wrapMode="none" style={{ flexShrink: 0 }}>
                     {"▄".repeat(Math.max(0, focusWidth - 2))}
                   </text>
                   {ui.sheetOf !== undefined ? pluginSheet : sheet}
@@ -785,13 +769,14 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         <box style={{ height: 1, flexShrink: 0 }}>
           <text wrapMode="none">
             {/* The keys come first: the status gives way on a narrow screen. */}
-            <span fg={THEME.dim}>{fit(status, Math.max(0, dims.width - railWidth - hints.length - 3))}</span>
-            <span fg={THEME.dim}>{`   ${hints}`}</span>
+            <span fg={C.dim}>{fit(status, Math.max(0, dims.width - railWidth - hints.length - 3))}</span>
+            <span fg={C.dim}>{`   ${hints}`}</span>
           </text>
         </box>
       </box>
       {popover}
       {palette}
     </box>
+    </ThemeContext.Provider>
   )
 }

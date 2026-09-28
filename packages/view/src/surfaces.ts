@@ -1,7 +1,8 @@
 // packages/view/src/surfaces.ts
 import { Schema } from "effect"
 import { leafAt } from "./layout"
-import { type Layout, Surface } from "./schema"
+import { PLUGIN_TONES } from "@zarg/tokens"
+import { type Layout, Surface, Tone } from "./schema"
 
 /** Why a plugin's surfaces are refused: not a surface, a view it does not declare, a name twice, a size out of range. */
 export const surfacesProblem = (surfaces: unknown, layouts: ReadonlyArray<Layout>): string | undefined => {
@@ -52,5 +53,18 @@ const cardProblem = (c: { readonly name: string; readonly headline: string; read
     const ids = [...leaves.flatMap((l) => l.actions ?? []), ...(layout.actions ?? [])].map((a) => a.id)
     if (!ids.includes(c.action)) return `card ${c.name}: action ${c.action} is not an action of view ${layout.name}`
   }
+  return undefined
+}
+
+/** Why a plugin's views are refused over colour: a column naming a tone plugins may not name (a surface, text, a status). */
+export const tonesProblem = (layouts: ReadonlyArray<Layout>): string | undefined => {
+  const allowed = (t: unknown) => Schema.is(Tone)(t)
+  for (const l of layouts)
+    for (const leaf of l.sections.flatMap((x) => (x.kind === "tabs" ? x.tabs : [x])))
+      for (const c of leaf.columns ?? []) {
+        const col = c as { readonly id: string; readonly tone?: unknown; readonly tones?: Readonly<Record<string, unknown>> }
+        for (const t of [col.tone, ...Object.values(col.tones ?? {})])
+          if (t !== undefined && !allowed(t)) return `view ${l.name}: column ${col.id} names ${String(t)}; plugins may name ${PLUGIN_TONES.join(", ")}`
+      }
   return undefined
 }

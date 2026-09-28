@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { testRender } from "@opentui/react/test-utils"
 import { type Answer, initial, type Inquiry, type Session, type SessionState } from "@zarg/client"
-import { THEME } from "@zarg/view"
+import { makeTheme, PALETTES } from "@zarg/tokens"
 import { App } from "../src/app"
+import { colorsOf, DEFAULT_THEME, type ThemeService } from "../src/theme"
 import { POPOVER_GUARD_MS } from "../src/view"
+
+const THEME = colorsOf(DEFAULT_THEME)
 
 /** A session with fixed state that records what the UI asks of it. */
 const fakeSession = (state: SessionState) => {
@@ -66,12 +69,12 @@ const waiting: SessionState = {
 
 let destroy: (() => void) | undefined
 afterEach(() => destroy?.())
-const render = async (state0: SessionState, size = { width: 110, height: 24 }) => {
+const render = async (state0: SessionState, size = { width: 110, height: 24 }, theme?: ThemeService) => {
   // As a live session: the core's events have arrived (the arrival rule waits for them).
   const state = state0.thread.seq === 0 ? { ...state0, thread: { ...state0.thread, seq: 1 } } : state0
   const fake = fakeSession(state)
   let exited = false
-  const t = await testRender(<App session={fake.session} meta={meta} onExit={() => (exited = true)} />, { ...size, ...RENDERER })
+  const t = await testRender(<App session={fake.session} meta={meta} onExit={() => (exited = true)} {...(theme !== undefined ? { theme } : {})} />, { ...size, ...RENDERER })
   destroy = () => t.renderer.destroy()
   await t.waitForVisualIdle()
   // Running agents spin with the clock: frames show the spinner as ● so they compare; rawFrame keeps it.
@@ -1400,5 +1403,21 @@ describe("table search and a detail beside its list", () => {
     const y = ls.findIndex((l) => l.includes("⌕ prior"))
     await t.mockMouse.click(ls[y]!.indexOf("⌕") + 2, y); await settle(t)
     expect(t.captureCharFrame()).toContain("⌕ prior▎")
+  })
+})
+
+describe("the theme", () => {
+  test("with the 16-colour palette the cursor row still differs from the rows around it", async () => {
+    const theme = makeTheme(PALETTES["terminal.ansi16"], "terminal.ansi16")
+    const t = await render(viewState, { width: 110, height: 24 }, theme)
+    t.mockInput.pressKey("a", { meta: true })
+    await settle(t)
+    t.mockInput.pressEnter()
+    await settle(t)
+    const hex = (c: { r: number; g: number; b: number }) => `#${[c.r, c.g, c.b].map((v) => Math.round(v * 255).toString(16).padStart(2, "0")).join("")}`
+    const spans = t.captureSpans().lines.flatMap((l) => l.spans)
+    const cursor = spans.find((s) => s.text.includes("▍"))!
+    expect(hex(cursor.bg)).toBe(theme.value("selection").fg)
+    expect(hex(cursor.bg)).not.toBe(theme.value("ground").fg)
   })
 })

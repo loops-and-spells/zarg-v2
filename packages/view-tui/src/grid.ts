@@ -1,5 +1,6 @@
+import type { TokenKey } from "@zarg/tokens"
 import type { RlmNode, SessionState } from "@zarg/client"
-import { keyFor, rowsOf, type ThemeToken, type ViewState } from "@zarg/view"
+import { keyFor, rowsOf, type ViewState } from "@zarg/view"
 import { contextOf, displayName } from "./rail"
 import { ICON, liveRlms, type Ui } from "./view"
 
@@ -7,7 +8,7 @@ import { ICON, liveRlms, type Ui } from "./view"
 export interface Card {
   readonly id: string
   readonly glyph: string
-  readonly glyphToken: ThemeToken
+  readonly glyphToken: TokenKey
   readonly name: string
   readonly context: string
   /** The card's stats headline (value and label), or the row's text. */
@@ -42,7 +43,7 @@ const cardOf = (ui: Ui, s: SessionState, n: RlmNode): Card => {
   const base = {
     id: n.id,
     glyph: n.attention !== undefined ? "◆" : n.status === "running" ? "⠼" : ICON[n.status],
-    glyphToken: (n.attention !== undefined ? "attention" : n.status === "running" ? "accent" : n.status === "failed" ? "error" : "dim") as ThemeToken,
+    glyphToken: (n.attention !== undefined ? "attention" : n.status === "running" ? "accent" : n.status === "failed" ? "error" : "dim") as TokenKey,
     name: displayName(n),
     context: contextOf(n),
     starting: v === undefined,

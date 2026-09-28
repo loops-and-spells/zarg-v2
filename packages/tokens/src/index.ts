@@ -51,7 +51,11 @@ export const ALIASES = {
 } as const satisfies Record<string, BaseKey>
 export type TokenKey = BaseKey | keyof typeof ALIASES
 /** What a plugin may name: intent, identity, severity, and dim. The shell alone names surfaces, text and status. */
-export const PLUGIN_KEYS: ReadonlySet<string> = new Set(["accent", "attention", "ok", "error", "dim", "card", "state", "persona", "journey", "agent", "zarg", "severity.high", "severity.medium", "severity.low"])
+const PLUGIN_KEY_LIST = ["accent", "attention", "ok", "error", "dim", "card", "state", "persona", "journey", "agent", "zarg", "severity.high", "severity.medium", "severity.low"] as const
+export const PLUGIN_KEYS: ReadonlySet<string> = new Set(PLUGIN_KEY_LIST)
+/** Every tone a plugin may name: its keys, then the old tone names not already keys. */
+export const PLUGIN_TONES = [...PLUGIN_KEY_LIST, "normal", "warn"] as const
+export type PluginTone = (typeof PLUGIN_TONES)[number]
 /** The tones plugins named before tokens, as keys. */
 export const OLD_TONES: Readonly<Record<string, TokenKey>> = { normal: "text", ok: "ok", warn: "attention", error: "error", dim: "dim", accent: "accent" }
 

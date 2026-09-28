@@ -2,10 +2,10 @@ import { defineView } from "@zarg/plugin-sdk"
 
 // The list keeps what you scan by; the detail beside it has the rest (the note, the card, who and where).
 export const FINDING_COLUMNS = [
-  { id: "card", label: "card", filter: "none", tone: "warn" },
-  { id: "journey", label: "journey", filter: "values", tone: "ok" },
+  { id: "card", label: "card", filter: "none", tone: "card" },
+  { id: "journey", label: "journey", filter: "values", tone: "journey" },
   { id: "kind", label: "kind", filter: "values" },
-  { id: "severity", label: "severity", order: ["high", "medium", "low"], filter: "values", tones: { high: "error", medium: "warn", low: "dim" } },
+  { id: "severity", label: "severity", order: ["high", "medium", "low"], filter: "values", tones: { high: "severity.high", medium: "severity.medium", low: "severity.low" } },
 ] as const
 const ACTIONS = [
   { id: "apply", label: "Send to zarg", key: "a", on: "selection" },

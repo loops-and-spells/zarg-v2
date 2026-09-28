@@ -1,9 +1,10 @@
+import type { PluginTone } from "@zarg/tokens"
 import { Schema } from "effect"
 import { keysProblem } from "./keys"
 import { DATA, type Layout, type LayoutLeaf, type LayoutSection, type LeafKind, type LogLine, LogData } from "./schema"
 
 export type ActionSpec = { readonly id: string; readonly label: string; readonly key?: string; readonly keys?: Readonly<Record<string, string>>; readonly on: "selection" | "row" | "none"; readonly opens?: ReadonlyArray<{ readonly surface: string; readonly agent?: string }>; readonly default?: boolean }
-type ToneName = "normal" | "ok" | "warn" | "error" | "dim" | "accent"
+type ToneName = PluginTone
 type ColumnSpec = { readonly id: string; readonly label: string; readonly order?: ReadonlyArray<string>; readonly filter?: "values" | "none" | "search" | { readonly range: readonly [number, number]; readonly step?: number }; readonly tone?: ToneName; readonly tones?: Readonly<Record<string, ToneName>> }
 type Role = "summary" | "primary" | "log" | "pinned" | "aside"
 export type LeafSpec =

@@ -3,6 +3,7 @@ import { Effect } from "effect"
 import { makeRehearse, ownCard, type RunDeps } from "../src/run"
 import { rehearseSettings } from "../src/settings"
 import type { Answer, DecisionRequest, StepView } from "../src/types"
+import { FINDING_COLUMNS } from "../src/views"
 
 const noul = (p: number): Answer => ({ type: "noul", answer: p >= 0.5, probability: p, confidence: 0 })
 
@@ -356,4 +357,13 @@ describe("testers from the graph's personas", () => {
     expect(ownCard({ name: "Operator", text: "The operator." }, "Z")).toBe(true)
     expect(ownCard({ name: "Operator", text: "The operator.", cards: ["A"] }, "Z")).toBe(false)
   })
+})
+
+test("the findings columns colour by meaning: card, journey, severity keys", () => {
+  expect(FINDING_COLUMNS.map((c) => [c.id, "tone" in c ? c.tone : undefined, "tones" in c ? c.tones : undefined])).toEqual([
+    ["card", "card", undefined],
+    ["journey", "journey", undefined],
+    ["kind", undefined, undefined],
+    ["severity", undefined, { high: "severity.high", medium: "severity.medium", low: "severity.low" }],
+  ])
 })

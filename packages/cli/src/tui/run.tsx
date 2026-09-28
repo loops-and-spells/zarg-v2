@@ -1,8 +1,9 @@
 import { basename, dirname, join } from "node:path"
 import { type CliRenderer, createCliRenderer } from "@opentui/core"
 import { createRoot } from "@opentui/react"
-import { Effect } from "effect"
+import { Effect, Layer } from "effect"
 import { connect, makeClient, makeSession, type Session } from "@zarg/client"
+import { Palette, Theme } from "@zarg/tokens"
 import { App, type Meta } from "@zarg/view-tui"
 
 /**
@@ -39,7 +40,7 @@ export const openSession = (opts: { readonly root: string; readonly threadId: st
  * core). Every way out ends there: the exit keys, a signal (OpenTUI destroys the renderer on SIGINT, SIGTERM,
  * SIGHUP) or an app that crashed, since Ctrl-D is also watched below React.
  */
-export const mount = (renderer: CliRenderer, opened: Opened) =>
+export const mount = (renderer: CliRenderer, opened: Opened, theme?: Theme["Service"]) =>
   new Promise<void>((done) => {
     const exit = () => {
       if (!renderer.isDestroyed) renderer.destroy()
@@ -48,7 +49,7 @@ export const mount = (renderer: CliRenderer, opened: Opened) =>
     renderer.keyInput.on("keypress", (key) => {
       if (key.ctrl && key.name === "d") exit()
     })
-    createRoot(renderer).render(<App session={opened.session} meta={opened.meta} onExit={exit} />)
+    createRoot(renderer).render(<App session={opened.session} meta={opened.meta} onExit={exit} {...(theme !== undefined ? { theme } : {})} />)
     opened.session.start()
   })
 
@@ -58,5 +59,7 @@ export const runTui = (opts: { readonly root: string; readonly threadId: string;
     const opened = yield* openSession(opts)
     // --yolo: switched on through the core, so it also works on a core that was already running.
     if (opts.yolo === true) opened.session.command("/yolo on")
-    yield* Effect.promise(async () => mount(await createCliRenderer({ exitOnCtrlC: false, autoFocus: false }), opened))
+    // The terminal's palette: ZARG_THEME_COLORS, else COLORTERM and TERM (read through Effect's Config).
+    const theme = yield* Effect.gen(function* () { return yield* Theme }).pipe(Effect.provide(Theme.layer.pipe(Layer.provide(Palette.terminal))), Effect.orDie)
+    yield* Effect.promise(async () => mount(await createCliRenderer({ exitOnCtrlC: false, autoFocus: false }), opened, theme))
   })

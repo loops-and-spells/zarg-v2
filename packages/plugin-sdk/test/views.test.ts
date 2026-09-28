@@ -18,6 +18,11 @@ describe("plugin views", () => {
     expect(() => definePlugin({ name: "demo", service: "Demo", archetype: "service", config: Schema.Struct({}), scopes: {}, views: [Tester], surfaces: [{ ...status, view: "nope" }], methods: {}, make: Effect.succeed({}) })).toThrow(/which the plugin does not declare/)
   })
 
+  test("a view naming a tone plugins may not name (a surface) is refused at build", () => {
+    const Bad = defineView("bad", { rows: { kind: "table", role: "primary", columns: [{ id: "a", label: "a", tone: "ground" as never }] } })
+    expect(() => definePlugin({ name: "demo", service: "Demo", archetype: "service", config: Schema.Struct({}), scopes: {}, views: [Bad], methods: {}, make: Effect.succeed({}) })).toThrow(/column a names ground; plugins may name/)
+  })
+
   test("two views with one name are refused", () => {
     expect(() => definePlugin({ name: "demo", service: "Demo", archetype: "service", config: Schema.Struct({}), scopes: {}, views: [Tester, Tester], methods: {}, make: Effect.succeed({}) })).toThrow(/view tester/)
   })

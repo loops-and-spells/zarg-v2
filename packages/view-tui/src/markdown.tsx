@@ -1,25 +1,43 @@
 import { SyntaxStyle } from "@opentui/core"
 import { Markdown } from "@zarg/markdown/react"
-import { THEME } from "@zarg/view"
+import { useMemo } from "react"
+import { type ThemeService, useTheme } from "./theme"
 
-const syntaxStyle = SyntaxStyle.fromStyles({
-  default: { fg: THEME.text },
-  "markup.heading": { fg: THEME.accent, bold: true },
-  "markup.strong": { bold: true },
-  "markup.italic": { italic: true },
-  "markup.link": { fg: THEME.accent, underline: true },
-  "markup.raw": { fg: THEME.attention },
-  comment: { fg: THEME.dim },
-  keyword: { fg: THEME.accent },
-  string: { fg: THEME.ok },
-  number: { fg: THEME.attention },
+/** Markdown's syntax colours from the theme: syntax keys for code, accent for headings and links. */
+const syntaxOf = (t: ThemeService) =>
+  SyntaxStyle.fromStyles({
+    default: { fg: t.value("text").fg },
+    "markup.heading": { fg: t.value("accent").fg, bold: true },
+    "markup.strong": { bold: true },
+    "markup.italic": { italic: true },
+    "markup.link": { fg: t.value("accent").fg, underline: true },
+    "markup.raw": { fg: t.value("attention").fg },
+    comment: { fg: t.value("comment").fg },
+    keyword: { fg: t.value("keyword").fg },
+    string: { fg: t.value("string").fg },
+    number: { fg: t.value("number").fg },
+  })
+
+/** Code zarg highlights itself (its Gherkin): each token kind by its key (an id is a card). */
+const highlightOf = (t: ThemeService) => ({
+  keyword: t.value("keyword").fg,
+  id: t.value("card").fg,
+  comment: t.value("comment").fg,
+  title: t.value("text").fg,
+  flow: t.value("accent").fg,
+  string: t.value("string").fg,
+  number: t.value("number").fg,
+  persona: t.value("persona").fg,
+  journey: t.value("journey").fg,
 })
 
-/** Code zarg highlights itself (its Gherkin): each token kind in a theme colour. */
-const highlight = { keyword: THEME.accent, id: THEME.attention, comment: THEME.dim, title: THEME.text, flow: THEME.accent, string: THEME.ok, number: THEME.attention, persona: THEME.accent, journey: THEME.ok }
-
 // @card UX-0076
-export const RichText = (p: { content: string; width: number; streaming?: boolean; onHeight?: (height: number) => void }) => (
-  <Markdown content={p.content} width={Math.max(1, p.width)} syntaxStyle={syntaxStyle} fg={THEME.text} highlight={highlight} streaming={p.streaming ?? false}
-    tableOptions={{ style: "columns", wrapMode: "word" }} onSizeChange={function () { p.onHeight?.(this.height) }} />
-)
+export const RichText = (p: { content: string; width: number; streaming?: boolean; onHeight?: (height: number) => void }) => {
+  const theme = useTheme()
+  const syntaxStyle = useMemo(() => syntaxOf(theme), [theme])
+  const highlight = useMemo(() => highlightOf(theme), [theme])
+  return (
+    <Markdown content={p.content} width={Math.max(1, p.width)} syntaxStyle={syntaxStyle} fg={theme.value("text").fg} highlight={highlight} streaming={p.streaming ?? false}
+      tableOptions={{ style: "columns", wrapMode: "word" }} onSizeChange={function () { p.onHeight?.(this.height) }} />
+  )
+}

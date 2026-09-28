@@ -1,5 +1,5 @@
+import type { TokenKey } from "@zarg/tokens"
 import type { RlmNode, SessionState } from "@zarg/client"
-import type { ThemeToken } from "@zarg/view"
 import { fit } from "./look"
 import { ARCHIVED, archivedNodes, childrenOf, cursorOf, ICON, isOpen, liveRlms, PULSE_MS, spin, type Ui, visible } from "./view"
 
@@ -22,7 +22,7 @@ export interface RailRow {
   readonly id: string
   readonly depth: number
   readonly glyph: string
-  readonly glyphToken: ThemeToken
+  readonly glyphToken: TokenKey
   readonly name: string
   /** Right-aligned: progress, "asks", a count, how it ended. */
   readonly note: string
@@ -56,7 +56,7 @@ export const railRows = (ui: Ui, s: SessionState, now: number | undefined, width
     const open = isOpen(live, ui.agents, n)
     const unseen = n.attention !== undefined && ui.seen[n.id] !== n.attention.since
     const glyph = n.attention !== undefined ? (unseen && blink ? "◇" : "◆") : hasKids ? (open ? "▾" : "▸") : n.status === "running" ? (now !== undefined ? spin(now) : "⠼") : ICON[n.status]
-    const glyphToken: ThemeToken = n.attention !== undefined ? "attention" : n.status === "running" ? "accent" : n.status === "failed" ? "error" : "dim"
+    const glyphToken: TokenKey = n.attention !== undefined ? "attention" : n.status === "running" ? "accent" : n.status === "failed" ? "error" : "dim"
     const note = noteOf(n, r.hidden.length, open)
     const room = Math.max(4, width - depth * 2 - 2 - Math.min(NOTE, note.length) - 1)
     return {

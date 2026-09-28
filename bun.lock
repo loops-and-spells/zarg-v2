@@ -71,6 +71,7 @@
         "@zarg/plugin": "workspace:*",
         "@zarg/plugin-sdk": "workspace:*",
         "@zarg/reconcile": "workspace:*",
+        "@zarg/tokens": "workspace:*",
         "@zarg/view-tui": "workspace:*",
         "effect": "^4.0.0-rc.117",
         "react": "19",
@@ -245,6 +246,7 @@
       "name": "@zarg/view",
       "dependencies": {
         "@zarg/bm25": "workspace:*",
+        "@zarg/tokens": "workspace:*",
         "effect": "^4.0.0-rc.117",
       },
       "devDependencies": {
@@ -263,6 +265,7 @@
         "@opentui/react": "0.5.12",
         "@zarg/client": "workspace:*",
         "@zarg/markdown": "workspace:*",
+        "@zarg/tokens": "workspace:*",
         "@zarg/view": "workspace:*",
         "effect": "^4.0.0-rc.117",
         "react": "19",
