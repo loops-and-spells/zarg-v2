@@ -1,5 +1,6 @@
 import type { SessionState } from "@zarg/client"
 import { dispatch, focused, type InputKey, type InputLayer, keyFor, type KeyHint, leafOf, printable, startUi, type ViewState, type ViewUi } from "@zarg/view"
+import { gridCards } from "./grid"
 import { viewKeys } from "./view-keys"
 import {
   type Action,
@@ -31,6 +32,9 @@ export interface ShellWorld {
   readonly s: SessionState
   readonly now: number
   readonly draft: string
+  /** The grid's columns and cards a page (from the terminal's size; 2 and 4 when unknown). */
+  readonly gridCols?: number
+  readonly gridPage?: number
 }
 type Layer = InputLayer<Ui, ShellWorld, Action>
 
@@ -284,6 +288,33 @@ export const SHELL: ReadonlyArray<Layer> = [
               ? { action: { type: "scroll" as const, delta: r.scroll } }
               : {}),
       }
+    },
+  },
+  {
+    id: "grid",
+    when: (ui) => ui.focus === "tile" && ui.main === "grid" && !ui.sheet,
+    hints: () => [{ keys: "←→↑↓", does: "move" }, { keys: "Enter", does: "open" }, { keys: "] [", does: "page" }],
+    handle: (ui, w, k) => {
+      const c = common(ui, w, k)
+      if (c !== undefined) return c
+      const cards = gridCards(ui, w.s)
+      if (cards.length === 0) return "pass"
+      const cols = w.gridCols ?? 2
+      const page = w.gridPage ?? 4
+      const at = Math.min(ui.grid.cursor, cards.length - 1)
+      const to = (i: number) => ({ ui: { ...ui, grid: { cursor: Math.max(0, Math.min(cards.length - 1, i)) } } })
+      if (k.name === "left") return to(at - 1)
+      if (k.name === "right") return to(at + 1)
+      if (k.name === "up") return to(at - cols)
+      if (k.name === "down") return to(at + cols)
+      if (k.name === "]" || k.name === "pagedown") return to((Math.floor(at / page) + 1) * page)
+      if (k.name === "[" || k.name === "pageup") return to((Math.floor(at / page) - 1) * page)
+      const card = cards[at]!
+      if (k.name === "return") return { ui: openAgent(ui, w.s, card.id) }
+      // The card's one action, on its agent.
+      if (card.action !== undefined && k.name === card.action.key && k.ctrl !== true && k.meta !== true)
+        return { ui, action: { type: "act", section: card.action.section, action: card.action.id, rows: card.action.rows, agent: card.id, view: card.id } }
+      return "pass"
     },
   },
   {

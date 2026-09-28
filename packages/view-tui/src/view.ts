@@ -18,6 +18,8 @@ export interface Ui {
   readonly back: ReadonlyArray<{ readonly main: Main; readonly viewing?: string; readonly sheet?: boolean }>
   /** The arrival rule ran (the sheet opened or not by whether agents work). */
   readonly arrived: boolean
+  /** The grid's highlighted card (its page follows from it). */
+  readonly grid: { readonly cursor: number }
   /** The selected picker row. */
   readonly pick: number
   /** The inquiry `pick` belongs to; a new inquiry resets the selection. */
@@ -83,7 +85,7 @@ export const POPOVER_GUARD_MS = 300
 export const NAVIGATE_FRESH_MS = 10_000
 export { CHAT, OTHER }
 
-export const initialUi: Ui = { focus: "bar", sheet: false, main: "grid", back: [], arrived: false, pick: 0, other: false, agents: { toggled: {}, tree: 0 }, popover: { pick: 0 }, seen: {}, closedPanels: [] }
+export const initialUi: Ui = { focus: "bar", sheet: false, main: "grid", back: [], arrived: false, grid: { cursor: 0 }, pick: 0, other: false, agents: { toggled: {}, tree: 0 }, popover: { pick: 0 }, seen: {}, closedPanels: [] }
 
 export interface PickerRow {
   readonly id: string
@@ -109,7 +111,7 @@ export const preselect = (inquiry: Inquiry) => Math.max(0, inquiry.options.findI
 
 /** A new inquiry preselects its recommended option (or the first); a new popover its recommended option; a shown sheet reads zarg's replies. */
 export const syncUi = (ui0: Ui, s: SessionState, now = Date.now()): Ui => {
-  const ui = withPanels(withNavigate(withPopover(withRead(withRunClock(withArrival(ui0.agents.tree === s.thread.trees ? ui0 : { ...ui0, agents: { toggled: {}, tree: s.thread.trees } }, s), s, now), s), s, now), s, now), s)
+  const ui = withGrid(withPanels(withNavigate(withPopover(withRead(withRunClock(withArrival(ui0.agents.tree === s.thread.trees ? ui0 : { ...ui0, agents: { toggled: {}, tree: s.thread.trees } }, s), s, now), s), s, now), s, now), s), s)
   const inquiry = s.thread.pendingInquiry
   if (inquiry === undefined) {
     if (ui.inquiryId === undefined && !ui.other && ui.chatting === undefined) return ui
@@ -208,6 +210,12 @@ export const goBack = (ui: Ui, s: SessionState): Ui => {
   if (to === undefined) return goHome(ui, s)
   const { viewing: _, view: __, ...rest } = ui
   return { ...rest, main: to.main, back: ui.back.slice(0, -1), sheet: to.sheet === true, ...(to.viewing !== undefined ? { viewing: to.viewing } : {}) }
+}
+/** The grid's cursor stays on a card that exists. */
+const withGrid = (ui: Ui, s: SessionState): Ui => {
+  const n = Object.values(liveRlms(s)).filter((x) => x.id.includes(":")).length
+  const cursor = Math.max(0, Math.min(ui.grid.cursor, n - 1))
+  return cursor === ui.grid.cursor ? ui : { ...ui, grid: { cursor } }
 }
 /** The arrival rule, once: the grid, the sheet open when nothing is going on. */
 const withArrival = (ui: Ui, s: SessionState): Ui => (ui.arrived ? ui : { ...goHome(ui, s), arrived: true })
