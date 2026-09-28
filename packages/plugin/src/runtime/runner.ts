@@ -1,7 +1,7 @@
 // The plugin process: lock down first, then load exactly one bundle into one Compartment whose
 // only authority is `powers.call(name, args)`, a request to the host.
 import "ses"
-import type { Failure, FromPlugin, ToPlugin } from "./protocol"
+import { type Failure, type FromPlugin, powerTag, type ToPlugin } from "./protocol"
 
 lockdown({ errorTaming: "unsafe", overrideTaming: "severe", consoleTaming: "unsafe", reporting: "none" })
 
@@ -37,7 +37,7 @@ const onCall = async (id: number, method: string, params: unknown) => {
     } else send({ type: "reply", id, ok: true, value: JSON.parse(JSON.stringify(result ?? null)) })
   } catch (e) {
     const err = e as { tag?: string; message?: string }
-    send({ type: "reply", id, ok: false, error: fail(err?.tag === "NotGranted" || err?.tag === "BudgetExceeded" ? err.tag : "PluginError", String(err?.message ?? e)) })
+    send({ type: "reply", id, ok: false, error: fail(powerTag(err?.tag), String(err?.message ?? e)) })
   } finally {
     running.delete(id)
   }

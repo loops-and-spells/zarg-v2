@@ -26,6 +26,8 @@ export interface Manifest {
   readonly optional: ManifestScopes
   readonly methods: Readonly<Record<string, { readonly doc: string; readonly params: unknown; readonly success: unknown; readonly agents: boolean; readonly deadlineMs?: number; readonly stream: boolean }>>
   readonly graph?: { readonly nodes: Readonly<Record<string, unknown>>; readonly edges: Readonly<Record<string, EdgeSpec>> }
+  /** Entity kinds it serves: data schema, tone, glyph, commands (command → method), the nav surface that shows them, the ops it serves itself. */
+  readonly entities?: Readonly<Record<string, { readonly doc: string; readonly data: unknown; readonly tone: string; readonly glyph: string; readonly commands: Readonly<Record<string, string>>; readonly open?: string; readonly ops: ReadonlyArray<string> }>>
 }
 
 /** A built plugin ready to run: its manifest, its bundle, and the directory it was loaded from. */

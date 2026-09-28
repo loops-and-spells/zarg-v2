@@ -7,6 +7,8 @@
     "./runtime": "./src/runtime/index.ts"
   },
   "dependencies": {
+    "@zarg/bm25": "workspace:*",
+    "@zarg/entities": "workspace:*",
     "@zarg/graph": "workspace:*",
     "@zarg/view": "workspace:*",
     "effect": "^4.0.0-rc.117",

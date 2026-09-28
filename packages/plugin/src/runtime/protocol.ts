@@ -19,9 +19,14 @@ export type FromPlugin =
   | { readonly type: "power"; readonly id: number; readonly power: string; readonly args: unknown }
 
 export interface Failure {
-  readonly tag: "NotGranted" | "BudgetExceeded" | "PluginError" | "UnknownMethod"
+  readonly tag: "NotGranted" | "BudgetExceeded" | "PluginError" | "UnknownMethod" | (typeof ENTITY_TAGS)[number]
   readonly message: string
 }
+/** Entity failures a power may return (the entities power): kept as they are, not folded into PluginError. */
+export const ENTITY_TAGS = ["NotFound", "UnknownType", "NotAllowed", "ProviderFailed"] as const
+/** The tag a power's failure keeps across the process boundary. */
+export const powerTag = (tag: unknown): Failure["tag"] =>
+  tag === "NotGranted" || tag === "BudgetExceeded" || (ENTITY_TAGS as ReadonlyArray<unknown>).includes(tag) ? (tag as Failure["tag"]) : "PluginError"
 
 export interface Identity {
   readonly name?: string

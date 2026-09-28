@@ -1,8 +1,9 @@
 import { Effect, Layer, Schema, Stream } from "effect"
 import type { Contract } from "./contract"
-import { layoutOf, opensProblem, type Surface, surfacesProblem, tonesProblem, type ViewDef } from "@zarg/view"
+import { entitiesProblem, layoutOf, opensProblem, type Surface, surfacesProblem, tonesProblem, type ViewDef } from "@zarg/view"
 import { conversations } from "./conversation"
-import { Agenda, Agents, Attention, Clock, Conversation, Config, Decisions, Files, Graph, Http, Models, PluginFailure, type RawPowers, Secrets, servicesFrom, Surfaces, Views } from "./services"
+import { type EntityDecl, type EntityHandlers, serveEntity } from "./entities"
+import { Agenda, Agents, Attention, Clock, Conversation, Config, Decisions, Entities, Files, Graph, Http, Models, PluginFailure, type RawPowers, Secrets, servicesFrom, Surfaces, Views } from "./services"
 
 export interface Scopes {
   readonly net?: ReadonlyArray<string> | "ask"
@@ -15,6 +16,8 @@ export interface Scopes {
   readonly models?: ReadonlyArray<string>
   /** Agents in the agents pane. */
   readonly agents?: boolean
+  /** Other plugins' entity types it reads or commands (patterns: `plugin/kind`, `plugin/*`); its own always. */
+  readonly entities?: { readonly read?: ReadonlyArray<string>; readonly command?: ReadonlyArray<string> }
 }
 export interface MethodSpec {
   readonly doc: string
@@ -62,7 +65,9 @@ export interface PluginDef<M extends Record<string, MethodSpec>> {
   readonly optional?: Scopes
   readonly methods: M
   readonly graph?: { readonly nodes: Readonly<Record<string, Schema.Codec<any, any>>>; readonly edges: Readonly<Record<string, EdgeSpec>> }
-  readonly make: Effect.Effect<Handlers<M>, never, any>
+  /** Entity kinds it serves (`<name>/<kind>`), implemented by `entities` in what `make` returns. */
+  readonly entities?: Readonly<Record<string, EntityDecl>>
+  readonly make: Effect.Effect<Handlers<M> & { readonly entities?: Readonly<Record<string, EntityHandlers>> }, never, any>
 }
 export interface Plugin<M extends Record<string, MethodSpec> = Record<string, MethodSpec>> extends PluginDef<M> {
   /** Called by the runner inside the plugin's Compartment. */
@@ -89,6 +94,8 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
   if (opens !== undefined) throw new Error(`plugin ${def.name}: ${opens}`)
   const tones = tonesProblem((def.views ?? []).map(layoutOf))
   if (tones !== undefined) throw new Error(`plugin ${def.name}: ${tones}`)
+  const ents = entitiesProblem(def.name, def.entities, Object.keys(def.methods))
+  if (ents !== undefined) throw new Error(ents)
   const serve = (raw: RawPowers) => {
     const s = servicesFrom(raw)
     const talks = conversations(raw)
@@ -112,7 +119,7 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
       ),
     )
     const layer = Layer.mergeAll(
-      Layer.succeed(Secrets, s.secrets), Layer.succeed(Http, s.http), Layer.succeed(Files, s.files), Layer.succeed(Graph, s.graph),
+      Layer.succeed(Secrets, s.secrets), Layer.succeed(Http, s.http), Layer.succeed(Files, s.files), Layer.succeed(Graph, s.graph), Layer.succeed(Entities, s.entities),
       Layer.succeed(Decisions, s.decisions), Layer.succeed(Models, s.models), Layer.succeed(Clock, s.clock), Layer.succeed(Agenda, s.agenda), Layer.succeed(Agents, s.agents), Layer.succeed(Views, s.views), Layer.succeed(Surfaces, s.surfaces), Layer.succeed(Attention, s.attention), Layer.succeed(Conversation, talks.service),
       Layer.effect(Config, Effect.map(Effect.promise(() => raw.call("config.get", {})), (value) => Config.of({ value }))),
       ...deps,
@@ -124,6 +131,8 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
       // The host calls this when the plugin loads: its services start then (a run a restart cut short resumes).
       // Not a method name a plugin can declare (those start with a letter).
       ["$start", async () => (await handlers(), null)],
+      // The host asks for this plugin's entities (get, query, label, context, version) by kind.
+      ["$entity", async (p: unknown) => Effect.runPromise(serveEntity(((await handlers()) as unknown as { readonly entities?: Readonly<Record<string, EntityHandlers>> }).entities)(p as never) as Effect.Effect<unknown, PluginFailure>)],
       // The operator answered or wrote to one of its agents (the core routes these; plugins cannot declare `$` names).
       ["$answer", async (p: unknown) => talks.answer(p as never)],
       [

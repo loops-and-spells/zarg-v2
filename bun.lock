@@ -172,6 +172,8 @@
     "packages/plugin": {
       "name": "@zarg/plugin",
       "dependencies": {
+        "@zarg/bm25": "workspace:*",
+        "@zarg/entities": "workspace:*",
         "@zarg/graph": "workspace:*",
         "@zarg/view": "workspace:*",
         "effect": "^4.0.0-rc.117",
@@ -197,8 +199,10 @@
     "packages/plugin-sdk": {
       "name": "@zarg/plugin-sdk",
       "dependencies": {
+        "@zarg/entities": "workspace:*",
         "@zarg/graph": "workspace:*",
         "@zarg/plugin": "workspace:*",
+        "@zarg/tokens": "workspace:*",
         "@zarg/view": "workspace:*",
         "effect": "^4.0.0-rc.117",
       },

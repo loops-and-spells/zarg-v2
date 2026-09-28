@@ -1,10 +1,12 @@
 import { Cause, Context, Data, Effect, Exit, Layer, type Redacted, Scope, Semaphore } from "effect"
-import { keysProblem, type Layout, opensProblem, reviewProblem, surfacesProblem, tonesProblem } from "@zarg/view"
+import { entitiesProblem, keysProblem, type Layout, opensProblem, reviewProblem, surfacesProblem, tonesProblem } from "@zarg/view"
 import { diff, type Expect, GraphStore, type GraphError, hash, type IoError, type Loaded, Snapshot } from "@zarg/graph"
 import { type Ask, type Grants, type ManifestScopes, makePowers, PLUGIN_NAME, PluginCallError, type PluginProcess, scopesDigest, served, spawnPlugin, warnings } from "../runtime"
 import type { LoadedPlugin, Manifest } from "./loaded"
 import { type AgendaItem, type Finding, ToolError } from "./plugin"
 import { checkStructure, manifestRegistry, PluginConfigError } from "./validate"
+import { type EntityError, entityPower, makeEntities, registry } from "./entities"
+import type { Entity, Label, Query } from "@zarg/entities"
 
 export class LintFailed extends Data.TaggedError("LintFailed")<{ readonly findings: ReadonlyArray<Finding> }> {}
 
@@ -54,6 +56,18 @@ export class PluginHost extends Context.Service<
     readonly invoke: (plugin: string, method: string, params: unknown) => Effect.Effect<unknown, { readonly _tag: string; readonly message: string }>
     /** Run `effect` with no tool call committing meanwhile (e.g. while landing a commit that writes graph files). */
     readonly exclusive: <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
+    /** Any plugin's data by ref: `caller` is a plugin (its `entities` scope applies) or undefined (the core). */
+    readonly entities: {
+      readonly types: () => ReadonlyArray<{ readonly type: string; readonly doc: string; readonly tone: string; readonly glyph: string; readonly commands: ReadonlyArray<string>; readonly open?: string; readonly data: unknown }>
+      readonly many: (refs: ReadonlyArray<string>, caller?: string) => Effect.Effect<{ readonly entities: ReadonlyArray<Entity>; readonly failed: ReadonlyArray<{ readonly ref: string; readonly _tag: string; readonly message: string }> }>
+      readonly get: (ref: string, caller?: string) => Effect.Effect<Entity, EntityError>
+      readonly query: (q: Query, caller?: string) => Effect.Effect<ReadonlyArray<Entity>, EntityError>
+      readonly version: (ref: string, caller?: string) => Effect.Effect<string | null, EntityError>
+      readonly changed: (ref: string, caller?: string) => Effect.Effect<boolean, EntityError>
+      readonly label: (ref: string, caller?: string) => Effect.Effect<Label, EntityError>
+      readonly context: (ref: string, caller?: string) => Effect.Effect<string, EntityError>
+      readonly command: (ref: string, name: string, args: unknown, caller?: string) => Effect.Effect<unknown, EntityError>
+    }
     /**
      * Load plugins that lacked only their load grant: with YOLO on for a plugin it loads as declared (nothing is
      * saved); otherwise the operator is asked (Allow saves the grant). Dependents follow their dependencies.
@@ -114,6 +128,8 @@ const manifestProblem = (m: Manifest): string | undefined => {
   if (view !== undefined) return view
   const review = views.map((v) => { try { return reviewProblem(v as Layout) } catch { return "a view is malformed" } }).find((p) => p !== undefined)
   if (review !== undefined) return review
+  const ents = entitiesProblem(m.name, m.entities as never, Object.keys(m.methods))
+  if (ents !== undefined) return ents
   const surfaces = surfacesProblem(m.surfaces, views as ReadonlyArray<Layout>)
   if (surfaces !== undefined) return surfaces
   const tones = (() => { try { return tonesProblem(views as ReadonlyArray<Layout>) } catch { return "a view is malformed" } })()
@@ -195,6 +211,8 @@ const scopeWords = (s: ManifestScopes) =>
     s.decisions === true ? "use the decision model" : undefined,
     ...((s.models ?? []).length > 0 ? [`use the model roles ${s.models!.join(", ")}`] : []),
     s.agents === true ? "show agents" : undefined,
+    ...(s.entities?.read ?? []).map((t) => `read ${t}`),
+    ...(s.entities?.command ?? []).map((t) => `change ${t}`),
   ].filter((p) => p !== undefined)
 
 /** What a plugin asks for, in words: what it gets now and what it may ask for later (both are approved). */
@@ -234,6 +252,8 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
       const failed = (m: Manifest, why: string) =>
         void hostItems.push({ id: `plugin-failed:${m.name}`, title: `Plugin ${m.name} failed to load`, detail: why, about: [], priority: 1 })
       const services = new Set<string>()
+      // Built once the host's calls exist (below); a plugin asking before then is told so.
+      let entities: ReturnType<typeof makeEntities> | undefined
 
       // Dependencies: a plugin in a cycle, or needing one that is not here, does not start at all.
       const byName = new Map(plugins.map((p) => [p.manifest.name, p.manifest]))
@@ -310,6 +330,13 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
             }
           },
           ...(opts.budget?.(m.name) !== undefined ? { budget: opts.budget(m.name)! } : {}),
+          entities: async (args: unknown) => {
+            if (entities === undefined) throw { tag: "PluginError", message: "entities are not ready yet" }
+            const exit = await Effect.runPromiseExit(entityPower(entities, m.name, args as never))
+            if (Exit.isSuccess(exit)) return exit.value
+            const e = Cause.squash(exit.cause) as { tag?: string; message?: string }
+            throw { tag: e.tag ?? "PluginError", message: e.message ?? String(e) }
+          },
           dependencies: (m.pluginDependencies ?? []).map((d) => ({ name: d.name, methods: byName.get(d.name)?.contract?.methods ?? [] })),
           // Looked up at call time: the dependency is running by then (checked below), or the call fails typed.
           callPlugin: (name, method, params) => {
@@ -550,6 +577,21 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
       const render = (focus?: ReadonlySet<string>) =>
         Effect.map(each<string>("render", focus === undefined ? {} : { focus: [...focus] }), (parts) => defined(parts).filter((s) => s.length > 0).join("\n\n"))
 
+      entities = makeEntities({
+        get kinds() { return registry([...running.values()].map((r) => r.manifest)) },
+        provider: (owner, p) => {
+          const r = running.get(owner)
+          return r === undefined ? Effect.fail({ message: `${owner} is not running` }) : invoke(r, "$entity", p)
+        },
+        invoke: (owner, method, params) => {
+          const r = running.get(owner)
+          return r === undefined ? Effect.fail({ _tag: "PluginCrashed", message: `${owner} is not running` }) : invoke(r, method, params)
+        },
+        snapshot: store.snapshot,
+        render,
+        scopeOf: (c) => ({ read: running.get(c)?.manifest.scopes.entities?.read ?? [], command: running.get(c)?.manifest.scopes.entities?.command ?? [] }),
+      })
+
       const affected = (before: Snapshot.Snapshot, after: Snapshot.Snapshot) =>
         Effect.map(each<Affected>("affected", { before: json(before), after: json(after) }), (parts) => ({
           cards: [...new Set(defined(parts).flatMap((p) => p.cards))].sort(),
@@ -617,6 +659,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         tools,
         manifests: loaded,
         loadWaiting,
+        get entities() { return entities! },
         call,
         lint,
         agenda,

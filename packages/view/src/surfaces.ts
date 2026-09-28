@@ -68,3 +68,16 @@ export const tonesProblem = (layouts: ReadonlyArray<Layout>): string | undefined
       }
   return undefined
 }
+
+const KIND = /^[a-z][a-z0-9-]*$/
+/** Why a plugin's entity kinds cannot build (or load: the host runs the same check on manifests). */
+export const entitiesProblem = (plugin: string, kinds: Readonly<Record<string, { readonly tone: string; readonly glyph: string; readonly commands?: Readonly<Record<string, string>> }>> | undefined, methods: ReadonlyArray<string>): string | undefined => {
+  for (const [kind, d] of Object.entries(kinds ?? {})) {
+    if (!KIND.test(kind)) return `plugin ${plugin}: entity kind "${kind}" must be kebab-case`
+    if (!(PLUGIN_TONES as ReadonlyArray<string>).includes(d.tone)) return `plugin ${plugin}: entity ${kind} names ${d.tone}; plugins may name ${PLUGIN_TONES.join(", ")}`
+    if ([...d.glyph].length !== 1) return `plugin ${plugin}: entity ${kind}'s glyph must be one character`
+    for (const [cmd, method] of Object.entries(d.commands ?? {})) if (!methods.includes(method)) return `plugin ${plugin}: entity ${kind} command ${cmd} calls ${method}, which is not a method`
+  }
+  return undefined
+}
+

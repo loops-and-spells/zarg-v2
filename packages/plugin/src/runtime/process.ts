@@ -2,11 +2,11 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Data, Deferred, Effect, Queue, Scope, Stream } from "effect"
-import type { Failure, FromPlugin, Identity, ToPlugin } from "./protocol"
+import { type Failure, type FromPlugin, type Identity, powerTag, type ToPlugin } from "./protocol"
 import { isPower } from "./powers"
 
 export class PluginLoadError extends Data.TaggedError("PluginLoadError")<{ readonly name: string; readonly message: string }> {}
-export type PluginCallTag = "NotGranted" | "BudgetExceeded" | "PluginCrashed" | "Deadline" | "PluginError" | "UnknownMethod"
+export type PluginCallTag = "NotGranted" | "BudgetExceeded" | "PluginCrashed" | "Deadline" | "PluginError" | "UnknownMethod" | "NotFound" | "UnknownType" | "NotAllowed" | "ProviderFailed"
 /** A failed plugin call; `_tag` is the kind, so callers can `Effect.catchTag` on it. */
 export class PluginCallError extends Data.Error<{ readonly _tag: PluginCallTag; readonly message: string }> {}
 
@@ -102,7 +102,7 @@ export const spawnPlugin = (opts: {
               }
               opts.powers[m.power]!(m.args).then(
                 (value) => reply({ type: "power-reply", id: m.id, ok: true, value }),
-                (e) => reply({ type: "power-reply", id: m.id, ok: false, error: { tag: e?.tag === "NotGranted" || e?.tag === "BudgetExceeded" ? e.tag : "PluginError", message: String(e?.message ?? e) } }),
+                (e) => reply({ type: "power-reply", id: m.id, ok: false, error: { tag: powerTag(e?.tag), message: String(e?.message ?? e) } }),
               )
             } else if (m.type === "chunk") waiters.get(m.id)?.onChunk?.(m.value)
             else if (m.type === "end") {

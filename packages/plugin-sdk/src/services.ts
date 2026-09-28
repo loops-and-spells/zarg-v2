@@ -26,6 +26,18 @@ export class Files extends Context.Service<Files, {
   readonly list: (dir: string) => Effect.Effect<ReadonlyArray<string>, PluginFailure>
 }>()("@zarg/plugin-sdk/Files") {}
 export class Graph extends Context.Service<Graph, { readonly snapshot: Effect.Effect<Snapshot.Snapshot, PluginFailure> }>()("@zarg/plugin-sdk/Graph") {}
+/** Any plugin's data by ref (scope `entities: { read, command }`; a plugin always reaches its own kinds). */
+export interface EntityView { readonly ref: string; readonly type: string; readonly id: string; readonly version: string; readonly label: { readonly text: string; readonly tone: string; readonly glyph: string }; readonly data: unknown }
+export class Entities extends Context.Service<Entities, {
+  readonly get: (ref: string) => Effect.Effect<EntityView, PluginFailure>
+  readonly many: (refs: ReadonlyArray<string>) => Effect.Effect<{ readonly entities: ReadonlyArray<EntityView>; readonly failed: ReadonlyArray<{ readonly ref: string; readonly _tag: string; readonly message: string }> }, PluginFailure>
+  readonly query: (q: { readonly type: string; readonly where?: Readonly<Record<string, unknown>>; readonly text?: string; readonly limit?: number }) => Effect.Effect<ReadonlyArray<EntityView>, PluginFailure>
+  readonly version: (ref: string) => Effect.Effect<string | null, PluginFailure>
+  readonly changed: (ref: string) => Effect.Effect<boolean, PluginFailure>
+  readonly label: (ref: string) => Effect.Effect<EntityView["label"], PluginFailure>
+  readonly context: (ref: string) => Effect.Effect<string, PluginFailure>
+  readonly command: (ref: string, name: string, args: unknown) => Effect.Effect<unknown, PluginFailure>
+}>()("@zarg/plugin-sdk/Entities") {}
 export class Config extends Context.Service<Config, { readonly value: unknown }>()("@zarg/plugin-sdk/Config") {}
 
 /** The decision model: fast yes/no, choice and score judgments (scope `decisions: true`). */
@@ -122,6 +134,16 @@ export const servicesFrom = (raw: RawPowers) => ({
   views: Views.of({
     set: (agent, view, path, data) => Effect.asVoid(power(raw, "agents.event", { event: "set", id: agent, view: view.name, section: path, data })),
     append: (agent, view, path, lines) => Effect.asVoid(power(raw, "agents.event", { event: "append", id: agent, view: view.name, section: path, lines })),
+  }),
+  entities: Entities.of({
+    get: (ref) => power(raw, "entities.call", { op: "get", ref }),
+    many: (refs) => power(raw, "entities.call", { op: "many", refs }),
+    query: (query) => power(raw, "entities.call", { op: "query", query }),
+    version: (ref) => power(raw, "entities.call", { op: "version", ref }),
+    changed: (ref) => power(raw, "entities.call", { op: "changed", ref }),
+    label: (ref) => power(raw, "entities.call", { op: "label", ref }),
+    context: (ref) => power(raw, "entities.call", { op: "context", ref }),
+    command: (ref, name, args) => power(raw, "entities.call", { op: "command", ref, name, args }),
   }),
   graph: Graph.of({
     snapshot: Effect.map(power<{ nodes: ReadonlyArray<never>; reserved?: ReadonlyArray<string> }>(raw, "graph.snapshot", {}), (s) => Snapshot.make(s.nodes, new Set(s.reserved ?? []))),

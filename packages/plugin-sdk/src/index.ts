@@ -2,4 +2,5 @@
 export * from "./define"
 export * from "./services"
 export * from "./contract"
+export { type EntityDecl, type EntityHandlers, type EntityOp, entitiesProblem, opsOf } from "./entities"
 export { defineView, type Surface } from "@zarg/view"

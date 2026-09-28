@@ -128,6 +128,8 @@ export const makePowers = (opts: {
   readonly budget?: { readonly decisionsPerHour: number; readonly tokensPerHour: number }
   /** Told while a question to the operator is open, so the call's deadline can stop. */
   readonly asking?: (open: boolean) => void
+  /** Any plugin's data by ref, under this plugin's `entities` scope (the host routes it). */
+  readonly entities?: (args: unknown) => Promise<unknown>
 }): Powers => {
   const userDir = resolve(opts.userDir ?? join(process.env.HOME ?? homedir(), ".config", "zarg"))
   const servedValues = new Set<string>()
@@ -314,6 +316,10 @@ export const makePowers = (opts: {
       if (!dep.methods.includes(String(a.method))) throw notGranted(`${opts.plugin}: ${printable(String(a.method))} is not in the ${dep.name} contract`)
       if (opts.callPlugin === undefined) throw pluginError(`${opts.plugin}: this host has no plugin calls`)
       return await opts.callPlugin(dep.name, String(a.method), a.params)
+    },
+    "entities.call": async (args) => {
+      if (opts.entities === undefined) throw pluginError(`${opts.plugin}: this host has no entities`)
+      return await opts.entities(args)
     },
     ...(opts.snapshot !== undefined ? { "graph.snapshot": async () => await opts.snapshot!() } : {}),
   }
