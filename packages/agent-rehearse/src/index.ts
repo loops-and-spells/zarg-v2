@@ -31,7 +31,12 @@ export default definePlugin({
   }),
   pluginDependencies: [Gherkin],
   views: [TesterView, RunView, StatusView],
-  surfaces: [{ kind: "panel", name: "status", view: "status", scope: "shell", edge: "bottom", size: 1, input: "none" }],
+  surfaces: [
+    { kind: "panel", name: "status", view: "status", scope: "shell", edge: "bottom", size: 1, input: "none" },
+    // How testers and the run show in the grid.
+    { kind: "card", name: "tester", view: "tester", headline: "progress", recent: "steps", action: "apply" },
+    { kind: "card", name: "run", view: "run", headline: "progress" },
+  ],
   scopes: { decisions: true, models: ["rehearse"], agents: true, fs: { read: [".zarg/rehearse/**", "intent/**"], write: [".zarg/rehearse/**"] } },
   commands: [
     {

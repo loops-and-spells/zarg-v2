@@ -20,13 +20,15 @@ const review = {
     likes: { kind: "table", title: "Likes", columns: FINDING_COLUMNS, selectable: true, actions: ACTIONS },
   },
 } as const
+// A tester's findings join the review queue; the run's repeat every tester's, so they stay out of it.
+const testerReview = { ...review, tabs: { ...review.tabs, findings: { ...review.tabs.findings, review: true } } } as const
 
 /** One tester: its walk (workers), what it checked (steps), its findings. */
 export const TesterView = defineView("tester", {
   progress: { kind: "stats", role: "summary" },
   workers: { kind: "list", role: "primary", title: "Workers" },
   steps: { kind: "log", role: "log", title: "Steps" },
-  review,
+  review: testerReview,
 })
 
 /** The whole run: progress over every tester, the report, every finding. */

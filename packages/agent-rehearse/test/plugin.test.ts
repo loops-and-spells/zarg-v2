@@ -78,3 +78,15 @@ describe("rehearse as a loaded plugin", () => {
     for (const k of ["run", "command"]) expect(m.methods[k]!.deadlineMs ?? 0).toBeGreaterThanOrEqual(5 * 60_000)
   })
 })
+
+test("rehearse declares a tester card and a run card, and marks only the tester's findings for review", async () => {
+  const { manifestOf } = await import("@zarg/plugin-sdk/tools")
+  const { default: rehearse } = await import("../src")
+  const m = manifestOf(rehearse as never)
+  expect((m.surfaces ?? []).filter((s) => s.kind === "card")).toEqual([
+    { kind: "card", name: "tester", view: "tester", headline: "progress", recent: "steps", action: "apply" },
+    { kind: "card", name: "run", view: "run", headline: "progress" },
+  ])
+  const reviewed = (m.views ?? []).flatMap((v) => v.sections.flatMap((s) => (s.kind === "tabs" ? s.tabs.map((t) => [v.name, `${s.id}.${t.id}`, t.review === true] as const) : [])))
+  expect(reviewed.filter(([, , r]) => r).map(([v, p]) => `${v}:${p}`)).toEqual(["tester:review.findings"])
+})
