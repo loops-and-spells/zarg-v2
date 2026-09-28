@@ -15,6 +15,8 @@ const setup = (o: Opts = {}) =>
     const llm = { n: 0 }
     const events: Array<{ event: string; id: string; text?: string; progress?: { done: number; total: number } }> = []
     const filedCalls: Array<ReadonlyArray<FiledEntry>> = []
+    const drafts: Array<[string, unknown]> = []
+    const agendaChanges = { n: 0 }
     const gone = new Set(o.gone ?? [])
     const writing = new Map<string, number>()
     const overlap = { max: 0 }
@@ -23,8 +25,9 @@ const setup = (o: Opts = {}) =>
     const view = (card: string): StepView => ({ card, title: `card ${card}`, given: `before ${card}`, when: o.cardText?.(card) ?? `do ${card}`, thens: [`after ${card}`], fork: [], hasFailure: false, journeys: ["Checkout"], by: ["Operator"] })
     const deps: RunDeps = {
       personas: () => Effect.succeed(o.personas ?? [{ name: "Operator", text: "The operator, through the zarg TUI.", cards: ["A", "B", "C", "D"] }]),
-      stories: () => Effect.succeed({ stories: [["A", "B", "C"], ["A", "B", "D"]], unreachable: o.unreachable ?? 0 }),
-      step: (card) => Effect.succeed(view(card)),
+      stories: (_s, _f, draft) => Effect.sync(() => (drafts.push(["stories", draft]), { stories: [["A", "B", "C"], ["A", "B", "D"]], unreachable: o.unreachable ?? 0 })),
+      step: (card, _via, draft) => Effect.sync(() => (drafts.push(["step", draft]), draft !== undefined && card === "B" ? { ...view(card), thens: ["after B, drafted"] } : view(card))),
+      agendaChanged: Effect.sync(() => void agendaChanges.n++),
       decide: (req) =>
         Effect.andThen(
           Effect.sleep(o.slowDecide ?? 0),
@@ -71,7 +74,7 @@ const setup = (o: Opts = {}) =>
       settings: rehearseSettings({ ...(o.inFlight !== undefined ? { in_flight: o.inFlight } : {}) }, "stub:m"),
     }
     const r = yield* makeRehearse(deps)
-    return { r, files, decisions, llm, events, filedCalls, overlap, pushes }
+    return { r, files, decisions, llm, events, filedCalls, overlap, pushes, drafts, agendaChanges }
   })
 const until = (check: () => boolean) =>
   Effect.gen(function* () {
@@ -123,6 +126,24 @@ describe("rehearse runs in the plugin", () => {
     expect(md).toContain("B is unclear")
     // Who and where on the card's By / In lines, so the highlighter colours them.
     expect(md).toContain("```gherkin\nBy    Operator\nIn    Checkout\nGiven before B\nWhen  do B\nThen  after B\n```")
+  })
+
+  test("a run over a draft walks the drafted cards, files nothing, and holds its findings for the caller; its end changes the agenda", async () => {
+    const draft = [{ tool: "edit-state", params: { id: "S-0002", text: "after B, drafted" } }]
+    const t = await Effect.runPromise(
+      Effect.gen(function* () {
+        const t = yield* setup()
+        const s = (yield* t.r.start({ draft, file: false })) as { run: string }
+        yield* until(() => t.r.record(s.run)?.status === "done")
+        return { ...t, run: s.run }
+      }),
+    )
+    expect(t.drafts.length).toBeGreaterThan(0)
+    expect(t.drafts.every(([, d]) => JSON.stringify(d) === JSON.stringify(draft))).toBe(true)
+    expect(t.filedCalls).toEqual([])
+    expect(t.r.result(t.run)).toEqual({ status: "done", findings: [{ card: "B", kind: "friction", severity: "medium", note: "B is unclear", on: true }] })
+    expect(t.r.result("r-none")).toEqual({ status: "unknown", findings: [] })
+    expect(t.agendaChanges.n).toBe(1)
   })
 
   test("a finished run files each finding with the backlog: the card's version, its journeys, and the run's first call", async () => {

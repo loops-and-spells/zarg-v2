@@ -37,7 +37,13 @@ export interface RunRecord {
   readonly report?: string
   /** Each finding's feedback entry in the backlog (its id there), once filed. */
   readonly filed?: Readonly<Record<string, string>>
+  /** Walked over a draft (gherkin tool calls, never written): the Triage Agent's re-rehearse. */
+  readonly draft?: Draft
+  /** False: its findings are for the caller (`result`), not filed with the backlog. */
+  readonly file?: boolean
 }
+/** Gherkin tool calls, in order (gherkin's `Draft`). */
+export type Draft = ReadonlyArray<{ readonly tool: string; readonly params: unknown }>
 export interface Started { readonly run: string; readonly stories: number; readonly steps: number; readonly personas: ReadonlyArray<string> }
 
 /** A tester's own card: one its persona acts in (a record from before personas: every card). */
@@ -50,8 +56,10 @@ const stepsFor = (p: Persona, stories: ReadonlyArray<ReadonlyArray<string>>) =>
 export interface RunDeps {
   /** The graph's personas, each with the cards it acts in (gherkin's `personas`). */
   readonly personas: () => Effect.Effect<ReadonlyArray<{ readonly name: string; readonly text: string; readonly cards: ReadonlyArray<string> }>, unknown>
-  readonly stories: (strategy: "edge-pair" | "teleport", focus?: ReadonlyArray<string>) => Effect.Effect<{ readonly stories: ReadonlyArray<ReadonlyArray<string>>; readonly unreachable: number }, unknown>
-  readonly step: (card: string, via?: string) => Effect.Effect<StepView | null, unknown>
+  readonly stories: (strategy: "edge-pair" | "teleport", focus?: ReadonlyArray<string>, draft?: Draft) => Effect.Effect<{ readonly stories: ReadonlyArray<ReadonlyArray<string>>; readonly unreachable: number }, unknown>
+  readonly step: (card: string, via?: string, draft?: Draft) => Effect.Effect<StepView | null, unknown>
+  /** Tell the core a run ended (the Triage Agent waits for its re-rehearse). */
+  readonly agendaChanged: Effect.Effect<void, unknown>
   readonly decide: Decide
   readonly complete: Complete
   readonly agents: {
@@ -136,7 +144,7 @@ export const makeRehearse = (deps: RunDeps) =>
         const viewOf = (card: string, via?: string) =>
           Effect.gen(function* () {
             const key = `${via ?? ""}>${card}`
-            if (!views.has(key)) views.set(key, (yield* deps.step(card, via).pipe(Effect.orElseSucceed(() => null))) ?? undefined)
+            if (!views.has(key)) views.set(key, (yield* deps.step(card, via, rec.draft).pipe(Effect.orElseSucceed(() => null))) ?? undefined)
             return views.get(key)
           })
         yield* quiet(deps.agents.start({ id: "run", title: "rehearse", view: "run", task: `run ${rec.run}: ${plural(rec.stories.length, "story")} × ${plural(rec.personas.length, "tester")}` }))
@@ -336,7 +344,8 @@ export const makeRehearse = (deps: RunDeps) =>
             }),
           { concurrency: deps.settings.inFlight },
         )
-        const toFile = filing.filter((x) => x !== undefined)
+        // A run over a draft keeps its findings for the caller: the drafted versions are nobody's yet.
+        const toFile = rec.file === false ? [] : filing.filter((x) => x !== undefined)
         const filed = toFile.length === 0 ? { ids: [] as ReadonlyArray<string> } : yield* deps.file(toFile.map((x) => x.entry)).pipe(Effect.orElseSucceed(() => ({ ids: [] as ReadonlyArray<string> })))
         yield* update((r) => ({ ...r, status: "done", findings, report: text, filed: Object.fromEntries(toFile.flatMap((x, i) => (filed.ids[i] !== undefined && filed.ids[i] !== "" ? [[x.id, filed.ids[i]!]] : []))) }))
         const unreached = rec.unreachable > 0 ? ` · ${rec.unreachable} unreachable` : ""
@@ -344,6 +353,7 @@ export const makeRehearse = (deps: RunDeps) =>
         yield* quiet(deps.views.set("run", RunView, "report", { markdown: text }))
         yield* refresh
         yield* quiet(deps.agents.end({ id: "run", ok: true }))
+        yield* quiet(deps.agendaChanged)
       })
 
     const launch = (rec: RunRecord) =>
@@ -360,14 +370,14 @@ export const makeRehearse = (deps: RunDeps) =>
         active = { run: rec.run, fiber }
       })
 
-    const start = (opts: { readonly strategy?: "edge-pair" | "teleport"; readonly focus?: ReadonlyArray<string>; readonly personas?: ReadonlyArray<string> }) =>
+    const start = (opts: { readonly strategy?: "edge-pair" | "teleport"; readonly focus?: ReadonlyArray<string>; readonly personas?: ReadonlyArray<string>; readonly draft?: Draft; readonly file?: boolean }) =>
       Semaphore.withPermits(lock, 1)(
         Effect.gen(function* () {
           if (active !== undefined) return { refused: `run ${active.run} is still going` }
           const strategy = opts.strategy ?? "edge-pair"
           // No focus, or an empty one, is every story.
           const focus = opts.focus !== undefined && opts.focus.length > 0 ? opts.focus : undefined
-          const planned = yield* deps.stories(strategy, focus).pipe(Effect.orElseSucceed(() => ({ stories: [], unreachable: 0 })))
+          const planned = yield* deps.stories(strategy, focus, opts.draft).pipe(Effect.orElseSucceed(() => ({ stories: [], unreachable: 0 })))
           const graph = yield* deps.personas().pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<{ readonly name: string; readonly text: string; readonly cards: ReadonlyArray<string> }>))
           if (graph.length === 0) return { refused: "no personas yet: the Driver Agent asks about them" }
           const acting = graph.filter((p) => p.cards.length > 0)
@@ -376,7 +386,7 @@ export const makeRehearse = (deps: RunDeps) =>
           if (personas.length === 0) return { refused: `no such personas: ${opts.personas!.join(", ")}` }
           const startedAt = yield* deps.now.pipe(Effect.orElseSucceed(() => 0))
           const run = `r-${(yield* deps.uuid.pipe(Effect.orElseSucceed(() => String(startedAt)))).slice(0, 8)}`
-          const rec: RunRecord = { run, startedAt, status: "running", strategy, focus: focus ?? [], personas, stories: planned.stories, unreachable: planned.unreachable, screened: {}, raw: [], infra: [], findings: [] }
+          const rec: RunRecord = { run, startedAt, status: "running", strategy, focus: focus ?? [], personas, stories: planned.stories, unreachable: planned.unreachable, screened: {}, raw: [], infra: [], findings: [], ...(opts.draft !== undefined && opts.draft.length > 0 ? { draft: opts.draft } : {}), ...(opts.file === false ? { file: false } : {}) }
           yield* save(rec)
           yield* launch(rec)
           return { run, stories: planned.stories.length, steps: planned.stories.reduce((n, s) => n + s.length, 0), personas: personas.map((p) => p.name) } satisfies Started
@@ -413,7 +423,7 @@ export const makeRehearse = (deps: RunDeps) =>
       if (r === undefined || going() !== undefined) return Effect.void
       return Effect.gen(function* () {
         const views = new Map<string, StepView | undefined>()
-        yield* Effect.forEach([...new Set(r.findings.map((f) => f.card))], (c) => Effect.map(deps.step(c).pipe(Effect.orElseSucceed(() => null)), (v) => void views.set(c, v ?? undefined)), { discard: true })
+        yield* Effect.forEach([...new Set(r.findings.map((f) => f.card))], (c) => Effect.map(deps.step(c, undefined, r.draft).pipe(Effect.orElseSucceed(() => null)), (v) => void views.set(c, v ?? undefined)), { discard: true })
         const filed = r.filed ?? {}
         // Unknown when the backlog does not answer: never guessed to be open.
         const answer = yield* deps.status(Object.values(filed)).pipe(Effect.orElseSucceed(() => undefined))
@@ -444,7 +454,13 @@ export const makeRehearse = (deps: RunDeps) =>
       })
     })
 
-    return { start, stop, resume, refresh, record: (run: string) => records.get(run) }
+    /** A run's findings for its caller (a re-rehearse over a draft): likes left out; `on` is its own triage's call. */
+    const result = (run: string) => {
+      const r = records.get(run)
+      if (r === undefined) return { status: "unknown" as const, findings: [] }
+      return { status: r.status, findings: r.findings.filter((f) => f.kind !== "delight").map((f) => ({ card: f.card, kind: f.kind, severity: f.severity, note: f.notes.join(" / "), on: f.route !== "drop" })) }
+    }
+    return { start, stop, resume, refresh, result, record: (run: string) => records.get(run) }
   })
 
 export type Rehearse = Effect.Success<ReturnType<typeof makeRehearse>>

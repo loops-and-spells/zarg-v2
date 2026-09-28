@@ -1,16 +1,12 @@
 import { Effect, Schema } from "effect"
 import { Backlog } from "@zarg/plugin-backlog/contract"
 import { Gherkin } from "@zarg/plugin-gherkin/contract"
-import { Agents, Clock, Config, Decisions, definePlugin, Entities, Files, Models, Surfaces, Views } from "@zarg/plugin-sdk"
+import { Agenda, Agents, Clock, Config, Decisions, definePlugin, Entities, Files, Models, Surfaces, Views } from "@zarg/plugin-sdk"
+import { Rehearse, RunParams, RunResult } from "./contract"
 import { makeRehearse } from "./run"
 import { rehearseSettings } from "./settings"
 import { RunView, StatusView, TesterView } from "./views"
 
-const Params = Schema.Struct({
-  strategy: Schema.optionalKey(Schema.Literals(["edge-pair", "teleport"])).annotate({ description: "edge-pair (default): every journey step and step pair; teleport: each card once, alone (quick)." }),
-  focus: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Card or state ids: only stories through them." }),
-  personas: Schema.optionalKey(Schema.Array(Schema.String)),
-})
 const Notice = Schema.Struct({ notice: Schema.String })
 // Starting asks the decision model once per persona and plans every story: slow on a CPU decision model.
 const START_DEADLINE_MS = 10 * 60_000
@@ -29,6 +25,7 @@ export default definePlugin({
     real_drop: Schema.optionalKey(Schema.Number),
     in_flight: Schema.optionalKey(Schema.Number),
   }),
+  implements: Rehearse,
   pluginDependencies: [Gherkin, Backlog],
   views: [TesterView, RunView, StatusView],
   surfaces: [
@@ -46,7 +43,8 @@ export default definePlugin({
     },
   ],
   methods: {
-    run: { doc: "Start a rehearsal in the background (when the graph is ready, or the operator asks). What the testers find is filed as feedback, triaged in Feedback.", params: Params, success: Schema.Unknown, agents: true, deadlineMs: START_DEADLINE_MS },
+    run: { doc: "Start a rehearsal in the background (when the graph is ready, or the operator asks). What the testers find is filed as feedback, triaged in Feedback.", params: RunParams, success: Schema.Unknown, agents: true, deadlineMs: START_DEADLINE_MS },
+    result: { doc: "What a run found (a run over a draft keeps its findings here).", params: Schema.Struct({ run: Schema.String }), success: RunResult },
     command: { doc: "/rehearse", params: Schema.Struct({ args: Schema.Array(Schema.String) }), success: Notice, deadlineMs: START_DEADLINE_MS },
     act: { doc: "Refresh the run's tables (where its feedback stands now).", params: Schema.Struct({ agent: Schema.String, action: Schema.String, section: Schema.optionalKey(Schema.String), rows: Schema.Array(Schema.String) }), success: Notice },
     stop: { doc: "Stop the running rehearsal.", params: Schema.Struct({}), success: Schema.Null },
@@ -59,14 +57,16 @@ export default definePlugin({
     const clock = yield* Clock
     const files = yield* Files
     const backlog = yield* Backlog
+    const agendaPower = yield* Agenda
     const entities = yield* Entities
     const views = yield* Views
     const surfaces = yield* Surfaces
     const config = (yield* Config).value as Record<string, unknown>
     const r = yield* makeRehearse({
       personas: () => gherkin.personas({}),
-      stories: (strategy, focus) => gherkin.stories({ strategy, ...(focus !== undefined ? { focus } : {}) }),
-      step: (card, via) => gherkin.step({ card, ...(via !== undefined ? { via } : {}) }),
+      stories: (strategy, focus, draft) => gherkin.stories({ strategy, ...(focus !== undefined ? { focus } : {}), ...(draft !== undefined ? { draft } : {}) }),
+      step: (card, via, draft) => gherkin.step({ card, ...(via !== undefined ? { via } : {}), ...(draft !== undefined ? { draft } : {}) }),
+      agendaChanged: agendaPower.changed,
       decide: (req) => decisions.decide(req),
       complete: (req) => models.complete({ role: "rehearse", ...req }).pipe(Effect.mapError((e) => ({ message: e.message }))),
       agents,
@@ -84,7 +84,7 @@ export default definePlugin({
     })
     // A run a restart cut short continues (the plugin loads on its first call).
     yield* r.resume
-    const run = (p: { readonly strategy?: "edge-pair" | "teleport"; readonly focus?: ReadonlyArray<string>; readonly personas?: ReadonlyArray<string> }) => r.start(p)
+    const run = (p: Parameters<typeof r.start>[0]) => r.start(p)
     return {
       run,
       command: ({ args }: { args: ReadonlyArray<string> }) =>
@@ -99,6 +99,7 @@ export default definePlugin({
               : { notice: `Rehearse run ${s.run} started: ${s.stories} stories, ${s.steps} steps, testers: ${s.personas.join(", ")}. Watch it in the agents pane (Tab).` },
         ),
       act: () => Effect.as(r.refresh, { notice: "refreshed" }),
+      result: ({ run: id }: { run: string }) => Effect.succeed(r.result(id)),
       stop: () => Effect.as(r.stop, null),
     } as never
   }),
