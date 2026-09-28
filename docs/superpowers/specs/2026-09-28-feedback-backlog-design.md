@@ -3,6 +3,7 @@
 Date: 2026-09-28
 Status: design approved in conversation (mockups: Feedback triage hub, Backlog option D), pending written review
 Mockups: `packages/view-tui/mockups/feedback.tsx` (uncommitted), published as "Feedback and Backlog"
+Builds on: `docs/superpowers/specs/2026-09-28-entities-design.md` (refs, versions, the `Entities` service)
 Touches: new `@zarg/plugin-backlog`, new `@zarg/agent-triage`; `@zarg/agent-rehearse` (feedback leaves it), `@zarg/plugin-gherkin` (card versions), `@zarg/view` and `@zarg/view-tui` (a `board` section kind, toggle rows), `@zarg/agent-zarg` (the findings gate), the core (the Planner applies a plan)
 
 ## Outcome
@@ -37,16 +38,18 @@ testers ──► Feedback (per card version)
 ## Card versions
 
 - A card's **version** covers everything a tester reads: the card node, the text of its Given, And and Then states, and the names of its `by` personas. Rewording a state the card uses changes the card's version.
-- `@zarg/plugin-gherkin/contract` gains `versions({ ids }) → { [id]: version | null }` (null: no such card). The version is a 12-hex hash over a canonical rendering; it is pure, so it runs in the sandbox.
-- A version string is shown as `@` plus its first 4 characters (`UX-0062 @3f9a`).
+- The version is the `gherkin/card` entity's version (Entities spec): gherkin's card provider hashes the card, its states' text and its personas' names.
+- Feedback and plans hold refs with the version they saw (`gherkin/card:UX-0062@3f9a1c20b7e4`); `Entities.changed` tells them the card moved on.
+- A version is shown as `@` plus its first 4 characters (`UX-0062 @3f9a`).
 
 ## Feedback
 
-- **An entry**: `{ id, card, version, journey?, persona, kind, severity, note, from: { agent, run }, count, state, triage? }`.
-  - `id`: `F-` plus a hash of card, version, kind and the normalised note, so the same report on the same card version is one entry (its `count` rises; its triage stays as the operator left it).
+- **An entry** (entity `backlog/feedback`): `{ id, ref (with the version the tester saw), journey?, persona, kind, severity, note, from: { agent, run }, count, state, triage? }`.
+  - `ref` names any entity, so feedback is not limited to cards (a card, a state, a persona, a journey).
+  - `id`: `F-` plus a hash of the ref (with its version), kind and the normalised note, so the same report on the same card version is one entry (its `count` rises; its triage stays as the operator left it).
   - `state`: `open` (current version), `stale` (the card's version changed since), `planned` (in a backlogged plan), `closed` (resolved by a re-rehearse, or its plan is Done).
   - `triage`: `{ on, why, by: "agent" | "operator" }`.
-- **Stale**: whenever the graph changes, the plugin compares each open entry's version with `versions()`; a changed or removed card makes its entries stale. Stale entries leave Open by themselves and are re-tested by the next Re-rehearse of their journey (they close if the problem is gone, or come back as new entries on the new version).
+- **Stale**: whenever the graph changes, the plugin asks `Entities.changed` for each open entry's ref; a changed or removed entity makes its entries stale. Stale entries leave Open by themselves and are re-tested by the next Re-rehearse of their journey (they close if the problem is gone, or come back as new entries on the new version).
 - **Who files feedback**: rehearse's testers, through the plugin-backlog contract (`feedback.add`). Any plugin that depends on the contract may file feedback.
 - **Storage**: one JSON file per entry under `.zarg/feedback/`, committed to git (not ignored). Written through the Files power.
 
@@ -65,7 +68,7 @@ Keys and buttons follow the view SDK's rules (buttons in the view, keys on the s
 
 A nav item, **Backlog**, owned by plugin-backlog; the board is option D of the mockups.
 
-- **Items** are plans: `{ id: "B-NN", title, journey, cards: [{ id, from: version, to: version }], changes (the drafted gherkin tool calls), feedback: [ids], steps: [text], status, agent?, links: { after?: [ids] }, events: [{ what, by }] }`. One JSON file per item under `.zarg/backlog/`, committed.
+- **Items** are plans (entity `backlog/item`, commands `move`, `park`, `accept`, `drop`): `{ id: "B-NN", title, journey, cards: [{ ref (with the version the draft started from), to: version }], changes (the drafted gherkin tool calls), feedback: [ids], steps: [text], status, agent?, links: { after?: [ids] }, events: [{ what, by }] }`. One JSON file per item under `.zarg/backlog/`, committed.
 - **Lanes**: Backlog, Ready, Running, Review, Done. A backlogged plan lands in **Ready** (it has been triaged already; **Backlog** holds plans the operator parked with **Park**).
 - **Who moves items**:
   - Ready → Running: the Planner Agent takes the oldest Ready item whose `after` items are Done, applies its changes to the graph through the gherkin tools (one commit, `req: <item title> (B-NN)`), and notifies the reconcile loop.
@@ -91,7 +94,7 @@ A nav item, **Backlog**, owned by plugin-backlog; the board is option D of the m
 
 ## Packages
 
-- `@zarg/plugin-backlog` (sandboxed service plugin, contract `@zarg/plugin-backlog/contract`): the feedback and backlog stores, the triage state, the Feedback and Backlog views and nav items, the drawer sheet, stale detection on graph changes. Scopes: `fs write .zarg/feedback/** .zarg/backlog/** .zarg/triage/**`, graph read, agents, views. Depends on gherkin.
+- `@zarg/plugin-backlog` (sandboxed service plugin, contract `@zarg/plugin-backlog/contract`): the feedback and backlog stores, the triage state, the Feedback and Backlog views and nav items, the drawer sheet, stale detection on graph changes. Scopes: `fs write .zarg/feedback/** .zarg/backlog/** .zarg/triage/**`, graph read, `entities: { read: ["gherkin/*"] }`, agents, views. Serves `backlog/feedback` and `backlog/item`. Depends on gherkin.
 - `@zarg/agent-triage` (sandboxed agent, plugin name `triage`): the Triage Agent. Depends on gherkin, rehearse and backlog. Uses the decision model for toggles and the driver model for refinements and plans.
 - The Planner Agent's apply step runs in the core's plan phase (it already owns graph commits and the reconcile notify).
 - `@zarg/view`: a `board` section kind (lanes of cards with fold and per-lane scroll state in the view UI) and table rows with a toggle column (`toggle: true`; space flips; the plugin gets `act "toggle"`). `@zarg/view-tui` renders both.
@@ -107,7 +110,6 @@ A nav item, **Backlog**, owned by plugin-backlog; the board is option D of the m
 
 ## Testing
 
-- Card versions: a state reword changes the versions of every card using it; unrelated edits do not.
 - Feedback: the same report twice is one entry with count 2 and its triage kept; a version change makes it stale; re-rehearse closes or renews it.
 - Triage: the agent's toggles come from rehearse's triage; an operator flip survives the agent's next pass.
 - Refine: accepted changes land in the draft, not the graph; a lint failure refuses the proposal.
@@ -120,7 +122,7 @@ A nav item, **Backlog**, owned by plugin-backlog; the board is option D of the m
 
 In: everything above. Built in three plans, each shippable on its own:
 
-1. **Feedback**: card versions, plugin-backlog's feedback store and stale detection, rehearse filing feedback (its triage and apply removed), the Feedback view's Triage stage with toggles (agent defaults from rehearse's triage), the rehearse rollup and read-only tester views.
+1. **Feedback** (after Entities): plugin-backlog's feedback store and stale detection, rehearse filing feedback (its triage and apply removed), the Feedback view's Triage stage with toggles (agent defaults from rehearse's triage), the rehearse rollup and read-only tester views.
 2. **Backlog**: the `board` section kind and its TUI renderer (option D), backlog items and the drawer, the Planner Agent's apply step and the lane moves, manual moves.
 3. **The Triage Agent**: Refine, Re-rehearse (rehearse's `journey` and `draft`), Plan, and the agent defaults at every stage.
 
