@@ -337,8 +337,9 @@ describe("tui frames", () => {
     expect(t.captureCharFrame()).toContain("research rlm-2: Find")
     t.mockInput.pressEscape()
     await settle(t)
+    // Back to where it was opened from: the grid, with zarg's sheet inset over it.
     expect(t.captureCharFrame()).toContain("The agenda is empty.")
-    expect(t.captureCharFrame()).not.toContain("esc closes")
+    expect(t.captureCharFrame()).toContain("all agents")
   })
 
   test("a plugin agent's view: its steps, a Findings table, and a key that acts on the highlighted row", async () => {
@@ -828,5 +829,24 @@ describe("focus review fixes (frames)", () => {
     await settle(t)
     expect(t.captureCharFrame()).toContain("walking p:a")
     expect(t.captureCharFrame()).not.toContain("zarg  Hello.")
+  })
+})
+
+describe("the inset sheet", () => {
+  test("zarg's sheet rises from the bar inset over the grid: the top cards and the edges stay visible", async () => {
+    const n = (id: string) => ({ id, parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [], row: { text: `walking ${id}` } })
+    const t = await render({ ...idleState, thread: { ...idleState.thread, rlms: { "p:a": n("p:a"), "p:b": n("p:b") } } }, { width: 130, height: 32 })
+    t.mockInput.pressKey("m", { meta: true })
+    await settle(t)
+    t.mockInput.pressKey("m", { meta: true })
+    await settle(t)
+    const lines = t.captureCharFrame().split("\n")
+    const card = lines.findIndex((l) => l.includes("walking p:a"))
+    const talk = lines.findIndex((l) => l.includes("zarg  Hello."))
+    expect(card).toBeGreaterThanOrEqual(0)
+    expect(talk).toBeGreaterThan(card)
+    // Inset: the sheet's border starts a few columns right of the focus area's edge.
+    const top = lines.findIndex((l, i) => i > card && /╭─* ?zarg|╭─{3,}/.test(l.slice(24)))
+    expect(top).toBeGreaterThan(card)
   })
 })

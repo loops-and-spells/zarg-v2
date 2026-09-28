@@ -224,16 +224,21 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   )
 
   const busyLine = working(ui, s, now)
+  // Over another focus the sheet is an inset bottom sheet (rounded, the focus showing around it); as zarg's own focus it fills the area.
+  const overSheet = ui.sheet && ui.main !== "zarg"
+  const sheetFrame = overSheet ? { border: true, borderStyle: "rounded" as const } : { border: ["top" as const] }
   // zarg's conversation as a sheet over the focus: raised, an accent rule on top, messages, then zarg's question as the picker.
   const LABEL = { you: { text: "you  ", fg: THEME.dim }, zarg: { text: "zarg  ", fg: THEME.accent }, error: { text: "!  ", fg: THEME.error }, notice: { text: "·  ", fg: THEME.attention } } as const
   const sheet = (
-    <box style={{ flexGrow: 1, flexDirection: "column", backgroundColor: THEME.raised, border: ["top"], borderColor: ui.focus === "tile" ? THEME.accent : THEME.line, paddingLeft: 2, paddingRight: 2 }}>
-      <text wrapMode="none">
-        <span fg={THEME.accent}>
-          <b>zarg</b>
-        </span>
-        {viewing !== undefined ? <span fg={THEME.dim}>{"   esc closes"}</span> : null}
-      </text>
+    <box style={{ flexGrow: 1, flexDirection: "column", backgroundColor: THEME.raised, ...sheetFrame, borderColor: ui.focus === "tile" ? THEME.accent : THEME.line, paddingLeft: 2, paddingRight: 2 }}>
+      <box style={{ height: 1, flexShrink: 0 }}>
+        <text wrapMode="none">
+          <span fg={THEME.accent}>
+            <b>zarg</b>
+          </span>
+          {overSheet ? <span fg={THEME.dim}>{"   esc closes"}</span> : null}
+        </text>
+      </box>
       <scrollbox ref={talkRef} focusable={false} style={{ flexGrow: 1, flexShrink: 1, minHeight: 0 }} stickyScroll stickyStart="bottom">
         {conversation(s).map((l, i) => (
           <text key={i}>
@@ -440,8 +445,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   // A plugin's sheet over the tile area: its view, rounded like zarg's.
   const sheetViewState = ui.sheetOf !== undefined ? s.thread.views?.[ui.sheetOf] : undefined
   const pluginSheet = (
-    <box style={{ flexGrow: 1, flexDirection: "column", backgroundColor: THEME.raised, border: ["top"], borderColor: ui.focus === "tile" ? THEME.accent : THEME.line, paddingLeft: 2, paddingRight: 2 }}>
-      <text wrapMode="none">
+    <box style={{ flexGrow: 1, flexDirection: "column", backgroundColor: THEME.raised, ...sheetFrame, borderColor: ui.focus === "tile" ? THEME.accent : THEME.line, paddingLeft: 2, paddingRight: 2 }}>
+      <text wrapMode="none" style={{ flexShrink: 0 }}>
         <span fg={THEME.accent}>
           <b>{sheetViewState?.layout.name ?? "sheet"}</b>
         </span>
@@ -612,7 +617,12 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           {shown.top.map(panelBox)}
           <box style={{ flexGrow: 1, flexDirection: "row" }}>
             <box style={{ flexGrow: 1, flexDirection: "column" }}>
-              {narrow && ui.focus === "agents" ? agentsList : ui.sheet && ui.sheetOf !== undefined ? pluginSheet : sheetShown(ui) ? sheet : ui.main === "grid" ? grid : ui.main === "review" ? review : view}
+              {narrow && ui.focus === "agents" ? agentsList : ui.main === "zarg" ? sheet : ui.main === "grid" ? grid : ui.main === "review" ? review : view}
+              {!(narrow && ui.focus === "agents") && overSheet ? (
+                <box style={{ position: "absolute", left: 3, right: 3, bottom: 0, height: Math.max(8, Math.floor(areaHeight * 0.65)), flexDirection: "column" }}>
+                  {ui.sheetOf !== undefined ? pluginSheet : sheet}
+                </box>
+              ) : null}
             </box>
             {shown.right.map(panelBox)}
           </box>
