@@ -49,7 +49,9 @@ export const journeyFlow = (snap: Snapshot.Snapshot, journey: string): string =>
 /** The Journeys view's data: journeys by name with their card counts, and every journey's flow by its row. */
 export const journeysView = (snap: Snapshot.Snapshot) => {
   const all = [...journeyList(snap)].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+  const cardsIn = new Set(all.flatMap((j) => j.cards))
   return {
+    summary: { items: [{ label: all.length === 1 ? "journey" : "journeys", value: String(all.length) }, { label: cardsIn.size === 1 ? "card" : "cards", value: String(cardsIn.size) }] },
     rows: all.map((j) => ({ id: j.id, cells: { name: j.name, cards: String(j.cards.length) } })),
     flows: Object.fromEntries(all.map((j) => [j.id, `\`\`\`gherkin\n${journeyFlow(snap, j.id)}\n\`\`\``])) as Record<string, string>,
   }

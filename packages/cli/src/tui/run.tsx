@@ -1,4 +1,4 @@
-import { dirname, join } from "node:path"
+import { basename, dirname, join } from "node:path"
 import { type CliRenderer, createCliRenderer } from "@opentui/core"
 import { createRoot } from "@opentui/react"
 import { Effect } from "effect"
@@ -23,7 +23,7 @@ export const openSession = (opts: { readonly root: string; readonly threadId: st
   Effect.gen(function* () {
     const conn = yield* connect({ root: opts.root, command: opts.command ?? coreCommand() })
     const session = makeSession({ client: makeClient(conn.info), threadId: opts.threadId, focus: opts.focus })
-    const meta: Meta = { threadId: opts.threadId, mode: conn.info.mode, ...(conn.info.driver !== undefined ? { driver: conn.info.driver } : {}) }
+    const meta: Meta = { threadId: opts.threadId, repo: basename(opts.root), mode: conn.info.mode, ...(conn.info.driver !== undefined ? { driver: conn.info.driver } : {}) }
     return {
       session,
       meta,

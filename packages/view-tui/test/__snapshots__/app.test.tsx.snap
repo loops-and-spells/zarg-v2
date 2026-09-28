@@ -1,57 +1,57 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
 exports[`tui frames an inquiry: picker with the recommended option preselected and its why; agents pane; status line 1`] = `
-" agents                   all agents                                                                          
-                            no agents yet · / to start one with zarg                                          
- ▾ driver 1       3/25                                                                                        
-   ✓ research 2   done                                                                                        
-                                                                                                              
-                                                                                                              
-                                                                                                              
-                                                                                                              
-                           ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
-                             zarg   esc closes                                                                
-                             zarg  The agenda is empty.                                                       
-                                                                                                              
-                                                                                                              
-                                                                                                              
-                                                                                                              
-                                                                                                              
-                                                                                                              
-                             Which card first?                                                                
-                               Login                                                                          
-                             › Checkout (recommended) — most used                                             
-                               Something else…                                                                
-                               Chat about this                                                                
-                         answer zarg above, or / to chat about it                                             
-                         core child · waiting · thread main · zarg-router:de…   ↑↓ pick   ⏎ answer   esc leave
+"                       │  all agents                                                                          
+ ◆ zarg                │    no agents yet · / to start one with zarg                                          
+   zarg-v2 · main      │                                                                                      
+                       │                                                                                      
+ AGENTS              2 │                                                                                      
+  ▾ driver 1      3/25 │                                                                                      
+  └ ✓ research 2  done │                                                                                      
+                       │                                                                                      
+                       │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+                       │     zarg   esc closes                                                                
+                       │     zarg  The agenda is empty.                                                       
+                       │                                                                                      
+                       │                                                                                      
+                       │                                                                                      
+                       │                                                                                      
+                       │                                                                                      
+                       │                                                                                      
+                       │     Which card first?                                                                
+                       │       Login                                                                          
+                       │     › Checkout (recommended) — most used                                             
+                       │       Something else…                                                                
+                       │       Chat about this                                                                
+                       │ answer zarg above, or / to chat about it                                             
+                       │ core child · waiting · thread main · zarg-router:de…   ↑↓ pick   ⏎ answer   esc leave
 "
 `;
 
 exports[`tui frames a run error shows its kind and message in the conversation 1`] = `
-" agents                   all agents                                                                          
-                            no agents yet · / to start one with zarg                                          
- no agents yet                                                                                                
-                                                                                                              
-                                                                                                              
-                                                                                                              
-                                                                                                              
-                                                                                                              
-                           ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
-                             zarg   esc closes                                                                
-                             !  model: zarg-router is not reachable                                           
-                                                                                                              
-                                                                                                              
-                                                                                                              
-                                                                                                              
-                                                                                                              
-                                                                                                              
-                                                                                                              
-                                                                                                              
-                                                                                                              
-                                                                                                              
-                                                                                                              
-                         › type a message, Enter to send                                                      
-                         core child · error · thread main · zarg-router:deepseek-v4.1-fl…   ⏎ send   esc leave
+"                       │  all agents                                                                          
+ ◆ zarg                │    no agents yet · / to start one with zarg                                          
+   zarg-v2 · main      │                                                                                      
+                       │                                                                                      
+ AGENTS              0 │                                                                                      
+  no agents yet        │                                                                                      
+                       │                                                                                      
+                       │                                                                                      
+                       │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+                       │     zarg   esc closes                                                                
+                       │     !  model: zarg-router is not reachable                                           
+                       │                                                                                      
+                       │                                                                                      
+                       │                                                                                      
+                       │                                                                                      
+                       │                                                                                      
+                       │                                                                                      
+                       │                                                                                      
+                       │                                                                                      
+                       │                                                                                      
+                       │                                                                                      
+                       │                                                                                      
+                       │ › type a message, Enter to send                                                      
+                       │ core child · error · thread main · zarg-router:deepseek-v4.1-fl…   ⏎ send   esc leave
 "
 `;

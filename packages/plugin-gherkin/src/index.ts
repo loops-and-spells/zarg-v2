@@ -106,6 +106,7 @@ export default definePlugin({
         Effect.gen(function* () {
           if (agent !== "journeys") return { notice: `gherkin has no agent ${agent}` }
           const v = journeysView(yield* snap)
+          yield* views.set("journeys", JourneysView, "summary", v.summary)
           yield* views.set("journeys", JourneysView, "list", { rows: v.rows })
           yield* views.set("journeys", JourneysView, "flow", { markdown: 'No journeys yet. Add one with gherkin/add-journey, then tag cards with link {edge: "in"}.', rows: v.flows })
           return { notice: v.rows.length === 0 ? "no journeys yet" : `${v.rows.length} journey${v.rows.length === 1 ? "" : "s"}: ${v.rows.map((r) => r.cells.name).join(", ")}` }

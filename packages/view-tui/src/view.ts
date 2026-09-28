@@ -596,6 +596,8 @@ export const onAgentsKey = (ui: Ui, s: SessionState, key: Key): { readonly ui: U
 
 export interface Meta {
   readonly threadId: string
+  /** The project's name (its folder), shown under zarg at the top of the rail. */
+  readonly repo?: string
   readonly driver?: string
   readonly mode: "child" | "headless"
 }

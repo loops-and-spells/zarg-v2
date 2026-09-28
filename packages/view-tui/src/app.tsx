@@ -173,6 +173,58 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     }
     else setUi(activate(u, st, id))
   }
+  // The rail (Explorer): zarg and where you are, then VIEWS and AGENTS on banded headers; every row one grammar —
+  // a gutter bar where you are, a glyph, the name, a note on the right; children on faint tree guides; a hairline edge.
+  const wide = railWidth > 3
+  const inner = railWidth - 1
+  const nav = s.thread.nav ?? []
+  const agentCount = rows.filter((r) => !r.id.startsWith("archived:") && r.id !== ARCHIVED).length
+  const band = (label: string, count: string, countColor: string) => (
+    <text wrapMode="none" bg={THEME.line}>
+      <span fg={THEME.text}>
+        <b>{` ${label}`}</b>
+      </span>
+      <span>{" ".repeat(Math.max(1, inner - 1 - label.length - count.length - 1))}</span>
+      <span fg={countColor}>{`${count} `}</span>
+    </text>
+  )
+  // Gutter, space, guide, glyph, space, name, at least one space, note, space: the name gets what is left.
+  const railName = (r: { readonly name: string; readonly note: string; readonly guide: string }) => fit(r.name, Math.max(1, inner - 6 - r.guide.length - r.note.length))
+  const railLine = (r: { readonly glyph: string; readonly glyphColor: string; readonly name: string; readonly note: string; readonly noteColor?: string; readonly guide: string; readonly on: boolean; readonly dimmed: boolean; readonly onPick?: () => void }) => (
+    <text
+      wrapMode="none"
+      {...(r.on ? { bg: THEME.selection } : {})}
+      {...(r.onPick !== undefined
+        ? {
+            onMouseDown: (e: { stopPropagation: () => void }) => {
+              e.stopPropagation()
+              r.onPick!()
+            },
+          }
+        : {})}
+    >
+      <span fg={THEME.accent}>{r.on ? "▍" : " "}</span>
+      {wide ? <span fg={THEME.faint}>{` ${r.guide}`}</span> : null}
+      <span fg={r.glyphColor}>{r.glyph}</span>
+      {wide ? <span fg={r.dimmed ? THEME.dim : THEME.text}>{r.on ? <b>{` ${railName(r)}`}</b> : ` ${railName(r)}`}</span> : null}
+      {wide ? <span>{" ".repeat(Math.max(1, inner - 5 - r.guide.length - railName(r).length - r.note.length))}</span> : null}
+      {wide ? <span fg={r.noteColor ?? THEME.dim}>{`${r.note} `}</span> : null}
+    </text>
+  )
+  /** A child's guide: ├ or └ at its own depth (the last of its siblings in the rows shown gets └). */
+  const guideOf = (i: number) => {
+    const d = rows[i]!.depth
+    if (d === 0) return ""
+    let last = true
+    for (const r of rows.slice(i + 1)) {
+      if (r.depth < d) break
+      if (r.depth === d) {
+        last = false
+        break
+      }
+    }
+    return `${"  ".repeat(d - 1)}${last ? "└ " : "├ "}`
+  }
   const agentsList = (
     <box
       // Narrow, the unfolded rail sits over the focus: its click must not reach the focus's handler (which would fold it).
@@ -180,67 +232,58 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         e.stopPropagation()
         setUi({ ...latest(), focus: "agents" })
       }}
-      style={{ ...(narrow && ui.focus === "agents" ? { flexGrow: 1 } : { width: railWidth, flexShrink: 0 }), flexDirection: "column", backgroundColor: THEME.raised, paddingLeft: 1, paddingRight: railWidth > 3 ? 1 : 0 }}
+      style={{ ...(narrow && ui.focus === "agents" ? { flexGrow: 1 } : { width: railWidth, flexShrink: 0 }), flexDirection: "column", backgroundColor: THEME.raised, border: ["right"], borderColor: THEME.line }}
     >
-      {/* Nav items (plugins' views: Journeys, …) above the agents; a click or Enter opens one. */}
-      {(s.thread.nav ?? []).map((n) => {
+      {/* zarg, and where you are. */}
+      {wide ? (
+        <>
+          <box style={{ height: 1, flexShrink: 0 }} />
+          <text wrapMode="none" style={{ height: 1, flexShrink: 0 }}>
+            <span fg={THEME.accent}>
+              <b>{" ◆ zarg"}</b>
+            </span>
+          </text>
+          <text fg={THEME.dim} wrapMode="none" style={{ height: 1, flexShrink: 0 }}>{fit(`   ${props.meta.repo !== undefined ? `${props.meta.repo} · ` : ""}${props.meta.threadId}`, inner)}</text>
+          <box style={{ height: 1, flexShrink: 0 }} />
+        </>
+      ) : (
+        <text fg={THEME.accent}>{"◆"}</text>
+      )}
+      {/* VIEWS: plugins' views (Journeys, …); a click or Enter opens one. */}
+      {nav.length > 0 && wide ? band("VIEWS", String(nav.length), THEME.dim) : null}
+      {nav.map((n) => {
         const id = `${NAV}${n.id}`
         const on = (ui.agents.cursor === id && ui.focus === "agents") || n.view === viewing
         return (
-          <box
-            key={id}
-            style={{ flexShrink: 0, height: 1 }}
-            onMouseDown={(e: { stopPropagation: () => void }) => {
-              e.stopPropagation()
-              pick(id)
-            }}
-          >
-            <text wrapMode="none" {...(on ? { bg: THEME.selection } : {})}>
-              <span fg={on ? THEME.accent : THEME.dim}>▤</span>
-              {railWidth > 3 ? <span fg={THEME.text}>{on ? <b>{` ${fit(n.label, AGENTS_WIDTH - 5)}`}</b> : ` ${fit(n.label, AGENTS_WIDTH - 5)}`}</span> : null}
-            </text>
+          <box key={id} style={{ flexShrink: 0, height: 1 }}>
+            {railLine({ glyph: "▤", glyphColor: on ? THEME.accent : THEME.dim, name: n.label, note: "", guide: "", on, dimmed: false, onPick: () => pick(id) })}
           </box>
         )
       })}
-      {(s.thread.nav ?? []).length > 0 ? <text> </text> : null}
-      {railWidth > 3 ? (
-        <text wrapMode="none">
-          <span fg={ui.focus === "agents" ? THEME.accent : THEME.dim}>
-            <b>agents</b>
-          </span>
-          {asking.length > 0 ? <span fg={THEME.attention}>{`  ◆${asking.length}`}</span> : null}
-        </text>
-      ) : (
-        <text fg={asking.length > 0 ? THEME.attention : THEME.dim}>{asking.length > 0 ? "◆" : "·"}</text>
-      )}
-      <text> </text>
+      {/* AGENTS: the tree; ◆ in the header counts those asking. */}
+      {wide ? <box style={{ height: 1, flexShrink: 0, ...(nav.length > 0 ? { marginTop: 1 } : {}) }}>{band("AGENTS", asking.length > 0 ? `◆${asking.length}` : String(agentCount), asking.length > 0 ? THEME.attention : THEME.dim)}</box> : <text fg={asking.length > 0 ? THEME.attention : THEME.dim}>{asking.length > 0 ? "◆" : "·"}</text>}
       {/* Never focusable: the shell's layers alone decide where keys go (a click must not hand a scrollbox the arrows). */}
       <scrollbox ref={agentsRef} focusable={false} style={{ flexGrow: 1 }}>
-        {rows.length === 0 && railWidth > 3 ? <text fg={THEME.dim}>no agents yet</text> : null}
-        {rows.map((r) => {
+        {rows.length === 0 && wide ? <text fg={THEME.dim}>{"  no agents yet"}</text> : null}
+        {rows.map((r, i) => {
           const on = (r.selected && ui.focus === "agents") || r.id === viewing
-          const gap = Math.max(1, AGENTS_WIDTH - 3 - r.depth * 2 - 2 - r.name.length - r.note.length)
-          const g = r.gauge !== undefined ? gauge(r.gauge.done, r.gauge.total, AGENTS_WIDTH - 4 - r.depth * 2) : undefined
+          const guide = guideOf(i)
+          const g = r.gauge !== undefined ? gauge(r.gauge.done, r.gauge.total, inner - 4 - guide.length) : undefined
           return (
             <box
               key={r.id}
               id={`agent-${r.id}`}
-              style={{ flexDirection: "column", flexShrink: 0 }}
+              style={{ flexDirection: "column", flexShrink: 0, ...(r.id === ARCHIVED ? { marginTop: 1 } : {}) }}
               // The rail's own handler (focus the rail) must not run after the row gave its view the keys.
               onMouseDown={(e: { stopPropagation: () => void }) => {
                 e.stopPropagation()
                 pick(r.id)
               }}
             >
-              <text wrapMode="none" {...(on ? { bg: THEME.selection } : {})}>
-                {railWidth > 3 ? <span>{"  ".repeat(r.depth)}</span> : null}
-                <span fg={THEME[r.glyphToken]}>{r.glyph}</span>
-                {railWidth > 3 ? <span fg={r.dimmed ? THEME.dim : THEME.text}>{on ? <b>{` ${r.name}`}</b> : ` ${r.name}`}</span> : null}
-                {railWidth > 3 ? <span fg={THEME.dim}>{`${" ".repeat(gap)}${r.note}`}</span> : null}
-              </text>
-              {g !== undefined && railWidth > 3 ? (
+              {railLine({ glyph: r.glyph, glyphColor: THEME[r.glyphToken], name: r.name, note: r.note, ...(r.note === "asks" || /found/.test(r.note) ? { noteColor: THEME.attention } : {}), guide, on, dimmed: r.dimmed })}
+              {g !== undefined && wide ? (
                 <text wrapMode="none">
-                  <span>{"  ".repeat(r.depth + 1)}</span>
+                  <span>{`   ${" ".repeat(guide.length)}`}</span>
                   <span fg={THEME.accent}>{g.done}</span>
                   <span fg={THEME.faint}>{g.rest}</span>
                 </text>
@@ -318,7 +361,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           </span>
           <span fg={THEME.dim}>{agentNode !== undefined ? fit(`  ${contextOf(agentNode)}`, Math.max(0, focusWidth - displayName(agentNode).length)) : ""}</span>
         </text>
-        <text fg={THEME.dim} wrapMode="none">{[agentNode?.status ?? "", ...runLine].filter((x) => x.length > 0).join(" · ")}</text>
+        {agentNode !== undefined ? <text fg={THEME.dim} wrapMode="none">{[agentNode.status, ...runLine].filter((x) => x.length > 0).join(" · ")}</text> : null}
         <text> </text>
         {s.thread.views?.[viewing] === undefined ? (
           <text fg={THEME.dim}>no view yet</text>

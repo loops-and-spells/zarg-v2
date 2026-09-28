@@ -49,7 +49,7 @@ const inquiry: Inquiry = {
 // As production (run.tsx): the app handles Ctrl-C itself, and nothing tears the renderer down on a signal.
 const RENDERER = { exitOnCtrlC: false, exitSignals: [] }
 
-const meta = { threadId: "main", driver: "zarg-router:deepseek-v4.1-flash-exl3", mode: "child" as const }
+const meta = { threadId: "main", repo: "zarg-v2", driver: "zarg-router:deepseek-v4.1-flash-exl3", mode: "child" as const }
 const waiting: SessionState = {
   thread: {
     ...initial("main"),
@@ -134,7 +134,7 @@ describe("tui frames", () => {
   test("wide: the agents list, the open agent's view and zarg's bar; Alt+arrows move between them", async () => {
     const t = await openTester({ width: 130, height: 22 })
     const lines = t.captureCharFrame().split("\n")
-    expect(lines[0]).toMatch(/^ agents  ◆\d/)
+    expect(lines.find((l) => l.startsWith(" AGENTS"))).toMatch(/^ AGENTS +◆\d/)
     expect(t.captureCharFrame()).toContain("tester-1  rehearse")
     // The open view has focus: arrows move its table, not zarg's question (which waits in the bar).
     t.mockInput.pressArrow("down")
@@ -227,7 +227,7 @@ describe("tui frames", () => {
     expect(frame).toContain("  Chat about this")
     expect(frame).not.toContain("Message")
     expect(frame).toMatch(/▾ driver 1 +3\/25/)
-    expect(frame).toMatch(/ {3}✓ research 2 +done/)
+    expect(frame).toMatch(/└ ✓ research 2 +done/)
     expect(frame).toContain("core child · waiting · thread main")
     expect(frame).toMatchSnapshot()
   })
@@ -405,7 +405,7 @@ describe("tui frames", () => {
     await settle(t)
     const open = t.captureCharFrame()
     // Two levels down the name is cut to its room, the note stays.
-    expect(open).toMatch(/ {5}✗ researc… +failed/)
+    expect(open).toMatch(/└ ✗ resear… +failed/)
     t.mockInput.pressArrow("left")
     t.mockInput.pressArrow("left")
     await settle(t)
@@ -592,7 +592,7 @@ describe("the shell", () => {
     t.mockInput.pressEnter()
     await settle(t)
     const f = t.captureCharFrame()
-    expect(f).toContain("agents")
+    expect(f).toContain("AGENTS")
     expect(f).toContain("t1  rehearse")
     expect(f).toContain("zarg Hello.")
   })
@@ -1245,7 +1245,7 @@ describe("nav items above the agents", () => {
     const t = await render(state, big)
     const lines = t.captureCharFrame().split("\n").map((l) => l.slice(0, 24))
     const journeys = lines.findIndex((l) => l.includes("Journeys"))
-    const agents = lines.findIndex((l) => l.includes("agents"))
+    const agents = lines.findIndex((l) => l.includes("AGENTS"))
     const row = lines.findIndex((l) => l.includes("t1"))
     expect(journeys).toBeGreaterThanOrEqual(0)
     expect(agents).toBeGreaterThan(journeys)
@@ -1259,6 +1259,8 @@ describe("nav items above the agents", () => {
     t.mockInput.pressEnter(); await settle(t)
     expect(t.calls).toContain("act gherkin:journeys open ")
     const frame = t.captureCharFrame()
+    // The Flow follows the table: no row card repeats the highlighted journey under it.
+    expect(frame).not.toContain("┃ Browse")
     // Its header is the nav item's label, not an agent id.
     expect(frame).not.toContain("gherkin:journeys")
     expect(frame).toContain("Browse")

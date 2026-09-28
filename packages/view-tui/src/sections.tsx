@@ -209,12 +209,14 @@ const count = (view: ViewState, path: string) => rowsOf(view, path).length
 const tabsOf = (view: ViewState, ui: ViewUi, s: LayoutSection) =>
   s.kind === "tabs" ? s.tabs.map((t, i) => ({ label: `${t.title ?? t.id} ${count(view, `${s.id}.${t.id}`)}`, current: i === (ui.tabs[s.id] ?? 0), empty: count(view, `${s.id}.${t.id}`) === 0 })) : undefined
 
+/** A section's heading rows: tabs take two (labels and underline), an untitled one (title "") none, the rest one. */
+const headRowsOfSection = (s: LayoutSection) => (s.kind === "tabs" ? 2 : s.title === "" ? 0 : 1)
 /** How tall a section would like to be: its content plus its frame (text counts its lines). */
 const wantedOf = (view: ViewState, ui: ViewUi, s: LayoutSection, width: number, measured?: number): number => {
   const leaf = leafOf(view, ui, s.id)
   if (leaf === undefined) return 3
   const k = leaf.leaf.kind
-  if ((k === "text" || k === "conversation") && measured !== undefined) return Math.max(1, measured) + (s.kind === "tabs" ? 2 : 1)
+  if ((k === "text" || k === "conversation") && measured !== undefined) return Math.max(1, measured) + headRowsOfSection(s)
   const content =
     k === "stats" ? 1
     // Prose wraps: each paragraph line takes as many rows as its length needs.
@@ -223,7 +225,7 @@ const wantedOf = (view: ViewState, ui: ViewUi, s: LayoutSection, width: number, 
     : k === "log" ? ((view.data[leaf.path] as { lines?: ReadonlyArray<unknown> } | undefined)?.lines ?? []).length
     : rowsOf(view, leaf.path).length + (k === "table" ? 1 : 0)
   // Its content and its heading (tabs take a second line, their underline).
-  return Math.max(1, content) + (s.kind === "tabs" ? 2 : 1)
+  return Math.max(1, content) + headRowsOfSection(s)
 }
 type ButtonSpec = { readonly id: string; readonly label: string; readonly key?: string; readonly keys?: Readonly<Record<string, string>> }
 /** A selection's actions as buttons: the first filled with the accent (with the count), the rest quiet; each shows its key and runs on a click. */
@@ -394,13 +396,16 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
   // Where each section and the view sit, as last laid out: a column menu drops down only as far as the view goes.
   const root = useRef<BoxRenderable | null>(null)
   const sectionBoxes = useRef(new Map<string, BoxRenderable>())
-  const headRowsOf = (id: string) => (props.view.layout.sections.find((x) => x.id === id)?.kind === "tabs" ? 2 : 1)
+  const headRowsOf = (id: string) => { const sec = props.view.layout.sections.find((x) => x.id === id); return sec === undefined ? 1 : headRowsOfSection(sec) }
   const roomBelow = (id: string) => {
     const box = sectionBoxes.current.get(id)
     return root.current === null || box === undefined ? MENU_ROWS + 2 : root.current.y + root.current.height - (box.y + headRowsOf(id) + 1)
   }
   // The focused table's cursor row, in full, in place of the summary.
-  const card = cursorRow(props.view, props.ui)
+  // The cursor row's card, unless a text follows that table: the text is its detail then.
+  const cursor0 = cursorRow(props.view, props.ui)
+  const followed = cursor0 !== undefined && props.view.layout.sections.some((x) => x.kind !== "tabs" && x.follows !== undefined && leafOf(props.view, props.ui, x.follows)?.path === cursor0.path)
+  const card = followed ? undefined : cursor0
   let seen = 0
   return (
     <box ref={root} style={{ flexDirection: "column", flexGrow: 1, overflow: "hidden" }}>
@@ -416,7 +421,7 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
             </box>
           )
         const tabs = tabsOf(props.view, props.ui, s)
-        const headRows = tabs !== undefined ? 2 : 1
+        const headRows = headRowsOfSection(s)
         // A blank row between one section and the one before it.
         const after = seen++ > 0
         const buttons = props.onAct === undefined ? undefined : buttonsOf(props.view, props.ui, leaf)
@@ -441,7 +446,7 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
                 : { height: wantedOf(props.view, props.ui, s, width, heights[leaf.path]) + extra, maxHeight: s.role === "summary" ? 6 : SHARE[s.role as keyof typeof SHARE] }),
             }}
           >
-            <box style={{ height: headRows, flexShrink: 0 }}>
+            <box style={{ height: headRows, flexShrink: 0, ...(headRows === 0 ? { visible: false } : {}) }}>
               <Heading title={s.title ?? s.id} width={width} focused={focused} {...(tabs !== undefined ? { tabs } : {})} {...(props.onTab !== undefined ? { onTab: (k: number) => props.onTab!(s.id, k) } : {})} />
             </box>
             <scrollbox

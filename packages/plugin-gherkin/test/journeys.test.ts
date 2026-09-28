@@ -127,6 +127,8 @@ describe("the Journeys view", () => {
     ])
     expect(v.flows["J-0002"]!.startsWith("```gherkin\nBrowse  # J-0002")).toBe(true)
     expect(v.flows["J-0001"]!.startsWith("```gherkin\nCheckout  # J-0001")).toBe(true)
+    // The summary line: how many journeys, and how many cards they hold (a card in two counts once).
+    expect(v.summary).toEqual({ items: [{ label: "journeys", value: "2" }, { label: "card", value: "1" }] })
   })
   test("no journeys: no rows, no flows (the view says how to make one)", () => {
     const v = journeysView(Snapshot.make([] as never))

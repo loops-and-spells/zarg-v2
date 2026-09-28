@@ -166,3 +166,14 @@ describe("the terminal draws an agent's view", () => {
     expect(f).toContain("R-0   first line second line")
   })
 })
+
+test("a section titled with an empty string draws no heading: its content starts at once", async () => {
+  const v: ViewState = {
+    agent: "t",
+    layout: layoutOf(defineView("t", { list: { kind: "table", role: "primary", title: "", columns: [{ id: "name", label: "journey" }] }, flow: { kind: "text", role: "pinned", title: "Flow" } })),
+    data: { list: { rows: [{ id: "J-1", cells: { name: "Checkout" } }] }, flow: { markdown: "hello" } },
+  }
+  const lines = (await frame(v)).split("\n")
+  expect(lines[0]).toMatch(/^\s+journey/)
+  expect(lines.some((l) => l.startsWith("Flow ─"))).toBe(true)
+})
