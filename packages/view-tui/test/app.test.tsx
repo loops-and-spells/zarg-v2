@@ -1189,7 +1189,21 @@ describe("tabs, the fixed card, breathing room", () => {
     // A short row: a short card (its line, with its note inline).
     const card = ls.findIndex((l, i) => i > last + 1 && l.includes("┃ F2"))
     expect(ls[card]).toContain("note short")
+    // A blank row under the card too.
+    expect(ls[card + 1]!.slice(24).trim()).toBe("")
     expect(ls.slice(card + 1).some((l) => l.includes("a long note a long"))).toBe(false)
+  })
+  test("a full table: its card keeps a blank row under it, above the bar", async () => {
+    const many = Array.from({ length: 40 }, (_, i) => ({ id: `M${i}`, cells: { id: `M${i}`, note: "short" } }))
+    const v = state.thread.views!["rehearse:run"]!
+    const full = { ...state, thread: { ...state.thread, views: { "rehearse:run": { ...v, data: { ...v.data, "review.findings": { rows: many } } } } } }
+    const t = await render(full, { width: 130, height: 32 })
+    t.mockInput.pressKey("a", { meta: true }); await settle(t); t.mockInput.pressEnter(); await settle(t)
+    t.mockInput.pressKey("]"); await settle(t)
+    const ls = lines(t)
+    const card = ls.findIndex((l) => l.includes("┃ M0"))
+    expect(card).toBeGreaterThan(0)
+    expect(ls[card + 1]!.slice(24).trim()).toBe("")
   })
   test("a blank row between one section and the next", async () => {
     const t = await open()

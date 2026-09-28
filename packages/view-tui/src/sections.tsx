@@ -273,7 +273,7 @@ const RowCard = (p: { readonly card: NonNullable<ReturnType<typeof cursorRow>>; 
   const short = cols.flatMap((c, i) => (i > 0 && text(i) !== "" && text(i).length <= widths[i]! ? [`${c.label} ${text(i)}`] : []))
   return (
     // A shaded panel with an accent bar, so it never reads as another row; as tall as the row needs (`cardHeight`), a blank row above it; past its cap it scrolls.
-    <box style={{ flexShrink: 0, height: p.height, marginTop: 1, border: ["left"], borderStyle: "heavy", borderColor: THEME.accent, backgroundColor: THEME.shade, paddingLeft: 1, paddingRight: 1 }}>
+    <box style={{ flexShrink: 0, height: p.height, marginTop: 1, marginBottom: 1, border: ["left"], borderStyle: "heavy", borderColor: THEME.accent, backgroundColor: THEME.shade, paddingLeft: 1, paddingRight: 1 }}>
       <scrollbox focusable={false} style={{ flexGrow: 1 }}>
         <text wrapMode="none">
           <span fg={p.card.row.tone !== undefined ? fg(p.card.row.tone) : THEME.accent}>
@@ -420,9 +420,9 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
         const after = seen++ > 0
         const buttons = props.onAct === undefined ? undefined : buttonsOf(props.view, props.ui, leaf)
         // The buttons and the blank line above them.
-        // Its cursor row's card under it, and the blank row above that.
+        // Its cursor row's card under it, a blank row above and below.
         const cardRows = card !== undefined && card.path === leaf.path ? cardHeight(card, props.view, width, Math.max(3, Math.floor(props.height / 3))) : 0
-        const extra = (buttons === undefined ? 0 : 2) + (cardRows > 0 ? cardRows + 1 : 0)
+        const extra = (buttons === undefined ? 0 : 2) + (cardRows > 0 ? cardRows + 2 : 0)
         return (
           <box
             key={s.id}
