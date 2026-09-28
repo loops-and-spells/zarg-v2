@@ -8,7 +8,7 @@ Touches: `@zarg/plugin-gherkin` (node type, edge, tools, lints, render, agenda, 
 
 zarg knows who acts in each card. Personas are nodes in the requirements graph, defined and checked by zarg, and every card names the persona(s) who act in it. Rehearse runs one tester per persona, each roleplaying that persona and judging only the steps it acts in, instead of guessing testers from the intent's prose.
 
-Today rehearse reads "Affected users and systems" from the intent and asks the decision model which lines are people. Agents can be screened out, nothing ties a tester to the cards it should walk, and the list is free text zarg never checks.
+Today rehearse reads the intents' frontmatter `personas` (edge personas only) and every tester walks every journey: internal actors have no tester, and nothing ties a tester to the cards it should walk.
 
 ## The model
 
@@ -56,7 +56,7 @@ UX-0079 CLI actor finds the affected cards
 
 The Driver Agent, with the operator; nothing is built in (zarg specifies any product, so no persona list ships with it).
 
-- **A new project:** with no personas in the graph, the agenda asks "Who uses this product?". The Driver Agent drafts personas from the intent's Personas section (the edges: who meets the product) and the conversation, and shows them with `Inquire.confirm` like any graph change; the operator accepts, edits or adds.
+- **A new project:** with no personas in the graph, the agenda asks "Who uses this product?". The Driver Agent drafts personas from the intents' frontmatter `personas` (the edges: who meets the product) and the conversation, and shows them with `Inquire.confirm` like any graph change; the operator accepts, edits or adds.
 - **New cards:** `add-card` needs `by`. The Driver Agent names the persona while drafting the card; when none fits, it proposes a new persona in the same confirmation.
 - **Existing cards without `by`:** one agenda item, "Who does these N cards?". The Driver Agent proposes the whole mapping (from each card's title and When) as one change; cards it cannot place it asks about one by one.
 - **The intent names edge personas only** (who meets the product from outside). Personas for the product's own internal actors (in this repo: the Driver, Planner, Implementer and Plugin Agents) live only in the graph, where cards need them.

@@ -1,8 +1,28 @@
+---
+author: the operator (with Claude)
+date: 2026-09-26
+revised: 2026-09-27
+status: accepted
+personas:
+  - name: Operator
+    kind: human
+    text: the person shaping their product with zarg, through its terminal app or any client. They talk about intent, answer questions, approve what is written and what runs, and watch or stop the work.
+  - name: CLI actor
+    kind: cli
+    text: a coding agent (Claude Code, Codex) working the same requirements and code through the zarg command line and its skills. It reads and writes structured output, follows refusals and hints, and never sees the terminal app.
+next:
+  - name: Providers and plugins in the app
+    why: the operator sets up model providers and plugins in the terminal app (consent, settings, login), without editing files
+  - name: Capture
+    why: the agent keeps the intent documents from the conversation, so the operator never edits them by hand
+  - name: Specify
+    why: intents become requirements on their own, each traced to its intent
+  - name: Rehearse by persona
+    why: testers roleplay each persona over the journeys that persona acts in
+  - name: Code ownership
+    why: the operator sees which code each card owns
+---
 # Intent: zarg, a harness where you only talk about intent
-
-- Author: the operator (with Claude)
-- Date: 2026-09-26, revised 2026-09-27 (edges only: personas, inputs, outputs, outcomes)
-- Status: accepted (2026-09-26)
 
 ## Problem
 
@@ -10,10 +30,7 @@ Building software with coding agents still means driving every step yourself: wr
 
 ## Personas
 
-Who meets zarg at its edges. The requirements graph names who acts in each card; zarg's agent asks about personas when a project starts and keeps them there.
-
-- **The operator**: the person shaping their product with zarg, through its terminal app or any client. They talk about intent, answer questions, approve what is written and what runs, and watch or stop the work.
-- **A CLI actor**: a coding agent (Claude Code, Codex) working the same requirements and code through the zarg command line and its skills. It reads and writes structured output, follows refusals and hints, and never sees the terminal app.
+Who meets zarg at its edges; listed in the frontmatter (`personas`), where rehearse and zarg's agent read them. The requirements graph names who acts in each card; zarg's agent asks about personas when a project starts and keeps them there.
 
 ## Inputs
 
@@ -41,15 +58,6 @@ Who meets zarg at its edges. The requirements graph names who acts in each card;
 - **Safe.** Secrets never reach a model, a log or the wire. Plugins run only with what the operator granted. Requirements change only with the operator's say; code changes only to match the requirements.
 
 Success: the operator describes what they want, answers a few good questions, and working, verified, committed code follows, with every line traceable back through a card to an intent.
-
-## Next outcomes
-
-Next:
-1. **Providers and plugins in the app**: the operator sets up model providers and plugins in the terminal app (consent, settings, login), without editing files.
-2. **Capture**: the agent keeps the intent documents from the conversation, so the operator never edits them by hand.
-3. **Specify**: intents become requirements on their own, each traced to its intent.
-4. **Rehearse by persona**: testers roleplay each persona over the journeys that persona acts in.
-5. **Code ownership**: the operator sees which code each card owns.
 
 ## Constraints
 

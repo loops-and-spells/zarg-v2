@@ -19,8 +19,12 @@ Run the CLI from the repo root as `mise run -q zarg -- <command>`.
    - Write `.zarg/plans/<id>.md`:
 
      ```md
+     ---
+     card: <id>
+     hash: <hash from show>
+     title: <card title>
+     ---
      # <id> <card title>
-     card: <hash from show>
 
      ## Approach
      ## Files

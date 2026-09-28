@@ -1,3 +1,4 @@
+import { stringify } from "@zarg/frontmatter"
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { BunServices } from "@effect/platform-bun"
@@ -192,7 +193,8 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
             }
             const file = join(cwd, planPath(item))
             mkdirSync(dirname(file), { recursive: true })
-            writeFileSync(file, `# ${item} ${c.title}\ncard: ${c.hash}\n\n${out.plan.trim()}\n`)
+            // The plan's data in frontmatter: its card, the card's hash when planned, its title.
+            writeFileSync(file, stringify({ card: item, hash: c.hash, title: c.title }, `# ${item} ${c.title}\n\n${out.plan.trim()}\n`))
             return { ok: true } satisfies ItemOutcome
           }),
       },

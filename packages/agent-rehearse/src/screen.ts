@@ -1,3 +1,4 @@
+import { parse } from "@zarg/frontmatter"
 // packages/core/src/rehearse/screen.ts
 import { hash } from "./hash"
 import { Effect } from "effect"
@@ -45,34 +46,26 @@ export const screenStep = (decide: Decide, persona: Persona, prior: ReadonlyArra
     return { feel, fail, arrive, ...(fork !== undefined ? { fork } : {}), flags } satisfies Screened
   }).pipe(Effect.orElseSucceed(() => undefined))
 
-// jevk5 on zarg's intent (2026-09-27): "The operator, through the zarg TUI" 0.45, "Shoppers, on mobile" 0.69;
-// the git repository 0.26, model providers 0.18, a payments API 0.23. People rank above systems, below 0.5.
-const PERSON_AT = 0.4
-
-/** One tester per person under "Personas" (or the older "Affected users") in the intent; systems in that list are not testers. */
-export const personasOf = (markdown: string, decide: Decide) =>
-  Effect.gen(function* () {
-    const lines = markdown.split("\n")
-    const at = lines.findIndex((l) => /^##\s+(Personas|Affected users)/.test(l))
-    if (at < 0) return [] as ReadonlyArray<Persona>
-    const bullets: Array<string> = []
-    for (const l of lines.slice(at + 1)) {
-      if (/^##\s/.test(l)) break
-      const b = /^-\s+(.*)$/.exec(l.trim())
-      if (b !== null) bullets.push(b[1]!)
+/** One tester per persona in the intents' frontmatter (`personas: [{ name, text }]`), in file order; the prose is never read. */
+export const personasOf = (intents: ReadonlyArray<string>): ReadonlyArray<Persona> => {
+  const listed = intents.flatMap((md) => {
+    let data: { readonly [key: string]: unknown }
+    try {
+      data = parse(md).data
+    } catch {
+      return []
     }
-    const people = yield* Effect.forEach(bullets, (text) =>
-      decide({ state: `An entry in a product's list of affected users and systems: ${text}`, questions: { person: { type: "noul", instructions: "Is this a person who uses the product (not a system or a store)?" } } }).pipe(
-        Effect.map((a) => (a.person?.type === "noul" && a.person.probability >= PERSON_AT ? [text] : [])),
-        Effect.orElseSucceed(() => [] as Array<string>),
-      ),
-    )
-    // Names key each tester's answers: a repeated name gets a number.
-    const seen = new Map<string, number>()
-    return people.flat().map((text) => {
-      const base = text.split(",")[0]!.replace(/[.:]$/, "")
-      const n = (seen.get(base) ?? 0) + 1
-      seen.set(base, n)
-      return { name: n === 1 ? base : `${base} (${n})`, text }
-    }) as ReadonlyArray<Persona>
+    const ps = Array.isArray(data.personas) ? (data.personas as ReadonlyArray<unknown>) : []
+    return ps.flatMap((p) => {
+      const o = (p ?? {}) as { readonly name?: unknown; readonly text?: unknown }
+      return typeof o.name === "string" && o.name !== "" && typeof o.text === "string" && o.text !== "" ? [{ name: o.name, text: o.text }] : []
+    })
   })
+  // Names key each tester's answers: a repeated name gets a number.
+  const seen = new Map<string, number>()
+  return listed.map((p) => {
+    const n = (seen.get(p.name) ?? 0) + 1
+    seen.set(p.name, n)
+    return { name: n === 1 ? p.name : `${p.name} (${n})`, text: p.text }
+  })
+}

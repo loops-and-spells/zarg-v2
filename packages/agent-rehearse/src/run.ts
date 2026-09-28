@@ -305,9 +305,9 @@ export const makeRehearse = (deps: RunDeps) =>
           const planned = yield* deps.stories(strategy, focus).pipe(Effect.orElseSucceed(() => ({ stories: [], unreachable: 0 })))
           const names = yield* deps.list("intent").pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>))
           const texts = yield* Effect.forEach(names.filter((n) => n.endsWith(".md")), (n) => deps.read(`intent/${n}`).pipe(Effect.orElseSucceed(() => "")))
-          const all = yield* personasOf(texts.join("\n\n"), deps.decide)
+          const all = personasOf(texts)
           const personas = opts.personas !== undefined ? all.filter((p) => opts.personas!.includes(p.name)) : all
-          if (personas.length === 0) return { refused: 'no testers: the intent lists no affected users (a person under "Affected users"), or the decision model could not tell' }
+          if (personas.length === 0) return { refused: "no testers: no intent lists personas in its frontmatter (personas: [{ name, text }])" }
           const startedAt = yield* deps.now.pipe(Effect.orElseSucceed(() => 0))
           const run = `r-${(yield* deps.uuid.pipe(Effect.orElseSucceed(() => String(startedAt)))).slice(0, 8)}`
           const rec: RunRecord = { run, startedAt, status: "running", strategy, focus: focus ?? [], personas, stories: planned.stories, unreachable: planned.unreachable, screened: {}, raw: [], infra: [], findings: [], applying: [], resolved: [] }

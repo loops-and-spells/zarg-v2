@@ -20,6 +20,7 @@
     "packages/agent-rehearse": {
       "name": "@zarg/agent-rehearse",
       "dependencies": {
+        "@zarg/frontmatter": "workspace:*",
         "@zarg/plugin-gherkin": "workspace:*",
         "@zarg/plugin-sdk": "workspace:*",
         "effect": "^4.0.0-rc.117",
@@ -39,6 +40,7 @@
         "@zarg/agent-host": "workspace:*",
         "@zarg/core": "workspace:*",
         "@zarg/decisions": "workspace:*",
+        "@zarg/frontmatter": "workspace:*",
         "@zarg/graph": "workspace:*",
         "@zarg/kernel": "workspace:*",
         "@zarg/model": "workspace:*",
@@ -93,6 +95,7 @@
         "@zarg/agent-host": "workspace:*",
         "@zarg/client": "workspace:*",
         "@zarg/decisions": "workspace:*",
+        "@zarg/frontmatter": "workspace:*",
         "@zarg/graph": "workspace:*",
         "@zarg/kernel": "workspace:*",
         "@zarg/model": "workspace:*",
@@ -112,6 +115,9 @@
         "@zarg/model": "workspace:*",
         "effect": "^4.0.0-rc.117",
       },
+    },
+    "packages/frontmatter": {
+      "name": "@zarg/frontmatter",
     },
     "packages/graph": {
       "name": "@zarg/graph",
@@ -365,6 +371,8 @@
     "@zarg/core": ["@zarg/core@workspace:packages/core"],
 
     "@zarg/decisions": ["@zarg/decisions@workspace:packages/decisions"],
+
+    "@zarg/frontmatter": ["@zarg/frontmatter@workspace:packages/frontmatter"],
 
     "@zarg/graph": ["@zarg/graph@workspace:packages/graph"],
 

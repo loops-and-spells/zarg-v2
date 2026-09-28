@@ -2,7 +2,9 @@
   "name": "@zarg/agent-zarg",
   "private": true,
   "type": "module",
-  "zarg": { "runtime": "trusted" },
+  "zarg": {
+    "runtime": "trusted"
+  },
   "exports": {
     ".": "./src/index.ts"
   },
@@ -11,6 +13,7 @@
     "@zarg/agent-host": "workspace:*",
     "@zarg/core": "workspace:*",
     "@zarg/decisions": "workspace:*",
+    "@zarg/frontmatter": "workspace:*",
     "@zarg/graph": "workspace:*",
     "@zarg/kernel": "workspace:*",
     "@zarg/model": "workspace:*",

@@ -4,7 +4,7 @@ import { makeRehearse, type RunDeps } from "../src/run"
 import { rehearseSettings } from "../src/settings"
 import type { Answer, DecisionRequest, StepView } from "../src/types"
 
-const INTENT = "## Affected users and systems\n\n- The developer, through the zarg TUI.\n"
+const INTENT = "---\npersonas:\n  - name: The operator\n    text: The operator, through the zarg TUI.\n---\n# Intent\n"
 const noul = (p: number): Answer => ({ type: "noul", answer: p >= 0.5, probability: p, confidence: 0 })
 
 type Opts = { inFlight?: number; slowWrite?: number; down?: boolean; slowDecide?: number; auto?: boolean; intent?: string; unreachable?: number; files?: Map<string, string>; cardText?: (card: string) => string }

@@ -47,27 +47,21 @@ describe("rehearse screen", () => {
     expect(await Effect.runPromise(screenStep(() => Effect.fail("down"), persona, [], step(), s))).toBeUndefined()
   })
 
-  test("personas: the intent's affected users, without the systems", async () => {
-    const md = "# Intent\n\n## Affected users and systems\n\n- The developer, through the zarg TUI (and any AG-UI client).\n- The project's git repository: intents and code.\n\n## Constraints\n\n- x\n"
-    const decide = (req: DecisionRequest) => Effect.succeed({ person: noul(req.state.includes("developer") ? 0.9 : 0.1) })
-    expect(await Effect.runPromise(personasOf(md, decide))).toEqual([{ name: "The developer", text: "The developer, through the zarg TUI (and any AG-UI client)." }])
+  test("personas: every intent's frontmatter personas, in file order; the body is never read", () => {
+    const a = "---\npersonas:\n  - name: Operator\n    kind: human\n    text: The person shaping their product with zarg.\n---\n## Personas\n\n- Someone in the prose\n"
+    const b = "---\npersonas:\n  - name: CLI actor\n    text: A coding agent working through the CLI.\n---\n"
+    expect(personasOf([a, b])).toEqual([
+      { name: "Operator", text: "The person shaping their product with zarg." },
+      { name: "CLI actor", text: "A coding agent working through the CLI." },
+    ])
   })
 
-  test("two testers never share a name: their answers are kept apart", async () => {
-    const md = "## Affected users\n\n- Shoppers, on mobile.\n- Shoppers, on desktop.\n"
-    const people = await Effect.runPromise(personasOf(md, () => Effect.succeed({ person: noul(0.9) })))
-    expect(people.map((p) => p.name)).toEqual(["Shoppers", "Shoppers (2)"])
+  test("two testers never share a name: their answers are kept apart", () => {
+    const md = "---\npersonas:\n  - name: Shopper\n    text: On mobile.\n  - name: Shopper\n    text: On desktop.\n---\n"
+    expect(personasOf([md]).map((p) => p.name)).toEqual(["Shopper", "Shopper (2)"])
   })
 
-  test("a person the decision model is only fairly sure of is still a tester (measured: the developer 0.45, systems at most 0.26)", async () => {
-    const md = "## Affected users and systems\n\n- The developer, through the zarg TUI.\n- The project's git repository.\n"
-    const decide = (req: DecisionRequest) => Effect.succeed({ person: noul(req.state.includes("developer") ? 0.45 : 0.26) })
-    expect((await Effect.runPromise(personasOf(md, decide))).map((p) => p.name)).toEqual(["The developer"])
+  test("an intent without personas, a persona without name or text, or broken frontmatter adds no tester", () => {
+    expect(personasOf(["# Intent\n\n## Affected users\n\n- Shoppers\n", "---\npersonas:\n  - name: Nameless text missing\n---\n", "---\npersonas: [\n"])).toEqual([])
   })
-})
-
-test("personas come from the intent's Personas section (the older Affected users heading still works)", async () => {
-  const md = "## Personas\n\n- **The operator**: the person shaping their product with zarg.\n\n## Inputs\n\n- The project's git repository.\n"
-  const decide = (req: DecisionRequest) => Effect.succeed({ person: noul(req.state.includes("operator") ? 0.9 : 0.1) })
-  expect((await Effect.runPromise(personasOf(md, decide))).map((p) => p.text)).toEqual(["**The operator**: the person shaping their product with zarg."])
 })

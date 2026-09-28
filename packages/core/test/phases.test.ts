@@ -1,3 +1,4 @@
+import { parse } from "@zarg/frontmatter"
 import { afterAll, describe, expect, test } from "bun:test"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
@@ -93,7 +94,10 @@ describe("plan and implement phases", () => {
     const { out } = await pass(r, stub({ plan: planner, "implement-card": implementer }))
     expect(out).toMatchObject({ status: "landed", landed: ["UX-0001"] })
     const plan = readFileSync(join(r, ".zarg/plans/UX-0001.md"), "utf8")
-    expect(plan).toStartWith("# UX-0001 Card UX-0001\ncard: ")
+    // The plan's data is frontmatter: its card, the card's hash when planned, its title.
+    const { data, body } = parse(plan)
+    expect(data).toEqual({ card: "UX-0001", hash: expect.stringMatching(/^[0-9a-f]+$/), title: "Card UX-0001" })
+    expect(body).toStartWith("# UX-0001 Card UX-0001\n")
     expect(plan).toContain("## Files\n- src/x.ts — new")
     expect(readFileSync(join(r, "src/UX-0001.ts"), "utf8")).toContain("// @card UX-0001")
     expect(readFileSync(join(r, ".zarg/graph/nodes/S-0001.json"), "utf8")).toBe(before)

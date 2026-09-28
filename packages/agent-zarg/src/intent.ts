@@ -1,3 +1,5 @@
+import { parse } from "@zarg/frontmatter"
+
 /** One way to go on, offered when nothing is open: what the operator picks becomes their word to the driver. */
 export interface NextOption {
   readonly id: string
@@ -6,26 +8,19 @@ export interface NextOption {
   readonly task: string
 }
 
-/**
- * The numbered goals under an intent's `Next:` line, in order. `**Name**: rest` gives the label and a why;
- * a plain item is its own label.
- */
+/** The goals in an intent's frontmatter (`next: [{ name, why? }]`), in order; the prose is never read. */
 export const nextGoals = (markdown: string, file: string): ReadonlyArray<NextOption> => {
-  const lines = markdown.split("\n")
-  const at = lines.findIndex((l) => l.trim() === "Next:")
-  if (at < 0) return []
-  const out: Array<NextOption> = []
-  for (const line of lines.slice(at + 1)) {
-    const item = /^(\d+)\.\s+(.*)$/.exec(line.trim())
-    if (item === null) {
-      // Blank lines before the list and wrapped lines inside it; anything else ends it.
-      if (line.trim() === "" ? out.length === 0 : /^\s/.test(line) && out.length > 0) continue
-      break
-    }
-    const named = /^\*\*(.+?)\*\*:?\s*(.*)$/.exec(item[2]!)
-    const label = named !== null ? named[1]! : item[2]!.replace(/\.$/, "")
-    const why = named !== null && named[2]!.length > 0 ? named[2]!.replace(/\.$/, "") : undefined
-    out.push({ id: `${file}#${item[1]}`, label, ...(why !== undefined ? { why } : {}), task: `Work on the next goal in ${file}: ${label}${why !== undefined ? `: ${why}` : ""}.` })
+  let data: { readonly [key: string]: unknown }
+  try {
+    data = parse(markdown).data
+  } catch {
+    return []
   }
-  return out
+  const next = Array.isArray(data.next) ? (data.next as ReadonlyArray<unknown>) : []
+  return next.flatMap((g, i) => {
+    const o = (g ?? {}) as { readonly name?: unknown; readonly why?: unknown }
+    if (typeof o.name !== "string" || o.name === "") return []
+    const why = typeof o.why === "string" && o.why !== "" ? o.why.replace(/\.$/, "") : undefined
+    return [{ id: `${file}#${i + 1}`, label: o.name, ...(why !== undefined ? { why } : {}), task: `Work on the next goal in ${file}: ${o.name}${why !== undefined ? `: ${why}` : ""}.` }]
+  })
 }

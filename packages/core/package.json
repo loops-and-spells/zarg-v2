@@ -6,6 +6,7 @@
     "@zarg/agent-host": "workspace:*",
     "@zarg/client": "workspace:*",
     "@zarg/decisions": "workspace:*",
+    "@zarg/frontmatter": "workspace:*",
     "@zarg/graph": "workspace:*",
     "@zarg/kernel": "workspace:*",
     "@zarg/model": "workspace:*",
