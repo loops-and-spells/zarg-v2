@@ -79,14 +79,14 @@ describe("rehearse as a loaded plugin", () => {
   })
 })
 
-test("rehearse declares a tester card and a run card, and marks only the tester's findings for review", async () => {
+test("rehearse declares one card, the run's, and sends the run's findings to zarg from the review queue", async () => {
   const { manifestOf } = await import("@zarg/plugin-sdk/tools")
   const { default: rehearse } = await import("../src")
   const m = manifestOf(rehearse as never)
-  expect((m.surfaces ?? []).filter((s) => s.kind === "card")).toEqual([
-    { kind: "card", name: "tester", view: "tester", headline: "progress", recent: "steps", action: "apply" },
-    { kind: "card", name: "run", view: "run", headline: "progress" },
-  ])
+  expect((m.surfaces ?? []).filter((s) => s.kind === "card")).toEqual([{ kind: "card", name: "run", view: "run", headline: "progress", recent: "testers", action: "apply" }])
   const reviewed = (m.views ?? []).flatMap((v) => v.sections.flatMap((s) => (s.kind === "tabs" ? s.tabs.map((t) => [v.name, `${s.id}.${t.id}`, t.review === true] as const) : [])))
-  expect(reviewed.filter(([, , r]) => r).map(([v, p]) => `${v}:${p}`)).toEqual(["tester:review.findings"])
+  expect(reviewed.filter(([, , r]) => r).map(([v, p]) => `${v}:${p}`)).toEqual(["run:review.findings"])
+  const run = (m.views ?? []).find((v) => v.name === "run")!
+  const findings = run.sections.flatMap((s) => (s.kind === "tabs" ? s.tabs : [])).find((t) => t.id === "findings")!
+  expect(findings.actions?.find((a) => a.id === "apply")?.label).toBe("Send to zarg")
 })

@@ -23,7 +23,7 @@ export interface RunRecord {
   readonly infra: ReadonlyArray<string>
   readonly findings: ReadonlyArray<Triaged>
   readonly report?: string
-  /** Findings the developer chose to apply (the driver takes them up). */
+  /** Findings the developer sent to zarg (its driver triages them against the graph). */
   readonly applying: ReadonlyArray<string>
   /** Findings the driver resolved (applied or dismissed there). */
   readonly resolved: ReadonlyArray<string>
@@ -118,6 +118,11 @@ export const makeRehearse = (deps: RunDeps) =>
         let allChecked = 0
         // Model calls holding one of the `in_flight` slots right now (across testers).
         let busySlots = 0
+        // The run's Testers list: one line per tester, its progress and what it found.
+        const testers = new Map<string, { readonly text: string; detail: string; state: "busy" | "done" }>()
+        const showTesters = quiet(
+          Effect.suspend(() => deps.views.set("run", RunView, "testers", { items: [...testers.entries()].map(([id, t]) => ({ id, text: t.text, detail: t.detail, state: t.state })) })),
+        )
         yield* Effect.forEach(
           rec.personas,
           (persona, pi) =>
@@ -138,12 +143,16 @@ export const makeRehearse = (deps: RunDeps) =>
                   }),
                 ),
               )
+              testers.set(id, { text: `${id}  ${persona.text.split("\n")[0]!.slice(0, 40)}`, detail: `0/${toCheck} steps · 0 found`, state: "busy" })
+              yield* showTesters
               const progress = (key: string, flags: number) =>
                 Effect.gen(function* () {
                   if (checked.has(key)) return
                   checked.add(key)
                   flagged += flags > 0 ? 1 : 0
                   allChecked++
+                  testers.get(id)!.detail = `${checked.size}/${toCheck} steps · ${found.filter((r) => r.cells.kind !== "delight").length} found`
+                  yield* showTesters
                   yield* quiet(deps.agents.status({ id, progress: { done: checked.size, total: toCheck }, text: `${checked.size}/${toCheck} steps · ${flagged} flagged` }))
                   yield* quiet(deps.agents.status({ id: "run", progress: { done: allChecked, total: all }, text: `${allChecked}/${all} steps` }))
                   yield* showProgress
@@ -238,6 +247,8 @@ export const makeRehearse = (deps: RunDeps) =>
                 { concurrency: "unbounded" },
               )
               yield* quiet(deps.agents.end({ id, ok: true }))
+              testers.get(id)!.state = "done"
+              yield* showTesters
             }),
           { concurrency: "unbounded" },
         )
@@ -340,7 +351,7 @@ export const makeRehearse = (deps: RunDeps) =>
         .filter(({ open }) => open.length > 0)
         .map(({ r, open }) => ({
           id: `rehearse:${r.run}`,
-          title: `Rehearse run ${r.run}: ${plural(open.length, "finding")} ${deps.settings.autoApply ? "to apply" : "the developer chose to apply"}`,
+          title: `Rehearse run ${r.run}: ${plural(open.length, "finding")} ${deps.settings.autoApply ? "to apply" : "the developer sent to zarg"}`,
           detail: [
             r.report ?? "",
             ...open.map((f) => `- ${f.id} ${f.kind} (${f.severity}) on ${f.card}: ${f.notes.join(" / ")}`),
@@ -389,7 +400,7 @@ export const makeRehearse = (deps: RunDeps) =>
           yield* save({ ...r, applying: [...new Set([...r.applying, ...ids])] })
           yield* quiet(deps.agendaChanged)
           yield* refresh
-          return { notice: `${plural(ids.length, "finding")} sent to the driver` }
+          return { notice: `sent ${plural(ids.length, "finding")} to zarg` }
         }
         if (action === "dismiss") {
           for (const id of ids) {

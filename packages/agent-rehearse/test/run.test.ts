@@ -120,8 +120,8 @@ describe("rehearse runs in the plugin", () => {
     expect(rowsNow(t.pushes, "run", "review.findings").map((r) => r.id)).toEqual([id])
     expect(rowsNow(t.pushes, "run", "review.likes")).toEqual([])
     expect(await Effect.runPromise(t.r.finding(id))).toMatchObject({ chosen: false, stale: false })
-    expect(await Effect.runPromise(t.r.act("apply", "review.findings", [id]))).toEqual({ notice: "1 finding sent to the driver" })
-    expect(t.r.agenda()).toEqual([expect.objectContaining({ title: expect.stringContaining("1 finding the developer chose to apply") })])
+    expect(await Effect.runPromise(t.r.act("apply", "review.findings", [id]))).toEqual({ notice: "sent 1 finding to zarg" })
+    expect(t.r.agenda()).toEqual([expect.objectContaining({ title: expect.stringContaining("1 finding the developer sent to zarg") })])
     expect(t.changed()).toBe(1)
     expect(await Effect.runPromise(t.r.finding(id))).toMatchObject({ chosen: true })
   })
@@ -260,7 +260,7 @@ describe("rehearse runs in the plugin", () => {
     const t = await finish()
     const id = t.r.record(t.run)!.findings[0]!.id
     expect(t.pushes.find((p) => p.agent === "run" && p.path === "report")?.data).toEqual({ markdown: "Testers stalled at B." })
-    expect(await Effect.runPromise(t.r.act("apply", "review.findings", [id]))).toEqual({ notice: "1 finding sent to the driver" })
+    expect(await Effect.runPromise(t.r.act("apply", "review.findings", [id]))).toEqual({ notice: "sent 1 finding to zarg" })
     const last = t.pushes.filter((p) => p.agent === "run" && p.path === "review.findings").at(-1)!.data as { rows: ReadonlyArray<{ cells: Record<string, string> }> }
     expect(last.rows[0]!.cells.note).toStartWith("✓ ")
   })
@@ -309,3 +309,11 @@ describe("rehearse runs in the plugin", () => {
   })
 })
 
+
+test("the run's view lists its testers: each with its progress and findings", async () => {
+  const t = await finish()
+  const list = t.pushes.filter((p) => p.agent === "run" && p.path === "testers").at(-1)?.data as { items: ReadonlyArray<{ id: string; text: string; detail?: string; state?: string }> }
+  expect(list.items.map((i) => i.id)).toEqual(t.r.record(t.run)!.personas.map((_, i) => `tester-${i + 1}`))
+  expect(list.items.every((i) => i.state === "done")).toBe(true)
+  expect(list.items[0]!.detail).toMatch(/\d+\/\d+ steps · \d+ found/)
+})

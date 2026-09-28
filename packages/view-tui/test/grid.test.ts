@@ -75,3 +75,8 @@ describe("grid review fixes", () => {
     expect(gridShape(73, 20, true)).toMatchObject({ cols: 1 })
   })
 })
+
+test("one card per run: an agent under another live agent is shown inside its parent, not as its own card", () => {
+  const s = st({ "p:run": plugin("p:run", "running"), "p:t1": plugin("p:t1", "running", { parent: "p:run" }), "p:t2": plugin("p:t2", "done", { parent: "p:run" }) })
+  expect(gridCards(initialUi, s).map((c) => c.id)).toEqual(["p:run"])
+})

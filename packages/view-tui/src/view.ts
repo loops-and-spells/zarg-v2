@@ -219,7 +219,8 @@ export const goBack = (ui: Ui, s: SessionState): Ui => {
 }
 /** The grid's cursor stays on a card that exists. */
 const withGrid = (ui: Ui, s: SessionState): Ui => {
-  const n = Object.values(liveRlms(s)).filter((x) => x.id.includes(":")).length
+  const live = liveRlms(s)
+  const n = Object.values(live).filter((x) => x.id.includes(":") && (x.parent === null || live[x.parent] === undefined)).length
   const cursor = Math.max(0, Math.min(ui.grid.cursor, n - 1))
   return cursor === ui.grid.cursor ? ui : { ...ui, grid: { cursor } }
 }

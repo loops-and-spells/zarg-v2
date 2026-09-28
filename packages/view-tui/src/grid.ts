@@ -74,9 +74,11 @@ const cardOf = (ui: Ui, s: SessionState, n: RlmNode): Card => {
   }
 }
 
-/** Every live plugin agent as a card: attention (unseen first), then running, then finished. zarg and its RLMs are the conversation. */
+/** Every top-level live plugin agent as a card: attention (unseen first), then running, then finished. zarg and its RLMs are the conversation. */
 export const gridCards = (ui: Ui, s: SessionState): ReadonlyArray<Card> => {
-  const nodes = Object.values(liveRlms(s)).filter((n) => n.id.includes(":"))
+  const live = liveRlms(s)
+  // One card per top-level agent: an agent under another live agent (a tester under its run) shows inside its parent.
+  const nodes = Object.values(live).filter((n) => n.id.includes(":") && (n.parent === null || live[n.parent] === undefined))
   const rank = (n: RlmNode) => (n.attention !== undefined ? (ui.seen[n.id] !== n.attention.since ? 0 : 1) : n.status === "running" ? 2 : 3)
   return nodes
     .map((n, i) => ({ n, i }))

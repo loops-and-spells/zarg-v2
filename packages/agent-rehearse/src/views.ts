@@ -9,7 +9,7 @@ export const FINDING_COLUMNS = [
   { id: "note", label: "note" },
 ]
 const ACTIONS = [
-  { id: "apply", label: "Apply", key: "a", on: "selection" },
+  { id: "apply", label: "Send to zarg", key: "a", on: "selection" },
   { id: "dismiss", label: "Dismiss", key: "d", on: "selection" },
 ] as const
 const review = {
@@ -20,22 +20,23 @@ const review = {
     likes: { kind: "table", title: "Likes", columns: FINDING_COLUMNS, selectable: true, actions: ACTIONS },
   },
 } as const
-// A tester's findings join the review queue; the run's repeat every tester's, so they stay out of it.
-const testerReview = { ...review, tabs: { ...review.tabs, findings: { ...review.tabs.findings, review: true } } } as const
+// The run's findings (every tester's, consolidated) join the review queue; a tester's own are the same ones, so they stay out.
+const runReview = { ...review, tabs: { ...review.tabs, findings: { ...review.tabs.findings, review: true } } } as const
 
 /** One tester: its walk (workers), what it checked (steps), its findings. */
 export const TesterView = defineView("tester", {
   progress: { kind: "stats", role: "summary" },
   workers: { kind: "list", role: "primary", title: "Workers" },
   steps: { kind: "log", role: "log", title: "Steps" },
-  review: testerReview,
+  review,
 })
 
-/** The whole run: progress over every tester, the report, every finding. */
+/** The whole run: progress over every tester, its testers, the report, every finding (sent to zarg from here). */
 export const RunView = defineView("run", {
   progress: { kind: "stats", role: "summary" },
-  report: { kind: "text", role: "primary", title: "Report" },
-  review,
+  testers: { kind: "list", role: "primary", title: "Testers" },
+  report: { kind: "text", role: "aside", title: "Report" },
+  review: runReview,
 })
 
 /** The run in one line, in a status panel whatever is open. */
