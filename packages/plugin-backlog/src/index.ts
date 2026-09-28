@@ -102,10 +102,13 @@ export default definePlugin({
     const save = (e: Entry) => files.write(`${DIR}/${e.id}.json`, `${JSON.stringify(e, null, 2)}\n`)
     /** Each entry with its state now: open, or stale once its entity changed (or went). */
     const withStates = (es: ReadonlyArray<Entry>) =>
-      Effect.forEach(es, (e) =>
-        e.state !== undefined
-          ? Effect.succeed({ e, state: e.state })
-          : Effect.map(entities.changed(e.ref).pipe(Effect.orElseSucceed(() => true)), (changed) => ({ e, state: stateOf(e, changed) })), { concurrency: 8 })
+      Effect.gen(function* () {
+        // One lookup for every distinct entity (many entries share a card), not a round trip per entry.
+        const refs = [...new Set(es.filter((e) => e.state === undefined).map((e) => e.ref))]
+        const now = refs.length === 0 ? [] : (yield* entities.many(refs).pipe(Effect.orElseSucceed(() => ({ entities: [], failed: [] })))).entities
+        const current = new Set(now.map((x) => x.ref))
+        return es.map((e) => ({ e, state: e.state ?? stateOf(e, !current.has(e.ref)) }))
+      })
 
     // Each journey's stage: one file each under .zarg/triage (a file that is not a stage is skipped).
     const isStage = Schema.is(StageData)
@@ -166,6 +169,8 @@ export default definePlugin({
       return `Backlogged as ${st.item ?? "a plan"}.`
     }
     let journey: string | undefined
+    // ponytail: grows by one per card version that had feedback shown; clear it when that gets large.
+    const contextOf = new Map<string, string>()
     const refresh = Effect.gen(function* () {
       const all = yield* withStates(yield* load)
       const open = all.filter((x) => x.state === "open").map((x) => x.e)
@@ -196,7 +201,10 @@ export default definePlugin({
           search: [e.id, e.ref, e.persona, e.kind, e.severity, e.note, ...e.journeys].join(" "),
         })),
       })
-      const contexts = yield* Effect.forEach(sorted, (e) => Effect.map(entities.context(target(e.ref)).pipe(Effect.orElseSucceed(() => "")), (c) => [e.id, c] as const), { concurrency: 8 })
+      // Shown entries are open: their ref is the card as it is now, so its context is fixed for that ref.
+      yield* Effect.forEach([...new Set(sorted.map((e) => e.ref))].filter((r) => !contextOf.has(r)), (r) =>
+        Effect.map(entities.context(target(r)).pipe(Effect.orElseSucceed(() => "")), (c) => { contextOf.set(r, c) }), { concurrency: 8, discard: true })
+      const contexts = sorted.map((e) => [e.id, contextOf.get(e.ref) ?? ""] as const)
       const detail = (e: Entry, context: string) =>
         [
           `**${e.kind} · ${e.severity}** · ${e.triage.on ? "on" : "off"} (${e.triage.by === "operator" ? "your call" : "the agent's call"}: ${e.triage.why})`,

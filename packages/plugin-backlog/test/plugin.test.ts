@@ -111,4 +111,20 @@ describe("the backlog's feedback", () => {
     expect(out.count).toBe(1)
     expect(out.ids[1]).toBe("")
   })
+  test("a toggle among 200 entries on 60 cards answers quickly (staleness and context once per card, not per entry)", async () => {
+    const out = await run((seen) => Effect.gen(function* () {
+      yield* setUp
+      const h = yield* PluginHost
+      for (let i = 2; i <= 60; i++) yield* gherkin("add-card", { title: `Operator does thing ${i}`, when: `the operator does thing ${i}`, by: [{ id: "P-0001" }], arrives: { id: "S-0001" }, then: [{ text: `thing ${i} is done` }] })
+      const refs = yield* Effect.forEach(Array.from({ length: 60 }, (_, i) => `gherkin/card:UX-${String(i + 1).padStart(4, "0")}`), (r) => Effect.map(h.entities.get(r), (e) => e.ref))
+      yield* h.invoke("backlog", "file", { entries: Array.from({ length: 200 }, (_, i) => report(refs[i % 60]!, `Report number ${i}.`)) })
+      yield* h.invoke("backlog", "act", { agent: "feedback", action: "open", rows: [] })
+      const id = rows(seen, "feedback")[0]!.id
+      const start = performance.now()
+      yield* h.invoke("backlog", "act", { agent: "feedback", action: "toggle", rows: [id] })
+      return { ms: performance.now() - start, row: rows(seen, "feedback").find((r) => r.id === id)! }
+    }))
+    expect(out.row.on).toBe(false)
+    expect(out.ms).toBeLessThan(500)
+  }, 60000)
 })
