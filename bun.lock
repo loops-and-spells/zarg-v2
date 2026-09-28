@@ -96,6 +96,7 @@
         "@zarg/agent-host": "workspace:*",
         "@zarg/client": "workspace:*",
         "@zarg/decisions": "workspace:*",
+        "@zarg/entities": "workspace:*",
         "@zarg/frontmatter": "workspace:*",
         "@zarg/graph": "workspace:*",
         "@zarg/kernel": "workspace:*",

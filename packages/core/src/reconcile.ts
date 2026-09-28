@@ -22,6 +22,8 @@ export interface ReconcileDeps {
   readonly affected: PhaseDeps["affected"]
   /** The workflow store. Under `.zarg/reconcile/`, which keeps itself out of git. */
   readonly dbFile?: string
+  /** A pass landed these cards (the Planner moves their plans to Review). */
+  readonly onLanded?: (cards: ReadonlyArray<string>) => void
 }
 
 const summary = (r: PassResult) => {
@@ -93,6 +95,7 @@ export const makeReconcile = (deps: ReconcileDeps) =>
                     ? "The pass was interrupted; zarg resumes it on its next start."
                     : "The pass failed; see the driver's agenda."
               if (text !== undefined) for (const d of E.textMessage(`implement-${crypto.randomUUID()}`, "assistant", text)) emit("implement", d)
+              if (exit._tag === "Success" && exit.value.status === "landed" && exit.value.landed.length > 0) deps.onLanded?.(exit.value.landed)
               for (const t of ["plan", "implement"] as const) emit(t, E.runFinished(t, runId))
             }),
           ),

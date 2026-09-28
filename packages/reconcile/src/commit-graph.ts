@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs"
+import { existsSync, rmSync } from "node:fs"
 import { join } from "node:path"
 import { Effect } from "effect"
 import { git, gitRun } from "./git"
@@ -15,4 +15,15 @@ export const commitGraph = (root: string, ids: ReadonlyArray<string>, message: s
     if (staged.code === 0) return undefined
     yield* git(root, ["commit", "-q", "-m", message, "--", ...paths])
     return yield* git(root, ["rev-parse", "HEAD"])
+  })
+
+/** Put these nodes' files back as HEAD has them: tracked ones checked out, new ones removed (a half-applied change). */
+export const restoreGraph = (root: string, ids: ReadonlyArray<string>) =>
+  Effect.gen(function* () {
+    if (ids.length === 0) return
+    const paths = ids.map((id) => `.zarg/graph/nodes/${id}.json`)
+    const tracked = new Set((yield* git(root, ["ls-files", "--", ...paths.map((p) => `:(literal)${p}`)])).split("\n").filter((l) => l.length > 0))
+    const back = paths.filter((p) => tracked.has(p))
+    if (back.length > 0) yield* git(root, ["checkout", "HEAD", "--", ...back.map((p) => `:(literal)${p}`)])
+    for (const p of paths.filter((x) => !tracked.has(x))) rmSync(join(root, p), { force: true })
   })

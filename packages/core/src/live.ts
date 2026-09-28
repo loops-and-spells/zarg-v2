@@ -27,7 +27,8 @@ import { pluginAgents } from "./plugin-agents"
 import { forDriver, makeYolo, PluginControl, pluginHostLayer, trustedAgents, USER_DIR, vaultFrom, ZARG_ROOT } from "./plugins"
 import { STUB_MODEL, stubLayer } from "./stub"
 import { reasonOf, reconcileGate, type ReconcileSettings } from "./phases"
-import { checkoutProblem, gitRun } from "@zarg/reconcile"
+import { checkoutProblem, commitGraph, gitRun, restoreGraph } from "@zarg/reconcile"
+import { makePlanner } from "./planner"
 import { makeReconcile } from "./reconcile"
 import type { ReconcileAnswer } from "./server"
 import { makeThreads } from "./threads"
@@ -97,7 +98,19 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         withGraphLock: (effect) => host.exclusive(effect),
         pluginHost: pluginsFor(root, env, config, sensitive),
         affected: (before, after) => host.affected(before, after),
+        onLanded: (cards) => void Effect.runFork(planner.landed(cards)),
       }).pipe(Effect.provideService(EffectScope.Scope, scope))
+    // The Planner Agent: Ready plans on the Backlog are applied to the graph, then reconcile implements them.
+    const planner = makePlanner({
+      invoke: (plugin, method, params) => host.invoke(plugin, method, params),
+      call: (name, params) => host.call(name, params) as never,
+      exclusive: (effect) => host.exclusive(effect),
+      commit: (ids, message) => commitGraph(root, ids, message),
+      restore: (ids) => restoreGraph(root, ids),
+      notify: () => reconcile?.notify(),
+      reconcileOn: () => reconcile !== undefined,
+      running: () => Effect.map(host.entities.query({ type: "backlog/item", where: { status: "running" } }), (es) => es.map((e) => ({ id: e.id, data: e.data }))),
+    })
     const gate = yield* reconcileGate(root, config.extra, roles)
     // stderr: stdout carries the `ready` handshake a starting client waits for.
     if (!gate.on) yield* Effect.sync(() => console.error(`zarg-core: ${gate.reason}`))
@@ -146,7 +159,11 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     yield* yolo.announce
     yield* announceNav
     // A plugin's agenda changed (findings to take up): the driver wakes if it waits on nothing.
-    control.setAgendaChanged(() => Effect.runFork(main.wake))
+    // The backlog's agenda changing (a plan is Ready) wakes the Planner too.
+    control.setAgendaChanged((plugin) => {
+      Effect.runFork(main.wake)
+      if (plugin === "backlog") Effect.runFork(planner.tick)
+    })
     // Plugins' agents show in main's agents pane, each plugin in its own stream.
     // A plugin agent's view is one its manifest declares; a malformed one fails that agent's start.
     const layoutOf = (plugin: string, view: string) => {
@@ -171,7 +188,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         .pipe(Effect.map((a) => q.options.find((o) => o.id === a.choice)?.id ?? "deny")),
     )
     // Plugins that lack only their load grant: asked about now that main can ask (YOLO loads them without asking).
-    yield* Effect.forkDetach(loadPlugins)
+    yield* Effect.forkDetach(Effect.andThen(loadPlugins, planner.tick))
 
     // @card UX-0058 @card UX-0059
     /** `/reconcile`: turn plan and implement on for this session (the config's section and `enabled` are overridden). */

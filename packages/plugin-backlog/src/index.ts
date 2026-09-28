@@ -1,5 +1,5 @@
 import { Effect, Schema, Semaphore } from "effect"
-import { Config, definePlugin, Entities, Files, PluginFailure, Surfaces, Views } from "@zarg/plugin-sdk"
+import { Agenda, Config, definePlugin, Entities, Files, PluginFailure, Surfaces, Views } from "@zarg/plugin-sdk"
 import { Backlog, FiledEntry, ItemData, Lane, Moved, PlanParams } from "./contract"
 import { parseRef } from "@zarg/entities"
 import { ENTRY_ID, type Entry, entryId, stateOf, target, upsert } from "./feedback"
@@ -68,6 +68,8 @@ export default definePlugin({
     const files = yield* Files
     const views = yield* Views
     const surfaces = yield* Surfaces
+    // A plan that becomes Ready says so: the core's Planner wakes on it.
+    const ready = Effect.ignore((yield* Agenda).changed)
     const entities = yield* Entities
     yield* Config
     // Files that are not entries (a hand edit, a merge, another format): skipped, and named on the agenda.
@@ -207,7 +209,7 @@ export default definePlugin({
         yield* saveItem(needs !== undefined ? { ...next, needs } : next)
         if (to === "done") yield* markFeedback(i.feedback, "closed")
         return `${id} → ${LANE_TITLES[to]}`
-      }).pipe(writing.withPermits(1))
+      }).pipe(writing.withPermits(1), Effect.tap(() => (to === "ready" ? ready : Effect.void)))
     const drop = (id: string) =>
       Effect.gen(function* () {
         const i = (yield* loadItems).find((x) => x.id === id)
@@ -222,7 +224,7 @@ export default definePlugin({
         yield* saveItem({ ...p, id, status: "ready", events: [{ what: "planned", by: "Triage Agent" }] })
         yield* markFeedback(p.feedback, "planned")
         return { id }
-      }).pipe(writing.withPermits(1), Effect.mapError(fail))
+      }).pipe(writing.withPermits(1), Effect.tap(() => ready), Effect.mapError(fail))
     const next = () =>
       Effect.gen(function* () {
         const items = (yield* loadItems).filter((i) => i.dropped !== true)
