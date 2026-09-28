@@ -11,8 +11,8 @@
   ],
   "id": "UX-0006",
   "props": {
-    "title": "Agent retries with the hint",
-    "when": "the agent retries using the hint"
+    "title": "CLI actor retries with the hint",
+    "when": "the CLI actor retries using the hint"
   },
   "type": "gherkin/card"
 }

@@ -16,7 +16,7 @@
   "id": "UX-0056",
   "props": {
     "title": "Plans are written",
-    "when": "the planner finishes every changed card"
+    "when": "the Planner Agent finishes every changed card"
   },
   "type": "gherkin/card"
 }

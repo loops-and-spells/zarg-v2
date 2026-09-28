@@ -15,8 +15,8 @@
   ],
   "id": "UX-0017",
   "props": {
-    "title": "Driver merges compatible edits",
-    "when": "the driver finds both edits compatible"
+    "title": "Driver Agent merges compatible edits",
+    "when": "the Driver Agent finds both edits compatible"
   },
   "type": "gherkin/card"
 }

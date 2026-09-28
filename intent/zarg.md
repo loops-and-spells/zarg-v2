@@ -6,7 +6,7 @@
 
 ## Problem
 
-Building software with coding agents still means driving every step yourself: writing requirements, splitting work, prompting implementation, reviewing code, re-explaining context that got lost. The agent's memory is a stream of chat that grows until it is truncated, so decisions drift and work is redone. What the developer actually owns is the intent: what the product should do and why. Everything after that is mechanical enough to automate, but no harness separates the two.
+Building software with coding agents still means driving every step yourself: writing requirements, splitting work, prompting implementation, reviewing code, re-explaining context that got lost. The agent's memory is a stream of chat that grows until it is truncated, so decisions drift and work is redone. What the operator actually owns is the intent: what the product should do and why. Everything after that is mechanical enough to automate, but no harness separates the two.
 
 ## Proposed outcome
 
@@ -32,7 +32,11 @@ Success: you describe what you want, answer a few good questions, and working, v
 
 ## Affected users and systems
 
-- The developer, through the zarg TUI (and any AG-UI client).
+- The operator, through the zarg TUI (and any AG-UI client).
+- A CLI actor: a coding agent (Claude Code, Codex) working through the zarg CLI and its skills.
+- The Driver Agent, zarg's conversational agent, through its services (Graph, Inquire, Agenda).
+- The Planner Agent and the Implementer Agent, through reconcile passes.
+- A Plugin Agent: a sandboxed agent (like rehearse's testers) working through the SDK's powers.
 - The project's git repository: intents, the feature graph (`.zarg/graph`) and code share one history. Each implement pass lands one commit containing the cards, their plans and their code.
 - Model providers: zarg-router (local models, the choice model) and OpenRouter.
 

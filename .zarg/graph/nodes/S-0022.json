@@ -2,7 +2,7 @@
   "edges": [],
   "id": "S-0022",
   "props": {
-    "text": "the driver's agenda shows the reconcile finding"
+    "text": "the Driver Agent's agenda shows the reconcile finding"
   },
   "type": "gherkin/state"
 }

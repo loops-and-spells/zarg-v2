@@ -11,8 +11,8 @@
   ],
   "id": "UX-0021",
   "props": {
-    "title": "The implementer updates the code",
-    "when": "the implementer codes each plan in its own worktree"
+    "title": "Implementer Agent updates the code",
+    "when": "the Implementer Agent codes each plan in its own worktree"
   },
   "type": "gherkin/card"
 }

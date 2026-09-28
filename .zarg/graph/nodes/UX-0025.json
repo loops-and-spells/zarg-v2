@@ -11,8 +11,8 @@
   ],
   "id": "UX-0025",
   "props": {
-    "title": "Driver takes up a reconcile finding",
-    "when": "the driver reads the agenda again"
+    "title": "Driver Agent takes up a reconcile finding",
+    "when": "the Driver Agent reads the agenda again"
   },
   "type": "gherkin/card"
 }

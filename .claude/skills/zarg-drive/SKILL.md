@@ -17,7 +17,7 @@ Run the CLI from the repo root as `mise run -q zarg -- <command>`. Output is JSO
 - An outcome branch (success, failure) is one card per outcome, each with its own When.
 - Mark a state `entry` when the user can start there, `terminal` when nothing needs to follow it.
 - Clauses have at most 15 words, never contain "if" (make one card per case), and avoid "and".
-- The persona is **the operator**: the person using zarg (titles start "Operator …"). Never "the developer", which also means zarg's contributors. Say what the operator sees and does, never how zarg is built (no packages, renderers or libraries).
+- Personas (listed in `intent/zarg.md`): **the operator**, the person using zarg (titles "Operator …"; never "the developer", which also means zarg's contributors); **a CLI actor**, a coding agent working through the zarg CLI and its skills ("CLI actor …"); and zarg's internal agents, each "the X Agent": the Driver Agent, the Planner Agent, the Implementer Agent, a Plugin Agent. Say what the persona sees and does, never how zarg is built (no packages, renderers or libraries).
 
 ## Loop
 

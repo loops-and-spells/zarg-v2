@@ -12,7 +12,7 @@
   "id": "UX-0007",
   "props": {
     "title": "A duplicate link is refused",
-    "when": "the agent links a card to the same state twice"
+    "when": "the CLI actor links a card to the same state twice"
   },
   "type": "gherkin/card"
 }

@@ -11,8 +11,8 @@
   ],
   "id": "UX-0010",
   "props": {
-    "title": "Driver asks the next question",
-    "when": "the driver reads the agenda again"
+    "title": "Driver Agent asks the next question",
+    "when": "the Driver Agent reads the agenda again"
   },
   "type": "gherkin/card"
 }

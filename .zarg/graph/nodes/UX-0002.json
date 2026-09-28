@@ -15,8 +15,8 @@
   ],
   "id": "UX-0002",
   "props": {
-    "title": "Agent adds a card",
-    "when": "the agent adds a card through a tool call"
+    "title": "CLI actor adds a card",
+    "when": "the CLI actor adds a card through a tool call"
   },
   "type": "gherkin/card"
 }

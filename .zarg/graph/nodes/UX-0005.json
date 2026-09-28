@@ -11,8 +11,8 @@
   ],
   "id": "UX-0005",
   "props": {
-    "title": "Agent lists changes since a sync",
-    "when": "the agent asks for changes since a git ref"
+    "title": "CLI actor lists changes since a sync",
+    "when": "the CLI actor asks for changes since a git ref"
   },
   "type": "gherkin/card"
 }

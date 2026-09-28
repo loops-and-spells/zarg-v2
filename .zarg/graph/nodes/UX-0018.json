@@ -11,8 +11,8 @@
   ],
   "id": "UX-0018",
   "props": {
-    "title": "Driver asks about conflicting edits",
-    "when": "the driver finds the edits conflicting"
+    "title": "Driver Agent asks about conflicting edits",
+    "when": "the Driver Agent finds the edits conflicting"
   },
   "type": "gherkin/card"
 }

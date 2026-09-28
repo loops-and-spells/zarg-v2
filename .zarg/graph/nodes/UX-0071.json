@@ -15,7 +15,7 @@
   ],
   "id": "UX-0071",
   "props": {
-    "title": "Driver chooses for the operator",
+    "title": "Driver Agent chooses for the operator",
     "when": "the conversation settles on one option"
   },
   "type": "gherkin/card"

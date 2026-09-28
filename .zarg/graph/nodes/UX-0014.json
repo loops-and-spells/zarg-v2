@@ -15,8 +15,8 @@
   ],
   "id": "UX-0014",
   "props": {
-    "title": "Driver asks what next",
-    "when": "the driver finds the agenda empty"
+    "title": "Driver Agent asks what next",
+    "when": "the Driver Agent finds the agenda empty"
   },
   "type": "gherkin/card"
 }

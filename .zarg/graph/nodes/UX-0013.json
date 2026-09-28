@@ -11,8 +11,8 @@
   ],
   "id": "UX-0013",
   "props": {
-    "title": "Driver responds to the interjection",
-    "when": "the driver weighs the message with the agenda"
+    "title": "Driver Agent responds to the interjection",
+    "when": "the Driver Agent weighs the message with the agenda"
   },
   "type": "gherkin/card"
 }

@@ -11,8 +11,8 @@
   ],
   "id": "UX-0001",
   "props": {
-    "title": "Agent reads the agenda",
-    "when": "the agent asks zarg for the agenda"
+    "title": "CLI actor reads the agenda",
+    "when": "the CLI actor asks zarg for the agenda"
   },
   "type": "gherkin/card"
 }

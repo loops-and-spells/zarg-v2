@@ -11,8 +11,8 @@
   ],
   "id": "UX-0004",
   "props": {
-    "title": "Agent rewords a state",
-    "when": "the agent rewords a state"
+    "title": "CLI actor rewords a state",
+    "when": "the CLI actor rewords a state"
   },
   "type": "gherkin/card"
 }

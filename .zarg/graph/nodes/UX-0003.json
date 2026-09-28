@@ -12,7 +12,7 @@
   "id": "UX-0003",
   "props": {
     "title": "A conditional clause is refused",
-    "when": "the agent adds a conditional clause"
+    "when": "the CLI actor adds a conditional clause"
   },
   "type": "gherkin/card"
 }

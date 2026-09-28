@@ -11,8 +11,8 @@
   ],
   "id": "UX-0038",
   "props": {
-    "title": "Driver starts after warm-up",
-    "when": "the driver reads the agenda"
+    "title": "Driver Agent starts after warm-up",
+    "when": "the Driver Agent reads the agenda"
   },
   "type": "gherkin/card"
 }

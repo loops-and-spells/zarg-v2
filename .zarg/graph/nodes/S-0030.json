@@ -2,7 +2,7 @@
   "edges": [],
   "id": "S-0030",
   "props": {
-    "text": "the driver offers provider setup or another model"
+    "text": "the Driver Agent offers provider setup or another model"
   },
   "type": "gherkin/state"
 }

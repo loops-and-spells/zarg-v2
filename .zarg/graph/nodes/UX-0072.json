@@ -12,7 +12,7 @@
   "id": "UX-0072",
   "props": {
     "title": "Operator sees zarg working",
-    "when": "the driver prepares a reply"
+    "when": "the Driver Agent prepares a reply"
   },
   "type": "gherkin/card"
 }
