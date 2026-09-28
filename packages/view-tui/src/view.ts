@@ -22,6 +22,8 @@ export interface Ui {
   readonly grid: { readonly cursor: number }
   /** The review queue: the highlighted row (over every group) and the selected rows' keys. */
   readonly review: { readonly cursor: number; readonly selected: ReadonlyArray<string> }
+  /** ^k: the query typed and the highlighted entry, while the palette is open. */
+  readonly palette?: { readonly query: string; readonly pick: number }
   /** The selected picker row. */
   readonly pick: number
   /** The inquiry `pick` belongs to; a new inquiry resets the selection. */

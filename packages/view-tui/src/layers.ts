@@ -1,6 +1,8 @@
 import type { SessionState } from "@zarg/client"
 import { dispatch, focused, type InputKey, type InputLayer, keyFor, type KeyHint, leafOf, printable, startUi, type ViewState, type ViewUi } from "@zarg/view"
 import { gridCards } from "./grid"
+import { SLASH_COMMANDS } from "./commands"
+import { paletteEntries } from "./palette"
 import { reviewActs, reviewGroups } from "./review"
 import { viewKeys } from "./view-keys"
 import {
@@ -15,6 +17,7 @@ import {
   POPOVER_GUARD_MS,
   focusBar,
   goBack,
+  goTo,
   type Key,
   onAgentsKey,
   onSlashKey,
@@ -134,6 +137,7 @@ export const SHELL: ReadonlyArray<Layer> = [
         return ui.lastCtrlC !== undefined && w.now - ui.lastCtrlC < EXIT_WINDOW_MS ? { ui, action: { type: "exit" } } : { ui: { ...ui, lastCtrlC: w.now }, action: { type: "stop" } }
       if (k.meta && ARROWS.has(k.name)) return { ui: moveTile(ui, w.s, k.name) }
       if (k.meta && k.name === "a") return { ui: { ...ui, focus: "agents" } }
+      if (k.ctrl && k.name === "k") return { ui: { ...ui, palette: { query: "", pick: 0 } } }
       if (k.meta && k.name === "v") return { ui: { ...ui, sheet: false, focus: "tile" } }
       if (k.meta && k.name === "m") {
         if (ui.focus !== "bar") return { ui: focusBar(ui, w.s) }
@@ -178,6 +182,35 @@ export const SHELL: ReadonlyArray<Layer> = [
         return { ui: { ...ui, popover: { ...ui.popover, answering: head.id } }, action: { type: "answer-prompt", id: head.id, choice: option.id } }
       }
       // Strictly first in, first out: a grant stays until answered (Esc included), and nothing jumps the queue.
+      return { ui }
+    },
+  },
+  {
+    // ^k: it owns every key but the global ones while open; typing filters, ⏎ goes.
+    id: "palette",
+    exclusive: true,
+    when: (ui) => ui.palette !== undefined,
+    hints: () => [{ keys: "↑↓", does: "pick" }, { keys: "Enter", does: "go" }, { keys: "Esc", does: "close" }],
+    handle: (ui, w, k) => {
+      const p = ui.palette!
+      const close = (): Ui => {
+        const { palette: _, ...rest } = ui
+        return rest
+      }
+      if (k.name === "escape") return { ui: close() }
+      const entries = paletteEntries(w.s, p.query, SLASH_COMMANDS)
+      const pick = Math.min(p.pick, Math.max(0, entries.length - 1))
+      if (k.name === "down") return { ui: { ...ui, palette: { ...p, pick: Math.min(entries.length - 1, pick + 1) } } }
+      if (k.name === "up") return { ui: { ...ui, palette: { ...p, pick: Math.max(0, pick - 1) } } }
+      if (k.name === "backspace") return { ui: { ...ui, palette: { query: p.query.slice(0, -1), pick: 0 } } }
+      if (printable(k)) return { ui: { ...ui, palette: { query: p.query + (k.name === "space" ? " " : k.name), pick: 0 } } }
+      if (k.name === "return") {
+        const e = entries[pick]
+        if (e === undefined) return { ui }
+        if ("command" in e.go) return { ui: close(), action: { type: "command", text: e.go.command } }
+        const to = e.go.main === "agent" && e.go.viewing !== undefined ? openAgent(close(), w.s, e.go.viewing) : goTo(close(), e.go.main)
+        return { ui: { ...to, sheet: false, focus: "tile" } }
+      }
       return { ui }
     },
   },
