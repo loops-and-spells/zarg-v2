@@ -1,0 +1,34 @@
+import { parseRef, versionOf } from "@zarg/entities"
+import type { FeedbackState, FiledEntry } from "./contract"
+
+/** A feedback entry as the backlog keeps it: the report, how often it came, and the triage (whose call it is). */
+export type Entry = Omit<FiledEntry, "triage"> & {
+  readonly id: string
+  readonly count: number
+  readonly triage: { readonly on: boolean; readonly why: string; readonly by: "agent" | "operator" }
+  /** Set once a plan takes it (`planned`) or it is resolved (`closed`); otherwise its state follows its ref. */
+  readonly state?: "planned" | "closed"
+}
+
+const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim()
+/** One report on one version of one entity: the same words again are the same entry. */
+export const entryId = (f: Pick<FiledEntry, "ref" | "kind" | "note">) => `F-${versionOf({ ref: f.ref, kind: f.kind, note: norm(f.note) }).slice(0, 8)}`
+
+/** File a report: new, or counted again; the operator's call stands, the agent's is replaced by its latest. */
+export const upsert = (had: Entry | undefined, f: FiledEntry): Entry =>
+  had === undefined
+    ? { ...f, id: entryId(f), count: 1, triage: { ...f.triage, by: "agent" } }
+    : { ...had, count: had.count + 1, journeys: [...new Set([...had.journeys, ...f.journeys])], triage: had.triage.by === "operator" ? had.triage : { ...f.triage, by: "agent" } }
+
+export const stateOf = (e: Entry, changed: boolean): FeedbackState => e.state ?? (changed ? "stale" : "open")
+
+/** The ref without its version (how views name the entity, so its label is found). */
+export const target = (ref: string) => {
+  const r = parseRef(ref)
+  return r === undefined ? ref : `${r.type}:${r.id}`
+}
+/** A malformed file is not an entry. */
+export const isEntry = (v: unknown): v is Entry => {
+  const e = v as Partial<Entry> | null
+  return e !== null && typeof e === "object" && typeof e.id === "string" && typeof e.ref === "string" && typeof e.note === "string" && typeof e.triage?.on === "boolean" && Array.isArray(e.journeys)
+}

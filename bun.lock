@@ -184,6 +184,20 @@
         "@zarg/plugin-sdk": "workspace:*",
       },
     },
+    "packages/plugin-backlog": {
+      "name": "@zarg/plugin-backlog",
+      "dependencies": {
+        "@zarg/entities": "workspace:*",
+        "@zarg/plugin-sdk": "workspace:*",
+        "effect": "^4.0.0-rc.117",
+      },
+      "devDependencies": {
+        "@effect/platform-bun": "^4.0.0-rc.117",
+        "@zarg/graph": "workspace:*",
+        "@zarg/plugin": "workspace:*",
+        "@zarg/plugin-gherkin": "workspace:*",
+      },
+    },
     "packages/plugin-gherkin": {
       "name": "@zarg/plugin-gherkin",
       "dependencies": {
@@ -411,6 +425,8 @@
     "@zarg/model": ["@zarg/model@workspace:packages/model"],
 
     "@zarg/plugin": ["@zarg/plugin@workspace:packages/plugin"],
+
+    "@zarg/plugin-backlog": ["@zarg/plugin-backlog@workspace:packages/plugin-backlog"],
 
     "@zarg/plugin-gherkin": ["@zarg/plugin-gherkin@workspace:packages/plugin-gherkin"],
 
