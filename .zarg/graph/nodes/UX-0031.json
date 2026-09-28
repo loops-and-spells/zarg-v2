@@ -11,8 +11,8 @@
   ],
   "id": "UX-0031",
   "props": {
-    "title": "Developer chooses to set up the provider",
-    "when": "the developer chooses provider setup"
+    "title": "Operator chooses to set up the provider",
+    "when": "the operator chooses provider setup"
   },
   "type": "gherkin/card"
 }

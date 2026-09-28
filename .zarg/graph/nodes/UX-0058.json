@@ -15,8 +15,8 @@
   ],
   "id": "UX-0058",
   "props": {
-    "title": "Developer turns reconcile on",
-    "when": "the developer types /reconcile"
+    "title": "Operator turns reconcile on",
+    "when": "the operator types /reconcile"
   },
   "type": "gherkin/card"
 }

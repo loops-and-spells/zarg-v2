@@ -11,8 +11,8 @@
   ],
   "id": "UX-0063",
   "props": {
-    "title": "Developer allows it once",
-    "when": "the developer picks allow once"
+    "title": "Operator allows it once",
+    "when": "the operator picks allow once"
   },
   "type": "gherkin/card"
 }

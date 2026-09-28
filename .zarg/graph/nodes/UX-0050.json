@@ -11,8 +11,8 @@
   ],
   "id": "UX-0050",
   "props": {
-    "title": "Landing waits for the developer",
-    "when": "the developer has uncommitted edits in its files"
+    "title": "Landing waits for the operator",
+    "when": "the operator has uncommitted edits in its files"
   },
   "type": "gherkin/card"
 }

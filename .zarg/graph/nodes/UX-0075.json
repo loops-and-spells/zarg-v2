@@ -15,7 +15,7 @@
   ],
   "id": "UX-0075",
   "props": {
-    "title": "Developer reads zarg's formatted reply",
+    "title": "Operator reads zarg's formatted reply",
     "when": "zarg replies with Markdown"
   },
   "type": "gherkin/card"

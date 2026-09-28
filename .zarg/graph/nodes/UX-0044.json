@@ -15,8 +15,8 @@
   ],
   "id": "UX-0044",
   "props": {
-    "title": "Developer stops an agent",
-    "when": "the developer stops an agent"
+    "title": "Operator stops an agent",
+    "when": "the operator stops an agent"
   },
   "type": "gherkin/card"
 }

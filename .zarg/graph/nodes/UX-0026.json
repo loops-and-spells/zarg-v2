@@ -15,8 +15,8 @@
   ],
   "id": "UX-0026",
   "props": {
-    "title": "Developer sets up a provider plugin",
-    "when": "the developer opens a provider plugin's setup"
+    "title": "Operator sets up a provider plugin",
+    "when": "the operator opens a provider plugin's setup"
   },
   "type": "gherkin/card"
 }

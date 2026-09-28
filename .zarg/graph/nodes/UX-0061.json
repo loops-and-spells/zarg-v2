@@ -11,8 +11,8 @@
   ],
   "id": "UX-0061",
   "props": {
-    "title": "Developer approves a plugin",
-    "when": "the developer approves its listed scopes"
+    "title": "Operator approves a plugin",
+    "when": "the operator approves its listed scopes"
   },
   "type": "gherkin/card"
 }

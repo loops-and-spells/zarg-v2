@@ -11,8 +11,8 @@
   ],
   "id": "UX-0011",
   "props": {
-    "title": "Developer types their own answer",
-    "when": "the developer types their own answer"
+    "title": "Operator types their own answer",
+    "when": "the operator types their own answer"
   },
   "type": "gherkin/card"
 }

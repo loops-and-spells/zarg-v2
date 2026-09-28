@@ -11,8 +11,8 @@
   ],
   "id": "UX-0074",
   "props": {
-    "title": "Developer folds an agent's children",
-    "when": "the developer collapses an agent"
+    "title": "Operator folds an agent's children",
+    "when": "the operator collapses an agent"
   },
   "type": "gherkin/card"
 }

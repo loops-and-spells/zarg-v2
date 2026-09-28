@@ -11,8 +11,8 @@
   ],
   "id": "UX-0035",
   "props": {
-    "title": "Developer picks a model",
-    "when": "the developer picks a model for the role"
+    "title": "Operator picks a model",
+    "when": "the operator picks a model for the role"
   },
   "type": "gherkin/card"
 }

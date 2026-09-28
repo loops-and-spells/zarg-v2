@@ -15,8 +15,8 @@
   ],
   "id": "UX-0067",
   "props": {
-    "title": "Developer turns on YOLO",
-    "when": "the developer runs /yolo on"
+    "title": "Operator turns on YOLO",
+    "when": "the operator runs /yolo on"
   },
   "type": "gherkin/card"
 }

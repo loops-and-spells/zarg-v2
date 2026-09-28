@@ -15,8 +15,8 @@
   ],
   "id": "UX-0012",
   "props": {
-    "title": "Developer chats about the question",
-    "when": "the developer picks Chat about this"
+    "title": "Operator chats about the question",
+    "when": "the operator picks Chat about this"
   },
   "type": "gherkin/card"
 }

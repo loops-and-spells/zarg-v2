@@ -19,8 +19,8 @@
   ],
   "id": "UX-0040",
   "props": {
-    "title": "Developer watches agents work",
-    "when": "the developer opens the activity view"
+    "title": "Operator watches agents work",
+    "when": "the operator opens the activity view"
   },
   "type": "gherkin/card"
 }

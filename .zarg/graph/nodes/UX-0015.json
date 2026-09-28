@@ -15,8 +15,8 @@
   ],
   "id": "UX-0015",
   "props": {
-    "title": "Developer picks a topic",
-    "when": "the developer picks a topic"
+    "title": "Operator picks a topic",
+    "when": "the operator picks a topic"
   },
   "type": "gherkin/card"
 }

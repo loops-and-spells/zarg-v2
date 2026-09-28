@@ -16,7 +16,7 @@
   "id": "UX-0036",
   "props": {
     "title": "A model without tool calls is refused",
-    "when": "the developer picks a model without tool calling"
+    "when": "the operator picks a model without tool calling"
   },
   "type": "gherkin/card"
 }

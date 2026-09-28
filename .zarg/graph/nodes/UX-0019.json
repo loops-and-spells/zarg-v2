@@ -11,8 +11,8 @@
   ],
   "id": "UX-0019",
   "props": {
-    "title": "Developer picks a version",
-    "when": "the developer picks a version"
+    "title": "Operator picks a version",
+    "when": "the operator picks a version"
   },
   "type": "gherkin/card"
 }

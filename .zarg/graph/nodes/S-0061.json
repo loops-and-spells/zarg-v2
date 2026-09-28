@@ -2,7 +2,7 @@
   "edges": [],
   "id": "S-0061",
   "props": {
-    "text": "the plugin waits for the developer's approval"
+    "text": "the plugin waits for the operator's approval"
   },
   "type": "gherkin/state"
 }

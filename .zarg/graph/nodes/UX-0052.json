@@ -12,7 +12,7 @@
   "id": "UX-0052",
   "props": {
     "title": "The branch moved during the pass",
-    "when": "the developer commits during the pass"
+    "when": "the operator commits during the pass"
   },
   "type": "gherkin/card"
 }

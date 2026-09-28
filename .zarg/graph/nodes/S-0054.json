@@ -3,7 +3,7 @@
   "id": "S-0054",
   "props": {
     "terminal": true,
-    "text": "the implementation commit lands on the developer's branch"
+    "text": "the implementation commit lands on the operator's branch"
   },
   "type": "gherkin/state"
 }

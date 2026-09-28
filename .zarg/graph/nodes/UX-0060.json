@@ -15,8 +15,8 @@
   ],
   "id": "UX-0060",
   "props": {
-    "title": "Developer installs a plugin",
-    "when": "the developer runs zarg plugin add"
+    "title": "Operator installs a plugin",
+    "when": "the operator runs zarg plugin add"
   },
   "type": "gherkin/card"
 }

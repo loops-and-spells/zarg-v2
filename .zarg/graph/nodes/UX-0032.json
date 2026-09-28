@@ -11,8 +11,8 @@
   ],
   "id": "UX-0032",
   "props": {
-    "title": "Developer removes a provider's key",
-    "when": "the developer clears a provider plugin's secret"
+    "title": "Operator removes a provider's key",
+    "when": "the operator clears a provider plugin's secret"
   },
   "type": "gherkin/card"
 }

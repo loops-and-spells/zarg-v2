@@ -11,8 +11,8 @@
   ],
   "id": "UX-0073",
   "props": {
-    "title": "Developer inspects an agent",
-    "when": "the developer highlights an agent"
+    "title": "Operator inspects an agent",
+    "when": "the operator highlights an agent"
   },
   "type": "gherkin/card"
 }

@@ -11,7 +11,7 @@
   ],
   "id": "UX-0072",
   "props": {
-    "title": "Developer sees zarg working",
+    "title": "Operator sees zarg working",
     "when": "the driver prepares a reply"
   },
   "type": "gherkin/card"
