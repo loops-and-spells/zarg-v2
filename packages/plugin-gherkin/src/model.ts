@@ -61,3 +61,19 @@ export const findPersona = (snap: Snapshot.Snapshot, ref: { readonly id: string 
   }
   return personas(snap).find((p) => normalize(personaName(p)) === normalize(ref.name))
 }
+
+export const JOURNEY = "gherkin/journey"
+export const IN = "gherkin/in"
+
+/** A named journey: the cards tagged with it (a card can be in several). */
+export const JourneyProps = Schema.Struct({ name: Schema.NonEmptyString })
+
+export const journeys = (snap: Snapshot.Snapshot) => Snapshot.byType(snap, JOURNEY)
+export const journeyName = (n: Node): string => String(n.props.name ?? "")
+export const findJourney = (snap: Snapshot.Snapshot, ref: { readonly id: string } | { readonly name: string }): Node | undefined => {
+  if ("id" in ref) {
+    const n = snap.nodes.get(ref.id)
+    return n?.type === JOURNEY ? n : undefined
+  }
+  return journeys(snap).find((j) => normalize(journeyName(j)) === normalize(ref.name))
+}

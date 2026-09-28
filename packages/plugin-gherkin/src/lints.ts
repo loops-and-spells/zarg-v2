@@ -1,6 +1,6 @@
 import type { Node } from "@zarg/graph/pure"
 import type { Finding, Lint } from "./kit"
-import { CARD, normalize, PERSONA, personaName, personas, similarity, STATE, states, text } from "./model"
+import { CARD, JOURNEY, journeyName, journeys, normalize, PERSONA, personaName, personas, similarity, STATE, states, text } from "./model"
 
 const MAX_WORDS = 15
 
@@ -66,3 +66,13 @@ export const personaShape: Lint = (ctx) =>
       }
       return out
     })
+
+/** A journey name is unique (case does not matter). */
+export const journeyShape: Lint = (ctx) =>
+  touched(ctx)
+    .filter((n) => n.type === JOURNEY)
+    .flatMap((n): ReadonlyArray<Finding> =>
+      journeys(ctx.after)
+        .filter((o) => o.id !== n.id && normalize(journeyName(o)) === normalize(journeyName(n)))
+        .map((o) => ({ severity: "error" as const, code: "duplicate-journey", message: `${n.id} has the name of ${o.id} ("${journeyName(o)}"); use ${o.id}`, about: [n.id, o.id] })),
+    )

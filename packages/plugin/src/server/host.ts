@@ -159,7 +159,7 @@ const scrub = (value: unknown, secrets: ReadonlySet<string>): unknown => {
 }
 
 /** Methods the host calls on graph plugins; never offered as tools. */
-const RESERVED = new Set(["validate", "lint", "agenda", "suggest", "render", "affected", "stories", "step", "act", "finding", "resolved", "stop"])
+const RESERVED = new Set(["validate", "lint", "agenda", "suggest", "render", "affected", "stories", "step", "personas", "journeys", "act", "finding", "resolved", "stop"])
 const IDLE_MS = 10 * 60_000
 const RESTART_WINDOW_MS = 10 * 60_000
 const MAX_RESTARTS = 3

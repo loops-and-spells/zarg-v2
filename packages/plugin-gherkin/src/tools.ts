@@ -1,7 +1,7 @@
 import { Effect, Schema } from "effect"
 import { type Change, type Node, Put, Remove, Snapshot } from "@zarg/graph/pure"
 import { tool, ToolError } from "./kit"
-import { ARRIVES, BY, CARD, findPersona, findStateByText, GIVEN, PERSONA, personaName, personas, STATE, THEN } from "./model"
+import { ARRIVES, BY, CARD, findJourney, findPersona, findStateByText, GIVEN, IN, JOURNEY, journeyName, journeys, PERSONA, personaName, personas, STATE, THEN } from "./model"
 
 /** Point at an existing state by id, or describe one by text (reused if the text already exists). */
 const StateRef = Schema.Union([Schema.Struct({ id: Schema.String }), Schema.Struct({ text: Schema.NonEmptyString })]).annotate({
@@ -9,8 +9,20 @@ const StateRef = Schema.Union([Schema.Struct({ id: Schema.String }), Schema.Stru
 })
 type StateRef = typeof StateRef.Type
 
-const EdgeName = Schema.Literals(["arrives", "given", "then", "by"])
-const edgeType = { arrives: ARRIVES, given: GIVEN, then: THEN, by: BY } as const
+const EdgeName = Schema.Literals(["arrives", "given", "then", "by", "in"])
+const edgeType = { arrives: ARRIVES, given: GIVEN, then: THEN, by: BY, in: IN } as const
+
+/** A journey by {id} or by {name} (case does not matter). */
+const JourneyRef = Schema.Union([Schema.Struct({ id: Schema.String }), Schema.Struct({ name: Schema.NonEmptyString })]).annotate({
+  description: "A journey by {id}, or by {name}.",
+})
+type JourneyRef = typeof JourneyRef.Type
+const knownJourneys = (snap: Snapshot.Snapshot) => journeys(snap).map((j) => `${j.id} ${journeyName(j)}`).join(", ") || "none yet (add one with add-journey)"
+const journeyOf = (snap: Snapshot.Snapshot, ref: JourneyRef): Effect.Effect<string, ToolError> => {
+  const n = findJourney(snap, ref)
+  return n !== undefined ? Effect.succeed(n.id) : Effect.fail(new ToolError({ message: `${"id" in ref ? ref.id : `"${ref.name}"`} is not a journey; known: ${knownJourneys(snap)}` }))
+}
+const JourneyName = Schema.NonEmptyString.annotate({ description: "Unique (case does not matter)." })
 
 /** A persona by {id} or by {name} (case does not matter). */
 const PersonaRef = Schema.Union([Schema.Struct({ id: Schema.String }), Schema.Struct({ name: Schema.NonEmptyString })]).annotate({
@@ -109,6 +121,26 @@ export const editPersona = tool({
   run: ({ id, ...patch }, snap) => Effect.map(getNode(snap, id, PERSONA), (n) => ({ changes: [Put({ ...n, props: { ...n.props, ...patch } })], message: `updated ${id}` })),
 })
 
+export const addJourney = tool({
+  name: "add-journey",
+  description: "Add a journey: a name cards can be tagged with (link {edge: \"in\"}); a card can be in several.",
+  params: Schema.Struct({ name: JourneyName }),
+  run: (p, snap) =>
+    Effect.gen(function* () {
+      const existing = findJourney(snap, { name: p.name })
+      if (existing !== undefined) return yield* new ToolError({ message: `${existing.id} is already called "${journeyName(existing)}"; use it` })
+      const id = Snapshot.nextId(snap, "J")
+      return { changes: [Put({ id, type: JOURNEY, props: { name: p.name }, edges: [] })], message: `created ${id}` }
+    }),
+})
+
+export const editJourney = tool({
+  name: "edit-journey",
+  description: "Rename a journey.",
+  params: Schema.Struct({ id: Schema.String, name: JourneyName }),
+  run: ({ id, name }, snap) => Effect.map(getNode(snap, id, JOURNEY), (n) => ({ changes: [Put({ ...n, props: { ...n.props, name } })], message: `updated ${id}` })),
+})
+
 // @card UX-0002
 export const addCard = tool({
   name: "add-card",
@@ -162,15 +194,16 @@ export const editCard = tool({
 
 export const link = tool({
   name: "link",
-  description: "Connect a card to a state as arrives (replaces the current one), given or then; or to a persona as by.",
-  params: Schema.Struct({ card: Schema.String, edge: EdgeName, state: Schema.optionalKey(StateRef), persona: Schema.optionalKey(PersonaRef) }),
+  description: "Connect a card to a state as arrives (replaces the current one), given or then; to a persona as by; or to a journey as in.",
+  params: Schema.Struct({ card: Schema.String, edge: EdgeName, state: Schema.optionalKey(StateRef), persona: Schema.optionalKey(PersonaRef), journey: Schema.optionalKey(JourneyRef) }),
   run: (p, snap) =>
     Effect.gen(function* () {
       const card = yield* getNode(snap, p.card, CARD)
       if (p.edge === "by" && p.persona === undefined) return yield* new ToolError({ message: "by takes a persona: {persona: {id} or {name}}" })
-      if (p.edge !== "by" && p.state === undefined) return yield* new ToolError({ message: `${p.edge} takes a state: {state: {id} or {text}}` })
+      if (p.edge === "in" && p.journey === undefined) return yield* new ToolError({ message: "in takes a journey: {journey: {id} or {name}}" })
+      if (p.edge !== "by" && p.edge !== "in" && p.state === undefined) return yield* new ToolError({ message: `${p.edge} takes a state: {state: {id} or {text}}` })
       const r = resolver(snap)
-      const to = p.edge === "by" ? yield* personaOf(snap, p.persona!) : yield* r.resolve(p.state!)
+      const to = p.edge === "by" ? yield* personaOf(snap, p.persona!) : p.edge === "in" ? yield* journeyOf(snap, p.journey!) : yield* r.resolve(p.state!)
       const type = edgeType[p.edge]
       if (card.edges.some((e) => e.type === type && e.to === to)) return yield* new ToolError({ message: `${p.card} already has ${p.edge} ${to}` })
       const kept = p.edge === "arrives" ? card.edges.filter((e) => e.type !== ARRIVES) : card.edges
@@ -181,13 +214,13 @@ export const link = tool({
 
 export const unlink = tool({
   name: "unlink",
-  description: "Remove a given or then edge (state id), or a by edge (persona id), from a card.",
-  params: Schema.Struct({ card: Schema.String, edge: EdgeName, state: Schema.optionalKey(Schema.String), persona: Schema.optionalKey(Schema.String) }),
+  description: "Remove a given or then edge (state id), a by edge (persona id) or an in edge (journey id) from a card.",
+  params: Schema.Struct({ card: Schema.String, edge: EdgeName, state: Schema.optionalKey(Schema.String), persona: Schema.optionalKey(Schema.String), journey: Schema.optionalKey(Schema.String) }),
   run: (p, snap) =>
     Effect.gen(function* () {
       const card = yield* getNode(snap, p.card, CARD)
-      const target = p.edge === "by" ? p.persona : p.state
-      if (target === undefined) return yield* new ToolError({ message: p.edge === "by" ? "by takes a persona id" : `${p.edge} takes a state id` })
+      const target = p.edge === "by" ? p.persona : p.edge === "in" ? p.journey : p.state
+      if (target === undefined) return yield* new ToolError({ message: p.edge === "by" ? "by takes a persona id" : p.edge === "in" ? "in takes a journey id" : `${p.edge} takes a state id` })
       const type = edgeType[p.edge]
       const edges = card.edges.filter((e) => !(e.type === type && e.to === target))
       if (edges.length === card.edges.length) return yield* new ToolError({ message: `${p.card} has no ${p.edge} ${target}` })
@@ -198,7 +231,7 @@ export const unlink = tool({
 
 export const remove = tool({
   name: "remove",
-  description: "Remove a card, or a state or persona that no card uses.",
+  description: "Remove a card, or a state, persona or journey that no card uses.",
   params: Schema.Struct({ id: Schema.String }),
   run: ({ id }, snap) =>
     Effect.gen(function* () {
@@ -212,4 +245,4 @@ export const remove = tool({
     }),
 })
 
-export const tools = [addState, editState, addPersona, editPersona, addCard, editCard, link, unlink, remove]
+export const tools = [addState, editState, addPersona, editPersona, addJourney, editJourney, addCard, editCard, link, unlink, remove]

@@ -5,8 +5,9 @@ import { affectedCards } from "./affected"
 import { agenda, suggest } from "./agenda"
 import { Gherkin, PersonaView, StepParams, StepView, StoriesParams, StoriesResult } from "./contract"
 import type { Finding } from "./kit"
-import { clauseShape, personaShape, stateText } from "./lints"
-import { BY, CARD, CardProps, PERSONA, PersonaProps, personaName, personas, STATE, StateProps } from "./model"
+import { clauseShape, journeyShape, personaShape, stateText } from "./lints"
+import { BY, CARD, CardProps, JOURNEY, JourneyProps, PERSONA, PersonaProps, personaName, personas, STATE, StateProps } from "./model"
+import { journeyList } from "./journeys"
 import { render } from "./render"
 import { planStories, stepView } from "./stories"
 import { tools } from "./tools"
@@ -17,7 +18,7 @@ const Findings = Schema.Struct({ findings: Schema.Array(Schema.Unknown) })
 const Items = Schema.Array(Schema.Unknown)
 const snapshotOf = (j: { readonly nodes: ReadonlyArray<unknown> }) => Snapshot.make(j.nodes as ReadonlyArray<Node>)
 
-const PROPS: Record<string, Schema.Codec<any, any>> = { [STATE]: StateProps, [CARD]: CardProps, [PERSONA]: PersonaProps }
+const PROPS: Record<string, Schema.Codec<any, any>> = { [STATE]: StateProps, [CARD]: CardProps, [PERSONA]: PersonaProps, [JOURNEY]: JourneyProps }
 
 /** Node props, as the host's structural check used to do in-process. */
 const validateProps = (changes: ReadonlyArray<unknown>): ReadonlyArray<Finding> =>
@@ -42,13 +43,15 @@ export default definePlugin({
   config: Schema.Struct({}),
   scopes: { graph: "write" },
   graph: {
-    nodes: { state: StateProps, card: CardProps, persona: PersonaProps },
+    nodes: { state: StateProps, card: CardProps, persona: PersonaProps, journey: JourneyProps },
     edges: {
       arrives: { from: "card", to: "state", min: 1, max: 1 },
       given: { from: "card", to: "state", max: 3 },
       then: { from: "card", to: "state", min: 1, max: 5 },
       // Who acts in the card; none is an agenda item, not a structural error.
       by: { from: "card", to: "persona" },
+      // The journeys a card belongs to (any number; none is fine).
+      in: { from: "card", to: "journey" },
     },
   },
   methods: {
@@ -61,6 +64,7 @@ export default definePlugin({
     stories: { doc: "Stories for testers to walk.", params: StoriesParams, success: StoriesResult },
     step: { doc: "What a tester sees at a step.", params: StepParams, success: StepView },
     personas: { doc: "Personas, each with the cards that name it.", params: Schema.Struct({}), success: Schema.Array(PersonaView) },
+    journeys: { doc: "Journeys, each with its cards.", params: Schema.Struct({}), success: Schema.Array(Schema.Struct({ id: Schema.String, name: Schema.String, cards: Schema.Array(Schema.String) })) },
     affected: {
       doc: "Cards a change affects.",
       params: Schema.Struct({ before: SnapshotJson, after: SnapshotJson }),
@@ -78,7 +82,7 @@ export default definePlugin({
       lint: ({ before, after }: { before: { nodes: ReadonlyArray<unknown> }; after: { nodes: ReadonlyArray<unknown> } }) =>
         Effect.sync(() => {
           const ctx = { before: snapshotOf(before), after: snapshotOf(after), diff: diff(snapshotOf(before), snapshotOf(after)) }
-          return { findings: [clauseShape, stateText, personaShape].flatMap((l) => l(ctx)) }
+          return { findings: [clauseShape, stateText, personaShape, journeyShape].flatMap((l) => l(ctx)) }
         }),
       agenda: () => Effect.map(snap, agenda),
       suggest: () => Effect.map(snap, suggest),
@@ -86,6 +90,7 @@ export default definePlugin({
       stories: ({ strategy, focus }: { strategy: "edge-pair" | "teleport"; focus?: ReadonlyArray<string> }) =>
         Effect.map(snap, (s) => planStories(s, strategy, focus === undefined || focus.length === 0 ? undefined : new Set(focus))),
       step: ({ card, via }: { card: string; via?: string }) => Effect.map(snap, (s) => stepView(s, card, via) ?? null),
+      journeys: () => Effect.map(snap, journeyList),
       personas: () =>
         Effect.map(snap, (s) =>
           personas(s).map((p) => ({ id: p.id, name: personaName(p), kind: p.props.kind as "human" | "cli" | "agent", text: String(p.props.text ?? ""), cards: Snapshot.inbound(s, p.id, BY).map((e) => e.from).sort() })),
