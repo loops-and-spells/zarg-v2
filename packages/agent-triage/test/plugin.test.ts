@@ -25,6 +25,7 @@ test("the Triage Agent loads through the host with gherkin, the backlog and rehe
       agents: (_plugin, e) => {
         const ev = e as { event?: string; id?: string; section?: string; data?: unknown }
         if (ev.event === "set") seen.set(`${ev.id}/${ev.section}`, ev.data)
+        if (ev.event === "start" || ev.event === "end") seen.set(`${ev.id}:last`, ev.event)
       },
       grants,
       vault: () => Effect.succeed(undefined),
@@ -40,11 +41,13 @@ test("the Triage Agent loads through the host with gherkin, the backlog and rehe
       const h = yield* PluginHost
       yield* h.loadWaiting
       const tick = yield* h.invoke("triage", "tick", {})
-      return { names: h.manifests.map((m) => m.name), tick, summary: (seen.get("triage/summary") as { markdown?: string } | undefined)?.markdown }
+      return { names: h.manifests.map((m) => m.name), tick, summary: (seen.get("triage/summary") as { markdown?: string } | undefined)?.markdown, parent: seen.get("triage:last") }
     }).pipe(Effect.provide(Layer.provideMerge(host, graphLayer(join(root, ".zarg/graph")))))
   }).pipe(Effect.scoped, Effect.provide(BunServices.layer), Effect.runPromise)
   expect(out.names).toEqual(expect.arrayContaining(["gherkin", "backlog", "rehearse", "triage"]))
   expect(out.tick).toBeNull()
   // The rollup is drawn after each tick: every worker free, nothing queued.
   expect(out.summary).toContain("**0 of 2 workers busy** · 0 queued")
+  // Nothing to do: the triage agent is idle (it does not spin in the rail).
+  expect(out.parent).toBe("end")
 }, 60_000)

@@ -49,3 +49,11 @@ test("while zarg's question waits, its agents stand still; a plugin's agents spi
   expect(glyphs["rlm-1"]).toBe("⠼")
   expect(glyphs["triage:triage-1"]).toBe("⠹")
 })
+
+test("zarg spins only while it works on a reply; idle, its row stands still", () => {
+  const zarg = { zarg: node({ id: "zarg", preset: "zarg" }) }
+  const idle = railRows(initialUi, { ...stateWith(zarg), thread: { ...stateWith(zarg).thread, status: "idle" } }, 200, 24)
+  const working = railRows(initialUi, { ...stateWith(zarg), thread: { ...stateWith(zarg).thread, status: "running" } }, 200, 24)
+  expect(idle.find((r) => r.id === "zarg")!.glyph).toBe("●")
+  expect(working.find((r) => r.id === "zarg")!.glyph).toBe("⠹")
+})

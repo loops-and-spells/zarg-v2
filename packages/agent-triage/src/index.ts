@@ -33,17 +33,25 @@ export default definePlugin({
     const clock = yield* Clock
     const config = (yield* Config).value as { workers?: number; reasoning?: boolean } | undefined
     const workers = Math.max(1, Math.floor(config?.workers ?? 2))
-    let shown = false
+    // The triage agent runs while a worker has a journey; with every worker free it is idle (it does not spin).
+    let created = false
+    let running = false
     const show = Effect.gen(function* () {
-      if (shown) return
-      shown = true
+      if (running) return
+      running = true
+      created = true
       yield* Effect.ignore(agents.start({ id: "triage", title: "triage", view: "triage", task: `Refines queued journeys' feedback into card changes with ${workers} workers, re-rehearses them, drafts the plans.` }))
     })
     const status = (agent: string, text: string) => Effect.andThen(show, Effect.ignore(agents.status({ id: agent, text })))
     // A worker's history: each card drafted, left out (and why), each run.
     const log = (agent: string, text: string) => Effect.andThen(show, Effect.ignore(agents.step({ id: agent, text })))
     const worker = (id: string, journey: string | undefined) =>
-      Effect.andThen(show, journey !== undefined ? Effect.ignore(agents.start({ id, parent: "triage", title: "triage", view: "worker", task: journey })) : Effect.ignore(agents.end({ id, ok: true, message: "free" })))
+      journey !== undefined ? Effect.andThen(show, Effect.ignore(agents.start({ id, parent: "triage", title: "triage", view: "worker", task: journey }))) : Effect.ignore(agents.end({ id, ok: true, message: "free" }))
+    const idle = Effect.gen(function* () {
+      if (!running) return
+      running = false
+      yield* Effect.ignore(agents.end({ id: "triage", ok: true, message: "idle" }))
+    })
     /** Each drafted card as a diff: the card now, and as its changes leave it. */
     const lines = (x: { given: string; when: string; thens: ReadonlyArray<string> } | null) => (x === null ? [] : [`Given ${x.given}`, `When  ${x.when}`, ...x.thens.map((t, i) => `${i === 0 ? "Then" : "And "}  ${t}`)])
     const diffOf = (card: string, draft: ReadonlyArray<{ tool: string; params: unknown }>) =>
@@ -55,12 +63,15 @@ export default definePlugin({
       })
     // The rollup and every worker's view, from the stages and the workers.
     const render = Effect.gen(function* () {
-      yield* show
+      // Its views need the agent: it starts with the first draw (and goes idle below when there is nothing to do).
+      if (!created) yield* show
       const stages = yield* backlog.stages({})
       const named = yield* gherkin.journeys({})
       const journeys = yield* Effect.forEach(named, (j) => Effect.map(backlog.feedbackOf({ journey: j.name }).pipe(Effect.orElseSucceed(() => [])), (es) => ({ name: j.name, open: es.length })))
       const { workers: ws, paused } = t.state()
       const r = rollupView({ stages, journeys, workers: ws, paused })
+      // Every worker free: idle until one takes a journey.
+      if (ws.every((w) => w.journey === undefined)) yield* idle
       yield* views.set("triage", RollupView, "summary", { markdown: r.summary })
       yield* views.set("triage", RollupView, "workers", { rows: r.workers })
       yield* views.set("triage", RollupView, "journeys", { rows: r.journeys })

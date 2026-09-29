@@ -49,13 +49,16 @@ export const railRows = (ui: Ui, s: SessionState, now: number | undefined, width
   const kids = childrenOf(live)
   const depthOf = (n: RlmNode): number => (n.parent !== null && live[n.parent] !== undefined ? 1 + depthOf(live[n.parent]!) : 0)
   const blink = now !== undefined && Math.floor(now / PULSE_MS) % 2 === 1
+  // What spins: zarg only while it works on a reply; zarg's agents stand still while its question waits; a plugin's agents always.
+  const spins = (n: RlmNode) =>
+    now !== undefined && (n.preset === "zarg" ? s.thread.status === "running" && s.thread.pendingInquiry === undefined : s.thread.pendingInquiry === undefined || n.id.includes(":"))
   const out: Array<RailRow> = rows.map((r) => {
     const n = r.node
     const depth = depthOf(n)
     const hasKids = kids(n.id).length > 0
     const open = isOpen(live, ui.agents, n)
     const unseen = n.attention !== undefined && ui.seen[n.id] !== n.attention.since
-    const glyph = n.attention !== undefined ? (unseen && blink ? "◇" : "◆") : hasKids ? (open ? "▾" : "▸") : n.status === "running" ? (now !== undefined && (s.thread.pendingInquiry === undefined || n.id.includes(":")) ? spin(now) : "⠼") : ICON[n.status]
+    const glyph = n.attention !== undefined ? (unseen && blink ? "◇" : "◆") : hasKids ? (open ? "▾" : "▸") : n.status === "running" ? (spins(n) ? spin(now!) : n.preset === "zarg" ? ICON.running : "⠼") : ICON[n.status]
     const glyphToken: TokenKey = n.attention !== undefined ? "attention" : n.status === "running" ? "accent" : n.status === "failed" ? "error" : "dim"
     const note = noteOf(n, r.hidden.length, open)
     const room = Math.max(4, width - depth * 2 - 2 - Math.min(NOTE, note.length) - 1)
