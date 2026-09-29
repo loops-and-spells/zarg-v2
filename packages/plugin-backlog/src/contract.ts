@@ -76,7 +76,7 @@ export const Drafted = Schema.Struct({ journey: Schema.String, title: Schema.Str
 export const OnEntry = Schema.Struct({ id: Schema.String, ref: Schema.String, kind: Schema.String, severity: Schema.String, note: Schema.String, persona: Schema.String, on: Schema.Boolean, operatorNote: Schema.optionalKey(Schema.String) })
 /** The backlog's surface for other plugins: file feedback and ask where it stands; add a plan, take the next, record a move. */
 export const Backlog = pluginContract("backlog", {
-  file: { params: Schema.Struct({ entries: Schema.Array(FiledEntry) }), success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
+  file: { params: Schema.Struct({ entries: Schema.Array(FiledEntry), walked: Schema.optionalKey(Schema.Array(Schema.String)), run: Schema.optionalKey(Schema.String) }), success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
   status: { params: Schema.Struct({ ids: Schema.Array(Schema.String) }), success: Schema.Array(Schema.Struct({ id: Schema.String, state: FeedbackState, on: Schema.Boolean })) },
   plan: { params: PlanParams, success: Schema.Struct({ id: Schema.String }) },
   next: { params: Schema.Struct({}), success: Schema.NullOr(ItemData) },

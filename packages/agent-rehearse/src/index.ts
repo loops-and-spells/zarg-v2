@@ -76,7 +76,7 @@ export default definePlugin({
       write: files.write,
       list: files.list,
       version: (card) => entities.version(`gherkin/card:${card}`),
-      file: (entries) => backlog.file({ entries: entries as never }),
+      file: (entries, opts) => backlog.file({ entries: entries as never, ...(opts?.walked !== undefined ? { walked: opts.walked } : {}), ...(opts?.run !== undefined ? { run: opts.run } : {}) }),
       status: (ids) => backlog.status({ ids }),
       views: { set: (a, v, path, data) => views.set(a, v as never, path as never, data as never), append: (a, v, path, lines) => views.append(a, v as never, path as never, lines) },
       surfaces: { open: (surface, agent) => surfaces.open({ surface, agent }) },

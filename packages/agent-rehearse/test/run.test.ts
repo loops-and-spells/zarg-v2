@@ -15,6 +15,7 @@ const setup = (o: Opts = {}) =>
     const llm = { n: 0 }
     const events: Array<{ event: string; id: string; text?: string; progress?: { done: number; total: number } }> = []
     const filedCalls: Array<ReadonlyArray<FiledEntry>> = []
+    const filedWith: Array<{ walked?: ReadonlyArray<string>; run?: string }> = []
     const drafts: Array<[string, unknown]> = []
     const strategies: Array<string> = []
     const agendaChanges = { n: 0 }
@@ -65,7 +66,7 @@ const setup = (o: Opts = {}) =>
         }),
       list: (dir) => Effect.succeed([...files.keys()].filter((k) => k.startsWith(`${dir}/`)).map((k) => k.slice(dir.length + 1))),
       version: (card) => Effect.succeed(gone.has(card) ? null : `v${card.toLowerCase()}00000000000`.slice(0, 12)),
-      file: (entries) => Effect.sync(() => (filedCalls.push(entries), { ids: entries.map((_, i) => (o.fileSome === true ? "" : `F-${i}`)) })),
+      file: (entries, opts) => Effect.sync(() => (filedCalls.push(entries), filedWith.push(opts ?? {}), { ids: entries.map((_, i) => (o.fileSome === true ? "" : `F-${i}`)) })),
       status: (ids) => (o.statusDown === true ? Effect.fail("down") : Effect.succeed(ids.map((id) => ({ id, state: o.state ?? "open", on: o.on ?? true })))),
       views: {
         set: (agent, v, path, data) => Effect.sync(() => void pushes.push({ agent, path, data, view: v.name })),
@@ -75,7 +76,7 @@ const setup = (o: Opts = {}) =>
       settings: rehearseSettings({ ...(o.inFlight !== undefined ? { in_flight: o.inFlight } : {}) }, "stub:m"),
     }
     const r = yield* makeRehearse(deps)
-    return { r, files, decisions, llm, events, filedCalls, overlap, pushes, drafts, agendaChanges, strategies }
+    return { r, files, decisions, llm, events, filedCalls, filedWith, overlap, pushes, drafts, agendaChanges, strategies }
   })
 const until = (check: () => boolean) =>
   Effect.gen(function* () {
@@ -159,11 +160,14 @@ describe("rehearse runs in the plugin", () => {
       [{ ref: "gherkin/card:B@vb0000000000", journeys: ["Checkout"], persona: "Operator", kind: "friction", severity: "medium", note: "B is unclear", from: { agent: "rehearse", run: t.run }, triage: { on: true, why: "fix · real 0.90" } }],
     ])
     expect(t.r.record(t.run)!.filed).toEqual({ [t.r.record(t.run)!.findings[0]!.id]: "F-0" })
+    // The cards it walked: their feedback it no longer reports closes in the backlog.
+    expect(t.filedWith).toEqual([{ walked: ["A", "B", "C", "D"], run: t.run }])
   })
 
-  test("a finding on a card that is gone is not filed", async () => {
+  test("a finding on a card that is gone is not filed; the run still reconciles the cards it walked", async () => {
     const t = await finish({ gone: ["B"] })
-    expect(t.filedCalls).toEqual([])
+    expect(t.filedCalls).toEqual([[]])
+    expect(t.filedWith[0]!.walked).toEqual(["A", "B", "C", "D"])
   })
 
   test("a tester's Feedback table says where each entry is now: off when triaged off", async () => {

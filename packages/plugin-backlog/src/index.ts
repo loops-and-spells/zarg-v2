@@ -23,6 +23,7 @@ const EntryData = Schema.Struct({
   state: Schema.optionalKey(Schema.Literals(["planned", "closed"])),
   runs: Schema.optionalKey(Schema.Array(Schema.String)),
   operatorNote: Schema.optionalKey(Schema.String),
+  notReportedIn: Schema.optionalKey(Schema.String),
 })
 const isEntry = Schema.is(EntryData)
 const NO_JOURNEY = "—"
@@ -59,7 +60,7 @@ export default definePlugin({
     },
   },
   methods: {
-    file: { doc: "File feedback (the same report on the same version again counts it).", params: Schema.Struct({ entries: Schema.Array(FiledEntry) }), success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
+    file: { doc: "File feedback (the same report on the same version again counts it); with the cards a run walked, their feedback it no longer reports closes.", params: Schema.Struct({ entries: Schema.Array(FiledEntry), walked: Schema.optionalKey(Schema.Array(Schema.String)), run: Schema.optionalKey(Schema.String) }), success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
     status: { doc: "Where feedback stands.", params: Schema.Struct({ ids: Schema.Array(Schema.String) }), success: Schema.Array(Schema.Struct({ id: Schema.String, state: Schema.Literals(["open", "stale", "planned", "closed"]), on: Schema.Boolean })) },
     act: { doc: "The Feedback view: open it, show a journey, flip an entry.", params: Act, success: Notice },
     plan: { doc: "Add a plan (it lands in Ready; its feedback is planned).", params: PlanParams, success: Schema.Struct({ id: Schema.String }) },
@@ -219,6 +220,7 @@ export default definePlugin({
           "",
           e.note,
           ...(e.operatorNote !== undefined ? ["", `**Your note:** ${e.operatorNote}`] : []),
+          ...(e.notReportedIn !== undefined ? ["", `Not reported by run ${e.notReportedIn}, which walked this card: yours to keep or turn off.`] : []),
           "",
           `by ${e.persona} · in ${e.journeys.join(", ") || NO_JOURNEY} · from ${e.from.agent} ${e.from.run}${e.count > 1 ? ` · reported ${e.count} times` : ""}`,
           ...(context.length > 0 ? ["", "```gherkin", context.trim(), "```"] : []),
@@ -345,19 +347,34 @@ export default definePlugin({
       }).pipe(Effect.mapError(fail))
 
     /** Each entry filed, or "" where it was refused (a ref without a version) or could not be saved; the rest are filed. */
-    const file = ({ entries }: { entries: ReadonlyArray<FiledEntry> }) =>
+    const file = ({ entries, walked, run }: { entries: ReadonlyArray<FiledEntry>; walked?: ReadonlyArray<string>; run?: string }) =>
       Effect.gen(function* () {
         const had = new Map((yield* load).map((e) => [e.id, e]))
         const ids: Array<string> = []
+        // The same report: the same words, or (worded anew) an open entry on the same card version of the same kind.
+        const sameAs = (f: FiledEntry) => had.get(entryId(f)) ?? [...had.values()].find((e) => e.state === undefined && e.ref === f.ref && e.kind === f.kind)
         for (const f of entries) {
           if (parseRef(f.ref)?.version === undefined) {
             ids.push("")
             continue
           }
-          const e = upsert(had.get(entryId(f)), f)
+          const e = upsert(sameAs(f), f)
           const saved = yield* Effect.match(save(e), { onFailure: () => false, onSuccess: () => true })
           if (saved) had.set(e.id, e)
           ids.push(saved ? e.id : "")
+        }
+        // A run that walked cards reconciles their feedback: what it did not report again closes; what the operator
+        // touched (flipped, noted) or a triage round holds is only marked, the call is theirs.
+        if (walked !== undefined) {
+          const by = run ?? entries[0]?.from.run ?? "a run"
+          const reported = new Set(ids)
+          const inRound = new Set((yield* loadStages).filter(inTriage).flatMap((s) => s.inputs ?? []))
+          for (const e of [...had.values()]) {
+            const card = parseRef(e.ref)?.id
+            if (e.state !== undefined || reported.has(e.id) || e.from.agent !== "rehearse" || card === undefined || !walked.includes(card)) continue
+            const theirs = e.triage.by === "operator" || e.operatorNote !== undefined || inRound.has(e.id)
+            yield* save(theirs ? { ...e, notReportedIn: by } : { ...e, state: "closed", notReportedIn: by })
+          }
         }
         return { ids }
       }).pipe(writing.withPermits(1), Effect.mapError(fail))

@@ -118,7 +118,7 @@ describe("the triage hub's stages", () => {
     const out = await run((seen) => Effect.gen(function* () {
       const { ids, card } = yield* setUp()
       const h = yield* PluginHost
-      const { ids: other } = (yield* h.invoke("backlog", "file", { entries: [{ ref: card.ref, journeys: ["Reconcile"], persona: "Operator", kind: "gap", severity: "low", note: "Another.", from: { agent: "rehearse", run: "r-1" }, triage: { on: true, why: "fix" } }] })) as { ids: string[] }
+      const { ids: other } = (yield* h.invoke("backlog", "file", { entries: [{ ref: card.ref, journeys: ["Reconcile"], persona: "Operator", kind: "friction", severity: "low", note: "Another.", from: { agent: "rehearse", run: "r-1" }, triage: { on: true, why: "fix" } }] })) as { ids: string[] }
       yield* press("open")
       yield* h.invoke("backlog", "act", { agent: "feedback", action: "journey", rows: ["Set up"] })
       yield* press("refine")
@@ -132,7 +132,7 @@ describe("the triage hub's stages", () => {
       const noted = (yield* h.invoke("backlog", "act", { agent: "feedback", action: "note", rows: other, text: "x" })) as { notice: string }
       const still = ((yield* h.invoke("backlog", "status", { ids })) as Array<{ on: boolean }>)[0]!.on
       // Feedback filed after the round started is not in it: usable, for the next round.
-      const { ids: later } = (yield* h.invoke("backlog", "file", { entries: [{ ref: card.ref, journeys: ["Set up"], persona: "Operator", kind: "gap", severity: "low", note: "Filed later.", from: { agent: "rehearse", run: "r-2" }, triage: { on: true, why: "fix" } }] })) as { ids: string[] }
+      const { ids: later } = (yield* h.invoke("backlog", "file", { entries: [{ ref: card.ref, journeys: ["Set up"], persona: "Operator", kind: "transition", severity: "low", note: "Filed later.", from: { agent: "rehearse", run: "r-2" }, triage: { on: true, why: "fix" } }] })) as { ids: string[] }
       yield* h.invoke("backlog", "act", { agent: "feedback", action: "journey", rows: ["Set up"] })
       const shown = rows(seen).map((r) => [r.id === later[0] ? "later" : "round", (r as { readonly?: boolean }).readonly === true, (r as { cells?: Record<string, string> }).cells?.status])
       const flipLater = (yield* h.invoke("backlog", "act", { agent: "feedback", action: "toggle", rows: later })) as { notice: string }
@@ -150,7 +150,7 @@ describe("the triage hub's stages", () => {
     const out = await run((seen) => Effect.gen(function* () {
       const { card } = yield* setUp()
       const h = yield* PluginHost
-      yield* h.invoke("backlog", "file", { entries: [{ ref: card.ref, journeys: ["Set up"], persona: "Operator", kind: "gap", severity: "low", note: "A second.", from: { agent: "rehearse", run: "r-1" }, triage: { on: true, why: "fix" } }] })
+      yield* h.invoke("backlog", "file", { entries: [{ ref: card.ref, journeys: ["Set up"], persona: "Operator", kind: "friction", severity: "low", note: "A second.", from: { agent: "rehearse", run: "r-1" }, triage: { on: true, why: "fix" } }] })
       yield* press("open")
       return stage(seen)
     }))

@@ -76,7 +76,8 @@ export interface RunDeps {
   /** A card's version now (`Entities.version`); null when it is gone. */
   readonly version: (card: string) => Effect.Effect<string | null, unknown>
   /** File feedback with the backlog; its ids, in order. */
-  readonly file: (entries: ReadonlyArray<FiledEntry>) => Effect.Effect<{ readonly ids: ReadonlyArray<string> }, unknown>
+  /** `walked`: the cards the run walked; the backlog closes their feedback it no longer reports. */
+  readonly file: (entries: ReadonlyArray<FiledEntry>, opts?: { readonly walked?: ReadonlyArray<string>; readonly run?: string }) => Effect.Effect<{ readonly ids: ReadonlyArray<string> }, unknown>
   /** Where filed feedback stands now. */
   readonly status: (ids: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<{ readonly id: string; readonly state: string; readonly on: boolean }>, unknown>
   /** The agents' views (the SDK's `Views`): the tester's walk and findings, the run's report and findings. */
@@ -346,7 +347,9 @@ export const makeRehearse = (deps: RunDeps) =>
         )
         // A run over a draft keeps its findings for the caller: the drafted versions are nobody's yet.
         const toFile = rec.file === false ? [] : filing.filter((x) => x !== undefined)
-        const filed = toFile.length === 0 ? { ids: [] as ReadonlyArray<string> } : yield* deps.file(toFile.map((x) => x.entry)).pipe(Effect.orElseSucceed(() => ({ ids: [] as ReadonlyArray<string> })))
+        // Filed with the cards it walked (even with nothing to file): the backlog closes their feedback this run no longer reports.
+        const walked = [...new Set(rec.stories.flat())]
+        const filed = rec.file === false ? { ids: [] as ReadonlyArray<string> } : yield* deps.file(toFile.map((x) => x.entry), { walked, run: rec.run }).pipe(Effect.orElseSucceed(() => ({ ids: [] as ReadonlyArray<string> })))
         yield* update((r) => ({ ...r, status: "done", findings, report: text, filed: Object.fromEntries(toFile.flatMap((x, i) => (filed.ids[i] !== undefined && filed.ids[i] !== "" ? [[x.id, filed.ids[i]!]] : []))) }))
         const unreached = rec.unreachable > 0 ? ` · ${rec.unreachable} unreachable` : ""
         yield* quiet(deps.agents.status({ id: "run", progress: { done: all, total: all }, text: `${plural(filed.ids.filter((x) => x !== "").length, "feedback entry")} filed · triage in Feedback${unreached}` }))

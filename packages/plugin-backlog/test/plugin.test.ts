@@ -134,7 +134,7 @@ describe("the backlog's feedback", () => {
     const out = await run((seen) => Effect.gen(function* () {
       const card = yield* setUp
       const h = yield* PluginHost
-      yield* h.invoke("backlog", "file", { entries: [{ ...report(card.ref, "In A."), journeys: ["A"] }, { ...report(card.ref, "In B."), journeys: ["B"] }] })
+      yield* h.invoke("backlog", "file", { entries: [{ ...report(card.ref, "In A."), journeys: ["A"] }, { ...report(card.ref, "In B."), journeys: ["B"], kind: "friction" }] })
       // The note is in the detail beside the list, not a column.
       const shown = () => rows(seen, "feedback").map((r) => ((seen.get("feedback/detail") as { rows: Record<string, string> }).rows[r.id]!.match(/In [AB]\./) ?? [""])[0])
       yield* h.invoke("backlog", "act", { agent: "feedback", action: "open", rows: [] })
@@ -145,5 +145,29 @@ describe("the backlog's feedback", () => {
       return { first, b, again: shown() }
     }))
     expect(out).toEqual({ first: ["In A."], b: ["In B."], again: ["In A."] })
+  })
+  test("a run reconciles its cards' feedback: the same kind again merges (worded anew), what it no longer reports closes; what you touched and cards it did not walk stay", async () => {
+    const out = await run((seen) => Effect.gen(function* () {
+      const card = yield* setUp
+      yield* gherkin("add-card", { title: "Plugin runs again", when: "the plugin runs again", by: [{ id: "P-0001" }], arrives: { id: "S-0001" }, then: [{ text: "it runs" }] })
+      const h = yield* PluginHost
+      const other = (yield* h.entities.get("gherkin/card:UX-0002")).ref
+      const r1 = (yield* h.invoke("backlog", "file", { entries: [report(card.ref, "No path when the operator denies."), { ...report(card.ref, "Wordy prompt."), kind: "friction" }, { ...report(card.ref, "Unclear who asks."), kind: "transition" }, report(other, "Elsewhere.")] })) as { ids: string[] }
+      // You noted the transition entry: it is yours.
+      yield* h.invoke("backlog", "act", { agent: "feedback", action: "note", rows: [r1.ids[2]!], text: "keep" })
+      // The next run walks UX-0001 only: the gap again, worded anew; the friction and the transition not.
+      const r2 = (yield* h.invoke("backlog", "file", { entries: [{ ...report(card.ref, "Denying leaves no way on."), from: { agent: "rehearse", run: "r-2" } }], walked: ["UX-0001"] })) as { ids: string[] }
+      const status = (yield* h.invoke("backlog", "status", { ids: r1.ids })) as Array<{ id: string; state: string }>
+      const gap = (yield* h.entities.get(`backlog/feedback:${r1.ids[0]}`)).data as { count: number }
+      const noted = (yield* h.entities.get(`backlog/feedback:${r1.ids[2]}`)).data as { notReportedIn?: string }
+      yield* h.invoke("backlog", "act", { agent: "feedback", action: "open", rows: [] })
+      const detail = (seen.get("feedback/detail") as { rows: Record<string, string> }).rows[r1.ids[2]!]
+      return { r1: r1.ids, r2: r2.ids, states: status.map((x) => x.state), count: gap.count, noted: noted.notReportedIn, detail }
+    }))
+    expect(out.r2).toEqual([out.r1[0]!])
+    expect(out.count).toBe(2)
+    expect(out.states).toEqual(["open", "closed", "open", "open"])
+    expect(out.noted).toBe("r-2")
+    expect(out.detail).toContain("Not reported by run r-2, which walked this card: yours to keep or turn off.")
   })
 })
