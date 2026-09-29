@@ -27,6 +27,7 @@ import {
   barLine,
   conversation,
   closedKey,
+  closeOverlays,
   focusBar,
   panelsShown,
   initialUi,
@@ -823,7 +824,16 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   return (
     <ThemeContext.Provider value={theme}>
     <NowContext.Provider value={now}>
-    <box onMouseDown={dismissMenus} style={{ flexDirection: "row", width: "100%", height: "100%", backgroundColor: C.bg }}>
+    <box
+      onMouseDown={() => {
+        dismissMenus()
+        // A click outside a drawer closes it (a click in it stops at its box).
+        const u = latest()
+        const closed = closeOverlays(u, props.session.state())
+        if (closed !== u) setUi(closed)
+      }}
+      style={{ flexDirection: "row", width: "100%", height: "100%", backgroundColor: C.bg }}
+    >
       {narrow && ui.focus === "agents" ? null : agentsList}
       <box style={{ flexDirection: "column", flexGrow: 1 }}>
         <box onMouseDown={() => setUi({ ...latest(), focus: "tile" })} style={{ flexGrow: 1, flexDirection: "column" }}>

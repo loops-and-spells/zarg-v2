@@ -176,6 +176,14 @@ export const panelsShown = (ui: Ui, s: SessionState): Readonly<Record<"top" | "b
   const edge = (e: Panel["edge"]) => [...mine.filter((p) => p.edge === e), ...shell.filter((p) => p.edge === e).slice(0, 2)]
   return { top: edge("top"), bottom: edge("bottom"), right: edge("right") }
 }
+/** The drawers over the view closed (Esc or a click outside them); the same ui when none is shown. */
+export const closeOverlays = (ui: Ui, s: SessionState): Ui => {
+  const over = panelsShown(ui, s).right.filter((p) => p.overlay === true)
+  if (over.length === 0) return ui
+  const inside = over.some((p) => p.id === ui.panel)
+  const { panel: _, panelView: __, ...rest } = ui
+  return { ...(inside ? { ...rest, focus: "tile" as const } : ui), closedPanels: [...ui.closedPanels, ...over.map(closedKey)] }
+}
 /** The focused panel, while it is on screen. */
 export const focusedPanel = (ui: Ui, s: SessionState): Panel | undefined => {
   const shown = panelsShown(ui, s)

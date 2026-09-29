@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
 import { onKey, SHELL } from "../src/layers"
-import { hintsOf } from "@zarg/view"
-import { barLine, initialUi, panelsShown, POPOVER_GUARD_MS, queueOf, syncUi, type Ui } from "../src/view"
+import { hintsOf, startUi } from "@zarg/view"
+import { barLine, closeOverlays, initialUi, panelsShown, POPOVER_GUARD_MS, queueOf, syncUi, type Ui } from "../src/view"
 
 const inquiry: Inquiry = { id: "inq-1", question: "Which card first?", options: [{ id: "a", label: "Login" }, { id: "b", label: "Checkout", recommended: true }], allowOther: true, about: [] }
 const grant = (id: string) => ({ id, question: `Plugin ${id} wants to load.`, options: [{ id: "always", label: "Allow" }, { id: "deny", label: "Not now" }], kind: "grant" as const })
@@ -140,6 +140,17 @@ describe("surfaces in the shell", () => {
     expect(onKey(ui, s, key("down"), 0).ui.panelView?.rows.rows).toBe(1)
     expect(onKey(ui, s, key("a"), 0).action).toMatchObject({ type: "act", action: "apply", agent: "two:t1", view: "two:t1" })
     expect(onKey(ui, s, key("escape"), 0).ui).toMatchObject({ focus: "tile", closedPanels: ["two:status:two:t1"] })
+  })
+  test("a drawer over the view closes on Esc while the view has the keys (the view stays); a menu open in the view closes first", () => {
+    const drawer = { ...panel("onFocus", "right"), id: "two:item:two:t1", overlay: true }
+    const s = with_({ panels: [drawer] })
+    const ui = at({ main: "agent", focus: "tile", viewing: "two:t1" })
+    expect(onKey(ui, s, key("escape"), 0).ui).toMatchObject({ main: "agent", viewing: "two:t1", closedPanels: ["two:item:two:t1"] })
+    expect(closeOverlays(ui, s).closedPanels).toEqual(["two:item:two:t1"])
+    // Nothing over the view: the same ui back.
+    expect(closeOverlays(ui, with_({}))).toBe(ui)
+    const menu = { ...ui, view: { ...startUi(views["two:t1"] as never), menu: { path: "x", col: 0, pick: 0 } } } as never
+    expect(onKey(menu, s, key("escape"), 0).ui.closedPanels).toEqual([])
   })
   test("a plugin's sheet takes its view's keys; Esc closes it", () => {
     const ui = at({ main: "agent", focus: "tile", sheet: true, sheetOf: "two:t1", viewing: "two:t1" })

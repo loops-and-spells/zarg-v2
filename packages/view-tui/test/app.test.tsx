@@ -806,6 +806,19 @@ describe("review fixes (look)", () => {
     expect(f).not.toMatch(/item ×/)
     expect(f).toContain("×")
   })
+  test("a click outside an overlay drawer closes it; a click inside keeps it", async () => {
+    const side = { agent: "rehearse:t1@side", layout: { name: "side", sections: [{ id: "item", kind: "text" as const, role: "primary" as const, title: "" }] }, data: { item: { markdown: "PLAN BODY" } } }
+    const drawer = { id: "rehearse:item:rehearse:t1", plugin: "rehearse", agent: "rehearse:t1", view: "rehearse:t1@side", name: "item", scope: "agent" as const, edge: "right" as const, size: 50, input: "onFocus" as const, overlay: true }
+    const zargBar = { id: "zarg:bar:zarg", plugin: "zarg", agent: "zarg", view: "zarg", name: "bar", scope: "shell" as const, edge: "bottom" as const, size: 1, input: "onFocus" as const }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, views: { ...viewState.thread.views, "rehearse:t1@side": side }, panels: [zargBar, drawer] } }, { width: 130, height: 24 })
+    t.mockInput.pressKey("a", { meta: true }); await settle(t); t.mockInput.pressEnter(); await settle(t)
+    await Bun.sleep(30); await settle(t)
+    const y = t.captureCharFrame().split("\n").findIndex((l) => l.includes("PLAN BODY"))
+    await t.mockMouse.click(t.captureCharFrame().split("\n")[y]!.indexOf("PLAN BODY") + 2, y); await settle(t)
+    expect(t.captureCharFrame()).toContain("PLAN BODY")
+    await t.mockMouse.click(40, y); await settle(t)
+    expect(t.captureCharFrame()).not.toContain("PLAN BODY")
+  })
   test("at 80 columns the status line keeps its keys (the status gives way)", async () => {
     const t = await render(waiting, { width: 80, height: 24 })
     expect(t.captureCharFrame().split("\n").filter((l) => l.trim().length > 0).at(-1)).toContain("↑↓ pick")

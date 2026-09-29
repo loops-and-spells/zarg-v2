@@ -13,6 +13,7 @@ import {
   focusedPanel,
   panelsShown,
   closedKey,
+  closeOverlays,
   POPOVER_GUARD_MS as GUARD_MS,
   POPOVER_GUARD_MS,
   focusBar,
@@ -325,7 +326,11 @@ export const SHELL: ReadonlyArray<Layer> = [
             [...sectionHints(ui, w.s), { keys: "Esc", does: "back" }],
     handle: (ui, w, k) => {
       // Esc closes an open menu or clears a search being typed (the view's keys handle both); else it goes back.
-      if (k.name === "escape" && ui.view?.menu === undefined && ui.view?.searching === undefined && ui.view?.input === undefined && ui.view?.choose === undefined) return { ui: goBack(ui, w.s) }
+      // A drawer over the view closes before the view goes back.
+      if (k.name === "escape" && ui.view?.menu === undefined && ui.view?.searching === undefined && ui.view?.input === undefined && ui.view?.choose === undefined) {
+        const closed = closeOverlays(ui, w.s)
+        return { ui: closed !== ui ? closed : goBack(ui, w.s) }
+      }
       const c = common(ui, w, k)
       if (c !== undefined) return c
       const v = ui.viewing === undefined ? undefined : w.s.thread.views?.[ui.viewing]
