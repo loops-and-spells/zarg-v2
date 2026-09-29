@@ -114,7 +114,7 @@ describe("the Triage Agent", () => {
     expect(calls.filter(([k]) => k === "log").map(([, x]) => x)).toContain("Set up: UX-0001: the model gave no answer: it stopped at its token limit (16384 tokens, 16384 of them reasoning)")
   })
   test("stages that wait on the operator, or are done, are left alone", async () => {
-    const { t, calls } = setup({ stages: [stage({ stage: "triage" }), stage({ stage: "refine", proposals: [{ card: "UX-0001", changes: [], answers: [], summary: "s", status: "proposed" }] }), stage({ stage: "plan", plan: { title: "t", steps: [] } }), stage({ stage: "planned" })] })
+    const { t, calls } = setup({ stages: [stage({ stage: "triage" }), stage({ stage: "refine", proposals: [{ card: "UX-0001", changes: [], answers: [], summary: "s", status: "proposed" }] }), stage({ stage: "planned" })] })
     await Effect.runPromise(t.tick)
     expect(calls.filter(([k]) => k !== "render")).toEqual([])
   })
@@ -175,17 +175,6 @@ describe("the Triage Agent", () => {
     expect(one.calls.filter(([k]) => k === "assign").map(([, x]) => x)).toEqual(["Set up → triage-1"])
     expect(one.calls.filter(([k]) => k === "propose").map(([, p]) => (p as { journey: string }).journey)).toEqual(["Set up"])
   })
-  test("a worker lets its journey go once it needs nothing more", async () => {
-    let n = 0
-    const waiting = { card: "UX-0001", changes: [], answers: [], summary: "", status: "waiting" }
-    const s = setup({ stages: [], answers: [proposalJson] })
-    const made = makeTriage({ ...s.deps, stages: () => Effect.sync(() => (n++ < 4 ? [stage({ proposals: [waiting] })] : [stage({ stage: "planned" })]) as never) }, 1)
-    await Effect.runPromise(Effect.andThen(made.tick, made.idle))
-    expect(made.state().workers).toEqual([{ id: "triage-1", journey: "Set up" }])
-    await Effect.runPromise(Effect.andThen(made.tick, made.idle))
-    expect(made.state().workers).toEqual([{ id: "triage-1" }])
-    expect(s.calls.filter(([k]) => k === "worker").map(([, x]) => x)).toEqual(["triage-1: Set up", "triage-1: free"])
-  })
   test("the model answers without reasoning (it ran away on cards); [plugins.triage] reasoning = true lets it reason", async () => {
     const waiting = { card: "UX-0001", changes: [], answers: [], summary: "", status: "waiting" }
     const off = setup({ stages: [stage({ proposals: [waiting] })], answers: [proposalJson] })
@@ -232,5 +221,24 @@ describe("the Triage Agent", () => {
     await Effect.runPromise(t.tick)
     expect(calls.filter(([k]) => k === "stop" || k === "rehearsed").map(([k, v]) => [k, v])).toEqual([["stop", "r-old"], ["rehearsed", { journey: "Set up", resolved: [], fresh: [], next: "plan" }]])
     expect(calls.find(([k]) => k === "run")).toBeUndefined()
+  })
+  test("a worker lets its journey go as soon as its plan is on the Backlog, without another wake", async () => {
+    let st = stage({ proposals: [{ card: "UX-0001", changes: [], answers: [], summary: "", status: "waiting" }] })
+    const s = setup({ stages: [], answers: [proposalJson] })
+    const made = makeTriage({
+      ...s.deps,
+      stages: () => Effect.sync(() => [st] as never),
+      propose: () => Effect.sync(() => void (st = { ...st, stage: "planned" } as never)),
+    }, 1)
+    await Effect.runPromise(Effect.andThen(made.tick, made.idle))
+    await Effect.runPromise(made.idle)
+    expect(made.state().workers).toEqual([{ id: "triage-1" }])
+    expect(s.calls.filter(([k]) => k === "worker").map(([, x]) => x)).toEqual(["triage-1: Set up", "triage-1: free"])
+  })
+  test("a plan drafted but not on the Backlog (the old Accept step) goes to the Backlog", async () => {
+    const { t, calls } = setup({ stages: [stage({ stage: "plan", plan: { title: "Setup feedback", steps: ["one"] }, draft: [{ tool: "edit-state", params: {} }] })] })
+    await Effect.runPromise(t.tick)
+    expect(calls.find(([k]) => k === "drafted")?.[1]).toEqual({ journey: "Set up", title: "Setup feedback", steps: ["one"] })
+    expect(calls.find(([k]) => k === "complete")).toBeUndefined()
   })
 })

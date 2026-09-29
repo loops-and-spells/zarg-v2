@@ -211,6 +211,11 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
         yield* d.rehearsed({ journey, resolved: [], fresh: [], next: "plan" })
       }
       const after = (yield* d.stages().pipe(Effect.orElseSucceed(() => []))).find((x) => x.journey === journey)
+      // A plan drafted but never put on the Backlog (the old Accept step): it goes now.
+      if (after !== undefined && after.stage === "plan" && after.plan !== undefined) {
+        yield* quiet(d.log(slot.id, `${journey}: the drafted plan goes to the Backlog`))
+        return yield* d.drafted({ journey, title: after.plan.title, steps: after.plan.steps })
+      }
       if (after !== undefined && after.stage === "plan" && after.plan === undefined && after.draft.length > 0) {
         // Taken one by one, the changes may not fit together: back to Refine before the plan goes to the Backlog.
         const dry = yield* d.dryRun(after.draft).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: ["the dry-run failed"], touched: [] as ReadonlyArray<string>, cards: [] as ReadonlyArray<string> })))
@@ -227,10 +232,11 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
   // The workers: each takes the next journey in line and works it, pass by pass, until it needs nothing more of them.
   const slots: Array<Slot> = Array.from({ length: Math.max(1, workers) }, (_, i) => ({ id: `triage-${i + 1}`, busy: false }))
   const running = new Set<Fiber.Fiber<void, never>>()
-  const needsWork = (s: StageView) => (s.stage === "refine" && s.proposals.some((p) => p.status === "waiting")) || s.stage === "rehearse" || (s.stage === "plan" && s.plan === undefined && s.draft.length > 0)
+  const needsWork = (s: StageView) => (s.stage === "refine" && s.proposals.some((p) => p.status === "waiting")) || s.stage === "rehearse" || (s.stage === "plan" && (s.plan !== undefined || s.draft.length > 0))
   // One assignment at a time: two wakes close together must not give a journey to two workers.
   const lock = Effect.runSync(Semaphore.make(1))
-  const tick: Effect.Effect<void> = Effect.gen(function* () {
+  /** Hand out work. `fresh`: only journeys a worker takes now start a pass (a worker done for now asks this; a wake re-runs every worker). */
+  const handOut = (fresh: boolean): Effect.Effect<void> => Effect.gen(function* () {
     if (paused) return
     const stages = yield* d.stages().pipe(Effect.orElseSucceed(() => []))
     // A re-rehearse a round left behind (d, Refine again) walks an old draft: stop it, forget it.
@@ -250,17 +256,19 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
         yield* quiet(d.worker(w.id, undefined))
       }
     // The next in line go to free workers.
+    const taken = new Set<string>()
     for (const s of line) {
       if (slots.some((w) => w.journey === s.journey)) continue
       const w = slots.find((x) => x.journey === undefined)
       if (w === undefined) break
       w.journey = s.journey
+      taken.add(w.id)
       yield* quiet(d.assign(s.journey, w.id))
       yield* quiet(d.worker(w.id, s.journey))
     }
     // Every worker with a journey and nothing in flight makes a pass, in the background.
     for (const w of slots)
-      if (w.journey !== undefined && !w.busy) {
+      if (w.journey !== undefined && !w.busy && (!fresh || taken.has(w.id))) {
         w.busy = true
         const journey = w.journey
         // Pass after pass while the journey changes (a failed card waits again, drafted next time); still: wait for a wake.
@@ -276,6 +284,8 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
           loop.pipe(
             Effect.ensuring(Effect.sync(() => (w.busy = false))),
             Effect.ensuring(at(w, undefined)),
+            // Done for now: let a finished journey go and take the next in line, without waiting for a wake.
+            Effect.ensuring(Effect.suspend(() => handOut(true))),
           ),
         )
         running.add(fiber)
@@ -283,6 +293,7 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
       }
     yield* quiet(d.render)
   }).pipe(Effect.catchCause(() => Effect.void), lock.withPermits(1))
+  const tick = handOut(false)
   return {
     tick,
     /** Waits for every pass in flight (tests; a shutdown). */
