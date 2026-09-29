@@ -202,4 +202,21 @@ describe("the backlog's plans", () => {
     expect(out.closed).toEqual(["item"])
     expect(out.notice).toBe("B-01 dropped; its feedback is open again")
   })
+  test("dropping a triaged plan leaves its journey as if never planned (nothing says Planned for a plan that is gone)", async () => {
+    const out = await run(() => Effect.gen(function* () {
+      const { card, feedback } = yield* setUp
+      const h = yield* PluginHost
+      yield* h.invoke("backlog", "act", { agent: "feedback", action: "open", rows: [] })
+      yield* h.invoke("backlog", "act", { agent: "feedback", action: "refine", rows: [] })
+      yield* h.invoke("backlog", "propose", { journey: "Set up", card: "UX-0001", changes: planOf(card.ref, feedback).changes, answers: feedback, summary: "s" })
+      yield* h.invoke("backlog", "drafted", { journey: "Set up", title: "T", steps: [] })
+      const planned = ((yield* h.invoke("backlog", "stages", {})) as Array<{ stage: string; item?: string }>)[0]!
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: [planned.item!] })
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "drop", rows: [] })
+      const after = ((yield* h.invoke("backlog", "stages", {})) as Array<{ stage: string; item?: string }>)[0]!
+      return { planned: [planned.stage, planned.item], after: [after.stage, after.item] }
+    }))
+    expect(out.planned).toEqual(["planned", "B-01"])
+    expect(out.after).toEqual(["triage", undefined])
+  })
 })

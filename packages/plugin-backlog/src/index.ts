@@ -2,7 +2,7 @@ import { Effect, Schema, Semaphore } from "effect"
 import { Agenda, Config, definePlugin, Entities, Files, PluginFailure, Surfaces, Views } from "@zarg/plugin-sdk"
 import { Gherkin } from "@zarg/plugin-gherkin/contract"
 import { Backlog, Drafted, FiledEntry, ItemData, Lane, Moved, OnEntry, PlanParams, Propose, Redraft, Rehearsed, Rehearsing, StageData } from "./contract"
-import { current, fresh, inTriage, nextQueued, redo, redraft, refineAgain, settle, type Stage, stageActions, stageLabel, STAGE_TITLES, slug, startRefine, stepperAt } from "./stages"
+import { current, fresh, inTriage, nextQueued, redo, redraft, refineAgain, settle, type Stage, stageActions, stageLabel, slug, startRefine } from "./stages"
 import { parseRef } from "@zarg/entities"
 import { ENTRY_ID, type Entry, entryId, stateOf, target, upsert } from "./feedback"
 import { boardCard, type Item, ITEM_ID, LANE_TITLES, LANES, moved, neighbour, nextId, pickNext } from "./items"
@@ -12,7 +12,6 @@ import { planText } from "./plan-text"
 const DIR = ".zarg/feedback"
 const ITEMS = ".zarg/backlog"
 const TRIAGE = ".zarg/triage"
-const STAGES = ["Triage", "Refine", "Backlog"] as const
 const Notice = Schema.Struct({ notice: Schema.String })
 const Act = Schema.Struct({ agent: Schema.String, action: Schema.String, section: Schema.optionalKey(Schema.String), rows: Schema.Array(Schema.String), text: Schema.optionalKey(Schema.String) })
 const EntryData = Schema.Struct({
@@ -189,12 +188,11 @@ export default definePlugin({
       }
       const locked = (e: Entry) => st !== undefined && inTriage(st) && round.has(e.id)
       const on = shown.filter((e) => e.triage.on).length
-      const at = st === undefined ? 0 : stepperAt(st)
-      const stepper = STAGES.map((s, i) => (i < at || st?.stage === "planned" ? `✓ ${s}` : i === at ? `**● ${s}**` : `○ ${s}`)).join("  ───  ")
+      // The journey and its counts; how far its triage got is triage's to show (its rows say where they stand).
       yield* views.set("feedback", FeedbackView, "stage", {
-        markdown: journey === undefined ? `${stepper}\n\nNo open feedback. Testers file it when they rehearse.` : `${stepper}\n\n**${journey}** · ${plural(shown.length, "entry")} · ${on} on`,
+        markdown: journey === undefined ? "No open feedback. Testers file it when they rehearse." : `**${journey}** · ${plural(shown.length, "entry")} · ${on} on${st !== undefined && inTriage(st) ? " · in triage" : ""}`,
       })
-      yield* views.set("feedback", FeedbackView, "journeys", { rows: names.map((j) => ({ id: j, cells: { journey: j, open: String(byJourney.get(j)?.length ?? 0), stage: stageLabel(staged(j), stages) } })) })
+      yield* views.set("feedback", FeedbackView, "journeys", { rows: names.map((j) => ({ id: j, cells: { journey: j, open: String(byJourney.get(j)?.length ?? 0) } })) })
       yield* views.set("feedback", FeedbackView, "work", { markdown: st === undefined ? "" : workOf(st, on) })
       const sev = { high: 0, medium: 1, low: 2 } as const
       const sorted = [...shown].sort((a, b) => sev[a.severity] - sev[b.severity] || a.id.localeCompare(b.id))
@@ -329,6 +327,9 @@ export default definePlugin({
         if (i === undefined) return `no plan ${id}`
         yield* saveItem({ ...i, dropped: true, events: [...i.events, { what: "dropped", by: "operator" }] })
         yield* markFeedback(i.feedback, undefined)
+        // Its journey is as if never planned: nothing says Planned for a plan that is gone.
+        const st = (yield* loadStages).find((s) => s.journey === i.journey && s.item === id)
+        if (st !== undefined) yield* saveStage(fresh(st.journey))
         return `${id} dropped; its feedback is open again`
       }).pipe(writing.withPermits(1))
     const plan = (p: PlanParams) =>

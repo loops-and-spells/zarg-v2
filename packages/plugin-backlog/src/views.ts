@@ -9,7 +9,7 @@ export const FeedbackView = defineView("feedback", {
     kind: "table",
     role: "primary",
     title: "",
-    columns: [{ id: "journey", label: "journey", tone: "journey", filter: "none" }, { id: "open", label: "open", filter: "none" }, { id: "stage", label: "stage", filter: "values" }],
+    columns: [{ id: "journey", label: "journey", tone: "journey", filter: "none" }, { id: "open", label: "open", filter: "none" }],
     actions: [{ id: "journey", label: "Show", on: "row", default: true, highlight: true }],
   },
   // The journey's open feedback: each on or off (the agent's first call, yours to flip).

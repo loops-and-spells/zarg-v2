@@ -74,7 +74,7 @@ describe("the triage hub's stages", () => {
       const items = yield* h.entities.query({ type: "backlog/item" })
       return { back, items: items.length }
     }))
-    expect(out.back.stage).toContain("● Triage")
+    expect(out.back.stage).not.toContain("Triage ─")
     expect(out.back.work).toContain("Nothing drafted: every card was left out.")
     expect(out.items).toBe(1)
   })
@@ -124,10 +124,13 @@ describe("the triage hub's stages", () => {
       yield* press("refine")
       yield* h.invoke("backlog", "act", { agent: "feedback", action: "journey", rows: ["Reconcile"] })
       yield* press("refine")
-      const queued = (seen.get("feedback/journeys") as { rows: Array<{ id: string; cells: { stage: string } }> }).rows.map((r) => [r.id, r.cells.stage])
+      // The journeys list says nothing of stages; the round's rows say where they stand.
+      const cols = Object.keys((seen.get("feedback/journeys") as { rows: Array<{ cells: Record<string, string> }> }).rows[0]!.cells)
+      const queued = rows(seen).map((r) => (r as { cells?: Record<string, string> }).cells?.status)
       yield* h.invoke("backlog", "assign", { journey: "Set up", worker: "triage-1" })
       yield* press("open")
-      const working = (seen.get("feedback/journeys") as { rows: Array<{ id: string; cells: { stage: string } }> }).rows.map((r) => [r.id, r.cells.stage])
+      yield* h.invoke("backlog", "act", { agent: "feedback", action: "journey", rows: ["Set up"] })
+      const working = rows(seen).map((r) => (r as { cells?: Record<string, string> }).cells?.status)
       const flip = (yield* h.invoke("backlog", "act", { agent: "feedback", action: "toggle", rows: ids })) as { notice: string }
       const noted = (yield* h.invoke("backlog", "act", { agent: "feedback", action: "note", rows: other, text: "x" })) as { notice: string }
       const still = ((yield* h.invoke("backlog", "status", { ids })) as Array<{ on: boolean }>)[0]!.on
@@ -136,10 +139,11 @@ describe("the triage hub's stages", () => {
       yield* h.invoke("backlog", "act", { agent: "feedback", action: "journey", rows: ["Set up"] })
       const shown = rows(seen).map((r) => [r.id === later[0] ? "later" : "round", (r as { readonly?: boolean }).readonly === true, (r as { cells?: Record<string, string> }).cells?.status])
       const flipLater = (yield* h.invoke("backlog", "act", { agent: "feedback", action: "toggle", rows: later })) as { notice: string }
-      return { queued, working, flip: flip.notice, noted: noted.notice, still, shown, flipLater: flipLater.notice }
+      return { cols, queued, working, flip: flip.notice, noted: noted.notice, still, shown, flipLater: flipLater.notice }
     }))
-    expect(out.queued).toEqual([["Reconcile", "queued #2"], ["Set up", "queued #1"]])
-    expect(out.working).toEqual([["Reconcile", "queued #1"], ["Set up", "triage-1 · Refine 0/1 cards"]])
+    expect(out.cols).toEqual(["journey", "open"])
+    expect(out.queued).toEqual(["queued"])
+    expect(out.working).toEqual(["waiting"])
     expect(out.flip).toBe("in Set up's triage round: read-only until Plan")
     expect(out.noted).toBe("in Reconcile's triage round: read-only until Plan")
     expect(out.still).toBe(true)

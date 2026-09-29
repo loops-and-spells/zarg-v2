@@ -29,7 +29,7 @@ describe("the backlog's feedback", () => {
     }))
     expect(out.a.ids).toEqual(out.b.ids)
     expect(out.files).toEqual([`${out.a.ids[0]}.json`])
-    expect(out.journeys.map((r) => [r.id, r.cells.open, r.cells.stage])).toEqual([["Set up", "1", "Triage"]])
+    expect(out.journeys.map((r) => [r.id, r.cells.open, Object.keys(r.cells)])).toEqual([["Set up", "1", ["journey", "open"]]])
     expect(out.feedback.map((r) => [r.id, r.on, r.cells.card])).toEqual([[out.a.ids[0], true, "gherkin/card:UX-0001"]])
   })
   test("flipping an entry is the operator's call, kept", async () => {
