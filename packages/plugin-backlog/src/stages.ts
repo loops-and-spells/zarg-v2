@@ -47,6 +47,10 @@ export interface Stage {
   readonly note?: string
   /** The feedback that was on when Refine started (what a plan closes). */
   readonly inputs?: ReadonlyArray<string>
+  /** Its place in the triage queue (lower goes first). */
+  readonly queued?: number
+  /** The triage worker on it (triage-1…N), once one took it. */
+  readonly worker?: string
   /** How often the whole draft failed its checks and was drafted again. */
   readonly redrafts?: number
   /** Re-rehearse findings the operator skipped: not brought back again. */
@@ -117,4 +121,19 @@ export const redo = (s: Stage, card: string): Stage | string => {
   const proposals = s.proposals.map((p) => (p.card === card ? { card, answers: [], summary: "", changes: [], status: "waiting" as const, ...(p.title !== undefined ? { title: p.title } : {}), ...(p.problems !== undefined ? { problems: p.problems } : {}) } : p))
   const { plan: _p, results: _r, run: _run, note: _n, ...rest } = s
   return { ...rest, stage: "refine", proposals, draft: proposals.filter((p) => p.status === "accepted").flatMap((p) => p.changes) }
+}
+
+/** In triage (queued or worked): its feedback is read-only until Plan. */
+export const inTriage = (s: Stage) => s.stage === "refine" || s.stage === "rehearse"
+/** The next place in the triage queue. */
+export const nextQueued = (all: ReadonlyArray<Stage>) => Math.max(0, ...all.map((s) => s.queued ?? 0)) + 1
+/** How the Feedback view names a journey's stage: its place in line, or the worker on it and how far it is. */
+export const stageLabel = (s: Stage, all: ReadonlyArray<Stage>): string => {
+  if (!inTriage(s)) return STAGE_TITLES[s.stage]
+  if (s.worker === undefined) {
+    const line = all.filter((x) => inTriage(x) && x.worker === undefined).sort((a, b) => (a.queued ?? 0) - (b.queued ?? 0))
+    return `queued #${line.findIndex((x) => x.journey === s.journey) + 1}`
+  }
+  const done = s.proposals.filter((p) => p.status === "accepted" || p.status === "skipped").length
+  return s.stage === "refine" ? `${s.worker} · Refine ${done}/${s.proposals.length}` : `${s.worker} · Re-rehearse`
 }

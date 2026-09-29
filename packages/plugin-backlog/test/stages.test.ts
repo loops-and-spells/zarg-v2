@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { fresh, redo, redraft, refineAgain, settle, slug, type Stage, stageActions, startRefine, stepperAt } from "../src/stages"
+import { fresh, inTriage, nextQueued, redo, redraft, refineAgain, settle, slug, type Stage, stageActions, stageLabel, startRefine, stepperAt } from "../src/stages"
 
 const on = (id: string, card: string) => ({ id, ref: `gherkin/card:${card}@abc`, triage: { on: true } })
 const off = (id: string, card: string) => ({ id, ref: `gherkin/card:${card}@abc`, triage: { on: false } })
@@ -70,5 +70,16 @@ describe("a journey's stages", () => {
     expect(typeof b === "string" ? b : [b.proposals[2]!.status, b.proposals[2]!.problems, b.draft.length]).toEqual(["waiting", ["6 thens"], 2])
     expect(redo(s, "UX-0099")).toBe("UX-0099 is not in Set up's round")
     expect(redo(fresh("Set up"), "UX-0001")).toBe("Set up has no round to draft again")
+  })
+  test("a journey queued for triage: its place in line, then the worker on it; its feedback is read-only until Plan", () => {
+    const a = { ...(startRefine(fresh("Set up"), [on("F-1", "UX-0001")]) as Stage), queued: 1 }
+    const b = { ...(startRefine(fresh("Reconcile"), [on("F-2", "UX-0003")]) as Stage), queued: 2 }
+    expect(nextQueued([a, b])).toBe(3)
+    expect([stageLabel(a, [a, b]), stageLabel(b, [a, b])]).toEqual(["queued #1", "queued #2"])
+    const working = { ...a, worker: "triage-1", proposals: [{ ...a.proposals[0]!, status: "accepted" as const }, ...a.proposals] }
+    expect(stageLabel(working, [working, b])).toBe("triage-1 · Refine 1/2")
+    expect(stageLabel(b, [working, b])).toBe("queued #1")
+    expect(stageLabel({ ...working, stage: "rehearse" }, [])).toBe("triage-1 · Re-rehearse")
+    expect(["triage", "refine", "rehearse", "plan", "planned"].map((x) => inTriage({ ...a, stage: x as Stage["stage"] }))).toEqual([false, true, true, false, false])
   })
 })

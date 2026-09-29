@@ -1,7 +1,37 @@
 import { defineView } from "@zarg/plugin-sdk"
 
-/** The Triage Agent's view: what it is on, the round's cards (each with its tries beside them), the journeys and what each waits for. */
-export const TriageView = defineView("triage", {
+const journeysTable = {
+  kind: "table",
+  role: "pinned",
+  title: "Journeys",
+  columns: [
+    { id: "g", label: "", filter: "none", tones: { "●": "accent", "◆": "attention", "✓": "ok", "·": "dim" } },
+    { id: "journey", label: "journey", tone: "journey", filter: "none" },
+    { id: "stage", label: "stage", filter: "none" },
+    { id: "waits", label: "", filter: "none" },
+  ],
+} as const
+
+/** Triage (the parent agent): how many workers are busy, each worker, the journeys in line and what each waits for. */
+export const RollupView = defineView("triage", {
+  summary: { kind: "text", role: "summary", title: "" },
+  workers: {
+    kind: "table",
+    role: "primary",
+    title: "Workers",
+    columns: [
+      { id: "g", label: "", filter: "none", tones: { "⠋": "accent", "●": "accent", "·": "dim" } },
+      { id: "worker", label: "worker", tone: "agent", filter: "none" },
+      { id: "journey", label: "journey", tone: "journey", filter: "none" },
+      { id: "now", label: "now", filter: "none" },
+    ],
+    actions: [{ id: "pause", label: "Pause", key: "p", on: "none" }],
+  },
+  journeys: journeysTable,
+})
+
+/** One triage worker: what it is on, its journey's cards (each card's tries and change beside the list). */
+export const WorkerView = defineView("worker", {
   summary: { kind: "text", role: "summary", title: "" },
   cards: {
     kind: "table",
@@ -11,22 +41,8 @@ export const TriageView = defineView("triage", {
       { id: "g", label: "", filter: "none", tones: { "✓": "ok", "↻": "attention", "✗": "error", "⠋": "accent", "·": "dim" } },
       { id: "card", label: "card", ref: true, filter: "none" },
     ],
-    actions: [
-      { id: "draft-again", label: "Draft again", key: "d", on: "row" },
-      { id: "pause", label: "Pause", key: "p", on: "none" },
-    ],
+    actions: [{ id: "draft-again", label: "Draft again", key: "d", on: "row" }],
   },
   // The highlighted card's tries, and its change.
   detail: { kind: "text", role: "pinned", title: "", follows: "cards", beside: "cards" },
-  journeys: {
-    kind: "table",
-    role: "pinned",
-    title: "Journeys",
-    columns: [
-      { id: "g", label: "", filter: "none", tones: { "⠋": "accent", "◆": "attention", "✓": "ok", "·": "dim" } },
-      { id: "journey", label: "journey", tone: "journey", filter: "none" },
-      { id: "stage", label: "stage", filter: "none" },
-      { id: "waits", label: "waits for", filter: "none" },
-    ],
-  },
 })

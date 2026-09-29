@@ -63,6 +63,8 @@ A nav item, **Feedback**, owned by plugin-backlog. Left: every journey with its 
 4. **Plan.** The list keeps only the entries the re-rehearse did not resolve. The Triage Agent drafts the plan (title, steps); the work pane shows it with each drafted change, what was resolved, what is new, and what was left out. **Accept** (a) sends it to the Backlog (Ready); its entries become `planned`. **Refine again** (r) refines the cards whose entries are still on and unresolved, over the draft so far. With nothing drafted there is no plan, only Refine again.
 
 A table names the buttons its stage offers (`actions` in its data); the others are not drawn and their keys do nothing.
+
+**Triage scales out like rehearse.** Refine queues the journey; any number can be queued. A `triage` rollup agent owns N workers (`triage-1…N`, `[plugins.triage] workers`, default 2); each free worker takes the next journey in line and carries it through Refine, Re-rehearse (one rehearse run at a time, so workers take turns) and Plan, then takes the next. While a journey is queued or worked, its feedback is read-only (dimmed; space and n say why); Feedback shows its place in line (`queued #2`) or its worker (`triage-1 · Refine 4/15`). The rollup shows the workers and the journeys (p pauses); each worker's view shows its journey's cards, with each card's tries and change beside them (d drafts a card again).
 Keys and buttons follow the view SDK's rules (buttons in the view, keys on the status line). Each stage is resumable: closing the TUI or restarting the core resumes the journey where it was.
 
 ## The Backlog (kanban)

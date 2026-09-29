@@ -20,6 +20,7 @@ const press = (action: string) => PluginHost.use((h) => h.invoke("backlog", "act
 const work = (seen: Seen) => (seen.get("feedback/work") as { markdown: string } | undefined)?.markdown ?? ""
 const stage = (seen: Seen) => (seen.get("feedback/stage") as { markdown: string } | undefined)?.markdown ?? ""
 
+const rows = (seen: Seen) => (seen.get("feedback/feedback") as { rows: Array<{ id: string; tone?: string }> } | undefined)?.rows ?? []
 const buttons = (seen: Seen) => (seen.get("feedback/feedback") as { actions?: string[] } | undefined)?.actions
 const note = (id: string, text: string) => PluginHost.use((h) => h.invoke("backlog", "act", { agent: "feedback", action: "note", section: "feedback", rows: [id], text })) as Effect.Effect<{ notice: string }, unknown, PluginHost>
 
@@ -53,11 +54,11 @@ describe("the triage hub's stages", () => {
       const item = yield* h.entities.get("backlog/item:B-01")
       return { refine, refining, rehearsing, stages, drafting, plan, nothingLeft, accepted, item: item.data as { changes: unknown[]; cards: Array<{ ref: string }>; feedback: string[]; status: string }, file: readdirSync(join(root, ".zarg/triage")).some((n) => /^set-up-[0-9a-f]{6}\.json$/.test(n)), status: yield* h.invoke("backlog", "status", { ids }), ids }
     }))
-    expect(out.refine).toBe("Set up: refining 1 card")
-    expect(out.refining.work).toContain("The Triage Agent is drafting UX-0001")
-    expect(out.refining.buttons).toEqual(["note"])
+    expect(out.refine).toBe("Set up: queued #1 · 1 card")
+    expect(out.refining.work).toContain("Queued for triage")
+    expect(out.refining.buttons).toEqual([])
     expect(out.rehearsing.stage).toContain("● Re-rehearse")
-    expect(out.rehearsing.buttons).toEqual(["refine", "note"])
+    expect(out.rehearsing.buttons).toEqual(["refine"])
     expect(out.stages).toEqual([expect.objectContaining({ stage: "rehearse", draft: [expect.anything()] })])
     expect(out.drafting).toEqual(["refine", "note"])
     expect(out.plan.work).toContain("Grant prompt names its choices")
@@ -128,5 +129,30 @@ describe("the triage hub's stages", () => {
     expect(out.before).toEqual(["rehearse", 1, "Plugin asks for a scope"])
     expect(out.again).toBe("Set up: drafting UX-0001 again")
     expect(out.after).toEqual(["refine", 0, "waiting"])
+  })
+  test("queued journeys wait in line; a worker's journey says so; their feedback is read-only until Plan", async () => {
+    const out = await run((seen) => Effect.gen(function* () {
+      const { ids, card } = yield* setUp()
+      const h = yield* PluginHost
+      const { ids: other } = (yield* h.invoke("backlog", "file", { entries: [{ ref: card.ref, journeys: ["Reconcile"], persona: "Operator", kind: "gap", severity: "low", note: "Another.", from: { agent: "rehearse", run: "r-1" }, triage: { on: true, why: "fix" } }] })) as { ids: string[] }
+      yield* press("open")
+      yield* h.invoke("backlog", "act", { agent: "feedback", action: "journey", rows: ["Set up"] })
+      yield* press("refine")
+      yield* h.invoke("backlog", "act", { agent: "feedback", action: "journey", rows: ["Reconcile"] })
+      yield* press("refine")
+      const queued = (seen.get("feedback/journeys") as { rows: Array<{ id: string; cells: { stage: string } }> }).rows.map((r) => [r.id, r.cells.stage])
+      yield* h.invoke("backlog", "assign", { journey: "Set up", worker: "triage-1" })
+      yield* press("open")
+      const working = (seen.get("feedback/journeys") as { rows: Array<{ id: string; cells: { stage: string } }> }).rows.map((r) => [r.id, r.cells.stage])
+      const flip = (yield* h.invoke("backlog", "act", { agent: "feedback", action: "toggle", rows: ids })) as { notice: string }
+      const noted = (yield* h.invoke("backlog", "act", { agent: "feedback", action: "note", rows: other, text: "x" })) as { notice: string }
+      const still = ((yield* h.invoke("backlog", "status", { ids })) as Array<{ on: boolean }>)[0]!.on
+      return { queued, working, flip: flip.notice, noted: noted.notice, still, rows: rows(seen) }
+    }))
+    expect(out.queued).toEqual([["Reconcile", "queued #2"], ["Set up", "queued #1"]])
+    expect(out.working).toEqual([["Reconcile", "queued #1"], ["Set up", "triage-1 · Refine 0/1"]])
+    expect(out.flip).toBe("Set up is in triage: its feedback is read-only until Plan")
+    expect(out.noted).toBe("Reconcile is in triage: its feedback is read-only until Plan")
+    expect(out.still).toBe(true)
   })
 })

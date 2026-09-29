@@ -45,6 +45,6 @@ test("the Triage Agent loads through the host with gherkin, the backlog and rehe
   }).pipe(Effect.scoped, Effect.provide(BunServices.layer), Effect.runPromise)
   expect(out.names).toEqual(expect.arrayContaining(["gherkin", "backlog", "rehearse", "triage"]))
   expect(out.tick).toBeNull()
-  // Its view is drawn after each tick: idle, with nothing to do.
-  expect(out.summary).toContain("**idle**")
+  // The rollup is drawn after each tick: every worker free, nothing queued.
+  expect(out.summary).toContain("**0 of 2 workers busy** · 0 queued")
 }, 60_000)

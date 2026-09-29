@@ -7,7 +7,7 @@ type Stage = Parameters<TriageDeps["propose"]>[0] extends never ? never : any
 const stage = (over: Record<string, unknown>) => ({ journey: "Set up", stage: "refine", proposals: [], draft: [], ...over })
 const entry = { id: "F-00000001", ref: "gherkin/card:UX-0001@abc", kind: "gap", severity: "high", note: "No deny path.", persona: "Operator", on: true, operatorNote: "Deny should say why." }
 const offEntry = { id: "F-00000002", ref: "gherkin/card:UX-0002@abc", kind: "friction", severity: "low", note: "Wordy.", persona: "Operator", on: false }
-const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string>; spent?: boolean; dry?: (n: number) => { ok: boolean; problems: string[]; touched: string[]; cards?: string[] }; run?: unknown; result?: unknown; fresh?: boolean; down?: boolean; journeys?: ReadonlyArray<unknown> }) => {
+const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string>; spent?: boolean; workers?: number; dry?: (n: number) => { ok: boolean; problems: string[]; touched: string[]; cards?: string[] }; run?: unknown; result?: unknown; fresh?: boolean; down?: boolean; journeys?: ReadonlyArray<unknown> }) => {
   const calls: Array<[string, unknown]> = []
   const answers = [...(o.answers ?? [])]
   let dries = 0
@@ -27,11 +27,15 @@ const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string
     run: (p) => Effect.sync(() => (calls.push(["run", p]), (o.run ?? { run: "r-9" }) as never)),
     result: () => Effect.succeed((o.result ?? { status: "running", findings: [] }) as never),
     status: () => Effect.void,
-    log: (text) => Effect.sync(() => void calls.push(["log", text])),
+    assign: (journey, worker) => Effect.sync(() => void calls.push(["assign", worker === undefined ? journey : `${journey} → ${worker}`])),
+    worker: (id, journey) => Effect.sync(() => void calls.push(["worker", `${id}: ${journey ?? "free"}`])),
+    log: (_agent, text) => Effect.sync(() => void calls.push(["log", text])),
     now: Effect.sync(() => (clock += 1500)),
     render: Effect.sync(() => void calls.push(["render", null])),
   }
-  return { t: makeTriage(deps), calls, deps }
+  const made = makeTriage(deps, o.workers ?? 2)
+  // A tick hands journeys to workers, which work in the background: wait for them.
+  return { t: { ...made, tick: Effect.andThen(made.tick, made.idle) }, calls, deps }
 }
 const proposalJson = JSON.stringify({ changes: [{ tool: "edit-state", params: { id: "S-0002", text: "the operator sees: once, always, deny" } }], answers: ["F-00000001"], summary: "Name the choices." })
 
@@ -98,10 +102,10 @@ describe("the Triage Agent", () => {
     const first = { tool: "edit-state", params: { id: "S-0002", text: "the operator sees: once, always, deny" } }
     let reads = 0
     const drafts: Array<unknown> = []
-    const base = { stages: () => Effect.sync(() => (reads++ < 2 ? [stage({ proposals: [waiting("UX-0001"), waiting("UX-0002")] })] : [stage({ proposals: [{ ...waiting("UX-0001"), status: "accepted" }, waiting("UX-0002")], draft: [first] })]) as never) }
+    const base = { stages: () => Effect.sync(() => (reads++ < 3 ? [stage({ proposals: [waiting("UX-0001"), waiting("UX-0002")] })] : [stage({ proposals: [{ ...waiting("UX-0001"), status: "accepted" }, waiting("UX-0002")], draft: [first] })]) as never) }
     const s = setup({ stages: [], answers: [proposalJson, proposalJson] })
-    const tri = makeTriage({ ...s.deps, ...base, dryRun: (d) => Effect.sync(() => (drafts.push(d), { ok: true, problems: [], touched: [], cards: [] })) })
-    await Effect.runPromise(tri.tick)
+    const made = makeTriage({ ...s.deps, ...base, dryRun: (d) => Effect.sync(() => (drafts.push(d), { ok: true, problems: [], touched: [], cards: [] })) })
+    await Effect.runPromise(Effect.andThen(made.tick, made.idle))
     expect(drafts.map((d) => (d as unknown[]).length)).toEqual([1, 2])
   })
   test("its history says what it does: each card drafted (into the draft, or left out and why, with what the model said), each run", async () => {
@@ -188,5 +192,29 @@ describe("the Triage Agent", () => {
     expect(t.pause()).toBe(false)
     await Effect.runPromise(t.tick)
     expect(calls.filter(([k]) => k === "propose").length).toBe(1)
+  })
+  test("workers take journeys in queue order; one worker takes the next only when it is free", async () => {
+    const waiting = (card: string) => ({ card, changes: [], answers: [], summary: "", status: "waiting" })
+    const later = stage({ journey: "Reconcile", queued: 2, proposals: [waiting("UX-0002")] })
+    const first = stage({ journey: "Set up", queued: 1, proposals: [waiting("UX-0001")] })
+    const two = setup({ stages: [later, first], answers: [proposalJson, proposalJson] })
+    await Effect.runPromise(two.t.tick)
+    expect(two.calls.filter(([k]) => k === "assign").map(([, x]) => x).slice(0, 2)).toEqual(["Set up → triage-1", "Reconcile → triage-2"])
+    expect(two.calls.filter(([k]) => k === "propose").length).toBe(2)
+    const one = setup({ stages: [later, first], answers: [proposalJson, proposalJson], workers: 1 })
+    await Effect.runPromise(one.t.tick)
+    expect(one.calls.filter(([k]) => k === "assign").map(([, x]) => x)).toEqual(["Set up → triage-1"])
+    expect(one.calls.filter(([k]) => k === "propose").map(([, p]) => (p as { journey: string }).journey)).toEqual(["Set up"])
+  })
+  test("a worker lets its journey go once it needs nothing more", async () => {
+    let n = 0
+    const waiting = { card: "UX-0001", changes: [], answers: [], summary: "", status: "waiting" }
+    const s = setup({ stages: [], answers: [proposalJson] })
+    const made = makeTriage({ ...s.deps, stages: () => Effect.sync(() => (n++ < 4 ? [stage({ proposals: [waiting] })] : [stage({ stage: "planned" })]) as never) }, 1)
+    await Effect.runPromise(Effect.andThen(made.tick, made.idle))
+    expect(made.state().workers).toEqual([{ id: "triage-1", journey: "Set up" }])
+    await Effect.runPromise(Effect.andThen(made.tick, made.idle))
+    expect(made.state().workers).toEqual([{ id: "triage-1" }])
+    expect(s.calls.filter(([k]) => k === "worker").map(([, x]) => x)).toEqual(["triage-1: Set up", "triage-1: free"])
   })
 })

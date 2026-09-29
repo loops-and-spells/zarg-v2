@@ -57,6 +57,8 @@ export const StageData = Schema.Struct({
   note: Schema.optionalKey(Schema.String),
   inputs: Schema.optionalKey(Schema.Array(Schema.String)),
   redrafts: Schema.optionalKey(Schema.Number),
+  queued: Schema.optionalKey(Schema.Number),
+  worker: Schema.optionalKey(Schema.String),
   dismissed: Schema.optionalKey(Schema.Array(Schema.Struct({ card: Schema.String, kind: Schema.String }))),
 })
 export const Propose = Schema.Struct({ journey: Schema.String, card: Schema.String, title: Schema.optionalKey(Schema.String), tries: Schema.optionalKey(Schema.Array(Try)), changes: DraftCalls, answers: Schema.Array(Schema.String), summary: Schema.String, problems: Schema.optionalKey(Schema.Array(Schema.String)) })
@@ -85,5 +87,6 @@ export const Backlog = pluginContract("backlog", {
   rehearsed: { params: Rehearsed, success: Schema.Null },
   drafted: { params: Drafted, success: Schema.Null },
   redraft: { params: Redraft, success: Schema.Null },
+  assign: { params: Schema.Struct({ journey: Schema.String, worker: Schema.optionalKey(Schema.String) }), success: Schema.Null },
   redo: { params: Schema.Struct({ journey: Schema.String, card: Schema.String }), success: Schema.Struct({ notice: Schema.String }) },
 })

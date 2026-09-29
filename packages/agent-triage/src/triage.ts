@@ -1,4 +1,4 @@
-import { Effect, Semaphore } from "effect"
+import { Effect, Fiber, Semaphore } from "effect"
 import { parseRef } from "@zarg/entities"
 import type { Working } from "./view"
 
@@ -16,6 +16,8 @@ export interface StageView {
   readonly results?: { readonly resolved: ReadonlyArray<string>; readonly fresh: ReadonlyArray<Fresh> }
   readonly plan?: { readonly title: string; readonly steps: ReadonlyArray<string> }
   readonly item?: string
+  readonly queued?: number
+  readonly worker?: string
   readonly dismissed?: ReadonlyArray<{ readonly card: string; readonly kind: string }>
 }
 type OnEntry = { readonly id: string; readonly ref: string; readonly kind: string; readonly severity: string; readonly note: string; readonly persona: string; readonly on: boolean; readonly operatorNote?: string }
@@ -38,9 +40,13 @@ export interface TriageDeps {
   readonly run: (p: { readonly strategy: "journey"; readonly focus: ReadonlyArray<string>; readonly draft: Draft; readonly file: false }) => Effect.Effect<{ readonly run?: string; readonly refused?: string }, unknown>
   readonly result: (run: string) => Effect.Effect<{ readonly status: string; readonly findings: ReadonlyArray<Fresh & { readonly on: boolean }> }, unknown>
   /** The agent's row: what it does now. */
-  readonly status: (text: string) => Effect.Effect<void, unknown>
+  readonly status: (agent: string, text: string) => Effect.Effect<void, unknown>
   /** A line in the agent's history: what it did, and why when it failed. */
-  readonly log: (text: string) => Effect.Effect<void, unknown>
+  readonly log: (agent: string, text: string) => Effect.Effect<void, unknown>
+  /** Tell the backlog which worker took a journey (none: it let it go). */
+  readonly assign: (journey: string, worker?: string) => Effect.Effect<void, unknown>
+  /** A worker took a journey (its agent starts) or let it go (undefined: its agent ends). */
+  readonly worker: (id: string, journey: string | undefined) => Effect.Effect<void, unknown>
   /** The time now (ms): how long each try takes. */
   readonly now: Effect.Effect<number, unknown>
   /** Draw the agent's view again (a card started or ended, a run started). */
@@ -78,14 +84,14 @@ const stepText = (s: Step) => (s === null ? "(this card is not in the graph)" : 
 const cardOf = (ref: string) => parseRef(ref)?.id ?? ref
 
 /** The Triage Agent: the agent's part of each journey's stage, whenever the core wakes it. */
-export const makeTriage = (d: TriageDeps) => {
+type Slot = { readonly id: string; journey?: string | undefined; at?: Working | undefined; busy: boolean }
+export const makeTriage = (d: TriageDeps, workers = 2) => {
   const quiet = <A>(e: Effect.Effect<A, unknown>) => Effect.ignore(e)
   const clock = d.now.pipe(Effect.orElseSucceed(() => 0))
-  // What it is on (a card, or "" for the run it waits on), and since when; paused, it does nothing.
-  let working: Working | undefined
+  // Paused, no worker starts a card; each worker's card (or "" for the run it waits on), and since when.
   let paused = false
   const runsSince = new Map<string, number>()
-  const on = (w: Working | undefined) => Effect.andThen(Effect.sync(() => (working = w)), quiet(d.render))
+  const at = (w: Slot, now: Working | undefined) => Effect.andThen(Effect.sync(() => (w.at = now)), quiet(d.render))
   /** The model's answer; undefined when it did not answer at all (an outage, not a bad answer). */
   // Room to reason before the JSON: a thinking model spends most of its answer there.
   const answerOf = (user: string) => d.complete({ messages: [{ role: "system", content: SYSTEM }, { role: "user", content: user }], maxTokens: 16384 }).pipe(Effect.orElseSucceed(() => undefined))
@@ -101,10 +107,10 @@ export const makeTriage = (d: TriageDeps) => {
   }
 
   /** One card's proposal: from the model, dry-run over the draft so far; one retry with what was wrong. */
-  const proposeFor = (st: StageView, card: string) =>
+  const proposeFor = (st: StageView, card: string, who: string) =>
     Effect.gen(function* () {
       const entries = (yield* d.feedbackOf(st.journey).pipe(Effect.orElseSucceed(() => []))).filter((e) => e.on && cardOf(e.ref) === card)
-      const say = (text: string) => quiet(d.log(`${st.journey}: ${text}`))
+      const say = (text: string) => quiet(d.log(who, `${st.journey}: ${text}`))
       yield* say(`drafting ${card} (${entries.length} feedback)`)
       const fresh = (st.results?.fresh ?? []).filter((f) => f.card === card)
       const step = yield* d.step(card, st.draft).pipe(Effect.orElseSucceed(() => null))
@@ -157,13 +163,13 @@ export const makeTriage = (d: TriageDeps) => {
     })
 
   /** Re-rehearse: check the whole draft, start a run over it (again, when one stopped), or read the one going. */
-  const rehearse = (st: StageView) =>
+  const rehearse = (st: StageView, who: string) =>
     Effect.gen(function* () {
       const start = Effect.gen(function* () {
         const dry = yield* d.dryRun(st.draft).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: ["the dry-run failed"], touched: [] as ReadonlyArray<string>, cards: [] as ReadonlyArray<string> })))
         // Accepted one by one, the changes may not fit together: back to Refine before any run.
         if (!dry.ok) {
-          yield* quiet(d.log(`${st.journey}: the drafted changes do not fit together: ${dry.problems.join("; ")}`))
+          yield* quiet(d.log(who, `${st.journey}: the drafted changes do not fit together: ${dry.problems.join("; ")}`))
           return yield* d.redraft({ journey: st.journey, problems: dry.problems })
         }
         const journey = (yield* d.journeys().pipe(Effect.orElseSucceed(() => []))).find((j) => j.name === st.journey)
@@ -172,10 +178,10 @@ export const makeTriage = (d: TriageDeps) => {
         if (focus.length === 0) return yield* d.rehearsed({ journey: st.journey, resolved: [], fresh: [], next: "plan", cards: dry.cards })
         const started: { readonly run?: string; readonly refused?: string } = yield* d.run({ strategy: "journey", focus, draft: st.draft, file: false }).pipe(Effect.orElseSucceed(() => ({ refused: "rehearse did not answer" })))
         if (started.run === undefined) {
-          yield* quiet(d.log(`${st.journey}: re-rehearse waits: ${started.refused ?? "rehearse did not start"}`))
+          yield* quiet(d.log(who, `${st.journey}: re-rehearse waits: ${started.refused ?? "rehearse did not start"}`))
           return yield* d.rehearsing({ journey: st.journey, clear: true, note: `waits: ${started.refused ?? "rehearse did not start"}` })
         }
-        yield* quiet(d.log(`${st.journey}: re-rehearsing on ${focus.length} cards (run ${started.run})`))
+        yield* quiet(d.log(who, `${st.journey}: re-rehearsing on ${focus.length} cards (run ${started.run})`))
         return yield* d.rehearsing({ journey: st.journey, run: started.run, cards: dry.cards })
       })
       if (st.run === undefined) return yield* start
@@ -189,13 +195,13 @@ export const makeTriage = (d: TriageDeps) => {
       // Fresh: new to this journey — not an entry already (on or off), not one the operator skipped.
       const known = (f: { card: string; kind: string }) => entries.some((e) => cardOf(e.ref) === f.card && e.kind === f.kind) || (st.dismissed ?? []).some((x) => x.card === f.card && x.kind === f.kind)
       const fresh = r.findings.filter((f) => f.on && !known(f)).map(({ on: _, ...f }) => f)
-      yield* quiet(d.log(`${st.journey}: re-rehearsed: ${resolved.length} resolved, ${fresh.length} new`))
+      yield* quiet(d.log(who, `${st.journey}: re-rehearsed: ${resolved.length} resolved, ${fresh.length} new`))
       // On to Plan either way: new findings are named there, and the operator refines again or accepts.
       yield* d.rehearsed({ journey: st.journey, resolved, fresh, next: "plan", ...(st.cards !== undefined ? { cards: st.cards } : {}) })
     })
 
   /** Plan: a title and steps for the accepted changes (a plain one when the model does not answer). */
-  const draftPlan = (st: StageView) =>
+  const draftPlan = (st: StageView, who: string) =>
     Effect.gen(function* () {
       const accepted = st.proposals.filter((p) => p.status === "accepted")
       const text = yield* ask(
@@ -205,42 +211,90 @@ export const makeTriage = (d: TriageDeps) => {
       const v = jsonIn(text) as { title?: unknown; steps?: unknown } | undefined
       const title = typeof v?.title === "string" && v.title.length > 0 ? v.title : `${st.journey}: ${accepted.length} card${accepted.length === 1 ? "" : "s"} refined`
       const steps = Array.isArray(v?.steps) && v.steps.every((x) => typeof x === "string") ? (v.steps as ReadonlyArray<string>) : accepted.map((p) => `${p.card}: ${p.summary}`)
-      yield* quiet(d.log(`${st.journey}: plan drafted: ${title}`))
+      yield* quiet(d.log(who, `${st.journey}: plan drafted: ${title}`))
       yield* d.drafted({ journey: st.journey, title, steps })
     })
 
-  // One pass at a time: two wakes close together must not propose twice or start two runs.
-  const lock = Effect.runSync(Semaphore.make(1))
-  const tick = Effect.gen(function* () {
-    if (paused) return
-    for (const st of yield* d.stages().pipe(Effect.orElseSucceed(() => []))) {
-      if (paused) break
-      if (st.stage === "refine")
-        for (const p of st.proposals.filter((x) => x.status === "waiting")) {
-          // Each proposal goes into the draft as it comes: draft the next over the draft as it is now.
-          const now = (yield* d.stages().pipe(Effect.orElseSucceed(() => []))).find((x) => x.journey === st.journey)
+  /** One pass over a journey: its waiting cards one by one (each over the draft as it now stands), then its re-rehearse or its plan. */
+  const pass = (slot: Slot, journey: string) =>
+    Effect.gen(function* () {
+      const first = (yield* d.stages().pipe(Effect.orElseSucceed(() => []))).find((x) => x.journey === journey)
+      if (first === undefined) return
+      if (first.stage === "refine")
+        for (const p of first.proposals.filter((x) => x.status === "waiting")) {
+          const now = (yield* d.stages().pipe(Effect.orElseSucceed(() => []))).find((x) => x.journey === journey)
           if (paused || now === undefined || now.stage !== "refine" || !now.proposals.some((x) => x.card === p.card && x.status === "waiting")) break
-          yield* quiet(d.status(`${st.journey}: proposing for ${p.card}`))
-          yield* on({ journey: st.journey, card: p.card, since: yield* clock })
-          yield* proposeFor(now, p.card)
+          yield* quiet(d.status(slot.id, `${journey}: drafting ${p.card}`))
+          yield* at(slot, { journey, card: p.card, since: yield* clock })
+          yield* proposeFor(now, p.card, slot.id)
         }
+      const st = (yield* d.stages().pipe(Effect.orElseSucceed(() => []))).find((x) => x.journey === journey)
+      if (paused || st === undefined) return
       if (st.stage === "rehearse") {
         // Since when it waits on this journey's run (first seen, if it started before this process).
-        if (!runsSince.has(st.journey)) runsSince.set(st.journey, yield* clock)
-        yield* on({ journey: st.journey, card: "", since: runsSince.get(st.journey)! })
-        yield* rehearse(st)
-      } else runsSince.delete(st.journey)
-      if (st.stage === "plan" && st.plan === undefined && st.draft.length > 0) {
-        yield* quiet(d.status(`${st.journey}: drafting the plan`))
-        yield* draftPlan(st)
+        if (!runsSince.has(journey)) runsSince.set(journey, yield* clock)
+        yield* quiet(d.status(slot.id, `${journey}: re-rehearsing`))
+        yield* at(slot, { journey, card: "", since: runsSince.get(journey)! })
+        yield* rehearse(st, slot.id)
+      } else runsSince.delete(journey)
+      const after = (yield* d.stages().pipe(Effect.orElseSucceed(() => []))).find((x) => x.journey === journey)
+      if (after !== undefined && after.stage === "plan" && after.plan === undefined && after.draft.length > 0) {
+        yield* quiet(d.status(slot.id, `${journey}: drafting the plan`))
+        yield* draftPlan(after, slot.id)
       }
+    }).pipe(Effect.catchCause(() => Effect.void))
+
+  // The workers: each takes the next journey in line and works it, pass by pass, until it needs nothing more of them.
+  const slots: Array<Slot> = Array.from({ length: Math.max(1, workers) }, (_, i) => ({ id: `triage-${i + 1}`, busy: false }))
+  const running = new Set<Fiber.Fiber<void, never>>()
+  const needsWork = (s: StageView) => (s.stage === "refine" && s.proposals.some((p) => p.status === "waiting")) || s.stage === "rehearse" || (s.stage === "plan" && s.plan === undefined && s.draft.length > 0)
+  // One assignment at a time: two wakes close together must not give a journey to two workers.
+  const lock = Effect.runSync(Semaphore.make(1))
+  const tick: Effect.Effect<void> = Effect.gen(function* () {
+    if (paused) return
+    const stages = yield* d.stages().pipe(Effect.orElseSucceed(() => []))
+    const line = stages.filter(needsWork).sort((a, b) => (a.queued ?? 0) - (b.queued ?? 0))
+    // A worker whose journey needs nothing more lets it go.
+    for (const w of slots)
+      if (w.journey !== undefined && !w.busy && !line.some((s) => s.journey === w.journey)) {
+        const done = w.journey
+        w.journey = undefined
+        w.at = undefined
+        yield* quiet(d.assign(done))
+        yield* quiet(d.worker(w.id, undefined))
+      }
+    // The next in line go to free workers.
+    for (const s of line) {
+      if (slots.some((w) => w.journey === s.journey)) continue
+      const w = slots.find((x) => x.journey === undefined)
+      if (w === undefined) break
+      w.journey = s.journey
+      yield* quiet(d.assign(s.journey, w.id))
+      yield* quiet(d.worker(w.id, s.journey))
     }
-  }).pipe(Effect.catchCause(() => Effect.void), Effect.ensuring(on(undefined)), lock.withPermits(1))
+    // Every worker with a journey and nothing in flight makes a pass, in the background.
+    for (const w of slots)
+      if (w.journey !== undefined && !w.busy) {
+        w.busy = true
+        const journey = w.journey
+        const fiber = yield* Effect.forkDetach(
+          pass(w, journey).pipe(
+            Effect.ensuring(Effect.sync(() => (w.busy = false))),
+            Effect.ensuring(at(w, undefined)),
+          ),
+        )
+        running.add(fiber)
+        fiber.addObserver(() => running.delete(fiber))
+      }
+    yield* quiet(d.render)
+  }).pipe(Effect.catchCause(() => Effect.void), lock.withPermits(1))
   return {
     tick,
-    /** p: pause (after the card in flight) or resume; answers whether it is paused now. */
+    /** Waits for every pass in flight (tests; a shutdown). */
+    idle: Effect.suspend(() => Fiber.joinAll([...running])).pipe(Effect.asVoid, Effect.catchCause(() => Effect.void)),
+    /** p: pause (after the cards in flight) or resume; answers whether it is paused now. */
     pause: () => (paused = !paused),
-    /** What the view shows beside the stages. */
-    state: () => ({ working, paused }),
+    /** What the views show beside the stages: each worker, whether paused. */
+    state: () => ({ workers: slots.map((w) => ({ id: w.id, ...(w.journey !== undefined ? { journey: w.journey } : {}), ...(w.at !== undefined ? { working: w.at } : {}) })), paused }),
   }
 }
