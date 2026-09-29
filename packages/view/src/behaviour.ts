@@ -286,17 +286,19 @@ export const toggleSelect = (view: ViewState, ui: ViewUi): ViewUi => {
   const c = current(view, ui)
   if (c === undefined || c.leaf.kind !== "table" || c.leaf.selectable !== true) return ui
   const row = shownRows(view, ui, c.path)[ui.rows[c.path] ?? 0]
-  if (row === undefined) return ui
+  if (row === undefined || readOnlyRow(row)) return ui
   const sel = ui.selected[c.path] ?? []
   return { ...ui, selected: { ...ui.selected, [c.path]: sel.includes(row.id) ? sel.filter((x) => x !== row.id) : [...sel, row.id] } }
 }
 
 /** On a toggle table, the flip of the highlighted row (the plugin keeps whether it is on). */
+/** A row that only reports now: it neither toggles nor ticks. */
+export const readOnlyRow = (row: unknown) => (row as { readonly?: boolean } | undefined)?.readonly === true
 export const toggleAct = (view: ViewState, ui: ViewUi): { readonly section: string; readonly action: "toggle"; readonly rows: ReadonlyArray<string> } | undefined => {
   const c = current(view, ui)
   if (c === undefined || c.leaf.kind !== "table" || c.leaf.toggle !== true) return undefined
   const row = shownRows(view, ui, c.path)[ui.rows[c.path] ?? 0]
-  return row === undefined ? undefined : { section: c.path, action: "toggle", rows: [row.id] }
+  return row === undefined || readOnlyRow(row) ? undefined : { section: c.path, action: "toggle", rows: [row.id] }
 }
 
 /** For each table with a `highlight` action, that action on its highlighted row: the platform runs it when the row changes. */

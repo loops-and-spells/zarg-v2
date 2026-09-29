@@ -45,7 +45,7 @@ describe("the backlog's feedback", () => {
     }))
     expect(out.row.on).toBe(false)
     // Why it is off is in the detail beside the list, not a column.
-    expect(Object.keys(out.row.cells)).toEqual(["card", "severity", "kind", "note"])
+    expect(Object.keys(out.row.cells)).toEqual(["card", "severity", "kind", "note", "status"])
     expect(out.detail).toContain("off (your call: fix · real 0.80)")
     expect(out.status).toEqual([{ id: out.row.id, state: "open", on: false }])
   })

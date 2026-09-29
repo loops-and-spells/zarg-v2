@@ -31,6 +31,8 @@ export const FeedbackView = defineView("feedback", {
       { id: "kind", label: "kind", filter: "values" },
       // ✎: the operator left a note for refinement (the detail shows it).
       { id: "note", label: "✎", filter: "none" },
+      // Where an entry of a triage round stands (the others are blank: usable, for the next round).
+      { id: "status", label: "status", filter: "values", tones: { queued: "dim", waiting: "dim", drafted: "ok", "left out": "error", "re-rehearsing": "accent", "still reported": "attention" } },
     ],
   },
   // The highlighted entry in full, and its card as the tester saw it.

@@ -15,3 +15,11 @@ describe("toggle tables", () => {
     expect(toggleAct(view(false), initialViewUi)).toBeUndefined()
   })
 })
+
+describe("read-only rows", () => {
+  test("a read-only row flips nothing; the others still do", () => {
+    const v: ViewState = { ...view(true), data: { list: { rows: [{ id: "a", cells: { c: "A" }, on: true }, { id: "b", cells: { c: "B" }, on: true, readonly: true }] } } }
+    expect(toggleAct(v, { ...initialViewUi, rows: { list: 1 } })).toBeUndefined()
+    expect(toggleAct(v, { ...initialViewUi, rows: { list: 0 } })).toEqual({ section: "list", action: "toggle", rows: ["a"] })
+  })
+})

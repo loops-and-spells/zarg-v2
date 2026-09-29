@@ -257,6 +257,28 @@ test("a click on a toggle row's mark asks the plugin to flip it", async () => {
   expect(acts).toEqual([["list", "toggle", ["b"]]])
 })
 
+test("a read-only row reports: no mark, and a click flips nothing; the other rows still toggle", async () => {
+  const v: ViewState = {
+    agent: "t",
+    layout: layoutOf(defineView("t", { list: { kind: "table", role: "pinned", title: "F", toggle: true, columns: [{ id: "c", label: "c" }, { id: "s", label: "status" }] } })),
+    data: { list: { rows: [{ id: "a", cells: { c: "kept", s: "drafted" }, on: true, readonly: true }, { id: "b", cells: { c: "dropped", s: "" }, on: false }] } },
+  }
+  const acts: Array<unknown> = []
+  const t = await testRender(<AgentView view={v} ui={initialViewUi} height={20} onAct={(s, a, r) => void acts.push([s, a, r])} />, { width: 60, height: 20, exitOnCtrlC: false, exitSignals: [] })
+  destroy = () => t.renderer.destroy()
+  await t.renderOnce()
+  await Bun.sleep(5)
+  await t.renderOnce()
+  const f = t.captureCharFrame()
+  expect(f).not.toMatch(/\[[● ]\] kept/)
+  expect(f).toMatch(/kept\s+drafted/)
+  expect(f).toMatch(/\[ \] dropped/)
+  const lines = f.split("\n")
+  const y = lines.findIndex((l) => l.includes("kept"))
+  await t.mockMouse.click(lines[y]!.indexOf("kept") - 2, y)
+  expect(acts).toEqual([])
+})
+
 describe("a busy row", () => {
   const spinning = (now: number) => ({
     agent: "triage:triage",

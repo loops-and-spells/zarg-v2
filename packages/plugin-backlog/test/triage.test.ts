@@ -20,7 +20,7 @@ const press = (action: string) => PluginHost.use((h) => h.invoke("backlog", "act
 const work = (seen: Seen) => (seen.get("feedback/work") as { markdown: string } | undefined)?.markdown ?? ""
 const stage = (seen: Seen) => (seen.get("feedback/stage") as { markdown: string } | undefined)?.markdown ?? ""
 
-const rows = (seen: Seen) => (seen.get("feedback/feedback") as { rows: Array<{ id: string; tone?: string }> } | undefined)?.rows ?? []
+const rows = (seen: Seen) => (seen.get("feedback/feedback") as { rows: Array<{ id: string; tone?: string; readonly?: boolean; cells?: Record<string, string> }> } | undefined)?.rows ?? []
 const buttons = (seen: Seen) => (seen.get("feedback/feedback") as { actions?: string[] } | undefined)?.actions
 const note = (id: string, text: string) => PluginHost.use((h) => h.invoke("backlog", "act", { agent: "feedback", action: "note", section: "feedback", rows: [id], text })) as Effect.Effect<{ notice: string }, unknown, PluginHost>
 
@@ -56,9 +56,9 @@ describe("the triage hub's stages", () => {
     }))
     expect(out.refine).toBe("Set up: queued #1 · 1 card")
     expect(out.refining.work).toContain("Queued for triage")
-    expect(out.refining.buttons).toEqual([])
+    expect(out.refining.buttons).toEqual(["note"])
     expect(out.rehearsing.stage).toContain("● Re-rehearse")
-    expect(out.rehearsing.buttons).toEqual(["refine"])
+    expect(out.rehearsing.buttons).toEqual(["refine", "note"])
     expect(out.stages).toEqual([expect.objectContaining({ stage: "rehearse", draft: [expect.anything()] })])
     expect(out.drafting).toEqual(["refine", "note"])
     expect(out.plan.work).toContain("Grant prompt names its choices")
@@ -147,12 +147,19 @@ describe("the triage hub's stages", () => {
       const flip = (yield* h.invoke("backlog", "act", { agent: "feedback", action: "toggle", rows: ids })) as { notice: string }
       const noted = (yield* h.invoke("backlog", "act", { agent: "feedback", action: "note", rows: other, text: "x" })) as { notice: string }
       const still = ((yield* h.invoke("backlog", "status", { ids })) as Array<{ on: boolean }>)[0]!.on
-      return { queued, working, flip: flip.notice, noted: noted.notice, still, rows: rows(seen) }
+      // Feedback filed after the round started is not in it: usable, for the next round.
+      const { ids: later } = (yield* h.invoke("backlog", "file", { entries: [{ ref: card.ref, journeys: ["Set up"], persona: "Operator", kind: "gap", severity: "low", note: "Filed later.", from: { agent: "rehearse", run: "r-2" }, triage: { on: true, why: "fix" } }] })) as { ids: string[] }
+      yield* h.invoke("backlog", "act", { agent: "feedback", action: "journey", rows: ["Set up"] })
+      const shown = rows(seen).map((r) => [r.id === later[0] ? "later" : "round", (r as { readonly?: boolean }).readonly === true, (r as { cells?: Record<string, string> }).cells?.status])
+      const flipLater = (yield* h.invoke("backlog", "act", { agent: "feedback", action: "toggle", rows: later })) as { notice: string }
+      return { queued, working, flip: flip.notice, noted: noted.notice, still, shown, flipLater: flipLater.notice }
     }))
     expect(out.queued).toEqual([["Reconcile", "queued #2"], ["Set up", "queued #1"]])
     expect(out.working).toEqual([["Reconcile", "queued #1"], ["Set up", "triage-1 · Refine 0/1"]])
-    expect(out.flip).toBe("Set up is in triage: its feedback is read-only until Plan")
-    expect(out.noted).toBe("Reconcile is in triage: its feedback is read-only until Plan")
+    expect(out.flip).toBe("in Set up's triage round: read-only until Plan")
+    expect(out.noted).toBe("in Reconcile's triage round: read-only until Plan")
     expect(out.still).toBe(true)
+    expect(out.shown.sort()).toEqual([["later", false, ""], ["round", true, "waiting"]])
+    expect(out.flipLater).toBe("1 entry flipped")
   })
 })

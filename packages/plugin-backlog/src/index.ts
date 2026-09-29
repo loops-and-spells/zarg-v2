@@ -184,9 +184,17 @@ export default definePlugin({
       if (journey === undefined || !names.includes(journey)) journey = names[0]
       const st = journey === undefined ? undefined : staged(journey)
       const all_ = journey === undefined ? [] : (byJourney.get(journey) ?? [])
-      // Past Triage, the list is what the round works on; at Plan, what the re-rehearse did not resolve.
-      const working = st !== undefined && st.stage !== "triage" && st.stage !== "planned" && st.inputs !== undefined
-      const shown = working ? all_.filter((e) => st!.inputs!.includes(e.id) && !(st!.stage === "plan" && (st!.results?.resolved ?? []).includes(e.id))) : all_
+      // Every open entry; at Plan, not what the re-rehearse resolved. The round's entries report where they stand.
+      const round = new Set(st !== undefined && st.stage !== "triage" && st.stage !== "planned" ? (st.inputs ?? []) : [])
+      const shown = all_.filter((e) => !(st?.stage === "plan" && (st.results?.resolved ?? []).includes(e.id)))
+      const statusOf = (e: Entry) => {
+        if (st === undefined || !round.has(e.id)) return ""
+        if (st.stage === "rehearse") return "re-rehearsing"
+        if (st.stage === "plan") return "still reported"
+        const p = st.proposals.find((x) => x.card === (parseRef(e.ref)?.id ?? ""))
+        return p === undefined ? "" : p.status === "accepted" ? "drafted" : p.status === "skipped" ? "left out" : st.worker !== undefined ? "waiting" : "queued"
+      }
+      const locked = (e: Entry) => st !== undefined && inTriage(st) && round.has(e.id)
       const on = shown.filter((e) => e.triage.on).length
       const at = st === undefined ? 0 : Math.min(3, stepperAt(st))
       const stepper = STAGES.map((s, i) => (i < at || st?.stage === "planned" ? `✓ ${s}` : i === at ? `**● ${s}**` : `○ ${s}`)).join("  ───  ")
@@ -198,14 +206,14 @@ export default definePlugin({
       const sev = { high: 0, medium: 1, low: 2 } as const
       const sorted = [...shown].sort((a, b) => sev[a.severity] - sev[b.severity] || a.id.localeCompare(b.id))
       yield* views.set("feedback", FeedbackView, "feedback", {
-        // In triage its feedback is read-only: no note, and Refine again only out of a hanging re-rehearse.
-        actions: st === undefined ? ["note"] : [...stageActions(st), ...(inTriage(st) ? [] : ["note"])],
+        // The round's entries are read-only in triage (the plugin refuses them); the rest take notes as ever.
+        actions: st === undefined ? ["note"] : [...stageActions(st), "note"],
         rows: sorted.map((e) => ({
           id: e.id,
           on: e.triage.on,
-          ...(st !== undefined && inTriage(st) ? { tone: "dim" as const } : {}),
+          ...(locked(e) ? { readonly: true, tone: "dim" as const } : {}),
           ...(e.operatorNote !== undefined ? { text: e.operatorNote } : {}),
-          cells: { card: target(e.ref), severity: e.severity, kind: e.kind, note: e.operatorNote !== undefined ? "✎" : "" },
+          cells: { card: target(e.ref), severity: e.severity, kind: e.kind, note: e.operatorNote !== undefined ? "✎" : "", status: statusOf(e) },
           search: [e.id, e.ref, e.persona, e.kind, e.severity, e.note, ...e.journeys].join(" "),
         })),
       })
@@ -429,8 +437,8 @@ export default definePlugin({
         // Feedback of a journey in triage is read-only until Plan.
         if (action === "note" || action === "toggle") {
           const stages = yield* loadStages
-          const locked = (yield* load).filter((e) => rows.includes(e.id)).flatMap((e) => e.journeys).find((j) => stages.some((s) => s.journey === j && inTriage(s)))
-          if (locked !== undefined) return { notice: `${locked} is in triage: its feedback is read-only until Plan` }
+          const inRound = stages.find((s) => inTriage(s) && (s.inputs ?? []).some((id) => rows.includes(id)))
+          if (inRound !== undefined) return { notice: `in ${inRound.journey}'s triage round: read-only until Plan` }
         }
         // The operator's note on an entry, for refinement: blank clears it.
         if (action === "note") {

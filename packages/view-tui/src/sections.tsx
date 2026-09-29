@@ -1,7 +1,7 @@
 import type { BoxRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react"
 import { useTerminalDimensions } from "@opentui/react"
-import { CHAT, type ConversationQuestion, conversationRows, cursorRow, enabledActions, filterOf, followedText, keyFor, searchCount, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
+import { CHAT, type ConversationQuestion, conversationRows, cursorRow, enabledActions, readOnlyRow, filterOf, followedText, keyFor, searchCount, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
 import { fit, gauge, heading } from "./look"
 import { Board } from "./board"
 import { RichText } from "./markdown"
@@ -72,12 +72,12 @@ const Stats: Leaf = ({ view, path, width }) => {
   )
 }
 /** The gutter: the cursor's ▍ and, in a selectable table, ○ or ●. */
-const Gutter = (p: { readonly cursor: boolean; readonly selectable: boolean; readonly selected: boolean; readonly toggle?: boolean }) => {
+const Gutter = (p: { readonly cursor: boolean; readonly selectable: boolean; readonly selected: boolean; readonly toggle?: boolean; readonly readonly?: boolean }) => {
   const C = useColors()
   return (
     <>
       <span fg={C.accent}>{p.cursor ? "▍" : " "}</span>
-      {p.toggle === true ? <span fg={p.selected ? C.ok : C.faint}>{p.selected ? "[●] " : "[ ] "}</span> : p.selectable ? <span fg={p.selected ? C.accent : C.dim}>{p.selected ? "● " : "○ "}</span> : <span> </span>}
+      {p.readonly === true ? <span>{p.toggle === true ? "    " : p.selectable ? "  " : " "}</span> : p.toggle === true ? <span fg={p.selected ? C.ok : C.faint}>{p.selected ? "[●] " : "[ ] "}</span> : p.selectable ? <span fg={p.selected ? C.accent : C.dim}>{p.selected ? "● " : "○ "}</span> : <span> </span>}
     </>
   )
 }
@@ -202,8 +202,9 @@ const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onT
         return (
           // A click on the row moves the cursor there; a click on its mark ticks it.
           <box key={r.id} id={`row-${path}-${i}`} style={{ flexDirection: "row", height: 1, ...(on ? { backgroundColor: C.selection } : {}) }}>
-            <text wrapMode="none" onMouseDown={() => (leaf.toggle === true ? onToggle : selectable ? onMark : onPick)?.(i)}>
-              <Gutter cursor={on} selectable={selectable} selected={leaf.toggle === true ? (r as { on?: boolean }).on === true : picked} toggle={leaf.toggle === true} />
+            {/* A read-only row only reports: no mark, and its gutter picks the row rather than flipping it. */}
+            <text wrapMode="none" onMouseDown={() => (readOnlyRow(r) ? onPick : leaf.toggle === true ? onToggle : selectable ? onMark : onPick)?.(i)}>
+              <Gutter cursor={on} selectable={selectable} selected={leaf.toggle === true ? (r as { on?: boolean }).on === true : picked} toggle={leaf.toggle === true} readonly={readOnlyRow(r)} />
             </text>
             {/* Each cell in its colour: the row's tone, else its column's (by value, then the column's own). */}
             <text wrapMode="none" onMouseDown={() => onPick?.(i)}>
