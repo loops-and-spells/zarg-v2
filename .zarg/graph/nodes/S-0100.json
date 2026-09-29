@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0100",
+  "props": {
+    "text": "the dangling child is aborted with the run"
+  },
+  "type": "gherkin/state"
+}

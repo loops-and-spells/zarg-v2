@@ -3,7 +3,7 @@
   "id": "S-0001",
   "props": {
     "entry": true,
-    "text": "the CLI actor works in a repo with a zarg graph"
+    "text": "the agent requests an env file in its declared workspace"
   },
   "type": "gherkin/state"
 }

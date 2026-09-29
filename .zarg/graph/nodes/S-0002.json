@@ -3,7 +3,7 @@
   "id": "S-0002",
   "props": {
     "terminal": true,
-    "text": "open items are listed by priority"
+    "text": "the read is refused, reason names file and blocking gate"
   },
   "type": "gherkin/state"
 }

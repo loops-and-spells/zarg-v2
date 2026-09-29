@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0097",
+  "props": {
+    "text": "the parent run accepts the handoff and assigns the next work to that child"
+  },
+  "type": "gherkin/state"
+}

@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0098",
+  "props": {
+    "text": "the parent run ends that child path cleanly"
+  },
+  "type": "gherkin/state"
+}

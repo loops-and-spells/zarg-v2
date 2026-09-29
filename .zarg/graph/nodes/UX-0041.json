@@ -15,12 +15,16 @@
     {
       "to": "P-0003",
       "type": "gherkin/by"
+    },
+    {
+      "to": "S-0097",
+      "type": "gherkin/then"
     }
   ],
   "id": "UX-0041",
   "props": {
     "title": "A child agent appears",
-    "when": "an agent hands work to a child agent"
+    "when": "an agent hands work to a child agent as an explicit handoff"
   },
   "type": "gherkin/card"
 }

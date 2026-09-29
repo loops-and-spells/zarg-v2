@@ -23,8 +23,8 @@
   ],
   "id": "UX-0048",
   "props": {
-    "title": "A service outside the preset is refused",
-    "when": "an agent uses a service outside its preset"
+    "title": "A service outside the operator-granted scopes is refused",
+    "when": "an agent uses a service outside the operator-granted scopes"
   },
   "type": "gherkin/card"
 }

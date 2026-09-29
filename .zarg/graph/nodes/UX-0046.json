@@ -15,12 +15,16 @@
     {
       "to": "P-0006",
       "type": "gherkin/by"
+    },
+    {
+      "to": "S-0103",
+      "type": "gherkin/then"
     }
   ],
   "id": "UX-0046",
   "props": {
-    "title": "Env files stay hidden from agents",
-    "when": "an agent reads a local env file"
+    "title": "Env files beyond served scopes are refused",
+    "when": "an agent reads an env file beyond its served powers"
   },
   "type": "gherkin/card"
 }

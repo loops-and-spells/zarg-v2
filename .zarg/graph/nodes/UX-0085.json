@@ -1,0 +1,22 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "S-0001",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0099",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0085",
+  "props": {
+    "title": "A child already parented stays linked",
+    "when": "an agent hands work to a child already parented"
+  },
+  "type": "gherkin/card"
+}

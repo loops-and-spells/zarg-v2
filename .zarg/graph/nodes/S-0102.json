@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "S-0102",
+  "props": {
+    "text": "the agent retries the service"
+  },
+  "type": "gherkin/state"
+}

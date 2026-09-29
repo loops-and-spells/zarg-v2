@@ -1,0 +1,22 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "S-0001",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0100",
+      "type": "gherkin/then"
+    }
+  ],
+  "id": "UX-0086",
+  "props": {
+    "title": "A run ending aborts its dangling child",
+    "when": "the parent run ends while handing work to a child"
+  },
+  "type": "gherkin/card"
+}
