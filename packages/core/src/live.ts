@@ -308,17 +308,7 @@ export const liveLayer = (root: string, stubFile?: string, opts: { readonly yolo
           const events = yield* Stream.runCollect(
             model.stream({ model: ref, messages: req.messages as never, ...(req.outputSchema !== undefined ? { outputSchema: req.outputSchema as Record<string, unknown> } : {}), ...(req.maxTokens !== undefined ? { maxTokens: req.maxTokens } : {}) }),
           )
-          let text = ""
-          let promptTokens = 0
-          let completionTokens = 0
-          for (const e of events) {
-            if (e.type === "text") text += e.delta
-            if (e.type === "usage") {
-              promptTokens += e.usage.promptTokens
-              completionTokens += e.usage.completionTokens
-            }
-          }
-          return { text, promptTokens, completionTokens }
+          return Model.completion(events)
         })
       return pluginsFor(root, env, cfg, yield* env.sensitive, opts.yolo, { decide: (req) => decisions.decide(req as never), complete })
     }),

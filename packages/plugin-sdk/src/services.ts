@@ -45,7 +45,7 @@ export class Decisions extends Context.Service<Decisions, { readonly decide: (re
 export interface ModelMessage { readonly role: "system" | "user" | "assistant"; readonly content: string }
 /** A configured model role (scope `models: [role, …]`); tokens count against the plugin. */
 export class Models extends Context.Service<Models, {
-  readonly complete: (req: { readonly role: string; readonly messages: ReadonlyArray<ModelMessage>; readonly outputSchema?: Record<string, unknown>; readonly maxTokens?: number }) => Effect.Effect<{ readonly text: string; readonly promptTokens: number; readonly completionTokens: number }, PluginFailure>
+  readonly complete: (req: { readonly role: string; readonly messages: ReadonlyArray<ModelMessage>; readonly outputSchema?: Record<string, unknown>; readonly maxTokens?: number }) => Effect.Effect<{ readonly text: string; readonly promptTokens: number; readonly completionTokens: number; readonly reasoningTokens?: number; readonly finishReason?: string }, PluginFailure>
 }>()("@zarg/plugin-sdk/Models") {}
 /** Time and randomness from the host: a plugin's sandbox has neither. */
 export class Clock extends Context.Service<Clock, { readonly now: Effect.Effect<number, PluginFailure>; readonly uuid: Effect.Effect<string, PluginFailure> }>()("@zarg/plugin-sdk/Clock") {}

@@ -94,3 +94,22 @@ export const make = (providers: ReadonlyArray<Provider>, config: ZargConfig) =>
 
 export const layer = (providers: ReadonlyArray<Provider>) =>
   Layer.effect(Model, Effect.flatMap(Config, (c) => make(providers, c)))
+
+/** A whole answer from its stream: the text, the tokens, and how it ended (`length` with no text: the budget went on reasoning). */
+export const completion = (events: Iterable<StreamEvent>) => {
+  let text = ""
+  let promptTokens = 0
+  let completionTokens = 0
+  let reasoningTokens = 0
+  let finishReason: string | undefined
+  for (const e of events) {
+    if (e.type === "text") text += e.delta
+    if (e.type === "usage") {
+      promptTokens += e.usage.promptTokens
+      completionTokens += e.usage.completionTokens
+      reasoningTokens += e.usage.reasoningTokens
+    }
+    if (e.type === "done" && e.finishReason !== undefined) finishReason = e.finishReason
+  }
+  return { text, promptTokens, completionTokens, reasoningTokens, ...(finishReason !== undefined ? { finishReason } : {}) }
+}

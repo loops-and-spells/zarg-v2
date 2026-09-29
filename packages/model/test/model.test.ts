@@ -44,3 +44,11 @@ describe("Model", () => {
     await run((m) => m.warm("local:coder"))
   })
 })
+
+describe("a completion from a stream", () => {
+  test("the text, the tokens, and how it ended: an answer spent on reasoning shows as such", () => {
+    const u = (completionTokens: number, reasoningTokens: number) => ({ type: "usage" as const, usage: { promptTokens: 900, completionTokens, reasoningTokens, cacheHitTokens: 0, cacheMissTokens: 0 } })
+    expect(Model.completion([{ type: "text", delta: "{\"a\"" }, { type: "text", delta: ":1}" }, u(12, 0), { type: "done", finishReason: "stop" }])).toEqual({ text: "{\"a\":1}", promptTokens: 900, completionTokens: 12, reasoningTokens: 0, finishReason: "stop" })
+    expect(Model.completion([{ type: "reasoning", delta: "hmm" }, u(4096, 4096), { type: "done", finishReason: "length" }])).toEqual({ text: "", promptTokens: 900, completionTokens: 4096, reasoningTokens: 4096, finishReason: "length" })
+  })
+})

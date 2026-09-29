@@ -25,7 +25,7 @@ export interface TriageDeps {
   readonly journeys: () => Effect.Effect<ReadonlyArray<{ readonly id: string; readonly name: string; readonly cards: ReadonlyArray<string> }>, unknown>
   readonly step: (card: string, draft: Draft) => Effect.Effect<Step, unknown>
   readonly dryRun: (draft: Draft) => Effect.Effect<{ readonly ok: boolean; readonly problems: ReadonlyArray<string>; readonly touched: ReadonlyArray<string>; readonly cards: ReadonlyArray<string> }, unknown>
-  readonly complete: (req: { readonly messages: ReadonlyArray<{ readonly role: "system" | "user"; readonly content: string }>; readonly maxTokens?: number }) => Effect.Effect<{ readonly text: string }, unknown>
+  readonly complete: (req: { readonly messages: ReadonlyArray<{ readonly role: "system" | "user"; readonly content: string }>; readonly maxTokens?: number }) => Effect.Effect<{ readonly text: string; readonly completionTokens?: number; readonly reasoningTokens?: number; readonly finishReason?: string }, unknown>
   readonly propose: (p: { readonly journey: string; readonly card: string; readonly changes: Draft; readonly answers: ReadonlyArray<string>; readonly summary: string; readonly problems?: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
   readonly rehearsing: (p: { readonly journey: string; readonly run?: string; readonly cards?: ReadonlyArray<string>; readonly note?: string; readonly clear?: boolean }) => Effect.Effect<void, unknown>
   /** The accepted draft fails as a whole: back to Refine with the problems. */
@@ -74,7 +74,12 @@ const cardOf = (ref: string) => parseRef(ref)?.id ?? ref
 export const makeTriage = (d: TriageDeps) => {
   const quiet = <A>(e: Effect.Effect<A, unknown>) => Effect.ignore(e)
   /** The model's answer; undefined when it did not answer at all (an outage, not a bad answer). */
-  const ask = (user: string) => Effect.map(d.complete({ messages: [{ role: "system", content: SYSTEM }, { role: "user", content: user }], maxTokens: 4096 }).pipe(Effect.orElseSucceed(() => undefined)), (r) => r?.text)
+  // Room to reason before the JSON: a thinking model spends most of its answer there.
+  const answerOf = (user: string) => d.complete({ messages: [{ role: "system", content: SYSTEM }, { role: "user", content: user }], maxTokens: 16384 }).pipe(Effect.orElseSucceed(() => undefined))
+  const ask = (user: string) => Effect.map(answerOf(user), (r) => r?.text)
+  /** Why an answer has no text: how it ended, and where its tokens went. */
+  const emptyWhy = (r: { readonly completionTokens?: number; readonly reasoningTokens?: number; readonly finishReason?: string }) =>
+    r.finishReason === "length" ? `it stopped at its token limit (${r.completionTokens ?? "?"} tokens, ${r.reasoningTokens ?? "?"} of them reasoning)` : `it ended with ${r.finishReason ?? "no reason given"} (${r.completionTokens ?? "?"} tokens, ${r.reasoningTokens ?? "?"} of them reasoning)`
   const OUTAGE = "The driver model did not answer; the Triage Agent tries again on the next wake."
   const parseProposal = (text: string) => {
     const v = jsonIn(text) as { changes?: unknown; answers?: unknown; summary?: unknown } | undefined
@@ -103,7 +108,8 @@ export const makeTriage = (d: TriageDeps) => {
       let prompt = base
       let last: { problems: ReadonlyArray<string>; proposal?: ReturnType<typeof parseProposal> } = { problems: [] }
       for (let attempt = 0; attempt < 2; attempt++) {
-        const answer = yield* ask(prompt)
+        const reply = yield* answerOf(prompt)
+        const answer = reply?.text
         // No answer at all: the proposal stays waiting, and the operator is told why.
         if (answer === undefined) {
           yield* say(`${card}: ${OUTAGE}`)
@@ -112,7 +118,7 @@ export const makeTriage = (d: TriageDeps) => {
         const proposal = parseProposal(answer)
         if (proposal === undefined) {
           const excerpt = answer.replace(/\s+/g, " ").trim()
-          yield* say(`${card}: the model did not answer with the JSON asked for: “${excerpt.length > 160 ? `${excerpt.slice(0, 160)}…` : excerpt}”`)
+          yield* say(excerpt.length === 0 ? `${card}: the model gave no answer: ${emptyWhy(reply!)}` : `${card}: the model did not answer with the JSON asked for: “${excerpt.length > 160 ? `${excerpt.slice(0, 160)}…` : excerpt}”`)
           last = { problems: ["the Triage Agent could not draft a proposal"] }
           prompt = `${base}\n\nYour last answer was not the JSON asked for. Answer with the JSON only.`
           continue

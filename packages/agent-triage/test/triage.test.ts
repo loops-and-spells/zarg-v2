@@ -7,7 +7,7 @@ type Stage = Parameters<TriageDeps["propose"]>[0] extends never ? never : any
 const stage = (over: Record<string, unknown>) => ({ journey: "Set up", stage: "refine", proposals: [], draft: [], ...over })
 const entry = { id: "F-00000001", ref: "gherkin/card:UX-0001@abc", kind: "gap", severity: "high", note: "No deny path.", persona: "Operator", on: true, operatorNote: "Deny should say why." }
 const offEntry = { id: "F-00000002", ref: "gherkin/card:UX-0002@abc", kind: "friction", severity: "low", note: "Wordy.", persona: "Operator", on: false }
-const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string>; dry?: (n: number) => { ok: boolean; problems: string[]; touched: string[]; cards?: string[] }; run?: unknown; result?: unknown; fresh?: boolean; down?: boolean; journeys?: ReadonlyArray<unknown> }) => {
+const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string>; spent?: boolean; dry?: (n: number) => { ok: boolean; problems: string[]; touched: string[]; cards?: string[] }; run?: unknown; result?: unknown; fresh?: boolean; down?: boolean; journeys?: ReadonlyArray<unknown> }) => {
   const calls: Array<[string, unknown]> = []
   const answers = [...(o.answers ?? [])]
   let dries = 0
@@ -17,7 +17,7 @@ const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string
     journeys: () => Effect.succeed((o.journeys ?? [{ id: "J-0001", name: "Set up", cards: ["UX-0001", "UX-0002"] }]) as never),
     step: (card) => Effect.succeed({ card, title: `card ${card}`, given: "the plugin runs", when: "it needs a scope", thens: ["the operator is asked"], fork: [], hasFailure: false }),
     dryRun: (draft) => Effect.succeed({ cards: draft.length > 0 ? ["UX-0001", "UX-0003"] : [], ...(o.dry?.(dries++) ?? { ok: true, problems: [], touched: draft.length > 0 ? ["S-0002", "UX-0001"] : [] }) }),
-    complete: (req) => (o.down === true ? Effect.fail("model down") : Effect.sync(() => (calls.push(["complete", req.messages.at(-1)?.content]), { text: answers.shift() ?? "{}" }))),
+    complete: (req) => (o.down === true ? Effect.fail("model down") : Effect.sync(() => (calls.push(["complete", req.messages.at(-1)?.content]), calls.push(["maxTokens", req.maxTokens]), o.spent === true ? { text: "", completionTokens: 16384, reasoningTokens: 16384, finishReason: "length" } : { text: answers.shift() ?? "{}" }))),
     propose: (p) => Effect.sync(() => void calls.push(["propose", p])),
     rehearsing: (p) => Effect.sync(() => void calls.push(["rehearsing", p])),
     rehearsed: (p) => Effect.sync(() => void calls.push(["rehearsed", p])),
@@ -118,6 +118,12 @@ describe("the Triage Agent", () => {
       "Set up: UX-0001 left out: the Triage Agent could not draft a proposal",
     ])
     expect(steps(c)).toEqual(["Set up: re-rehearsing on 3 cards (run r-9)"])
+  })
+  test("an empty answer says how it ended: the budget went on reasoning; answers get room to reason", async () => {
+    const { t, calls } = setup({ stages: [stage({ proposals: [{ card: "UX-0001", changes: [], answers: [], summary: "", status: "waiting" }] })], spent: true })
+    await Effect.runPromise(t.tick)
+    expect(calls.filter(([k]) => k === "maxTokens").map(([, n]) => n)).toEqual([16384, 16384])
+    expect(calls.filter(([k]) => k === "log").map(([, x]) => x)).toContain("Set up: UX-0001: the model gave no answer: it stopped at its token limit (16384 tokens, 16384 of them reasoning)")
   })
   test("stages that wait on the operator, or are done, are left alone", async () => {
     const { t, calls } = setup({ stages: [stage({ stage: "triage" }), stage({ stage: "refine", proposals: [{ card: "UX-0001", changes: [], answers: [], summary: "s", status: "proposed" }] }), stage({ stage: "plan", plan: { title: "t", steps: [] } }), stage({ stage: "planned" })] })

@@ -120,7 +120,7 @@ export const makePowers = (opts: {
   readonly callPlugin?: (name: string, method: string, params: unknown) => Promise<unknown>
   /** The decision model, the model roles, and the agenda hook, served by the core. */
   readonly decide?: (req: unknown) => Promise<unknown>
-  readonly complete?: (req: { readonly role: string; readonly messages: ReadonlyArray<unknown>; readonly outputSchema?: unknown; readonly maxTokens?: number }) => Promise<{ readonly text: string; readonly promptTokens: number; readonly completionTokens: number }>
+  readonly complete?: (req: { readonly role: string; readonly messages: ReadonlyArray<unknown>; readonly outputSchema?: unknown; readonly maxTokens?: number }) => Promise<{ readonly text: string; readonly promptTokens: number; readonly completionTokens: number; readonly reasoningTokens?: number; readonly finishReason?: string }>
   readonly agendaChanged?: () => void
   /** The plugin's agents events, to the agents pane. */
   readonly agents?: (event: unknown) => void
