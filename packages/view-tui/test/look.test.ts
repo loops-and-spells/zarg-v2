@@ -23,3 +23,9 @@ test("`keyGlyphs` keeps keys it has no glyph for", () => {
   expect(keyGlyphs("PgUp PgDn")).toBe("PgUp PgDn")
   expect(keyGlyphs("X")).toBe("X")
 })
+
+test("a gauge with no room is empty, never a negative repeat", () => {
+  expect(gauge(5, 10, -3)).toEqual({ done: "", rest: "" })
+  expect(gauge(5, 10, 0)).toEqual({ done: "", rest: "" })
+  expect(gauge(5, 10, 4)).toEqual({ done: "━━", rest: "━━" })
+})

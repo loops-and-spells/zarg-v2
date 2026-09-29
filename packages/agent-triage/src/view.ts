@@ -17,7 +17,8 @@ const triesOf = (p: P): ReadonlyArray<Try> => p.tries ?? []
 const think = (ts: ReadonlyArray<Try>) => {
   if (ts.length === 0) return ""
   const f = Math.max(...ts.map((t) => (t.finish === "length" ? 1 : t.tokensOut === 0 ? 0 : t.reasoning / t.tokensOut)))
-  const n = Math.round(f * 6)
+  // Counts that do not add up (more reasoning than tokens out, none at all): the bar stays in its six cells.
+  const n = Number.isFinite(f) ? Math.max(0, Math.min(6, Math.round(f * 6))) : 0
   return `${"▮".repeat(n)}${"▯".repeat(6 - n)}`
 }
 const plural = (n: number, s: string) => `${n} ${n === 1 ? s : s.endsWith("y") ? `${s.slice(0, -1)}ies` : `${s}s`}`

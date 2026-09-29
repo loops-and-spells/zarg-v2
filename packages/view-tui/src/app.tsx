@@ -760,7 +760,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           <span fg={C.text}>{ui.palette.query}</span>
           <span fg={C.accent}>▎</span>
         </text>
-        <text fg={C.faint} wrapMode="none">{"─".repeat(palWidth - 4)}</text>
+        <text fg={C.faint} wrapMode="none">{"─".repeat(Math.max(0, palWidth - 4))}</text>
         {found.length === 0 ? <text fg={C.dim}>nothing matches</text> : null}
         {found.slice(0, 10).map((e, i) => (
           <text key={e.id} wrapMode="none" {...(i === Math.min(ui.palette!.pick, found.length - 1) ? { bg: C.selection } : {})}>

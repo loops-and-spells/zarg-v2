@@ -90,4 +90,9 @@ describe("the Triage Agent's view", () => {
     // (41 + 80 + 250 s) / 3 cards ≈ 124 s each, 2 waiting: ~4 min.
     expect(v.summary).toContain("~4 min left")
   })
+  test("a try whose counts do not add up still draws: the think bar stays six cells", () => {
+    const odd = { ...round, proposals: [{ card: "UX-0001", status: "accepted" as const, summary: "", changes: [], answers: [], tries: [t(1000, 100, 400), t(1000, 0, 0), t(1000, Number.NaN, 10)] }] }
+    const d = workerView({ stage: odd, now: 0, diffs: {} }).details["UX-0001"]!
+    expect(d.match(/[▮▯]{6} reasoning/g)?.length).toBe(3)
+  })
 })

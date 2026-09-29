@@ -456,7 +456,7 @@ export const agentRows = (rlms: Readonly<Record<string, RlmNode>>, agents: Agent
     // An agent may draw its own row: its progress, its text; otherwise turns out of the budget.
     const done = n.row?.progress?.done ?? n.turns
     const total = n.row?.progress?.total ?? n.budget
-    const filled = Math.min(barWidth, Math.round((done / Math.max(1, total)) * barWidth))
+    const filled = Math.max(0, Math.min(barWidth, Math.round((done / Math.max(1, total)) * barWidth) || 0))
     const bar = barWidth > 0 ? `${"▰".repeat(filled)}${"▱".repeat(barWidth - filled)} ` : ""
     const hidden = r.hidden.length > 0 ? `  +${r.hidden.length}` : ""
     // A reason gets the room left of the row, and is cut there.

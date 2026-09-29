@@ -10,8 +10,10 @@ export const heading = (title: string, width: number) => {
   return { title: t, rule: room > 1 ? ` ${"─".repeat(room - 1)}` : "" }
 }
 export const gauge = (done: number, total: number, width: number) => {
-  const d = total > 0 ? Math.max(0, Math.min(width, Math.round((done / total) * width))) : 0
-  return { done: "━".repeat(d), rest: "━".repeat(width - d) }
+  // No room (a folded rail, a narrow card): an empty gauge, never a negative repeat.
+  const w = Math.max(0, Math.floor(Number.isFinite(width) ? width : 0))
+  const d = total > 0 ? Math.max(0, Math.min(w, Math.round((done / total) * w))) : 0
+  return { done: "━".repeat(d), rest: "━".repeat(w - d) }
 }
 const GLYPH: Readonly<Record<string, string>> = { Enter: "⏎", Esc: "esc", Tab: "⇥", Space: "␣" }
 export const keyGlyphs = (keys: string) => GLYPH[keys] ?? keys
