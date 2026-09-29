@@ -1,6 +1,6 @@
 # Folding a triage round into small plans
 
-Date: 2026-09-29 · Status: approved design, pending spec review
+Date: 2026-09-29 · Status: implemented
 
 ## Problem
 

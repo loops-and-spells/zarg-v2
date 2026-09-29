@@ -13,6 +13,14 @@ export type Group = { readonly title: string; readonly steps: ReadonlyArray<stri
 export type Folded = { readonly title: string; readonly steps: ReadonlyArray<string>; readonly units: ReadonlyArray<number>; readonly after: ReadonlyArray<number> }
 
 export const CAP = 5
+/** ROMA's atomic criteria, as the RLM asks them (packages/rlm/src/fold.ts), for a plan. */
+export const ATOMIC = {
+  single: "The plan has a single deliverable.",
+  oneExecutor: "One agent working alone can do all of it.",
+  noSteps: "Its steps do not depend on each other's results.",
+  noPackaging: "It does not need several outputs packaged together.",
+  noCoordination: "It needs no coordination with other work.",
+} as const
 
 type P = Record<string, unknown>
 const obj = (x: unknown): P => (typeof x === "object" && x !== null ? (x as P) : {})

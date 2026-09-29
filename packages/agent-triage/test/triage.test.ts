@@ -7,7 +7,7 @@ type Stage = Parameters<TriageDeps["propose"]>[0] extends never ? never : any
 const stage = (over: Record<string, unknown>) => ({ journey: "Set up", stage: "refine", proposals: [], draft: [], ...over })
 const entry = { id: "F-00000001", ref: "gherkin/card:UX-0001@abc", kind: "gap", severity: "high", note: "No deny path.", persona: "Operator", on: true, operatorNote: "Deny should say why." }
 const offEntry = { id: "F-00000002", ref: "gherkin/card:UX-0002@abc", kind: "friction", severity: "low", note: "Wordy.", persona: "Operator", on: false }
-const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string>; spent?: boolean; workers?: number; reasoning?: boolean; dry?: (n: number) => { ok: boolean; problems: string[]; touched: string[]; cards?: string[] }; run?: unknown; result?: unknown; fresh?: boolean; down?: boolean; journeys?: ReadonlyArray<unknown> }) => {
+const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string>; spent?: boolean; workers?: number; reasoning?: boolean; dry?: (n: number) => { ok: boolean; problems: string[]; touched: string[]; cards?: string[] }; run?: unknown; result?: unknown; fresh?: boolean; down?: boolean; journeys?: ReadonlyArray<unknown>; atomic?: boolean; decisionsDown?: boolean }) => {
   const calls: Array<[string, unknown]> = []
   const answers = [...(o.answers ?? [])]
   let dries = 0
@@ -23,6 +23,8 @@ const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string
     rehearsing: (p) => Effect.sync(() => void calls.push(["rehearsing", p])),
     rehearsed: (p) => Effect.sync(() => void calls.push(["rehearsed", p])),
     drafted: (p) => Effect.sync(() => void calls.push(["drafted", p])),
+    plans: (journey, plans) => Effect.sync(() => void calls.push(["plans", { journey, plans }])),
+    decide: (req) => (o.decisionsDown === true ? Effect.fail("down") : Effect.sync(() => (calls.push(["decide", req.state]), Object.fromEntries(Object.keys(req.questions).map((k) => [k, { type: "noul", answer: o.atomic ?? true, confidence: 0.9 }]))))),
     redraft: (p) => Effect.sync(() => void calls.push(["redraft", p])),
     stop: (run) => Effect.sync(() => void calls.push(["stop", run])),
     status: () => Effect.void,
@@ -60,19 +62,54 @@ describe("the Triage Agent", () => {
     await Effect.runPromise(t.tick)
     expect(calls.find(([k]) => k === "propose")?.[1]).toMatchObject({ card: "UX-0001", changes: [], problems: ["the Triage Agent could not draft a proposal"] })
   })
-  test("Plan: the model drafts a title and steps; without JSON, a plain plan from the accepted proposals", async () => {
-    const accepted = [{ card: "UX-0001", changes: [], answers: [], summary: "Name the choices.", status: "accepted" }]
-    const draft = [{ tool: "edit-state", params: {} }]
-    // Nothing drafted: no plan to write.
+  test("Plan: a round ends in folded plans: the model's concepts, ordered, each with the feedback its cards answer", async () => {
+    const accepted = (card: string, changes: unknown[], answers: string[] = []) => ({ card, title: `card ${card}`, changes, answers, summary: `fix ${card}`, status: "accepted" })
+    const a = [{ tool: "edit-state", params: { id: "S-0002", text: "x" } }]
+    const b = [{ tool: "edit-card", params: { id: "UX-0002", when: "y" } }]
+    const { t, calls } = setup({ stages: [stage({ stage: "plan", draft: [...a, ...b], inputs: ["F-00000001"], proposals: [accepted("UX-0001", a, ["F-00000001"]), accepted("UX-0002", b)] })], answers: [JSON.stringify({ groups: [{ title: "Name the choices", steps: ["one"], cards: ["UX-0001"] }, { title: "Say when", steps: ["two"], cards: ["UX-0002"] }] })] })
+    await Effect.runPromise(t.tick)
+    const filed = calls.find(([k]) => k === "plans")?.[1] as { journey: string; plans: Array<{ title: string; steps: string[]; cards: string[]; changes: unknown[]; feedback: string[]; after: number[] }> }
+    expect(filed.journey).toBe("Set up")
+    expect(filed.plans).toEqual([
+      { title: "Name the choices", steps: ["one"], cards: ["UX-0001"], changes: a, feedback: ["F-00000001"], after: [] },
+      { title: "Say when", steps: ["two"], cards: ["UX-0002"], changes: b, feedback: [], after: [] },
+    ])
+    expect(calls.find(([k]) => k === "drafted")).toBeUndefined()
+    // Groups of one card are atomic without asking.
+    expect(calls.find(([k]) => k === "decide")).toBeUndefined()
+    expect(calls.filter(([k]) => k === "log").map(([, x]) => x)).toContain("Set up: folded into 2 plans: Name the choices; Say when")
+  })
+  test("Plan: nothing drafted, no plan; a round of one card, one plan", async () => {
     const none = setup({ stages: [stage({ stage: "plan", proposals: [] })] })
     await Effect.runPromise(none.t.tick)
     expect(none.calls.filter(([k]) => k !== "render")).toEqual([])
-    const a = setup({ stages: [stage({ stage: "plan", proposals: accepted, draft })], answers: [JSON.stringify({ title: "Grant prompt names its choices", steps: ["Name them"] })] })
-    await Effect.runPromise(a.t.tick)
-    expect(a.calls.find(([k]) => k === "drafted")?.[1]).toEqual({ journey: "Set up", title: "Grant prompt names its choices", steps: ["Name them"] })
-    const b = setup({ stages: [stage({ stage: "plan", proposals: accepted, draft })], answers: ["no"] })
-    await Effect.runPromise(b.t.tick)
-    expect(b.calls.find(([k]) => k === "drafted")?.[1]).toEqual({ journey: "Set up", title: "Set up: 1 card refined", steps: ["UX-0001: Name the choices."] })
+    const one = setup({ stages: [stage({ stage: "plan", draft: [{ tool: "edit-state", params: {} }], proposals: [{ card: "UX-0001", changes: [{ tool: "edit-state", params: {} }], answers: [], summary: "s", status: "accepted" }] })], answers: [JSON.stringify({ groups: [{ title: "T", steps: [], cards: ["UX-0001"] }] })] })
+    await Effect.runPromise(one.t.tick)
+    expect((one.calls.find(([k]) => k === "plans")?.[1] as { plans: Array<{ after: number[] }> }).plans.map((p) => p.after)).toEqual([[]])
+  })
+  test("Plan: no usable answer, the structure alone; a group the decision model finds not atomic splits; Decisions down, taken as atomic", async () => {
+    const accepted = (card: string) => ({ card, changes: [{ tool: "edit-card", params: { id: card } }], answers: [], summary: `fix ${card}`, status: "accepted" })
+    const round = stage({ stage: "plan", draft: [{ tool: "edit-card", params: {} }], proposals: [accepted("UX-0001"), accepted("UX-0002")] })
+    const both = JSON.stringify({ groups: [{ title: "Both", steps: [], cards: ["UX-0001", "UX-0002"] }] })
+    const count = async (o: Parameters<typeof setup>[0]) => {
+      const s = setup(o)
+      await Effect.runPromise(s.t.tick)
+      return { n: (s.calls.find(([k]) => k === "plans")?.[1] as { plans: unknown[] }).plans.length, asked: s.calls.some(([k]) => k === "decide") }
+    }
+    expect(await count({ stages: [round], answers: ["no json"] })).toEqual({ n: 2, asked: false })
+    expect(await count({ stages: [round], answers: [both], atomic: false })).toEqual({ n: 2, asked: true })
+    expect(await count({ stages: [round], answers: [both] })).toEqual({ n: 1, asked: true })
+    expect(await count({ stages: [round], answers: [both], atomic: false, decisionsDown: true })).toEqual({ n: 1, asked: false })
+  })
+  test("Plan: a plan that does not dry-run with what it waits on merges into it", async () => {
+    const a = [{ tool: "edit-state", params: { id: "S-0002", text: "x" } }]
+    const b = [{ tool: "edit-state", params: { id: "S-0002", text: "y" } }]
+    const accepted = (card: string, changes: unknown[]) => ({ card, changes, answers: [], summary: `fix ${card}`, status: "accepted" })
+    // The whole draft dry-runs; the second plan (over the first) does not.
+    const { t, calls } = setup({ stages: [stage({ stage: "plan", draft: [...a, ...b], proposals: [accepted("UX-0001", a), accepted("UX-0002", b)] })], answers: [JSON.stringify({ groups: [{ title: "A", steps: [], cards: ["UX-0001"] }, { title: "B", steps: [], cards: ["UX-0002"] }] })], dry: (n) => (n === 2 ? { ok: false, problems: ["clash"], touched: [] } : { ok: true, problems: [], touched: [] }) })
+    await Effect.runPromise(t.tick)
+    const filed = calls.find(([k]) => k === "plans")?.[1] as { plans: Array<{ cards: string[] }> }
+    expect(filed.plans.map((p) => p.cards)).toEqual([["UX-0001", "UX-0002"]])
   })
   test("each card is drafted over the draft as it stands after the last one went in", async () => {
     const waiting = (card: string) => ({ card, changes: [], answers: [], summary: "", status: "waiting" })
@@ -96,7 +133,7 @@ describe("the Triage Agent", () => {
     await Effect.runPromise(a.t.tick)
     const b = setup({ stages: [stage({ proposals: [waiting("UX-0001")] })], answers: ["Let me think about the deny path first", "still thinking"] })
     await Effect.runPromise(b.t.tick)
-    const c = setup({ stages: [stage({ stage: "plan", proposals: [{ card: "UX-0001", changes: [], answers: [], summary: "s", status: "accepted" }], draft: [{ tool: "edit-state", params: {} }] })], answers: [JSON.stringify({ title: "T", steps: [] })] })
+    const c = setup({ stages: [stage({ stage: "plan", proposals: [{ card: "UX-0001", changes: [], answers: [], summary: "s", status: "accepted" }], draft: [{ tool: "edit-state", params: {} }] })], answers: [JSON.stringify({ groups: [{ title: "T", steps: [], cards: ["UX-0001"] }] })] })
     await Effect.runPromise(c.t.tick)
     const steps = (x: { calls: Array<[string, unknown]> }) => x.calls.filter(([k]) => k === "log").map(([, t]) => t)
     expect(steps(a)).toEqual(["Set up: drafting UX-0001 (1 feedback)", "Set up: UX-0001 into the draft: Name the choices."])
@@ -106,7 +143,7 @@ describe("the Triage Agent", () => {
       "Set up: UX-0001: the model did not answer with the JSON asked for: “still thinking”",
       "Set up: UX-0001 left out: the Triage Agent could not draft a proposal",
     ])
-    expect(steps(c)).toEqual(["Set up: plan drafted: T; it goes to the Backlog"])
+    expect(steps(c)).toEqual(["Set up: folded into 1 plan: T"])
   })
   test("an empty answer says how it ended: the budget went on reasoning; answers get room to reason", async () => {
     const { t, calls } = setup({ stages: [stage({ proposals: [{ card: "UX-0001", changes: [], answers: [], summary: "", status: "waiting" }] })], spent: true })

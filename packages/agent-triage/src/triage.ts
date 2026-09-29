@@ -1,5 +1,6 @@
 import { Effect, Fiber, Semaphore } from "effect"
 import { parseRef } from "@zarg/entities"
+import { ATOMIC, CAP, dependencies, fold, type Folded, type Group, merge, type Unit } from "./fold"
 import type { Working } from "./view"
 
 type Draft = ReadonlyArray<{ readonly tool: string; readonly params: unknown }>
@@ -16,6 +17,7 @@ export interface StageView {
   readonly results?: { readonly resolved: ReadonlyArray<string>; readonly fresh: ReadonlyArray<Fresh> }
   readonly plan?: { readonly title: string; readonly steps: ReadonlyArray<string> }
   readonly item?: string
+  readonly inputs?: ReadonlyArray<string>
   readonly queued?: number
   readonly worker?: string
   readonly dropRun?: string
@@ -38,6 +40,10 @@ export interface TriageDeps {
   readonly redraft: (p: { readonly journey: string; readonly problems: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
   readonly rehearsed: (p: { readonly journey: string; readonly resolved: ReadonlyArray<string>; readonly fresh: ReadonlyArray<Fresh>; readonly next: "plan" | "refine"; readonly cards?: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
   readonly drafted: (p: { readonly journey: string; readonly title: string; readonly steps: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
+  /** A folded round's plans to the Backlog, in order; each waits on the plans it names by index. */
+  readonly plans: (journey: string, plans: ReadonlyArray<{ readonly title: string; readonly steps: ReadonlyArray<string>; readonly changes: Draft; readonly cards: ReadonlyArray<string>; readonly feedback: ReadonlyArray<string>; readonly after: ReadonlyArray<number> }>) => Effect.Effect<void, unknown>
+  /** The decision model: each question answered (noul: answer and confidence). */
+  readonly decide: (req: { readonly state: string; readonly questions: Record<string, unknown> }) => Effect.Effect<Record<string, any>, unknown>
   /** Stop that rehearse run, when it is the one going. */
   readonly stop: (run: string) => Effect.Effect<void, unknown>
   /** The agent's row: what it does now. */
@@ -192,19 +198,69 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
       yield* d.propose({ journey: st.journey, card, ...(step !== null ? { title: step.title } : {}), tries, changes: p?.changes ?? [], answers: p?.answers ?? [], summary: p?.summary ?? "", ...(last.problems.length > 0 ? { problems: last.problems } : {}) })
     })
 
-  /** Plan: a title and steps for the accepted changes (a plain one when the model does not answer). */
-  const draftPlan = (st: StageView, who: string) =>
+  /** A group is atomic unless the decision model says a confident no to one of the ROMA criteria (unavailable: atomic, as the RLM's atomize). */
+  const atomicOf = (units: ReadonlyArray<Unit>, g: Group) =>
+    Effect.gen(function* () {
+      const mine = units.filter((u) => g.cards.includes(u.card))
+      const answers = yield* d.decide({
+        state: [`Plan: ${g.title}`, ...g.steps.map((x) => `- ${x}`), "Card changes:", ...mine.map((u) => `- ${u.card}: ${u.summary}`)].join("\n"),
+        questions: Object.fromEntries(Object.entries(ATOMIC).map(([k, v]) => [k, { type: "noul", instructions: v }])),
+      }).pipe(Effect.orElseSucceed(() => ({}) as Record<string, any>))
+      return !Object.values(answers).some((a) => a?.answer === false && (a?.confidence ?? 0) >= 0.6)
+    })
+
+  /** Plan: the round folded into small plans (the model's concepts, checked atomic, at most CAP cards, ordered), each dry-run over what it waits on; to the Backlog. */
+  const foldRound = (st: StageView, who: string) =>
     Effect.gen(function* () {
       const accepted = st.proposals.filter((p) => p.status === "accepted")
+      const units: ReadonlyArray<Unit> = accepted.map((p) => ({ card: p.card, title: p.title ?? p.card, summary: p.summary, changes: p.changes, answers: p.answers }))
+      const deps = dependencies(units)
       const text = yield* ask(
-        [`Journey: ${st.journey}`, "Accepted changes:", ...accepted.map((p) => `- ${p.card}: ${p.summary}`), "", 'Write the plan: {"title":"at most 8 words","steps":["one line per step"]}. JSON only.'].join("\n"),
+        [
+          `Journey: ${st.journey}`,
+          "The round's card changes, in draft order:",
+          ...units.map((u, i) => `${i + 1}. ${u.card} (${u.title}): ${u.summary}`),
+          ...(deps.length > 0 ? ["Needs (a later change uses what an earlier one made):", ...deps.map(([b, a]) => `- ${units[b]!.card} needs ${units[a]!.card}`)] : []),
+          "",
+          `Fold them into small plans a person can read and approve on their own: one concept each, at most ${CAP} cards, every card in exactly one plan.`,
+          'Answer {"groups":[{"title":"at most 8 words","steps":["one line per step"],"cards":["UX-…"]}]}. JSON only.',
+        ].join("\n"),
       )
       if (text === undefined) return yield* d.rehearsing({ journey: st.journey, note: OUTAGE })
-      const v = jsonIn(text) as { title?: unknown; steps?: unknown } | undefined
-      const title = typeof v?.title === "string" && v.title.length > 0 ? v.title : `${st.journey}: ${accepted.length} card${accepted.length === 1 ? "" : "s"} refined`
-      const steps = Array.isArray(v?.steps) && v.steps.every((x) => typeof x === "string") ? (v.steps as ReadonlyArray<string>) : accepted.map((p) => `${p.card}: ${p.summary}`)
-      yield* quiet(d.log(who, `${st.journey}: plan drafted: ${title}; it goes to the Backlog`))
-      yield* d.drafted({ journey: st.journey, title, steps })
+      const v = jsonIn(text) as { groups?: unknown } | undefined
+      const ok = (g: unknown): g is Group => {
+        const x = g as Group
+        return typeof x?.title === "string" && Array.isArray(x.cards) && x.cards.every((c) => typeof c === "string") && Array.isArray(x.steps) && x.steps.every((c) => typeof c === "string")
+      }
+      const groups = Array.isArray(v?.groups) && v.groups.length > 0 && v.groups.every(ok) ? (v.groups as ReadonlyArray<Group>) : undefined
+      const verdicts = new Map<Group, boolean>()
+      for (const g of groups ?? []) if (units.filter((u) => g.cards.includes(u.card)).length > 1) verdicts.set(g, yield* atomicOf(units, g))
+      let plans = fold(units, deps, groups, (g) => verdicts.get(g) ?? true)
+      // Each plan dry-runs over the plans it waits on (all of them, in order); one that fails merges into what it waits on.
+      const changesOf = (p: Folded) => p.units.flatMap((u) => units[u]!.changes)
+      const before = (k: number): ReadonlyArray<number> => [...new Set(plans[k]!.after.flatMap((j) => [...before(j), j]))].sort((x, y) => x - y)
+      for (let pass = 0; pass < units.length && plans.length > 1; pass++) {
+        let bad: number | undefined
+        for (let k = 0; k < plans.length && bad === undefined; k++) {
+          const dry = yield* d.dryRun([...before(k).flatMap((j) => changesOf(plans[j]!)), ...changesOf(plans[k]!)]).pipe(Effect.orElseSucceed(() => ({ ok: false })))
+          if (!dry.ok) bad = k
+        }
+        if (bad === undefined) break
+        const merged = merge(plans, bad)
+        // Nothing to merge into (the first plan fails on its own): the round as one plan, as its whole draft dry-runs.
+        plans = merged.length < plans.length ? merged : [{ title: plans[0]!.title, steps: plans.flatMap((p) => p.steps), units: units.map((_, i) => i), after: [] }]
+      }
+      const entries = yield* d.feedbackOf(st.journey).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<OnEntry>))
+      const inputs = entries.filter((e) => (st.inputs ?? entries.filter((x) => x.on).map((x) => x.id)).includes(e.id))
+      const claimed = new Set<string>()
+      const out = plans.map((p) => {
+        const mine = p.units.map((u) => units[u]!)
+        const feedback = inputs.filter((e) => !claimed.has(e.id) && mine.some((u) => u.answers.includes(e.id) || u.card === cardOf(e.ref))).map((e) => e.id)
+        feedback.forEach((f) => claimed.add(f))
+        return { title: p.title, steps: p.steps, cards: mine.map((u) => u.card), changes: changesOf(p), feedback, after: p.after }
+      })
+      yield* quiet(d.log(who, `${st.journey}: folded into ${out.length} plan${out.length === 1 ? "" : "s"}: ${out.map((p) => p.title).join("; ")}`))
+      yield* d.plans(st.journey, out)
     })
 
   /** One pass over a journey: its waiting cards one by one (each over the draft as it now stands), then its re-rehearse or its plan. */
@@ -243,7 +299,7 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
         }
         yield* quiet(d.status(slot.id, `${journey}: drafting the plan`))
         yield* at(slot, { journey, card: "", since: yield* clock })
-        yield* draftPlan(after, slot.id)
+        yield* foldRound(after, slot.id)
       }
     }).pipe(Effect.catchCause(() => Effect.void))
 

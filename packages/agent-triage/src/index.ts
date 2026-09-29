@@ -2,7 +2,7 @@ import { Effect, Schema } from "effect"
 import { Rehearse } from "@zarg/agent-rehearse/contract"
 import { Backlog } from "@zarg/plugin-backlog/contract"
 import { Gherkin } from "@zarg/plugin-gherkin/contract"
-import { Agents, Clock, Config, definePlugin, Models, Views } from "@zarg/plugin-sdk"
+import { Agents, Clock, Config, Decisions, definePlugin, Models, Views } from "@zarg/plugin-sdk"
 import { makeTriage } from "./triage"
 import { rollupView, workerView } from "./view"
 import { RollupView, WorkerView } from "./views"
@@ -17,7 +17,7 @@ export default definePlugin({
   // reasoning: let the model reason before answering (off: on cards it reasoned to its token limit and never answered).
   config: Schema.Struct({ workers: Schema.optionalKey(Schema.Number), reasoning: Schema.optionalKey(Schema.Boolean) }),
   pluginDependencies: [Gherkin, Backlog, Rehearse],
-  scopes: { models: ["driver"], agents: true },
+  scopes: { decisions: true, models: ["driver"], agents: true },
   views: [RollupView, WorkerView],
   methods: {
     act: { doc: "Triage's views: p pauses or resumes (the rollup), d drafts a card again (a worker).", params: Schema.Struct({ agent: Schema.String, action: Schema.String, section: Schema.optionalKey(Schema.String), rows: Schema.Array(Schema.String) }), success: Schema.Struct({ notice: Schema.String }) },
@@ -28,6 +28,7 @@ export default definePlugin({
     const backlog = yield* Backlog
     const rehearse = yield* Rehearse
     const models = yield* Models
+    const decisions = yield* Decisions
     const agents = yield* Agents
     const views = yield* Views
     const clock = yield* Clock
@@ -99,6 +100,8 @@ export default definePlugin({
         rehearsing: (p) => backlog.rehearsing(p),
         rehearsed: (p) => backlog.rehearsed(p as never),
         drafted: (p) => backlog.drafted(p),
+        plans: (journey, plans) => Effect.asVoid(backlog.plans({ journey, plans })),
+        decide: (req) => decisions.decide(req),
         redraft: (p) => backlog.redraft(p),
         stop: (run) => Effect.asVoid(rehearse.stop({ run })),
         status,
