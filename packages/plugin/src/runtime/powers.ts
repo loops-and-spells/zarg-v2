@@ -120,7 +120,7 @@ export const makePowers = (opts: {
   readonly callPlugin?: (name: string, method: string, params: unknown) => Promise<unknown>
   /** The decision model, the model roles, and the agenda hook, served by the core. */
   readonly decide?: (req: unknown) => Promise<unknown>
-  readonly complete?: (req: { readonly role: string; readonly messages: ReadonlyArray<unknown>; readonly outputSchema?: unknown; readonly maxTokens?: number }) => Promise<{ readonly text: string; readonly promptTokens: number; readonly completionTokens: number; readonly reasoningTokens?: number; readonly finishReason?: string }>
+  readonly complete?: (req: { readonly role: string; readonly messages: ReadonlyArray<unknown>; readonly outputSchema?: unknown; readonly maxTokens?: number; readonly reasoning?: { readonly effort?: string; readonly enabled?: boolean } }) => Promise<{ readonly text: string; readonly promptTokens: number; readonly completionTokens: number; readonly reasoningTokens?: number; readonly finishReason?: string }>
   readonly agendaChanged?: () => void
   /** The plugin's agents events, to the agents pane. */
   readonly agents?: (event: unknown) => void
@@ -280,12 +280,12 @@ export const makePowers = (opts: {
       return await opts.decide(req)
     },
     "models.complete": async (args) => {
-      const a = args as { role?: unknown; messages?: unknown; outputSchema?: unknown; maxTokens?: unknown }
+      const a = args as { role?: unknown; messages?: unknown; outputSchema?: unknown; maxTokens?: unknown; reasoning?: unknown }
       const role = String(a.role)
       if (!(opts.manifest.scopes.models ?? []).includes(role)) throw notGranted(`${opts.plugin}: it may not use the model role ${printable(role)}`)
       spend("tokens", 0, budget.tokensPerHour)
       if (opts.complete === undefined) throw pluginError(`${opts.plugin}: this host has no models`)
-      const out = await opts.complete({ role, messages: (a.messages ?? []) as ReadonlyArray<unknown>, ...(a.outputSchema !== undefined ? { outputSchema: a.outputSchema } : {}), ...(typeof a.maxTokens === "number" ? { maxTokens: a.maxTokens } : {}) })
+      const out = await opts.complete({ role, messages: (a.messages ?? []) as ReadonlyArray<unknown>, ...(a.outputSchema !== undefined ? { outputSchema: a.outputSchema } : {}), ...(typeof a.maxTokens === "number" ? { maxTokens: a.maxTokens } : {}), ...(a.reasoning !== null && typeof a.reasoning === "object" ? { reasoning: a.reasoning as { effort?: string; enabled?: boolean } } : {}) })
       spend("tokens", out.promptTokens + out.completionTokens, Infinity)
       return out
     },

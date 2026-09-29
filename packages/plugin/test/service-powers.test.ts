@@ -16,17 +16,17 @@ describe("service powers", () => {
     const out = await Effect.runPromise(
       hostWith([await fixturePlugin(plugin(`{ decisions: true, models: ["rehearse"] }`, `
         const x = yield* d.decide({ state: "s", questions: { q: { type: "noul", instructions: "i" } } })
-        const y = yield* m.complete({ role: "rehearse", messages: [{ role: "user", content: "hi" }] })
+        const y = yield* m.complete({ role: "rehearse", messages: [{ role: "user", content: "hi" }], reasoning: { enabled: false } })
         const t = yield* c.now
         const u = yield* c.uuid
         yield* a.changed
         return { x, y: y.text, t: t > 0, u: u.length }`))], (h) => h.invoke("svc", "go", {}), {
         decide: () => Effect.succeed({ q: { type: "noul", answer: true, probability: 0.9, confidence: 0.5 } }),
-        complete: (req) => Effect.succeed({ text: `from ${req.role}`, promptTokens: 3, completionTokens: 2 }),
+        complete: (req) => Effect.succeed({ text: `from ${req.role}${req.reasoning?.enabled === false ? ", no reasoning" : ""}`, promptTokens: 3, completionTokens: 2 }),
         agendaChanged: (p) => void seen.push(p),
       }),
     )
-    expect(out).toEqual({ x: { q: { type: "noul", answer: true, probability: 0.9, confidence: 0.5 } }, y: "from rehearse", t: true, u: 36 })
+    expect(out).toEqual({ x: { q: { type: "noul", answer: true, probability: 0.9, confidence: 0.5 } }, y: "from rehearse, no reasoning", t: true, u: 36 })
     expect(seen).toEqual(["svc"])
   })
 

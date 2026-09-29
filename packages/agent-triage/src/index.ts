@@ -14,7 +14,8 @@ export default definePlugin({
   service: "Triage",
   archetype: "agent",
   // [plugins.triage] workers: how many journeys are worked at once (each asks the driver model).
-  config: Schema.Struct({ workers: Schema.optionalKey(Schema.Number) }),
+  // reasoning: let the model reason before answering (off: on cards it reasoned to its token limit and never answered).
+  config: Schema.Struct({ workers: Schema.optionalKey(Schema.Number), reasoning: Schema.optionalKey(Schema.Boolean) }),
   pluginDependencies: [Gherkin, Backlog, Rehearse],
   scopes: { models: ["driver"], agents: true },
   views: [RollupView, WorkerView],
@@ -30,7 +31,7 @@ export default definePlugin({
     const agents = yield* Agents
     const views = yield* Views
     const clock = yield* Clock
-    const config = (yield* Config).value as { workers?: number } | undefined
+    const config = (yield* Config).value as { workers?: number; reasoning?: boolean } | undefined
     const workers = Math.max(1, Math.floor(config?.workers ?? 2))
     let shown = false
     const show = Effect.gen(function* () {
@@ -98,6 +99,7 @@ export default definePlugin({
         render,
       },
       workers,
+      config?.reasoning === true,
     )
     return {
       tick: () => Effect.as(t.tick, null),

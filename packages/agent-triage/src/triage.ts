@@ -30,7 +30,7 @@ export interface TriageDeps {
   readonly journeys: () => Effect.Effect<ReadonlyArray<{ readonly id: string; readonly name: string; readonly cards: ReadonlyArray<string> }>, unknown>
   readonly step: (card: string, draft: Draft) => Effect.Effect<Step, unknown>
   readonly dryRun: (draft: Draft) => Effect.Effect<{ readonly ok: boolean; readonly problems: ReadonlyArray<string>; readonly touched: ReadonlyArray<string>; readonly cards: ReadonlyArray<string> }, unknown>
-  readonly complete: (req: { readonly messages: ReadonlyArray<{ readonly role: "system" | "user"; readonly content: string }>; readonly maxTokens?: number }) => Effect.Effect<{ readonly text: string; readonly promptTokens?: number; readonly completionTokens?: number; readonly reasoningTokens?: number; readonly finishReason?: string }, unknown>
+  readonly complete: (req: { readonly messages: ReadonlyArray<{ readonly role: "system" | "user"; readonly content: string }>; readonly maxTokens?: number; readonly reasoning?: { readonly enabled: boolean } }) => Effect.Effect<{ readonly text: string; readonly promptTokens?: number; readonly completionTokens?: number; readonly reasoningTokens?: number; readonly finishReason?: string }, unknown>
   readonly propose: (p: { readonly journey: string; readonly card: string; readonly title?: string; readonly tries?: ReadonlyArray<Try>; readonly changes: Draft; readonly answers: ReadonlyArray<string>; readonly summary: string; readonly problems?: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
   readonly rehearsing: (p: { readonly journey: string; readonly run?: string; readonly cards?: ReadonlyArray<string>; readonly note?: string; readonly clear?: boolean }) => Effect.Effect<void, unknown>
   /** The accepted draft fails as a whole: back to Refine with the problems. */
@@ -85,7 +85,7 @@ const cardOf = (ref: string) => parseRef(ref)?.id ?? ref
 
 /** The Triage Agent: the agent's part of each journey's stage, whenever the core wakes it. */
 type Slot = { readonly id: string; journey?: string | undefined; at?: Working | undefined; busy: boolean }
-export const makeTriage = (d: TriageDeps, workers = 2) => {
+export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
   const quiet = <A>(e: Effect.Effect<A, unknown>) => Effect.ignore(e)
   const clock = d.now.pipe(Effect.orElseSucceed(() => 0))
   // Paused, no worker starts a card; each worker's card (or "" for the run it waits on), and since when.
@@ -93,8 +93,9 @@ export const makeTriage = (d: TriageDeps, workers = 2) => {
   const runsSince = new Map<string, number>()
   const at = (w: Slot, now: Working | undefined) => Effect.andThen(Effect.sync(() => (w.at = now)), quiet(d.render))
   /** The model's answer; undefined when it did not answer at all (an outage, not a bad answer). */
-  // Room to reason before the JSON: a thinking model spends most of its answer there.
-  const answerOf = (user: string) => d.complete({ messages: [{ role: "system", content: SYSTEM }, { role: "user", content: user }], maxTokens: 16384 }).pipe(Effect.orElseSucceed(() => undefined))
+  // Without reasoning by default: on cards the model reasoned to its token limit and never answered.
+  // With it (reasoning = true), room to reason before the JSON.
+  const answerOf = (user: string) => d.complete({ messages: [{ role: "system", content: SYSTEM }, { role: "user", content: user }], maxTokens: 16384, ...(reasoning ? {} : { reasoning: { enabled: false } }) }).pipe(Effect.orElseSucceed(() => undefined))
   const ask = (user: string) => Effect.map(answerOf(user), (r) => r?.text)
   /** Why an answer has no text: how it ended, and where its tokens went. */
   const emptyWhy = (r: { readonly completionTokens?: number; readonly reasoningTokens?: number; readonly finishReason?: string }) =>

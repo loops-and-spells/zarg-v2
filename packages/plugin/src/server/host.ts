@@ -107,7 +107,7 @@ export interface HostOptions {
   /** The decision model for plugins with the decisions scope. */
   readonly decide?: (req: unknown) => Effect.Effect<unknown, unknown>
   /** A model role for plugins with the models scope. */
-  readonly complete?: (req: { readonly role: string; readonly messages: ReadonlyArray<unknown>; readonly outputSchema?: unknown; readonly maxTokens?: number }) => Effect.Effect<{ readonly text: string; readonly promptTokens: number; readonly completionTokens: number; readonly reasoningTokens?: number; readonly finishReason?: string }, unknown>
+  readonly complete?: (req: { readonly role: string; readonly messages: ReadonlyArray<unknown>; readonly outputSchema?: unknown; readonly maxTokens?: number; readonly reasoning?: { readonly effort?: string; readonly enabled?: boolean } }) => Effect.Effect<{ readonly text: string; readonly promptTokens: number; readonly completionTokens: number; readonly reasoningTokens?: number; readonly finishReason?: string }, unknown>
   /** A plugin's agents events (start, status, step, end), for the agents pane. */
   readonly agents?: (plugin: string, event: unknown) => void
   /** A plugin said its agenda changed. */

@@ -7,7 +7,7 @@ type Stage = Parameters<TriageDeps["propose"]>[0] extends never ? never : any
 const stage = (over: Record<string, unknown>) => ({ journey: "Set up", stage: "refine", proposals: [], draft: [], ...over })
 const entry = { id: "F-00000001", ref: "gherkin/card:UX-0001@abc", kind: "gap", severity: "high", note: "No deny path.", persona: "Operator", on: true, operatorNote: "Deny should say why." }
 const offEntry = { id: "F-00000002", ref: "gherkin/card:UX-0002@abc", kind: "friction", severity: "low", note: "Wordy.", persona: "Operator", on: false }
-const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string>; spent?: boolean; workers?: number; dry?: (n: number) => { ok: boolean; problems: string[]; touched: string[]; cards?: string[] }; run?: unknown; result?: unknown; fresh?: boolean; down?: boolean; journeys?: ReadonlyArray<unknown> }) => {
+const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string>; spent?: boolean; workers?: number; reasoning?: boolean; dry?: (n: number) => { ok: boolean; problems: string[]; touched: string[]; cards?: string[] }; run?: unknown; result?: unknown; fresh?: boolean; down?: boolean; journeys?: ReadonlyArray<unknown> }) => {
   const calls: Array<[string, unknown]> = []
   const answers = [...(o.answers ?? [])]
   let dries = 0
@@ -18,7 +18,7 @@ const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string
     journeys: () => Effect.succeed((o.journeys ?? [{ id: "J-0001", name: "Set up", cards: ["UX-0001", "UX-0002"] }]) as never),
     step: (card) => Effect.succeed({ card, title: `card ${card}`, given: "the plugin runs", when: "it needs a scope", thens: ["the operator is asked"], fork: [], hasFailure: false }),
     dryRun: (draft) => Effect.succeed({ cards: draft.length > 0 ? ["UX-0001", "UX-0003"] : [], ...(o.dry?.(dries++) ?? { ok: true, problems: [], touched: draft.length > 0 ? ["S-0002", "UX-0001"] : [] }) }),
-    complete: (req) => (o.down === true ? Effect.fail("model down") : Effect.sync(() => (calls.push(["complete", req.messages.at(-1)?.content]), calls.push(["maxTokens", req.maxTokens]), o.spent === true ? { text: "", completionTokens: 16384, reasoningTokens: 16384, finishReason: "length" } : { text: answers.shift() ?? "{}" }))),
+    complete: (req) => (o.down === true ? Effect.fail("model down") : Effect.sync(() => (calls.push(["complete", req.messages.at(-1)?.content]), calls.push(["maxTokens", req.maxTokens]), calls.push(["reasoning", req.reasoning]), o.spent === true ? { text: "", completionTokens: 16384, reasoningTokens: 16384, finishReason: "length" } : { text: answers.shift() ?? "{}" }))),
     propose: (p) => Effect.sync(() => void calls.push(["propose", p])),
     rehearsing: (p) => Effect.sync(() => void calls.push(["rehearsing", p])),
     rehearsed: (p) => Effect.sync(() => void calls.push(["rehearsed", p])),
@@ -33,7 +33,7 @@ const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string
     now: Effect.sync(() => (clock += 1500)),
     render: Effect.sync(() => void calls.push(["render", null])),
   }
-  const made = makeTriage(deps, o.workers ?? 2)
+  const made = makeTriage(deps, o.workers ?? 2, o.reasoning ?? false)
   // A tick hands journeys to workers, which work in the background: wait for them.
   return { t: { ...made, tick: Effect.andThen(made.tick, made.idle) }, calls, deps }
 }
@@ -216,5 +216,14 @@ describe("the Triage Agent", () => {
     await Effect.runPromise(Effect.andThen(made.tick, made.idle))
     expect(made.state().workers).toEqual([{ id: "triage-1" }])
     expect(s.calls.filter(([k]) => k === "worker").map(([, x]) => x)).toEqual(["triage-1: Set up", "triage-1: free"])
+  })
+  test("the model answers without reasoning (it ran away on cards); [plugins.triage] reasoning = true lets it reason", async () => {
+    const waiting = { card: "UX-0001", changes: [], answers: [], summary: "", status: "waiting" }
+    const off = setup({ stages: [stage({ proposals: [waiting] })], answers: [proposalJson] })
+    await Effect.runPromise(off.t.tick)
+    expect(off.calls.filter(([k]) => k === "reasoning").map(([, r]) => r)).toEqual([{ enabled: false }])
+    const on = setup({ stages: [stage({ proposals: [waiting] })], answers: [proposalJson], reasoning: true })
+    await Effect.runPromise(on.t.tick)
+    expect(on.calls.filter(([k]) => k === "reasoning").map(([, r]) => r)).toEqual([undefined])
   })
 })
