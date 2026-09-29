@@ -394,8 +394,9 @@ export const makeRehearse = (deps: RunDeps) =>
       )
 
     /** Stop the running run: its record so far is kept, marked stopped. */
-    const stop = Effect.gen(function* () {
-      if (active === undefined) return
+    /** Stop the run going; with a run id, only when it is that run (another plugin stopping its own). */
+    const stop = (only?: string) => Effect.gen(function* () {
+      if (active === undefined || (only !== undefined && active.run !== only)) return
       const { run, fiber } = active
       yield* Fiber.interrupt(fiber)
       const r = records.get(run)

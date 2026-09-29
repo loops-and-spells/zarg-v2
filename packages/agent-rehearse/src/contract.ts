@@ -15,4 +15,6 @@ export const RunResult = Schema.Struct({ status: Schema.Literals(["running", "do
 export const Rehearse = pluginContract("rehearse", {
   run: { params: RunParams, success: Schema.Unknown },
   result: { params: Schema.Struct({ run: Schema.String }), success: RunResult },
+  /** Stop that run, when it is the one going (a triage round that left Re-rehearse). */
+  stop: { params: Schema.Struct({ run: Schema.optionalKey(Schema.String) }), success: Schema.Null },
 })

@@ -510,7 +510,11 @@ export default definePlugin({
       rehearsing: (p: typeof Rehearsing.Type) =>
         moved_(
           updateStage(p.journey, (st) => {
-            // `clear`: the run is gone (stopped); the next wake starts another.
+            // `clear`: the run is gone (stopped); the next wake starts another. `dropped`: the left-behind run is stopped.
+            if (p.dropped === true) {
+              const { dropRun: _d, ...kept } = st
+              return kept
+            }
             const { run: _r, ...rest } = st
             return { ...(p.clear === true ? rest : st), ...(p.run !== undefined ? { run: p.run } : {}), ...(p.cards !== undefined ? { cards: p.cards } : {}), ...(p.note !== undefined ? { note: p.note } : {}) }
           }),

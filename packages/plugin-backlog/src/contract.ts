@@ -58,11 +58,12 @@ export const StageData = Schema.Struct({
   inputs: Schema.optionalKey(Schema.Array(Schema.String)),
   redrafts: Schema.optionalKey(Schema.Number),
   queued: Schema.optionalKey(Schema.Number),
+  dropRun: Schema.optionalKey(Schema.String),
   worker: Schema.optionalKey(Schema.String),
   dismissed: Schema.optionalKey(Schema.Array(Schema.Struct({ card: Schema.String, kind: Schema.String }))),
 })
 export const Propose = Schema.Struct({ journey: Schema.String, card: Schema.String, title: Schema.optionalKey(Schema.String), tries: Schema.optionalKey(Schema.Array(Try)), changes: DraftCalls, answers: Schema.Array(Schema.String), summary: Schema.String, problems: Schema.optionalKey(Schema.Array(Schema.String)) })
-export const Rehearsing = Schema.Struct({ journey: Schema.String, run: Schema.optionalKey(Schema.String), cards: Schema.optionalKey(Schema.Array(Schema.String)), note: Schema.optionalKey(Schema.String), clear: Schema.optionalKey(Schema.Boolean) })
+export const Rehearsing = Schema.Struct({ journey: Schema.String, run: Schema.optionalKey(Schema.String), cards: Schema.optionalKey(Schema.Array(Schema.String)), note: Schema.optionalKey(Schema.String), clear: Schema.optionalKey(Schema.Boolean), dropped: Schema.optionalKey(Schema.Boolean) })
 export const Redraft = Schema.Struct({ journey: Schema.String, problems: Schema.Array(Schema.String) })
 export const Rehearsed = Schema.Struct({
   journey: Schema.String,

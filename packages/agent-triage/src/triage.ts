@@ -18,6 +18,7 @@ export interface StageView {
   readonly item?: string
   readonly queued?: number
   readonly worker?: string
+  readonly dropRun?: string
   readonly dismissed?: ReadonlyArray<{ readonly card: string; readonly kind: string }>
 }
 type OnEntry = { readonly id: string; readonly ref: string; readonly kind: string; readonly severity: string; readonly note: string; readonly persona: string; readonly on: boolean; readonly operatorNote?: string }
@@ -32,13 +33,15 @@ export interface TriageDeps {
   readonly dryRun: (draft: Draft) => Effect.Effect<{ readonly ok: boolean; readonly problems: ReadonlyArray<string>; readonly touched: ReadonlyArray<string>; readonly cards: ReadonlyArray<string> }, unknown>
   readonly complete: (req: { readonly messages: ReadonlyArray<{ readonly role: "system" | "user"; readonly content: string }>; readonly maxTokens?: number; readonly reasoning?: { readonly enabled: boolean } }) => Effect.Effect<{ readonly text: string; readonly promptTokens?: number; readonly completionTokens?: number; readonly reasoningTokens?: number; readonly finishReason?: string }, unknown>
   readonly propose: (p: { readonly journey: string; readonly card: string; readonly title?: string; readonly tries?: ReadonlyArray<Try>; readonly changes: Draft; readonly answers: ReadonlyArray<string>; readonly summary: string; readonly problems?: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
-  readonly rehearsing: (p: { readonly journey: string; readonly run?: string; readonly cards?: ReadonlyArray<string>; readonly note?: string; readonly clear?: boolean }) => Effect.Effect<void, unknown>
+  readonly rehearsing: (p: { readonly journey: string; readonly run?: string; readonly cards?: ReadonlyArray<string>; readonly note?: string; readonly clear?: boolean; readonly dropped?: boolean }) => Effect.Effect<void, unknown>
   /** The accepted draft fails as a whole: back to Refine with the problems. */
   readonly redraft: (p: { readonly journey: string; readonly problems: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
   readonly rehearsed: (p: { readonly journey: string; readonly resolved: ReadonlyArray<string>; readonly fresh: ReadonlyArray<Fresh>; readonly next: "plan" | "refine"; readonly cards?: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
   readonly drafted: (p: { readonly journey: string; readonly title: string; readonly steps: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
   readonly run: (p: { readonly strategy: "journey"; readonly focus: ReadonlyArray<string>; readonly draft: Draft; readonly file: false }) => Effect.Effect<{ readonly run?: string; readonly refused?: string }, unknown>
   readonly result: (run: string) => Effect.Effect<{ readonly status: string; readonly findings: ReadonlyArray<Fresh & { readonly on: boolean }> }, unknown>
+  /** Stop that rehearse run, when it is the one going. */
+  readonly stop: (run: string) => Effect.Effect<void, unknown>
   /** The agent's row: what it does now. */
   readonly status: (agent: string, text: string) => Effect.Effect<void, unknown>
   /** A line in the agent's history: what it did, and why when it failed. */
@@ -254,6 +257,12 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
   const tick: Effect.Effect<void> = Effect.gen(function* () {
     if (paused) return
     const stages = yield* d.stages().pipe(Effect.orElseSucceed(() => []))
+    // A re-rehearse a round left behind (d, Refine again) walks an old draft: stop it, forget it.
+    for (const s of stages)
+      if (s.dropRun !== undefined) {
+        yield* quiet(d.stop(s.dropRun))
+        yield* quiet(d.rehearsing({ journey: s.journey, dropped: true }))
+      }
     const line = stages.filter(needsWork).sort((a, b) => (a.queued ?? 0) - (b.queued ?? 0))
     // A worker whose journey needs nothing more lets it go.
     for (const w of slots)

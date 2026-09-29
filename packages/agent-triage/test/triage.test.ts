@@ -26,6 +26,7 @@ const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string
     redraft: (p) => Effect.sync(() => void calls.push(["redraft", p])),
     run: (p) => Effect.sync(() => (calls.push(["run", p]), (o.run ?? { run: "r-9" }) as never)),
     result: () => Effect.succeed((o.result ?? { status: "running", findings: [] }) as never),
+    stop: (run) => Effect.sync(() => void calls.push(["stop", run])),
     status: () => Effect.void,
     assign: (journey, worker) => Effect.sync(() => void calls.push(["assign", worker === undefined ? journey : `${journey} → ${worker}`])),
     worker: (id, journey) => Effect.sync(() => void calls.push(["worker", `${id}: ${journey ?? "free"}`])),
@@ -225,5 +226,10 @@ describe("the Triage Agent", () => {
     const on = setup({ stages: [stage({ proposals: [waiting] })], answers: [proposalJson], reasoning: true })
     await Effect.runPromise(on.t.tick)
     expect(on.calls.filter(([k]) => k === "reasoning").map(([, r]) => r)).toEqual([undefined])
+  })
+  test("a run the round left behind (d, Refine again) is stopped, and forgotten", async () => {
+    const { t, calls } = setup({ stages: [stage({ stage: "refine", dropRun: "r-old", proposals: [] })] })
+    await Effect.runPromise(t.tick)
+    expect(calls.filter(([k]) => k === "stop" || k === "rehearsing")).toEqual([["stop", "r-old"], ["rehearsing", { journey: "Set up", dropped: true }]])
   })
 })

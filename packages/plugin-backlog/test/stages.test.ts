@@ -82,4 +82,10 @@ describe("a journey's stages", () => {
     expect(stageLabel({ ...working, stage: "rehearse" }, [])).toBe("triage-1 · Re-rehearse")
     expect(["triage", "refine", "rehearse", "plan", "planned"].map((x) => inTriage({ ...a, stage: x as Stage["stage"] }))).toEqual([false, true, true, false, false])
   })
+  test("leaving Re-rehearse (d, or Refine again) keeps its run to stop: the testers must not walk an old draft", () => {
+    const s: Stage = { ...fresh("Set up"), stage: "rehearse", run: "r-9", draft: [{ tool: "x", params: {} }], proposals: [{ ...proposed("UX-0001"), status: "accepted" }] }
+    const a = redo(s, "UX-0001")
+    const b = refineAgain(s, [on("F-1", "UX-0001")])
+    expect([typeof a === "string" ? a : [a.run, a.dropRun], typeof b === "string" ? b : [b.run, b.dropRun]]).toEqual([[undefined, "r-9"], [undefined, "r-9"]])
+  })
 })

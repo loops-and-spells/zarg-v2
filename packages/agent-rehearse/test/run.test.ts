@@ -234,11 +234,25 @@ describe("rehearse runs in the plugin", () => {
       Effect.gen(function* () {
         const t = yield* setup({ slowDecide: 20 })
         yield* t.r.start({})
-        yield* t.r.stop
+        yield* t.r.stop()
         return t
       }),
     )
     expect(t.agendaChanges.n).toBe(1)
+  })
+
+  test("a stop that names another run leaves this one going (triage stops only its own)", async () => {
+    const t = await Effect.runPromise(
+      Effect.gen(function* () {
+        const t = yield* setup({ slowDecide: 20 })
+        const s = (yield* t.r.start({})) as { run: string }
+        yield* t.r.stop("r-someone-else")
+        const going = t.r.record(s.run)!.status
+        yield* t.r.stop(s.run)
+        return { going, after: t.r.record(s.run)!.status }
+      }),
+    )
+    expect(t).toEqual({ going: "running", after: "stopped" })
   })
 
   test("stop keeps the partial record, marked stopped", async () => {
@@ -246,7 +260,7 @@ describe("rehearse runs in the plugin", () => {
       Effect.gen(function* () {
         const t = yield* setup({ slowDecide: 20 })
         const s = (yield* t.r.start({})) as { run: string }
-        yield* t.r.stop
+        yield* t.r.stop()
         return { ...t, run: s.run }
       }),
     )

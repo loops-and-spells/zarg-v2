@@ -47,7 +47,7 @@ export default definePlugin({
     result: { doc: "What a run found (a run over a draft keeps its findings here).", params: Schema.Struct({ run: Schema.String }), success: RunResult },
     command: { doc: "/rehearse", params: Schema.Struct({ args: Schema.Array(Schema.String) }), success: Notice, deadlineMs: START_DEADLINE_MS },
     act: { doc: "Refresh the run's tables (where its feedback stands now).", params: Schema.Struct({ agent: Schema.String, action: Schema.String, section: Schema.optionalKey(Schema.String), rows: Schema.Array(Schema.String) }), success: Notice },
-    stop: { doc: "Stop the running rehearsal.", params: Schema.Struct({}), success: Schema.Null },
+    stop: { doc: "Stop the running rehearsal (with a run: only when it is that run).", params: Schema.Struct({ run: Schema.optionalKey(Schema.String) }), success: Schema.Null },
   },
   make: Effect.gen(function* () {
     const gherkin = yield* Gherkin
@@ -100,7 +100,7 @@ export default definePlugin({
         ),
       act: () => Effect.as(r.refresh, { notice: "refreshed" }),
       result: ({ run: id }: { run: string }) => Effect.succeed(r.result(id)),
-      stop: () => Effect.as(r.stop, null),
+      stop: (p?: { run?: string }) => Effect.as(r.stop(p?.run), null),
     } as never
   }),
 })

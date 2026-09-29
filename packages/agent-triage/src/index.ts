@@ -91,6 +91,7 @@ export default definePlugin({
         redraft: (p) => backlog.redraft(p),
         run: (p) => Effect.map(rehearse.run(p), (r) => r as { run?: string; refused?: string }),
         result: (run) => rehearse.result({ run }),
+        stop: (run) => Effect.asVoid(rehearse.stop({ run })),
         status,
         log,
         assign: (journey, w) => Effect.asVoid(backlog.assign({ journey, ...(w !== undefined ? { worker: w } : {}) })),

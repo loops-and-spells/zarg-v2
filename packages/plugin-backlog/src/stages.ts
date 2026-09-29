@@ -47,6 +47,8 @@ export interface Stage {
   readonly note?: string
   /** The feedback that was on when Refine started (what a plan closes). */
   readonly inputs?: ReadonlyArray<string>
+  /** A re-rehearse run the round left behind (d, Refine again): the Triage Agent stops it. */
+  readonly dropRun?: string
   /** Its place in the triage queue (lower goes first). */
   readonly queued?: number
   /** The triage worker on it (triage-1…N), once one took it. */
@@ -82,7 +84,7 @@ export const refineAgain = (s: Stage, entries: ReadonlyArray<OnLike>): Stage | s
   const cards = cardsOn(left)
   if (cards.length === 0) return `nothing left to refine in ${s.journey}: a accepts the plan`
   const { plan: _p, results: _r, run: _run, note: _n, ...rest } = s
-  return { ...rest, stage: "refine", proposals: [...s.proposals, ...cards.map(waiting)], inputs: [...new Set([...(s.inputs ?? []), ...left.filter((e) => e.triage.on && e.id !== undefined).map((e) => e.id!)])] }
+  return { ...rest, ...(s.run !== undefined ? { dropRun: s.run } : {}), stage: "refine", proposals: [...s.proposals, ...cards.map(waiting)], inputs: [...new Set([...(s.inputs ?? []), ...left.filter((e) => e.triage.on && e.id !== undefined).map((e) => e.id!)])] }
 }
 /** The accepted draft fails as a whole: its proposals are drafted again, once; a second failure leaves them out and goes to Plan. */
 export const redraft = (s: Stage, problems: ReadonlyArray<string>): Stage => {
@@ -120,7 +122,7 @@ export const redo = (s: Stage, card: string): Stage | string => {
   if (!s.proposals.some((p) => p.card === card)) return `${card} is not in ${s.journey}'s round`
   const proposals = s.proposals.map((p) => (p.card === card ? { card, answers: [], summary: "", changes: [], status: "waiting" as const, ...(p.title !== undefined ? { title: p.title } : {}), ...(p.problems !== undefined ? { problems: p.problems } : {}) } : p))
   const { plan: _p, results: _r, run: _run, note: _n, ...rest } = s
-  return { ...rest, stage: "refine", proposals, draft: proposals.filter((p) => p.status === "accepted").flatMap((p) => p.changes) }
+  return { ...rest, ...(s.run !== undefined ? { dropRun: s.run } : {}), stage: "refine", proposals, draft: proposals.filter((p) => p.status === "accepted").flatMap((p) => p.changes) }
 }
 
 /** In triage (queued or worked): its feedback is read-only until Plan. */
