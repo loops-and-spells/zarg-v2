@@ -135,6 +135,8 @@ export const Surface = Schema.Union([
     /** Rows at the top or bottom, columns at the right. */
     size: Schema.Number,
     input: Schema.Literals(["none", "onFocus"]),
+    /** At the right: lie over the tile area (a drawer) instead of taking its room. */
+    overlay: Schema.optionalKey(Schema.Boolean),
   }),
   Schema.Struct({ kind: Schema.Literal("popover"), name: Schema.String, view: Schema.String }),
   Schema.Struct({ kind: Schema.Literal("sheet"), name: Schema.String, view: Schema.String }),

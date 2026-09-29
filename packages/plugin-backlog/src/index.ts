@@ -42,8 +42,8 @@ export default definePlugin({
   surfaces: [
     { kind: "nav", name: "feedback", view: "feedback", label: "Feedback" },
     { kind: "nav", name: "backlog", view: "backlog", label: "Backlog" },
-    // The drawer: one plan in full, at the board's right edge while the Backlog is open.
-    { kind: "panel", name: "item", view: "item", scope: "agent", edge: "right", size: 40, input: "onFocus" },
+    // The drawer: one plan in full, over the right of the board while the Backlog is open (the board keeps its width).
+    { kind: "panel", name: "item", view: "item", scope: "agent", edge: "right", size: 40, input: "onFocus", overlay: true },
   ],
   entities: {
     feedback: { doc: "A tester's report on one version of an entity, and its triage.", data: EntryData, tone: "attention", glyph: "◇", open: "feedback", ops: ["get", "label", "version", "query"] },

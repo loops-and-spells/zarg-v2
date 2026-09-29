@@ -114,7 +114,7 @@ export const pluginAgents = (
     if (checked.filter((c) => c.s.kind === "popover").length > 1) throw new Error(`plugin ${plugin} already has a popover up: one at a time`)
     for (const { s, id } of checked) {
       const key = keyFor(plugin, id, s.view)
-      if (s.kind === "panel") surfaces.openPanel({ id: `${plugin}:${s.name}:${id}`, plugin, agent: id, view: key, name: s.name, scope: s.scope, edge: s.edge, size: s.size, input: s.input })
+      if (s.kind === "panel") surfaces.openPanel({ id: `${plugin}:${s.name}:${id}`, plugin, agent: id, view: key, name: s.name, scope: s.scope, edge: s.edge, size: s.size, input: s.input, ...(s.overlay === true ? { overlay: true } : {}) })
       else if (s.kind === "popover") {
         if (prompts.shownFor(id, key) === undefined) Effect.runSync(prompts.show({ plugin, agent: id, view: key, title: `${plugin} ${s.name}` }))
       } else surfaces.navigate(s.kind, key)

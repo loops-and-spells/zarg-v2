@@ -41,6 +41,8 @@ export interface PanelInstance {
   readonly edge: "top" | "bottom" | "right"
   readonly size: number
   readonly input: "none" | "onFocus"
+  /** It lies over the tile area (a drawer) instead of taking its room. */
+  readonly overlay?: boolean
   /** When it was (re)opened: a panel the operator closed shows again once the plugin opens it again. */
   readonly at?: number
 }

@@ -309,7 +309,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
 
   const busyLine = working(ui, s, now)
   // The focus area's width: right of the rail, less its padding and any right-edge panels.
-  const rightWidth = panelsShown(ui, s).right.reduce((a, p) => a + p.size + 3, 0)
+  // An overlay panel lies over the view: it takes none of its width.
+  const rightWidth = panelsShown(ui, s).right.filter((p) => p.overlay !== true).reduce((a, p) => a + p.size + 3, 0)
   const focusWidth = Math.max(10, dims.width - railWidth - 4 - rightWidth)
   // Over another focus the sheet is an inset bottom sheet: a raised block with a half-block lip, rising from the bar, the focus showing around it. As zarg's own focus it fills the area.
   // No box-drawing border: its glyphs sit mid-cell, so a filled border leaves half a cell of fill outside the line.
@@ -825,8 +826,14 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
                   {ui.sheetOf !== undefined ? pluginSheet : sheet}
                 </box>
               ) : null}
+              {/* A drawer: over the right of the view, which keeps its width. */}
+              {shown.right.filter((p) => p.overlay === true).map((p) => (
+                <box key={`over-${p.id}`} style={{ position: "absolute", right: 0, top: 0, bottom: 0, zIndex: 20, backgroundColor: C.raised, border: ["left"], borderColor: C.accent }}>
+                  {panelBox(p)}
+                </box>
+              ))}
             </box>
-            {shown.right.map(panelBox)}
+            {shown.right.filter((p) => p.overlay !== true).map(panelBox)}
           </box>
           {shown.bottom.map(panelBox)}
         </box>

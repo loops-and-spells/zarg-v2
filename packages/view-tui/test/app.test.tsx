@@ -770,6 +770,18 @@ describe("review fixes (look)", () => {
     const line = t.captureCharFrame().split("\n").find((l) => l.includes("word word"))!
     expect(line).toContain("…")
   })
+  test("an overlay panel lies over the right of the view: the view keeps its width (its line runs on under the panel)", async () => {
+    const long = "word ".repeat(40)
+    const v = { ...viewState.thread.views!["rehearse:t1"]!, layout: { name: "t", sections: [{ id: "log", kind: "log" as const, role: "log" as const, title: "Steps" }] }, data: { log: { lines: [{ text: long }] } } }
+    const drawer = { id: "rehearse:drawer:rehearse:t1", plugin: "rehearse", agent: "rehearse:t1", view: "rehearse:t1@side", name: "drawer", scope: "agent" as const, edge: "right" as const, size: 30, input: "none" as const, overlay: true }
+    const zargBar = { id: "zarg:bar:zarg", plugin: "zarg", agent: "zarg", view: "zarg", name: "bar", scope: "shell" as const, edge: "bottom" as const, size: 1, input: "onFocus" as const }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, views: { ...viewState.thread.views, "rehearse:t1": v }, panels: [zargBar, drawer] } }, { width: 130, height: 24 })
+    t.mockInput.pressKey("a", { meta: true }); await settle(t); t.mockInput.pressEnter(); await settle(t)
+    const f = t.captureCharFrame()
+    expect(f).toContain("drawer")
+    const line = f.split("\n").find((l) => l.includes("word word"))!
+    expect(line).not.toContain("…")
+  })
   test("at 80 columns the status line keeps its keys (the status gives way)", async () => {
     const t = await render(waiting, { width: 80, height: 24 })
     expect(t.captureCharFrame().split("\n").filter((l) => l.trim().length > 0).at(-1)).toContain("↑↓ pick")
