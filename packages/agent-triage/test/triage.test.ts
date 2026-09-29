@@ -26,6 +26,7 @@ const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string
     run: (p) => Effect.sync(() => (calls.push(["run", p]), (o.run ?? { run: "r-9" }) as never)),
     result: () => Effect.succeed((o.result ?? { status: "running", findings: [] }) as never),
     status: () => Effect.void,
+    log: (text) => Effect.sync(() => void calls.push(["log", text])),
   }
   return { t: makeTriage(deps), calls, deps }
 }
@@ -99,6 +100,24 @@ describe("the Triage Agent", () => {
     const tri = makeTriage({ ...s.deps, ...base, dryRun: (d) => Effect.sync(() => (drafts.push(d), { ok: true, problems: [], touched: [], cards: [] })) })
     await Effect.runPromise(tri.tick)
     expect(drafts.map((d) => (d as unknown[]).length)).toEqual([1, 2])
+  })
+  test("its history says what it does: each card drafted (into the draft, or left out and why, with what the model said), each run", async () => {
+    const waiting = (card: string) => ({ card, changes: [], answers: [], summary: "", status: "waiting" })
+    const a = setup({ stages: [stage({ proposals: [waiting("UX-0001")] })], answers: [proposalJson] })
+    await Effect.runPromise(a.t.tick)
+    const b = setup({ stages: [stage({ proposals: [waiting("UX-0001")] })], answers: ["Let me think about the deny path first", "still thinking"] })
+    await Effect.runPromise(b.t.tick)
+    const c = setup({ stages: [stage({ stage: "rehearse", draft: [{ tool: "edit-state", params: {} }] })] })
+    await Effect.runPromise(c.t.tick)
+    const steps = (x: { calls: Array<[string, unknown]> }) => x.calls.filter(([k]) => k === "log").map(([, t]) => t)
+    expect(steps(a)).toEqual(["Set up: drafting UX-0001 (1 feedback)", "Set up: UX-0001 into the draft: Name the choices."])
+    expect(steps(b)).toEqual([
+      "Set up: drafting UX-0001 (1 feedback)",
+      "Set up: UX-0001: the model did not answer with the JSON asked for: “Let me think about the deny path first”",
+      "Set up: UX-0001: the model did not answer with the JSON asked for: “still thinking”",
+      "Set up: UX-0001 left out: the Triage Agent could not draft a proposal",
+    ])
+    expect(steps(c)).toEqual(["Set up: re-rehearsing on 3 cards (run r-9)"])
   })
   test("stages that wait on the operator, or are done, are left alone", async () => {
     const { t, calls } = setup({ stages: [stage({ stage: "triage" }), stage({ stage: "refine", proposals: [{ card: "UX-0001", changes: [], answers: [], summary: "s", status: "proposed" }] }), stage({ stage: "plan", plan: { title: "t", steps: [] } }), stage({ stage: "planned" })] })

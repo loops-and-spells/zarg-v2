@@ -148,7 +148,7 @@ export default definePlugin({
       if (st.stage === "refine") {
         const p = current(st)
         const done = st.proposals.filter((x) => x.status === "accepted" || x.status === "skipped").length
-        return [p === undefined ? "Every card drafted." : `The Triage Agent is drafting ${p.card} (${done + 1} of ${st.proposals.length}).`, ...noteLine, ...leftLines].join("\n")
+        return [p === undefined ? "Every card drafted." : `The Triage Agent is drafting ${p.card} (${done + 1} of ${st.proposals.length}). Its history (in the rail) shows each card as it goes; the re-rehearse starts when the last is drafted.`, ...noteLine, ...leftLines].join("\n")
       }
       if (st.stage === "rehearse") return [`Re-rehearsing ${st.journey} on the drafted cards${st.run !== undefined ? ` (run ${st.run})` : ""}: ${plural(st.draft.length, "change")}.`, ...noteLine, "", "**r** Refine again"].join("\n")
       if (st.stage === "plan") {
@@ -457,6 +457,8 @@ export default definePlugin({
       })
     const cmd = (f: Effect.Effect<string, unknown>) => Effect.andThen(f, (notice) => Effect.as(refreshBoard, { notice })).pipe(Effect.mapError(fail))
     const nul = <E>(e: Effect.Effect<unknown, E>) => Effect.as(e, null).pipe(Effect.mapError(fail))
+    // The agent's moves on a stage: the Feedback view follows them without a key press.
+    const moved_ = <E>(e: Effect.Effect<unknown, E>) => nul(Effect.andThen(e, Effect.ignore(refresh)))
     return {
       file,
       status,
@@ -464,11 +466,11 @@ export default definePlugin({
       agenda,
       stages: () => loadStages.pipe(Effect.mapError(fail)),
       feedbackOf: ({ journey: j }: { journey: string }) => Effect.map(openIn(j), (es) => es.map((e) => ({ id: e.id, ref: e.ref, kind: e.kind, severity: e.severity, note: e.note, persona: e.persona, on: e.triage.on, ...(e.operatorNote !== undefined ? { operatorNote: e.operatorNote } : {}) }))).pipe(Effect.mapError(fail)),
-      redraft: (p: typeof Redraft.Type) => nul(updateStage(p.journey, (st) => (st.stage === "rehearse" ? redraft(st, p.problems) : st), true)),
+      redraft: (p: typeof Redraft.Type) => moved_(updateStage(p.journey, (st) => (st.stage === "rehearse" ? redraft(st, p.problems) : st), true)),
       // Into the draft as it comes (or left out with its problems); the last one moves on, and the agent wakes for it.
-      propose: (p: typeof Propose.Type) => nul(updateStage(p.journey, (st) => settle(st, p), true)),
+      propose: (p: typeof Propose.Type) => moved_(updateStage(p.journey, (st) => settle(st, p), true)),
       rehearsing: (p: typeof Rehearsing.Type) =>
-        nul(
+        moved_(
           updateStage(p.journey, (st) => {
             // `clear`: the run is gone (stopped); the next wake starts another.
             const { run: _r, ...rest } = st
@@ -476,7 +478,7 @@ export default definePlugin({
           }),
         ),
       rehearsed: (p: typeof Rehearsed.Type) =>
-        nul(
+        moved_(
           updateStage(p.journey, (st) => {
             const { run: _r, note: _n, ...rest } = st
             const results = { resolved: p.resolved, fresh: p.fresh }
@@ -485,7 +487,7 @@ export default definePlugin({
             return { ...rest, stage: "plan" as const, results, ...(p.cards !== undefined ? { cards: p.cards } : {}) }
           }, true),
         ),
-      drafted: (p: typeof Drafted.Type) => nul(updateStage(p.journey, (st) => ({ ...st, plan: { title: p.title, steps: p.steps } }))),
+      drafted: (p: typeof Drafted.Type) => moved_(updateStage(p.journey, (st) => ({ ...st, plan: { title: p.title, steps: p.steps } }))),
       plan,
       next,
       moved: ({ id, to, by, what, needs, cards }: { id: string; to: Item["status"]; by: string; what?: string; needs?: string; cards?: ReadonlyArray<string> }) => Effect.as(move(id, to, by, what, needs, cards), null).pipe(Effect.mapError(fail)),

@@ -36,6 +36,8 @@ export interface TriageDeps {
   readonly result: (run: string) => Effect.Effect<{ readonly status: string; readonly findings: ReadonlyArray<Fresh & { readonly on: boolean }> }, unknown>
   /** The agent's row: what it does now. */
   readonly status: (text: string) => Effect.Effect<void, unknown>
+  /** A line in the agent's history: what it did, and why when it failed. */
+  readonly log: (text: string) => Effect.Effect<void, unknown>
 }
 
 /** The first JSON object in a model's answer (in a fence, or with words around it); undefined when there is none. */
@@ -84,6 +86,8 @@ export const makeTriage = (d: TriageDeps) => {
   const proposeFor = (st: StageView, card: string) =>
     Effect.gen(function* () {
       const entries = (yield* d.feedbackOf(st.journey).pipe(Effect.orElseSucceed(() => []))).filter((e) => e.on && cardOf(e.ref) === card)
+      const say = (text: string) => quiet(d.log(`${st.journey}: ${text}`))
+      yield* say(`drafting ${card} (${entries.length} feedback)`)
       const fresh = (st.results?.fresh ?? []).filter((f) => f.card === card)
       const step = yield* d.step(card, st.draft).pipe(Effect.orElseSucceed(() => null))
       const base = [
@@ -101,9 +105,14 @@ export const makeTriage = (d: TriageDeps) => {
       for (let attempt = 0; attempt < 2; attempt++) {
         const answer = yield* ask(prompt)
         // No answer at all: the proposal stays waiting, and the operator is told why.
-        if (answer === undefined) return yield* d.rehearsing({ journey: st.journey, note: OUTAGE })
+        if (answer === undefined) {
+          yield* say(`${card}: ${OUTAGE}`)
+          return yield* d.rehearsing({ journey: st.journey, note: OUTAGE })
+        }
         const proposal = parseProposal(answer)
         if (proposal === undefined) {
+          const excerpt = answer.replace(/\s+/g, " ").trim()
+          yield* say(`${card}: the model did not answer with the JSON asked for: “${excerpt.length > 160 ? `${excerpt.slice(0, 160)}…` : excerpt}”`)
           last = { problems: ["the Triage Agent could not draft a proposal"] }
           prompt = `${base}\n\nYour last answer was not the JSON asked for. Answer with the JSON only.`
           continue
@@ -111,9 +120,11 @@ export const makeTriage = (d: TriageDeps) => {
         const dry = yield* d.dryRun([...st.draft, ...proposal.changes]).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: ["the dry-run failed"], touched: [] })))
         last = { problems: dry.problems, proposal }
         if (dry.ok) break
+        yield* say(`${card}: the proposal failed its checks: ${dry.problems.join("; ")}`)
         prompt = `${base}\n\nYour last proposal did not pass the checks:\n${dry.problems.map((p) => `- ${p}`).join("\n")}\nFix it.`
       }
       const p = last.proposal
+      yield* say(last.problems.length > 0 ? `${card} left out: ${last.problems.join("; ")}` : `${card} into the draft: ${p?.summary ?? ""}`)
       yield* d.propose({ journey: st.journey, card, changes: p?.changes ?? [], answers: p?.answers ?? [], summary: p?.summary ?? "", ...(last.problems.length > 0 ? { problems: last.problems } : {}) })
     })
 
@@ -123,13 +134,20 @@ export const makeTriage = (d: TriageDeps) => {
       const start = Effect.gen(function* () {
         const dry = yield* d.dryRun(st.draft).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: ["the dry-run failed"], touched: [] as ReadonlyArray<string>, cards: [] as ReadonlyArray<string> })))
         // Accepted one by one, the changes may not fit together: back to Refine before any run.
-        if (!dry.ok) return yield* d.redraft({ journey: st.journey, problems: dry.problems })
+        if (!dry.ok) {
+          yield* quiet(d.log(`${st.journey}: the drafted changes do not fit together: ${dry.problems.join("; ")}`))
+          return yield* d.redraft({ journey: st.journey, problems: dry.problems })
+        }
         const journey = (yield* d.journeys().pipe(Effect.orElseSucceed(() => []))).find((j) => j.name === st.journey)
         const focus = [...new Set([...(journey?.cards ?? []), ...dry.cards])]
         // Nothing to walk: an empty focus would walk the whole graph.
         if (focus.length === 0) return yield* d.rehearsed({ journey: st.journey, resolved: [], fresh: [], next: "plan", cards: dry.cards })
         const started: { readonly run?: string; readonly refused?: string } = yield* d.run({ strategy: "journey", focus, draft: st.draft, file: false }).pipe(Effect.orElseSucceed(() => ({ refused: "rehearse did not answer" })))
-        if (started.run === undefined) return yield* d.rehearsing({ journey: st.journey, clear: true, note: `waits: ${started.refused ?? "rehearse did not start"}` })
+        if (started.run === undefined) {
+          yield* quiet(d.log(`${st.journey}: re-rehearse waits: ${started.refused ?? "rehearse did not start"}`))
+          return yield* d.rehearsing({ journey: st.journey, clear: true, note: `waits: ${started.refused ?? "rehearse did not start"}` })
+        }
+        yield* quiet(d.log(`${st.journey}: re-rehearsing on ${focus.length} cards (run ${started.run})`))
         return yield* d.rehearsing({ journey: st.journey, run: started.run, cards: dry.cards })
       })
       if (st.run === undefined) return yield* start
@@ -143,6 +161,7 @@ export const makeTriage = (d: TriageDeps) => {
       // Fresh: new to this journey — not an entry already (on or off), not one the operator skipped.
       const known = (f: { card: string; kind: string }) => entries.some((e) => cardOf(e.ref) === f.card && e.kind === f.kind) || (st.dismissed ?? []).some((x) => x.card === f.card && x.kind === f.kind)
       const fresh = r.findings.filter((f) => f.on && !known(f)).map(({ on: _, ...f }) => f)
+      yield* quiet(d.log(`${st.journey}: re-rehearsed: ${resolved.length} resolved, ${fresh.length} new`))
       // On to Plan either way: new findings are named there, and the operator refines again or accepts.
       yield* d.rehearsed({ journey: st.journey, resolved, fresh, next: "plan", ...(st.cards !== undefined ? { cards: st.cards } : {}) })
     })
@@ -158,6 +177,7 @@ export const makeTriage = (d: TriageDeps) => {
       const v = jsonIn(text) as { title?: unknown; steps?: unknown } | undefined
       const title = typeof v?.title === "string" && v.title.length > 0 ? v.title : `${st.journey}: ${accepted.length} card${accepted.length === 1 ? "" : "s"} refined`
       const steps = Array.isArray(v?.steps) && v.steps.every((x) => typeof x === "string") ? (v.steps as ReadonlyArray<string>) : accepted.map((p) => `${p.card}: ${p.summary}`)
+      yield* quiet(d.log(`${st.journey}: plan drafted: ${title}`))
       yield* d.drafted({ journey: st.journey, title, steps })
     })
 

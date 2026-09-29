@@ -24,14 +24,14 @@ export default definePlugin({
     const agents = yield* Agents
     yield* Config
     let shown = false
-    const status = (text: string) =>
-      Effect.gen(function* () {
-        if (!shown) {
-          shown = true
-          yield* Effect.ignore(agents.start({ id: "triage", title: "Triage Agent", task: "Refines journeys' feedback into card changes, re-rehearses them, drafts the plan." }))
-        }
-        yield* Effect.ignore(agents.status({ id: "triage", text }))
-      })
+    const show = Effect.gen(function* () {
+      if (shown) return
+      shown = true
+      yield* Effect.ignore(agents.start({ id: "triage", title: "Triage Agent", task: "Refines journeys' feedback into card changes, re-rehearses them, drafts the plan." }))
+    })
+    const status = (text: string) => Effect.andThen(show, Effect.ignore(agents.status({ id: "triage", text })))
+    // Its history: each card drafted, left out (and why), each run.
+    const log = (text: string) => Effect.andThen(show, Effect.ignore(agents.step({ id: "triage", text })))
     const t = makeTriage({
       stages: () => backlog.stages({}),
       feedbackOf: (journey) => backlog.feedbackOf({ journey }),
@@ -47,6 +47,7 @@ export default definePlugin({
       run: (p) => Effect.map(rehearse.run(p), (r) => r as { run?: string; refused?: string }),
       result: (run) => rehearse.result({ run }),
       status,
+      log,
     })
     return { tick: () => Effect.as(t.tick, null) }
   }),

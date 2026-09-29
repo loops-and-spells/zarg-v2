@@ -39,7 +39,7 @@ describe("the triage hub's stages", () => {
       const refine = (yield* press("refine")).notice
       const refining = { work: work(seen), buttons: buttons(seen) }
       yield* h.invoke("backlog", "propose", { journey: "Set up", card: "UX-0001", changes: [{ tool: "edit-state", params: { id: "S-0002", text: "the operator is asked: once, always, deny" } }], answers: ids, summary: "Name the choices." })
-      yield* press("open")
+      // The view follows the agent's work without a key press.
       const rehearsing = { stage: stage(seen), buttons: buttons(seen) }
       const stages = (yield* h.invoke("backlog", "stages", {})) as Array<{ stage: string; draft: unknown[] }>
       yield* h.invoke("backlog", "rehearsed", { journey: "Set up", resolved: ids, fresh: [], next: "plan", cards: ["S-0002", "UX-0001"] })
