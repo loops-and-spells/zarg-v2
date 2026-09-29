@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0012@580d42ae0eb9",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "\"Stays open for discussion\" coexists with the earlier one-question-with-options-and-marked-recommendation; a reshaped recommendation can invalidate the mark while options remain live. Suggest op: mark the recommendation edge provisional and recompute it after chat resolves. / The question \"stays open\" after chat, yet the message \"shapes the next question\" implies the current one is replaced. I cannot tell whether the chat modifies this question or generates a new one. / The step moves from choosing among listed options into open discussion, which is a different mode than the options UI implied. Suggest keeping the topic/focus explicit during chat so the operator can return to it, or state the mode switch as its own op.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.62",
+    "by": "agent"
+  },
+  "id": "F-44520828",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

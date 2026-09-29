@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0016@36177b5e4040",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "friction",
+  "severity": "high",
+  "note": "Another thread changed the node being answered / 'another\n thread' changing 'the\n node\n being\n answered' is\n not\n something\n the\n agent\n can\n observe,\n since\n it\n never\n sees\n the\n operator's\n screen.\n The\n actor\n and\n the\n node\n identity\n stay\n unnamed,\n so\n the\n stale\n refusal\n reads\n as\n an\n unexplained\n deus\n ex\n machina. / \"The save is refused as stale\" reads as an unnamed error to the operator: they aren't told which node changed or by whom, so it feels like the answer vanished. In op, the refusal step should carry a message naming the changed node and who changed it.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.63",
+    "by": "agent"
+  },
+  "id": "F-7266e88c",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

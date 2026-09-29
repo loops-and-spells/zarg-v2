@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0026@97885cca4507",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "feature",
+  "severity": "low",
+  "note": "I’d want sensitive fields to stay masked but offer an explicit replace/keep affordance, with one clear save/test action. That would make the choice after them unambiguous.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-18e094e0",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

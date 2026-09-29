@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0077@5b2bff4ba701",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "'the diagram is drawn in box-drawing characters' conflates drawing with character text and leaves fidelity unclear for arrows, labels, subgraphs. State whether it mimics structure only, not true rendering.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": false,
+    "why": "drop · real 0.35",
+    "by": "agent"
+  },
+  "id": "F-8279313b",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

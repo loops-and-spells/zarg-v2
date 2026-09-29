@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0029@8a6d5f9e1bd6",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "transition",
+  "severity": "medium",
+  "note": "The then loops back to the same setup-fields view instead of advancing to a distinct next step, so the workflow stalls rather than proceeding. / The Then clause \"the plugin's setup fields are shown from its config schema\" is identical to the Given, so the step loops back to itself instead of advancing — that is why it felt off. The trigger \"when an entered value fails its schema type\" reads as a passive event, not the operator's edit that should follow from the fields being shown.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.89",
+    "by": "agent"
+  },
+  "id": "F-4806e318",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

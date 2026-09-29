@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0071@7cb0e5dc19cc",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "transition",
+  "severity": "high",
+  "note": "After the answer is saved, the next step isn't stated: another question, a confirmation, or an reopen. That missing successor is exactly why the choice after it reads as unclear. / The step ends at 'answer saved to graph' but never says which next question/choice follows; the choice after it is undefined. Suggest in op an edge from this settle node to a next ask-question-with-options node generated from the saved answer and discussion message. / The step ends at 'answer saved'; the choice after it is unclear — whether the Driver Agent reads the agenda and asks the next question, or the agenda item closes here. Add op: 'Then the Driver Agent reads the agenda again; then one question with options is shown.'",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.59",
+    "by": "agent"
+  },
+  "id": "F-1cda2a48",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

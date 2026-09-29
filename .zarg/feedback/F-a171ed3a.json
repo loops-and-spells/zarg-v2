@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0030@eae5a0e8c51c",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "transition",
+  "severity": "medium",
+  "note": "The role and its missing key appear without any prior step assigning providers or credentials to roles, so the condition does not follow from 'operator starts zarg in a repo.' Suggested op: insert an 'operator assigns provider/key to role' node before this one, or make this condition a branch of that assignment.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.78",
+    "by": "agent"
+  },
+  "id": "F-a171ed3a",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

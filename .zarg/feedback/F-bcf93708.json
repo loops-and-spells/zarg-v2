@@ -1,0 +1,24 @@
+{
+  "ref": "gherkin/card:UX-0021@5ba5c48f5031",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "contradiction",
+  "severity": "low",
+  "note": "The journey's own rule is that the Implementer runs the checks and fixes what fails, yet this step only has the gate 'run'. Either the Implementer owns the fix or a distinct verifier does; as written both are implied.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.71",
+    "by": "agent"
+  },
+  "id": "F-bcf93708",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,1043 @@
+{
+  "title": "Fix zarg journey feedback",
+  "journey": "Talk with zarg",
+  "cards": [
+    {
+      "ref": "gherkin/card:UX-0001@3eedf92e1836"
+    },
+    {
+      "ref": "gherkin/card:UX-0002@3bf6c689296a"
+    },
+    {
+      "ref": "gherkin/card:UX-0003@26bc1ce49670"
+    },
+    {
+      "ref": "gherkin/card:UX-0004@689d06f016c0"
+    },
+    {
+      "ref": "gherkin/card:UX-0005@12e7104c2bd5"
+    },
+    {
+      "ref": "gherkin/card:UX-0006@d2ea9a633ed7"
+    },
+    {
+      "ref": "gherkin/card:UX-0007@7fac86f52546"
+    },
+    {
+      "ref": "gherkin/card:UX-0009@a6e81910cdc3"
+    },
+    {
+      "ref": "gherkin/card:UX-0010@5ad0f6b9a995"
+    },
+    {
+      "ref": "gherkin/card:UX-0011@684c7ae392a9"
+    },
+    {
+      "ref": "gherkin/card:UX-0012@580d42ae0eb9"
+    },
+    {
+      "ref": "gherkin/card:UX-0013@2193362c2b4a"
+    },
+    {
+      "ref": "gherkin/card:UX-0015@e728ab53a78c"
+    },
+    {
+      "ref": "gherkin/card:UX-0016@36177b5e4040"
+    },
+    {
+      "ref": "gherkin/card:UX-0017@ca238d7b08b6"
+    },
+    {
+      "ref": "gherkin/card:UX-0019@d2888fbcc21b"
+    },
+    {
+      "ref": "gherkin/card:UX-0071@7cb0e5dc19cc"
+    },
+    {
+      "ref": "gherkin/card:UX-0075@730ed4a536e3"
+    },
+    {
+      "ref": "gherkin/card:UX-0076@a1c234506d0b"
+    },
+    {
+      "ref": "gherkin/card:UX-0077@5b2bff4ba701"
+    },
+    {
+      "ref": "gherkin/card:UX-0079@5c9ae10a8131"
+    },
+    {
+      "ref": "gherkin/card:UX-0080@00b52c92e87d"
+    },
+    {
+      "ref": "gherkin/card:UX-0084@093e1b9c9708"
+    },
+    {
+      "ref": "gherkin/card:UX-0085@402d03be2163"
+    },
+    {
+      "ref": "gherkin/card:UX-0086@c9f21e6eab4d"
+    },
+    {
+      "ref": "gherkin/card:UX-0088@cd720928e8f6"
+    },
+    {
+      "ref": "gherkin/card:UX-0018@47e1ce1ea2ca"
+    },
+    {
+      "ref": "gherkin/card:UX-0008@fc877300ae43"
+    }
+  ],
+  "changes": [
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Operator types a custom answer",
+        "when": "the operator chooses to type free text instead of selecting an option",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0012"
+        },
+        "then": [
+          {
+            "text": "Validate typed answer against option schema"
+          },
+          {
+            "text": "Store custom_answer field beside recommended_option"
+          },
+          {
+            "text": "Resolve next question from custom_answer"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0011",
+        "title": "Operator selects offered option",
+        "when": "the operator chooses one of the question options"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Show the picked topic's options",
+        "when": "the picked topic's node is queried for its options",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "text": "a what-next question is shown"
+        },
+        "then": [
+          {
+            "text": "its question with options appears"
+          },
+          {
+            "text": "an empty-topic fallback is defined"
+          },
+          {
+            "text": "a recommended option is marked"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0015",
+        "edge": "then",
+        "state": {
+          "text": "the operator's next choice is explicit"
+        }
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0015",
+        "title": "Operator picks a topic",
+        "when": "the operator picks a topic"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0002",
+        "text": "the topic becomes the focus and a recommended option question appears"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0002",
+        "text": "the message shapes the wording; the agenda filters the options"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0013",
+        "when": "the Driver Agent applies the agenda rule to the options"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0013",
+        "edge": "then",
+        "state": {
+          "text": "the recommended option is marked"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0013",
+        "edge": "then",
+        "state": {
+          "text": "the rationale shows the agenda rule and the message evidence"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0013",
+        "edge": "then",
+        "state": {
+          "text": "the Operator picks the marked option or asks to clarify"
+        }
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Driver Agent handles an unusable message",
+        "when": "the message conflicts with the agenda",
+        "by": [
+          {
+            "name": "Driver Agent"
+          }
+        ],
+        "arrives": {
+          "id": "S-0002"
+        },
+        "then": [
+          {
+            "text": "the Operator is asked to clarify the message"
+          },
+          {
+            "text": "the prior topic is kept open"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0002",
+        "text": "the section stays within its pixel share, long Markdown collapsed"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0076",
+        "edge": "then",
+        "state": {
+          "text": "a collapse/expand toggle, copy, or open-full afford long reports, tables, code"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0076",
+        "edge": "then",
+        "state": {
+          "text": "the Operator continues, collapses, expands, or acts"
+        }
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Operator handles a report exceeding its share",
+        "when": "the Markdown exceeds its pixel share",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0001"
+        },
+        "then": [
+          {
+            "text": "the report truncates, scrolls, shrinks font, or the share expands"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0071",
+        "when": "the operator confirms one option after discussion"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0071",
+        "edge": "then",
+        "state": {
+          "text": "the saved answer carries the option and its reason"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0071",
+        "edge": "then",
+        "state": {
+          "text": "the operator can amend or reopen the saved choice"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0071",
+        "edge": "then",
+        "state": {
+          "text": "the Driver Agent reads the agenda again and one question with options is shown"
+        }
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Driver Agent re-asks when no option settles",
+        "when": "no option settles after discussion",
+        "by": [
+          {
+            "name": "Driver Agent"
+          }
+        ],
+        "arrives": {
+          "id": "S-0001"
+        },
+        "then": [
+          {
+            "text": "another question with options is shown"
+          },
+          {
+            "text": "the operator is asked to confirm before saving"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0019",
+        "title": "Operator resolves a conflict-resolution pick",
+        "when": "the operator resolves the conflict by choosing a version"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0001",
+        "text": "the merge question shows both versions and their origins"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0002",
+        "text": "the chosen version is applied with discarded edits reconciled"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Operator saves resolved conflict",
+        "when": "the operator saves the resolved conflict",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0002"
+        },
+        "then": [
+          {
+            "text": "the answer and rationale are saved to the graph"
+          },
+          {
+            "text": "the merge decision notes chosen source and discarded side"
+          },
+          {
+            "text": "the saved outcome offers accept, edit, or revisit"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Operator handles no fitting version",
+        "when": "the operator defers a no-fit merge",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0001"
+        },
+        "then": [
+          {
+            "text": "the merge is deferred or conflict flagged"
+          },
+          {
+            "text": "both versions remain open for combine"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Operator rechecks stale save",
+        "when": "the operator rechecks a refused stale save",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0002"
+        },
+        "then": [
+          {
+            "text": "the merge question is reopened"
+          },
+          {
+            "text": "the pick is reconfirmed"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Operator reviews chosen version",
+        "when": "the operator reviews the chosen version writes",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0002"
+        },
+        "then": [
+          {
+            "text": "the operator confirms the chosen version"
+          },
+          {
+            "text": "the resolved conflict proceeds to save"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Operator previews merge diff",
+        "when": "the operator previews the incoming diff",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0001"
+        },
+        "then": [
+          {
+            "text": "the diff preview shows incoming writes and origins"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0001",
+        "text": "one question with options and a Chat affordance is shown"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0012",
+        "title": "Operator chats and signals Continue or Return",
+        "when": "operator sends a chat turn and taps Continue or Return"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0002",
+        "text": "chat mode keeps current topic and original options reachable"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0003",
+        "text": "operator message writes to graph and recomputed next question renders"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Operator continues or aborts chat",
+        "when": "operator signals Continue or Return after chat",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0001"
+        },
+        "then": [
+          {
+            "text": "chat mode closes into next-question shaping"
+          },
+          {
+            "text": "operator message writes to graph and next question renders"
+          },
+          {
+            "text": "recomputed recommendation previews with next options"
+          },
+          {
+            "text": "original options are re-presented when chat yields nothing"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Renderer recognises a Mermaid fenced block",
+        "when": "the reply holds a fenced code block",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "text": "the renderer reads the fence's language tag"
+        },
+        "then": [
+          {
+            "text": "a mermaid tag makes the block a diagram candidate"
+          },
+          {
+            "text": "other tags stay ordinary formatted code"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0002",
+        "text": "the Markdown shows a formatted Mermaid block"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0077",
+        "edge": "then",
+        "state": {
+          "text": "the diagram mimics structure only, arrows and labels as characters"
+        }
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Overflow or absent support fallback",
+        "when": "the diagram does not fit or Mermaid support is absent",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "text": "the candidate exceeds the window or the renderer lacks Mermaid support"
+        },
+        "then": [
+          {
+            "text": "the diagram is shown clipped or scrollable with a clear affordance"
+          },
+          {
+            "text": "or the Mermaid source appears with a 'not drawn' cue"
+          },
+          {
+            "text": "the text around it stays formatted"
+          },
+          {
+            "text": "never blanking silently"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Streaming reply renders candidate progressively",
+        "when": "the candidate arrives during streaming",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "text": "a diagram candidate appears in the streaming reply"
+        },
+        "then": [
+          {
+            "text": "the diagram renders progressively as box-drawing characters"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0003",
+        "text": "the edits merge by same node and same field"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0017",
+        "title": "Driver Agent merges compatible edits after version drift resolves",
+        "when": "the staleness resolves by version match"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Merge provands into a named record",
+        "when": "the Driver Agent saves the merged answer",
+        "by": [
+          {
+            "name": "Driver Agent"
+          }
+        ],
+        "arrives": {
+          "id": "S-0006"
+        },
+        "then": [
+          {
+            "text": "the merge_id records the two source edits"
+          },
+          {
+            "text": "the merged versions are recorded for audit"
+          },
+          {
+            "text": "the next choice asks accept-merge or continue"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0010",
+        "when": "the Driver Agent reads the agenda for the saved answer"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Driver Agent asks the next question",
+        "when": "a question has no saved answer",
+        "by": [
+          {
+            "name": "Driver Agent"
+          }
+        ],
+        "arrives": {
+          "text": "the agenda holds one unanswered item"
+        },
+        "then": [
+          {
+            "text": "one question with options is shown"
+          },
+          {
+            "text": "the answer is saved to the graph"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0010",
+        "edge": "then",
+        "state": {
+          "text": "only unanswered agenda items remain"
+        }
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0002",
+        "text": "one unanswered agenda item with options is shown"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0002",
+        "text": "the chosen option id and its question reference are stored in the graph entry"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0003",
+        "text": "a confirm signal is emitted and the next question or resolution is shown"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Operator's choice lands",
+        "when": "the operator picks an option",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0002"
+        },
+        "then": [
+          {
+            "text": "a confirmation is shown naming the stored option id"
+          },
+          {
+            "text": "the current question's entry carries the option reference"
+          },
+          {
+            "text": "choices to proceed revise or undo are shown"
+          },
+          {
+            "text": "when questions remain the agenda step is routed to"
+          },
+          {
+            "text": "when none remain the resolution node is reached"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "An invalid or absent pick recovers",
+        "when": "the operator picks nothing or an invalid option",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0005"
+        },
+        "then": [
+          {
+            "text": "the question is re-presented with its options"
+          },
+          {
+            "text": "a save failure surfaces a retry and error line"
+          },
+          {
+            "text": "a skip defer or go-back branch is offered"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0009",
+        "edge": "then",
+        "state": {
+          "text": "the save loop routes to the next question id when questions remain"
+        }
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0009",
+        "title": "Operator picks one answer in a repeated series",
+        "when": "the operator picks an option from the shown question"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Reveal the stale node",
+        "when": "the shown question reaches a revision",
+        "by": [
+          {
+            "name": "Driver Agent"
+          }
+        ],
+        "arrives": {
+          "text": "a node revision marker appears on the shown question"
+        },
+        "then": [
+          {
+            "text": "the operator sees the node as contended before answering"
+          },
+          {
+            "text": "the shown question carries a revision token into the answer"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Refusal names cause and recovery",
+        "when": "the save is refused as stale",
+        "by": [
+          {
+            "name": "Driver Agent"
+          }
+        ],
+        "arrives": {
+          "text": "the refusal message from the graph"
+        },
+        "then": [
+          {
+            "text": "the refusal names the changed node and its changer"
+          },
+          {
+            "text": "the typed answer is re-asked against the current node"
+          },
+          {
+            "text": "a refresh affordance appears for the operator"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0016",
+        "edge": "then",
+        "state": {
+          "text": "the save refusal leads to re-asking the current node"
+        }
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0002",
+        "text": "one question is shown against its current node"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0075",
+        "when": "zarg replies with streaming Markdown"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Streaming renderer recovers at boundaries",
+        "when": "a table or code block boundary breaks mid-stream",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0037",
+          "text": "the operator starts zarg in a repo"
+        },
+        "then": [
+          {
+            "text": "partial segment renders as plain fallback text"
+          },
+          {
+            "text": "full reply re-rendered with boundaries intact"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Operator chooses next action on reply",
+        "when": "the formatted Markdown reply streams",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0038",
+          "text": "the rendered formatted reply reaches the operator"
+        },
+        "then": [
+          {
+            "text": "the operator approves, revises, stops, or continues"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0075",
+        "edge": "then",
+        "state": {
+          "text": "the reply offers next-action choices to the operator"
+        }
+      }
+    }
+  ],
+  "feedback": [
+    "F-00f47bee",
+    "F-0221c6c5",
+    "F-07f074b2",
+    "F-0aa4b104",
+    "F-0bf701aa",
+    "F-1668a3cc",
+    "F-1cda2a48",
+    "F-1e21de55",
+    "F-1e5119e2",
+    "F-25112121",
+    "F-25801d08",
+    "F-29dee305",
+    "F-2da85b04",
+    "F-31828ad7",
+    "F-33435b72",
+    "F-340e4298",
+    "F-3ae359f4",
+    "F-3b6a99a7",
+    "F-3d8e714c",
+    "F-3fb846fd",
+    "F-4028eb5f",
+    "F-44520828",
+    "F-47aa8ea6",
+    "F-4c104451",
+    "F-4c70ce8f",
+    "F-4db7c777",
+    "F-4e79ab3c",
+    "F-56edc04e",
+    "F-58fa9b82",
+    "F-600944cf",
+    "F-68915dc5",
+    "F-6a486f1a",
+    "F-6e6cd3de",
+    "F-7266e88c",
+    "F-7cd5b4bf",
+    "F-8279313b",
+    "F-8315c9d2",
+    "F-84ae11f8",
+    "F-8cec6f51",
+    "F-901ba676",
+    "F-9516f3dc",
+    "F-9ca3f2be",
+    "F-a05bfe8f",
+    "F-a1bb3ead",
+    "F-a57782aa",
+    "F-a8cc760b",
+    "F-a976cdde",
+    "F-adbdd364",
+    "F-b40a2ead",
+    "F-b6a6e915",
+    "F-b75938dc",
+    "F-b807dc55",
+    "F-bb1606a6",
+    "F-bd7ca994",
+    "F-bef75194",
+    "F-c3fcd375",
+    "F-caa2ce95",
+    "F-cc4cd7cf",
+    "F-cdcbe419",
+    "F-d8a39fa2",
+    "F-db1d1e07",
+    "F-dea99799",
+    "F-eebec657",
+    "F-f382e67c",
+    "F-f47c36f3",
+    "F-fc5a2d48",
+    "F-feb82465",
+    "F-ff453887"
+  ],
+  "steps": [
+    "Keep UX-0018 merge question unchanged.",
+    "Split UX-0011 typed answer from option pick.",
+    "Separate UX-0015 topic pick and question.",
+    "Set UX-0013 agenda wording precedence.",
+    "Fix UX-0076 pixel share and add ops.",
+    "Make UX-0071 settle need confirmation.",
+    "Rename UX-0019 merge as conflict.",
+    "Reword UX-0012 given and thens.",
+    "Insert UX-0077 Mermaid recognition step.",
+    "Add UX-0017 named merge record.",
+    "Driver reads agenda for UX-0010.",
+    "Leave UX-0008 blocked by then cap.",
+    "UX-0009 pick stores option id.",
+    "UX-0016 add revision marker refusal.",
+    "UX-0075 retries rendering, offers choice."
+  ],
+  "persona": "Driver Agent",
+  "severity": "high",
+  "id": "B-02",
+  "status": "backlog",
+  "events": [
+    {
+      "what": "planned",
+      "by": "Triage Agent"
+    },
+    {
+      "what": "dropped",
+      "by": "operator"
+    }
+  ],
+  "dropped": true
+}

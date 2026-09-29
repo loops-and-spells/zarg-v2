@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0076@a1c234506d0b",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "feature",
+  "severity": "low",
+  "note": "I'd want a collapse/expand toggle plus copy or open-full affordances for long reports, tables, and code. That way I can hold the share small without losing the full Markdown.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-3fb846fd",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

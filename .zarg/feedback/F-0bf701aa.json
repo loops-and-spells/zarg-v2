@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0013@2193362c2b4a",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "The weighing is opaque: \"weighs the message with the agenda\" names no criteria or rule, so the agent cannot tell why this question follows. Also no recommended option is marked after it, so the choice after it is unclear. / The step ends at 'one question with options is shown' while the flag says the choice after it is unclear; I cannot tell whether the operator must pick an option, resume Chat about this, or open another what-next. In the graph the edge out of 'one question with options shown' is unnamed, so the next operator act is invisible. / \"Weighs the message with the agenda\" is unclear: no defined operation or visible signal tells how the message picks the next question. I only see requirements and the conversation, so this internal act is opaque to me.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.79",
+    "by": "agent"
+  },
+  "id": "F-0bf701aa",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

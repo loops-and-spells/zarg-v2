@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0030@eae5a0e8c51c",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "feature",
+  "severity": "medium",
+  "note": "A generic setup-or-another-model offer ignores what the role actually needs from the model and where the key belongs. Suggested op: rank candidates by the role's requirement and show the credential location for each.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-7cc8362e",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

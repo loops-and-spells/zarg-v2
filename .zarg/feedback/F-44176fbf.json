@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0031@f5fbcfd9f553",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "The step stops at 'fields shown' and names no next choice, so the operator cannot tell whether setup is complete, needs a submit, or can be abandoned. In op, add an explicit edge after 'fields shown' — 'operator fills and submits setup' with success/failure outcomes plus a cancel edge — so the branch resolves.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.72",
+    "by": "agent"
+  },
+  "id": "F-44176fbf",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

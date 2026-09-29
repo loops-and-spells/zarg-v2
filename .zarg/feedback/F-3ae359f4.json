@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0017@ca238d7b08b6",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "feature",
+  "severity": "medium",
+  "note": "I would want the thread merge note to carry which two edits and versions merged. That provenance would let a later audit confirm the graph answer matches the accepted merge. / 'Merge noted in the thread' lacks a defined artifact or field, so later steps can't tell it apart from a plain save. Specify a named merge record (e.g., merge_id, source edits) on the save node. / The merge note in the thread should carry provenance—which thread changed the node and which edits were merged—so the operator can trust or undo it. A merge marker on the saved node would make the stale-refusal path auditable.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-3ae359f4",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

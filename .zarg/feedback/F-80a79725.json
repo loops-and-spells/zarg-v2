@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0027@a4d9d81f0618",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "Nothing in this step records the operator actually entering values into the shown fields; so \"the provider accepts the entered values\" arrives unexplained and the transition from viewing fields to acceptance is invisible. Add that intermediate step so the sequence is entering, then accepting. / A rejecting provider is unhandled: values can pass schema typing yet fail provider validation (bad key, unreachable endpoint). Add a branch \"provider rejects values → field shows runtime error and retry\" so this failure has a next step.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.84",
+    "by": "agent"
+  },
+  "id": "F-80a79725",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

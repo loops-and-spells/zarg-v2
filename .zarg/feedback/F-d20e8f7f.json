@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0046@cc3b24b9f8ef",
+  "journeys": [
+    "Watch agents"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "'Local env file' is underspecified — local to cwd, run workspace, or product root? 'A reason' is also vague and may be empty. Tie env file to the agent's declared workspace and require the reason to name the file plus the blocking gate.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.77",
+    "by": "agent"
+  },
+  "id": "F-d20e8f7f",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ],
+  "state": "planned"
+}

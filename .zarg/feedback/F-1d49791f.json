@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0026@97885cca4507",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "If schema/config is missing or invalid, or a sensitive value fails validation, no error/retry path is given. Add a failure edge to `show_error_and_retry`; sensitive masking can otherwise hide the cause.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.55",
+    "by": "agent"
+  },
+  "id": "F-1d49791f",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

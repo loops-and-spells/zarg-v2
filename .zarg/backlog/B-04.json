@@ -1,0 +1,726 @@
+{
+  "title": "Reconcile feedback fixes",
+  "journey": "Reconcile",
+  "cards": [
+    {
+      "ref": "gherkin/card:UX-0053@64be7ac0c12c"
+    },
+    {
+      "ref": "gherkin/card:UX-0021@5ba5c48f5031"
+    },
+    {
+      "ref": "gherkin/card:UX-0025@156d906063ce"
+    },
+    {
+      "ref": "gherkin/card:UX-0054@51246b0a64ec"
+    },
+    {
+      "ref": "gherkin/card:UX-0052@9a3a9b84c172"
+    },
+    {
+      "ref": "gherkin/card:UX-0024@10ec1fd12b68"
+    },
+    {
+      "ref": "gherkin/card:UX-0022@8d74094e727b"
+    },
+    {
+      "ref": "gherkin/card:UX-0056@bde75653b7f8"
+    },
+    {
+      "ref": "gherkin/card:UX-0055@1162ab41ff27"
+    },
+    {
+      "ref": "gherkin/card:UX-0020@bdf4b3c511b4"
+    },
+    {
+      "ref": "gherkin/card:UX-0023@26fb7df4fd9d"
+    },
+    {
+      "ref": "gherkin/card:UX-0059@76562076f960"
+    },
+    {
+      "ref": "gherkin/card:UX-0058@692a1609717f"
+    }
+  ],
+  "changes": [
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0019",
+        "text": "conflicts surface only once card worktrees merge"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0053",
+        "title": "Overlapping edits halt the cards",
+        "when": "two cards edit the same file"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0053",
+        "edge": "then",
+        "state": {
+          "text": "the conflict-resolution node routes the overlap"
+        }
+      }
+    },
+    {
+      "tool": "unlink",
+      "params": {
+        "card": "UX-0053",
+        "edge": "then",
+        "state": "S-0020"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0053",
+        "edge": "then",
+        "state": {
+          "text": "the verify gate runs after resolution"
+        }
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "The Implementer resolves overlap",
+        "when": "two card worktrees merge",
+        "by": [
+          {
+            "name": "Implementer Agent"
+          }
+        ],
+        "arrives": {
+          "id": "S-0019"
+        },
+        "then": [
+          {
+            "text": "the conflict-resolution node picks the surviving worktree"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Implementer raises a beyond-fix worktree conflict",
+        "when": "a trivial-fix lane clears a worktree-local conflict",
+        "by": [
+          {
+            "name": "Implementer Agent"
+          }
+        ],
+        "arrives": {
+          "id": "S-0019"
+        },
+        "then": [
+          {
+            "text": "the Driver Agent's agenda shows the reconcile finding",
+            "state": {
+              "id": "S-0022"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0054",
+        "edge": "then",
+        "state": {
+          "text": "the stalled card joins the reconcile finding"
+        }
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0021",
+        "text": "the operator has committed only a probe"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0052",
+        "title": "The gate decides the commit during the pass",
+        "when": "the verify gate checks the probe commit"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0052",
+        "edge": "then",
+        "state": {
+          "text": "the gate accepts: the commit lands"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0052",
+        "edge": "then",
+        "state": {
+          "text": "the gate rejects: the commit is reverted"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0052",
+        "edge": "then",
+        "state": {
+          "text": "a failed gate triggers repair before re-land"
+        }
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0021",
+        "text": "the operator chooses auto-land, holds, or selects commit order"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0022",
+        "when": "the verify gate runs on the card commits"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Land commits",
+        "when": "the landing plan is emitted",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0020"
+        },
+        "then": [
+          {
+            "text": "the operator chooses target branch per card"
+          },
+          {
+            "text": "the operator sets merge order for all commits"
+          },
+          {
+            "text": "conflict flags stay with the pending commits"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Repair failing cards",
+        "when": "a check fails",
+        "by": [
+          {
+            "name": "Implementer Agent"
+          }
+        ],
+        "arrives": {
+          "id": "S-0020"
+        },
+        "then": [
+          {
+            "text": "the card enters repair, hold, or discard"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0011",
+        "text": "the changed card set is derived from one saved answer"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0020",
+        "title": "Reconcile waits for writes to settle",
+        "when": "the last non-planner graph write settles, debounce two seconds"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0020",
+        "edge": "then",
+        "state": {
+          "text": "the plan-ready choice is execute, approval, or re-plan"
+        }
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0020",
+        "text": "after the commit landed, a failure detector flags a regression"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0023",
+        "title": "Repair failing check",
+        "when": "a check fails"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Repair to re-verify",
+        "when": "repair failing check",
+        "by": [
+          {
+            "name": "Implementer Agent"
+          }
+        ],
+        "arrives": {
+          "id": "S-0020"
+        },
+        "then": [
+          {
+            "text": "the cards the failing check touched"
+          },
+          {
+            "text": "repair failing check widened past changed cards"
+          },
+          {
+            "text": "repair -> gate, re-verify"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0023",
+        "edge": "then",
+        "state": {
+          "text": "attempt bound with escalation/abort after N failed repairs"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0023",
+        "edge": "then",
+        "state": {
+          "text": "failure detector reopens the landed commit"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0023",
+        "edge": "then",
+        "state": {
+          "text": "fix -> gate runs -> re-commit"
+        }
+      }
+    },
+    {
+      "tool": "unlink",
+      "params": {
+        "card": "UX-0023",
+        "edge": "then",
+        "state": "S-0019"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0008",
+        "text": "the operator starts zarg in a repo and zarg surfaces available commands with their prerequisites"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Repo readiness shows what can run",
+        "when": "the operator starts zarg in a repo",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0008"
+        },
+        "then": [
+          {
+            "text": "the available commands and their prerequisites are shown"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0059",
+        "title": "Reconcile cannot turn on",
+        "when": "the operator types /reconcile without plan or implement models"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0059",
+        "text": "the reason and a one-step fix create or import the models are shown"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Operator approves each presented plan",
+        "when": "reconcile presents a plan",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0008"
+        },
+        "then": [
+          {
+            "text": "operator approves, edits, rejects, or defers plan"
+          },
+          {
+            "text": "default is defer, stated in plan header"
+          },
+          {
+            "text": "chosen decision applies this card"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0058",
+        "when": "operator starts reconcile in a session"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Operator confirms reconcile scope",
+        "when": "operator starts reconcile",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0008"
+        },
+        "then": [
+          {
+            "text": "session begins and ends recorded"
+          },
+          {
+            "text": "cards changed before session start included"
+          },
+          {
+            "text": "resumed session carries prior changing cards"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0058",
+        "edge": "then",
+        "state": {
+          "text": "operator decides each presented plan before apply"
+        }
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Reconcile ends at apply or store",
+        "when": "reconcile finishes writing plans",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0058"
+        },
+        "then": [
+          {
+            "text": "operator picks apply or store silently"
+          },
+          {
+            "text": "chosen mode is stated at reconcile end"
+          },
+          {
+            "text": "mode governs each presented plan"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0021",
+        "when": "the Implementer Agent codes each plan in its own worktree, one verdict per plan"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0021",
+        "edge": "then",
+        "state": {
+          "text": "a failed plan verdict loops the Implementer fix loop"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0021",
+        "edge": "then",
+        "state": {
+          "text": "a passed plan verdict routes to deliver and merge"
+        }
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0021",
+        "title": "Implementer Agent codes and verdicts each plan"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0022",
+        "text": "the Driver Agent's agenda shows the reconcile finding with its options"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0009",
+        "text": "zarg asks the operator one reconcile question"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0025",
+        "title": "zarg asks the reconcile question",
+        "when": "zarg reads the reconcile finding from the agenda"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Planner Agent detects contradictions after plan files",
+        "when": "every changed card has a plan file",
+        "by": [
+          {
+            "name": "Planner Agent"
+          }
+        ],
+        "arrives": {
+          "id": "S-0018"
+        },
+        "then": [
+          {
+            "text": "the reconcile finding names contradictory cards and owner/action",
+            "id": "S-0023"
+          },
+          {
+            "text": "the Driver Agent holds conflicting cards before Implementer starts",
+            "id": "S-0024"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0024",
+        "title": "Implementer Agent only edits reconciled cards",
+        "when": "a card is already reconciled"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0022",
+        "text": "the agenda shows the reconcile finding with its resolution shape"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0056",
+        "text": "Planner writes a plan for every changed card"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0057",
+        "text": "the changed card has a plan file"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0020",
+        "text": "verify gate fails and first fix attempt fails"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0055",
+        "when": "the second fix attempt still fails"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0055",
+        "edge": "then",
+        "state": {
+          "text": "a stop or escalate rule applies after the second failure"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0055",
+        "edge": "then",
+        "state": {
+          "text": "the Driver agenda shows the reconcile finding and its resolution shape"
+        }
+      }
+    }
+  ],
+  "feedback": [
+    "F-04b03a36",
+    "F-0ec0490a",
+    "F-12450f7f",
+    "F-19b2f6a4",
+    "F-24e0d645",
+    "F-25322966",
+    "F-266696c5",
+    "F-2a08715b",
+    "F-2df6a794",
+    "F-2f4678b5",
+    "F-308657ec",
+    "F-3090e270",
+    "F-34552600",
+    "F-37a36b3c",
+    "F-38e990d3",
+    "F-3a71ce12",
+    "F-3ef3e350",
+    "F-3f7d6710",
+    "F-4bc850aa",
+    "F-516332da",
+    "F-53c710a5",
+    "F-53edfe46",
+    "F-5a0efa2a",
+    "F-6406ab7b",
+    "F-72b9ebfa",
+    "F-732baa98",
+    "F-79a45403",
+    "F-85addca7",
+    "F-85dc5499",
+    "F-88a4b22a",
+    "F-9c96c50c",
+    "F-9d7809c3",
+    "F-9f55deab",
+    "F-a2ed1db1",
+    "F-a7d83e9d",
+    "F-a9c3b846",
+    "F-adde0330",
+    "F-ae3132b7",
+    "F-b412b177",
+    "F-b517a66f",
+    "F-b57d379b",
+    "F-b62f1d0f",
+    "F-bca8c950",
+    "F-bdded09d",
+    "F-c5116483",
+    "F-c5f3dfb9",
+    "F-c9afcdbb",
+    "F-d15665ce",
+    "F-d6e9c6d2",
+    "F-da2ce8f2",
+    "F-dcdd72cb",
+    "F-e0a653af",
+    "F-e35699d1",
+    "F-e75e3fe3",
+    "F-f481fd41",
+    "F-f4d7eeea",
+    "F-ffce9bf8"
+  ],
+  "steps": [
+    "edit Given S-0002 to failure gate halt",
+    "edit UX-0053 title and When to failure resolve",
+    "link UX-0053 then halt-overlap resolution",
+    "edit UX-0021 When per-plan verdict routes",
+    "edit UX-0025 When to zarg labeled options",
+    "unlink UX-0054 early finding link",
+    "add-card escalation stalled block",
+    "edit UX-0052 When probe gate branches",
+    "edit UX-0024 When contradictions after plan",
+    "edit UX-0022 When land targets owners",
+    "edit UX-0056 Then to one-plan per-card",
+    "rewrite UX-0055 Given gate fail plus fix",
+    "split UX-0055 Then stop then finding",
+    "edit UX-0020 When saving settle ready",
+    "split UX-0023 fail from verify gate",
+    "edit UX-0059 readiness prerequisites start",
+    "edit UX-0058 session scope approval end"
+  ],
+  "persona": "Implementer Agent",
+  "severity": "high",
+  "id": "B-04",
+  "status": "backlog",
+  "events": [
+    {
+      "what": "planned",
+      "by": "Triage Agent"
+    },
+    {
+      "what": "dropped",
+      "by": "operator"
+    }
+  ],
+  "dropped": true
+}

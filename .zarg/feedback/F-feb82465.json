@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0017@ca238d7b08b6",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "transition",
+  "severity": "high",
+  "note": "This step is stated right after 'you just started,' with no antecedent for why the save was refused as stale. The stale context arrives unexplained, so the compatibility finding feels abrupt. / The step jumps from refusal to acceptance without showing how staleness was cleared. This break makes the following choice's status unclear; add an explicit edge/step 'staleness resolved' linking refusal to the compatible-save node. / The flag is right: the step ends at save and merge, but the choice after it is nowhere—no next question or topic pick follows. In op link the saved-answer node to the next agenda/topic option step, or at least a confirm/continue option.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.77",
+    "by": "agent"
+  },
+  "id": "F-feb82465",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

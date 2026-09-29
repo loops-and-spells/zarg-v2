@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0041@3ea582a7789a",
+  "journeys": [
+    "Watch agents"
+  ],
+  "persona": "Driver Agent",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "After 'the child appears under its parent', the actor for the next choice is undetermined: child, parent run, or the run itself. The node should name who receives the following action (e.g., 'the parent run assigns the next work to that child').",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.76",
+    "by": "agent"
+  },
+  "id": "F-a50f07e1",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ],
+  "state": "planned"
+}

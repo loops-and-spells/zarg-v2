@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0031@f5fbcfd9f553",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "transition",
+  "severity": "low",
+  "note": "The prior step talks about provider setup while this step shows the plugin's config-schema fields; if provider and plugin aren'tthe same thing, the operator's mental model shifts without a cue. If they are the same object, make the wording say it, e.g. 'the provider-plugin's setup fields.'",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.82",
+    "by": "agent"
+  },
+  "id": "F-a293f4fe",
+  "count": 1,
+  "runs": [
+    "rehearse:r-254dec3c"
+  ],
+  "state": "closed",
+  "notReportedIn": "r-bc02dc92"
+}

@@ -1,0 +1,24 @@
+{
+  "ref": "gherkin/card:UX-0062@dd9dd9bcb386",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "feature",
+  "severity": "low",
+  "note": "Repeated single-scope asks interrupt every task at runtime; letting the operator pre-approve a scope family, or a rule like 'same target implies same scope', would cut the interruptions. It would also make the approved-scope list authoritative.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-0788bada",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ]
+}

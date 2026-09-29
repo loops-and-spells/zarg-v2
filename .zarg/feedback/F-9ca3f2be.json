@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0016@36177b5e4040",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "transition",
+  "severity": "high",
+  "note": "The\n stale\n refusal\n does\n follow\n from\n the\n node\n being\n changed,\n so\n this\n transition\n is\n fine.\n Only\n the\n aftermath\n is\n unclear,\n which\n belongs\n to\n the\n gap\n above,\n not\n here. / The refusal follows an external edit with no visible cause, so the next step \"choice\" does not follow from \"save is refused as stale\" unless it re-issues the question. In op, draw an edge from the refusal to re-asking the current node before any choice is recorded. / No earlier step introduces a second thread or any node revision. So \"another thread changed the node being answered\" arrives unannounced and the step does not follow from the one before.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.66",
+    "by": "agent"
+  },
+  "id": "F-9ca3f2be",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

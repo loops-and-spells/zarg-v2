@@ -1,0 +1,24 @@
+{
+  "ref": "gherkin/card:UX-0061@1d4be1d84643",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "feature",
+  "severity": "low",
+  "note": "I would want a per-scope approve/withhold checklist and a pre-run summary of excluded scopes so the operator can choose clearly.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-329dca9b",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ]
+}

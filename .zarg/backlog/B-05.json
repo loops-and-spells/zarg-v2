@@ -1,0 +1,836 @@
+{
+  "title": "Setup feedback: provider vs plugin",
+  "journey": "Set up",
+  "cards": [
+    {
+      "ref": "gherkin/card:UX-0001@c0b0cf241e6f"
+    },
+    {
+      "ref": "gherkin/card:UX-0002@448d699ea76a"
+    },
+    {
+      "ref": "gherkin/card:UX-0006@d2ea9a633ed7"
+    },
+    {
+      "ref": "gherkin/card:UX-0026@97885cca4507"
+    },
+    {
+      "ref": "gherkin/card:UX-0028@403037518013"
+    },
+    {
+      "ref": "gherkin/card:UX-0029@8a6d5f9e1bd6"
+    },
+    {
+      "ref": "gherkin/card:UX-0030@eae5a0e8c51c"
+    },
+    {
+      "ref": "gherkin/card:UX-0034@1715a46c036d"
+    },
+    {
+      "ref": "gherkin/card:UX-0035@f8114a7f2b09"
+    },
+    {
+      "ref": "gherkin/card:UX-0036@9f0b0953a097"
+    },
+    {
+      "ref": "gherkin/card:UX-0038@630329866e1e"
+    },
+    {
+      "ref": "gherkin/card:UX-0039@c9708e26a8c5"
+    },
+    {
+      "ref": "gherkin/card:UX-0062@dd9dd9bcb386"
+    },
+    {
+      "ref": "gherkin/card:UX-0068@62c466508aa8"
+    },
+    {
+      "ref": "gherkin/card:UX-0061@1d4be1d84643"
+    },
+    {
+      "ref": "gherkin/card:UX-0027@a4d9d81f0618"
+    },
+    {
+      "ref": "gherkin/card:UX-0031@f5fbcfd9f553"
+    },
+    {
+      "ref": "gherkin/card:UX-0069@99fccfb13a77"
+    }
+  ],
+  "changes": [
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0035",
+        "when": "the operator picks a listed model by name, index, or the suggested default"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0002",
+        "text": "the picked model is echoed before and after it is saved to config"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0035",
+        "edge": "given",
+        "state": {
+          "text": "the question previews locality, size, and cost of models"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0035",
+        "edge": "then",
+        "state": {
+          "text": "a wrong model can be re-picked in one step"
+        }
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Config write fails",
+        "when": "the config write fails",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0001"
+        },
+        "then": [
+          {
+            "text": "the operator returns to the question with the reason"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "A model is unavailable",
+        "when": "a model is unavailable",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0001"
+        },
+        "then": [
+          {
+            "text": "the operator returns to the question with the reason"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "The pick is rejected",
+        "when": "the operator rejects the pick",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0001"
+        },
+        "then": [
+          {
+            "text": "the operator returns to the question with the reason"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "The operator widens scopes or pauses the plugin",
+        "when": "the plugin waits for a wider scope set",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "text": "the plugin runs on its approved scopes"
+        },
+        "then": [
+          {
+            "text": "the operator widens its listed scopes"
+          },
+          {
+            "text": "the operator pauses it for review"
+          },
+          {
+            "text": "the operator stops it or watches output"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0002",
+        "text": "no model is set for the role"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0034",
+        "title": "Driver Agent chooses a role model",
+        "when": "the role lacks a model"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0034",
+        "edge": "then",
+        "state": {
+          "text": "the operator picks a model or declines"
+        }
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Operator selects a role model",
+        "when": "the list of models is shown",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0002"
+        },
+        "then": [
+          {
+            "text": "each model shows capability and cost"
+          },
+          {
+            "text": "a recommended default model is marked"
+          },
+          {
+            "text": "the operator applies the model or declines"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0034",
+        "edge": "then",
+        "state": {
+          "text": "no model is applied and zarg continues"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0034",
+        "edge": "then",
+        "state": {
+          "text": "zarg asks why no model was chosen"
+        }
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0034",
+        "title": "Driver Agent resolves a role's model",
+        "when": "a role lacks a model set"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Operator picks next setup move",
+        "when": "the setup fields are shown",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0027"
+        },
+        "then": [
+          {
+            "text": "an explicit action list shows save, test, cancel, next"
+          },
+          {
+            "text": "the operator chooses one setup action"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0026",
+        "edge": "then",
+        "state": {
+          "text": "a setup failure retries from this masked view"
+        }
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0002",
+        "text": "the grant prompt names the precise target resource beside the scope"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0062",
+        "when": "the plugin agent asks for an optional scope"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Refusal fallback",
+        "when": "the operator denies that optional scope",
+        "by": [
+          {
+            "name": "Plugin Agent"
+          }
+        ],
+        "arrives": {
+          "id": "S-0001"
+        },
+        "then": [
+          {
+            "text": "the plugin keeps running with its already approved scopes"
+          },
+          {
+            "text": "the plugin reports the refusal to the operator"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0062",
+        "edge": "then",
+        "state": {
+          "text": "the operator approves or denies the named scope"
+        }
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Operator confirms shown setup values",
+        "when": "operator submits the shown setup values",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "text": "the plugin's setup fields are shown from its config schema"
+        },
+        "then": [
+          {
+            "text": "the provider accepts the entered values"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Provider rejects entered values",
+        "when": "the provider rejects the entered values",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "text": "the provider accepts the entered values"
+        },
+        "then": [
+          {
+            "text": "the field shows a runtime error"
+          },
+          {
+            "text": "the operator retries setup"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Verified credentials stored masked",
+        "when": "the operator verifies the credentials",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "text": "the plugin's setup fields are shown from its config schema"
+        },
+        "then": [
+          {
+            "text": "the masked result is shown beside the setup fields"
+          },
+          {
+            "text": "the provider's models become available after storage"
+          },
+          {
+            "text": "secrets are stored masked in the transcript"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0002",
+        "text": "the accepting provider owns and stores secrets in its own namespace"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0002",
+        "text": "a model question lists available models and tool-calling eligibility"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0036",
+        "title": "A model without tool calling is refused and guidance follows",
+        "when": "the operator picks a model without tool-calling from an eligibility-marked question"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0036",
+        "edge": "then",
+        "state": {
+          "text": "the refusal names the rule and the nearest eligible model"
+        }
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0003",
+        "text": "a model question lists only tool-calling eligible models"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0036",
+        "edge": "then",
+        "state": {
+          "text": "a model question lists only tool-calling eligible models"
+        }
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "The operator picks and the choice is recorded",
+        "when": "the operator selects one option",
+        "by": [
+          {
+            "name": "Driver Agent"
+          }
+        ],
+        "arrives": {
+          "id": "S-0001"
+        },
+        "then": [
+          {
+            "text": "Then the chosen option is recorded as a requirement"
+          },
+          {
+            "text": "Then empty or unfit choice re-asks the question"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0038",
+        "edge": "then",
+        "state": {
+          "text": "Then the question names the requirement it answers"
+        }
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Approve or deny",
+        "when": "zarg presents each plugin to the operator",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "text": "the operator starts zarg in a repo"
+        },
+        "then": [
+          {
+            "text": "the operator approves or denies the plugin"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Post-run choice",
+        "when": "the approved plugin has finished running",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "text": "the operator approves the plugin"
+        },
+        "then": [
+          {
+            "text": "the operator stops, inspects, or continues"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0028",
+        "title": "Rejected values stay, and retry or abandon is chosen",
+        "when": "the provider rejects the entered values"
+      }
+    },
+    {
+      "tool": "unlink",
+      "params": {
+        "card": "UX-0028",
+        "edge": "then",
+        "state": "S-0023"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0028",
+        "edge": "then",
+        "state": {
+          "text": "the rejected values stay in the setup fields"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0028",
+        "edge": "then",
+        "state": {
+          "text": "the rejection reason names the blamed field and a suggested fix"
+        }
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Retry or abandon after rejection",
+        "when": "the rejection reason names the blamed field",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0028"
+        },
+        "then": [
+          {
+            "text": "the offending field is corrected, then setup is retried"
+          },
+          {
+            "text": "abandon is chosen and setup is left"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0028",
+        "edge": "then",
+        "state": {
+          "text": "retry or abandon is chosen"
+        }
+      }
+    },
+    {
+      "tool": "unlink",
+      "params": {
+        "card": "UX-0029",
+        "edge": "then",
+        "state": "S-0023"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Fix or skip the failing field",
+        "when": "the schema error is pinned to that failed field",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0029"
+        },
+        "then": [
+          {
+            "text": "operator edits the or skip continue"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "unlink",
+      "params": {
+        "card": "UX-0068",
+        "edge": "then",
+        "state": "S-0070"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0068",
+        "edge": "then",
+        "state": {
+          "text": "the watchdog disables the plugin"
+        }
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Operator reviews health scope",
+        "when": "the plugin reaches three failures in ten minutes",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0062"
+        },
+        "then": [
+          {
+            "text": "the operator grants the agenda-write scope"
+          },
+          {
+            "text": "the plugin counts failures inside granted powers"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0069",
+        "text": "the operator watches the plugin's failure count"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0039",
+        "when": "the role's start attempt fails to start"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0039",
+        "text": "the start failure reason is shown with retryability"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Operator picks a replacement or cancels",
+        "when": "the question lists available models",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0033"
+        },
+        "then": [
+          {
+            "text": "the operator picks a replacement model"
+          },
+          {
+            "text": "the operator cancels the role's model"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0039",
+        "edge": "then",
+        "state": {
+          "text": "a retry-limit node falls back or disables the role's model"
+        }
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0030",
+        "title": "Operator assigns provider and key to role",
+        "when": "the operator assigns a provider and key to a role"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Setup option or fallback candidate chosen",
+        "when": "setup fails, the operator declines, or no fallback meets the role's needs",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0030"
+        },
+        "then": [
+          {
+            "text": "the Driver Agent ranks candidates by the role's requirement"
+          },
+          {
+            "text": "the Driver Agent shows the credential location for each candidate"
+          },
+          {
+            "text": "the Driver Agent blocks until setup or a valid fallback is chosen"
+          },
+          {
+            "text": "the Driver Agent halts and reports the condition to the operator"
+          }
+        ]
+      }
+    }
+  ],
+  "feedback": [
+    "F-0369adb4",
+    "F-038e1125",
+    "F-0e821a09",
+    "F-18e094e0",
+    "F-1afbad0b",
+    "F-1b1945f2",
+    "F-1d49791f",
+    "F-1e38c1dd",
+    "F-1fb75f7d",
+    "F-21b5c2cf",
+    "F-34d3e5d4",
+    "F-38da3f80",
+    "F-3ad6cb19",
+    "F-44176fbf",
+    "F-4806e318",
+    "F-4b5455b9",
+    "F-4b731357",
+    "F-4d335241",
+    "F-4f0fad79",
+    "F-590fb5dc",
+    "F-5d968cdc",
+    "F-61c25518",
+    "F-62187d28",
+    "F-638fd6c5",
+    "F-64a699f3",
+    "F-67f8b645",
+    "F-7098957e",
+    "F-782816e6",
+    "F-7cc8362e",
+    "F-8082b624",
+    "F-80a79725",
+    "F-847eec70",
+    "F-8482de1b",
+    "F-856bdfed",
+    "F-8b60b633",
+    "F-8c67efe6",
+    "F-8fe326b5",
+    "F-918fd033",
+    "F-a171ed3a",
+    "F-a293f4fe",
+    "F-aba02b95",
+    "F-adb250c7",
+    "F-b10ce465",
+    "F-bbc01f3a",
+    "F-c2c9ddec",
+    "F-c8d2b18d",
+    "F-cd61693a",
+    "F-dc6812e3",
+    "F-e15ab581",
+    "F-e3a8e374",
+    "F-ebcc1696",
+    "F-f3a8ad93",
+    "F-f65b7cf6"
+  ],
+  "steps": [
+    "Reword the setup completion Given to a provider-not-plugin wording",
+    "Add submit-and-abandon clarity to UX-0031's completion state",
+    "Rearrange UX-0031 so its completion question names submit or abandon"
+  ],
+  "persona": "Operator",
+  "severity": "high",
+  "id": "B-05",
+  "status": "backlog",
+  "events": [
+    {
+      "what": "planned",
+      "by": "Triage Agent"
+    },
+    {
+      "what": "dropped",
+      "by": "operator"
+    }
+  ],
+  "dropped": true
+}

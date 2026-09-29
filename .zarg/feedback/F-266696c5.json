@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0052@9a3a9b84c172",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Operator",
+  "kind": "feature",
+  "severity": "medium",
+  "note": "After the gate runs, the choice is unspecified (landed, held, reverted) and I'd want an explicit accept/reject branch. I would also delight in letting the operator act mid-pass rather than only approving at the end.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-266696c5",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

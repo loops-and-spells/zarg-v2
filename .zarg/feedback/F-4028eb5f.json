@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0009@a6e81910cdc3",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "Picking an option and saving the answer to the graph are two different acts; the step never says how the pick maps into the record (option id, option text, or option-plus-question reference). So I cannot tell what the graph will actually hold, and my approval of what runs is blind. / After the operator picks an option, the step leaves the follow-up unspecified; they cannot tell whether they are done or whether another question appears.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.73",
+    "by": "agent"
+  },
+  "id": "F-4028eb5f",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0052@9a3a9b84c172",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Operator",
+  "kind": "gap",
+  "severity": "high",
+  "note": "No failure path is given for a verify gate that fails after the commit is already made: no rollback, repair, or re-land route. That missing unwind is what I would need to handle here.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.85",
+    "by": "agent"
+  },
+  "id": "F-e0a653af",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

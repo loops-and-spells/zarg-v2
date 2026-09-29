@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0021@5ba5c48f5031",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "gap",
+  "severity": "high",
+  "note": "Each plan gets its own worktree, but no failure path is stated for a plan whose verify fails. The Implementer Agent may be left coding a plan whose gate result has no defined fix loop. / The step stops at 'the verify gate runs' with no defined outcome route: you can't tell what happens on pass versus fail. Without explicit branches (pass → deliver/merge, fail → fix or reject), the journey dead-ends exactly where the flagged ambiguity sits.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.82",
+    "by": "agent"
+  },
+  "id": "F-0ec0490a",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

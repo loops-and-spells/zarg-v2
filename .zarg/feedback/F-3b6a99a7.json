@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0010@5ad0f6b9a995",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "transition",
+  "severity": "low",
+  "note": "“answer saved” alone does not entail “reads the agenda again”; the re-read is asserted without cause. The step jumps instead of following from the save.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.79",
+    "by": "agent"
+  },
+  "id": "F-3b6a99a7",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

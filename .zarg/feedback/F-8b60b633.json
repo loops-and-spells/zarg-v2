@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0035@f8114a7f2b09",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "The step says 'operator picks' but never says how — from the list by name, index, or a suggested default? I cannot tell whether the pick is an explicit act or just grabbing the first local model.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.67",
+    "by": "agent"
+  },
+  "id": "F-8b60b633",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

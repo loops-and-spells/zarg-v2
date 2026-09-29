@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0035@f8114a7f2b09",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "There is no failure path when the config write fails, a model is unavailable, or the pick is rejected; the Then just asserts 'saved'. I would want an error branch that returns the operator to the question with the reason.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.64",
+    "by": "agent"
+  },
+  "id": "F-ebcc1696",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

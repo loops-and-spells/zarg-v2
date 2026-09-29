@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0038@630329866e1e",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Driver Agent",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "The step ends at “one question with options is shown”, but how the operator picks an option and what gets recorded next is not stated. Suggest an op change: add a node “Then the chosen option is recorded as a requirement” right after this one. / The step asks one question with options but the intended selection is invisible; after options are shown I cannot tell what the choice records or enables. This leaves the step unclear at its exit.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.82",
+    "by": "agent"
+  },
+  "id": "F-4f0fad79",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "ref": "gherkin/card:UX-0027@a4d9d81f0618",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "“plugin's own namespace” reads as one unlabeled scope: unclear whether the accepted values are kept by the plugin or handed to the provider, and under what key/store. Suggest renaming the store op to “store accepted setup values keyed by provider fields in plugin namespace, then read back masked.”",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.69",
+    "by": "agent"
+  },
+  "id": "F-7c830509",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ]
+}

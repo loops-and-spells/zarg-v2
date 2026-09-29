@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0010@5ad0f6b9a995",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "No stopping condition is stated, e.g. when no unanswered agenda items remain the loop ends. Without it, re-reading can repeat forever if the saved answer fails to advance the agenda.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.84",
+    "by": "agent"
+  },
+  "id": "F-a976cdde",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

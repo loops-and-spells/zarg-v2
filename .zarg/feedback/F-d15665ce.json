@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0025@156d906063ce",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Driver Agent",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "The agenda already \"shows the reconcile finding\", so re-reading it yields no new information unless the agenda changed. Either the Driver re-reads for a new finding, or it asks straight from the finding it already saw. / The agenda shows the reconcile finding, meaning it is resolved-presentable, but the step then shows a question requiring an answer. Displaying a finding and asking about it in the same read contradicts the finding's status as an outcome. / A Driver Agent reread cannot itself cause an operator-facing question; the actor and output mismatch. The actor should be zarg, since zarg reads agenda and asks operator one question.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.66",
+    "by": "agent"
+  },
+  "id": "F-d15665ce",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

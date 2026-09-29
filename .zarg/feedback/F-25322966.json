@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0024@10ec1fd12b68",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "gap",
+  "severity": "high",
+  "note": "The trigger names a contradiction between two cards, yet the Implementer works one card at a time and no step, role, or rule detects or raises that pair. I would need reconcile/Planner to compute and flag cross-card conflicts explicitly, instead of letting the contradiction appear unowned during implementation. / No failure path is defined: nothing says whether the Implementer Agent pauses on conflicting cards, which card wins, or how the conflicting plans get amended. Without that resolution mechanism the reconcile finding just sits on the agenda as an inert signal. / Nothing pauses or reverts conflicting edits once a card contradiction surfaces. I would want a hold/rollback gate tied to the reconcile finding before the Implementer continues.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.83",
+    "by": "agent"
+  },
+  "id": "F-25322966",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

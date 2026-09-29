@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0024@10ec1fd12b68",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "The reconcile finding lands on the Driver Agent's agenda, but the step names no actor who turns it into an actual reconciliation, and it is unclear what the Implementer Agent does with the contradicted cards meanwhile. Ownership of the contradiction stays ambiguous, so the finding is surfaced but never owned. / 'A card contradicts another card' has no criterion, like overlapping files, opposing edits, or semantic conflict. So how the Driver recognizes contradiction is unclear. / The actor detecting `a card contradicts another card` is unspecified; the passive trigger hides whether Implementer or Driver owns detection. Specify detection owner and the signal path to Driver agenda.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.84",
+    "by": "agent"
+  },
+  "id": "F-38e990d3",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0008@fc877300ae43",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "transition",
+  "severity": "high",
+  "note": "The step ends at marking the recommended option; it never says the operator answers it, that the answer is recorded as a requirement, or which question follows. Make the chain explicit: 'Operator answers the shown question' → 'Driver Agent records it as a requirement' → 'next question shown'.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.66",
+    "by": "agent"
+  },
+  "id": "F-3d8e714c",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

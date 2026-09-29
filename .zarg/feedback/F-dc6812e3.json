@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0034@1715a46c036d",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Driver Agent",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "The model question lists available models but leaves the choice after it undefined: I can’t tell how the operator selects one—by name, index, default, or decline—or what happens once chosen. In op, I’d add a select-model node after the list with explicit answer options and an edge to applying the model.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.73",
+    "by": "agent"
+  },
+  "id": "F-dc6812e3",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

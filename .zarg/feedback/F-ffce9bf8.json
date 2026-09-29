@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0058@692a1609717f",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Operator",
+  "kind": "friction",
+  "severity": "high",
+  "note": "After plans are written, no choice is presented: show each plan for approval, auto-apply, or just store silently? So the operator can't tell whether reconcile ends at writing plans or at applying them — that is the flagged unclear choice.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.89",
+    "by": "agent"
+  },
+  "id": "F-ffce9bf8",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

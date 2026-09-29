@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0010@5ad0f6b9a995",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "feature",
+  "severity": "low",
+  "note": "I would want the re-read to expose remaining unanswered items so the question is selected from them. Then the loop visibly progresses and the operator's next action is determinate.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-bd7ca994",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0027@a4d9d81f0618",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "\"provider accepts\" and \"secrets stored in plugin's own namespace\" place validation and custody with different owners. Make it explicit whether the accepting provider writes the secrets or the plugin mediates store; if provider owns them, an op edge should store in the provider's namespace instead.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.59",
+    "by": "agent"
+  },
+  "id": "F-856bdfed",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

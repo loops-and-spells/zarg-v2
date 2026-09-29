@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0012@580d42ae0eb9",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "gap",
+  "severity": "high",
+  "note": "After choosing Chat the question stays open, but there's no stated trigger or exit to leave the discussion and reach the shaped next question. Operator can talk forever with no path forward; suggest op: a Continue gate node closing chat mode into next-question shaping. / If chat runs long or produces nothing usable, there is no failure path described: abort, keep the same question, or re-present options. I would be stuck in discussion with no stated way to recover. / Nothing handles a chat that never resolves into a next question: no failure path back to the original options or a stop. A fallback edge re-showing the original options would close this.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.82",
+    "by": "agent"
+  },
+  "id": "F-29dee305",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

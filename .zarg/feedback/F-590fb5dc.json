@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0039@c9708e26a8c5",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Driver Agent",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "There is no bound on repeated start failures, so the recovery loop can cycle indefinitely with no fallback to a default model or a 'no model' state. In op: add a retry-limit node whose outcome is fallback or disabling the role's model.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.75",
+    "by": "agent"
+  },
+  "id": "F-590fb5dc",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

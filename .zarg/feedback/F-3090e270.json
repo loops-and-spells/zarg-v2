@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0020@bdf4b3c511b4",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Planner Agent",
+  "kind": "transition",
+  "severity": "high",
+  "note": "The flagged defect: THEN names an output (a plan written), but no following choice — execute, approve, or re-plan — so this node's exit is unreadable and I stall at the boundary. Suggested graph change in op: add a choice/branch node after THEN, plan-ready → execute / request approval / re-plan. / “plan for each changed card” does not follow from “answer saved”: one answer can touch one or many cards, and the answer→changed-card mapping is never computed. Derive the changed card set as part of the save step. / The Given just restates the previous step's ending ('answer saved to the graph'), so it carries no new state into this step. If it is intended as a precondition, fold it into the When trigger rather than repeating it.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.68",
+    "by": "agent"
+  },
+  "id": "F-3090e270",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

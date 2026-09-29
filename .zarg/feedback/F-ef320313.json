@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0041@3ea582a7789a",
+  "journeys": [
+    "Watch agents"
+  ],
+  "persona": "Driver Agent",
+  "kind": "feature",
+  "severity": "low",
+  "note": "I'd want the child's state (queued/idle/running) and edge label (handoff vs placement) exposed. That would distinguish mere appearance from active takeover and make the after-choice deterministic.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-ef320313",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ],
+  "state": "planned"
+}

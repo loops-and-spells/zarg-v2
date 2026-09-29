@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0053@64be7ac0c12c",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "contradiction",
+  "severity": "high",
+  "note": "An obvious worktree conflict should route to merge/rebase or a halt, yet this step runs the verify gate. The gate checks finished artifacts, so it cannot resolve the overlap that invoked it. / Card worktrees are isolated copies, so a conflict cannot arise inside one; it only appears when worktrees merge. This clashes with \"each changed card in its own worktree.\" / Verifying while card worktrees still conflict contradicts the purpose of the verify gate. The condition should stop implementation and route to resolution, not proceed to verification.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.82",
+    "by": "agent"
+  },
+  "id": "F-04b03a36",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

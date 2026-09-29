@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0008@fc877300ae43",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "gap",
+  "severity": "high",
+  "note": "If the operator accepts a different option, or asks for clarification/refuses, the step has no branch to take. This failure must be handled here before any next question.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.79",
+    "by": "agent"
+  },
+  "id": "F-cdcbe419",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

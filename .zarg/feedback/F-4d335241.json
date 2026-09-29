@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0036@9f0b0953a097",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "feature",
+  "severity": "low",
+  "note": "I would want a capability badge on each listed model and tool-calling-required models preselected. In op, change the model-question node to carry the requirement plus per-model tool-calling, and change the refusal-to-question edge to target a filtered question node. / I would want the refusal reason to point to at least one pickable tool-calling model. That converts rejection into guidance for the next pick.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-4d335241",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

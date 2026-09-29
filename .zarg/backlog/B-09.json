@@ -1,0 +1,76 @@
+{
+  "title": "Env files hidden",
+  "journey": "Watch agents",
+  "cards": [
+    {
+      "ref": "gherkin/card:UX-0046@cc3b24b9f8ef"
+    }
+  ],
+  "changes": [
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Run records the blocking reason",
+        "when": "the refusal happens",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0050"
+        },
+        "then": [
+          {
+            "text": "the reason is appended to run state"
+          },
+          {
+            "text": "the run continues within granted scopes"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0046",
+        "when": "an agent reads an env file inside its declared workspace"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0050",
+        "text": "the read is refused: reason names the file and blocking gate"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0046",
+        "title": "Env files stay hidden; refusal reason names file and gate"
+      }
+    }
+  ],
+  "feedback": [
+    "F-533ff1d0",
+    "F-73b92833",
+    "F-d20e8f7f"
+  ],
+  "steps": [
+    "Refusal names the file",
+    "Gate within declared workspace",
+    "Run records reason",
+    "Run continues"
+  ],
+  "persona": "Plugin Agent",
+  "severity": "medium",
+  "id": "B-09",
+  "status": "backlog",
+  "events": [
+    {
+      "what": "planned",
+      "by": "Triage Agent"
+    }
+  ]
+}

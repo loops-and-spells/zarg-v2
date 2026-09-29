@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0048@d814d2c2e755",
+  "journeys": [
+    "Watch agents"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "feature",
+  "severity": "medium",
+  "note": "The refusal names the missing service but stops there, leaving the run dead-ended; an escalation path is wanted where the agent can surface that refusal to the operator to extend the grant and then retry.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-14872e6a",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ],
+  "state": "planned"
+}

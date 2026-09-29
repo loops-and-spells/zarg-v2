@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0013@2193362c2b4a",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "transition",
+  "severity": "medium",
+  "note": "Earlier the agenda was found empty and the options came from graph gaps; now the Driver Agent 'weighs the message with the agenda,' so there is no populated agenda to weigh against. The step does not follow unless 'agenda' has been redefined as the gap list or filled, and op should reconcile that meaning. / \"Then one question with options is shown\" does not follow statedly from weighing: it omits whether the message changed the options, changed the question, or merely selected one agenda item. The choice after it stays unclear because the question's provenance isn't carried. / Agenda weighting appears only at this step; earlier focus and open-question steps never signaled it, so the operator cannot anticipate why their message is weighed now. In op, introduce the agenda-weight edge/node in the preceding topic-focus step.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.55",
+    "by": "agent"
+  },
+  "id": "F-b807dc55",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

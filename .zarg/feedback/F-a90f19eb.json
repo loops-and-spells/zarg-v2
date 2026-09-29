@@ -1,0 +1,24 @@
+{
+  "ref": "gherkin/card:UX-0015@e728ab53a78c",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "contradiction",
+  "severity": "low",
+  "note": "The earlier flow made the operator type their own answer after a question with options, but here picking a topic and then a question with options doesn't say whether the operator again types or just chooses among them.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.49",
+    "by": "agent"
+  },
+  "id": "F-a90f19eb",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ]
+}

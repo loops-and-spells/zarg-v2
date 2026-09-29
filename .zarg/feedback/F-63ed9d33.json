@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0006@d2ea9a633ed7",
+  "journeys": [
+    "CLI actor"
+  ],
+  "persona": "CLI actor",
+  "kind": "feature",
+  "severity": "low",
+  "note": "Would want a confirmation token/correlation id tying hint, retry, and saved node file so the retry's success is auditable. Fix: emit a retry-id in the saved-file op output.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-63ed9d33",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0059@76562076f960",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Operator",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "\"plan or implement models\" is unexplained jargon, so the operator cannot tell which artifacts are missing or how to check. Suggest op change: name them concretely in the reason text, e.g. list exact files or ask for a repo-state probe before typing.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.86",
+    "by": "agent"
+  },
+  "id": "F-9d7809c3",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

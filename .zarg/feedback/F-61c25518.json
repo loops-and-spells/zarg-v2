@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0068@62c466508aa8",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "feature",
+  "severity": "low",
+  "note": "The agenda's 'why' is worth having: operator-facing transparency on disable; route it through the added watchdog/agenda-write scope so the explanation is genuinely inside declared powers.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-61c25518",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

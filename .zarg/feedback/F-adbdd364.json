@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0018@47e1ce1ea2ca",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "gap",
+  "severity": "high",
+  "note": "No operator action starts this step; 'the Driver Agent finds' is an internal, unseen event, so the operator is only handed a question with nothing to do first. Suggest op: make the When the operator answering the merge question, and expose the agent's finding as a precondition or an earlier step. / There's no failure path if the operator cannot merge or declines, so the answer may vanish silently. Suggest op: add a branch that discards/re-asks or resolves by latest edit. / The Driver Agent reads the agenda and records the operator's answers; it never sees the operator's screen, so it cannot \"find the edits conflicting\" if those edits are screen-side. A version clash between its recorded requirements and the node's current requirements would be something it can actually detect.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.81",
+    "by": "agent"
+  },
+  "id": "F-adbdd364",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

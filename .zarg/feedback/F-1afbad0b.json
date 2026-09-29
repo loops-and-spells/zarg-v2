@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0062@dd9dd9bcb386",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "\"Target\" in the grant question is ambiguous—which resource or data boundary the scope applies to is not spelled out, so the operator cannot tell what access is being asked for. Name the target explicitly beside the scope. / The step stops at a grant question that names scope and target, but does not specify the operator's resulting choice, so the transition to the decision step is undefined. 'May ask for' also leaves the asker and request path vague.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.90",
+    "by": "agent"
+  },
+  "id": "F-1afbad0b",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

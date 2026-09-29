@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0077@5b2bff4ba701",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "transition",
+  "severity": "high",
+  "note": "The prior step only establishes generic Markdown formatting (headings, lists, tables, code, links); it never shows that a Mermaid block is recognized as a diagram, so this Given cannot follow from how you got here. Amend the Given to \"the Markdown shows a formatted Mermaid block\" and add an op before it: a node that scans the reply and identifies Mermaid fenced blocks as diagram candidates. / The Given ('formatted headings, lists, tables, code, links') is the prior step's generic Markdown result and does not imply a ```mermaid fence is recognized here. In op, insert a step between: the renderer resolves the code fence's language tag and selects drawn vs fallback.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.89",
+    "by": "agent"
+  },
+  "id": "F-33435b72",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

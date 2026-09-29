@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0029@8a6d5f9e1bd6",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "The then-clause repeats the given: 'the plugin's setup fields are shown from its config schema' is the same state you already had, so the step's only real outcome is the error. Because the after-choice is unclear, you can't tell whether the error persists on the field, the field clears, or setup halts.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.62",
+    "by": "agent"
+  },
+  "id": "F-38da3f80",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

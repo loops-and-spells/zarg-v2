@@ -1,0 +1,98 @@
+{
+  "title": "Outsider service refused",
+  "journey": "Watch agents",
+  "cards": [
+    {
+      "ref": "gherkin/card:UX-0048@d814d2c2e755"
+    },
+    {
+      "ref": "gherkin/card:UX-0040@6c07e8f7bc98"
+    },
+    {
+      "ref": "gherkin/card:UX-0041@3ea582a7789a"
+    },
+    {
+      "ref": "gherkin/card:UX-0042@a7cfb9357c2b"
+    },
+    {
+      "ref": "gherkin/card:UX-0043@48a0d1e2bb35"
+    },
+    {
+      "ref": "gherkin/card:UX-0044@87b512b1586c"
+    },
+    {
+      "ref": "gherkin/card:UX-0045@e16b9771bc17"
+    },
+    {
+      "ref": "gherkin/card:UX-0046@cc3b24b9f8ef"
+    },
+    {
+      "ref": "gherkin/card:UX-0047@0cf0f58be66d"
+    }
+  ],
+  "changes": [
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0052",
+        "text": "the invocation is refused before it runs"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0053",
+        "text": "the refusal names the missing operator-granted scope and emits the grant request"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0040",
+        "text": "the agent run starts and the operator-granted scopes are loaded"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0048",
+        "title": "A service outside the operator-granted scopes is refused",
+        "when": "an agent attempts to invoke a service outside the operator-granted scopes"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0048",
+        "edge": "then",
+        "state": {
+          "text": "the agent surfaces the refusal to the operator, extends the grant, and retries"
+        }
+      }
+    }
+  ],
+  "feedback": [
+    "F-14872e6a",
+    "F-2c453c96",
+    "F-30cb1c71",
+    "F-64af8bd3",
+    "F-a6155c46"
+  ],
+  "steps": [
+    "Trigger is an attempt",
+    "Granted scopes loaded at run start",
+    "Preset maps to granted scopes",
+    "Refusal names and emits grant request",
+    "Retry escalation"
+  ],
+  "persona": "Plugin Agent",
+  "severity": "high",
+  "id": "B-08",
+  "status": "backlog",
+  "events": [
+    {
+      "what": "planned",
+      "by": "Triage Agent"
+    }
+  ]
+}

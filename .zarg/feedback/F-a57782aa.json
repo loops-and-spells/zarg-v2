@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0018@47e1ce1ea2ca",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "transition",
+  "severity": "high",
+  "note": "The step jumps from the stale refusal to a merge question through a hidden agent middle, and the question arrives before any operator event. Suggest op: drop the internal When or insert a step where the operator sees the conflict before the merge question is shown. / Detecting conflicting edits is the same cause that already made the save stale, so this step isn't a distinct follow-on; it repeats an event the prior step handled. Suggest op: fold conflict-detection into the refusal step or place it before it, not after. / After a stale refusal the natural next thing is to re-read the node and compare what I hold against what it now holds; the step instead declares conflicting edits and skips straight to a merge question, so the merge question does not visibly follow from the refusal.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.61",
+    "by": "agent"
+  },
+  "id": "F-a57782aa",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

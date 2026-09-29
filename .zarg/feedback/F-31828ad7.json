@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0013@2193362c2b4a",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "feature",
+  "severity": "medium",
+  "note": "I would want the question to show the agenda criteria and message evidence that produced these options and the recommended one. That would make the next choice clear. / I would want the shown question or options to carry a visible rationale tying them to the message that shaped them. Then the operator can see which part of the message was weighed and why this question replaced the open one. / I would want the weighting outcome recorded and exposed as a rationale, so the operator can see why this question was chosen. That would make the next choice legible rather than implicit.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-31828ad7",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

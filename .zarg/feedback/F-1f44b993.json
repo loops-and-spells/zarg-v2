@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0003@48c56829f9e3",
+  "journeys": [
+    "CLI actor"
+  ],
+  "persona": "CLI actor",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "The fix hint's content is unspecified; I must handle a failure but only learn that a hint exists. Suggest the graph carry the hint payload or a field stating what it resolves.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.64",
+    "by": "operator"
+  },
+  "id": "F-1f44b993",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

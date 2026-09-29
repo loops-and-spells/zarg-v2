@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0046@cc3b24b9f8ef",
+  "journeys": [
+    "Watch agents"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "A refused read is a failure the agent must handle, but the step ends at the refusal. How the run reacts (record the reason in run state, continue, or abort) is not specified.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.73",
+    "by": "agent"
+  },
+  "id": "F-533ff1d0",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ],
+  "state": "planned"
+}

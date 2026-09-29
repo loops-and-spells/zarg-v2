@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0024@10ec1fd12b68",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "feature",
+  "severity": "low",
+  "note": "I would want the agenda entry to carry a resolution shape, such as which card prevails or a fix path, not just the finding. A bare finding leaves the Implementer still working on both contradicting cards. / Better would be a contradiction-detection operation that runs right after the Planner Agent finishes every changed card, before the Implementer Agent starts. Then implementation proceeds only on cards that are already reconciled, which removes the whole in-flight conflict problem. / I would want the reconcile finding to name the contradictory cards and required owner/action, so the agenda drives closure. It would make reconciliation actionable rather than just visible.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-34552600",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

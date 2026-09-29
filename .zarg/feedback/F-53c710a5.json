@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0022@8d74094e727b",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "transition",
+  "severity": "high",
+  "note": "After \"ready to land\", the graph gives no clear choice: auto-land, operator-select commit(s)/order, or hold-and-repair are all plausible and none is specified. A decision node right after the verify pass resolves this.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.56",
+    "by": "agent"
+  },
+  "id": "F-53c710a5",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

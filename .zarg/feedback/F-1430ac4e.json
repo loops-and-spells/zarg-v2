@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0041@3ea582a7789a",
+  "journeys": [
+    "Watch agents"
+  ],
+  "persona": "Driver Agent",
+  "kind": "contradiction",
+  "severity": "low",
+  "note": "'An agent run is in progress' plus 'agent hands work to child' leaves run ownership ambiguous: the parent remains run owner while work moves to child. Specify whether the run stays with parent, splits into a child sub-run, or transfers.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "drop · real 0.31",
+    "by": "operator"
+  },
+  "id": "F-1430ac4e",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ],
+  "state": "planned"
+}

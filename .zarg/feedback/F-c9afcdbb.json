@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0023@26fb7df4fd9d",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "The prior step ends with every check passing and the commit ready/landed, yet this When's failed check reverses that with no stated cause. Either say who changed cards post-landing or drop the contradiction.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.49",
+    "by": "agent"
+  },
+  "id": "F-c9afcdbb",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

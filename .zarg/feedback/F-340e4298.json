@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0077@5b2bff4ba701",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "feature",
+  "severity": "low",
+  "note": "Box-drawing-character diagrams are the delight of this step and worth keeping as a named feature. If you add the recognition node above, consider letting diagrams render progressively inside the streaming reply.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-340e4298",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

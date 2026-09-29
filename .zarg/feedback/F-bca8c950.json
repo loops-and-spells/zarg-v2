@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0052@9a3a9b84c172",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Operator",
+  "kind": "transition",
+  "severity": "medium",
+  "note": "The previous step ends the pass with a land-ready commit, but this step has the operator commit during the pass, re-entering an in-flight state. The step does not follow from the one before.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.55",
+    "by": "agent"
+  },
+  "id": "F-bca8c950",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

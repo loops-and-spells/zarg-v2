@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0076@a1c234506d0b",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "Growing to fit the content and staying within a fixed share conflict once a report is long: fit wants unbounded size, share wants bounded. As written, the outcome cannot satisfy both at once.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.83",
+    "by": "agent"
+  },
+  "id": "F-1668a3cc",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

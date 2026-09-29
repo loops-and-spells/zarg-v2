@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0015@e728ab53a78c",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "friction",
+  "severity": "high",
+  "note": "After picking a topic, the question shown and where its options come from are unnamed, so you can't tell if it reuses the what-next options or pulls fresh ones from the topic. The graph op should split this step: query the chosen topic's node, then show its question with options derived from that node. / After picking a topic, the following question with options is shown, but the step does not state how those options relate to the chosen topic or which is recommended. So the choice after it is unclear at the exact point the operator must decide.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.53",
+    "by": "agent"
+  },
+  "id": "F-07f074b2",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

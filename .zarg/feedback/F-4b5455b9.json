@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0036@9f0b0953a097",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "gap",
+  "severity": "high",
+  "note": "The tool-calling requirement appears only in the refusal, after the choice. The operator cannot check the constraint before picking; put the requirement and each model's tool-calling flag into the question. / The list shows availability but not tool-calling eligibility, so refusal comes only after a wasted pick. Mark or filter eligible vs ineligible models before selection.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.67",
+    "by": "agent"
+  },
+  "id": "F-4b5455b9",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

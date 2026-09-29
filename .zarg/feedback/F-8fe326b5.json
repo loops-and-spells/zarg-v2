@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0036@9f0b0953a097",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "A refusal reason stating the rule but not the remedy leaves the operator guessing which models do call tools. Mention compliant entries, or point to the nearest compliant model. / \"a model question lists available models\" is vague about available for which scope — role setup or tool use? State the criterion in the question wording.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.74",
+    "by": "agent"
+  },
+  "id": "F-8fe326b5",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

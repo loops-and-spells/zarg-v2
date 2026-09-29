@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0017@ca238d7b08b6",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "friction",
+  "severity": "high",
+  "note": "The flagged 'choice after it is unclear' means the following decision node is unnamed. I can't tell whether the next question is accept-merge, re-drive, or operator confirmation. / \"The Driver Agent finds both edits compatible\" never says which edits or what compatibility means—the Driver's pending answer against the node changed by the other thread? Clarify the node with fields editA=driver answer, editB=thread change and a compatibility rule, so the operator sees a merge preview before save. / \"finds both edits compatible\" and \"the merge\" leave the criterion and the recording place unnamed: compatible by which node/field, and which thread gets the note. In op: define compatibility as same node and same field, and name the thread in which the merge note lands.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.64",
+    "by": "agent"
+  },
+  "id": "F-bef75194",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

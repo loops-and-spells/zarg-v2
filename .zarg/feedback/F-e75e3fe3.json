@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0053@64be7ac0c12c",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "feature",
+  "severity": "medium",
+  "note": "Want a conflict-resolution node inserted ahead of verify, with a stated rule splitting obvious-conflict and clean-worktree paths. That makes the branch deterministic and keeps verify meaningful. / I would want an explicit merge/integration step: order the card worktrees, have the gate report conflicts, and choose the order. / A conflict-resolution policy would be useful: who resolves, which worktree wins, and when to rerun verify. Encode it as a small card-level policy node so the Implementer has a deterministic action.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-e75e3fe3",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

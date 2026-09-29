@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0011@684c7ae392a9",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "gap",
+  "severity": "high",
+  "note": "No failure path is shown for a typed answer that cannot be stored, such as empty input, duplicate content, or an off-schema value. That must be caught before the answer is saved. / No defined handling when free-typed text does not map to the offered options or expected graph shape. A failure I must act on is missing: reject, ask to reconcile, or store as raw note. / No failure path when the typed answer doesn't match any option: raw text may save but later steps can't interpret it. Graph change: add validation/op `normalize_typed_answer` (match option, else custom_answer) before saving as choice.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.75",
+    "by": "agent"
+  },
+  "id": "F-25112121",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0026@97885cca4507",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "transition",
+  "severity": "medium",
+  "note": "The step stops at display without routing to a setup action, so it does not follow smoothly. In op, insert `choose_setup_action(save|test|cancel|next)` after this Then.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.49",
+    "by": "agent"
+  },
+  "id": "F-e15ab581",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

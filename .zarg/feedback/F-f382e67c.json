@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0017@ca238d7b08b6",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "contradiction",
+  "severity": "high",
+  "note": "The first save was refused as stale due to version mismatch, yet the same save now passes once edits are 'compatible'. Compatibility of content does not reconcile versions; insert a rebase/version-match step between refusal and save. / Refusal \"as stale\" is about the node being changed by another thread, while \"compatible\" is about edit content; the step treats them as one axis without saying which governs. State that stale is version drift and merge is content reconciliation, or the refusal reason reads as overwritten.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.73",
+    "by": "agent"
+  },
+  "id": "F-f382e67c",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

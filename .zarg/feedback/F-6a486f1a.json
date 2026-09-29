@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0071@7cb0e5dc19cc",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "No path handles the case when no option settles, e.g., disagreement persists or the operator defers. As written, the step silently stalls instead of parking the question or escalating. / No failure path is shown if discussion never settles, e.g., operator keeps chatting or rejects all options. Suggest in op a fallback branch that re-asks or asks for confirmation before saving the answer.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.86",
+    "by": "agent"
+  },
+  "id": "F-6a486f1a",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

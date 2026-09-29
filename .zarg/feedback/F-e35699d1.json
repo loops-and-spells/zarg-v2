@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0053@64be7ac0c12c",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "transition",
+  "severity": "high",
+  "note": "The predecessor only says Implementer works changed cards; nothing establishes that conflicts surface there alone. A worktree can conflict at plan time, so the jump to verify is not derivable. / The prior step is implementer working; normally the gate runs after it finishes. Here the gate appears only on a conflict, so the normal path and the after-state are unclear. / After the conflict condition there is no explicit choice, only “verify gate runs”, which is unclear. Op should branch: resolve locally, abort card, or escalate, then verify after merge.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.74",
+    "by": "agent"
+  },
+  "id": "F-e35699d1",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

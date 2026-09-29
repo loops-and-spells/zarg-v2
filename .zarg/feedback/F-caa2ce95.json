@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0071@7cb0e5dc19cc",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "\"When the conversation settles on one option\" doesn't say who closes it — the agent or the operator. Without naming the actor, 'settles' stays ambiguous and the save could happen on an unintended decision. / 'Conversation settles on one option' has no criterion, so I cannot tell when discussion is actually settled or still open. Suggest an explicit trigger: operator confirms one option or no objections remain in the turn. / 'When the conversation settles' does not say who settles or how; I would expect an explicit operator confirmation of one option and its reason before saving. Clarify op: 'When the operator confirms one option after discussion; then the chosen option is shown with its reason; and the answer is saved to the graph.'",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.82",
+    "by": "agent"
+  },
+  "id": "F-caa2ce95",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

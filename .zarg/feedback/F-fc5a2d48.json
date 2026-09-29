@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0009@a6e81910cdc3",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "The step frames \"one question\" yet the flag implies a choice after it; you cannot tell if this is a single unit or a repeated sequence. Graph op: mark this as one answer in a repeated series with a loop edge to the next question id. / No contradiction found here, but the unclear next choice after saving is the main product-shaping blocker.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.63",
+    "by": "agent"
+  },
+  "id": "F-fc5a2d48",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

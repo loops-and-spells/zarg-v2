@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0006@d2ea9a633ed7",
+  "journeys": [
+    "CLI actor"
+  ],
+  "persona": "CLI actor",
+  "kind": "gap",
+  "severity": "high",
+  "note": "The hint-driven retry is itself uncovered: if the corrected attempt is refused again (hint stale, misapplied, or the precondition unmet), the actor has no next move. Fix: add a refusal-after-retry edge with a second hint or abort, and an op handling that failure.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.84",
+    "by": "operator"
+  },
+  "id": "F-4f614652",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

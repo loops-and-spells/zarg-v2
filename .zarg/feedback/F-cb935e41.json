@@ -1,0 +1,24 @@
+{
+  "ref": "gherkin/card:UX-0075@730ed4a536e3",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "transition",
+  "severity": "medium",
+  "note": "This step ends on a formatted streaming reply but doesn't say what I'm choosing next: approve, edit, run, or stop. The thread after the reply is undefined, so I can't infer the next move.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.88",
+    "by": "agent"
+  },
+  "id": "F-cb935e41",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ]
+}

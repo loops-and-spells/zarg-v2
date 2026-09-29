@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0071@7cb0e5dc19cc",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "feature",
+  "severity": "low",
+  "note": "Before writing to the graph I'd want an operator confirmation of the chosen option and its reason. I'd also want an amend/reopen affordance so a settled choice isn't irrevocable.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-8315c9d2",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

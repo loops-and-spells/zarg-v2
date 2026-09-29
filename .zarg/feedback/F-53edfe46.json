@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0055@1162ab41ff27",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "“Driver Agent’s agenda shows the reconcile finding” leaves unclear who produces the reconcile finding and what the Driver does with it. op: add a card “Reconcile Agent produces finding” and route it to Driver agenda only after a reconcile step, with a next-action edge. / The step says “second fix attempt” but does not show the first attempt or the verify gate’s pass/fail verdict. That leaves me unable to tell what failed and why this is attempt two. / “Driver Agent’s agenda shows the reconcile finding” mixes reconcile as action and finding as record. Clarify op `driver_reconciles_finding` then `agenda_records_finding`; name what the “reconcile finding” is.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.82",
+    "by": "agent"
+  },
+  "id": "F-53edfe46",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0009@a6e81910cdc3",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "feature",
+  "severity": "low",
+  "note": "You would want the saved answer to carry the option's identity so later steps can branch on it, plus a short acknowledgment before advancing. Graph op: store the chosen option id in the entry and emit a confirm signal. / I would want immediate feedback showing what the saved answer unlocks, so choosing an option feels like a decision, not silent bookkeeping. Add a visible “what happens next” line after the save. / I would want immediate confirmation that it saved plus visible choices to proceed, revise, or undo.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-47aa8ea6",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

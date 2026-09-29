@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0022@8d74094e727b",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "\"When every check passes\" covers only the all-pass case; when some check fails, the rejected card's route — repair, hold, or discard — isn't defined here. Add a failing-card branch parallel to land.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.75",
+    "by": "agent"
+  },
+  "id": "F-5a0efa2a",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

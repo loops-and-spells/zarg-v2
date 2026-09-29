@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0028@403037518013",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "feature",
+  "severity": "medium",
+  "note": "I want the rejection reason to identify which field(s) caused it, so I can amend just those rather than redo the whole setup. Otherwise the reason is a banner with no actionable anchor. / I would want the rejection to identify the blamed field or value and a suggested fix, rather than a generic reason. Otherwise the operator re-enters guesses into the same fields.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-67f8b645",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

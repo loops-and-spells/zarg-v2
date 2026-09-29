@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0039@c9708e26a8c5",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Driver Agent",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "Showing the failure reason and then re-listing available models does not say whether the operator must pick a replacement or can review alone. In op: make the question explicitly 'pick a replacement model or cancel'.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.63",
+    "by": "agent"
+  },
+  "id": "F-1b1945f2",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

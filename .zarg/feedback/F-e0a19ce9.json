@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0079@8ababa1b5408",
+  "journeys": [
+    "CLI actor"
+  ],
+  "persona": "CLI actor",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "No stated handling for removed cards beyond showing them apart. The actor has no rule for acting on removals after the checkpoint delta.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.73",
+    "by": "operator"
+  },
+  "id": "F-e0a19ce9",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

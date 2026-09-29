@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0013@2193362c2b4a",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "The Given says message shapes the next question, but the When then weighs it with agenda before showing it. That weighing can overwrite the shape, so the clauses conflict. / The previous step says the question stays open for discussion, but this step closes it into 'one question with options is shown' after weighing the message. Staying open and emitting a fixed option set can conflict if the message was mid-discussion. / The message shapes the next question while the Driver Agent weighs it with the agenda; if agenda weighting overrides the message, the operator's discussion input may be discarded. In op, set precedence: the message shapes wording, and the agenda only validates or filters options.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.55",
+    "by": "agent"
+  },
+  "id": "F-a8cc760b",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0048@d814d2c2e755",
+  "journeys": [
+    "Watch agents"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "The When says the agent \"uses\" the service, but the Then says it is refused before it runs — so it never uses it. Reword the When as \"attempts to invoke\" so the trigger is the attempt, not the use.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.69",
+    "by": "agent"
+  },
+  "id": "F-64af8bd3",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ],
+  "state": "planned"
+}

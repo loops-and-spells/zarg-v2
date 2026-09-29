@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0071@7cb0e5dc19cc",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "\"shown with its reason\" implies option plus reason are both part of the requirement, while \"answer is saved\" suggests only one payload. It's unclear which fields actually enter the graph.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.75",
+    "by": "agent"
+  },
+  "id": "F-2da85b04",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

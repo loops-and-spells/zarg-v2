@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0012@580d42ae0eb9",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "friction",
+  "severity": "high",
+  "note": "\"The message shapes the next question\" doesn't say which message or how (question text only? options? recommendation?). It leaves the operator guessing what their chat actually rewrote. / \"Chat about this\" leaves the option list behind, but nothing shown says how the chat ends or how you get back to picking. So the only visible after-choice is a vague promise that the message will shape the next question, which is not a choice I can act on. / Chat about this has no stated follow-up choice, so the operator cannot tell whether it yields a shaped next question, reopens the same options, or just ends. The Then node needs an explicit continue-or-return affordance.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.73",
+    "by": "agent"
+  },
+  "id": "F-eebec657",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

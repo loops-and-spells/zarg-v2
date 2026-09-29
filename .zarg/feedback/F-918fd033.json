@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0039@c9708e26a8c5",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Driver Agent",
+  "kind": "transition",
+  "severity": "low",
+  "note": "The failure trigger sits right after 'model saved to config', but start failures belong to the later start attempt, so this placement mis-orders the cause. In op: attach the failure check to the role's start attempt and insert a 'decide next action' node before re-listing models.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.73",
+    "by": "agent"
+  },
+  "id": "F-918fd033",
+  "count": 1,
+  "runs": [
+    "rehearse:r-254dec3c"
+  ],
+  "state": "closed",
+  "notReportedIn": "r-bc02dc92"
+}

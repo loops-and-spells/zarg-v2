@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0023@26fb7df4fd9d",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "gap",
+  "severity": "high",
+  "note": "A failing check can come from code the changed cards never touched, so a changed-card-only fix may miss the real cause. Introduce a distinct 'repair failing check' op, widened past the changed cards when needed. / No stop rule exists: if the repair fails again, the loop never terminates. Add an attempt bound with an escalation/abort edge after N failed repairs. / Nothing names who detects the failing check or how, and nothing says what happens to the commit that already landed. You need a failure-detector op and an explicit reopen/redo of the landed commit.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.89",
+    "by": "agent"
+  },
+  "id": "F-9c96c50c",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0068@62c466508aa8",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "gap",
+  "severity": "high",
+  "note": "The Given is just the previous Then restated, so the run state itself carries over; what is missing is a granted scope for counting failures and writing the agenda note, so the plugin cannot evaluate 'three in ten minutes' or publish 'why it stopped' inside its approved powers. Add a declared health/agenda-write scope (or a watchdog node) before the disable step.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.69",
+    "by": "agent"
+  },
+  "id": "F-f65b7cf6",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

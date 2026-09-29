@@ -1,0 +1,24 @@
+{
+  "ref": "gherkin/card:UX-0056@bde75653b7f8",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Planner Agent",
+  "kind": "feature",
+  "severity": "low",
+  "note": "An operator checkpoint to approve or reorder plans before Implementer executes is missing; automatic execution of every changed card may be unwanted. Suggest op `approve-or-reorder-plan-queue` before the implementer step. / I would want a queued, deterministic Implementer assignment rather than an unordered pile of cards. A per-card priority would let me predict the work order.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-be8aab57",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ]
+}

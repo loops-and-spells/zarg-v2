@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0019@d2888fbcc21b",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "friction",
+  "severity": "high",
+  "note": "The 'merge question' and 'version' are named but not shown as competing content, so picking feels blind between two unknowns. Show the differing text with each version's origin on the question card. / After picking a version, it is unclear what changes in the graph or whether any confirmation happens before the save. Insert an op step showing the chosen version's writes and asking the operator to confirm before saving. / The merge question doesn't label each version's thread/provenance or state what the pick commits to, so the operator cannot tell which choice resolves the conflict. Make the post-choice explicit: a confirm/apply node or immediate save, since the choice after it reads unclear.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.83",
+    "by": "agent"
+  },
+  "id": "F-9516f3dc",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

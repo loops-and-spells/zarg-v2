@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0062@dd9dd9bcb386",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "The step ends on a grant question, but it does not state what the plugin does if the operator denies that request; a running plugin needs a defined fallback so it does not silently stall or keep probing. Add branch: deny → plugin continues with its already approved scopes only and reports refusal. / If the operator refuses or asks back, nothing here says how the plugin proceeds, so this step lacks a handled failure branch.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.69",
+    "by": "agent"
+  },
+  "id": "F-1fb75f7d",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0011@684c7ae392a9",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "Typing my own answer is offered, but the step never shows the choice that comes after it. I cannot tell whether I then pick another question, revise this answer, or confirm it into the graph. / Typing your own answer after seeing options leaves ambiguous whether it replaces the option set or coexists with it. I cannot tell what the graph will hold for this question. / 'The choice after it' is ambiguous—typed answer may be stored as the choice or merely as a note beside the recommended option. Define one: custom answer becomes a `choice_custom` field, or overrides the chosen option. Graph change: op `store_operator_answer` should explicitly set either `choice=typed` or `custom_answer` plus `recommended_option`.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.86",
+    "by": "agent"
+  },
+  "id": "F-0221c6c5",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

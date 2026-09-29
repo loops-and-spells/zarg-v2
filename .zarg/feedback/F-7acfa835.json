@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0041@3ea582a7789a",
+  "journeys": [
+    "Watch agents"
+  ],
+  "persona": "Driver Agent",
+  "kind": "transition",
+  "severity": "medium",
+  "note": "A structural link (child appears) does not imply a completed handoff, so the next child-focused step lacks a trigger. Insert an explicit acceptance/assignment moment between this step and the next.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.61",
+    "by": "agent"
+  },
+  "id": "F-7acfa835",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ],
+  "state": "planned"
+}

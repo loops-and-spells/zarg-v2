@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0056@bde75653b7f8",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Planner Agent",
+  "kind": "transition",
+  "severity": "high",
+  "note": "The step ends with the Implementer working, but the flagged choice after it is unclear: no successor says whether the run moves to the next changed card, returns to the operator, or closes reconcile. In op, add a branch node after this step — given Implementer done one card, when changed cards remain, then select the next card and its plan; when none remain, then reconcile complete. / The step goes from Planner finishing every card to Implementer work, but it does not define how Implementer chooses the next card (one vs all, order) or whether all plan files must exist first. Graph change in op: gate `ImplementerAgent.start` behind `planFilesReady` and replace plural work with `ImplementerAgent.implementNextCard`.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.71",
+    "by": "agent"
+  },
+  "id": "F-2f4678b5",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

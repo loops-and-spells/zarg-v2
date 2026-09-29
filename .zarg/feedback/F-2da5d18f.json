@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0079@8ababa1b5408",
+  "journeys": [
+    "CLI actor"
+  ],
+  "persona": "CLI actor",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "Listing the two groups (affected vs removed) leaves the actor unsure which set drives the next action. The split looks like a fork without labeled branches.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.68",
+    "by": "operator"
+  },
+  "id": "F-2da5d18f",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

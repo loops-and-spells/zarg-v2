@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0046@cc3b24b9f8ef",
+  "journeys": [
+    "Watch agents"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "transition",
+  "severity": "medium",
+  "note": "The Given 'run is in progress' does not cause or constrain a specific env-file read; almost any run satisfies it. Replace with a relevant precondition such as 'the agent requests a file beyond its served powers'.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.81",
+    "by": "agent"
+  },
+  "id": "F-e83b86a5",
+  "count": 1,
+  "runs": [
+    "rehearse:r-254dec3c"
+  ],
+  "state": "closed",
+  "notReportedIn": "r-bc02dc92"
+}

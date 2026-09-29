@@ -1,0 +1,117 @@
+{
+  "title": "Rework service-grant refusal card",
+  "journey": "Watch agents",
+  "cards": [
+    {
+      "ref": "gherkin/card:UX-0041@3ea582a7789a"
+    },
+    {
+      "ref": "gherkin/card:UX-0048@d814d2c2e755"
+    },
+    {
+      "ref": "gherkin/card:UX-0046@cc3b24b9f8ef"
+    }
+  ],
+  "changes": [
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0040",
+        "text": "an agent run is in progress after loading preset at run start"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0053",
+        "text": "the refusal names the service outside the operator-granted scopes and emits the grant request"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0048",
+        "when": "an agent attempts to invoke a service outside the operator-granted scopes"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0046",
+        "when": "an agent reads an env file local to its declared workspace"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0050",
+        "text": "the read is refused, naming the file and the blocking gate"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Run continues after refused read",
+        "when": "the refusal reason is recorded in run state",
+        "by": [
+          {
+            "name": "Plugin Agent"
+          }
+        ],
+        "arrives": {
+          "id": "S-0040"
+        },
+        "then": [
+          {
+            "text": "the run continues with the refusal recorded"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0040",
+        "text": "an agent run is in progress after loading preset at run start"
+      }
+    }
+  ],
+  "feedback": [
+    "F-1430ac4e",
+    "F-14872e6a",
+    "F-2c453c96",
+    "F-30cb1c71",
+    "F-533ff1d0",
+    "F-64af8bd3",
+    "F-73b92833",
+    "F-7acfa835",
+    "F-a50f07e1",
+    "F-a6155c46",
+    "F-b56671b6",
+    "F-d20e8f7f",
+    "F-ef320313"
+  ],
+  "steps": [
+    "Rewrite UX-0048 with new When: attempt to invoke outside-granted service",
+    "Add UX-0048 then naming missing name plus grant request",
+    "Keep UX-0041 unchanged until run ownership and state labels set",
+    "Tie UX-0046 env-file reads to declared workspace",
+    "Rewrite UX-0046 refusal naming file and blocking gate",
+    "Add new UX-0046 then card recording refusal to continue run"
+  ],
+  "persona": "Driver Agent",
+  "severity": "high",
+  "id": "B-06",
+  "status": "backlog",
+  "events": [
+    {
+      "what": "planned",
+      "by": "Triage Agent"
+    },
+    {
+      "what": "dropped",
+      "by": "operator"
+    }
+  ],
+  "dropped": true
+}

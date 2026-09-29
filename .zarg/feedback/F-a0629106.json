@@ -1,0 +1,24 @@
+{
+  "ref": "gherkin/card:UX-0075@730ed4a536e3",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "feature",
+  "severity": "low",
+  "note": "If streaming Markdown garbles a table or splits a code fence mid-arrival, I have no way to fix it in place. An inline preview/edit affordance would keep the reply usable while it streams.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-a0629106",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ]
+}

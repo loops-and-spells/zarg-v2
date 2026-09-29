@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0036@9f0b0953a097",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "contradiction",
+  "severity": "high",
+  "note": "The question presents these models as available, yet a member of the set is rejected at pick time. Availability should mean pickable, or the question must mark which entries satisfy the tool-calling rule. / The refused model remains in the following list, so the operator can repeat the identical tool-less pick and loop. Restrict the post-refusal list to models that tool-call, or drop the refused entry.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.72",
+    "by": "agent"
+  },
+  "id": "F-aba02b95",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

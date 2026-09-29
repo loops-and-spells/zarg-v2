@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0011@684c7ae392a9",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "transition",
+  "severity": "high",
+  "note": "The jump from typed answer straight to graph save reads as abrupt, with no confirm/edit beat between them. An explicit post-answer choice would make the sequence's next step follow. / The choice after saving is unclear: no stated next step, whether another question appears or the Driver Agent proceeds. The step does not follow from the prior one. / The step after saving likely reads a choice, but free text doesn't satisfy the options contract; the transition is not deterministic. Graph change: append op `resolve_choice_from_typed_answer` that converts/marks the choice before the next step runs.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.73",
+    "by": "agent"
+  },
+  "id": "F-4c70ce8f",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

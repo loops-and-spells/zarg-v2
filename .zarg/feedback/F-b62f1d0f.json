@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0020@bdf4b3c511b4",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Planner Agent",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "“Stays quiet for two seconds” is undefined — quiet of writes, reads, or planner updates — and the timer's anchor event is unnamed, so I cannot locate the trigger instant. Suggested op: debounce(no new writes, 2s, reset on write, ceiling max-wait) bound to the answer-saved event. / “The graph stays quiet” is undefined: a read, a UI render, or another agent's heartbeat could count as noise. Anchor quiet to no graph writes only. / The two-second quiet window is an unexplained magic number—no source, and it is unclear whether it's a debounce or a timeout. Suggest changing the When to an explicit trigger tied to graph activity, e.g. 'when the last graph mutation has settled' or a named debounce interval.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.89",
+    "by": "agent"
+  },
+  "id": "F-b62f1d0f",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

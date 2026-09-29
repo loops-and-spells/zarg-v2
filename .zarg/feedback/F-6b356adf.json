@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0004@f98906e430a1",
+  "journeys": [
+    "CLI actor"
+  ],
+  "persona": "CLI actor",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "Propagation is assumed, not handled: a card can embed a copy of the state text, so rewording the state leaves that card stale. Add a failure branch like 'when a card holds a copied text, it does not update' or a refresh op.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.59",
+    "by": "operator"
+  },
+  "id": "F-6b356adf",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

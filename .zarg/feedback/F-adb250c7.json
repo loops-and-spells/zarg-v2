@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0030@eae5a0e8c51c",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "There is no failure path for when setup fails, the operator declines, or no fallback meets the role's needs. Suggested op: add a verify step after the choice; if neither is valid, halt and report the condition to the operator.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.77",
+    "by": "agent"
+  },
+  "id": "F-adb250c7",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

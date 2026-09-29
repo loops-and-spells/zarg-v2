@@ -1,0 +1,24 @@
+{
+  "ref": "gherkin/card:UX-0068@62c466508aa8",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "transition",
+  "severity": "medium",
+  "note": "The Given merely restates the prior Then — \"runs with only its approved scopes\" — with no new antecedent like \"plugin attempts an action needing an unapproved scope\"; so failures→disable does not visibly follow. Suggest op: insert that attempt condition before the failure count.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.64",
+    "by": "agent"
+  },
+  "id": "F-db2d5d9f",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ]
+}

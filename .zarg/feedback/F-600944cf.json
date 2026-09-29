@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0015@e728ab53a78c",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "transition",
+  "severity": "low",
+  "note": "The prior step's what-next options come from graph gaps; here picking a topic should seemingly settle or address that gap, but the step jumps to a new question without showing that link. The move from what-next choice to focus/question feels unexplained.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.75",
+    "by": "agent"
+  },
+  "id": "F-600944cf",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

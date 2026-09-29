@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0061@1d4be1d84643",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "transition",
+  "severity": "high",
+  "note": "Approval ends in a running plugin with no stated successor, so the operator has nothing to act on after this step. The graph leaves the run as a terminal, not a junction.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": false,
+    "why": "drop · real 0.57",
+    "by": "agent"
+  },
+  "id": "F-5d968cdc",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

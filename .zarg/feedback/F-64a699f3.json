@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0027@a4d9d81f0618",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "feature",
+  "severity": "low",
+  "note": "Once secrets are accepted into the plugin namespace, I'd want them masked in the transcript and the models list confirmed as available after storage, so watching the run doesn't leak credentials. / A test/connect check before persisting would let the operator see acceptance rather than store blind. Add op \"verify credentials\" before secret storage, with its result shown next to the setup fields.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-64a699f3",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0016@36177b5e4040",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "feature",
+  "severity": "medium",
+  "note": "I\n would\n want\n a\n conflict\n resolution\n or\n refresh,\n e.g.\n re-show\n the\n question\n against\n the\n fresh\n node\n before\n forcing\n a\n discard.\n A\n lock\n or\n version\n token\n on\n the\n answered\n node\n would\n make\n stale\n detectable\n earlier. / You would want a lock or edit-since marker visible on the shown question so the operator knows the node is contended before answering. That would make the stale refusal expected rather than surprising. / I would want a revision token captured when the question is shown and carried into the save. I would also want a visible refresh affordance when the save is refused.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-4c104451",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

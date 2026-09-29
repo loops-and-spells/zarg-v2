@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0020@bdf4b3c511b4",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Planner Agent",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "If “quiet” counts the planner's own output, the THEN's plan-writing breaks the very quiet precondition that triggered it. Scope WHEN to quiet of non-planner writes, or latch quiet once and permit one plan-writing burst before re-quietening. / The flagged “choice after it is unclear” means the Planner writes plans but the next acceptance/edit/reject decision is unnamed. Add an explicit op naming that choice. / This is the flagged issue: after the plan is written, what happens next isn't specified, leaving the step's exit undefined. Suggest appending an explicit outcome, e.g. 'Then the plan is shown for review' or a next option.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.52",
+    "by": "agent"
+  },
+  "id": "F-3f7d6710",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

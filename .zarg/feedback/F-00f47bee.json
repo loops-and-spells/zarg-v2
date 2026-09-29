@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0018@47e1ce1ea2ca",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "feature",
+  "severity": "medium",
+  "note": "I would want the merge question to offer the competing version options and a marked recommended resolution, so the operator can pick which edits keep. Suggest op: show each version with its diff and mark one as recommended. / The merge question should show both candidate values with who/when so the operator can judge; a provenance-less merge is blind. Suggest op: attach source and timestamp to each option. / Before asking to merge it would help to show the diverging requirements, so the operator merges something seen rather than guessed. A short diff of the stale-versus-current values is the want.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-00f47bee",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

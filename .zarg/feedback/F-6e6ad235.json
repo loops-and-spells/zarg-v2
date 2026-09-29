@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0079@8ababa1b5408",
+  "journeys": [
+    "CLI actor"
+  ],
+  "persona": "CLI actor",
+  "kind": "transition",
+  "severity": "low",
+  "note": "The step ends at the listing and does not specify how the choice that follows derives from it. The delta report alone does not lead into a defined next move.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.73",
+    "by": "agent"
+  },
+  "id": "F-6e6ad235",
+  "count": 1,
+  "runs": [
+    "rehearse:r-254dec3c"
+  ],
+  "state": "closed",
+  "notReportedIn": "r-bc02dc92"
+}

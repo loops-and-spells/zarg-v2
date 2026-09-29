@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0030@eae5a0e8c51c",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "contradiction",
+  "severity": "high",
+  "note": "It treats 'another model' as a safe alternative, but a fallback model can carry the same missing-key problem, and 'offers' resolves nothing. Suggested op: replace the Then with a decision node over key-aware candidates that blocks until setup or a valid fallback is chosen.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.60",
+    "by": "agent"
+  },
+  "id": "F-f3a8ad93",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

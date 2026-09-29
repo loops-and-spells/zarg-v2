@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0008@fc877300ae43",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "feature",
+  "severity": "low",
+  "note": "I would want the reason the option is recommended shown beside the marking, so the operator can judge it. That makes accepting or overriding the recommendation informed.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-6e6cd3de",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

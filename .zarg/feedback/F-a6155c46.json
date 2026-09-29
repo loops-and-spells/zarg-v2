@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0048@d814d2c2e755",
+  "journeys": [
+    "Watch agents"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "transition",
+  "severity": "medium",
+  "note": "This gate appears without setup: nothing says the preset is evaluated when the run starts. Add a preceding step \"load preset at run start\" so the enforcement follows from entry.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.71",
+    "by": "agent"
+  },
+  "id": "F-a6155c46",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ],
+  "state": "planned"
+}

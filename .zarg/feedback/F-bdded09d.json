@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0058@692a1609717f",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Operator",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "\"reconcile runs for this session\" binds scope to a session, but session start/end and which changing cards belong are not defined. Cards changed outside the session or a resumed session are unhandled, so reconcile can blind-spot real drift.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.80",
+    "by": "agent"
+  },
+  "id": "F-bdded09d",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

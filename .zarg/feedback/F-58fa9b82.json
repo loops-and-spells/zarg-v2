@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0075@730ed4a536e3",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "A streaming Markdown render can cross a table/code block boundary and break formatting mid-stream; the step gives no failure/recover path. Op change: state re-render-safe boundaries or a fallback render.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.54",
+    "by": "agent"
+  },
+  "id": "F-58fa9b82",
+  "count": 1,
+  "runs": [
+    "rehearse:r-254dec3c"
+  ],
+  "state": "closed",
+  "notReportedIn": "r-bc02dc92"
+}

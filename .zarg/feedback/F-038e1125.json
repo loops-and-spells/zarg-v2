@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0061@1d4be1d84643",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "The operator lacks the next decision it must handle: widen scopes, pause the plugin, stop it, or watch output. Approval should hand off to one visible choice, not an open-ended run.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.82",
+    "by": "agent"
+  },
+  "id": "F-038e1125",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0012@580d42ae0eb9",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "transition",
+  "severity": "high",
+  "note": "The prior step only showed options with a marked recommendation; \"Chat about this\" appears nowhere in that affordance, so the pick doesn't follow from what came before. Suggest op: attach Chat as its own affordance edge off the question node, separate from the option list. / The step claims the message shapes the next question but never renders that shaped question with its options. As written, the handoff into the next question stage is asserted rather than shown. / “The message shapes the next question” doesn't follow from “one question with options is shown” unless the operator's chat feeds the graph and then a new question is generated. Suggest an op edge: operator message ⇒ graph write ⇒ next question.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.81",
+    "by": "agent"
+  },
+  "id": "F-a1bb3ead",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

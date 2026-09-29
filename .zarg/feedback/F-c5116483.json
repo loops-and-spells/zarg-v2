@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0023@26fb7df4fd9d",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "feature",
+  "severity": "low",
+  "note": "'A check fails' lumps lint, test, and build failures, which need different handling. You'd want per-check-type repair behavior stated in the graph. / The next choice after the fix is unclear: gate re-run, commit re-verify, or land again. Would want a closed loop step: fix → gate runs → re-commit.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-c5116483",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

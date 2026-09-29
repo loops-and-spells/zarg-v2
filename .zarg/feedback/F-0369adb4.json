@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0035@f8114a7f2b09",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "feature",
+  "severity": "low",
+  "note": "I would want the option to preview compare locality/size/cost of the picked model and a one-step re-pick if wrong. That would clear the unclear choice at commit time.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-0369adb4",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

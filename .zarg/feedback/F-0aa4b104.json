@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0018@47e1ce1ea2ca",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "friction",
+  "severity": "high",
+  "note": "The operator cannot tell whose edits conflict or how the merge question resolves them, so 'shown' without details leaves the merge choice blind. Suggest op: name the conflicting edits and display the competing versions inside the merge question. / The merge question is unclear: it doesn't say what is being merged (the refused answer versus the other thread's edit) nor show its options. Suggest op: tag the question's options as keep-mine / take-theirs / combine. / \"Edits\" is a new word where earlier steps said answers recorded as requirements, and the merge question's options are not stated, so the operator cannot tell what is being merged or how to choose. Reusing \"requirements\" and naming the options (keep mine / take current / combine) would make it answerable.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.89",
+    "by": "agent"
+  },
+  "id": "F-0aa4b104",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0034@1715a46c036d",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Driver Agent",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "If no model fits the role or the operator declines, nothing here handles that failure. In op, add a fallback/retry branch from the model question so zarg can ask why or continue without a model.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.71",
+    "by": "agent"
+  },
+  "id": "F-0e821a09",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

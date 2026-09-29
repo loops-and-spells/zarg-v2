@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0055@1162ab41ff27",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "feature",
+  "severity": "medium",
+  "note": "I would want attempt count, failure reason, and a stop or escalate rule when the second attempt fails. Change op to “Driver agenda shows verify-gate failure / unresolved conflict,” and add an edge from second-fail to re-plan or operator escalation. / After a second failed fix, only an agenda display appears; no stop or escalation is specified. Add op `stop_or_escalate_after_second_failure` before `agenda_shows_finding` if retries should not loop. / **Feature:** I would want the second fix attempt to carry attempt count, failure reason, and a link to the reconcile finding. After two failures, a Driver/operator next-action card would make the failure path auditable.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-308657ec",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

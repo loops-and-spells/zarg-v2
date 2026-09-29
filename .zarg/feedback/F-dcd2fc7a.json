@@ -1,0 +1,24 @@
+{
+  "ref": "gherkin/card:UX-0077@5b2bff4ba701",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "Box-drawing characters are a lossy, surprising rendering for a Mermaid diagram; it is unclear whether that is the intended fidelity or merely the fallback that happens to be available. Suggest clarifying intent in op, e.g. \"When rendering a Mermaid diagram, box-drawing is the chosen fallback when no richer rendering exists\".",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.64",
+    "by": "agent"
+  },
+  "id": "F-dcd2fc7a",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ]
+}

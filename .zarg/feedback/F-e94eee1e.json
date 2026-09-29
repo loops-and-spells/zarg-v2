@@ -1,0 +1,24 @@
+{
+  "ref": "gherkin/card:UX-0062@dd9dd9bcb386",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "transition",
+  "severity": "medium",
+  "note": "Given the prior step locks scopes, this step jumps to a request without stating how it arises or what follows; the flagged 'choice after is unclear' is exactly this dangling outcome.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.64",
+    "by": "agent"
+  },
+  "id": "F-e94eee1e",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ]
+}

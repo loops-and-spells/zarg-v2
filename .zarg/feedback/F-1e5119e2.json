@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0013@2193362c2b4a",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "gap",
+  "severity": "high",
+  "note": "There is no failure handling when the message conflicts with agenda or no options fit; the step shows them anyway. It also omits the recommended default that earlier steps had, leaving operator without a safe choice. / No branch handles a message that cannot be weighed against the agenda (vague, contradictory, or unmappable), yet the step still produces one question with options. The agent has no failure path to say the message did not shape anything and to fall back to the prior topic or what-next. / No failure path exists when the message is unusable—off-agenda, contradictory, or empty—yet it still shapes a question. I need a branch that discards it or asks the operator to clarify.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.70",
+    "by": "agent"
+  },
+  "id": "F-1e5119e2",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

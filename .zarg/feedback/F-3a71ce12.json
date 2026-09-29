@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0023@26fb7df4fd9d",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "transition",
+  "severity": "medium",
+  "note": "As written, 'works on changed cards' repeats the prior Implementer step rather than following from the fail, so the next state is muddled. Make it a new repair state and add repair -> gate (re-verify) after it. / \"Given the verify gate runs\" repeats the prior step's ending verbatim, so the failing run has no distinct antecedent from the passing run. Insert an op antecedent like \"after the commit landed and flags a regression\" so this When follows.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.81",
+    "by": "agent"
+  },
+  "id": "F-3a71ce12",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

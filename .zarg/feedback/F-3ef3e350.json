@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0055@1162ab41ff27",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "transition",
+  "severity": "high",
+  "note": "This step does not follow from “verify gate runs” because a gate run can pass and end the work; “second fix attempt” only makes sense after an explicit fail branch. op: split the verify gate card into pass/fail edges, with pass to done and fail to first fix attempt. / Verify gate running does not by itself lead to an agenda entry. The step jumps from gate verdict to finding display, skipping the fix loop and its failure between them. / The step cannot move from “verify gate runs” straight to “second fix attempt still fails”; the gate must fail first and one fix must happen. Suggest ops: `verify_gate_runs → verify_gate_fails → fix_attempt_1_fails → second_fix_attempt_fails → reconcile_finding`, or split this into intermediate nodes.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.91",
+    "by": "agent"
+  },
+  "id": "F-3ef3e350",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

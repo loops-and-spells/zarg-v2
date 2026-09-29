@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0054@51246b0a64ec",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "The phrase \"beyond an obvious fix\" is not defined anywhere: no criterion tells the Implementer which conflicts are obvious (fix directly) versus beyond (escalate). So the agent has no rule to decide when to stop fixing and raise the issue instead. / “beyond an obvious fix” is an undefined threshold: nobody is specified to judge it, so when trivial edits bleed across card worktrees it reads as unclear whether this step fires or stays silent. / \"reconcile finding\" stays undefined — its content, owner and trigger point are unstated. A finding merely landing on an agenda gives you nothing concrete to inspect or act on.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.91",
+    "by": "agent"
+  },
+  "id": "F-b57d379b",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

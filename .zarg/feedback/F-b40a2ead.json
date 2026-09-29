@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0009@a6e81910cdc3",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "transition",
+  "severity": "high",
+  "note": "The save ends the step with no cue for what comes next (next question, branch, or stop), so the choice the flag calls \"after it\" stays undefined and the flow stalls at the boundary. Graph op: append a following node \"present next question or conclude\" reachable from this save. / After the answer is saved, the step names no value that will select the next question or branch, which is exactly why the choice after it reads as unclear. As written, the following step does not follow from this one in a determinate way. / After “operator picks an option” and “answer saved,” the journey should visibly route back to the agenda or to its resolution, but it currently stops. Change op: connect the save step to “Driver Agent reads agenda again” when questions remain and to a completion node when none do.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.56",
+    "by": "agent"
+  },
+  "id": "F-b40a2ead",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

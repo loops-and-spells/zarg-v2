@@ -1,0 +1,129 @@
+{
+  "title": "CLI actor missing file",
+  "journey": "CLI actor",
+  "cards": [
+    {
+      "ref": "gherkin/card:UX-0003@26bc1ce49670"
+    },
+    {
+      "ref": "gherkin/card:UX-0004@689d06f016c0"
+    },
+    {
+      "ref": "gherkin/card:UX-0006@d2ea9a633ed7"
+    },
+    {
+      "ref": "gherkin/card:UX-0079@5c9ae10a8131"
+    }
+  ],
+  "changes": [
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Missing file reported absent",
+        "when": "the CLI actor requests it",
+        "by": [
+          {
+            "name": "CLI actor"
+          }
+        ],
+        "arrives": {
+          "id": "S-0001"
+        },
+        "then": [
+          {
+            "text": "the error names the missing file"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0001",
+        "text": "CLI actor requests an env file in its declared workspace"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0005",
+        "text": "the duplicate-link attempt is refused with a dedup hint"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0006",
+        "when": "the CLI actor applies the dedup hint precondition"
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "CLI actor aborts after a stale hint",
+        "when": "the corrected dedup attempt is refused again",
+        "by": [
+          {
+            "name": "CLI actor"
+          }
+        ],
+        "arrives": {
+          "id": "S-0001"
+        },
+        "then": [
+          {
+            "text": "the CLI actor receives a second dedup hint"
+          },
+          {
+            "text": "the CLI actor aborts the retry op"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0006",
+        "edge": "then",
+        "state": {
+          "text": "the saved node file carries a retry-id"
+        }
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0003",
+        "text": "the card is saved as one dedup node file"
+      }
+    }
+  ],
+  "feedback": [
+    "F-2a56b854",
+    "F-4f614652",
+    "F-63ed9d33",
+    "F-c04b9257"
+  ],
+  "steps": [
+    "Add card: CLI actor requests missing file",
+    "Rewrite Given: CLI actor requests env file",
+    "Hint retries: dedup precondition, second hint or abort",
+    "Save node file with auditable retry-id",
+    "Keep UX-0079 unchanged"
+  ],
+  "persona": "CLI actor",
+  "severity": "high",
+  "id": "B-03",
+  "status": "backlog",
+  "events": [
+    {
+      "what": "planned",
+      "by": "Triage Agent"
+    },
+    {
+      "what": "dropped",
+      "by": "operator"
+    }
+  ],
+  "dropped": true
+}

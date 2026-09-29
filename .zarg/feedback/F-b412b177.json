@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0022@8d74094e727b",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "feature",
+  "severity": "low",
+  "note": "A landing-plan artifact — pending commit per card, merge order, conflict flags, target branch — would make \"ready\" actionable and keep operator agency. Emit it from the verify pass before any land op.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-b412b177",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

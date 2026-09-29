@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0053@64be7ac0c12c",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "gap",
+  "severity": "high",
+  "note": "\"Conflict in an obvious way\" has no stated criterion: file overlap, same branch, failed merge, or blocked lock? The Implementer needs a concrete test or the trigger is arbitrary. / Nobody detects or names the conflict. The step jumps straight to the gate, so the failure handling is missing. / There is no failure-handling step for conflicted worktrees; verify runs on unresolved code. Add a resolve/merge-conflict node before verify, with edge conflict → resolve → verify.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.80",
+    "by": "agent"
+  },
+  "id": "F-d6e9c6d2",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0028@403037518013",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "friction",
+  "severity": "high",
+  "note": "The step ends by re-showing the same setup fields it started with, so the operator's next move is not named; retry, edit, or abandon these values are all plausible and none is stated. That is why the choice after it is unclear.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.88",
+    "by": "agent"
+  },
+  "id": "F-1e38c1dd",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

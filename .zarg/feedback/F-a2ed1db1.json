@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0059@76562076f960",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Operator",
+  "kind": "feature",
+  "severity": "medium",
+  "note": "The disabled state becomes visible only after typing /reconcile, which feels like punishment for guessing; I would want repo readiness shown at start. Suggest op change: insert an op after \"operator starts zarg in a repo\" that surfaces available commands and their prerequisites.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-a2ed1db1",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0052@9a3a9b84c172",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Operator",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "The commit is ready to land precisely because the verify gate already passed every check in this pass, yet this step runs the gate after the operator commits. Checking after committing inverts the gate's role and makes the commit's readiness stale.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.64",
+    "by": "agent"
+  },
+  "id": "F-24e0d645",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0054@51246b0a64ec",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "contradiction",
+  "severity": "high",
+  "note": "The outcome calls this \"the reconcile finding,\" but reconcile already finished in the prior step and its findings were written then; a conflict surfacing during implementation is a new issue, not a leftover of that reconcile. The reply therefore does not follow from the one before it. / A conflict beyond an obvious fix stalls that card's work, yet the outcome is only an agenda entry and no stalled/blocked card state. Record the blocked card alongside the reconcile finding so the failure is carried forward. / \"obvious fix\" implies the Implementer auto-fixes trivial conflicts, but this step gives it no escalating path. The boundary between obvious and beyond is itself undefined, so the Driver agenda entry can fire on any conflict.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": false,
+    "why": "drop · real 0.82",
+    "by": "agent"
+  },
+  "id": "F-f4d7eeea",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

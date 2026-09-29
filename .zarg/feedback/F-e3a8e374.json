@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0034@1715a46c036d",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Driver Agent",
+  "kind": "feature",
+  "severity": "low",
+  "note": "I’d want each listed model to show capability, cost, size, and a recommended default, so the list is actionable rather than just names. In op, attach those fields to the model list node.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-e3a8e374",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

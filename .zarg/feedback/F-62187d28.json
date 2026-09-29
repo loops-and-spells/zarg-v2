@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0029@8a6d5f9e1bd6",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "friction",
+  "severity": "high",
+  "note": "This step re-shows the fields after the schema error, but it does not say whether the operator can fix the value, ignore it, or move on; the next affordance is left to guesswork. Suggest in op: add a choice step after this one naming the options (edit value / leave as-is / continue), so the transition is explicit. / After a schema-type failure, the field shows the error but the step gives no explicit operator move; the choice after it—correct, skip, or cancel—is unclear. / The \"choice after it\" stays unclear: the step shows a schema error over the still-shown fields but names no operator option, like fixing that field versus abandoning setup. Without that, I cannot tell what I am approving next.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.65",
+    "by": "agent"
+  },
+  "id": "F-62187d28",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

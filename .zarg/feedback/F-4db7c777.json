@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0011@684c7ae392a9",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "feature",
+  "severity": "medium",
+  "note": "I would want inline validation or preview while I type, so I know the answer will save cleanly. That removes the guesswork about the choice after it. / I would want a mapping preview before save, showing which node/edge the typed answer becomes. That lets me correct intent before it is committed. / I'd want typed answer to retain the recommended option context so I can compare my words against the agent's suggestion. Store both: selected recommendation and custom input, with provenance in the graph.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-4db7c777",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0069@99fccfb13a77",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "The step ends at 'plugin runs' with no named operator choice, so approve/deny, stop, inspect, or continue is ambiguous. Suggest graph change in op: add an explicit approve-or-deny decision node before run, then a defined post-run choice node.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.79",
+    "by": "agent"
+  },
+  "id": "F-8c67efe6",
+  "count": 1,
+  "runs": [
+    "rehearse:r-254dec3c"
+  ],
+  "state": "closed",
+  "notReportedIn": "r-bc02dc92"
+}

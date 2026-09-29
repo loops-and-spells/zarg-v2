@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0019@d2888fbcc21b",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "transition",
+  "severity": "high",
+  "note": "The step ends at 'saved' with no stated next move, so I can't tell whether the pick closes the merge or leaves it revisable. Suggest a graph op after save that declares the outcome state and the follow-on choices (accept, edit, revisit). / A merge question resolves an edit conflict, yet this step saves an 'answer' to the graph—the transition from conflict to a normal agenda save does not follow. Split into 'apply chosen version / conflict resolved' then a separate save step. / It is unclear what the saved answer means after the merge: the chosen version alone, a combined resolution, and what happens to the other version. Define the post-pick outcome and the question that follows it.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.76",
+    "by": "agent"
+  },
+  "id": "F-1e21de55",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

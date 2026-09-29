@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0018@47e1ce1ea2ca",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "contradiction",
+  "severity": "high",
+  "note": "The Given already says the save was refused as stale, and that refusal implies the conflict was detected before it; the When puts the same detection afterward, reversing cause and effect. Suggest op: move 'finds edits conflicting' into the Given, keep the stale refusal as the trigger, so the order reads detection then refusal. / If the save was refused as stale, the operator's answer is gone, so 'merge' has nothing of theirs left to merge; unless refusal meant only not overwriting, not discard. Suggest op: separate detect-conflict from stale-refusal, or make refusal mean hold-pending rather than discard. / \"Refused as stale\" says my save did not land because another thread moved the node; \"edits conflicting\" says two writers produced conflicting content to merge, a different cause. The step jumps causes without showing how the stale refusal yielded a merge conflict.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.48",
+    "by": "agent"
+  },
+  "id": "F-7cd5b4bf",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

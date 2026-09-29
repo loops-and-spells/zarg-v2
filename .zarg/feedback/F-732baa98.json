@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0024@10ec1fd12b68",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "contradiction",
+  "severity": "high",
+  "note": "The Implementer is already coding contradicting cards while the reconcile finding appears later, but earlier each changed card got a plan file and contradictions should have been reconciled at plan time. That makes this step contradict the plan-first order. / The Given lets Implementer work while the When places detection after edits; the Then only shows a reconcile finding, not who reconciles. Change op: Driver Agent reconciles contradictory cards before Implementer Agent edits changed cards.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.87",
+    "by": "agent"
+  },
+  "id": "F-732baa98",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

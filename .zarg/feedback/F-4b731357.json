@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0036@9f0b0953a097",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "transition",
+  "severity": "medium",
+  "note": "The refusal leads back to a model question that lists available models, seemingly the same set. If it is identical, the operator can retry the refused model and loop; the re-list should exclude or dim non-tool-calling entries. / After the refusal, the next model question again lists available models, so the forward choice is unclear — can a corrected pick reach config, or is refusal terminal? Change the op: the refusal branch lists only eligible models and names what follows.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.84",
+    "by": "agent"
+  },
+  "id": "F-4b731357",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

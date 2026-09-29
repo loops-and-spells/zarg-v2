@@ -1,0 +1,24 @@
+{
+  "ref": "gherkin/card:UX-0008@fc877300ae43",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "Marking a recommended option while leaving the actual choice unclear sends guidance and ambiguity at once. That pairing is what makes the step feel unresolved.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.72",
+    "by": "agent"
+  },
+  "id": "F-96fc8941",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0019@d2888fbcc21b",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "feature",
+  "severity": "medium",
+  "note": "I would want the saved answer to carry the operator's rationale or override mark. Add a note field on the save op so later readers see why this version won. / A binary pick version loses the other side's edits—you'd want keep-both, merge contents, or a preview of the diff and what will land in the graph. Add op options for keep both versions or show the incoming diff. / A diff/provenance preview of the two versions plus a recorded merge decision (chosen source, discarded side) would make the pick auditable. Add it so later reads can explain why the graph holds that answer.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-b75938dc",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

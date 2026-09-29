@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0038@630329866e1e",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Driver Agent",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "Nothing handles the operator asking back, skipping, or answering outside the shown options. Suggest an op branch from this node to a “clarify and re-ask” node. / There is no fail-handling for an operator not choosing or choosing an option that does not fit the agenda; the next requirement cannot be reached reliably. I would need an explicit fallback or re-ask before moving on.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.80",
+    "by": "agent"
+  },
+  "id": "F-782816e6",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

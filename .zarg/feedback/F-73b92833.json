@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0046@cc3b24b9f8ef",
+  "journeys": [
+    "Watch agents"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "feature",
+  "severity": "low",
+  "note": "A refusal reason is most useful when it is actionable, not just a denial. Want the reason to say which file was blocked and the remedy (widen scope, ask operator), so the next step isn't dead-ended.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-73b92833",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ],
+  "state": "planned"
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0076@a1c234506d0b",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "transition",
+  "severity": "medium",
+  "note": "The choice after the render is unclear: the step ends at 'formatted' with no branch — continue, collapse, expand, or act on it. So for me the next step does not follow from this one.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.86",
+    "by": "agent"
+  },
+  "id": "F-bb1606a6",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

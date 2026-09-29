@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0028@403037518013",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "transition",
+  "severity": "high",
+  "note": "The step's Then returns to its own Given (\"setup fields are shown from its config schema\"), so where I go next isn't defined — retry or abandon isn't stated. In op, split the rejection step into an explicit decision node: (a) retry the setup after correcting the offending field, (b) abandon and leave setup. / Because the Then clause replicates the Given clause, the step reads as no progress from the entry attempt; the graph edge back to setup fields does not encode a decision point.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.67",
+    "by": "agent"
+  },
+  "id": "F-34d3e5d4",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

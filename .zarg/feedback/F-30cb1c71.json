@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0048@d814d2c2e755",
+  "journeys": [
+    "Watch agents"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "friction",
+  "severity": "low",
+  "note": "The word \"preset\" is ambiguous here — is it the agent's granted scope set, a declarative config, or its run profile? I need it to read \"outside the operator-granted scopes\" so it maps cleanly to what its powers serve.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.69",
+    "by": "agent"
+  },
+  "id": "F-30cb1c71",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ],
+  "state": "planned"
+}

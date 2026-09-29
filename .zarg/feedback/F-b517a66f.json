@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0025@156d906063ce",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Driver Agent",
+  "kind": "transition",
+  "severity": "medium",
+  "note": "The agenda already showed the reconcile finding, so rereading it as the When does not explain why a new question appears just then. In op I would state the reread trigger (e.g., unresolved finding) or split reread and ask into separate nodes. / Reading the agenda again just to surface a question is a re-loop, not a consequence: the reconcile finding already shown on the agenda should flow straight to a decision. This step makes the Driver revisit the same input instead of advancing to the reconcile question. / The step starts from an agenda that already shows the finding, so “Driver Agent reads the agenda again” repeats rather than advances; it does not connect to a question. In op, replace that condition with “zarg reads the reconcile finding from the agenda” and make the next step “zarg asks the operator.”",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.63",
+    "by": "agent"
+  },
+  "id": "F-b517a66f",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

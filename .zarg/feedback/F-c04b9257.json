@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0006@d2ea9a633ed7",
+  "journeys": [
+    "CLI actor"
+  ],
+  "persona": "CLI actor",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "\"Using the hint\" never states whether the actor re-runs the same link op or a corrected variant, so it cannot tell if it satisfied the hint's precondition. Fix: expose an apply-hint op that confirms the precondition before retry.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.70",
+    "by": "operator"
+  },
+  "id": "F-c04b9257",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

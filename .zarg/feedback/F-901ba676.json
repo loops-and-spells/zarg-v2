@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0076@a1c234506d0b",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "'its share' is opaque to me — pixels, tokens, or some quota — so 'grows to fit it' has no scale I can check against. I'm guessing the bound instead of knowing it.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.70",
+    "by": "agent"
+  },
+  "id": "F-901ba676",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

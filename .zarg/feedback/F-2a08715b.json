@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0053@64be7ac0c12c",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "The choice after this step is unclear because the gate's exits (pass, fail, conflict unresolved) are unlabeled. Each exit needs an explicit destination before the next node reads as uncertain. / \"In an obvious way\" has no criterion: I cannot tell what counts as obvious — same file touched by two cards, a failing build, or something else. / “conflict in an obvious way” has no detection criteria, so the Implementer cannot know when the condition is true. Define it as overlapping edits or merge-conflict markers before this gate can fire.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.92",
+    "by": "agent"
+  },
+  "id": "F-2a08715b",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

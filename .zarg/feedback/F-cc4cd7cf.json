@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0008@fc877300ae43",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "It says a recommended option is marked, but not whether that means preselected or just annotated, so I cannot tell what the operator's visible choice state is. The marking semantics need one line.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.83",
+    "by": "agent"
+  },
+  "id": "F-cc4cd7cf",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

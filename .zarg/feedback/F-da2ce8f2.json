@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0055@1162ab41ff27",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "If the second fix still fails, the agenda item should be that fix or verify failure. Showing the reconcile finding instead makes the displayed cause unrelated to the stated condition. / “Given verify gate runs” treats the gate as just executed, while “second fix attempt still fails” assumes the gate failed and the first fix failed. Restate Given as “Given verify gate failed and first fix attempt failed,” or make gate-run/fix-failure separate nodes. / **Contradiction:** The Then places a reconcile finding in the Driver Agent's agenda, but an agenda usually schedules actions, not findings. If intentional, I need to know whether it is an agenda entry or a linked diagnostic record; in op, separate the reconcile finding from the agenda.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.69",
+    "by": "agent"
+  },
+  "id": "F-da2ce8f2",
+  "count": 1,
+  "runs": [
+    "rehearse:r-254dec3c"
+  ],
+  "state": "closed",
+  "notReportedIn": "r-bc02dc92"
+}

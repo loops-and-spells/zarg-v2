@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0021@5ba5c48f5031",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "feature",
+  "severity": "low",
+  "note": "I would want the verify gate to report a verdict per worktree/plan, because “verify gate runs” gives one aggregate signal and hides which plan passed. That per-plan verdict would make the next choice visible without guessing.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-85dc5499",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

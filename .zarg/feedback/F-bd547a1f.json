@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0046@cc3b24b9f8ef",
+  "journeys": [
+    "Watch agents"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "contradiction",
+  "severity": "high",
+  "note": "The step refuses every env-file read, but the agent's visibility is defined by granted scopes, so an env file inside a served scope should be served rather than refused. Change op: split the Then into 'If env file is out of served scopes → refuse with reason' plus a pass branch when it is in scope.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.66",
+    "by": "agent"
+  },
+  "id": "F-bd547a1f",
+  "count": 1,
+  "runs": [
+    "rehearse:r-254dec3c"
+  ],
+  "state": "closed",
+  "notReportedIn": "r-bc02dc92"
+}

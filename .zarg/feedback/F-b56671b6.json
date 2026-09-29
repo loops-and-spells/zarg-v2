@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0041@3ea582a7789a",
+  "journeys": [
+    "Watch agents"
+  ],
+  "persona": "Driver Agent",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "No failure branch exists for rejected handoffs, an already-parented child, or a parent run ending/aborting while work is handed off. Add handling so the run does not silently proceed with a dangling child.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.63",
+    "by": "agent"
+  },
+  "id": "F-b56671b6",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ],
+  "state": "planned"
+}

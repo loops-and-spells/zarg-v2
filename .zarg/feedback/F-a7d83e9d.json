@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0025@156d906063ce",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Driver Agent",
+  "kind": "feature",
+  "severity": "medium",
+  "note": "The options should carry consequences or a recommended default and link back to the reconcile finding, so the operator can choose informedly. / I would want the reconcile finding to carry its options inline, so the Driver can decide without re-reading the agenda. That removes a redundant read and makes the finding actionable in one step. / “One question with options” is too generic; I would want concrete reconcile options tied to the finding. Label them, e.g., “force fix,” “defer card,” “change plan.”",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-a7d83e9d",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

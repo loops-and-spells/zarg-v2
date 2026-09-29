@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0026@97885cca4507",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "After the setup fields are shown, the operator’s next choice is unclear: edit/save/test/cancel/next. I’d want a visible action prompt or action list, otherwise setup feels open-ended.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.63",
+    "by": "agent"
+  },
+  "id": "F-bbc01f3a",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

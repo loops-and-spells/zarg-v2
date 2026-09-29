@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0054@51246b0a64ec",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "feature",
+  "severity": "low",
+  "note": "The Driver agenda could be more useful if it named which cards conflict and which agent holds each one, not just \"a finding.\" An agenda entry naming owners would speed the operator's next reconcile. / I'd want an explicit obvious-fix lane first — Implementer repairing the conflict inside its own worktree — so escalation is the exception, not the trigger. This keeps the implementer moving through the easily fixable conflicts. / I would want the reconcile finding to carry enough detail (which cards/worktrees, what overlap) that the Driver Agent's agenda can route it without a second investigation.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-88a4b22a",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

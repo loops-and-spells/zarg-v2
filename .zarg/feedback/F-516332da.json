@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0020@bdf4b3c511b4",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Planner Agent",
+  "kind": "gap",
+  "severity": "high",
+  "note": "“Each changed card” has no epoch: changed since the answer save, since the last plan, or as a consequence of that answer? A card changing during or after plan-writing can make my plan stale, yet no re-plan or invalidation branch is given. / No failure is handled if a write lands inside the two-second window: does the timer restart or the Planner run twice? Make the wait a debounce that restarts on every new write. / Nothing handles the graph not going quiet (the user keeps interacting) or the Planner producing no plan because no cards changed. Add an Else/timoeut branch—'Else no changed cards / no plan written'—so this step has a failure path.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.73",
+    "by": "agent"
+  },
+  "id": "F-516332da",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

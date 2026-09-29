@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0017@ca238d7b08b6",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "gap",
+  "severity": "high",
+  "note": "The When only describes the compatible case. If the Driver Agent finds edits incompatible, no branch tells me whether to escalate, repair, or re-drive, so staleness failure is unhandled. / 'Both edits compatible' has no stated rule or actor, so a save could silently overwrite a conflicting draft. Add a node defining compatibility criteria (fields, base version) before the save node. / The choice after this step is unspecified, so an operator cannot see what to do next. Link the saved-answer node forward to a named next node (e.g., 'confirm merge or continue'), and label the choice.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.83",
+    "by": "agent"
+  },
+  "id": "F-f47c36f3",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

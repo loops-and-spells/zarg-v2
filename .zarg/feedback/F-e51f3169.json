@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0004@f98906e430a1",
+  "journeys": [
+    "CLI actor"
+  ],
+  "persona": "CLI actor",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "'rewords a state' is unclear: a zarg state is ambiguous (node label vs card title) and 'reword' implies paraphrase rather than an exact text replace. Suggest op wording 'rewrites the state's text' so the mutation is explicit.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.83",
+    "by": "operator"
+  },
+  "id": "F-e51f3169",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

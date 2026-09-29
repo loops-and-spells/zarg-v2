@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0015@e728ab53a78c",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "feature",
+  "severity": "low",
+  "note": "A short focus confirmation, e.g., “Focus: [topic]”, plus a recommended marker on the next question’s options, would let me see the choice before choosing. I would want that.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-4e79ab3c",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

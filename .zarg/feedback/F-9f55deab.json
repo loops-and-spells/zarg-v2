@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0020@bdf4b3c511b4",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Planner Agent",
+  "kind": "feature",
+  "severity": "low",
+  "note": "I would want a ceiling and a staleness check: a non-stop write stream must not starve me past the two-second window, and mid-plan card changes must be rejected or re-planned. Plain two-second quiescence alone cannot guarantee the THEN ever fires. / Per-card plans can overlap when a single answer changes several cards. A grouped plan for the whole change set, or dedupe across cards, would read better. / I would want to see which cards count as changed and a visible 'Planner waiting/working' status while the graph is idle. Suggest adding a summary surface or status indicator before the plan is written.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-9f55deab",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

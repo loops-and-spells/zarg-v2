@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0027@a4d9d81f0618",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "transition",
+  "severity": "high",
+  "note": "The step jumps from \"fields shown\" to \"provider accepts entered values\" with no submit or confirm action in between; that abrupt gap is the off feeling. Insert an op step \"operator submits/confirms the shown setup values\" between the Given and the When.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.61",
+    "by": "agent"
+  },
+  "id": "F-21b5c2cf",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0056@bde75653b7f8",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Planner Agent",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "If the Planner cannot produce a plan for a changed card (parse failure or missing artifact), the Then's 'each changed card has a plan file' is silently unmet and the Implementer may still start. In op, add a failure branch in the planner-finish section that reports or handles changed cards lacking plan files. / If Planner does not finish a changed card and one plan is missing, no failure/recovery path exists, so Implementer could touch an unplanned card. Graph change in op: add an `unplannedCard` guard branch before Implementer work.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.81",
+    "by": "agent"
+  },
+  "id": "F-dcdd72cb",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

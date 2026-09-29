@@ -1,0 +1,24 @@
+{
+  "ref": "gherkin/card:UX-0003@48c56829f9e3",
+  "journeys": [
+    "CLI actor"
+  ],
+  "persona": "CLI actor",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "\"Adds\" presupposes an accepted write, while the same step's outcome is refusal, so action and result conflict.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.45",
+    "by": "agent"
+  },
+  "id": "F-5d1d867a",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ]
+}

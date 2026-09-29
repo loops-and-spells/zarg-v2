@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0075@730ed4a536e3",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "After the formatted reply streams, the step stops without telling me my next choice — approve, revise, stop, or continue. In op, add a node 'Operator chooses next action on reply' so the journey doesn't dead-end.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.82",
+    "by": "agent"
+  },
+  "id": "F-db1d1e07",
+  "count": 1,
+  "runs": [
+    "rehearse:r-254dec3c"
+  ],
+  "state": "closed",
+  "notReportedIn": "r-bc02dc92"
+}

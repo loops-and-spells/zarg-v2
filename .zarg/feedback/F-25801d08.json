@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0015@e728ab53a78c",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "Nothing links the operator's topic pick to the question source, so a topic with no options leaves the run stuck. Add an op edge that queries the graph for the picked topic's options and defines an empty-topic fallback before the question is shown. / The step lacks what happens if the picked topic cannot become a focus, or if its options/recommended option cannot be derived from it. I would need that fallback/failure handling before proceeding. / The step ends at a question with options shown, but the operator's next choice is unspecified: they could pick an option or type an answer. That makes the choice after it unclear. Suggested graph change: add an op edge/step from “one question with options shown” to “operator answers” or directly to “answer is saved,” so the transition is explicit.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.54",
+    "by": "agent"
+  },
+  "id": "F-25801d08",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0077@5b2bff4ba701",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "\"Fits the window\" is asserted but never measured, and no failure branch exists: nothing says what happens when a diagram exceeds the window (clip, scroll, refuse). Add an op for the overflow case so the step has a handled failure, e.g. draw it clipped or scrollable with a clear affordance. / Nothing states handling when the diagram exceeds the window or Mermaid support is absent. I want a fallback that keeps surrounding text formatted, shows the Mermaid source or a 'not drawn' cue, never silently blanking.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.82",
+    "by": "agent"
+  },
+  "id": "F-ff453887",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

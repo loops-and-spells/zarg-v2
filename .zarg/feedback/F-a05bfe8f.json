@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0019@d2888fbcc21b",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "The step treats the merge choice as an ordinary agenda answer, but the merge question is a conflict-resolution decision, not an answer selection. Model it as a conflict-resolution outcome that feeds the save, not an answer value. / A save was refused as stale because another thread changed the node; during the operator's merge deliberation the node can change again, yet nothing covers a second stale refusal or re-loop. Reuse the stale-save guard on the merged answer, or gate the pick on a frozen revision. / The step calls itself a merge but only lets me pick one version, so the merge framing contradicts an either/or choice. Offer a combine step or rename it as conflict-resolution pick.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.76",
+    "by": "agent"
+  },
+  "id": "F-a05bfe8f",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

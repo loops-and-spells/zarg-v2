@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0056@bde75653b7f8",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Planner Agent",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "'The Implementer Agent works on the changed cards' is ambiguous about which card it takes first and whether it takes one or all at once, so the per-card choice is undefined. In op, add a select/iterate node that names the next changed card from the plan-backed set and pins its order.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.83",
+    "by": "agent"
+  },
+  "id": "F-37a36b3c",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

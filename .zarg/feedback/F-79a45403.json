@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0023@26fb7df4fd9d",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "friction",
+  "severity": "high",
+  "note": "You cannot tell what follows this step: it may loop back to the verify gate, end, or escalate, and none is stated. Name the edge and its label (e.g. repair -> gate) so the choice is settled. / \"the changed cards\" is unclear: who changed them (the operator, a plan edit, or the failing check itself) and which cards they are. So the Implementer Agent's target is unreadable; rename the Then object to \"the cards the failing check touched\".",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.88",
+    "by": "agent"
+  },
+  "id": "F-79a45403",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

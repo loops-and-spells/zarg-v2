@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0011@684c7ae392a9",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "The step says the question has options, but the operator types their own answer. That combines two input modes without saying which one is actually active.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.59",
+    "by": "agent"
+  },
+  "id": "F-8cec6f51",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

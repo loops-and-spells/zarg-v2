@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0009@a6e81910cdc3",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "The effect \"answer is saved\" is stated as unconditional, with no path for an invalid or absent pick or a save failure. Graph op: add a fail branch that re-prompts on an invalid pick and retries or surfaces the save error. / There is no path for an operator who picks nothing (skip, defer, go back): the step has no branch for that case, so the \"choice after it\" is undefined. It is a failure I must handle, not just a missing nicety. / The step terminates at “answer saved to graph” with no named next state, so the operator cannot tell whether their option advances the agenda or just records it. Change op: add an edge from the save node to an agenda-complete check, then to the next question or to finish.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.91",
+    "by": "agent"
+  },
+  "id": "F-68915dc5",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

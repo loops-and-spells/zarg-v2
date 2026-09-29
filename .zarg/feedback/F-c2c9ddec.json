@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0029@8a6d5f9e1bd6",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "gap",
+  "severity": "high",
+  "note": "There is no branch for correcting a failed value, so a schema-type failure is a dead end you must handle. Without a retry path, setup can never leave a field that fails its type. / The schema error is shown but not whether an unresolved type error blocks or merely warns about the provider setup. Suggest in op: define whether this field gates the submit or lets the operator proceed with the wrong type. / There is no failure-handling branch for invalid setup input; setup should offer correcting the value, intentionally skipping the field, or abandoning setup.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.58",
+    "by": "agent"
+  },
+  "id": "F-c2c9ddec",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

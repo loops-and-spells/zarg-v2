@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0021@5ba5c48f5031",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "transition",
+  "severity": "medium",
+  "note": "The step says 'codes each plan in its own worktree', implying per-card worktrees, but the verify gate's scope is unstated — per worktree/card or one session-wide gate? The prior step's 'changed cards' plural doesn't map cleanly to a single gate.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.56",
+    "by": "agent"
+  },
+  "id": "F-6406ab7b",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0025@156d906063ce",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Driver Agent",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "The step says one question with options is shown, but the choice after it is unclear, so I cannot tell what any option means or which one fits the reconcile finding. In op I would add a per-option outcome/description so the operator choice is unambiguous. / \"Then one question with options is shown\" names neither who shows it nor what the options are. The Driver Agent just read the agenda, so it should be the one asking the operator, with options derived from the reconcile finding. / One question with options is shown, yet the reconcile finding may span several card worktrees conflicting in an obvious way, so which conflict it asks about is unclear. Singular presentation of a multi-part finding reads as ambiguity for the Driver.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.72",
+    "by": "agent"
+  },
+  "id": "F-ae3132b7",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

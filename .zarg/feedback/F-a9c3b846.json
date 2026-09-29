@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0055@1162ab41ff27",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "gap",
+  "severity": "high",
+  "note": "No first fix attempt or its outcome appears, so “second fix attempt still fails” has no grounded predecessor. op: insert a card “Implementer attempts first fix after verify gate fail” and a gate rerun before this step. / A failed second fix has no defined consequence here. Driver agenda surfaces a reconcile finding but no blocker, re-plan, or escalation gets created. / “Second fix attempt” presupposes a first fix attempt, but the graph never shows who attempted it or how it failed. Add op `implementer_fix_attempt_1_fails` after `verify_gate_fails`, so this step has an antecedent.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.86",
+    "by": "agent"
+  },
+  "id": "F-a9c3b846",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0048@d814d2c2e755",
+  "journeys": [
+    "Watch agents"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "gap",
+  "severity": "high",
+  "note": "The refusal names the missing service but gives no path to obtain it, so I face a blocked run I cannot resolve. Make the refusal emit the remediation op (the grant request) alongside the missing name.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.57",
+    "by": "agent"
+  },
+  "id": "F-2c453c96",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ],
+  "state": "planned"
+}

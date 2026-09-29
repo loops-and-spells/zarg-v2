@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0006@d2ea9a633ed7",
+  "journeys": [
+    "CLI actor"
+  ],
+  "persona": "CLI actor",
+  "kind": "transition",
+  "severity": "low",
+  "note": "The prior step refuses a duplicate link; this step then saves one node file, which reads like a different outcome than redoing the refused link. Clarify that the hint redirects to a deduplicated/single-write op rather than replaying the same change.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.60",
+    "by": "agent"
+  },
+  "id": "F-2a56b854",
+  "count": 1,
+  "runs": [
+    "rehearse:r-254dec3c"
+  ],
+  "state": "closed",
+  "notReportedIn": "r-bc02dc92"
+}

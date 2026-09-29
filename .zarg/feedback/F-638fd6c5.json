@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0038@630329866e1e",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Driver Agent",
+  "kind": "feature",
+  "severity": "low",
+  "note": "You would want each question to carry the agenda item that spawned it, so the answer attaches to the right requirement. Suggest op edge tagging the question node with its source agenda entry. / I would want option text to name the requirement it answers, so the choice becomes traceable. Suggested graph change in op: add an edge from each option to its recorded requirement, and a fallback edge from empty/invalid choice to re-question.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-638fd6c5",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

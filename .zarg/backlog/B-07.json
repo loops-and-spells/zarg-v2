@@ -1,0 +1,103 @@
+{
+  "title": "Child agent appears",
+  "journey": "Watch agents",
+  "cards": [
+    {
+      "ref": "gherkin/card:UX-0041@3ea582a7789a"
+    }
+  ],
+  "changes": [
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0041",
+        "when": "the parent run transfers next work to a child agent"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0041",
+        "edge": "then",
+        "state": {
+          "text": "the child receives ownership of the handed-off work"
+        }
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Parent run confirms handoff",
+        "when": "the child accepts the transferred work",
+        "by": [
+          {
+            "name": "Driver Agent"
+          }
+        ],
+        "arrives": {
+          "id": "S-0040"
+        },
+        "then": [
+          {
+            "text": "the parent run remains owner of the run"
+          },
+          {
+            "text": "the child sub-run owns only the handed-off work"
+          },
+          {
+            "text": "an accepted handoff grants the child a running state"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Parent run aborts dangling handoff",
+        "when": "the child rejects the transferred work",
+        "by": [
+          {
+            "name": "Driver Agent"
+          }
+        ],
+        "arrives": {
+          "id": "S-0040"
+        },
+        "then": [
+          {
+            "text": "the parent run ends the dangling child sub-run"
+          },
+          {
+            "text": "the parent run keeps the work itself"
+          },
+          {
+            "text": "no orphaned child continues work"
+          }
+        ]
+      }
+    }
+  ],
+  "feedback": [
+    "F-1430ac4e",
+    "F-7acfa835",
+    "F-a50f07e1",
+    "F-b56671b6",
+    "F-ef320313"
+  ],
+  "steps": [
+    "Parent transfers ownership",
+    "Child run receives the child actor",
+    "Acceptance moment recorded",
+    "Rejection handling stated"
+  ],
+  "persona": "Driver Agent",
+  "severity": "medium",
+  "id": "B-07",
+  "status": "backlog",
+  "events": [
+    {
+      "what": "planned",
+      "by": "Triage Agent"
+    }
+  ]
+}

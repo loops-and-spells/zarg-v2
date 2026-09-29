@@ -1,0 +1,24 @@
+{
+  "ref": "gherkin/card:UX-0068@62c466508aa8",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "The trigger \"fails three times in ten minutes\" is untyped (denied scope? crash? timeout?), so I cannot tell whether these failures mean the approved scope set was too small. Suggest op: split this node into distinct failure kinds, or annotate which kind counts toward disable.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.88",
+    "by": "agent"
+  },
+  "id": "F-d0c4262c",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ]
+}

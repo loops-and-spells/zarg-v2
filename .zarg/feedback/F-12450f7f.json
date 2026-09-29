@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0025@156d906063ce",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Driver Agent",
+  "kind": "gap",
+  "severity": "high",
+  "note": "Because the choice after it is unclear, the step has no stated failure path for an operator who cannot answer; I need a fallback. In op I would add a reopen-agenda, defer, or ask-again branch. / Reading the agenda again cannot generate a question by itself; the reconcile finding must produce it. The step skips how the finding turns into one question with options, which is the missing causal link. / There is no handling for the operator's answer or non-answer: if the chosen option does not reconcile the conflict, nothing says the finding repeats or the loop continues. The step needs an outcome branch after the question is answered.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.77",
+    "by": "agent"
+  },
+  "id": "F-12450f7f",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

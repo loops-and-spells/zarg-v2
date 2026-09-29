@@ -1,0 +1,24 @@
+{
+  "ref": "gherkin/card:UX-0059@76562076f960",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Operator",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "If /reconcile is the command meant to reconcile, then after typing it reconcile cannot remain off; if it only reports status, then the command name misleads. Rename or split the two ops so the output matches the action.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.76",
+    "by": "agent"
+  },
+  "id": "F-7e8d44ba",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0029@8a6d5f9e1bd6",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "feature",
+  "severity": "medium",
+  "note": "I would want the failed field to stay editable with the schema error visible until the value passes. That lets the operator fix it in place rather than restart setup. / An inline affordance to correct or skip the offending field and continue would make this recoverable. / I would want the schema error pinned to that one failing field with the entered value retained, so correction is inline and I stay inside setup. That would also make the next choice obvious (edit that field, not re-see all fields).",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-b10ce465",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

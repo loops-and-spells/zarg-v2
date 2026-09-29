@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0068@62c466508aa8",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "If the plugin disables itself and explains in the agenda while running only its approved scopes, its action exceeds the grant; the disable decision should sit with the operator/watchdog rather than the plugin.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.60",
+    "by": "agent"
+  },
+  "id": "F-3ad6cb19",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

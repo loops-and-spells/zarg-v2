@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0019@d2888fbcc21b",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "gap",
+  "severity": "high",
+  "note": "There is no route when neither version fits — no keep-both, defer, or conflict flag. Add an op that handles refused or deferred merges so the graph does not stall. / The operator picks a version, but that picked version can be stale by the time it saves—the prior 'save refused as stale' case is not handled here. Add an op branch: after pick, if save refuses stale, re-open the merge question or a re-confirm merge. / Picking one version leaves the other conflicting edit's fate unspecified: nothing says discarded, kept, or marked merged, so the graph can still carry two divergent answers after the save. Add a reconcile op (mark the unpicked edit merged/discarded) before 'answer saved to the graph'.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.81",
+    "by": "agent"
+  },
+  "id": "F-84ae11f8",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

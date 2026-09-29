@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0012@580d42ae0eb9",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "feature",
+  "severity": "medium",
+  "note": "A Continue affordance after chat that previews how the next question changed (new options, recomputed recommendation) would make the shaping legible. Cheap to add, high payoff. / I would want the original options to stay reachable during discussion, so the operator can switch back without losing the topic. Suggest an op “resume options” that re-emits the question with options from the graph. / I would want visible post-chat controls: send message, continue current question, open shaped question, or end discussion.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-b6a6e915",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

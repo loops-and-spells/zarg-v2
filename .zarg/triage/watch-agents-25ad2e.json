@@ -1,0 +1,416 @@
+{
+  "journey": "Watch agents",
+  "stage": "planned",
+  "proposals": [
+    {
+      "card": "UX-0041",
+      "changes": [
+        {
+          "tool": "edit-card",
+          "params": {
+            "id": "UX-0041",
+            "when": "the parent run transfers next work to a child agent"
+          }
+        },
+        {
+          "tool": "link",
+          "params": {
+            "card": "UX-0041",
+            "edge": "then",
+            "state": {
+              "text": "the child receives ownership of the handed-off work"
+            }
+          }
+        },
+        {
+          "tool": "add-card",
+          "params": {
+            "title": "Parent run confirms handoff",
+            "when": "the child accepts the transferred work",
+            "by": [
+              {
+                "name": "Driver Agent"
+              }
+            ],
+            "arrives": {
+              "id": "S-0040"
+            },
+            "then": [
+              {
+                "text": "the parent run remains owner of the run"
+              },
+              {
+                "text": "the child sub-run owns only the handed-off work"
+              },
+              {
+                "text": "an accepted handoff grants the child a running state"
+              }
+            ]
+          }
+        },
+        {
+          "tool": "add-card",
+          "params": {
+            "title": "Parent run aborts dangling handoff",
+            "when": "the child rejects the transferred work",
+            "by": [
+              {
+                "name": "Driver Agent"
+              }
+            ],
+            "arrives": {
+              "id": "S-0040"
+            },
+            "then": [
+              {
+                "text": "the parent run ends the dangling child sub-run"
+              },
+              {
+                "text": "the parent run keeps the work itself"
+              },
+              {
+                "text": "no orphaned child continues work"
+              }
+            ]
+          }
+        }
+      ],
+      "answers": [
+        "F-1430ac4e",
+        "F-7acfa835",
+        "F-a50f07e1",
+        "F-b56671b6",
+        "F-ef320313"
+      ],
+      "summary": "Reworked the child-appearance card so the parent run explicitly transfers ownership, added an acceptance moment plus rejection handling, and stated the receiving actor and child run state.",
+      "status": "accepted",
+      "title": "A child agent appears",
+      "tries": [
+        {
+          "ms": 212576,
+          "tokensIn": 818,
+          "tokensOut": 275,
+          "reasoning": 0,
+          "finish": "stop",
+          "problems": [
+            "the model did not answer with the JSON asked for"
+          ]
+        },
+        {
+          "ms": 2526,
+          "tokensIn": 834,
+          "tokensOut": 318,
+          "reasoning": 0,
+          "finish": "stop",
+          "problems": []
+        }
+      ]
+    },
+    {
+      "card": "UX-0048",
+      "changes": [
+        {
+          "tool": "edit-state",
+          "params": {
+            "id": "S-0052",
+            "text": "the invocation is refused before it runs"
+          }
+        },
+        {
+          "tool": "edit-state",
+          "params": {
+            "id": "S-0053",
+            "text": "the refusal names the missing operator-granted scope and emits the grant request"
+          }
+        },
+        {
+          "tool": "edit-state",
+          "params": {
+            "id": "S-0040",
+            "text": "the agent run starts and the operator-granted scopes are loaded"
+          }
+        },
+        {
+          "tool": "edit-card",
+          "params": {
+            "id": "UX-0048",
+            "title": "A service outside the operator-granted scopes is refused",
+            "when": "an agent attempts to invoke a service outside the operator-granted scopes"
+          }
+        },
+        {
+          "tool": "link",
+          "params": {
+            "card": "UX-0048",
+            "edge": "then",
+            "state": {
+              "text": "the agent surfaces the refusal to the operator, extends the grant, and retries"
+            }
+          }
+        }
+      ],
+      "answers": [
+        "F-14872e6a",
+        "F-2c453c96",
+        "F-30cb1c71",
+        "F-64af8bd3",
+        "F-a6155c46"
+      ],
+      "summary": "I reworded the trigger to an attempt, loaded the granted scopes at run start, mapped preset to operator-granted scopes, and made the refusal name and emit the grant request plus a retry escalation.",
+      "status": "accepted",
+      "title": "A service outside the preset is refused",
+      "tries": [
+        {
+          "ms": 2124,
+          "tokensIn": 833,
+          "tokensOut": 278,
+          "reasoning": 0,
+          "finish": "stop",
+          "problems": []
+        }
+      ]
+    },
+    {
+      "card": "UX-0046",
+      "changes": [
+        {
+          "tool": "add-card",
+          "params": {
+            "title": "Run records the blocking reason",
+            "when": "the refusal happens",
+            "by": [
+              {
+                "name": "Operator"
+              }
+            ],
+            "arrives": {
+              "id": "S-0050"
+            },
+            "then": [
+              {
+                "text": "the reason is appended to run state"
+              },
+              {
+                "text": "the run continues within granted scopes"
+              }
+            ]
+          }
+        },
+        {
+          "tool": "edit-card",
+          "params": {
+            "id": "UX-0046",
+            "when": "an agent reads an env file inside its declared workspace"
+          }
+        },
+        {
+          "tool": "edit-state",
+          "params": {
+            "id": "S-0050",
+            "text": "the read is refused: reason names the file and blocking gate"
+          }
+        },
+        {
+          "tool": "edit-card",
+          "params": {
+            "id": "UX-0046",
+            "title": "Env files stay hidden; refusal reason names file and gate"
+          }
+        }
+      ],
+      "answers": [
+        "F-533ff1d0",
+        "F-73b92833",
+        "F-d20e8f7f"
+      ],
+      "summary": "Refusals now name the file and gate within the declared workspace, and the run records the reason then continues.",
+      "status": "accepted",
+      "title": "Env files stay hidden from agents",
+      "tries": [
+        {
+          "ms": 1917,
+          "tokensIn": 713,
+          "tokensOut": 216,
+          "reasoning": 0,
+          "finish": "stop",
+          "problems": []
+        }
+      ]
+    }
+  ],
+  "draft": [
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0041",
+        "when": "the parent run transfers next work to a child agent"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0041",
+        "edge": "then",
+        "state": {
+          "text": "the child receives ownership of the handed-off work"
+        }
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Parent run confirms handoff",
+        "when": "the child accepts the transferred work",
+        "by": [
+          {
+            "name": "Driver Agent"
+          }
+        ],
+        "arrives": {
+          "id": "S-0040"
+        },
+        "then": [
+          {
+            "text": "the parent run remains owner of the run"
+          },
+          {
+            "text": "the child sub-run owns only the handed-off work"
+          },
+          {
+            "text": "an accepted handoff grants the child a running state"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Parent run aborts dangling handoff",
+        "when": "the child rejects the transferred work",
+        "by": [
+          {
+            "name": "Driver Agent"
+          }
+        ],
+        "arrives": {
+          "id": "S-0040"
+        },
+        "then": [
+          {
+            "text": "the parent run ends the dangling child sub-run"
+          },
+          {
+            "text": "the parent run keeps the work itself"
+          },
+          {
+            "text": "no orphaned child continues work"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0052",
+        "text": "the invocation is refused before it runs"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0053",
+        "text": "the refusal names the missing operator-granted scope and emits the grant request"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0040",
+        "text": "the agent run starts and the operator-granted scopes are loaded"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0048",
+        "title": "A service outside the operator-granted scopes is refused",
+        "when": "an agent attempts to invoke a service outside the operator-granted scopes"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "card": "UX-0048",
+        "edge": "then",
+        "state": {
+          "text": "the agent surfaces the refusal to the operator, extends the grant, and retries"
+        }
+      }
+    },
+    {
+      "tool": "add-card",
+      "params": {
+        "title": "Run records the blocking reason",
+        "when": "the refusal happens",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "id": "S-0050"
+        },
+        "then": [
+          {
+            "text": "the reason is appended to run state"
+          },
+          {
+            "text": "the run continues within granted scopes"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0046",
+        "when": "an agent reads an env file inside its declared workspace"
+      }
+    },
+    {
+      "tool": "edit-state",
+      "params": {
+        "id": "S-0050",
+        "text": "the read is refused: reason names the file and blocking gate"
+      }
+    },
+    {
+      "tool": "edit-card",
+      "params": {
+        "id": "UX-0046",
+        "title": "Env files stay hidden; refusal reason names file and gate"
+      }
+    }
+  ],
+  "inputs": [
+    "F-1430ac4e",
+    "F-14872e6a",
+    "F-2c453c96",
+    "F-30cb1c71",
+    "F-533ff1d0",
+    "F-64af8bd3",
+    "F-73b92833",
+    "F-7acfa835",
+    "F-a50f07e1",
+    "F-a6155c46",
+    "F-b56671b6",
+    "F-d20e8f7f",
+    "F-ef320313"
+  ],
+  "queued": 1,
+  "items": [
+    "B-07",
+    "B-08",
+    "B-09"
+  ]
+}

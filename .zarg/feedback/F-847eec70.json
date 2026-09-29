@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0035@f8114a7f2b09",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "transition",
+  "severity": "medium",
+  "note": "Local models are listed first, yet nothing echoes what was chosen after saving, so the choice after it is unclear. The step should show the picked model before and after the config write.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.60",
+    "by": "agent"
+  },
+  "id": "F-847eec70",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

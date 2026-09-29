@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0076@a1c234506d0b",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Operator",
+  "kind": "gap",
+  "severity": "high",
+  "note": "Nothing states what happens when the Markdown exceeds the share — truncate, scroll, shrink font, or expand the share. That failure has no handling, so I have nothing to run.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.72",
+    "by": "agent"
+  },
+  "id": "F-c3fcd375",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

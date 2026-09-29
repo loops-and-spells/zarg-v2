@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0030@eae5a0e8c51c",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "friction",
+  "severity": "high",
+  "note": "The step says 'When a role uses a provider without a key' and then 'offers provider setup or another model,' but the operator cannot tell who is deciding or what happens after choosing. Make the Then a concrete operator-facing choice with a default (setup) and listed consequences.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.92",
+    "by": "agent"
+  },
+  "id": "F-cd61693a",
+  "count": 1,
+  "runs": [
+    "rehearse:r-254dec3c"
+  ],
+  "state": "closed",
+  "notReportedIn": "r-bc02dc92"
+}

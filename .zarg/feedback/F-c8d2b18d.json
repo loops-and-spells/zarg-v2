@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0028@403037518013",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Operator",
+  "kind": "gap",
+  "severity": "medium",
+  "note": "\"nothing is stored\" doesn't say whether the rejected values stay in the visible fields or are cleared. If cleared, I must retype the sensitive characters that were hidden, which is avoidable friction; state preservation or wipe explicitly. / No distinct failure-handling node exists: rejection is handled by showing a reason and not storing, then returning to the same Given state as a silent loop. Nothing says what happens to the attempted values or whether retry is possible.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.72",
+    "by": "agent"
+  },
+  "id": "F-c8d2b18d",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0024@10ec1fd12b68",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "transition",
+  "severity": "high",
+  "note": "The outcome outruns its source: reconcile already surfaced findings at the reconcile/Planner step, but here the agenda only shows them once a contradiction emerges during implementation. That ordering makes the display late and disconnected from the step before. / A card contradicting another card is a requirement-level conflict that already existed once the Planner Agent wrote plans; it cannot be produced by the Implementer Agent, which only fixes code and never edits requirements. The step therefore does not follow from \"each changed card has a plan file, and the Implementer Agent works on the changed cards.\" / The preceding step ended on a failed check driving Implementer rework, which does not lead here. Contradictions are a separate concern, so the step does not follow from the one before.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.83",
+    "by": "agent"
+  },
+  "id": "F-4bc850aa",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

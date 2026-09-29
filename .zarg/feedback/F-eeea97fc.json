@@ -1,0 +1,24 @@
+{
+  "ref": "gherkin/card:UX-0062@dd9dd9bcb386",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Plugin Agent",
+  "kind": "contradiction",
+  "severity": "medium",
+  "note": "A plugin that runs with only its approved scopes asking for a scope suggests it can widen its own bounds, which conflicts with the locked scopes the setup step establishes. Clarify that it may ask, but the operator still holds the grant.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bc02dc92"
+  },
+  "triage": {
+    "on": false,
+    "why": "drop · real 0.34",
+    "by": "agent"
+  },
+  "id": "F-eeea97fc",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bc02dc92"
+  ]
+}

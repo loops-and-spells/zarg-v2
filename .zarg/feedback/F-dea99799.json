@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0010@5ad0f6b9a995",
+  "journeys": [
+    "Talk with zarg"
+  ],
+  "persona": "Driver Agent",
+  "kind": "friction",
+  "severity": "medium",
+  "note": "“reads the agenda again” does not say whether the saved answer updated the agenda, so the question shown may be the same one as before. That is exactly why the choice after it is unclear: same question again or a new one?",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "fix · real 0.85",
+    "by": "agent"
+  },
+  "id": "F-dea99799",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

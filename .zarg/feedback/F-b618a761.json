@@ -1,0 +1,26 @@
+{
+  "ref": "gherkin/card:UX-0004@f98906e430a1",
+  "journeys": [
+    "CLI actor"
+  ],
+  "persona": "CLI actor",
+  "kind": "feature",
+  "severity": "low",
+  "note": "A preview of which cards are affected before committing the reword would help the actor avoid blind edits; undo/rollback is also worth wanting.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-b618a761",
+  "count": 1,
+  "runs": [
+    "rehearse:r-254dec3c"
+  ],
+  "state": "closed",
+  "notReportedIn": "r-bc02dc92"
+}

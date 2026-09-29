@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0054@51246b0a64ec",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "gap",
+  "severity": "high",
+  "note": "Only the escalate branch has an outcome; the companion path where the conflict is an obvious fix has none, so half the branch this trigger creates is unspecified. / \"beyond an obvious fix\" has no defined criterion, so nobody can tell when the Implementer should repair in its own worktree versus escalate. As written, the reconcile finding fires even for conflicts a trivial worktree-local fix would have cleared. / The step ends at “agenda shows the reconcile finding” but never states how the conflict gets resolved — no reconcile work is scheduled, no person/agent owns the fix. A finding on an agenda is information, not action; the journey stalls here.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.83",
+    "by": "agent"
+  },
+  "id": "F-f481fd41",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0039@c9708e26a8c5",
+  "journeys": [
+    "Set up"
+  ],
+  "persona": "Driver Agent",
+  "kind": "feature",
+  "severity": "low",
+  "note": "I would want the failure reason to state whether the same model is retryable vs must be replaced, and whether the failure is transient. In op: annotate the reason with retryability and suggested alternatives.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-8082b624",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

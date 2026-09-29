@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0058@692a1609717f",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Operator",
+  "kind": "feature",
+  "severity": "low",
+  "note": "An explicit decision point per card would make this feel safe: approve, edit, reject, or defer, with the default stated. Then write-plan becomes a presented artifact, not an implicit fate.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-c5f3dfb9",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0059@76562076f960",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Operator",
+  "kind": "gap",
+  "severity": "high",
+  "note": "The operator is told why reconcile stays off but gets no way to turn it on; plan/implement models are named as a prerequisite with no enabling action attached. Suggest op change: extend this step with a remedy op, e.g. \"Then the reason and a one-step fix (create/import the models) are shown.\"",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.76",
+    "by": "agent"
+  },
+  "id": "F-72b9ebfa",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}

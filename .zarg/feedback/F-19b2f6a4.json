@@ -1,0 +1,25 @@
+{
+  "ref": "gherkin/card:UX-0054@51246b0a64ec",
+  "journeys": [
+    "Reconcile"
+  ],
+  "persona": "Implementer Agent",
+  "kind": "transition",
+  "severity": "high",
+  "note": "The step jumps from \"Implementer works on the changed cards\" to a reconcile finding sitting on the Driver's agenda, without naming the actor or op that puts it there. Add an op: Implementer raises a beyond-fix worktree conflict → Driver agenda shows reconcile finding. / The prior step is “a check fails; then the Implementer Agent works on the changed cards,” a repair loop that says nothing about conflicts arising across worktrees. This step appears from nowhere — the trigger that a conflict exists and who reports it is missing. / Driver Agent appears only at this final step, while prior steps ran on Operator and Implementer. Introducing a new actor at the agenda-display moment reads as an abrupt shift in the journey.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-254dec3c"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.71",
+    "by": "agent"
+  },
+  "id": "F-19b2f6a4",
+  "count": 2,
+  "runs": [
+    "rehearse:r-254dec3c",
+    "rehearse:r-bc02dc92"
+  ]
+}
