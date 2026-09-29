@@ -21,16 +21,20 @@ describe("the Triage Agent's view", () => {
     const v = triageView({ stages: [round], journeys, working: { journey: "Talk with zarg", card: "UX-0017", since: 1_000 }, now: 39_000, paused: false, diffs: {} })
     expect(v.summary).toContain("**refining Talk with zarg**")
     expect(v.summary).toContain("3/5 cards · 2 drafted · 1 retried · 1 left out · ~3 min left")
-    expect(v.summary).toContain("⠹ **UX-0017** Driver Agent merges compatible edits · drafting · 38 s")
-    expect(v.cards.map((r) => [r.cells.g, r.id, r.cells.time, r.cells.tokens, r.cells.think])).toEqual([
-      ["✓", "UX-0071", "41 s", "5.2k → 1.8k", "▮▮▮▮▯▯"],
-      ["↻", "UX-0077", "1 m 20 s", "10.4k → 3.3k", "▮▮▮▮▯▯"],
-      ["✗", "UX-0012", "4 m 10 s", "10.4k → 21.3k", "▮▮▮▮▮▮"],
-      ["⠹", "UX-0017", "38 s", "", ""],
-      ["·", "UX-0010", "", "", ""],
+    // The view redraws only when the agent pushes: no spinner, no running clock.
+    expect(v.summary).toContain("● **UX-0017** Driver Agent merges compatible edits · drafting")
+    expect(v.summary).not.toContain("38 s")
+    // The table is the outcome and the card; the rest is in the detail.
+    expect(v.cards.map((r) => [r.cells.g, r.id, Object.keys(r.cells)])).toEqual([
+      ["✓", "UX-0071", ["g", "card"]],
+      ["↻", "UX-0077", ["g", "card"]],
+      ["✗", "UX-0012", ["g", "card"]],
+      ["●", "UX-0017", ["g", "card"]],
+      ["·", "UX-0010", ["g", "card"]],
     ])
-    expect(v.cards[2]!.cells.why).toBe("6 thens")
     expect(v.cards[2]!.tone).toBe("error")
+    expect(v.details["UX-0017"]).toContain("The Triage Agent is asking the model about this card now")
+    expect(v.details["UX-0010"]).toContain("Waiting its turn")
     expect(v.cards[0]!.cells.card).toBe("gherkin/card:UX-0071")
   })
   test("a card's detail: each try (time, tokens, how it ended, what was wrong), then its change", () => {
@@ -39,12 +43,16 @@ describe("the Triage Agent's view", () => {
     expect(v.details["UX-0012"]).toContain("2 tries · 4 m 10 s · 10.4k → 21.3k tokens")
     expect(v.details["UX-0012"]).toContain("✗ try 1 · 3 m 00 s · 5.2k → 16.4k · 16.4k reasoning · stopped at the token limit")
     expect(v.details["UX-0012"]).toContain("  the model gave no answer")
+    expect(v.details["UX-0012"]).toContain("▮▮▮▮▮▮ reasoning")
+    // Left out before tries were kept: its problems still show.
+    const old = triageView({ stages: [{ ...round, proposals: [{ card: "UX-0018", status: "skipped" as const, summary: "", changes: [], answers: [], problems: ["the Triage Agent could not draft a proposal"] }] }], journeys, now: 0, paused: false, diffs: {} })
+    expect(old.details["UX-0018"]).toContain("Left out: the Triage Agent could not draft a proposal")
     expect(v.details["UX-0071"]).toContain("```diff\n- When a\n+ When b\n```")
   })
   test("re-rehearsing: one line for the run", () => {
     const v = triageView({ stages: [{ ...round, stage: "rehearse", run: "r-4c1a" }], journeys, working: { journey: "Talk with zarg", card: "", since: 0 }, now: 720_000, paused: false, diffs: {} })
     expect(v.summary).toContain("**re-rehearsing Talk with zarg** over the draft")
-    expect(v.summary).toContain("⠹ run r-4c1a · 12 m 00 s · its testers are in rehearse's view")
+    expect(v.summary).toContain("● run r-4c1a · its testers are in rehearse's view")
   })
   test("idle: what each journey waits for; the last round's numbers and why cards were left out", () => {
     const v = triageView({ stages: [{ ...round, stage: "plan", plan: { title: "t", steps: [] } }], journeys, now: 0, paused: false, diffs: {} })
@@ -62,5 +70,11 @@ describe("the Triage Agent's view", () => {
   })
   test("durations read as seconds, then minutes and seconds", () => {
     expect([dur(900), dur(38_000), dur(80_000), dur(3_600_000)]).toEqual(["1 s", "38 s", "1 m 20 s", "60 m 00 s"])
+  })
+  test("time left averages only the cards whose tries were kept", () => {
+    const early = { card: "UX-0018", status: "skipped" as const, summary: "", changes: [], answers: [], problems: ["no proposal"] }
+    const v = triageView({ stages: [{ ...round, proposals: [early, ...round.proposals] }], journeys, working: { journey: "Talk with zarg", card: "UX-0017", since: 0 }, now: 0, paused: false, diffs: {} })
+    // (41 + 80 + 250 s) / 3 cards ≈ 124 s each, 2 waiting: ~4 min.
+    expect(v.summary).toContain("~4 min left")
   })
 })

@@ -22,7 +22,7 @@ const think = (ts: ReadonlyArray<Try>) => {
 }
 const plural = (n: number, s: string) => `${n} ${s}${n === 1 ? "" : "s"}`
 const decided = (st: StageView) => st.proposals.filter((p) => p.status === "accepted" || p.status === "skipped")
-const glyph = (p: P, inFlight: boolean) => (p.status === "accepted" ? (triesOf(p).length > 1 ? "↻" : "✓") : p.status === "skipped" ? "✗" : inFlight ? "⠹" : "·")
+const glyph = (p: P, inFlight: boolean) => (p.status === "accepted" ? (triesOf(p).length > 1 ? "↻" : "✓") : p.status === "skipped" ? "✗" : inFlight ? "●" : "·")
 const STAGE = { triage: "Triage", refine: "Refine", rehearse: "Re-rehearse", plan: "Plan", planned: "Planned" } as const
 
 /** The Triage Agent's view from the journeys' stages: a summary, the round's cards (each with its tries in full), the journeys. */
@@ -37,27 +37,30 @@ export const triageView = (o: {
 }) => {
   const active = o.working !== undefined ? o.stages.find((s) => s.journey === o.working!.journey) : undefined
   // The round the table shows: the one being worked, else the last one with tries.
-  const round = active ?? o.stages.find((s) => s.stage !== "triage" && s.stage !== "planned" && s.proposals.some((p) => triesOf(p).length > 0)) ?? o.stages.find((s) => s.proposals.some((p) => triesOf(p).length > 0))
+  const round = active ?? o.stages.find((s) => s.stage !== "triage" && s.stage !== "planned" && s.proposals.some((p) => triesOf(p).length > 0)) ?? o.stages.find((s) => s.proposals.some((p) => triesOf(p).length > 0)) ?? o.stages.find((s) => s.stage !== "triage" && s.stage !== "planned")
   const elapsed = o.working !== undefined ? o.now - o.working.since : 0
 
   const lines: Array<string> = []
   if (o.paused) lines.push("**paused** · p resumes")
   if (active !== undefined && active.stage === "refine") {
     const done = decided(active)
-    const avg = sum(done.map((p) => sum(triesOf(p).map((t) => t.ms)))) / Math.max(1, done.length)
+    // Only cards whose tries were kept say how long a card takes.
+    const timed = done.filter((p) => triesOf(p).length > 0)
+    const avg = sum(timed.map((p) => sum(triesOf(p).map((t) => t.ms)))) / Math.max(1, timed.length)
     const waiting = active.proposals.filter((p) => p.status === "waiting").length
-    const left = done.length > 0 ? ` · ~${Math.max(1, Math.round((avg * waiting - elapsed) / 60_000))} min left` : ""
+    const left = timed.length > 0 ? ` · ~${Math.max(1, Math.round((avg * waiting - elapsed) / 60_000))} min left` : ""
     lines.push(`**refining ${active.journey}** · ${done.length}/${active.proposals.length} cards · ${active.proposals.filter((p) => p.status === "accepted").length} drafted · ${active.proposals.filter((p) => p.status === "accepted" && triesOf(p).length > 1).length} retried · ${done.filter((p) => p.status === "skipped").length} left out${left}`)
     const p = active.proposals.find((x) => x.card === o.working!.card)
-    if (p !== undefined) lines.push("", `⠹ **${p.card}**${p.title !== undefined ? ` ${p.title}` : ""} · drafting · ${dur(elapsed)}`)
+    if (p !== undefined) lines.push("", `● **${p.card}**${p.title !== undefined ? ` ${p.title}` : ""} · drafting`)
   } else if (active !== undefined && active.stage === "rehearse") {
-    lines.push(`**re-rehearsing ${active.journey}** over the draft`, "", `⠹ run ${active.run ?? "starting"} · ${dur(elapsed)} · its testers are in rehearse's view`, "The result goes to Feedback: what is resolved, what is still reported, on to Plan.")
+    lines.push(`**re-rehearsing ${active.journey}** over the draft`, "", `● run ${active.run ?? "starting"} · its testers are in rehearse's view`, "The result goes to Feedback: what is resolved, what is still reported, on to Plan.")
   } else {
     lines.push("**idle** · wakes when a journey is refined or a run ends")
     if (round !== undefined) {
       const done = decided(round)
       const ts = round.proposals.flatMap(triesOf)
-      const perCard = sum(done.map((p) => sum(triesOf(p).map((t) => t.ms)))) / Math.max(1, done.length)
+      const timed = done.filter((p) => triesOf(p).length > 0)
+      const perCard = sum(timed.map((p) => sum(triesOf(p).map((t) => t.ms)))) / Math.max(1, timed.length)
       lines.push("", `Last round · ${round.journey}: ${plural(round.proposals.length, "card")} · ${round.proposals.filter((p) => p.status === "accepted").length} drafted · ${done.filter((p) => p.status === "skipped").length} left out · ${dur(perCard)} per card · ${Math.round((sum(ts.map((t) => t.reasoning)) / Math.max(1, sum(ts.map((t) => t.tokensOut)))) * 100)}% of tokens reasoning`)
       const failed = new Map<string, number>()
       for (const p of round.proposals) for (const t of triesOf(p)) for (const why of t.problems) failed.set(why, (failed.get(why) ?? 0) + 1)
@@ -73,14 +76,7 @@ export const triageView = (o: {
     const g = glyph(p, inFlight)
     cards.push({
       id: p.card,
-      cells: {
-        g,
-        card: `gherkin/card:${p.card}`,
-        time: inFlight ? dur(elapsed) : ts.length > 0 ? dur(sum(ts.map((t) => t.ms))) : "",
-        tokens: ts.length > 0 ? `${k(sum(ts.map((t) => t.tokensIn)))} → ${k(sum(ts.map((t) => t.tokensOut)))}` : "",
-        think: think(ts),
-        why: p.status === "accepted" ? p.summary : p.status === "skipped" ? (p.problems ?? []).join("; ") : inFlight ? "drafting" : (p.problems ?? []).length > 0 ? `again, after: ${p.problems!.join("; ")}` : "waiting",
-      },
+      cells: { g, card: `gherkin/card:${p.card}` },
       ...(p.status === "skipped" ? { tone: "error" as const } : p.status === "waiting" && !inFlight ? { tone: "dim" as const } : {}),
     })
     const status = p.status === "accepted" ? "drafted" : p.status === "skipped" ? "left out" : inFlight ? "drafting" : "waiting"
@@ -90,8 +86,13 @@ export const triageView = (o: {
       "",
       ...ts.flatMap((t, i) => [
         `${t.problems.length === 0 ? "✓" : "✗"} try ${i + 1} · ${dur(t.ms)} · ${k(t.tokensIn)} → ${k(t.tokensOut)} · ${k(t.reasoning)} reasoning${t.finish === "length" ? " · stopped at the token limit" : ""}`,
+        `  ${think([t])} reasoning`,
         ...t.problems.map((x) => `  ${x}`),
       ]),
+      // What it is doing, when it has no tries to show.
+      ...(inFlight ? ["The Triage Agent is asking the model about this card now; its tries show here when it answers."] : []),
+      ...(p.status === "waiting" && !inFlight ? [`Waiting its turn.${(p.problems ?? []).length > 0 ? ` Drafted again after: ${p.problems!.join("; ")}` : ""}`] : []),
+      ...(p.status === "skipped" && ts.length === 0 ? [`Left out: ${(p.problems ?? []).join("; ")}`] : []),
       ...(p.status === "accepted" ? ["", p.summary, ...(o.diffs[p.card] !== undefined ? ["", o.diffs[p.card]!] : [])] : []),
       ...(p.status === "skipped" && p.changes.length > 0 ? ["", "**Proposed** (not in the draft)", ...p.changes.map((c) => `- ${c.tool} ${JSON.stringify(c.params)}`)] : []),
       ...(p.status !== "waiting" ? ["", "d drafts it again, with what failed passed to the model."] : []),
@@ -108,7 +109,7 @@ export const triageView = (o: {
       : stage === "rehearse" ? `run ${st!.run ?? "starting"}`
       : stage === "plan" ? (st!.plan !== undefined ? "plan ready: accept or refine again in Feedback" : "drafting the plan")
       : `${st!.item ?? "a plan"} on the Backlog`
-    return { id: j.name, cells: { g: busy ? "⠹" : stage === "plan" && st!.plan !== undefined ? "◆" : stage === "planned" ? "✓" : "·", journey: j.name, stage: STAGE[stage], waits } }
+    return { id: j.name, cells: { g: busy ? "●" : stage === "plan" && st!.plan !== undefined ? "◆" : stage === "planned" ? "✓" : "·", journey: j.name, stage: STAGE[stage], waits } }
   })
   return { summary: lines.join("\n"), cards, details, journeys }
 }
