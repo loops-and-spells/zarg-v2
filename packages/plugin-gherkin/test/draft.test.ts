@@ -83,4 +83,21 @@ describe("drafts", () => {
     )
     expect(out.cards).toEqual(["UX-0001", "UX-0002", "UX-0003", "UX-0006"])
   })
+  test("compare: every card a draft touches (new ones too), as it is, as the draft leaves it, and as text, in one call", async () => {
+    const out = await run(
+      Effect.gen(function* () {
+        yield* pricing
+        const h = yield* PluginHost
+        return (yield* h.invoke("gherkin", "compare", { draft, cards: ["UX-0001"] })) as { ok: boolean; cards: Array<{ id: string; before: { thens: string[] } | null; after: { title: string; given: string } | null; text: string }> }
+      }),
+    )
+    expect(out.ok).toBe(true)
+    const byId = Object.fromEntries(out.cards.map((c) => [c.id, c]))
+    // Asked for, and touched by the reworded state.
+    expect(byId["UX-0001"]?.before).not.toBeNull()
+    // New: nothing before, the drafted card after.
+    expect(byId["UX-0006"]?.before).toBeNull()
+    expect(byId["UX-0006"]?.after?.title).toBe("Visitor reads a plan")
+    expect(byId["UX-0001"]?.text).toContain("UX-0001")
+  })
 })

@@ -26,6 +26,13 @@ export const StepView = Schema.NullOr(
 export const JourneyView = Schema.Struct({ id: Schema.String, name: Schema.String, cards: Schema.Array(Schema.String) })
 export const DryRunParams = Schema.Struct({ draft: Draft })
 /** A draft checked like a write: ok, or its problems (a tool's error, a lint); the nodes it would touch. */
+/** Cards a draft touches (and any named), each as it is, as the draft leaves it, and as text: one call for a plan's whole picture. */
+export const CompareParams = Schema.Struct({ draft: Draft, cards: Schema.optionalKey(Schema.Array(Schema.String)) })
+export const CompareResult = Schema.Struct({
+  ok: Schema.Boolean,
+  problems: Schema.Array(Schema.String),
+  cards: Schema.Array(Schema.Struct({ id: Schema.String, before: StepView, after: StepView, text: Schema.String })),
+})
 export const DryRunResult = Schema.Struct({ ok: Schema.Boolean, problems: Schema.Array(Schema.String), touched: Schema.Array(Schema.String), cards: Schema.Array(Schema.String), messages: Schema.Array(Schema.String) })
 export const PersonaView = Schema.Struct({
   id: Schema.String,
@@ -42,4 +49,5 @@ export const Gherkin = pluginContract("gherkin", {
   personas: { params: Schema.Struct({}), success: Schema.Array(PersonaView) },
   journeys: { params: Schema.Struct({}), success: Schema.Array(JourneyView) },
   dryRun: { params: DryRunParams, success: DryRunResult },
+  compare: { params: CompareParams, success: CompareResult },
 })

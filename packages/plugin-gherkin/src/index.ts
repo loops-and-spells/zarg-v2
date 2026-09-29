@@ -5,7 +5,7 @@ import { diff, type Node, Snapshot } from "@zarg/graph/pure"
 import { definePlugin, Graph, PluginFailure, Views } from "@zarg/plugin-sdk"
 import { affectedCards } from "./affected"
 import { agenda, suggest } from "./agenda"
-import { DryRunParams, DryRunResult, Gherkin, JourneyView, PersonaView, StepParams, StepView, StoriesParams, StoriesResult } from "./contract"
+import { CompareParams, CompareResult, DryRunParams, DryRunResult, Gherkin, JourneyView, PersonaView, StepParams, StepView, StoriesParams, StoriesResult } from "./contract"
 import { applyDraft, type Draft, dryRun } from "./draft"
 import type { Finding } from "./kit"
 import { clauseShape, journeyShape, personaShape, stateText } from "./lints"
@@ -87,6 +87,7 @@ export default definePlugin({
     },
     journeys: { doc: "Journeys, each with its cards.", params: Schema.Struct({}), success: Schema.Array(JourneyView) },
     dryRun: { doc: "Check a draft (gherkin tool calls, in order) as a write would, without writing.", params: DryRunParams, success: DryRunResult },
+    compare: { doc: "Every card a draft touches (and any named): as it is, as the draft leaves it, as text; one call.", params: CompareParams, success: CompareResult },
     affected: {
       doc: "Cards a change affects.",
       params: Schema.Struct({ before: SnapshotJson, after: SnapshotJson }),
@@ -134,6 +135,15 @@ export default definePlugin({
         Effect.map(drafted(draft), (s) => planStories(s, strategy, focus === undefined || focus.length === 0 ? undefined : new Set(focus))),
       step: ({ card, via, draft }: { card: string; via?: string; draft?: Draft }) => Effect.map(drafted(draft), (s) => stepView(s, card, via) ?? null),
       dryRun: ({ draft }: { draft: Draft }) => Effect.flatMap(snap, (s) => dryRun(s, draft, tools, (c) => validateProps(c), [clauseShape, stateText, personaShape, journeyShape], EDGES)),
+      // The graph read once, the draft applied once: a plan's whole picture in one call.
+      compare: ({ draft, cards }: { draft: Draft; cards?: ReadonlyArray<string> }) =>
+        Effect.gen(function* () {
+          const s = yield* snap
+          const checked = yield* dryRun(s, draft, tools, (c) => validateProps(c), [clauseShape, stateText, personaShape, journeyShape], EDGES)
+          const after = yield* applyDraft(s, draft, tools, EDGES).pipe(Effect.map((a) => a.snapshot), Effect.orElseSucceed(() => s))
+          const ids = [...new Set([...(cards ?? []), ...checked.cards])].filter((id) => s.nodes.get(id)?.type === "gherkin/card" || after.nodes.get(id)?.type === "gherkin/card")
+          return { ok: checked.ok, problems: checked.problems, cards: ids.map((id) => ({ id, before: stepView(s, id) ?? null, after: stepView(after, id) ?? null, text: s.nodes.has(id) ? render(s, new Set([id])) : "" })) }
+        }),
       journeys: () => Effect.map(snap, journeyList),
       // The nav item opens the view (Refresh reloads it): every journey, with every journey's flow for the one highlighted.
       act: ({ agent }: { agent: string; action: string; rows: ReadonlyArray<string> }) =>

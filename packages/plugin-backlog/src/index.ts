@@ -252,12 +252,14 @@ export default definePlugin({
         }
       })
     const changedRefs = (items: ReadonlyArray<Item>) =>
-      Effect.map(
-        // Only refs with the version the plan was drafted on (cards an apply added carry none: nothing to go stale).
-        Effect.forEach([...new Set(items.filter((i) => i.status === "backlog" || i.status === "ready").flatMap((i) => i.cards.map((c) => c.ref)).filter((ref) => parseRef(ref)?.version !== undefined))], (ref) =>
-          Effect.map(entities.changed(ref).pipe(Effect.orElseSucceed(() => false)), (c) => (c ? [ref] : [])), { concurrency: 8 }),
-        (xs) => new Set(xs.flat()),
-      )
+      Effect.gen(function* () {
+        // Only refs with the version the plan was drafted on (cards an apply added carry none: nothing to go stale); one lookup for all.
+        const refs = [...new Set(items.filter((i) => i.status === "backlog" || i.status === "ready").flatMap((i) => i.cards.map((c) => c.ref)).filter((ref) => parseRef(ref)?.version !== undefined))]
+        if (refs.length === 0) return new Set<string>()
+        const got = yield* entities.many(refs).pipe(Effect.orElseSucceed(() => ({ entities: [] as ReadonlyArray<{ ref: string }> })))
+        const now = new Set(got.entities.map((e) => e.ref))
+        return new Set(refs.filter((r) => !now.has(r)))
+      })
     const refreshBoard = Effect.gen(function* () {
       const items = (yield* loadItems).filter((i) => i.dropped !== true)
       const changed = yield* changedRefs(items)
@@ -293,17 +295,12 @@ export default definePlugin({
         if (i === undefined) return false
         const feedback = (yield* load).filter((e) => i.feedback.includes(e.id))
         const changed = yield* changedRefs([i])
-        const contexts = yield* Effect.forEach(i.cards.filter((c) => /card:UX-/.test(c.ref)), (c) => Effect.map(entities.context(target(c.ref)).pipe(Effect.orElseSucceed(() => "")), (t) => [parseRef(c.ref)?.id ?? c.ref, t] as const))
-        // Each card it touches (new ones too), as it is and as the plan leaves it.
+        // The whole picture in one call: each card it touches (new ones too), as it is, as the plan leaves it, as text.
+        const own = i.cards.map((c) => parseRef(c.ref)?.id ?? "").filter((c) => /^UX-/.test(c))
+        const compared = (yield* gherkin.compare({ draft: i.changes, cards: own }).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: [] as ReadonlyArray<string>, cards: [] as ReadonlyArray<{ id: string; before: null; after: null; text: string }> })))).cards
         const lines = (x: { given: string; when: string; thens: ReadonlyArray<string> } | null) => (x === null ? [] : [`Given ${x.given}`, `When  ${x.when}`, ...x.thens.map((t, k) => `${k === 0 ? "Then" : "And "}  ${t}`)])
-        const touched = (yield* gherkin.dryRun({ draft: i.changes }).pipe(Effect.orElseSucceed(() => ({ cards: [] as ReadonlyArray<string> })))).cards
-        const ids = [...new Set([...i.cards.map((c) => parseRef(c.ref)?.id ?? ""), ...touched])].filter((c) => /^UX-/.test(c))
-        const diffs = yield* Effect.forEach(ids, (card) =>
-          Effect.gen(function* () {
-            const before = yield* gherkin.step({ card }).pipe(Effect.orElseSucceed(() => null))
-            const after = yield* gherkin.step({ card, draft: i.changes }).pipe(Effect.orElseSucceed(() => null))
-            return { id: card, title: after?.title ?? before?.title ?? card, before: lines(before), after: lines(after) }
-          }))
+        const diffs = compared.map((c) => ({ id: c.id, title: c.after?.title ?? c.before?.title ?? c.id, before: lines(c.before), after: lines(c.after) }))
+        const contexts = compared.filter((c) => own.includes(c.id)).map((c) => [c.id, c.text] as const)
         const actions = ["move", "drop", ...(changed.size > 0 ? ["resync"] : [])]
         yield* views.set("backlog", ItemView, "item.plan", { markdown: planText(i, feedback, diffs.filter((d) => d.after.length > 0 && d.before.join("\n") !== d.after.join("\n")), changed), actions })
         yield* views.set("backlog", ItemView, "item.agent", { markdown: itemMarkdown(i, feedback, changed, contexts), actions })
@@ -480,7 +477,8 @@ export default definePlugin({
       Effect.gen(function* () {
         if (agent === "backlog") {
           const notice = yield* boardAct(action, rows, text)
-          yield* refreshBoard
+          // Opening a plan changes nothing on the board: no redraw.
+          if (action !== "item") yield* refreshBoard
           return { notice }
         }
         if (agent !== "feedback") return { notice: `backlog has no view ${agent}` }
