@@ -321,3 +321,40 @@ test("a view's own actions are buttons at its top; a click runs one", async () =
   await t.mockMouse.click(lines[y]!.indexOf("Drop") + 1, y)
   expect(acts).toEqual([[undefined, "drop", []]])
 })
+
+test("a view's only section takes the whole view, whatever its role (a drawer's text)", async () => {
+  const v: ViewState = {
+    agent: "backlog:item",
+    layout: layoutOf(defineView("item", { item: { kind: "text", role: "primary", title: "" } })),
+    data: { item: { markdown: Array.from({ length: 40 }, (_, i) => `line ${i}`).join("\n\n") } },
+  }
+  const t = await testRender(<AgentView view={v} ui={initialViewUi} height={30} />, { width: 60, height: 30, exitOnCtrlC: false, exitSignals: [] })
+  destroy = () => t.renderer.destroy()
+  await t.renderOnce()
+  await Bun.sleep(20)
+  await t.renderOnce()
+  expect(t.captureCharFrame()).toContain("line 12")
+})
+
+test("a view's buttons show only those its text offers now; a dropped-down Move lists its choices and a click picks one", async () => {
+  const LANES = [{ id: "backlog", label: "Backlog" }, { id: "ready", label: "Ready" }]
+  const v: ViewState = {
+    agent: "backlog:item",
+    layout: layoutOf(defineView("item", { item: { kind: "text", role: "primary", title: "" } }, { actions: [{ id: "move", label: "Move ▾", key: "m", on: "none", choices: LANES }, { id: "drop", label: "Drop", key: "X", on: "none" }, { id: "resync", label: "Resync", key: "s", on: "none" }] })),
+    data: { item: { markdown: "B-01", actions: ["move", "drop"] } },
+  }
+  const picks: Array<number> = []
+  const t = await testRender(<AgentView view={v} ui={{ ...initialViewUi, choose: { action: "move", rows: [], choices: LANES, pick: 0 } }} height={20} onAct={() => {}} onChoose={(i) => void picks.push(i)} />, { width: 60, height: 20, exitOnCtrlC: false, exitSignals: [] })
+  destroy = () => t.renderer.destroy()
+  await t.renderOnce()
+  await Bun.sleep(5)
+  await t.renderOnce()
+  const f = t.captureCharFrame()
+  expect(f).toContain("Move ▾")
+  expect(f).not.toContain("Resync")
+  const lines = f.split("\n")
+  const y = lines.findIndex((l) => /Ready/.test(l))
+  expect(y).toBeGreaterThan(lines.findIndex((l) => l.includes("Move ▾")))
+  await t.mockMouse.click(lines[y]!.indexOf("Ready"), y)
+  expect(picks).toEqual([1])
+})

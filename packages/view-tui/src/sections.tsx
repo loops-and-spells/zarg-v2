@@ -1,7 +1,7 @@
 import type { BoxRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react"
 import { useTerminalDimensions } from "@opentui/react"
-import { CHAT, type ConversationQuestion, conversationRows, cursorRow, enabledActions, pickCard, readOnlyRow, filterOf, followedText, keyFor, searchCount, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
+import { CHAT, type ConversationQuestion, conversationRows, cursorRow, enabledActions, pickCard, readOnlyRow, viewActions, filterOf, followedText, keyFor, searchCount, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
 import { fit, gauge, heading } from "./look"
 import { Board } from "./board"
 import { RichText } from "./markdown"
@@ -133,6 +133,21 @@ const tableLayout = (view: ViewState, path: string, leaf: LayoutLeaf, width: num
   const widths = fixedWidths.map((w) => (w === 0 ? Math.max(4, width - gutter - fixed) : w))
   const starts = widths.map((_, i) => gutter + widths.slice(0, i).reduce((a, w) => a + w + 2, 0))
   return { cols, rows, gutter, widths, starts }
+}
+/** An action's choices, dropped down under its button: the picked one highlighted; a click picks. */
+const Choices = (p: { readonly choose: NonNullable<ViewUi["choose"]>; readonly onPick?: (index: number) => void }) => {
+  const C = useColors()
+  const w = Math.max(...p.choose.choices.map((c) => c.label.length)) + 4
+  return (
+    <box style={{ flexDirection: "column", flexShrink: 0, border: true, borderStyle: "rounded", borderColor: C.accent, backgroundColor: C.raised, width: w + 2, marginTop: 1 }}>
+      {p.choose.choices.map((c, i) => (
+        <text key={c.id} wrapMode="none" {...(i === p.choose.pick ? { bg: C.selection } : {})} {...(p.onPick !== undefined ? { onMouseDown: () => p.onPick!(i) } : {})}>
+          <span fg={C.accent}>{i === p.choose.pick ? "▍ " : "  "}</span>
+          <span fg={C.text}>{c.label.padEnd(w - 2)}</span>
+        </text>
+      ))}
+    </box>
+  )
 }
 /** An action's line of text, while it is typed: ⏎ sends it, esc drops it. */
 const InputField = (p: { readonly input: NonNullable<ViewUi["input"]>; readonly width: number }) => {
@@ -473,7 +488,7 @@ const SHARE = { primary: "33%", pinned: "40%", aside: "25%" } as const
 export type Scroller = (delta: number) => void
 
 /** An agent's view in the terminal: its sections stacked by role, each a heading over its own scrollbox. */
-export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly width?: number; readonly scroller?: { current?: Scroller | undefined }; readonly onPick?: (sectionId: string, index: number) => void; readonly onAct?: (section: string | undefined, action: string, rows: ReadonlyArray<string>) => void; readonly onClear?: (section: string) => void; readonly onHeader?: (sectionId: string, col: number) => void; readonly onMenuPick?: (index: number) => void; readonly onMark?: (sectionId: string, index: number) => void; readonly onMenuAdjust?: (index: number, dir: number) => void; readonly onTab?: (sectionId: string, index: number) => void; readonly onSearch?: (sectionId: string, path: string) => void; readonly onBoardPick?: (path: string, lane: number, card: number) => void }) => {
+export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly width?: number; readonly scroller?: { current?: Scroller | undefined }; readonly onPick?: (sectionId: string, index: number) => void; readonly onAct?: (section: string | undefined, action: string, rows: ReadonlyArray<string>) => void; readonly onClear?: (section: string) => void; readonly onHeader?: (sectionId: string, col: number) => void; readonly onMenuPick?: (index: number) => void; readonly onMark?: (sectionId: string, index: number) => void; readonly onMenuAdjust?: (index: number, dir: number) => void; readonly onTab?: (sectionId: string, index: number) => void; readonly onSearch?: (sectionId: string, path: string) => void; readonly onBoardPick?: (path: string, lane: number, card: number) => void; readonly onChoose?: (index: number) => void }) => {
   const C = useColors()
   const dims = useTerminalDimensions()
   const width = Math.max(10, (props.width ?? dims.width) - 2)
@@ -553,7 +568,8 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
               minHeight: headRows + 1,
               flexShrink: 1,
               ...(after ? { marginTop: 1 } : {}),
-              ...(s.role === "log" || s.role === "pinned"
+              // A log or pinned section grows; so does a view's only section (a drawer's text), whatever its role.
+              ...(s.role === "log" || s.role === "pinned" || props.view.layout.sections.length === 1
                 ? { flexGrow: 1, flexBasis: 0, maxHeight: wantedOf(props.view, props.ui, s, width, heights[leaf.path]) + extra }
                 : { height: wantedOf(props.view, props.ui, s, width, heights[leaf.path]) + extra, maxHeight: s.role === "summary" ? 6 : SHARE[s.role as keyof typeof SHARE] }),
             }}
@@ -629,10 +645,11 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
   }
   return (
     <box ref={root} style={{ flexDirection: "column", flexGrow: 1, overflow: "hidden" }}>
-      {/* The view's own actions (not a table's): buttons at its top; a click runs one. */}
-      {(props.view.layout.actions ?? []).length > 0 && props.onAct !== undefined ? (
-        <box style={{ flexShrink: 0, marginBottom: 1, paddingLeft: 1 }}>
-          <Buttons actions={props.view.layout.actions!} count={0} onPress={(id) => props.onAct!(undefined, id, [])} />
+      {/* The view's own actions it offers now (not a table's): buttons at its top; a click runs one (or drops its choices down). */}
+      {viewActions(props.view).length > 0 && props.onAct !== undefined ? (
+        <box style={{ flexShrink: 0, marginBottom: 1, paddingLeft: 1, flexDirection: "column" }}>
+          <Buttons actions={viewActions(props.view)} count={0} onPress={(id) => props.onAct!(undefined, id, [])} />
+          {props.ui.choose !== undefined && props.ui.choose.section === undefined ? <Choices choose={props.ui.choose} {...(props.onChoose !== undefined ? { onPick: props.onChoose } : {})} /> : null}
         </box>
       ) : null}
       {all.map((s, i) => {

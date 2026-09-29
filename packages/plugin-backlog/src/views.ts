@@ -49,11 +49,9 @@ export const ItemView = defineView(
   { item: { kind: "text", role: "primary", title: "" } },
   {
     actions: [
-      { id: "ready", label: "→ Ready", key: "r", on: "none" },
-      { id: "park", label: "Park", key: "p", on: "none" },
-      { id: "done", label: "Done", key: "d", on: "none" },
+      // Move to a lane (Ready: the Planner applies it); Drop; Resync, offered only while a card changed.
+      { id: "move", label: "Move ▾", key: "m", on: "none", choices: [{ id: "backlog", label: "Backlog" }, { id: "ready", label: "Ready" }, { id: "running", label: "Running" }, { id: "review", label: "Review" }, { id: "done", label: "Done" }] },
       { id: "drop", label: "Drop", key: "X", on: "none" },
-      // A card changed since the plan was drafted: take the cards as they are now, or back to triage.
       { id: "resync", label: "Resync", key: "s", on: "none" },
     ],
   },

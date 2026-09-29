@@ -21,6 +21,8 @@ export interface ViewUi {
   readonly search?: Readonly<Record<string, string>>
   /** The table whose search field has the keys (typing goes there). */
   readonly searching?: string
+  /** An action's choices, dropped down (it acts on the one picked). */
+  readonly choose?: { readonly section?: string; readonly action: string; readonly rows: ReadonlyArray<string>; readonly choices: ReadonlyArray<{ readonly id: string; readonly label: string }>; readonly pick: number }
   /** An action's line of text being typed (it acts on Enter). */
   readonly input?: { readonly section: string; readonly action: string; readonly rows: ReadonlyArray<string>; readonly text: string; readonly placeholder: string }
   /** Each board's cursor (a lane, a card in it) and its folded lanes (by id). */
@@ -359,12 +361,34 @@ export const enabledActions = (view: ViewState, path: string): ReadonlyArray<typ
   return on === undefined ? all : all.filter((a) => on.includes(a.id))
 }
 type Act = { readonly section: string | undefined; readonly action: string; readonly rows: ReadonlyArray<string>; readonly text?: string }
-/** Pressing an action (its key or its button): one that asks for text opens its input (from the first row's `text`), the rest act. */
-export const pressAction = (view: ViewState, ui: ViewUi, section: string, action: string, rows: ReadonlyArray<string>): { readonly ui: ViewUi; readonly act?: Act } => {
-  const a = enabledActions(view, section).find((x) => x.id === action)
-  if (a?.input === undefined) return { ui, act: { section, action, rows } }
+/** A view's own actions (not a table's) it offers now: those a text section's data names (`actions`), else all. */
+export const viewActions = (view: ViewState): ReadonlyArray<typeof ActionSchema.Type> => {
+  const all = view.layout.actions ?? []
+  const named = view.layout.sections.flatMap((s) => (s.kind === "text" ? ((view.data[s.id] as { actions?: ReadonlyArray<string> } | undefined)?.actions ?? []) : []))
+  const any = view.layout.sections.some((s) => s.kind === "text" && (view.data[s.id] as { actions?: unknown } | undefined)?.actions !== undefined)
+  return any ? all.filter((a) => named.includes(a.id)) : all
+}
+/** Pressing an action (its key or its button; `section` undefined: one of the view's own): one with choices drops them down, one that asks for text opens its input (from the first row's `text`), the rest act. */
+export const pressAction = (view: ViewState, ui: ViewUi, section: string | undefined, action: string, rows: ReadonlyArray<string>): { readonly ui: ViewUi; readonly act?: Act } => {
+  const a = (section === undefined ? viewActions(view) : enabledActions(view, section)).find((x) => x.id === action)
+  if (a?.choices !== undefined && a.choices.length > 0) return { ui: { ...ui, choose: { ...(section !== undefined ? { section } : {}), action, rows, choices: a.choices, pick: 0 } } }
+  if (section === undefined || a?.input === undefined) return { ui, act: { section, action, rows } }
   const row = (view.data[section] as { rows?: ReadonlyArray<{ id: string; text?: string }> } | undefined)?.rows?.find((r) => r.id === rows[0])
   return { ui: { ...ui, input: { section, action, rows, text: row?.text ?? "", placeholder: a.input } } }
+}
+/** A key while choices are dropped down: ↑↓ pick, Enter acts with the one picked, Esc closes; undefined when none are. */
+export const chooseKey = (ui: ViewUi, key: { readonly name: string }): { readonly ui: ViewUi; readonly act?: Act } | undefined => {
+  if (ui.choose === undefined) return undefined
+  const { choose: c, ...off } = ui
+  if (key.name === "escape") return { ui: off }
+  if (key.name === "up" || key.name === "down") return { ui: { ...ui, choose: { ...c, pick: Math.max(0, Math.min(c.choices.length - 1, c.pick + (key.name === "up" ? -1 : 1))) } } }
+  if (key.name === "return" || key.name === "space") return { ui: off, act: { section: c.section, action: c.action, rows: c.rows, text: c.choices[c.pick]!.id } }
+  return { ui }
+}
+/** A click on one of the dropped-down choices: it acts with that one. */
+export const pickChoice = (ui: ViewUi, index: number): { readonly ui: ViewUi; readonly act?: Act } => {
+  if (ui.choose === undefined || ui.choose.choices[index] === undefined) return { ui }
+  return chooseKey({ ...ui, choose: { ...ui.choose, pick: index } }, { name: "return" })!
 }
 /** A key while an input is open: typing edits it, Enter acts with the text, Esc closes it; undefined when none is open. */
 export const inputKey = (ui: ViewUi, key: { readonly name: string; readonly ctrl?: boolean; readonly meta?: boolean }): { readonly ui: ViewUi; readonly act?: Act } | undefined => {
@@ -394,7 +418,7 @@ export const actionFor = (view: ViewState, ui: ViewUi, key: string, platform = "
   const c = current(view, ui)
   const a = c !== undefined && c.leaf.kind === "table" ? enabledActions(view, c.path).find((x) => keyFor(x, platform) === key || (key === "return" && x.default === true)) : undefined
   if (c === undefined || a === undefined) {
-    const own = (view.layout.actions ?? []).find((x) => keyFor(x, platform) === key)
+    const own = viewActions(view).find((x) => keyFor(x, platform) === key)
     return own === undefined ? undefined : { section: undefined, action: own.id, rows: [] }
   }
   const all = shownRows(view, ui, c.path)

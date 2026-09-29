@@ -293,7 +293,7 @@ export default definePlugin({
         const feedback = (yield* load).filter((e) => i.feedback.includes(e.id))
         const changed = yield* changedRefs([i])
         const contexts = yield* Effect.forEach(i.cards.filter((c) => /card:UX-/.test(c.ref)), (c) => Effect.map(entities.context(target(c.ref)).pipe(Effect.orElseSucceed(() => "")), (t) => [parseRef(c.ref)?.id ?? c.ref, t] as const))
-        yield* views.set("backlog", ItemView, "item", { markdown: itemMarkdown(i, feedback, changed, contexts) })
+        yield* views.set("backlog", ItemView, "item", { markdown: itemMarkdown(i, feedback, changed, contexts), actions: ["move", "drop", ...(changed.size > 0 ? ["resync"] : [])] })
         return true
       })
     /** Move a plan by hand or by an agent: the move recorded; Done closes its feedback. */
@@ -356,7 +356,7 @@ export default definePlugin({
         const all = yield* withStates((yield* load).filter((e) => ids.includes(e.id)))
         return all.map((x) => ({ id: x.e.id, state: x.state, on: x.e.triage.on }))
       })
-    const boardAct = (action: string, rows: ReadonlyArray<string>) =>
+    const boardAct = (action: string, rows: ReadonlyArray<string>, text?: string) =>
       Effect.gen(function* () {
         if (action === "item" && rows[0] !== undefined) {
           selected = rows[0]
@@ -374,8 +374,9 @@ export default definePlugin({
           yield* showItem(selected)
           return notice
         }
-        if (selected !== undefined && ["ready", "park", "done", "drop"].includes(action)) {
-          const notice = action === "drop" ? yield* drop(selected) : yield* move(selected, action === "ready" ? "ready" : action === "park" ? "backlog" : "done", "operator")
+        // Move ▾: to the lane picked (its text); Drop.
+        if (selected !== undefined && ((action === "move" && (LANES as ReadonlyArray<string>).includes(text ?? "")) || action === "drop")) {
+          const notice = action === "drop" ? yield* drop(selected) : yield* move(selected, text as Item["status"], "operator")
           yield* showItem(selected)
           return notice
         }
@@ -465,7 +466,7 @@ export default definePlugin({
     const act = ({ agent, action, rows, text }: { agent: string; action: string; rows: ReadonlyArray<string>; text?: string }) =>
       Effect.gen(function* () {
         if (agent === "backlog") {
-          const notice = yield* boardAct(action, rows)
+          const notice = yield* boardAct(action, rows, text)
           yield* refreshBoard
           return { notice }
         }

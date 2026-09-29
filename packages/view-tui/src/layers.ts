@@ -96,7 +96,7 @@ const nextAttention = (ui: Ui, s: SessionState) => {
 
 /** g and / belong to every panel that is not a text input. */
 /** A column menu open in the view, the sheet or a panel: it owns the plain keys (its search takes the typing). */
-const menuOpen = (ui: Ui) => [ui.view, ui.sheetView, ui.panelView].some((v) => v?.menu !== undefined || v?.searching !== undefined || v?.input !== undefined)
+const menuOpen = (ui: Ui) => [ui.view, ui.sheetView, ui.panelView].some((v) => v?.menu !== undefined || v?.searching !== undefined || v?.input !== undefined || v?.choose !== undefined)
 const common = (ui: Ui, w: ShellWorld, k: InputKey) =>
   k.ctrl === true || k.meta === true || menuOpen(ui)
     ? undefined
@@ -325,7 +325,7 @@ export const SHELL: ReadonlyArray<Layer> = [
             [...sectionHints(ui, w.s), { keys: "Esc", does: "back" }],
     handle: (ui, w, k) => {
       // Esc closes an open menu or clears a search being typed (the view's keys handle both); else it goes back.
-      if (k.name === "escape" && ui.view?.menu === undefined && ui.view?.searching === undefined && ui.view?.input === undefined) return { ui: goBack(ui, w.s) }
+      if (k.name === "escape" && ui.view?.menu === undefined && ui.view?.searching === undefined && ui.view?.input === undefined && ui.view?.choose === undefined) return { ui: goBack(ui, w.s) }
       const c = common(ui, w, k)
       if (c !== undefined) return c
       const v = ui.viewing === undefined ? undefined : w.s.thread.views?.[ui.viewing]

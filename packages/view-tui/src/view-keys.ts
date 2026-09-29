@@ -1,4 +1,4 @@
-import { actionFor, boardKey, inputKey, pressAction, afterAction, applyMenu, closeMenu, menuAdjust, menuEntries, menuMove, menuQuery, printable, setSearch, moveColumn, openMenu, type ConversationQuestion, conversationKey, focused, focusNext, leafOf, moveRow, nextTab, toggleAct, toggleSelect, type ViewState, type ViewUi } from "@zarg/view"
+import { actionFor, boardKey, chooseKey, inputKey, pressAction, viewActions, afterAction, applyMenu, closeMenu, menuAdjust, menuEntries, menuMove, menuQuery, printable, setSearch, moveColumn, openMenu, type ConversationQuestion, conversationKey, focused, focusNext, leafOf, moveRow, nextTab, toggleAct, toggleSelect, type ViewState, type ViewUi } from "@zarg/view"
 
 /** A key in an open agent's view: focus, scroll a table's cursor, switch tabs, select, act. */
 export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: string; readonly shift?: boolean; readonly ctrl?: boolean; readonly meta?: boolean }): {
@@ -9,6 +9,9 @@ export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: stri
 } => {
   // Ctrl and Meta chords are the shell's, never an action's key.
   if (key.ctrl === true || key.meta === true) return { ui }
+  // Dropped-down choices have the keys until one is picked or Esc closes them.
+  const choosing = chooseKey(ui, key)
+  if (choosing !== undefined) return choosing
   // An action's line of text has the keys until Enter sends it or Esc drops it.
   const typing = inputKey(ui, key)
   if (typing !== undefined) return typing
@@ -78,7 +81,7 @@ export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: stri
   }
   const a = actionFor(view, ui, key.name)
   if (a === undefined) return { ui }
-  // One that asks for text opens its input first.
-  const pressed = a.section !== undefined ? pressAction(view, ui, a.section, a.action, a.rows) : { ui, act: a }
+  // One that asks for text opens its input first; one with choices drops them down.
+  const pressed = pressAction(view, ui, a.section, a.action, a.rows)
   return pressed.act === undefined ? { ui: pressed.ui } : { ui: afterAction(pressed.ui, a.section), act: pressed.act }
 }

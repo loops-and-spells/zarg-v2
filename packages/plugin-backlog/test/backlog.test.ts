@@ -67,8 +67,8 @@ describe("the backlog's plans", () => {
       yield* h.invoke("backlog", "act", { agent: "backlog", action: "move-right", rows: ["B-01"] })
       yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: ["B-01"] })
       const drawer = seen.get("backlog/item") as { markdown: string }
-      yield* h.invoke("backlog", "act", { agent: "backlog", action: "park", rows: [] })
-      yield* h.invoke("backlog", "act", { agent: "backlog", action: "ready", rows: [] })
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "move", rows: [], text: "backlog" })
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "move", rows: [], text: "ready" })
       const byCommand = yield* h.entities.command("backlog/item:B-01", "park", {})
       yield* h.invoke("backlog", "act", { agent: "backlog", action: "drop", rows: [] })
       const e = yield* h.entities.get("backlog/item:B-01")
@@ -92,7 +92,7 @@ describe("the backlog's plans", () => {
       yield* h.invoke("backlog", "moved", { id: "B-01", to: "ready", by: "Planner", what: "apply failed", needs: "gherkin/edit-state: bad" })
       const blocked = yield* h.invoke("backlog", "next", {})
       yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: ["B-01"] })
-      yield* h.invoke("backlog", "act", { agent: "backlog", action: "ready", rows: [] })
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "move", rows: [], text: "ready" })
       const e = yield* h.entities.get("backlog/item:B-01")
       return { blocked, e: e.data as { needs?: string; events: Array<{ what: string }>; cards: Array<{ ref: string }> }, next: yield* h.invoke("backlog", "next", {}) }
     }))
@@ -128,12 +128,16 @@ describe("the backlog's plans", () => {
       const before = lanes(seen).backlog![0]!.lines.map((l) => l.text)
       yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: ["B-01"] })
       const drawer = (seen.get("backlog/item") as { markdown: string }).markdown
+      const offered = (seen.get("backlog/item") as { actions?: string[] }).actions
       const notice = (yield* h.invoke("backlog", "act", { agent: "backlog", action: "resync", rows: [] })) as { notice: string }
       const after = lanes(seen).backlog![0]!.lines.map((l) => l.text)
-      return { before, drawer, notice: notice.notice, after }
+      return { before, drawer, offered, offeredAfter: (seen.get("backlog/item") as { actions?: string[] }).actions, notice: notice.notice, after }
     }))
     expect(out.before).toContain("⚠ card changed")
     expect(out.drawer).toMatch(/UX-0001 @[0-9a-f]{4} ⚠ changed/)
+    // Resync is offered only while a card changed.
+    expect(out.offered).toEqual(["move", "drop", "resync"])
+    expect(out.offeredAfter).toEqual(["move", "drop"])
     expect(out.notice).toBe("B-01 resynced: its changes still fit the cards as they are now")
     expect(out.after).not.toContain("⚠ card changed")
   })

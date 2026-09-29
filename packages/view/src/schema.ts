@@ -22,6 +22,8 @@ export const Action = Schema.Struct({
   highlight: Schema.optionalKey(Schema.Boolean),
   /** Asks for a line of text first (this is its placeholder): the act carries it; a row's `text` fills it in. */
   input: Schema.optionalKey(Schema.String),
+  /** Drops down a choice first (a Move to a lane): the act carries the chosen id as its text. */
+  choices: Schema.optionalKey(Schema.Array(Schema.Struct({ id: Schema.String, label: Schema.String }))),
 })
 /** A table column; `order` ranks its values for sorting (a severity's "high", "medium", "low"), else they sort as text with numbers as numbers. */
 /** What a column's menu offers beside sorting: ticking by value, nothing, ticking a numeric range (the cell's last number), or a search that sorts by match. */
@@ -44,7 +46,8 @@ export const LogData = Schema.Struct({ lines: Schema.Array(LogLine) })
 export const TableData = Schema.Struct({ rows: Schema.Array(Schema.Struct({ id: Schema.String, cells: Schema.Record(Schema.String, Schema.String), tone: Schema.optionalKey(Tone), search: Schema.optionalKey(Schema.String), on: Schema.optionalKey(Schema.Boolean), text: Schema.optionalKey(Schema.String), busy: Schema.optionalKey(Schema.Boolean), readonly: Schema.optionalKey(Schema.Boolean) })), actions: Schema.optionalKey(Schema.Array(Schema.String)), labels: Schema.optionalKey(Schema.Record(Schema.String, Schema.Struct({ text: Schema.String, tone: Tone, glyph: Schema.String }))) })
 export const KeyValueData = Schema.Struct({ pairs: Schema.Array(Schema.Struct({ key: Schema.String, value: Schema.String })) })
 /** `rows`: for a text that follows a table, the text for each of its rows (by id); `markdown` when none fits. */
-export const TextData = Schema.Struct({ markdown: Schema.String, rows: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)) })
+/** `actions`: which of the view's own actions show now (a drawer's Resync only when a card changed). */
+export const TextData = Schema.Struct({ markdown: Schema.String, rows: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)), actions: Schema.optionalKey(Schema.Array(Schema.String)) })
 
 /** A question an agent asks in its conversation. `kind: "grant"`: a permission question, answered only with its options. */
 export const QuestionData = Schema.Struct({
