@@ -21,7 +21,7 @@ const plugins = () =>
   ]))
 
 /** What the plugins pushed to their views: the last data per view section. */
-export type Seen = Map<string, unknown> & { opened?: Array<unknown> }
+export type Seen = Map<string, unknown> & { opened?: Array<unknown>; log?: Array<{ key: string; data: unknown }> }
 
 /** Runs `body` with gherkin and backlog over a fresh graph in a fresh project folder (YOLO: no grant prompts). */
 export const run = <A, E>(body: (seen: Seen, root: string) => Effect.Effect<A, E, PluginHost | GraphStore>) =>
@@ -42,7 +42,10 @@ export const run = <A, E>(body: (seen: Seen, root: string) => Effect.Effect<A, E
       projectRoot: root,
       agents: (_plugin, e) => {
         const ev = e as { event?: string; id?: string; section?: string; data?: unknown; surfaces?: unknown }
-        if (ev.event === "set") seen.set(`${ev.id}/${ev.section}`, ev.data)
+        if (ev.event === "set") {
+          seen.set(`${ev.id}/${ev.section}`, ev.data)
+          ;(seen.log ??= []).push({ key: `${ev.id}/${ev.section}`, data: ev.data })
+        }
         if (ev.event === "open") (seen.opened ??= []).push(ev.surfaces)
       },
     })

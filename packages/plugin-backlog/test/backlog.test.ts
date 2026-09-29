@@ -176,4 +176,16 @@ describe("the backlog's plans", () => {
     expect(out.old[0]!.state).toBe("closed")
     expect(out.open.map((e) => [e.note, e.on])).toEqual([["No deny path.", true]])
   })
+  test("opening a plan shows it loading first (its drawer never shows the plan before), then the plan", async () => {
+    const plans = await run((seen) => Effect.gen(function* () {
+      const { card, feedback } = yield* setUp
+      const h = yield* PluginHost
+      yield* h.invoke("backlog", "plan", planOf(card.ref, feedback))
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: ["B-01"] })
+      return (seen.log ?? []).filter((e) => e.key === "backlog/item.plan").map((e) => e.data as { markdown: string; loading?: string })
+    }))
+    expect(plans[0]!.loading).toBe("Loading B-01…")
+    expect(plans.at(-1)!.loading).toBeUndefined()
+    expect(plans.at(-1)!.markdown).toContain("**Grant prompt names its choices**")
+  })
 })

@@ -46,8 +46,8 @@ export const LogData = Schema.Struct({ lines: Schema.Array(LogLine) })
 export const TableData = Schema.Struct({ rows: Schema.Array(Schema.Struct({ id: Schema.String, cells: Schema.Record(Schema.String, Schema.String), tone: Schema.optionalKey(Tone), search: Schema.optionalKey(Schema.String), on: Schema.optionalKey(Schema.Boolean), text: Schema.optionalKey(Schema.String), busy: Schema.optionalKey(Schema.Boolean), readonly: Schema.optionalKey(Schema.Boolean) })), actions: Schema.optionalKey(Schema.Array(Schema.String)), labels: Schema.optionalKey(Schema.Record(Schema.String, Schema.Struct({ text: Schema.String, tone: Tone, glyph: Schema.String }))) })
 export const KeyValueData = Schema.Struct({ pairs: Schema.Array(Schema.Struct({ key: Schema.String, value: Schema.String })) })
 /** `rows`: for a text that follows a table, the text for each of its rows (by id); `markdown` when none fits. */
-/** `actions`: which of the view's own actions show now (a drawer's Resync only when a card changed). */
-export const TextData = Schema.Struct({ markdown: Schema.String, rows: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)), actions: Schema.optionalKey(Schema.Array(Schema.String)) })
+/** `actions`: which of the view's own actions show now (a drawer's Resync only when a card changed). `loading`: a line the platform shows in its place, with a spinner, while the plugin works it out. */
+export const TextData = Schema.Struct({ markdown: Schema.String, rows: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)), actions: Schema.optionalKey(Schema.Array(Schema.String)), loading: Schema.optionalKey(Schema.String) })
 
 /** A question an agent asks in its conversation. `kind: "grant"`: a permission question, answered only with its options. */
 export const QuestionData = Schema.Struct({

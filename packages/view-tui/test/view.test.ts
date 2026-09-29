@@ -374,6 +374,11 @@ describe("the working indicator", () => {
     expect(animating(syncUi(ui, waiting, 0), { ...waiting, thread: { ...waiting.thread, rlms: { "rlm-1": root } } })).toBe(false)
     expect(animating(syncUi(ui, idle, 0), idle)).toBe(false)
   })
+  test("a view still loading keeps the clock (its spinner turns)", () => {
+    const loading = { ...idle, thread: { ...idle.thread, views: { "backlog:backlog@item": { agent: "backlog:backlog@item", layout: { name: "item", sections: [] }, data: { "item.plan": { markdown: "", loading: "Loading B-02…" } } } } } }
+    expect(animating(syncUi(initialUi, idle, 0), idle)).toBe(false)
+    expect(animating(syncUi(initialUi, loading, 0), loading)).toBe(true)
+  })
   test("a plugin's agents keep the clock while zarg's question waits: they work on, it is not theirs", () => {
     const worker = { ...root, id: "triage:triage-1", preset: "triage" }
     const ui = syncUi(initialUi, waiting, 0)

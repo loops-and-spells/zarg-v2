@@ -271,6 +271,8 @@ const busy = (s: SessionState) => s.core === "up" && s.thread.status === "runnin
 /** Whether anything on screen animates: the driver working, or agents running while no question waits. */
 export const animating = (ui: Ui, s: SessionState) =>
   ui.runningSince !== undefined ||
+  // A view still loading: its spinner turns.
+  Object.values(s.thread.views ?? {}).some((v) => Object.values(v.data).some((d) => (d as { loading?: unknown } | undefined)?.loading !== undefined)) ||
   // An unseen request for attention blinks.
   Object.values(s.thread.rlms).some((r) => r.attention !== undefined && ui.seen[r.id] !== r.attention.since) ||
   // zarg's own row is always there: only agents doing work keep the clock ticking. zarg's agents wait on its

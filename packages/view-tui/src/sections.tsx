@@ -257,7 +257,19 @@ const KeyValue: Leaf = ({ view, path, width }) => {
 }
 // @card UX-0076
 // A text that follows a table shows the text for its highlighted row.
-const Text: Leaf = ({ view, ui, path, width, onHeight }) => <RichText content={followedText(view, ui, path)} width={width} {...(onHeight !== undefined ? { onHeight } : {})} />
+const Text: Leaf = ({ view, ui, path, width, onHeight }) => {
+  const loading = (view.data[path] as { loading?: string } | undefined)?.loading
+  const now = useContext(NowContext)
+  const C = useColors()
+  // Still being worked out: the line, with a spinner, in the middle of the section.
+  if (loading !== undefined)
+    return (
+      <box style={{ flexGrow: 1, alignItems: "center", justifyContent: "center", minHeight: 5 }}>
+        <text wrapMode="none"><span fg={C.accent}>{`${spin(now)} `}</span><span fg={C.dim}>{loading}</span></text>
+      </box>
+    )
+  return <RichText content={followedText(view, ui, path)} width={width} {...(onHeight !== undefined ? { onHeight } : {})} />
+}
 
 // A plugin agent's conversation: its messages, then its question with the options (arrows and Enter answer it).
 const Conversation: Leaf = ({ view, ui, path, width, onHeight }) => {
@@ -312,6 +324,8 @@ const wantedOf = (view: ViewState, ui: ViewUi, s: LayoutSection, width: number, 
   const content =
     k === "stats" ? 1
     // Prose wraps: each paragraph line takes as many rows as its length needs.
+    // A text still loading takes all the room it may have: its line sits in the middle of it.
+    : k === "text" && (view.data[leaf.path] as { loading?: string } | undefined)?.loading !== undefined ? 999
     : k === "text" ? ((view.data[leaf.path] as { markdown?: string } | undefined)?.markdown ?? "").split("\n").reduce((a, l) => a + Math.max(1, Math.ceil(l.length / Math.max(1, width))), 0)
     : k === "keyvalue" ? ((view.data[leaf.path] as { pairs?: ReadonlyArray<unknown> } | undefined)?.pairs ?? []).length
     : k === "log" ? ((view.data[leaf.path] as { lines?: ReadonlyArray<unknown> } | undefined)?.lines ?? []).length

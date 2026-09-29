@@ -358,3 +358,22 @@ test("a view's buttons show only those its text offers now; a dropped-down Move 
   await t.mockMouse.click(lines[y]!.indexOf("Ready"), y)
   expect(picks).toEqual([1])
 })
+
+test("a text that is loading shows its line in the middle, with a spinner, in place of its text", async () => {
+  const v: ViewState = {
+    agent: "backlog:item",
+    layout: layoutOf(defineView("item", { item: { kind: "text", role: "primary", title: "" } })),
+    data: { item: { markdown: "old plan", loading: "Loading B-02…" } },
+  }
+  const t = await testRender(<NowContext.Provider value={200}><AgentView view={v} ui={initialViewUi} height={20} /></NowContext.Provider>, { width: 60, height: 20, exitOnCtrlC: false, exitSignals: [] })
+  destroy = () => t.renderer.destroy()
+  await t.renderOnce()
+  await Bun.sleep(5)
+  await t.renderOnce()
+  const lines = t.captureCharFrame().split("\n")
+  const y = lines.findIndex((l) => l.includes("Loading B-02…"))
+  expect(y).toBeGreaterThan(4)
+  expect(lines[y]).toContain("⠹")
+  expect(lines[y]!.indexOf("⠹")).toBeGreaterThan(10)
+  expect(lines.join("\n")).not.toContain("old plan")
+})

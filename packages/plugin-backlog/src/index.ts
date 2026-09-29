@@ -370,8 +370,12 @@ export default definePlugin({
       Effect.gen(function* () {
         if (action === "item" && rows[0] !== undefined) {
           selected = rows[0]
-          if (!(yield* showItem(rows[0]))) return `no plan ${rows[0]}`
+          // The drawer opens at once, loading (never the plan shown before); the plan follows.
+          const loading = { markdown: "", loading: `Loading ${rows[0]}…` }
+          yield* views.set("backlog", ItemView, "item.plan", loading)
+          yield* views.set("backlog", ItemView, "item.agent", loading)
           yield* surfaces.open({ surface: "item", agent: "backlog", focus: true })
+          if (!(yield* showItem(rows[0]))) return `no plan ${rows[0]}`
           return rows[0]
         }
         if ((action === "move-left" || action === "move-right") && rows[0] !== undefined) {
