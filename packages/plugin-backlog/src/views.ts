@@ -46,7 +46,8 @@ export const BacklogView = defineView("backlog", { board: { kind: "board", role:
 /** The drawer (a sheet over the board): one plan in full, and where it can go next. */
 export const ItemView = defineView(
   "item",
-  { item: { kind: "text", role: "primary", title: "" } },
+  // Plan: to read (what changes, card by card); For agents: every change, card version and feedback id.
+  { item: { kind: "tabs", role: "primary", tabs: { plan: { kind: "text", title: "Plan" }, agent: { kind: "text", title: "For agents" } } } },
   {
     actions: [
       // Move to a lane (Ready: the Planner applies it); Drop; Resync, offered only while a card changed.

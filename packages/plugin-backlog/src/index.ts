@@ -7,6 +7,7 @@ import { parseRef } from "@zarg/entities"
 import { ENTRY_ID, type Entry, entryId, stateOf, target, upsert } from "./feedback"
 import { boardCard, type Item, ITEM_ID, LANE_TITLES, LANES, moved, neighbour, nextId, pickNext } from "./items"
 import { BacklogView, FeedbackView, ItemView } from "./views"
+import { planText } from "./plan-text"
 
 const DIR = ".zarg/feedback"
 const ITEMS = ".zarg/backlog"
@@ -293,7 +294,19 @@ export default definePlugin({
         const feedback = (yield* load).filter((e) => i.feedback.includes(e.id))
         const changed = yield* changedRefs([i])
         const contexts = yield* Effect.forEach(i.cards.filter((c) => /card:UX-/.test(c.ref)), (c) => Effect.map(entities.context(target(c.ref)).pipe(Effect.orElseSucceed(() => "")), (t) => [parseRef(c.ref)?.id ?? c.ref, t] as const))
-        yield* views.set("backlog", ItemView, "item", { markdown: itemMarkdown(i, feedback, changed, contexts), actions: ["move", "drop", ...(changed.size > 0 ? ["resync"] : [])] })
+        // Each card it touches (new ones too), as it is and as the plan leaves it.
+        const lines = (x: { given: string; when: string; thens: ReadonlyArray<string> } | null) => (x === null ? [] : [`Given ${x.given}`, `When  ${x.when}`, ...x.thens.map((t, k) => `${k === 0 ? "Then" : "And "}  ${t}`)])
+        const touched = (yield* gherkin.dryRun({ draft: i.changes }).pipe(Effect.orElseSucceed(() => ({ cards: [] as ReadonlyArray<string> })))).cards
+        const ids = [...new Set([...i.cards.map((c) => parseRef(c.ref)?.id ?? ""), ...touched])].filter((c) => /^UX-/.test(c))
+        const diffs = yield* Effect.forEach(ids, (card) =>
+          Effect.gen(function* () {
+            const before = yield* gherkin.step({ card }).pipe(Effect.orElseSucceed(() => null))
+            const after = yield* gherkin.step({ card, draft: i.changes }).pipe(Effect.orElseSucceed(() => null))
+            return { id: card, title: after?.title ?? before?.title ?? card, before: lines(before), after: lines(after) }
+          }))
+        const actions = ["move", "drop", ...(changed.size > 0 ? ["resync"] : [])]
+        yield* views.set("backlog", ItemView, "item.plan", { markdown: planText(i, feedback, diffs.filter((d) => d.after.length > 0 && d.before.join("\n") !== d.after.join("\n")), changed), actions })
+        yield* views.set("backlog", ItemView, "item.agent", { markdown: itemMarkdown(i, feedback, changed, contexts), actions })
         return true
       })
     /** Move a plan by hand or by an agent: the move recorded; Done closes its feedback. */

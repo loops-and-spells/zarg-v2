@@ -21,4 +21,12 @@ describe("actions with choices", () => {
     expect(viewActions(view()).map((a) => a.id)).toEqual(["move", "drop", "resync"])
     expect(viewActions(view(["move", "drop"])).map((a) => a.id)).toEqual(["move", "drop"])
   })
+  test("a text inside tabs can name them too", () => {
+    const tabbed: ViewState = {
+      agent: "backlog:backlog@item",
+      layout: layoutOf(defineView("item", { item: { kind: "tabs", role: "primary", tabs: { plan: { kind: "text", title: "Plan" }, agent: { kind: "text", title: "For agents" } } } }, { actions: [{ id: "move", label: "Move", on: "none" }, { id: "resync", label: "Resync", on: "none" }] })),
+      data: { "item.plan": { markdown: "p", actions: ["move"] }, "item.agent": { markdown: "a" } },
+    }
+    expect(viewActions(tabbed).map((a) => a.id)).toEqual(["move"])
+  })
 })

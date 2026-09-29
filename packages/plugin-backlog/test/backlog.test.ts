@@ -66,7 +66,7 @@ describe("the backlog's plans", () => {
       yield* h.invoke("backlog", "plan", planOf(card.ref, feedback))
       yield* h.invoke("backlog", "act", { agent: "backlog", action: "move-right", rows: ["B-01"] })
       yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: ["B-01"] })
-      const drawer = seen.get("backlog/item") as { markdown: string }
+      const drawer = seen.get("backlog/item.agent") as { markdown: string }
       yield* h.invoke("backlog", "act", { agent: "backlog", action: "move", rows: [], text: "backlog" })
       yield* h.invoke("backlog", "act", { agent: "backlog", action: "move", rows: [], text: "ready" })
       const byCommand = yield* h.entities.command("backlog/item:B-01", "park", {})
@@ -102,13 +102,28 @@ describe("the backlog's plans", () => {
     expect(out.e.needs).toBeUndefined()
     expect((out.next as { id: string }).id).toBe("B-01")
   })
-  test("the drawer: the plan's header, its title, each card with its version (✓ current), the feedback, the card itself, links and events", async () => {
+  test("the drawer's Plan tab reads as a plan: what changes on the card, before and after", async () => {
+    const plan = await run((seen) => Effect.gen(function* () {
+      const { card, feedback } = yield* setUp
+      const h = yield* PluginHost
+      yield* h.invoke("backlog", "plan", planOf(card.ref, feedback))
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: ["B-01"] })
+      return (seen.get("backlog/item.plan") as { markdown: string }).markdown
+    }))
+    expect(plan).toContain("**Grant prompt names its choices**")
+    expect(plan).toContain("1 card: 1 changed, 0 new · 1 change · closes 1 feedback (1 high)")
+    expect(plan).toContain("**UX-0001** Plugin asks for a scope")
+    expect(plan).toContain("- Then  the operator is asked")
+    expect(plan).toContain("+ Then  the operator sees: once, always, deny")
+    expect(plan).not.toContain("gherkin/edit-state")
+  })
+  test("the drawer's For agents tab: each card with its version (✓ current), the feedback, the card itself, the changes, events", async () => {
     const out = await run((seen) => Effect.gen(function* () {
       const { card, feedback } = yield* setUp
       const h = yield* PluginHost
       yield* h.invoke("backlog", "plan", planOf(card.ref, feedback))
       yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: ["B-01"] })
-      return (seen.get("backlog/item") as { markdown: string }).markdown
+      return (seen.get("backlog/item.agent") as { markdown: string }).markdown
     }))
     expect(out).toContain("B-01 · Backlog")
     expect(out).toContain("**Grant prompt names its choices**")
@@ -127,11 +142,11 @@ describe("the backlog's plans", () => {
       yield* h.invoke("backlog", "act", { agent: "backlog", action: "open", rows: [] })
       const before = lanes(seen).backlog![0]!.lines.map((l) => l.text)
       yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: ["B-01"] })
-      const drawer = (seen.get("backlog/item") as { markdown: string }).markdown
-      const offered = (seen.get("backlog/item") as { actions?: string[] }).actions
+      const drawer = (seen.get("backlog/item.agent") as { markdown: string }).markdown
+      const offered = (seen.get("backlog/item.plan") as { actions?: string[] }).actions
       const notice = (yield* h.invoke("backlog", "act", { agent: "backlog", action: "resync", rows: [] })) as { notice: string }
       const after = lanes(seen).backlog![0]!.lines.map((l) => l.text)
-      return { before, drawer, offered, offeredAfter: (seen.get("backlog/item") as { actions?: string[] }).actions, notice: notice.notice, after }
+      return { before, drawer, offered, offeredAfter: (seen.get("backlog/item.plan") as { actions?: string[] }).actions, notice: notice.notice, after }
     }))
     expect(out.before).toContain("⚠ card changed")
     expect(out.drawer).toMatch(/UX-0001 @[0-9a-f]{4} ⚠ changed/)

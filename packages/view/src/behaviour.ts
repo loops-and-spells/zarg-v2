@@ -364,9 +364,10 @@ type Act = { readonly section: string | undefined; readonly action: string; read
 /** A view's own actions (not a table's) it offers now: those a text section's data names (`actions`), else all. */
 export const viewActions = (view: ViewState): ReadonlyArray<typeof ActionSchema.Type> => {
   const all = view.layout.actions ?? []
-  const named = view.layout.sections.flatMap((s) => (s.kind === "text" ? ((view.data[s.id] as { actions?: ReadonlyArray<string> } | undefined)?.actions ?? []) : []))
-  const any = view.layout.sections.some((s) => s.kind === "text" && (view.data[s.id] as { actions?: unknown } | undefined)?.actions !== undefined)
-  return any ? all.filter((a) => named.includes(a.id)) : all
+  // Every text, a tab's too (its data sits at `section.tab`).
+  const texts = view.layout.sections.flatMap((s) => (s.kind === "text" ? [s.id] : s.kind === "tabs" ? s.tabs.filter((t) => t.kind === "text").map((t) => `${s.id}.${t.id}`) : []))
+  const offered = texts.map((p) => (view.data[p] as { actions?: ReadonlyArray<string> } | undefined)?.actions).filter((x): x is ReadonlyArray<string> => x !== undefined)
+  return offered.length > 0 ? all.filter((a) => offered.some((o) => o.includes(a.id))) : all
 }
 /** Pressing an action (its key or its button; `section` undefined: one of the view's own): one with choices drops them down, one that asks for text opens its input (from the first row's `text`), the rest act. */
 export const pressAction = (view: ViewState, ui: ViewUi, section: string | undefined, action: string, rows: ReadonlyArray<string>): { readonly ui: ViewUi; readonly act?: Act } => {
