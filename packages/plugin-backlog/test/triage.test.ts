@@ -25,54 +25,41 @@ const buttons = (seen: Seen) => (seen.get("feedback/feedback") as { actions?: st
 const note = (id: string, text: string) => PluginHost.use((h) => h.invoke("backlog", "act", { agent: "feedback", action: "note", section: "feedback", rows: [id], text })) as Effect.Effect<{ notice: string }, unknown, PluginHost>
 
 describe("the triage hub's stages", () => {
-  test("Triage offers Refine only; Refine with nothing on is refused; Accept outside Plan says why", async () => {
+  test("Triage offers Refine only; Refine with nothing on is refused", async () => {
     const out = await run((seen) => Effect.gen(function* () {
       yield* setUp(false)
-      return { buttons: buttons(seen), notices: [(yield* press("refine")).notice, (yield* press("accept")).notice] }
+      return { buttons: buttons(seen), notice: (yield* press("refine")).notice }
     }))
     expect(out.buttons).toEqual(["refine", "note"])
-    expect(out.notices).toEqual(["nothing on in Set up: turn feedback on first", "Set up has no plan to accept yet"])
+    expect(out.notice).toBe("nothing on in Set up: turn feedback on first")
   })
-  test("Refine drafts and re-rehearses on its own; Plan offers Accept (to the Backlog) or Refine again", async () => {
+  test("Refine drafts on its own; the drafted plan goes to the Backlog lane (not Ready) and the journey is Planned", async () => {
     const out = await run((seen, root) => Effect.gen(function* () {
       const { ids } = yield* setUp()
       const h = yield* PluginHost
       const refine = (yield* press("refine")).notice
       const refining = { work: work(seen), buttons: buttons(seen) }
       yield* h.invoke("backlog", "propose", { journey: "Set up", card: "UX-0001", changes: [{ tool: "edit-state", params: { id: "S-0002", text: "the operator is asked: once, always, deny" } }], answers: ids, summary: "Name the choices." })
-      // The view follows the agent's work without a key press.
-      const rehearsing = { stage: stage(seen), buttons: buttons(seen) }
-      const stages = (yield* h.invoke("backlog", "stages", {})) as Array<{ stage: string; draft: unknown[] }>
-      yield* h.invoke("backlog", "rehearsed", { journey: "Set up", resolved: ids, fresh: [], next: "plan", cards: ["S-0002", "UX-0001"] })
-      yield* press("open")
-      const drafting = buttons(seen)
+      const planning = { stage: stage(seen), buttons: buttons(seen), stages: (yield* h.invoke("backlog", "stages", {})) as Array<{ stage: string; draft: unknown[] }> }
       yield* h.invoke("backlog", "drafted", { journey: "Set up", title: "Grant prompt names its choices", steps: ["Name the choices"] })
-      yield* press("open")
-      const plan = { work: work(seen), buttons: buttons(seen) }
-      const nothingLeft = (yield* press("refine")).notice
-      const accepted = (yield* press("accept")).notice
+      const done = ((yield* h.invoke("backlog", "stages", {})) as Array<{ stage: string; item?: string }>)[0]!
       const item = yield* h.entities.get("backlog/item:B-01")
-      return { refine, refining, rehearsing, stages, drafting, plan, nothingLeft, accepted, item: item.data as { changes: unknown[]; cards: Array<{ ref: string }>; feedback: string[]; status: string }, file: readdirSync(join(root, ".zarg/triage")).some((n) => /^set-up-[0-9a-f]{6}\.json$/.test(n)), status: yield* h.invoke("backlog", "status", { ids }), ids }
+      return { refine, refining, planning, done, item: item.data as { changes: unknown[]; cards: Array<{ ref: string }>; feedback: string[]; status: string }, file: readdirSync(join(root, ".zarg/triage")).some((n) => /^set-up-[0-9a-f]{6}\.json$/.test(n)), status: yield* h.invoke("backlog", "status", { ids }), ids }
     }))
     expect(out.refine).toBe("Set up: queued #1 · 1 card")
     expect(out.refining.work).toContain("Queued for triage")
     expect(out.refining.buttons).toEqual(["note"])
-    expect(out.rehearsing.stage).toContain("● Re-rehearse")
-    expect(out.rehearsing.buttons).toEqual(["refine", "note"])
-    expect(out.stages).toEqual([expect.objectContaining({ stage: "rehearse", draft: [expect.anything()] })])
-    expect(out.drafting).toEqual(["refine", "note"])
-    expect(out.plan.work).toContain("Grant prompt names its choices")
-    expect(out.plan.work).toContain("gherkin/edit-state")
-    expect(out.plan.buttons).toEqual(["accept", "refine", "note"])
-    expect(out.nothingLeft).toBe("nothing left to refine in Set up: a accepts the plan")
-    expect(out.accepted).toBe("Set up: backlogged as B-01")
-    expect(out.item.status).toBe("ready")
+    expect(out.planning.stages).toEqual([expect.objectContaining({ stage: "plan", draft: [expect.anything()] })])
+    expect(out.planning.buttons).toEqual(["note"])
+    // Its feedback is planned: the journey leaves Feedback until new feedback comes.
+    expect([out.done.stage, out.done.item]).toEqual(["planned", "B-01"])
+    expect(out.item.status).toBe("backlog")
     expect(out.item.cards.map((c) => c.ref.split("@")[0])).toEqual(["gherkin/card:UX-0001"])
     expect(out.item.feedback).toEqual(out.ids)
     expect(out.file).toBe(true)
     expect((out.status as Array<{ state: string }>)[0]!.state).toBe("planned")
   })
-  test("a proposal with problems is left out and named at Plan; a double a backlogs once", async () => {
+  test("every card left out: back to Triage, nothing on the Backlog; a double drafted backlogs once", async () => {
     const out = await run((seen) => Effect.gen(function* () {
       const { ids } = yield* setUp()
       const h = yield* PluginHost
@@ -80,19 +67,15 @@ describe("the triage hub's stages", () => {
       // Three rounds that fail: then it is left out.
       for (let i = 0; i < 3; i++) yield* h.invoke("backlog", "propose", { journey: "Set up", card: "UX-0001", changes: [], answers: ids, summary: "", problems: ["the Triage Agent could not draft a proposal"] })
       yield* press("open")
-      const leftOut = { stage: stage(seen), work: work(seen) }
-      const refineAgain = (yield* press("refine")).notice
+      const back = { stage: stage(seen), work: work(seen) }
+      yield* press("refine")
       yield* h.invoke("backlog", "propose", { journey: "Set up", card: "UX-0001", changes: [{ tool: "edit-state", params: { id: "S-0002", text: "asked: once, always, deny" } }], answers: ids, summary: "s" })
-      yield* h.invoke("backlog", "rehearsed", { journey: "Set up", resolved: [], fresh: [], next: "plan" })
-      yield* h.invoke("backlog", "drafted", { journey: "Set up", title: "T", steps: [] })
-      const [a, b] = yield* Effect.all([press("accept"), press("accept")], { concurrency: "unbounded" })
+      yield* Effect.all([h.invoke("backlog", "drafted", { journey: "Set up", title: "T", steps: [] }), h.invoke("backlog", "drafted", { journey: "Set up", title: "T", steps: [] })], { concurrency: "unbounded" })
       const items = yield* h.entities.query({ type: "backlog/item" })
-      return { leftOut, refineAgain, notices: [a.notice, b.notice].sort(), items: items.length }
+      return { back, items: items.length }
     }))
-    expect(out.leftOut.stage).toContain("● Plan")
-    expect(out.leftOut.work).toContain("Left out: UX-0001 (the Triage Agent could not draft a proposal)")
-    expect(out.refineAgain).toBe("Set up: refining 1 card again")
-    expect(out.notices).toEqual(["Set up has no plan to accept yet", "Set up: backlogged as B-01"])
+    expect(out.back.stage).toContain("● Triage")
+    expect(out.back.work).toContain("Nothing drafted: every card was left out.")
     expect(out.items).toBe(1)
   })
   test("the operator's note on an entry: kept through a re-filing, shown with ✎ and in the detail, given to the Triage Agent; empty clears it", async () => {
@@ -127,7 +110,7 @@ describe("the triage hub's stages", () => {
       const after = ((yield* h.invoke("backlog", "stages", {})) as Array<{ stage: string; draft: unknown[]; proposals: Array<{ status: string }> }>)[0]!
       return { before: [before.stage, before.proposals[0]!.tries?.length, before.proposals[0]!.title], again: again.notice, after: [after.stage, after.draft.length, after.proposals[0]!.status] }
     }))
-    expect(out.before).toEqual(["rehearse", 1, "Plugin asks for a scope"])
+    expect(out.before).toEqual(["plan", 1, "Plugin asks for a scope"])
     expect(out.again).toBe("Set up: drafting UX-0001 again")
     expect(out.after).toEqual(["refine", 0, "waiting"])
   })

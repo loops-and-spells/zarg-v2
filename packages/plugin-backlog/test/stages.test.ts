@@ -18,19 +18,22 @@ describe("a journey's stages", () => {
     // Its last round (it failed twice before): left out.
     const last = { ...a, proposals: a.proposals.map((p) => (p.card === "UX-0003" ? { ...p, rounds: 2 } : p)) }
     const b = settle(last, { card: "UX-0003", changes: [{ tool: "edit-card", params: {} }], answers: [], summary: "", problems: ["a clause has if"] })
-    expect([b.stage, b.draft.length, b.proposals.map((p) => p.status), b.proposals[1]!.problems]).toEqual(["rehearse", 1, ["accepted", "skipped"], ["a clause has if"]])
+    // Every card decided: on to Plan (the plan is drafted and goes to the Backlog).
+    expect([b.stage, b.draft.length, b.proposals.map((p) => p.status), b.proposals[1]!.problems]).toEqual(["plan", 1, ["accepted", "skipped"], ["a clause has if"]])
   })
-  test("every proposal left out: straight to Plan, nothing to re-rehearse", () => {
+  test("every proposal left out: back to Triage, nothing goes to the Backlog", () => {
     const s0 = startRefine(fresh("Set up"), [on("F-1", "UX-0001")]) as Stage
     const s = { ...s0, proposals: s0.proposals.map((p) => ({ ...p, rounds: 2 })) }
-    expect(settle(s, { card: "UX-0001", changes: [], answers: [], summary: "", problems: ["no proposal"] }).stage).toBe("plan")
+    const back = settle(s, { card: "UX-0001", changes: [], answers: [], summary: "", problems: ["no proposal"] })
+    expect([back.stage, back.note]).toEqual(["triage", "Nothing drafted: every card was left out. Refine to try again."])
   })
   test("the buttons each stage offers", () => {
     const at = (stage: Stage["stage"], extra: Partial<Stage> = {}) => stageActions({ ...fresh("x"), stage, ...extra })
-    expect([at("triage"), at("refine"), at("rehearse"), at("plan"), at("plan", { plan: { title: "t", steps: [] } }), at("planned")]).toEqual([["refine"], [], ["refine"], ["refine"], ["accept", "refine"], ["refine"]])
+    expect([at("triage"), at("refine"), at("rehearse"), at("plan"), at("planned")]).toEqual([["refine"], [], [], [], ["refine"]])
   })
   test("the stepper follows the stage; journey names make safe file names", () => {
-    expect(["triage", "refine", "rehearse", "plan", "planned"].map((x) => stepperAt({ ...fresh("x"), stage: x as never }))).toEqual([0, 1, 2, 3, 4])
+    // Triage ─ Refine ─ Backlog.
+    expect(["triage", "refine", "rehearse", "plan", "planned"].map((x) => stepperAt({ ...fresh("x"), stage: x as never }))).toEqual([0, 1, 1, 1, 2])
     expect(slug("Set up / Reconcile!")).toMatch(/^set-up-reconcile-[0-9a-f]{6}$/)
     expect(slug("Log in")).not.toBe(slug("Log-in"))
   })
@@ -83,7 +86,7 @@ describe("a journey's stages", () => {
     expect(stageLabel(working, [working, b])).toBe("triage-1 · Refine 1/2 cards")
     expect(stageLabel(b, [working, b])).toBe("queued #1")
     expect(stageLabel({ ...working, stage: "rehearse" }, [])).toBe("triage-1 · Re-rehearse")
-    expect(["triage", "refine", "rehearse", "plan", "planned"].map((x) => inTriage({ ...a, stage: x as Stage["stage"] }))).toEqual([false, true, true, false, false])
+    expect(["triage", "refine", "rehearse", "plan", "planned"].map((x) => inTriage({ ...a, stage: x as Stage["stage"] }))).toEqual([false, true, true, true, false])
   })
   test("leaving Re-rehearse (d, or Refine again) keeps its run to stop: the testers must not walk an old draft", () => {
     const s: Stage = { ...fresh("Set up"), stage: "rehearse", run: "r-9", draft: [{ tool: "x", params: {} }], proposals: [{ ...proposed("UX-0001"), status: "accepted" }] }
@@ -100,7 +103,7 @@ describe("a journey's stages", () => {
     expect([r1, r2, r3].map((s) => [s.stage, s.proposals[0]!.status, s.proposals[0]!.rounds, s.proposals[0]!.tries?.length])).toEqual([
       ["refine", "waiting", 1, 1],
       ["refine", "waiting", 2, 2],
-      ["plan", "skipped", 3, 3],
+      ["triage", "skipped", 3, 3],
     ])
     expect(r1.proposals[0]!.problems).toEqual(["6 thens"])
   })

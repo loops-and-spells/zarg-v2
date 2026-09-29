@@ -89,8 +89,6 @@ export default definePlugin({
         rehearsed: (p) => backlog.rehearsed(p as never),
         drafted: (p) => backlog.drafted(p),
         redraft: (p) => backlog.redraft(p),
-        run: (p) => Effect.map(rehearse.run(p), (r) => r as { run?: string; refused?: string }),
-        result: (run) => rehearse.result({ run }),
         stop: (run) => Effect.asVoid(rehearse.stop({ run })),
         status,
         log,

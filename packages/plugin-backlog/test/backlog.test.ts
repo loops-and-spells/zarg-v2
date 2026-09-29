@@ -20,7 +20,7 @@ type Lanes = { lanes: Array<{ id: string; cards: Array<{ id: string; top: string
 const lanes = (seen: Seen) => Object.fromEntries(((seen.get("backlog/board") as Lanes | undefined)?.lanes ?? []).map((l) => [l.id, l.cards]))
 
 describe("the backlog's plans", () => {
-  test("a plan lands in Ready as B-01; its feedback is planned; the board shows it", async () => {
+  test("a plan lands in Backlog as B-01 (it waits there until you move it to Ready); its feedback is planned; the board shows it", async () => {
     const out = await run((seen) => Effect.gen(function* () {
       const { card, feedback } = yield* setUp
       const h = yield* PluginHost
@@ -30,7 +30,8 @@ describe("the backlog's plans", () => {
     }))
     expect(out.id).toBe("B-01")
     expect((out.status as Array<{ state: string }>)[0]!.state).toBe("planned")
-    expect(out.lanes.ready!.map((c) => [c.id, c.top, c.badge, c.lines.map((l) => l.text)])).toEqual([["B-01", "B-01 UX-0001", "◇1", ["Operator"]]])
+    expect(out.lanes.backlog!.map((c) => [c.id, c.top, c.badge, c.lines.map((l) => l.text)])).toEqual([["B-01", "B-01 UX-0001", "◇1", ["Operator"]]])
+    expect(out.lanes.ready).toEqual([])
     expect(Object.keys(out.lanes)).toEqual(["backlog", "ready", "running", "review", "done"])
   })
   test("next: the oldest Ready plan it can take; not one after an unfinished plan, not one whose card changed", async () => {
@@ -39,6 +40,9 @@ describe("the backlog's plans", () => {
       const h = yield* PluginHost
       yield* h.invoke("backlog", "plan", planOf(card.ref, feedback))
       yield* h.invoke("backlog", "plan", planOf(card.ref, [], { after: ["B-01"] }))
+      // In Backlog, the Planner takes neither; moved to Ready, the oldest.
+      const inBacklog = yield* h.invoke("backlog", "next", {})
+      for (const id of ["B-01", "B-02"]) yield* h.invoke("backlog", "moved", { id, to: "ready", by: "operator" })
       const first = (yield* h.invoke("backlog", "next", {})) as { id: string }
       yield* h.invoke("backlog", "moved", { id: "B-01", to: "running", by: "Planner", what: "applied" })
       const whileRunning = yield* h.invoke("backlog", "next", {})
@@ -46,8 +50,9 @@ describe("the backlog's plans", () => {
       yield* h.invoke("backlog", "moved", { id: "B-01", to: "done", by: "operator" })
       const changed = yield* h.invoke("backlog", "next", {})
       yield* h.invoke("backlog", "act", { agent: "backlog", action: "open", rows: [] })
-      return { first: first.id, whileRunning, changed, lanes: lanes(seen), feedback: yield* h.invoke("backlog", "status", { ids: feedback }) }
+      return { inBacklog, first: first.id, whileRunning, changed, lanes: lanes(seen), feedback: yield* h.invoke("backlog", "status", { ids: feedback }) }
     }))
+    expect(out.inBacklog).toBeNull()
     expect(out.first).toBe("B-01")
     expect(out.whileRunning).toBeNull()
     expect(out.changed).toBeNull()
@@ -59,9 +64,10 @@ describe("the backlog's plans", () => {
       const { card, feedback } = yield* setUp
       const h = yield* PluginHost
       yield* h.invoke("backlog", "plan", planOf(card.ref, feedback))
-      yield* h.invoke("backlog", "act", { agent: "backlog", action: "move-left", rows: ["B-01"] })
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "move-right", rows: ["B-01"] })
       yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: ["B-01"] })
       const drawer = seen.get("backlog/item") as { markdown: string }
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "park", rows: [] })
       yield* h.invoke("backlog", "act", { agent: "backlog", action: "ready", rows: [] })
       const byCommand = yield* h.entities.command("backlog/item:B-01", "park", {})
       yield* h.invoke("backlog", "act", { agent: "backlog", action: "drop", rows: [] })
@@ -72,7 +78,7 @@ describe("the backlog's plans", () => {
     expect(out.drawer.markdown).toContain("gherkin/edit-state")
     expect(out.opened).toEqual([[{ surface: "item", agent: "backlog", focus: true }]])
     expect(out.byCommand).toEqual({ notice: "B-01 → Backlog" })
-    expect((out.e.data as { events: Array<{ what: string; by: string }> }).events.map((x) => x.what)).toEqual(["planned", "ready → backlog", "backlog → ready", "ready → backlog", "dropped"])
+    expect((out.e.data as { events: Array<{ what: string; by: string }> }).events.map((x) => x.what)).toEqual(["planned", "backlog → ready", "ready → backlog", "backlog → ready", "ready → backlog", "dropped"])
     expect(Object.values(out.lanes).flat()).toEqual([])
     expect((out.feedback as Array<{ state: string }>)[0]!.state).toBe("open")
   })

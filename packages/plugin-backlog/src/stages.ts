@@ -64,7 +64,8 @@ export interface Stage {
 export const fresh = (journey: string): Stage => ({ journey, stage: "triage", proposals: [], draft: [] })
 /** A journey's file name: readable, and unique (two names that read the same keep apart). */
 export const slug = (journey: string) => `${journey.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "journey"}-${versionOf(journey).slice(0, 6)}`
-export const stepperAt = (s: Stage) => STAGE_NAMES.indexOf(s.stage)
+/** Where the stepper (Triage ─ Refine ─ Backlog) stands: a round in flight is in Refine until its plan is on the Backlog. */
+export const stepperAt = (s: Stage) => (s.stage === "triage" ? 0 : s.stage === "planned" ? 2 : 1)
 /** The proposal the operator decides next: the first not decided. */
 export const current = (s: Stage) => s.proposals.find((p) => p.status === "proposed" || p.status === "waiting")
 
@@ -119,12 +120,12 @@ export const settle = (s: Stage, p: { readonly card: string; readonly title?: st
   const next: Stage = { ...s, proposals, draft }
   if (current(next) !== undefined) return next
   const { note: _n, ...rest } = next
-  return { ...rest, stage: draft.length > 0 ? "rehearse" : "plan" }
+  // Every card decided: the plan is drafted and goes to the Backlog; nothing drafted: back to Triage.
+  return draft.length > 0 ? { ...rest, stage: "plan" } : { ...rest, stage: "triage", note: "Nothing drafted: every card was left out. Refine to try again." }
 }
 
 /** The buttons a stage offers (a note is always there). */
-export const stageActions = (s: Stage): ReadonlyArray<string> =>
-  s.stage === "refine" ? [] : s.stage === "plan" && s.plan !== undefined ? ["accept", "refine"] : ["refine"]
+export const stageActions = (s: Stage): ReadonlyArray<string> => (s.stage === "triage" || s.stage === "planned" ? ["refine"] : [])
 
 /** Draft one card again: it waits again (keeping what failed, for the model), its changes leave the draft, the round goes back to Refine. */
 export const redo = (s: Stage, card: string): Stage | string => {
@@ -136,7 +137,7 @@ export const redo = (s: Stage, card: string): Stage | string => {
 }
 
 /** In triage (queued or worked): its feedback is read-only until Plan. */
-export const inTriage = (s: Stage) => s.stage === "refine" || s.stage === "rehearse"
+export const inTriage = (s: Stage) => s.stage === "refine" || s.stage === "rehearse" || s.stage === "plan"
 /** The next place in the triage queue. */
 export const nextQueued = (all: ReadonlyArray<Stage>) => Math.max(0, ...all.map((s) => s.queued ?? 0)) + 1
 /** How the Feedback view names a journey's stage: its place in line, or the worker on it and how far it is. */

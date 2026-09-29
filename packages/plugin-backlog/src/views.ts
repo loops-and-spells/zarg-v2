@@ -22,7 +22,6 @@ export const FeedbackView = defineView("feedback", {
     // What the journey's stage offers now (the view names them per stage); a note is always there.
     actions: [
       { id: "refine", label: "Refine", key: "r", on: "none" },
-      { id: "accept", label: "Accept", key: "a", on: "none" },
       { id: "note", label: "Note", key: "n", on: "row", input: "your note for refinement" },
     ],
     columns: [

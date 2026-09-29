@@ -130,3 +130,7 @@ In: everything above. Built in three plans, each shippable on its own:
 3. **The Triage Agent**: Refine, Re-rehearse (rehearse's `journey` and `draft`), Plan, and the agent defaults at every stage.
 
 Out: a web renderer for these views, cross-repo backlogs, time-based metrics.
+
+## Revision (2026-09-29): Feedback → Triage → Backlog
+
+The re-rehearse step and the Accept button are gone. Refine queues a journey; a triage worker drafts its cards (each over the draft so far, a failing card drafted again up to 3 rounds), dry-runs the whole draft (back to Refine when the changes do not fit together), drafts the plan, and puts it in the **Backlog lane**. It waits there until the operator moves it to Ready; the Planner applies only Ready plans. The Feedback stepper is Triage ─ Refine ─ Backlog; every card left out sends the journey back to Triage with nothing on the Backlog. A round still at the old Re-rehearse step has its run stopped and moves on to Plan.

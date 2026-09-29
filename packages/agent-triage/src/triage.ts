@@ -38,8 +38,6 @@ export interface TriageDeps {
   readonly redraft: (p: { readonly journey: string; readonly problems: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
   readonly rehearsed: (p: { readonly journey: string; readonly resolved: ReadonlyArray<string>; readonly fresh: ReadonlyArray<Fresh>; readonly next: "plan" | "refine"; readonly cards?: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
   readonly drafted: (p: { readonly journey: string; readonly title: string; readonly steps: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
-  readonly run: (p: { readonly strategy: "journey"; readonly focus: ReadonlyArray<string>; readonly draft: Draft; readonly file: false }) => Effect.Effect<{ readonly run?: string; readonly refused?: string }, unknown>
-  readonly result: (run: string) => Effect.Effect<{ readonly status: string; readonly findings: ReadonlyArray<Fresh & { readonly on: boolean }> }, unknown>
   /** Stop that rehearse run, when it is the one going. */
   readonly stop: (run: string) => Effect.Effect<void, unknown>
   /** The agent's row: what it does now. */
@@ -104,7 +102,6 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
   const clock = d.now.pipe(Effect.orElseSucceed(() => 0))
   // Paused, no worker starts a card; each worker's card (or "" for the run it waits on), and since when.
   let paused = false
-  const runsSince = new Map<string, number>()
   const at = (w: Slot, now: Working | undefined) => Effect.andThen(Effect.sync(() => (w.at = now)), quiet(d.render))
   /** The model's answer; undefined when it did not answer at all (an outage, not a bad answer). */
   // Without reasoning by default: on cards the model reasoned to its token limit and never answered.
@@ -177,44 +174,6 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
       yield* d.propose({ journey: st.journey, card, ...(step !== null ? { title: step.title } : {}), tries, changes: p?.changes ?? [], answers: p?.answers ?? [], summary: p?.summary ?? "", ...(last.problems.length > 0 ? { problems: last.problems } : {}) })
     })
 
-  /** Re-rehearse: check the whole draft, start a run over it (again, when one stopped), or read the one going. */
-  const rehearse = (st: StageView, who: string) =>
-    Effect.gen(function* () {
-      const start = Effect.gen(function* () {
-        const dry = yield* d.dryRun(st.draft).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: ["the dry-run failed"], touched: [] as ReadonlyArray<string>, cards: [] as ReadonlyArray<string> })))
-        // Accepted one by one, the changes may not fit together: back to Refine before any run.
-        if (!dry.ok) {
-          yield* quiet(d.log(who, `${st.journey}: the drafted changes do not fit together: ${dry.problems.join("; ")}`))
-          return yield* d.redraft({ journey: st.journey, problems: dry.problems })
-        }
-        const journey = (yield* d.journeys().pipe(Effect.orElseSucceed(() => []))).find((j) => j.name === st.journey)
-        const focus = [...new Set([...(journey?.cards ?? []), ...dry.cards])]
-        // Nothing to walk: an empty focus would walk the whole graph.
-        if (focus.length === 0) return yield* d.rehearsed({ journey: st.journey, resolved: [], fresh: [], next: "plan", cards: dry.cards })
-        const started: { readonly run?: string; readonly refused?: string } = yield* d.run({ strategy: "journey", focus, draft: st.draft, file: false }).pipe(Effect.orElseSucceed(() => ({ refused: "rehearse did not answer" })))
-        if (started.run === undefined) {
-          yield* quiet(d.log(who, `${st.journey}: re-rehearse waits: ${started.refused ?? "rehearse did not start"}`))
-          return yield* d.rehearsing({ journey: st.journey, clear: true, note: `waits: ${started.refused ?? "rehearse did not start"}` })
-        }
-        yield* quiet(d.log(who, `${st.journey}: re-rehearsing on ${focus.length} cards (run ${started.run})`))
-        return yield* d.rehearsing({ journey: st.journey, run: started.run, cards: dry.cards })
-      })
-      if (st.run === undefined) return yield* start
-      const r = yield* d.result(st.run).pipe(Effect.orElseSucceed(() => ({ status: "unknown", findings: [] })))
-      if (r.status === "running") return
-      // A run that stopped, or is gone: start another.
-      if (r.status !== "done") return yield* start
-      const entries = yield* d.feedbackOf(st.journey).pipe(Effect.orElseSucceed(() => []))
-      const same = (card: string, kind: string) => r.findings.some((f) => f.card === card && f.kind === kind)
-      const resolved = entries.filter((e) => e.on && !same(cardOf(e.ref), e.kind)).map((e) => e.id)
-      // Fresh: new to this journey — not an entry already (on or off), not one the operator skipped.
-      const known = (f: { card: string; kind: string }) => entries.some((e) => cardOf(e.ref) === f.card && e.kind === f.kind) || (st.dismissed ?? []).some((x) => x.card === f.card && x.kind === f.kind)
-      const fresh = r.findings.filter((f) => f.on && !known(f)).map(({ on: _, ...f }) => f)
-      yield* quiet(d.log(who, `${st.journey}: re-rehearsed: ${resolved.length} resolved, ${fresh.length} new`))
-      // On to Plan either way: new findings are named there, and the operator refines again or accepts.
-      yield* d.rehearsed({ journey: st.journey, resolved, fresh, next: "plan", ...(st.cards !== undefined ? { cards: st.cards } : {}) })
-    })
-
   /** Plan: a title and steps for the accepted changes (a plain one when the model does not answer). */
   const draftPlan = (st: StageView, who: string) =>
     Effect.gen(function* () {
@@ -226,7 +185,7 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
       const v = jsonIn(text) as { title?: unknown; steps?: unknown } | undefined
       const title = typeof v?.title === "string" && v.title.length > 0 ? v.title : `${st.journey}: ${accepted.length} card${accepted.length === 1 ? "" : "s"} refined`
       const steps = Array.isArray(v?.steps) && v.steps.every((x) => typeof x === "string") ? (v.steps as ReadonlyArray<string>) : accepted.map((p) => `${p.card}: ${p.summary}`)
-      yield* quiet(d.log(who, `${st.journey}: plan drafted: ${title}`))
+      yield* quiet(d.log(who, `${st.journey}: plan drafted: ${title}; it goes to the Backlog`))
       yield* d.drafted({ journey: st.journey, title, steps })
     })
 
@@ -245,16 +204,22 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
         }
       const st = (yield* d.stages().pipe(Effect.orElseSucceed(() => []))).find((x) => x.journey === journey)
       if (paused || st === undefined) return
+      // A round still at the old Re-rehearse step: its run stops, and it moves on to Plan.
       if (st.stage === "rehearse") {
-        // Since when it waits on this journey's run (first seen, if it started before this process).
-        if (!runsSince.has(journey)) runsSince.set(journey, yield* clock)
-        yield* quiet(d.status(slot.id, `${journey}: re-rehearsing`))
-        yield* at(slot, { journey, card: "", since: runsSince.get(journey)! })
-        yield* rehearse(st, slot.id)
-      } else runsSince.delete(journey)
+        if (st.run !== undefined) yield* quiet(d.stop(st.run))
+        yield* quiet(d.log(slot.id, `${journey}: on to Plan (no re-rehearse)`))
+        yield* d.rehearsed({ journey, resolved: [], fresh: [], next: "plan" })
+      }
       const after = (yield* d.stages().pipe(Effect.orElseSucceed(() => []))).find((x) => x.journey === journey)
       if (after !== undefined && after.stage === "plan" && after.plan === undefined && after.draft.length > 0) {
+        // Taken one by one, the changes may not fit together: back to Refine before the plan goes to the Backlog.
+        const dry = yield* d.dryRun(after.draft).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: ["the dry-run failed"], touched: [] as ReadonlyArray<string>, cards: [] as ReadonlyArray<string> })))
+        if (!dry.ok) {
+          yield* quiet(d.log(slot.id, `${journey}: the drafted changes do not fit together: ${dry.problems.join("; ")}`))
+          return yield* d.redraft({ journey, problems: dry.problems })
+        }
         yield* quiet(d.status(slot.id, `${journey}: drafting the plan`))
+        yield* at(slot, { journey, card: "", since: yield* clock })
         yield* draftPlan(after, slot.id)
       }
     }).pipe(Effect.catchCause(() => Effect.void))
