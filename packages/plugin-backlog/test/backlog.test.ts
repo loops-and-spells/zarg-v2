@@ -34,7 +34,7 @@ describe("the backlog's plans", () => {
     expect(out.lanes.ready).toEqual([])
     expect(Object.keys(out.lanes)).toEqual(["backlog", "ready", "running", "review", "done"])
   })
-  test("next: the oldest Ready plan it can take; not one after an unfinished plan, not one whose card changed", async () => {
+  test("next: the oldest Ready plan it can take; not one after an unfinished plan, not one whose card changed (unless a plan it waits on changed it)", async () => {
     const out = await run((seen) => Effect.gen(function* () {
       const { card, feedback } = yield* setUp
       const h = yield* PluginHost
@@ -46,15 +46,21 @@ describe("the backlog's plans", () => {
       const first = (yield* h.invoke("backlog", "next", {})) as { id: string }
       yield* h.invoke("backlog", "moved", { id: "B-01", to: "running", by: "Planner", what: "applied" })
       const whileRunning = yield* h.invoke("backlog", "next", {})
+      // A plan waiting on none, drafted on the card as it is before B-01 lands.
+      yield* h.invoke("backlog", "plan", planOf(card.ref, []))
+      yield* h.invoke("backlog", "moved", { id: "B-03", to: "ready", by: "operator" })
       yield* gherkin("edit-state", { id: "S-0002", text: "the operator is asked once" })
       yield* h.invoke("backlog", "moved", { id: "B-01", to: "done", by: "operator" })
+      const byDesign = (yield* h.invoke("backlog", "next", {})) as { id: string }
+      yield* h.invoke("backlog", "moved", { id: "B-02", to: "done", by: "operator" })
       const changed = yield* h.invoke("backlog", "next", {})
       yield* h.invoke("backlog", "act", { agent: "backlog", action: "open", rows: [] })
-      return { inBacklog, first: first.id, whileRunning, changed, lanes: lanes(seen), feedback: yield* h.invoke("backlog", "status", { ids: feedback }) }
+      return { inBacklog, first: first.id, whileRunning, byDesign: byDesign.id, changed, lanes: lanes(seen), feedback: yield* h.invoke("backlog", "status", { ids: feedback }) }
     }))
     expect(out.inBacklog).toBeNull()
     expect(out.first).toBe("B-01")
     expect(out.whileRunning).toBeNull()
+    expect(out.byDesign).toBe("B-02")
     expect(out.changed).toBeNull()
     expect(out.lanes.ready![0]!.lines.map((l) => l.text)).toEqual(["Operator", "⚠ card changed"])
     expect((out.feedback as Array<{ state: string }>)[0]!.state).toBe("closed")
@@ -218,5 +224,60 @@ describe("the backlog's plans", () => {
     }))
     expect(out.planned).toEqual(["planned", "B-01"])
     expect(out.after).toEqual(["triage", undefined])
+  })
+  test("plans: a round's plans in Backlog, after linked by id; the journey planned until the last goes; one after a dropped plan says so", async () => {
+    const out = await run((seen) => Effect.gen(function* () {
+      const { card, feedback } = yield* setUp
+      const h = yield* PluginHost
+      const change = planOf(card.ref, feedback).changes
+      const r = (yield* h.invoke("backlog", "plans", { journey: "Set up", plans: [
+        { title: "First", steps: ["a"], changes: change, cards: ["UX-0001"], feedback, after: [] },
+        { title: "Second", steps: ["b"], changes: change, cards: ["UX-0001"], feedback: [], after: [0] },
+      ] })) as { ids: string[] }
+      const items = yield* Effect.forEach(r.ids, (id) => Effect.map(h.entities.get(`backlog/item:${id}`), (e) => e.data as { status: string; after?: string[]; feedback: string[] }))
+      const stage = ((yield* h.invoke("backlog", "stages", {})) as Array<{ stage: string; items?: string[] }>)[0]!
+      const status = (yield* h.invoke("backlog", "status", { ids: feedback })) as Array<{ state: string }>
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: [r.ids[0]!] })
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "drop", rows: [] })
+      const afterOne = ((yield* h.invoke("backlog", "stages", {})) as Array<{ stage: string }>)[0]!.stage
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "open", rows: [] })
+      const second = lanes(seen).backlog!.find((c) => c.id === r.ids[1])!
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: [r.ids[1]!] })
+      const plan = (seen.get("backlog/item.plan") as { markdown: string }).markdown
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "drop", rows: [] })
+      const afterBoth = ((yield* h.invoke("backlog", "stages", {})) as Array<{ stage: string }>)[0]!.stage
+      return { ids: r.ids, items, stage, status: status[0]!.state, afterOne, afterBoth, second: second.lines.map((l) => l.text), plan }
+    }))
+    expect(out.ids).toEqual(["B-01", "B-02"])
+    expect(out.items.map((i) => [i.status, i.after ?? [], i.feedback.length])).toEqual([["backlog", [], 1], ["backlog", ["B-01"], 0]])
+    expect([out.stage.stage, out.stage.items]).toEqual(["planned", ["B-01", "B-02"]])
+    expect(out.status).toBe("planned")
+    expect(out.afterOne).toBe("planned")
+    expect(out.second).toContain("⇠ after B-01 (dropped)")
+    expect(out.plan).toContain("Waits on B-01 (dropped)")
+    expect(out.afterBoth).toBe("triage")
+  })
+  test("cards its dependencies touch are not changed for it: no ⚠, and the Planner takes it once they are Done; the first says what waits on it", async () => {
+    const out = await run((seen) => Effect.gen(function* () {
+      const { card, feedback } = yield* setUp
+      const h = yield* PluginHost
+      const change = planOf(card.ref, feedback).changes
+      yield* h.invoke("backlog", "plans", { journey: "Set up", plans: [
+        { title: "First", steps: [], changes: change, cards: ["UX-0001"], feedback, after: [] },
+        { title: "Second", steps: [], changes: change, cards: ["UX-0001"], feedback: [], after: [0] },
+      ] })
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: ["B-01"] })
+      const first = (seen.get("backlog/item.plan") as { markdown: string }).markdown
+      // The first is applied: the card changes.
+      yield* gherkin("edit-state", { id: "S-0002", text: "the operator is asked once" })
+      for (const id of ["B-01", "B-02"]) yield* h.invoke("backlog", "moved", { id, to: "ready", by: "operator" })
+      yield* h.invoke("backlog", "moved", { id: "B-01", to: "done", by: "operator" })
+      const next = (yield* h.invoke("backlog", "next", {})) as { id: string } | null
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "open", rows: [] })
+      return { next: next?.id, first, lines: lanes(seen).ready!.find((c) => c.id === "B-02")!.lines.map((l) => l.text) }
+    }))
+    expect(out.next).toBe("B-02")
+    expect(out.lines).not.toContain("⚠ card changed")
+    expect(out.first).toContain("B-02 waits on this")
   })
 })

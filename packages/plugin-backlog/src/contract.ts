@@ -54,6 +54,7 @@ export const StageData = Schema.Struct({
   results: Schema.optionalKey(Schema.Struct({ resolved: Schema.Array(Schema.String), fresh: Schema.Array(Schema.Struct({ card: Schema.String, kind: Schema.String, severity: Schema.String, note: Schema.String })) })),
   plan: Schema.optionalKey(Schema.Struct({ title: Schema.String, steps: Schema.Array(Schema.String) })),
   item: Schema.optionalKey(Schema.String),
+  items: Schema.optionalKey(Schema.Array(Schema.String)),
   note: Schema.optionalKey(Schema.String),
   inputs: Schema.optionalKey(Schema.Array(Schema.String)),
   redrafts: Schema.optionalKey(Schema.Number),
@@ -73,6 +74,11 @@ export const Rehearsed = Schema.Struct({
   cards: Schema.optionalKey(Schema.Array(Schema.String)),
 })
 export const Drafted = Schema.Struct({ journey: Schema.String, title: Schema.String, steps: Schema.Array(Schema.String) })
+/** A folded round's plans, in order: each names its cards by id, the feedback it closes, and the plans it waits on by index. */
+export const PlansParams = Schema.Struct({
+  journey: Schema.String,
+  plans: Schema.Array(Schema.Struct({ title: Schema.String, steps: Schema.Array(Schema.String), changes: DraftCalls, cards: Schema.Array(Schema.String), feedback: Schema.Array(Schema.String), after: Schema.Array(Schema.Number) })),
+})
 export const OnEntry = Schema.Struct({ id: Schema.String, ref: Schema.String, kind: Schema.String, severity: Schema.String, note: Schema.String, persona: Schema.String, on: Schema.Boolean, operatorNote: Schema.optionalKey(Schema.String) })
 /** The backlog's surface for other plugins: file feedback and ask where it stands; add a plan, take the next, record a move. */
 export const Backlog = pluginContract("backlog", {
@@ -87,6 +93,7 @@ export const Backlog = pluginContract("backlog", {
   rehearsing: { params: Rehearsing, success: Schema.Null },
   rehearsed: { params: Rehearsed, success: Schema.Null },
   drafted: { params: Drafted, success: Schema.Null },
+  plans: { params: PlansParams, success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
   redraft: { params: Redraft, success: Schema.Null },
   walking: { params: Schema.Struct({ run: Schema.String, journeys: Schema.Array(Schema.String) }), success: Schema.Null },
   assign: { params: Schema.Struct({ journey: Schema.String, worker: Schema.optionalKey(Schema.String) }), success: Schema.Null },

@@ -19,7 +19,7 @@ const groups = (cards: ReadonlyArray<CardDiff>, diff: (c: CardDiff) => ReadonlyA
 const plural = (n: number, s: string) => `${n} ${s}${n === 1 ? "" : "s"}`
 
 /** A plan for reading: what it is, what it changes card by card (only the lines that change), what feedback it closes. */
-export const planText = (i: Pick<Item, "id" | "title" | "journey" | "persona" | "severity" | "status" | "cards" | "changes" | "steps">, feedback: ReadonlyArray<Fb>, cards: ReadonlyArray<CardDiff>, changed: ReadonlySet<string>): string => {
+export const planText = (i: Pick<Item, "id" | "title" | "journey" | "persona" | "severity" | "status" | "cards" | "changes" | "steps">, feedback: ReadonlyArray<Fb>, cards: ReadonlyArray<CardDiff>, changed: ReadonlySet<string>, links: { readonly after: ReadonlyArray<string>; readonly before: ReadonlyArray<string> } = { after: [], before: [] }): string => {
   const added = cards.filter((c) => c.before.length === 0)
   const edited = cards.filter((c) => c.before.length > 0)
   const high = feedback.filter((f) => f.severity === "high")
@@ -31,6 +31,7 @@ export const planText = (i: Pick<Item, "id" | "title" | "journey" | "persona" | 
     `**${i.title}**`,
     [i.journey, i.persona, i.severity].filter((x) => x !== undefined).join(" · "),
     `${plural(cards.length, "card")}: ${edited.length} changed, ${added.length} new · ${plural(i.changes.length, "change")} · closes ${feedback.length} feedback${high.length > 0 ? ` (${high.length} high)` : ""}`,
+    ...(links.after.length > 0 || links.before.length > 0 ? [[...(links.after.length > 0 ? [`Waits on ${links.after.join(", ")}`] : []), ...(links.before.length > 0 ? [`${links.before.join(", ")} ${links.before.length === 1 ? "waits" : "wait"} on this`] : [])].join(" · ")] : []),
     ...(changed.size === 1 ? [`⚠ ${cardOf([...changed][0]!)} changed since this plan was drafted: **s** Resync`] : changed.size > 1 ? [`⚠ ${changed.size} cards changed since this plan was drafted (${[...changed].map(cardOf).join(", ")}): **s** Resync`] : []),
     ...(i.steps.length > 0 ? ["", "**The plan**", ...i.steps.map((s, k) => `${k + 1}. ${s}`)] : []),
     // Cards with the same change (a reworded state they share) show it once.

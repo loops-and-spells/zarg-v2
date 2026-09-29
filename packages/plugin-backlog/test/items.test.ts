@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { boardCard, type Item, moved, neighbour, nextId, pickNext } from "../src/items"
+import { boardCard, type Item, moved, neighbour, nextId, pickNext, stale } from "../src/items"
 
 const item = (id: string, over: Partial<Item> = {}): Item => ({
   id,
@@ -34,7 +34,7 @@ describe("backlog items", () => {
     expect(pickNext([item("B-01", { status: "done" }), item("B-04"), item("B-02", { after: ["B-01"] })], () => false)?.id).toBe("B-02")
   })
   test("a card on the board: stripe by severity, id and first card on top, feedback count, persona, and why it waits", () => {
-    const all = [item("B-01", { status: "running" })]
+    const all = [item("B-01", { status: "running", cards: [{ ref: "gherkin/card:UX-0001@000000000000" }] })]
     expect(boardCard(item("B-02", { after: ["B-01"] }), all, new Set(["gherkin/card:UX-0062@3f9a1c20b7e4"]))).toEqual({
       id: "B-02",
       title: "Plan B-02",
@@ -47,6 +47,17 @@ describe("backlog items", () => {
   })
 })
 
-test("a plan after a dropped or missing plan is not held back", () => {
-  expect(pickNext([item("B-01", { dropped: true }), item("B-02", { after: ["B-01", "B-09"] })], () => false)?.id).toBe("B-02")
+test("a plan after a missing plan is not held back; after a dropped one it is, and says so", () => {
+  expect(pickNext([item("B-02", { after: ["B-09"] })], () => false)?.id).toBe("B-02")
+  const all = [item("B-01", { dropped: true }), item("B-02", { after: ["B-01"] })]
+  expect(pickNext(all, () => false)).toBeUndefined()
+  expect(boardCard(all[1]!, all, new Set()).lines).toContainEqual({ text: "⇠ after B-01 (dropped)", tone: "error" })
+})
+test("a card a plan it waits on also touches is not changed for it: applying that plan changes it by design", () => {
+  const changed = new Set(["gherkin/card:UX-0062@3f9a1c20b7e4"])
+  const all = [item("B-01", { status: "done" }), item("B-02", { after: ["B-01"] })]
+  expect(pickNext(all, (r) => changed.has(r))?.id).toBe("B-02")
+  expect(boardCard(all[1]!, all, changed).lines).not.toContainEqual({ text: "⚠ card changed", tone: "attention" })
+  expect(stale(all[1]!, all, changed)).toEqual(new Set())
+  expect(stale(item("B-03"), all, changed)).toEqual(changed)
 })

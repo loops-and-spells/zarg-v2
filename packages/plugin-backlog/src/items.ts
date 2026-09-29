@@ -1,4 +1,5 @@
 import { parseRef } from "@zarg/entities"
+import { target } from "./feedback"
 
 export const LANES = ["backlog", "ready", "running", "review", "done"] as const
 export type Lane = (typeof LANES)[number]
@@ -42,22 +43,30 @@ export const moved = (item: Item, to: Lane, by: string, what?: string): Item => 
   return { ...rest, status: to, ...(to === "running" || to === "review" ? { agent: by } : {}), events: [...item.events, { what: what_, by }] }
 }
 
-/** Items it waits for that are not done (a dropped or missing one no longer holds it back). */
+/** Items it waits for that are not done (a missing one no longer holds it back; a dropped one does, until it is dropped too or resynced). */
 export const waitingOn = (item: Item, all: ReadonlyArray<Item>) =>
   (item.after ?? []).filter((id) => {
     const x = all.find((i) => i.id === id)
-    return x !== undefined && x.dropped !== true && x.status !== "done"
+    return x !== undefined && x.status !== "done"
   })
+
+/** Its changed refs that count: a card a plan it waits on also touches changes by design when that plan applies. */
+export const stale = (item: Item, all: ReadonlyArray<Item>, changed: ReadonlySet<string>) => {
+  const theirs = new Set(all.filter((i) => (item.after ?? []).includes(i.id)).flatMap((i) => i.cards.map((c) => target(c.ref))))
+  return new Set(item.cards.map((c) => c.ref).filter((r) => changed.has(r) && !theirs.has(target(r))))
+}
 
 /** The Planner's next: the oldest Ready item whose after items are done and whose cards have not changed since it was drafted. */
 export const pickNext = (items: ReadonlyArray<Item>, changed: (ref: string) => boolean) =>
-  [...items].filter((i) => i.status === "ready" && i.dropped !== true && i.needs === undefined && waitingOn(i, items).length === 0 && !i.cards.some((c) => changed(c.ref))).sort((a, b) => order(a) - order(b))[0]
+  [...items]
+    .filter((i) => i.status === "ready" && i.dropped !== true && i.needs === undefined && waitingOn(i, items).length === 0 && stale(i, items, new Set(i.cards.map((c) => c.ref).filter(changed))).size === 0)
+    .sort((a, b) => order(a) - order(b))[0]
 
 /** How an item shows on the board: its stripe, top line, badge, then who it is for, who works it, why it waits. */
 export const boardCard = (item: Item, all: ReadonlyArray<Item>, changedRefs: ReadonlySet<string>) => {
   const card = item.cards[0] === undefined ? undefined : parseRef(item.cards[0].ref)?.id
   const waits = waitingOn(item, all)
-  const changed = (item.status === "backlog" || item.status === "ready") && item.cards.some((c) => changedRefs.has(c.ref))
+  const changed = (item.status === "backlog" || item.status === "ready") && stale(item, all, changedRefs).size > 0
   return {
     id: item.id,
     title: item.title,
@@ -67,7 +76,7 @@ export const boardCard = (item: Item, all: ReadonlyArray<Item>, changedRefs: Rea
     lines: [
       ...(item.persona !== undefined ? [{ text: item.persona, tone: "persona" as const }] : []),
       ...(item.status === "running" && item.agent !== undefined ? [{ text: `⠼ ${item.agent}`, tone: "accent" as const }] : []),
-      ...(waits.length > 0 && item.status !== "done" ? [{ text: `⇠ after ${waits.join(", ")}`, tone: "error" as const }] : []),
+      ...(waits.length > 0 && item.status !== "done" ? [{ text: `⇠ after ${waits.map((id) => (all.find((i) => i.id === id)?.dropped === true ? `${id} (dropped)` : id)).join(", ")}`, tone: "error" as const }] : []),
       ...(changed ? [{ text: "⚠ card changed", tone: "attention" as const }] : []),
     ],
   }

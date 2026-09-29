@@ -45,6 +45,8 @@ export interface Stage {
   readonly results?: { readonly resolved: ReadonlyArray<string>; readonly fresh: ReadonlyArray<{ readonly card: string; readonly kind: string; readonly severity: string; readonly note: string }> }
   readonly plan?: { readonly title: string; readonly steps: ReadonlyArray<string> }
   readonly item?: string
+  /** A folded round's plans, in order. */
+  readonly items?: ReadonlyArray<string>
   /** The agent's last word on it (waiting for a run, a model that did not answer). */
   readonly note?: string
   /** The feedback that was on when Refine started (what a plan closes). */
@@ -76,7 +78,7 @@ const waiting = (card: string) => ({ card, changes: [], answers: [], summary: ""
 export const startRefine = (s: Stage, entries: ReadonlyArray<OnLike>): Stage | string => {
   const cards = cardsOn(entries)
   if (cards.length === 0) return `nothing on in ${s.journey}: turn feedback on first`
-  const { results: _r, plan: _p, item: _i, run: _run, cards: _c, note: _n, dismissed: _d, redrafts: _rd, ...rest } = s
+  const { results: _r, plan: _p, item: _i, items: _is, run: _run, cards: _c, note: _n, dismissed: _d, redrafts: _rd, ...rest } = s
   return { ...rest, stage: "refine", proposals: cards.map(waiting), draft: [], inputs: entries.filter((e) => e.triage.on && e.id !== undefined).map((e) => e.id!) }
 }
 /** Refine again, from Plan (or out of a re-rehearse that hangs): the cards whose feedback is on and not resolved, over the draft so far. */
