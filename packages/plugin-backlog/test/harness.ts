@@ -21,7 +21,7 @@ const plugins = () =>
   ]))
 
 /** What the plugins pushed to their views: the last data per view section. */
-export type Seen = Map<string, unknown> & { opened?: Array<unknown>; log?: Array<{ key: string; data: unknown }> }
+export type Seen = Map<string, unknown> & { opened?: Array<unknown>; closed?: Array<unknown>; log?: Array<{ key: string; data: unknown }> }
 
 /** Runs `body` with gherkin and backlog over a fresh graph in a fresh project folder (YOLO: no grant prompts). */
 export const run = <A, E>(body: (seen: Seen, root: string) => Effect.Effect<A, E, PluginHost | GraphStore>) =>
@@ -47,6 +47,7 @@ export const run = <A, E>(body: (seen: Seen, root: string) => Effect.Effect<A, E
           ;(seen.log ??= []).push({ key: `${ev.id}/${ev.section}`, data: ev.data })
         }
         if (ev.event === "open") (seen.opened ??= []).push(ev.surfaces)
+        if (ev.event === "close") (seen.closed ??= []).push((ev as { surface?: unknown }).surface)
       },
     })
     // YOLO loads plugins that wait only for their grant (the backlog writes files).

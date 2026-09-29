@@ -188,4 +188,18 @@ describe("the backlog's plans", () => {
     expect(plans.at(-1)!.loading).toBeUndefined()
     expect(plans.at(-1)!.markdown).toContain("**Grant prompt names its choices**")
   })
+  test("Drop closes the drawer: its plan is gone", async () => {
+    const out = await run((seen) => Effect.gen(function* () {
+      const { card, feedback } = yield* setUp
+      const h = yield* PluginHost
+      yield* h.invoke("backlog", "plan", planOf(card.ref, feedback))
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: ["B-01"] })
+      const before = seen.closed ?? []
+      const notice = (yield* h.invoke("backlog", "act", { agent: "backlog", action: "drop", rows: [] })) as { notice: string }
+      return { before: [...before], closed: seen.closed ?? [], notice: notice.notice }
+    }))
+    expect(out.before).toEqual([])
+    expect(out.closed).toEqual(["item"])
+    expect(out.notice).toBe("B-01 dropped; its feedback is open again")
+  })
 })

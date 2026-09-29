@@ -383,15 +383,26 @@ export default definePlugin({
           return i === undefined ? `no plan ${rows[0]}` : yield* move(i.id, neighbour(i.status, action === "move-right" ? 1 : -1), "operator")
         }
         // The drawer's buttons act on the plan it shows.
+        // The drawer follows its plan; once the plan is dropped (Drop, or a Resync that sends it back to triage), it closes.
+        const after = (id: string) =>
+          Effect.gen(function* () {
+            if ((yield* loadItems).find((x) => x.id === id)?.dropped === true) {
+              selected = undefined
+              return yield* surfaces.close("item", "backlog")
+            }
+            yield* showItem(id)
+          })
         if (selected !== undefined && action === "resync") {
-          const notice = yield* resync(selected)
-          yield* showItem(selected)
+          const id = selected
+          const notice = yield* resync(id)
+          yield* after(id)
           return notice
         }
         // Move ▾: to the lane picked (its text); Drop.
         if (selected !== undefined && ((action === "move" && (LANES as ReadonlyArray<string>).includes(text ?? "")) || action === "drop")) {
-          const notice = action === "drop" ? yield* drop(selected) : yield* move(selected, text as Item["status"], "operator")
-          yield* showItem(selected)
+          const id = selected
+          const notice = action === "drop" ? yield* drop(id) : yield* move(id, text as Item["status"], "operator")
+          yield* after(id)
           return notice
         }
         return action === "open" ? "Backlog" : `nothing to ${action}`
