@@ -18,7 +18,9 @@ export const surfacesProblem = (surfaces: unknown, layouts: ReadonlyArray<Layout
     names.add(s.name)
     const layout = layouts.find((l) => l.name === s.view)
     if (layout === undefined) return `surface ${s.name} shows view ${s.view}, which the plugin does not declare`
-    if (s.kind === "panel" && (!Number.isInteger(s.size) || s.size < 1 || s.size > 40)) return `panel ${s.name}: size must be a whole number from 1 to 40`
+    // A side panel takes the view's room: at most 40; an overlay (a drawer over the tile) takes none: up to 120 (the platform keeps a strip of the view).
+    if (s.kind === "panel" && s.overlay === true && (!Number.isInteger(s.size) || s.size < 1 || s.size > 120)) return `panel ${s.name}: an overlay's size must be a whole number from 1 to 120`
+    if (s.kind === "panel" && s.overlay !== true && (!Number.isInteger(s.size) || s.size < 1 || s.size > 40)) return `panel ${s.name}: size must be a whole number from 1 to 40`
     if (s.kind === "card") {
       const problem = cardProblem(s, layout)
       if (problem !== undefined) return problem

@@ -829,7 +829,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
               {/* A drawer: over the right of the view, which keeps its width. */}
               {shown.right.filter((p) => p.overlay === true).map((p) => (
                 <box key={`over-${p.id}`} style={{ position: "absolute", right: 0, top: 0, bottom: 0, zIndex: 20, backgroundColor: C.raised, border: ["left"], borderColor: C.accent }}>
-                  {panelBox(p)}
+                  {/* However wide it asks to be, a strip of the view stays in sight. */}
+                  {panelBox({ ...p, size: Math.max(20, Math.min(p.size, focusWidth - 12)) })}
                 </box>
               ))}
             </box>

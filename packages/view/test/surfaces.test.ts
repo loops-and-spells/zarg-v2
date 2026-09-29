@@ -36,3 +36,10 @@ test("a nav item names a label and one of the plugin's views", () => {
   expect(surfacesProblem([{ kind: "nav", name: "journeys", view: "run", label: "" }], [runLayout])).toMatch(/does not fit any kind/)
   expect(surfacesProblem([{ kind: "nav", name: "journeys", view: "nope", label: "Journeys" }], [runLayout])).toMatch(/view nope/)
 })
+
+test("a side panel is at most 40 wide; an overlay (a drawer over the tile) up to 120", () => {
+  const p = (size: number, overlay?: boolean) => ({ kind: "panel" as const, name: "item", view: "run", scope: "agent" as const, edge: "right" as const, size, input: "onFocus" as const, ...(overlay !== undefined ? { overlay } : {}) })
+  expect(surfacesProblem([p(41)], [runLayout])).toBe("panel item: size must be a whole number from 1 to 40")
+  expect(surfacesProblem([p(90, true)], [runLayout])).toBeUndefined()
+  expect(surfacesProblem([p(121, true)], [runLayout])).toBe("panel item: an overlay's size must be a whole number from 1 to 120")
+})
