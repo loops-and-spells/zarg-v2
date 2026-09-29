@@ -118,6 +118,23 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
     return { changes: v.changes as Draft, answers: Array.isArray(v.answers) ? v.answers.filter((x): x is string => typeof x === "string") : [], summary: typeof v.summary === "string" ? v.summary : "" }
   }
 
+  /**
+   * A proposal must stay in its journey: an existing card it newly reaches (a state it shares, reworded) outside the round
+   * and the journey fails its try. New cards are fine. The draft's own reach is counted once, before.
+   */
+  const reach = (st: StageView, card: string, cards: ReadonlyArray<string>) =>
+    Effect.gen(function* () {
+      const before = new Set(st.draft.length > 0 ? ((yield* d.dryRun(st.draft).pipe(Effect.orElseSucceed(() => ({ cards: [] as ReadonlyArray<string> })))).cards ?? []) : [])
+      const journey = (yield* d.journeys().pipe(Effect.orElseSucceed(() => []))).find((j) => j.name === st.journey)
+      const allowed = new Set([card, ...st.proposals.map((p) => p.card), ...(journey?.cards ?? [])])
+      const outside: Array<string> = []
+      for (const c of cards)
+        if (!before.has(c) && !allowed.has(c) && (yield* d.step(c, []).pipe(Effect.orElseSucceed(() => null))) !== null) outside.push(c)
+      return outside.length === 0
+        ? { ok: true, problems: [] as ReadonlyArray<string> }
+        : { ok: false, problems: [`the change reaches ${outside.join(", ")}, outside ${st.journey} (a state it shares): link a new state for ${card} instead of rewording a shared one`] }
+    })
+
   /** One card's proposal: from the model, dry-run over the draft so far; one retry with what was wrong. */
   const proposeFor = (st: StageView, card: string, who: string) =>
     Effect.gen(function* () {
@@ -162,7 +179,8 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
           prompt = `${base}\n\nYour last answer was not the JSON asked for. Answer with the JSON only.`
           continue
         }
-        const dry = yield* d.dryRun([...st.draft, ...proposal.changes]).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: ["the dry-run failed"], touched: [] })))
+        const checked = yield* d.dryRun([...st.draft, ...proposal.changes]).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: ["the dry-run failed"], touched: [] as ReadonlyArray<string>, cards: [] as ReadonlyArray<string> })))
+        const dry = checked.ok ? yield* reach(st, card, checked.cards ?? []) : checked
         last = { problems: dry.problems, proposal }
         tried(dry.problems)
         if (dry.ok) break

@@ -15,7 +15,7 @@ const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string
   const deps: TriageDeps = {
     stages: () => Effect.succeed(o.stages as never),
     feedbackOf: () => Effect.succeed([entry, offEntry]),
-    journeys: () => Effect.succeed((o.journeys ?? [{ id: "J-0001", name: "Set up", cards: ["UX-0001", "UX-0002"] }]) as never),
+    journeys: () => Effect.succeed((o.journeys ?? [{ id: "J-0001", name: "Set up", cards: ["UX-0001", "UX-0002", "UX-0003"] }]) as never),
     step: (card) => Effect.succeed({ card, title: `card ${card}`, given: "the plugin runs", when: "it needs a scope", thens: ["the operator is asked"], fork: [], hasFailure: false, ids: { given: "S-0001", context: [], thens: ["S-0002"] } }),
     dryRun: (draft) => Effect.succeed({ cards: draft.length > 0 ? ["UX-0001", "UX-0003"] : [], ...(o.dry?.(dries++) ?? { ok: true, problems: [], touched: draft.length > 0 ? ["S-0002", "UX-0001"] : [] }) }),
     complete: (req) => (o.down === true ? Effect.fail("model down") : Effect.sync(() => (calls.push(["complete", req.messages.at(-1)?.content]), calls.push(["maxTokens", req.maxTokens]), calls.push(["reasoning", req.reasoning]), o.spent === true ? { text: "", completionTokens: 16384, reasoningTokens: 16384, finishReason: "length" } : { text: answers.shift() ?? "{}" }))),
@@ -87,7 +87,8 @@ describe("the Triage Agent", () => {
     const s = setup({ stages: [], answers: [proposalJson, proposalJson] })
     const made = makeTriage({ ...s.deps, ...base, dryRun: (d) => Effect.sync(() => (drafts.push(d), { ok: true, problems: [], touched: [], cards: [] })) })
     await Effect.runPromise(Effect.andThen(made.tick, made.idle))
-    expect(drafts.map((d) => (d as unknown[]).length)).toEqual([1, 2])
+    // The first proposal over the empty draft (1); the second over the draft with the first in it (2); then the draft alone, for the reach guard (1).
+    expect(drafts.map((d) => (d as unknown[]).length)).toEqual([1, 2, 1])
   })
   test("its history says what it does: each card drafted (into the draft, or left out and why, with what the model said), each run", async () => {
     const waiting = (card: string) => ({ card, changes: [], answers: [], summary: "", status: "waiting" })
@@ -240,5 +241,19 @@ describe("the Triage Agent", () => {
     await Effect.runPromise(t.tick)
     expect(calls.find(([k]) => k === "drafted")?.[1]).toEqual({ journey: "Set up", title: "Setup feedback", steps: ["one"] })
     expect(calls.find(([k]) => k === "complete")).toBeUndefined()
+  })
+  test("a proposal that reaches cards outside its journey (a reworded shared state) fails its try: link a new state instead", async () => {
+    const waiting = { card: "UX-0001", changes: [], answers: [], summary: "", status: "waiting" }
+    const s = setup({ stages: [], answers: [proposalJson, proposalJson] })
+    const made = makeTriage({
+      ...s.deps,
+      stages: () => Effect.succeed([stage({ proposals: [waiting] })] as never),
+      // The draft so far reaches UX-0001; the proposal also reaches UX-0050, a card of another journey.
+      dryRun: (draft) => Effect.succeed({ ok: true, problems: [], touched: [], cards: draft.length > 0 ? ["UX-0001", "UX-0050"] : [] }),
+    }, 1)
+    await Effect.runPromise(Effect.andThen(made.tick, made.idle))
+    const prompts = s.calls.filter(([k]) => k === "complete").map(([, p]) => p as string)
+    expect(prompts[1]).toContain("reaches UX-0050, outside Set up (a state it shares): link a new state for UX-0001 instead of rewording a shared one")
+    expect((s.calls.find(([k]) => k === "propose")![1] as { problems?: string[] }).problems?.[0]).toContain("reaches UX-0050")
   })
 })
