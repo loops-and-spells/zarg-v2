@@ -4,7 +4,7 @@ type Try = { readonly ms: number; readonly tokensIn: number; readonly tokensOut:
 type P = StageView["proposals"][number]
 /** What the agent is on: a card in a Refine round, or (card "") the re-rehearse run it waits on. */
 export type Working = { readonly journey: string; readonly card: string; readonly since: number }
-type Row = { readonly id: string; readonly cells: Readonly<Record<string, string>>; readonly tone?: "error" | "dim" }
+type Row = { readonly id: string; readonly cells: Readonly<Record<string, string>>; readonly tone?: "error" | "dim"; readonly busy?: true }
 
 export const dur = (ms: number) => {
   const s = Math.round(ms / 1000)
@@ -22,7 +22,7 @@ const think = (ts: ReadonlyArray<Try>) => {
 }
 const plural = (n: number, s: string) => `${n} ${s}${n === 1 ? "" : "s"}`
 const decided = (st: StageView) => st.proposals.filter((p) => p.status === "accepted" || p.status === "skipped")
-const glyph = (p: P, inFlight: boolean) => (p.status === "accepted" ? (triesOf(p).length > 1 ? "↻" : "✓") : p.status === "skipped" ? "✗" : inFlight ? "●" : "·")
+const glyph = (p: P, inFlight: boolean) => (p.status === "accepted" ? (triesOf(p).length > 1 ? "↻" : "✓") : p.status === "skipped" ? "✗" : inFlight ? "⠋" : "·")
 const STAGE = { triage: "Triage", refine: "Refine", rehearse: "Re-rehearse", plan: "Plan", planned: "Planned" } as const
 
 /** The Triage Agent's view from the journeys' stages: a summary, the round's cards (each with its tries in full), the journeys. */
@@ -51,9 +51,9 @@ export const triageView = (o: {
     const left = timed.length > 0 ? ` · ~${Math.max(1, Math.round((avg * waiting - elapsed) / 60_000))} min left` : ""
     lines.push(`**refining ${active.journey}** · ${done.length}/${active.proposals.length} cards · ${active.proposals.filter((p) => p.status === "accepted").length} drafted · ${active.proposals.filter((p) => p.status === "accepted" && triesOf(p).length > 1).length} retried · ${done.filter((p) => p.status === "skipped").length} left out${left}`)
     const p = active.proposals.find((x) => x.card === o.working!.card)
-    if (p !== undefined) lines.push("", `● **${p.card}**${p.title !== undefined ? ` ${p.title}` : ""} · drafting`)
+    if (p !== undefined) lines.push("", `**${p.card}**${p.title !== undefined ? ` ${p.title}` : ""} · drafting`)
   } else if (active !== undefined && active.stage === "rehearse") {
-    lines.push(`**re-rehearsing ${active.journey}** over the draft`, "", `● run ${active.run ?? "starting"} · its testers are in rehearse's view`, "The result goes to Feedback: what is resolved, what is still reported, on to Plan.")
+    lines.push(`**re-rehearsing ${active.journey}** over the draft`, "", `run ${active.run ?? "starting"} · its testers are in rehearse's view`, "The result goes to Feedback: what is resolved, what is still reported, on to Plan.")
   } else {
     lines.push("**idle** · wakes when a journey is refined or a run ends")
     if (round !== undefined) {
@@ -77,6 +77,8 @@ export const triageView = (o: {
     cards.push({
       id: p.card,
       cells: { g, card: `gherkin/card:${p.card}` },
+      // The shell spins its first cell while it is drafted.
+      ...(inFlight ? { busy: true as const } : {}),
       ...(p.status === "skipped" ? { tone: "error" as const } : p.status === "waiting" && !inFlight ? { tone: "dim" as const } : {}),
     })
     const status = p.status === "accepted" ? "drafted" : p.status === "skipped" ? "left out" : inFlight ? "drafting" : "waiting"
@@ -109,7 +111,7 @@ export const triageView = (o: {
       : stage === "rehearse" ? `run ${st!.run ?? "starting"}`
       : stage === "plan" ? (st!.plan !== undefined ? "plan ready: accept or refine again in Feedback" : "drafting the plan")
       : `${st!.item ?? "a plan"} on the Backlog`
-    return { id: j.name, cells: { g: busy ? "●" : stage === "plan" && st!.plan !== undefined ? "◆" : stage === "planned" ? "✓" : "·", journey: j.name, stage: STAGE[stage], waits } }
+    return { id: j.name, ...(busy ? { busy: true as const } : {}), cells: { g: busy ? "⠋" : stage === "plan" && st!.plan !== undefined ? "◆" : stage === "planned" ? "✓" : "·", journey: j.name, stage: STAGE[stage], waits } }
   })
   return { summary: lines.join("\n"), cards, details, journeys }
 }

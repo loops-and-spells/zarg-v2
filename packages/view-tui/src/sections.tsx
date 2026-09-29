@@ -1,11 +1,15 @@
 import type { BoxRenderable, ScrollBoxRenderable } from "@opentui/core"
-import { type ReactNode, useEffect, useRef, useState } from "react"
+import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react"
 import { useTerminalDimensions } from "@opentui/react"
 import { CHAT, type ConversationQuestion, conversationRows, cursorRow, enabledActions, filterOf, followedText, keyFor, searchCount, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
 import { fit, gauge, heading } from "./look"
 import { Board } from "./board"
 import { RichText } from "./markdown"
 import { useColors, useToneFg } from "./theme"
+import { spin } from "./view"
+
+/** The shell's clock for animations (a busy row's spinner); it ticks while agents work. */
+export const NowContext = createContext(0)
 
 const pad = (s: string, n: number) => (s.length > n ? `${s.slice(0, Math.max(0, n - 1))}…` : s.padEnd(n))
 const STATE_MARK = { busy: "⠼", waiting: "◌", done: "✓", flagged: "⚑" } as const
@@ -163,6 +167,7 @@ const SearchField = (p: { readonly view: ViewState; readonly ui: ViewUi; readonl
   )
 }
 const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onToggle, onHeader, onSearch }) => {
+  const now = useContext(NowContext)
   const C = useColors()
   const fg = useToneFg()
   const { cols, gutter, widths } = tableLayout(view, path, leaf, width)
@@ -209,7 +214,8 @@ const Table: Leaf = ({ view, ui, path, leaf, focused, width, onPick, onMark, onT
                 const label = col.ref === true ? labels?.[v] : undefined
                 return (
                   <span key={c.id} fg={leaf.toggle === true && (r as { on?: boolean }).on !== true ? C.faint : fg(r.tone ?? label?.tone ?? col.tones?.[v] ?? col.tone)}>
-                    {`${pad(fit(cellText(v, col.ref === true, labels), widths[ci]!), widths[ci]!)}${ci < cols.length - 1 ? "  " : ""}`}
+                    {/* A busy row's first cell spins with the shell's clock (its colour stays its value's). */}
+                    {`${pad(fit(ci === 0 && (r as { busy?: boolean }).busy === true ? spin(now) : cellText(v, col.ref === true, labels), widths[ci]!), widths[ci]!)}${ci < cols.length - 1 ? "  " : ""}`}
                   </span>
                 )
               })}

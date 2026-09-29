@@ -13,7 +13,7 @@ import { reviewActs, reviewGroups } from "./review"
 import { Buttons, Heading } from "./sections"
 import { RichText } from "./markdown"
 import { onKey, SHELL } from "./layers"
-import { AgentView, type Scroller } from "./sections"
+import { AgentView, NowContext, type Scroller } from "./sections"
 import {
   type Action,
   activate,
@@ -783,6 +783,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
 
   return (
     <ThemeContext.Provider value={theme}>
+    <NowContext.Provider value={now}>
     <box onMouseDown={dismissMenus} style={{ flexDirection: "row", width: "100%", height: "100%", backgroundColor: C.bg }}>
       {narrow && ui.focus === "agents" ? null : agentsList}
       <box style={{ flexDirection: "column", flexGrow: 1 }}>
@@ -817,6 +818,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       {popover}
       {palette}
     </box>
+    </NowContext.Provider>
     </ThemeContext.Provider>
   )
 }

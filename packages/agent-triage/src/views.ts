@@ -8,7 +8,7 @@ export const TriageView = defineView("triage", {
     role: "primary",
     title: "",
     columns: [
-      { id: "g", label: "", filter: "none", tones: { "✓": "ok", "↻": "attention", "✗": "error", "●": "accent", "·": "dim" } },
+      { id: "g", label: "", filter: "none", tones: { "✓": "ok", "↻": "attention", "✗": "error", "⠋": "accent", "·": "dim" } },
       { id: "card", label: "card", ref: true, filter: "none" },
     ],
     actions: [
@@ -23,7 +23,7 @@ export const TriageView = defineView("triage", {
     role: "pinned",
     title: "Journeys",
     columns: [
-      { id: "g", label: "", filter: "none", tones: { "●": "accent", "◆": "attention", "✓": "ok", "·": "dim" } },
+      { id: "g", label: "", filter: "none", tones: { "⠋": "accent", "◆": "attention", "✓": "ok", "·": "dim" } },
       { id: "journey", label: "journey", tone: "journey", filter: "none" },
       { id: "stage", label: "stage", filter: "none" },
       { id: "waits", label: "waits for", filter: "none" },

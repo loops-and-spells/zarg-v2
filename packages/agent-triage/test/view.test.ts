@@ -22,17 +22,19 @@ describe("the Triage Agent's view", () => {
     expect(v.summary).toContain("**refining Talk with zarg**")
     expect(v.summary).toContain("3/5 cards · 2 drafted · 1 retried · 1 left out · ~3 min left")
     // The view redraws only when the agent pushes: no spinner, no running clock.
-    expect(v.summary).toContain("● **UX-0017** Driver Agent merges compatible edits · drafting")
+    expect(v.summary).toContain("**UX-0017** Driver Agent merges compatible edits · drafting")
     expect(v.summary).not.toContain("38 s")
     // The table is the outcome and the card; the rest is in the detail.
     expect(v.cards.map((r) => [r.cells.g, r.id, Object.keys(r.cells)])).toEqual([
       ["✓", "UX-0071", ["g", "card"]],
       ["↻", "UX-0077", ["g", "card"]],
       ["✗", "UX-0012", ["g", "card"]],
-      ["●", "UX-0017", ["g", "card"]],
+      ["⠋", "UX-0017", ["g", "card"]],
       ["·", "UX-0010", ["g", "card"]],
     ])
     expect(v.cards[2]!.tone).toBe("error")
+    // The card in flight spins in the shell.
+    expect(v.cards.map((r) => r.busy === true)).toEqual([false, false, false, true, false])
     expect(v.details["UX-0017"]).toContain("The Triage Agent is asking the model about this card now")
     expect(v.details["UX-0010"]).toContain("Waiting its turn")
     expect(v.cards[0]!.cells.card).toBe("gherkin/card:UX-0071")
@@ -52,7 +54,7 @@ describe("the Triage Agent's view", () => {
   test("re-rehearsing: one line for the run", () => {
     const v = triageView({ stages: [{ ...round, stage: "rehearse", run: "r-4c1a" }], journeys, working: { journey: "Talk with zarg", card: "", since: 0 }, now: 720_000, paused: false, diffs: {} })
     expect(v.summary).toContain("**re-rehearsing Talk with zarg** over the draft")
-    expect(v.summary).toContain("● run r-4c1a · its testers are in rehearse's view")
+    expect(v.summary).toContain("run r-4c1a · its testers are in rehearse's view")
   })
   test("idle: what each journey waits for; the last round's numbers and why cards were left out", () => {
     const v = triageView({ stages: [{ ...round, stage: "plan", plan: { title: "t", steps: [] } }], journeys, now: 0, paused: false, diffs: {} })

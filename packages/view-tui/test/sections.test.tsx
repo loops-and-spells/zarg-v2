@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { testRender } from "@opentui/react/test-utils"
 import { act } from "react"
 import { defineView, initialViewUi, layoutOf, type ViewState } from "@zarg/view"
-import { AgentView, type Scroller } from "../src/sections"
+import { AgentView, NowContext, type Scroller } from "../src/sections"
 import { colorsOf, DEFAULT_THEME } from "../src/theme"
 
 const THEME = colorsOf(DEFAULT_THEME)
@@ -255,4 +255,27 @@ test("a click on a toggle row's mark asks the plugin to flip it", async () => {
   const y = lines.findIndex((l) => l.includes("dropped"))
   await t.mockMouse.click(lines[y]!.indexOf("["), y)
   expect(acts).toEqual([["list", "toggle", ["b"]]])
+})
+
+describe("a busy row", () => {
+  const spinning = (now: number) => ({
+    agent: "triage:triage",
+    layout: layoutOf(defineView("t", { cards: { kind: "table", role: "primary", title: "", columns: [{ id: "g", label: "" }, { id: "card", label: "card" }] } })),
+    data: { cards: { rows: [{ id: "a", cells: { g: "✓", card: "UX-0001" } }, { id: "b", cells: { g: "⠋", card: "UX-0002" }, busy: true }] } },
+  }) satisfies ViewState
+  const draw = async (now: number) => {
+    const t = await testRender(<NowContext.Provider value={now}><AgentView view={spinning(now)} ui={initialViewUi} height={20} /></NowContext.Provider>, { width: 60, height: 20, exitOnCtrlC: false, exitSignals: [] })
+    await t.renderOnce()
+    await Bun.sleep(5)
+    await t.renderOnce()
+    const f = t.captureCharFrame()
+    t.renderer.destroy()
+    return f
+  }
+  test("its first cell spins with the shell's clock; other rows keep their text", async () => {
+    const [a, b] = [await draw(0), await draw(200)]
+    expect(a).toMatch(/⠋\s+UX-0002/)
+    expect(b).toMatch(/⠹\s+UX-0002/)
+    expect(b).toMatch(/✓\s+UX-0001/)
+  })
 })
