@@ -135,5 +135,5 @@ export const stageLabel = (s: Stage, all: ReadonlyArray<Stage>): string => {
     return `queued #${line.findIndex((x) => x.journey === s.journey) + 1}`
   }
   const done = s.proposals.filter((p) => p.status === "accepted" || p.status === "skipped").length
-  return s.stage === "refine" ? `${s.worker} · Refine ${done}/${s.proposals.length}` : `${s.worker} · Re-rehearse`
+  return s.stage === "refine" ? `${s.worker} · Refine ${done}/${s.proposals.length} cards` : `${s.worker} · Re-rehearse`
 }

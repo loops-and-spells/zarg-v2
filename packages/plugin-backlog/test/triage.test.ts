@@ -155,11 +155,22 @@ describe("the triage hub's stages", () => {
       return { queued, working, flip: flip.notice, noted: noted.notice, still, shown, flipLater: flipLater.notice }
     }))
     expect(out.queued).toEqual([["Reconcile", "queued #2"], ["Set up", "queued #1"]])
-    expect(out.working).toEqual([["Reconcile", "queued #1"], ["Set up", "triage-1 · Refine 0/1"]])
+    expect(out.working).toEqual([["Reconcile", "queued #1"], ["Set up", "triage-1 · Refine 0/1 cards"]])
     expect(out.flip).toBe("in Set up's triage round: read-only until Plan")
     expect(out.noted).toBe("in Reconcile's triage round: read-only until Plan")
     expect(out.still).toBe(true)
     expect(out.shown.sort()).toEqual([["later", false, ""], ["round", true, "waiting"]])
     expect(out.flipLater).toBe("1 entry flipped")
+  })
+  test("counts read as words: entries, not entrys", async () => {
+    const out = await run((seen) => Effect.gen(function* () {
+      const { card } = yield* setUp()
+      const h = yield* PluginHost
+      yield* h.invoke("backlog", "file", { entries: [{ ref: card.ref, journeys: ["Set up"], persona: "Operator", kind: "gap", severity: "low", note: "A second.", from: { agent: "rehearse", run: "r-1" }, triage: { on: true, why: "fix" } }] })
+      yield* press("open")
+      return stage(seen)
+    }))
+    expect(out).toContain("2 entries · 2 on")
+    expect(out).not.toContain("entrys")
   })
 })

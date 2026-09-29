@@ -24,7 +24,7 @@ const EntryData = Schema.Struct({
 })
 const isEntry = Schema.is(EntryData)
 const NO_JOURNEY = "—"
-const plural = (n: number, s: string) => `${n} ${s}${n === 1 ? "" : "s"}`
+const plural = (n: number, s: string) => `${n} ${n === 1 ? s : s.endsWith("y") ? `${s.slice(0, -1)}ies` : `${s}s`}`
 const fail = (e: unknown) => new PluginFailure({ tag: "BacklogError", message: String((e as { message?: unknown })?.message ?? e) })
 
 /** The backlog: feedback per card version (triaged in the Feedback view), later the plans built from it. */

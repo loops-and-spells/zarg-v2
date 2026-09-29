@@ -77,7 +77,7 @@ describe("a journey's stages", () => {
     expect(nextQueued([a, b])).toBe(3)
     expect([stageLabel(a, [a, b]), stageLabel(b, [a, b])]).toEqual(["queued #1", "queued #2"])
     const working = { ...a, worker: "triage-1", proposals: [{ ...a.proposals[0]!, status: "accepted" as const }, ...a.proposals] }
-    expect(stageLabel(working, [working, b])).toBe("triage-1 · Refine 1/2")
+    expect(stageLabel(working, [working, b])).toBe("triage-1 · Refine 1/2 cards")
     expect(stageLabel(b, [working, b])).toBe("queued #1")
     expect(stageLabel({ ...working, stage: "rehearse" }, [])).toBe("triage-1 · Re-rehearse")
     expect(["triage", "refine", "rehearse", "plan", "planned"].map((x) => inTriage({ ...a, stage: x as Stage["stage"] }))).toEqual([false, true, true, false, false])

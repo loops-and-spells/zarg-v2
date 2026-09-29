@@ -20,13 +20,13 @@ const think = (ts: ReadonlyArray<Try>) => {
   const n = Math.round(f * 6)
   return `${"▮".repeat(n)}${"▯".repeat(6 - n)}`
 }
-const plural = (n: number, s: string) => `${n} ${s}${n === 1 ? "" : "s"}`
+const plural = (n: number, s: string) => `${n} ${n === 1 ? s : s.endsWith("y") ? `${s.slice(0, -1)}ies` : `${s}s`}`
 const decided = (st: StageView) => st.proposals.filter((p) => p.status === "accepted" || p.status === "skipped")
 const glyph = (p: P, inFlight: boolean) => (p.status === "accepted" ? (triesOf(p).length > 1 ? "↻" : "✓") : p.status === "skipped" ? "✗" : inFlight ? "⠋" : "·")
 const STAGE = { triage: "Triage", refine: "Refine", rehearse: "Re-rehearse", plan: "Plan", planned: "Planned" } as const
 
 const inTriage = (s: StageView) => s.stage === "refine" || s.stage === "rehearse"
-const doneOf = (s: StageView) => `${decided(s).length}/${s.proposals.length}`
+const doneOf = (s: StageView) => `${decided(s).length}/${s.proposals.length} cards`
 
 /** One worker's view: what it is on, its journey's cards (each with its tries and change, beside the list). */
 export const workerView = (o: {

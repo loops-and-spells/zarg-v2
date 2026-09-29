@@ -67,11 +67,11 @@ describe("the Triage Agent's view", () => {
     })
     expect(v.summary).toContain("**1 of 2 workers busy** · 1 queued")
     expect(v.workers.map((r) => [r.id, r.cells.journey, r.cells.now, r.busy === true])).toEqual([
-      ["triage-1", "Talk with zarg", "Refine 3/5 · UX-0017", true],
+      ["triage-1", "Talk with zarg", "Refine 3/5 cards · UX-0017", true],
       ["triage-2", "", "free", false],
     ])
     expect(v.journeys.map((r) => [r.id, r.cells.stage, r.cells.waits])).toEqual([
-      ["Talk with zarg", "triage-1 · Refine 3/5", "2 drafted · 1 left out"],
+      ["Talk with zarg", "triage-1 · Refine 3/5 cards", "2 drafted · 1 left out"],
       ["Reconcile", "queued #1", "1 card"],
       ["Set up", "Plan", "plan ready: accept or refine again in Feedback"],
       ["Watch agents", "Triage", "11 open · waits for your Refine"],
