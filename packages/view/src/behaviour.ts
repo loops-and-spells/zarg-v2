@@ -377,6 +377,18 @@ export const inputKey = (ui: ViewUi, key: { readonly name: string; readonly ctrl
   return { ui }
 }
 
+/** A click on a board's card: the cursor goes there and the card opens (as Enter); on a folded strip, the lane unfolds. */
+export const pickCard = (view: ViewState, ui: ViewUi, path: string, lane: number, card: number): { readonly ui: ViewUi; readonly act?: { readonly section: string; readonly action: string; readonly rows: ReadonlyArray<string> } } => {
+  const lanes = (view.data[path] as { lanes?: ReadonlyArray<{ id: string; cards: ReadonlyArray<{ id: string }> }> } | undefined)?.lanes ?? []
+  const b = boardUi(view, ui, path)
+  const l = lanes[lane]
+  if (l === undefined) return { ui }
+  if (b.folded.includes(l.id)) return { ui: { ...ui, board: { ...ui.board, [path]: { ...b, lane, card: 0, folded: b.folded.filter((x) => x !== l.id) } } } }
+  const c = l.cards[card]
+  const next = { ...ui, board: { ...ui.board, [path]: { ...b, lane, card: Math.max(0, Math.min(card, l.cards.length - 1)) } } }
+  return c === undefined ? { ui: next } : { ui: next, act: { section: path, action: "item", rows: [c.id] } }
+}
+
 /** The action a key triggers on a platform: the focused table's, else the view's own; undefined when none. */
 export const actionFor = (view: ViewState, ui: ViewUi, key: string, platform = "terminal"): { readonly section: string | undefined; readonly action: string; readonly rows: ReadonlyArray<string> } | undefined => {
   const c = current(view, ui)

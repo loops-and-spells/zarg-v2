@@ -1,7 +1,7 @@
 import type { BoxRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react"
 import { useTerminalDimensions } from "@opentui/react"
-import { CHAT, type ConversationQuestion, conversationRows, cursorRow, enabledActions, readOnlyRow, filterOf, followedText, keyFor, searchCount, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
+import { CHAT, type ConversationQuestion, conversationRows, cursorRow, enabledActions, pickCard, readOnlyRow, filterOf, followedText, keyFor, searchCount, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
 import { fit, gauge, heading } from "./look"
 import { Board } from "./board"
 import { RichText } from "./markdown"
@@ -473,7 +473,7 @@ const SHARE = { primary: "33%", pinned: "40%", aside: "25%" } as const
 export type Scroller = (delta: number) => void
 
 /** An agent's view in the terminal: its sections stacked by role, each a heading over its own scrollbox. */
-export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly width?: number; readonly scroller?: { current?: Scroller | undefined }; readonly onPick?: (sectionId: string, index: number) => void; readonly onAct?: (section: string, action: string, rows: ReadonlyArray<string>) => void; readonly onClear?: (section: string) => void; readonly onHeader?: (sectionId: string, col: number) => void; readonly onMenuPick?: (index: number) => void; readonly onMark?: (sectionId: string, index: number) => void; readonly onMenuAdjust?: (index: number, dir: number) => void; readonly onTab?: (sectionId: string, index: number) => void; readonly onSearch?: (sectionId: string, path: string) => void }) => {
+export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi; readonly height: number; readonly width?: number; readonly scroller?: { current?: Scroller | undefined }; readonly onPick?: (sectionId: string, index: number) => void; readonly onAct?: (section: string | undefined, action: string, rows: ReadonlyArray<string>) => void; readonly onClear?: (section: string) => void; readonly onHeader?: (sectionId: string, col: number) => void; readonly onMenuPick?: (index: number) => void; readonly onMark?: (sectionId: string, index: number) => void; readonly onMenuAdjust?: (index: number, dir: number) => void; readonly onTab?: (sectionId: string, index: number) => void; readonly onSearch?: (sectionId: string, path: string) => void; readonly onBoardPick?: (path: string, lane: number, card: number) => void }) => {
   const C = useColors()
   const dims = useTerminalDimensions()
   const width = Math.max(10, (props.width ?? dims.width) - 2)
@@ -523,7 +523,12 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
           return (
             <box key={s.id} style={{ flexDirection: "column", flexGrow: 1, flexBasis: 0, minHeight: 4, ...(after ? { marginTop: 1 } : {}) }}>
               {headRowsOfSection(s) > 0 ? <Heading title={s.title ?? s.id} width={width} focused={focused} /> : null}
-              <Board view={props.view} ui={props.ui} path={leaf.path} focused={focused} width={width} />
+              <Board view={props.view} ui={props.ui} path={leaf.path} focused={focused} width={width} {...(props.onBoardPick !== undefined || props.onAct !== undefined ? { onPick: (lane: number, card: number) => {
+                // The shell moves the cursor and opens the card; without it, the card opens through the plugin.
+                if (props.onBoardPick !== undefined) return props.onBoardPick(leaf.path, lane, card)
+                const r = pickCard(props.view, props.ui, leaf.path, lane, card)
+                if (r.act !== undefined) props.onAct!(r.act.section, r.act.action, r.act.rows)
+              } } : {})} />
             </box>
           )
         }
@@ -624,6 +629,12 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
   }
   return (
     <box ref={root} style={{ flexDirection: "column", flexGrow: 1, overflow: "hidden" }}>
+      {/* The view's own actions (not a table's): buttons at its top; a click runs one. */}
+      {(props.view.layout.actions ?? []).length > 0 && props.onAct !== undefined ? (
+        <box style={{ flexShrink: 0, marginBottom: 1, paddingLeft: 1 }}>
+          <Buttons actions={props.view.layout.actions!} count={0} onPress={(id) => props.onAct!(undefined, id, [])} />
+        </box>
+      ) : null}
       {all.map((s, i) => {
         // A section drawn beside another is drawn with it.
         const beside = s.kind !== "tabs" ? s.beside : undefined

@@ -1,7 +1,7 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Panel, Session } from "@zarg/client"
-import { afterAction, applyMenu, closeMenu, highlightActs, pressAction, hintsOf, keyFor, menuAdjust, pickHeader, pickMark, pickRow, pickTab, startUi } from "@zarg/view"
+import { afterAction, applyMenu, closeMenu, highlightActs, pickCard, pressAction, hintsOf, keyFor, menuAdjust, pickHeader, pickMark, pickRow, pickTab, startUi } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { registerCommands, SLASH_COMMANDS } from "./commands"
 import { fit, gauge, keyGlyphs } from "./look"
@@ -391,6 +391,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             onAct={(section, action, rows) => {
               const v = props.session.state().thread.views?.[viewing]
               if (v === undefined) return
+              // The view's own action (no table): it acts at once.
+              if (section === undefined) return act({ type: "act", section, action, rows, view: v.agent })
               // One that asks for text opens its input first.
               const r = pressAction(v, latest().view ?? startUi(v), section, action, rows)
               if (r.act === undefined) return setUi({ ...latest(), focus: "tile", view: r.ui })
@@ -426,6 +428,13 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
               if (v === undefined) return
               const vu = latest().view ?? startUi(v)
               setUi({ ...latest(), focus: "tile", view: menuAdjust(v, vu.menu === undefined ? vu : { ...vu, menu: { ...vu.menu, pick: i } }, dir) })
+            }}
+            onBoardPick={(path, lane, card) => {
+              const v = props.session.state().thread.views?.[viewing]
+              if (v === undefined) return
+              const r = pickCard(v, latest().view ?? startUi(v), path, lane, card)
+              setUi({ ...latest(), focus: "tile", view: r.ui })
+              if (r.act !== undefined) act({ type: "act", ...r.act, view: v.agent })
             }}
             onMenuPick={(i) => {
               keepMenu.current = true
@@ -574,7 +583,22 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             ×
           </text>
         </box>
-        {v === undefined ? null : <AgentView view={v} ui={focusedHere ? (ui.panelView ?? startUi(v)) : startUi(v)} height={p.size} width={p.edge === "right" ? p.size : dims.width - railWidth - 4} />}
+        {v === undefined ? null : (
+          <AgentView
+            view={v}
+            ui={focusedHere ? (ui.panelView ?? startUi(v)) : startUi(v)}
+            height={p.size}
+            width={p.edge === "right" ? p.size : dims.width - railWidth - 4}
+            // A panel's buttons act for its plugin's agent (a drawer's Ready, Drop, …).
+            onAct={(section, action, rows) => {
+              const owner = { agent: v.agent.split("@")[0]!, view: v.agent }
+              if (section === undefined) return act({ type: "act", section, action, rows, ...owner })
+              const r = pressAction(v, latest().panelView ?? startUi(v), section, action, rows)
+              if (r.act === undefined) return setUi({ ...latest(), focus: "panel", panel: p.id, panelView: r.ui })
+              act({ type: "act", ...r.act, ...owner })
+            }}
+          />
+        )}
       </box>
     )
   }
@@ -597,6 +621,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             height={Math.max(6, dims.height - 8)}
             width={focusWidth}
             onAct={(section, action, rows) => {
+              if (section === undefined) return act({ type: "act", section, action, rows, agent: sheetViewState.agent.split("@")[0]!, view: sheetViewState.agent })
               const r = pressAction(sheetViewState, latest().sheetView ?? startUi(sheetViewState), section, action, rows)
               if (r.act === undefined) return setUi({ ...latest(), sheetView: r.ui })
               act({ type: "act", ...r.act, agent: sheetViewState.agent.split("@")[0]!, view: sheetViewState.agent })

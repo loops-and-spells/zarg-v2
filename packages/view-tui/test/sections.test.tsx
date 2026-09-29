@@ -245,7 +245,7 @@ test("a click on a toggle row's mark asks the plugin to flip it", async () => {
     layout: layoutOf(defineView("t", { list: { kind: "table", role: "pinned", title: "F", toggle: true, columns: [{ id: "c", label: "c" }] } })),
     data: { list: { rows: [{ id: "a", cells: { c: "kept" }, on: true }, { id: "b", cells: { c: "dropped" }, on: false }] } },
   }
-  const acts: Array<[string, string, ReadonlyArray<string>]> = []
+  const acts: Array<[string | undefined, string, ReadonlyArray<string>]> = []
   const t = await testRender(<AgentView view={v} ui={initialViewUi} height={20} onAct={(s, a, r) => void acts.push([s, a, r])} />, { width: 60, height: 20, exitOnCtrlC: false, exitSignals: [] })
   destroy = () => t.renderer.destroy()
   await t.renderOnce()
@@ -300,4 +300,24 @@ describe("a busy row", () => {
     expect(b).toMatch(/⠹\s+UX-0002/)
     expect(b).toMatch(/✓\s+UX-0001/)
   })
+})
+
+test("a view's own actions are buttons at its top; a click runs one", async () => {
+  const v: ViewState = {
+    agent: "backlog:item",
+    layout: layoutOf(defineView("item", { item: { kind: "text", role: "primary", title: "" } }, { actions: [{ id: "ready", label: "→ Ready", key: "r", on: "none" }, { id: "drop", label: "Drop", key: "X", on: "none" }] })),
+    data: { item: { markdown: "**Grant prompt**" } },
+  }
+  const acts: Array<unknown> = []
+  const t = await testRender(<AgentView view={v} ui={initialViewUi} height={20} onAct={(s, a, r) => void acts.push([s, a, r])} />, { width: 60, height: 20, exitOnCtrlC: false, exitSignals: [] })
+  destroy = () => t.renderer.destroy()
+  await t.renderOnce()
+  await Bun.sleep(5)
+  await t.renderOnce()
+  const lines = t.captureCharFrame().split("\n")
+  const y = lines.findIndex((l) => l.includes("→ Ready"))
+  expect(y).toBeGreaterThanOrEqual(0)
+  expect(y).toBeLessThan(lines.findIndex((l) => l.includes("Grant prompt")))
+  await t.mockMouse.click(lines[y]!.indexOf("Drop") + 1, y)
+  expect(acts).toEqual([[undefined, "drop", []]])
 })

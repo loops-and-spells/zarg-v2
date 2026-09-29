@@ -53,6 +53,8 @@ export const ItemView = defineView(
       { id: "park", label: "Park", key: "p", on: "none" },
       { id: "done", label: "Done", key: "d", on: "none" },
       { id: "drop", label: "Drop", key: "X", on: "none" },
+      // A card changed since the plan was drafted: take the cards as they are now, or back to triage.
+      { id: "resync", label: "Resync", key: "s", on: "none" },
     ],
   },
 )

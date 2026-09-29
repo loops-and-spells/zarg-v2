@@ -47,3 +47,17 @@ import { wrap } from "../src/board"
 test("a word longer than the lane is split across lines, never cut off", () => {
   expect(wrap("Scaffold supercalifragilistic models", 8)).toEqual(["Scaffold", "supercal", "ifragili", "stic", "models"])
 })
+
+test("a click on a card opens it (the plugin's item action, as Enter)", async () => {
+  const acts: Array<unknown> = []
+  const t = await testRender(<AgentView view={view} ui={{ ...initialViewUi, board: { board: { lane: 0, card: 0, folded: [] } } }} height={24} onAct={(s, a, r) => void acts.push([s, a, r])} />, { width: 90, height: 24, exitOnCtrlC: false, exitSignals: [] })
+  destroy = () => t.renderer.destroy()
+  for (let i = 0; i < 3; i++) {
+    await t.renderOnce()
+    await Bun.sleep(5)
+  }
+  const lines = t.captureCharFrame().split("\n")
+  const y = lines.findIndex((l) => l.includes("Item r 1"))
+  await t.mockMouse.click(lines[y]!.indexOf("Item r 1") + 2, y)
+  expect(acts).toEqual([["board", "item", ["r-1"]]])
+})

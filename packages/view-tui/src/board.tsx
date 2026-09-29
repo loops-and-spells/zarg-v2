@@ -23,10 +23,10 @@ export const wrap = (t: string, w: number): ReadonlyArray<string> => {
 }
 
 /** A folded lane: its count on the header row (in line with the others'), ▸, then its title top to bottom. */
-const Strip = (p: { readonly lane: Lane; readonly on: boolean }) => {
+const Strip = (p: { readonly lane: Lane; readonly on: boolean; readonly onPick?: () => void }) => {
   const C = useColors()
   return (
-    <box style={{ width: FOLDED, marginRight: 1, flexDirection: "column", flexShrink: 0, alignItems: "center", backgroundColor: p.on ? C.selection : C.raised }}>
+    <box {...(p.onPick !== undefined ? { onMouseDown: p.onPick } : {})} style={{ width: FOLDED, marginRight: 1, flexDirection: "column", flexShrink: 0, alignItems: "center", backgroundColor: p.on ? C.selection : C.raised }}>
       <text fg={C.dim}>{String(p.lane.cards.length)}</text>
       <text fg={p.on ? C.accent : C.faint}>{"▸"}</text>
       {p.lane.title.toUpperCase().split("").map((ch, i) => (
@@ -39,7 +39,7 @@ const Strip = (p: { readonly lane: Lane; readonly on: boolean }) => {
 }
 
 /** One card: a severity stripe, its top line and badge, the whole title, then its lines. */
-const CardBox = (p: { readonly card: Card; readonly on: boolean; readonly width: number; readonly id: string }) => {
+const CardBox = (p: { readonly card: Card; readonly on: boolean; readonly width: number; readonly id: string; readonly onPick?: () => void }) => {
   const C = useColors()
   const fg = useToneFg()
   const bg = p.on ? C.selection : C.raised
@@ -48,7 +48,7 @@ const CardBox = (p: { readonly card: Card; readonly on: boolean; readonly width:
   const top = p.card.top ?? p.card.id
   const badge = p.card.badge ?? ""
   return (
-    <box id={p.id} style={{ flexDirection: "column", flexShrink: 0, marginBottom: 1 }}>
+    <box id={p.id} {...(p.onPick !== undefined ? { onMouseDown: p.onPick } : {})} style={{ flexDirection: "column", flexShrink: 0, marginBottom: 1 }}>
       <text wrapMode="none" bg={bg}>
         {stripe}
         <span fg={C.dim}>{fit(top, Math.max(1, w - badge.length - 1)).padEnd(Math.max(1, w - badge.length))}</span>
@@ -71,7 +71,8 @@ const CardBox = (p: { readonly card: Card; readonly on: boolean; readonly width:
 }
 
 /** A kanban: open lanes side by side, each its own scroll container; folded lanes are narrow strips. */
-export const Board = (p: { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly focused: boolean; readonly width: number }) => {
+/** `onPick(lane, card)`: a click on a card (or on a folded lane's strip, card 0). */
+export const Board = (p: { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly focused: boolean; readonly width: number; readonly onPick?: (lane: number, card: number) => void }) => {
   const C = useColors()
   const lanes = ((p.view.data[p.path] as { lanes?: ReadonlyArray<Lane> } | undefined)?.lanes ?? [])
   const b = boardUi(p.view, p.ui, p.path)
@@ -92,7 +93,7 @@ export const Board = (p: { readonly view: ViewState; readonly ui: ViewUi; readon
     <box style={{ flexDirection: "row", flexGrow: 1 }}>
       {lanes.map((lane, li) => {
         const here = p.focused && li === b.lane
-        if (b.folded.includes(lane.id)) return <Strip key={lane.id} lane={lane} on={here} />
+        if (b.folded.includes(lane.id)) return <Strip key={lane.id} lane={lane} on={here} {...(p.onPick !== undefined ? { onPick: () => p.onPick!(li, 0) } : {})} />
         return (
           <box key={lane.id} style={{ width: laneWidth, marginRight: GAP, flexDirection: "column", flexShrink: 0 }}>
             <text wrapMode="none">
@@ -111,7 +112,7 @@ export const Board = (p: { readonly view: ViewState; readonly ui: ViewUi; readon
               style={{ flexGrow: 1, flexBasis: 0 }}
             >
               {lane.cards.map((c, ci) => (
-                <CardBox key={c.id} id={`card-${p.path}-${lane.id}-${ci}`} card={c} on={here && ci === b.card} width={laneWidth - 1} />
+                <CardBox key={c.id} id={`card-${p.path}-${lane.id}-${ci}`} card={c} on={here && ci === b.card} width={laneWidth - 1} {...(p.onPick !== undefined ? { onPick: () => p.onPick!(li, ci) } : {})} />
               ))}
             </scrollbox>
           </box>

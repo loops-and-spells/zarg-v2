@@ -102,4 +102,59 @@ describe("the backlog's plans", () => {
     expect(out.e.needs).toBeUndefined()
     expect((out.next as { id: string }).id).toBe("B-01")
   })
+  test("the drawer: the plan's header, its title, each card with its version (✓ current), the feedback, the card itself, links and events", async () => {
+    const out = await run((seen) => Effect.gen(function* () {
+      const { card, feedback } = yield* setUp
+      const h = yield* PluginHost
+      yield* h.invoke("backlog", "plan", planOf(card.ref, feedback))
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: ["B-01"] })
+      return (seen.get("backlog/item") as { markdown: string }).markdown
+    }))
+    expect(out).toContain("B-01 · Backlog")
+    expect(out).toContain("**Grant prompt names its choices**")
+    expect(out).toMatch(/UX-0001 @[0-9a-f]{4} ✓ · Operator · Set up · high/)
+    expect(out).toContain("**Feedback 1**")
+    expect(out).toContain("◇ gap  No deny path.")
+    expect(out).toContain("the plugin needs a scope")
+    expect(out).toContain("**Events**")
+  })
+  test("Resync: a changed card whose plan still fits takes the card's version now; the ⚠ goes", async () => {
+    const out = await run((seen) => Effect.gen(function* () {
+      const { card, feedback } = yield* setUp
+      const h = yield* PluginHost
+      yield* h.invoke("backlog", "plan", planOf(card.ref, feedback))
+      yield* gherkin("edit-card", { id: "UX-0001", when: "the plugin needs a scope it may ask for" })
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "open", rows: [] })
+      const before = lanes(seen).backlog![0]!.lines.map((l) => l.text)
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: ["B-01"] })
+      const drawer = (seen.get("backlog/item") as { markdown: string }).markdown
+      const notice = (yield* h.invoke("backlog", "act", { agent: "backlog", action: "resync", rows: [] })) as { notice: string }
+      const after = lanes(seen).backlog![0]!.lines.map((l) => l.text)
+      return { before, drawer, notice: notice.notice, after }
+    }))
+    expect(out.before).toContain("⚠ card changed")
+    expect(out.drawer).toMatch(/UX-0001 @[0-9a-f]{4} ⚠ changed/)
+    expect(out.notice).toBe("B-01 resynced: its changes still fit the cards as they are now")
+    expect(out.after).not.toContain("⚠ card changed")
+  })
+  test("Resync: a plan that no longer fits goes back to triage: its feedback carried to the card as it is now, the plan dropped, the journey queued", async () => {
+    const out = await run(() => Effect.gen(function* () {
+      const { card, feedback } = yield* setUp
+      const h = yield* PluginHost
+      yield* h.invoke("backlog", "plan", planOf(card.ref, feedback, { changes: [{ tool: "edit-state", params: { id: "S-0099", text: "no such state" } }] }))
+      yield* gherkin("edit-card", { id: "UX-0001", when: "the plugin needs a scope it may ask for" })
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: ["B-01"] })
+      const notice = (yield* h.invoke("backlog", "act", { agent: "backlog", action: "resync", rows: [] })) as { notice: string }
+      const item = (yield* h.entities.get("backlog/item:B-01")).data as { dropped?: boolean }
+      const stages = (yield* h.invoke("backlog", "stages", {})) as Array<{ journey: string; stage: string; queued?: number }>
+      const old = (yield* h.invoke("backlog", "status", { ids: feedback })) as Array<{ state: string }>
+      const open = (yield* h.invoke("backlog", "feedbackOf", { journey: "Set up" })) as Array<{ id: string; note: string; on: boolean }>
+      return { notice: notice.notice, dropped: item.dropped, stages, old, open }
+    }))
+    expect(out.notice).toMatch(/^B-01 no longer fits \(.*\): back to triage, Set up queued #1$/)
+    expect(out.dropped).toBe(true)
+    expect(out.stages).toEqual([expect.objectContaining({ journey: "Set up", stage: "refine", queued: 1 })])
+    expect(out.old[0]!.state).toBe("closed")
+    expect(out.open.map((e) => [e.note, e.on])).toEqual([["No deny path.", true]])
+  })
 })

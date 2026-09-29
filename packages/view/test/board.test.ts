@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { boardKey, checkSet, defineView, initialViewUi, layoutOf, type ViewState, type ViewUi } from "../src"
+import { boardKey, checkSet, pickCard, defineView, initialViewUi, layoutOf, type ViewState, type ViewUi } from "../src"
 
 const layout = layoutOf(defineView("backlog", { board: { kind: "board", role: "primary", title: "" } }))
 const card = (id: string) => ({ id, title: `item ${id}` })
@@ -47,5 +47,9 @@ describe("boards", () => {
   test("keys on a view whose focused section is not a board are not the board's", () => {
     const t: ViewState = { agent: "x", layout: layoutOf(defineView("t", { list: { kind: "table", role: "primary", columns: [] } })), data: {} }
     expect(boardKey(t, initialViewUi, { name: "z" })).toBeUndefined()
+  })
+  test("a click on a card puts the cursor on it and opens it, as Enter does; a click on a folded strip unfolds it", () => {
+    expect(pickCard(v, at(0, 0), "board", 1, 0)).toEqual({ ui: at(1, 0), act: { section: "board", action: "item", rows: ["B-3"] } })
+    expect(pickCard(v, at(0, 0, ["ready"]), "board", 1, 0)).toEqual({ ui: at(1, 0) })
   })
 })

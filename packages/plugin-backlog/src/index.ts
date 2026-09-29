@@ -1,5 +1,6 @@
 import { Effect, Schema, Semaphore } from "effect"
 import { Agenda, Config, definePlugin, Entities, Files, PluginFailure, Surfaces, Views } from "@zarg/plugin-sdk"
+import { Gherkin } from "@zarg/plugin-gherkin/contract"
 import { Backlog, Drafted, FiledEntry, ItemData, Lane, Moved, OnEntry, PlanParams, Propose, Redraft, Rehearsed, Rehearsing, StageData } from "./contract"
 import { current, fresh, inTriage, nextQueued, redo, redraft, refineAgain, settle, type Stage, stageActions, stageLabel, STAGE_TITLES, slug, startRefine, stepperAt } from "./stages"
 import { parseRef } from "@zarg/entities"
@@ -36,11 +37,13 @@ export default definePlugin({
   config: Schema.Struct({}),
   scopes: { agents: true, fs: { read: [`${DIR}/**`, `${ITEMS}/**`, `${TRIAGE}/**`], write: [`${DIR}/**`, `${ITEMS}/**`, `${TRIAGE}/**`] }, entities: { read: ["gherkin/*"] } },
   views: [FeedbackView, BacklogView, ItemView],
+  // Resync dry-runs a plan's changes on the graph as it is now.
+  pluginDependencies: [Gherkin],
   surfaces: [
     { kind: "nav", name: "feedback", view: "feedback", label: "Feedback" },
     { kind: "nav", name: "backlog", view: "backlog", label: "Backlog" },
-    // The drawer: one plan in full over the board.
-    { kind: "sheet", name: "item", view: "item" },
+    // The drawer: one plan in full, at the board's right edge while the Backlog is open.
+    { kind: "panel", name: "item", view: "item", scope: "agent", edge: "right", size: 40, input: "onFocus" },
   ],
   entities: {
     feedback: { doc: "A tester's report on one version of an entity, and its triage.", data: EntryData, tone: "attention", glyph: "◇", open: "feedback", ops: ["get", "label", "version", "query"] },
@@ -83,6 +86,7 @@ export default definePlugin({
     // A plan that becomes Ready says so: the core's Planner wakes on it.
     const ready = Effect.ignore((yield* Agenda).changed)
     const entities = yield* Entities
+    const gherkin = yield* Gherkin
     yield* Config
     // Files that are not entries (a hand edit, a merge, another format): skipped, and named on the agenda.
     let bad: ReadonlyArray<string> = []
@@ -263,26 +267,33 @@ export default definePlugin({
       return items
     })
     let selected: string | undefined
-    const itemMarkdown = (i: Item, feedback: ReadonlyArray<Entry>) =>
+    const short = (ref: string) => {
+      const r = parseRef(ref)
+      return r === undefined ? ref : `${r.id}${r.version !== undefined ? ` @${r.version.slice(0, 4)}` : ""}`
+    }
+    /** The drawer: the plan's header, its title, each card (its version: ✓ current, ⚠ changed), feedback, the cards as they are, changes, steps, links, events. */
+    const itemMarkdown = (i: Item, feedback: ReadonlyArray<Entry>, changed: ReadonlySet<string>, contexts: ReadonlyArray<readonly [string, string]>) =>
       [
+        `${i.id} · ${LANE_TITLES[i.status]}${i.agent !== undefined ? ` · ${i.agent}` : ""}`,
         `**${i.title}**`,
-        "",
-        `${i.id} · ${LANE_TITLES[i.status]}${i.agent !== undefined ? ` · ${i.agent}` : ""} · ${i.journey}${i.persona !== undefined ? ` · ${i.persona}` : ""}${i.severity !== undefined ? ` · ${i.severity}` : ""}`,
+        ...i.cards.map((c, k) => `${short(c.ref)} ${changed.has(c.ref) ? "⚠ changed" : "✓"}${k === 0 ? `${i.persona !== undefined ? ` · ${i.persona}` : ""} · ${i.journey}${i.severity !== undefined ? ` · ${i.severity}` : ""}` : ""}`),
         ...(i.needs !== undefined ? ["", `**Needs you:** ${i.needs}`] : []),
-        "",
-        `**Cards** ${i.cards.map((c) => `\`${target(c.ref).split(":")[1] ?? c.ref}\``).join(" ")}`,
-        ...(i.steps.length > 0 ? ["", "**Steps**", ...i.steps.map((st, k) => `${k + 1}. ${st}`)] : []),
-        ...(feedback.length > 0 ? ["", `**Feedback ${feedback.length}**`, ...feedback.map((f) => `- ${f.kind} (${f.severity}): ${f.note}`)] : []),
+        ...(changed.size > 0 ? ["", "A card changed since this plan was drafted: **s** Resync (it takes the cards as they are now, or goes back to triage)."] : []),
+        ...(feedback.length > 0 ? ["", `**Feedback ${feedback.length}**`, ...feedback.map((f) => `◇ ${f.kind}  ${f.note}`)] : []),
+        ...contexts.flatMap(([id, text]) => (text.length > 0 ? ["", `**Card** ${id}`, "```gherkin", text.trim(), "```"] : [])),
         ...(i.changes.length > 0 ? ["", `**Changes ${i.changes.length}**`, ...i.changes.map((c) => `- gherkin/${c.tool} ${JSON.stringify(c.params)}`)] : []),
-        ...((i.after ?? []).length > 0 ? ["", `**After** ${i.after!.join(", ")}`] : []),
-        ...(i.events.length > 0 ? ["", "**Events**", ...i.events.map((e) => `- ${e.what} (${e.by})`)] : []),
+        ...(i.steps.length > 0 ? ["", "**Steps**", ...i.steps.map((st, k) => `${k + 1}. ${st}`)] : []),
+        ...((i.after ?? []).length > 0 ? ["", `**Links** after ${i.after!.join(", ")}`] : []),
+        ...(i.events.length > 0 ? ["", "**Events**", ...i.events.map((e) => `${e.what} (${e.by})`)] : []),
       ].join("\n")
     const showItem = (id: string) =>
       Effect.gen(function* () {
         const i = (yield* loadItems).find((x) => x.id === id)
         if (i === undefined) return false
         const feedback = (yield* load).filter((e) => i.feedback.includes(e.id))
-        yield* views.set("backlog", ItemView, "item", { markdown: itemMarkdown(i, feedback) })
+        const changed = yield* changedRefs([i])
+        const contexts = yield* Effect.forEach(i.cards.filter((c) => /card:UX-/.test(c.ref)), (c) => Effect.map(entities.context(target(c.ref)).pipe(Effect.orElseSucceed(() => "")), (t) => [parseRef(c.ref)?.id ?? c.ref, t] as const))
+        yield* views.set("backlog", ItemView, "item", { markdown: itemMarkdown(i, feedback, changed, contexts) })
         return true
       })
     /** Move a plan by hand or by an agent: the move recorded; Done closes its feedback. */
@@ -358,6 +369,11 @@ export default definePlugin({
           return i === undefined ? `no plan ${rows[0]}` : yield* move(i.id, neighbour(i.status, action === "move-right" ? 1 : -1), "operator")
         }
         // The drawer's buttons act on the plan it shows.
+        if (selected !== undefined && action === "resync") {
+          const notice = yield* resync(selected)
+          yield* showItem(selected)
+          return notice
+        }
         if (selected !== undefined && ["ready", "park", "done", "drop"].includes(action)) {
           const notice = action === "drop" ? yield* drop(selected) : yield* move(selected, action === "ready" ? "ready" : action === "park" ? "backlog" : "done", "operator")
           yield* showItem(selected)
@@ -411,6 +427,40 @@ export default definePlugin({
           return `${j}: ${stageLabel(yield* stageOf(j), yield* loadStages)} · ${plural(new Set(entries.filter((e) => e.triage.on).map((e) => target(e.ref))).size, "card")}`
         }
         return `nothing to ${action}`
+      })
+    /** Resync a plan whose cards changed: its changes still fit → the cards' versions now; they do not → back to triage (its feedback moved to the cards as they are, the plan dropped, the journey queued). */
+    const resync = (id: string) =>
+      Effect.gen(function* () {
+        const i = (yield* loadItems).find((x) => x.id === id)
+        if (i === undefined) return `no plan ${id}`
+        const changed = yield* changedRefs([i])
+        if (changed.size === 0) return `${id}'s cards are as it was drafted on: nothing to resync`
+        const dry = yield* gherkin.dryRun({ draft: i.changes }).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: ["the dry-run failed"] as ReadonlyArray<string> })))
+        if (dry.ok) {
+          const cards = yield* Effect.forEach(i.cards, (c) => (changed.has(c.ref) ? Effect.map(entities.version(target(c.ref)).pipe(Effect.orElseSucceed(() => null)), (v) => ({ ...c, ref: v === null ? c.ref : `${target(c.ref)}@${v}` })) : Effect.succeed(c)))
+          yield* saveItem({ ...i, cards, events: [...i.events, { what: "resynced: its changes still fit the cards as they are now", by: "operator" }] })
+          return `${id} resynced: its changes still fit the cards as they are now`
+        }
+        // Its feedback moves to the cards as they are now (the old version's entries close); the rest opens again.
+        const moved_ = yield* Effect.gen(function* () {
+          const out: Array<string> = []
+          for (const e of (yield* load).filter((x) => i.feedback.includes(x.id))) {
+            const v = yield* entities.version(target(e.ref)).pipe(Effect.orElseSucceed(() => null))
+            const ref = v === null ? e.ref : `${target(e.ref)}@${v}`
+            if (ref === e.ref) continue
+            const { id: _i, count: _c, state: _s, runs: _r, triage, operatorNote, ...filed } = e
+            const next = upsert(undefined, { ...filed, ref, triage: { on: triage.on, why: triage.why } })
+            yield* save({ ...next, triage, ...(operatorNote !== undefined ? { operatorNote } : {}) })
+            out.push(e.id)
+          }
+          yield* markFeedback(out, "closed")
+          yield* markFeedback(i.feedback.filter((f) => !out.includes(f)), undefined)
+          return out
+        }).pipe(writing.withPermits(1))
+        yield* saveItem({ ...i, dropped: true, events: [...i.events, { what: `no longer fits (${dry.problems.join("; ")}): back to triage with ${plural(moved_.length, "entry")} moved to the cards as they are`, by: "operator" }] })
+        const refused = yield* stageAct(i.journey, "refine")
+        const label = stageLabel(yield* stageOf(i.journey), yield* loadStages)
+        return `${id} no longer fits (${dry.problems.join("; ")}): back to triage, ${label.startsWith("queued") ? `${i.journey} ${label}` : refused}`
       })
     const act = ({ agent, action, rows, text }: { agent: string; action: string; rows: ReadonlyArray<string>; text?: string }) =>
       Effect.gen(function* () {
