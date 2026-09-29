@@ -280,4 +280,37 @@ describe("the backlog's plans", () => {
     expect(out.lines).not.toContain("⚠ card changed")
     expect(out.first).toContain("B-02 waits on this")
   })
+  test("the Planner never takes a plan whose dependency was dropped", async () => {
+    const out = await run(() => Effect.gen(function* () {
+      const { card, feedback } = yield* setUp
+      const h = yield* PluginHost
+      const change = planOf(card.ref, feedback).changes
+      yield* h.invoke("backlog", "plans", { journey: "Set up", plans: [
+        { title: "First", steps: [], changes: change, cards: ["UX-0001"], feedback, after: [] },
+        { title: "Second", steps: [], changes: [], cards: ["UX-0001"], feedback: [], after: [0] },
+      ] })
+      yield* h.invoke("backlog", "moved", { id: "B-02", to: "ready", by: "operator" })
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: ["B-01"] })
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "drop", rows: [] })
+      return yield* h.invoke("backlog", "next", {})
+    }))
+    expect(out).toBeNull()
+  })
+  test("Resync of a plan whose dependency has not landed dry-runs over that dependency's changes first", async () => {
+    const out = await run(() => Effect.gen(function* () {
+      yield* setUp
+      const h = yield* PluginHost
+      yield* h.invoke("backlog", "plans", { journey: "Set up", plans: [
+        { title: "Add the deny state", steps: [], changes: [{ tool: "add-state", params: { text: "the operator denies the scope" } }], cards: [], feedback: [], after: [] },
+        { title: "Link it", steps: [], changes: [{ tool: "link", params: { card: "UX-0001", edge: "then", state: { id: "S-0003" } } }], cards: ["UX-0001"], feedback: [], after: [0] },
+      ] })
+      yield* gherkin("edit-card", { id: "UX-0001", when: "the plugin needs a scope it may ask for" })
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "item", rows: ["B-02"] })
+      const notice = (yield* h.invoke("backlog", "act", { agent: "backlog", action: "resync", rows: [] })) as { notice: string }
+      const e = yield* h.entities.get("backlog/item:B-02")
+      return { notice: notice.notice, dropped: (e.data as { dropped?: boolean }).dropped }
+    }))
+    expect(out.notice).toBe("B-02 resynced: its changes still fit the cards as they are now")
+    expect(out.dropped).toBeUndefined()
+  })
 })

@@ -250,14 +250,23 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
         // Nothing to merge into (the first plan fails on its own): the round as one plan, as its whole draft dry-runs.
         plans = merged.length < plans.length ? merged : [{ title: plans[0]!.title, steps: plans.flatMap((p) => p.steps), units: units.map((_, i) => i), after: [] }]
       }
+      // Each plan's cards: the ones drafted, and every other card its changes reach (a shared state's cards), over what it waits on.
+      const reached = yield* Effect.forEach(plans.map((_, k) => k), (k) =>
+        Effect.gen(function* () {
+          const reach = (draft: Draft) => (draft.length === 0 ? Effect.succeed([] as ReadonlyArray<string>) : Effect.map(d.dryRun(draft).pipe(Effect.orElseSucceed(() => ({ cards: [] as ReadonlyArray<string> }))), (r) => r.cards ?? []))
+          const base = before(k).flatMap((j) => changesOf(plans[j]!))
+          const had = new Set(yield* reach(base))
+          return (yield* reach([...base, ...changesOf(plans[k]!)])).filter((c) => !had.has(c))
+        }),
+      )
       const entries = yield* d.feedbackOf(st.journey).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<OnEntry>))
       const inputs = entries.filter((e) => (st.inputs ?? entries.filter((x) => x.on).map((x) => x.id)).includes(e.id))
       const claimed = new Set<string>()
-      const out = plans.map((p) => {
+      const out = plans.map((p, k) => {
         const mine = p.units.map((u) => units[u]!)
         const feedback = inputs.filter((e) => !claimed.has(e.id) && mine.some((u) => u.answers.includes(e.id) || u.card === cardOf(e.ref))).map((e) => e.id)
         feedback.forEach((f) => claimed.add(f))
-        return { title: p.title, steps: p.steps, cards: mine.map((u) => u.card), changes: changesOf(p), feedback, after: p.after }
+        return { title: p.title, steps: p.steps, cards: [...new Set([...mine.map((u) => u.card), ...reached[k]!])], changes: changesOf(p), feedback, after: p.after }
       })
       yield* quiet(d.log(who, `${st.journey}: folded into ${out.length} plan${out.length === 1 ? "" : "s"}: ${out.map((p) => p.title).join("; ")}`))
       yield* d.plans(st.journey, out)

@@ -56,4 +56,19 @@ describe("folding a round", () => {
     // One that waits on none merges into the one before it.
     expect(merge(plans, 2).map((p) => p.units)).toEqual([[0, 3], [1, 2]])
   })
+  test("plans come in dependency order: a plan never waits on one after it", () => {
+    const three = [u("UX-0001", [{ tool: "edit-card", params: { id: "UX-0001", when: "w" } }]), u("UX-0002", [{ tool: "add-state", params: { text: "S" } }]), u("UX-0003", [{ tool: "link", params: { card: "UX-0003", edge: "then", state: { text: "S" } } }])]
+    const plans = fold(three, dependencies(three), [{ title: "One and three", steps: [], cards: ["UX-0001", "UX-0003"] }, { title: "Two", steps: [], cards: ["UX-0002"] }])
+    expect(plans.map((p) => [p.units, p.after])).toEqual([[[1], []], [[0, 2], [0]]])
+  })
+  test("a merge keeps the order: the failing plan joins the latest plan it waits on, never a cycle", () => {
+    const plans = [
+      { title: "Q", steps: [], units: [0], after: [] },
+      { title: "Y", steps: [], units: [1], after: [0] },
+      { title: "K", steps: [], units: [2], after: [0, 1] },
+    ]
+    const merged = merge(plans, 2)
+    expect(merged.map((p) => [p.units, p.after])).toEqual([[[0], []], [[1, 2], [0]]])
+    expect(merged.every((p, k) => p.after.every((j) => j < k))).toBe(true)
+  })
 })

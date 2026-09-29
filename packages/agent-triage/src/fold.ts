@@ -126,14 +126,21 @@ export const fold = (units: ReadonlyArray<Unit>, deps: ReadonlyArray<readonly [n
   drafts = drafts.flatMap((d) =>
     d.units.length <= CAP ? [d] : Array.from({ length: Math.ceil(d.units.length / CAP) }, (_, k) => ({ title: k === 0 ? d.title : `${d.title} (${k + 1})`, steps: k === 0 ? d.steps : [], units: d.units.slice(k * CAP, (k + 1) * CAP) })),
   )
-  drafts.sort((x, y) => x.units[0]! - y.units[0]!)
+  // Dependency order (a plan after the plans it waits on), ties by first unit: the backlog links each to plans filed before it.
+  const w2 = waits(drafts, deps)
+  const order: Array<number> = []
+  while (order.length < drafts.length) {
+    const free = drafts.map((_, k) => k).filter((k) => !order.includes(k) && w2[k]!.every((j) => order.includes(j)))
+    order.push(free.sort((x, y) => drafts[x]!.units[0]! - drafts[y]!.units[0]!)[0]!)
+  }
+  drafts = order.map((k) => drafts[k]!)
   const after = waits(drafts, deps)
   return drafts.map((d, k) => ({ title: d.title, steps: d.steps, units: d.units, after: after[k]! }))
 }
 
-/** Plan k merged into the first plan it waits on (none: the one before it); what waited on k waits on that one. */
+/** Plan k merged into the latest plan it waits on (none: the one before it); what waited on k waits on that one. Dependency order holds: no cycle. */
 export const merge = (plans: ReadonlyArray<Folded>, k: number): Array<Folded> => {
-  const into = plans[k]!.after[0] ?? k - 1
+  const into = plans[k]!.after.length > 0 ? Math.max(...plans[k]!.after) : k - 1
   if (into < 0) return [...plans]
   const at = (j: number) => (j === k ? into : j > k ? j - 1 : j)
   return plans.flatMap((p, j) => {

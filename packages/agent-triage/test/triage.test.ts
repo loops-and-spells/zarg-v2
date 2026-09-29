@@ -7,7 +7,7 @@ type Stage = Parameters<TriageDeps["propose"]>[0] extends never ? never : any
 const stage = (over: Record<string, unknown>) => ({ journey: "Set up", stage: "refine", proposals: [], draft: [], ...over })
 const entry = { id: "F-00000001", ref: "gherkin/card:UX-0001@abc", kind: "gap", severity: "high", note: "No deny path.", persona: "Operator", on: true, operatorNote: "Deny should say why." }
 const offEntry = { id: "F-00000002", ref: "gherkin/card:UX-0002@abc", kind: "friction", severity: "low", note: "Wordy.", persona: "Operator", on: false }
-const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string>; spent?: boolean; workers?: number; reasoning?: boolean; dry?: (n: number) => { ok: boolean; problems: string[]; touched: string[]; cards?: string[] }; run?: unknown; result?: unknown; fresh?: boolean; down?: boolean; journeys?: ReadonlyArray<unknown>; atomic?: boolean; decisionsDown?: boolean }) => {
+const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string>; spent?: boolean; workers?: number; reasoning?: boolean; dry?: (n: number, draft: ReadonlyArray<{ tool: string; params: unknown }>) => { ok: boolean; problems: string[]; touched: string[]; cards?: string[] }; run?: unknown; result?: unknown; fresh?: boolean; down?: boolean; journeys?: ReadonlyArray<unknown>; atomic?: boolean; decisionsDown?: boolean }) => {
   const calls: Array<[string, unknown]> = []
   const answers = [...(o.answers ?? [])]
   let dries = 0
@@ -17,7 +17,7 @@ const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string
     feedbackOf: () => Effect.succeed([entry, offEntry]),
     journeys: () => Effect.succeed((o.journeys ?? [{ id: "J-0001", name: "Set up", cards: ["UX-0001", "UX-0002", "UX-0003"] }]) as never),
     step: (card) => Effect.succeed({ card, title: `card ${card}`, given: "the plugin runs", when: "it needs a scope", thens: ["the operator is asked"], fork: [], hasFailure: false, ids: { given: "S-0001", context: [], thens: ["S-0002"] } }),
-    dryRun: (draft) => Effect.succeed({ cards: draft.length > 0 ? ["UX-0001", "UX-0003"] : [], ...(o.dry?.(dries++) ?? { ok: true, problems: [], touched: draft.length > 0 ? ["S-0002", "UX-0001"] : [] }) }),
+    dryRun: (draft) => Effect.succeed({ cards: draft.length > 0 ? ["UX-0001", "UX-0003"] : [], ...(o.dry?.(dries++, draft) ?? { ok: true, problems: [], touched: draft.length > 0 ? ["S-0002", "UX-0001"] : [] }) }),
     complete: (req) => (o.down === true ? Effect.fail("model down") : Effect.sync(() => (calls.push(["complete", req.messages.at(-1)?.content]), calls.push(["maxTokens", req.maxTokens]), calls.push(["reasoning", req.reasoning]), o.spent === true ? { text: "", completionTokens: 16384, reasoningTokens: 16384, finishReason: "length" } : { text: answers.shift() ?? "{}" }))),
     propose: (p) => Effect.sync(() => void calls.push(["propose", p])),
     rehearsing: (p) => Effect.sync(() => void calls.push(["rehearsing", p])),
@@ -66,7 +66,7 @@ describe("the Triage Agent", () => {
     const accepted = (card: string, changes: unknown[], answers: string[] = []) => ({ card, title: `card ${card}`, changes, answers, summary: `fix ${card}`, status: "accepted" })
     const a = [{ tool: "edit-state", params: { id: "S-0002", text: "x" } }]
     const b = [{ tool: "edit-card", params: { id: "UX-0002", when: "y" } }]
-    const { t, calls } = setup({ stages: [stage({ stage: "plan", draft: [...a, ...b], inputs: ["F-00000001"], proposals: [accepted("UX-0001", a, ["F-00000001"]), accepted("UX-0002", b)] })], answers: [JSON.stringify({ groups: [{ title: "Name the choices", steps: ["one"], cards: ["UX-0001"] }, { title: "Say when", steps: ["two"], cards: ["UX-0002"] }] })] })
+    const { t, calls } = setup({ stages: [stage({ stage: "plan", draft: [...a, ...b], inputs: ["F-00000001"], proposals: [accepted("UX-0001", a, ["F-00000001"]), accepted("UX-0002", b)] })], dry: () => ({ ok: true, problems: [], touched: [], cards: [] }), answers: [JSON.stringify({ groups: [{ title: "Name the choices", steps: ["one"], cards: ["UX-0001"] }, { title: "Say when", steps: ["two"], cards: ["UX-0002"] }] })] })
     await Effect.runPromise(t.tick)
     const filed = calls.find(([k]) => k === "plans")?.[1] as { journey: string; plans: Array<{ title: string; steps: string[]; cards: string[]; changes: unknown[]; feedback: string[]; after: number[] }> }
     expect(filed.journey).toBe("Set up")
@@ -101,12 +101,22 @@ describe("the Triage Agent", () => {
     expect(await count({ stages: [round], answers: [both] })).toEqual({ n: 1, asked: true })
     expect(await count({ stages: [round], answers: [both], atomic: false, decisionsDown: true })).toEqual({ n: 1, asked: false })
   })
+  test("Plan: a plan names every card its changes reach (a shared state's cards), not only the cards drafted", async () => {
+    const a = [{ tool: "edit-state", params: { id: "S-0002", text: "x" } }]
+    const b = [{ tool: "edit-card", params: { id: "UX-0002", when: "y" } }]
+    const accepted = (card: string, changes: unknown[]) => ({ card, changes, answers: [], summary: `fix ${card}`, status: "accepted" })
+    const reach = (draft: ReadonlyArray<{ tool: string }>) => [...(draft.some((c) => c.tool === "edit-state") ? ["UX-0001", "UX-0005"] : []), ...(draft.some((c) => c.tool === "edit-card") ? ["UX-0002"] : [])]
+    const { t, calls } = setup({ stages: [stage({ stage: "plan", draft: [...a, ...b], proposals: [accepted("UX-0001", a), accepted("UX-0002", b)] })], answers: ["no json"], dry: (_n, draft) => ({ ok: true, problems: [], touched: [], cards: reach(draft) }) })
+    await Effect.runPromise(t.tick)
+    const filed = calls.find(([k]) => k === "plans")?.[1] as { plans: Array<{ cards: string[] }> }
+    expect(filed.plans.map((p) => p.cards)).toEqual([["UX-0001", "UX-0005"], ["UX-0002"]])
+  })
   test("Plan: a plan that does not dry-run with what it waits on merges into it", async () => {
     const a = [{ tool: "edit-state", params: { id: "S-0002", text: "x" } }]
     const b = [{ tool: "edit-state", params: { id: "S-0002", text: "y" } }]
     const accepted = (card: string, changes: unknown[]) => ({ card, changes, answers: [], summary: `fix ${card}`, status: "accepted" })
     // The whole draft dry-runs; the second plan (over the first) does not.
-    const { t, calls } = setup({ stages: [stage({ stage: "plan", draft: [...a, ...b], proposals: [accepted("UX-0001", a), accepted("UX-0002", b)] })], answers: [JSON.stringify({ groups: [{ title: "A", steps: [], cards: ["UX-0001"] }, { title: "B", steps: [], cards: ["UX-0002"] }] })], dry: (n) => (n === 2 ? { ok: false, problems: ["clash"], touched: [] } : { ok: true, problems: [], touched: [] }) })
+    const { t, calls } = setup({ stages: [stage({ stage: "plan", draft: [...a, ...b], proposals: [accepted("UX-0001", a), accepted("UX-0002", b)] })], answers: [JSON.stringify({ groups: [{ title: "A", steps: [], cards: ["UX-0001"] }, { title: "B", steps: [], cards: ["UX-0002"] }] })], dry: (n) => (n === 2 ? { ok: false, problems: ["clash"], touched: [], cards: [] } : { ok: true, problems: [], touched: [], cards: [] }) })
     await Effect.runPromise(t.tick)
     const filed = calls.find(([k]) => k === "plans")?.[1] as { plans: Array<{ cards: string[] }> }
     expect(filed.plans.map((p) => p.cards)).toEqual([["UX-0001", "UX-0002"]])

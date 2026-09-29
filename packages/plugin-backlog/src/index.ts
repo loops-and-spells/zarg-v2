@@ -358,8 +358,9 @@ export default definePlugin({
     })
     const next = () =>
       Effect.gen(function* () {
-        const items = (yield* loadItems).filter((i) => i.dropped !== true)
-        const changed = yield* changedRefs(items)
+        // All of them: a plan after a dropped one must see it dropped (pickNext skips dropped ones itself).
+        const items = yield* loadItems
+        const changed = yield* changedRefs(items.filter((i) => i.dropped !== true))
         return pickNext(items, (ref) => changed.has(ref)) ?? null
       }).pipe(Effect.mapError(fail))
 
@@ -512,11 +513,15 @@ export default definePlugin({
     /** Resync a plan whose cards changed: its changes still fit → the cards' versions now; they do not → back to triage (its feedback moved to the cards as they are, the plan dropped, the journey queued). */
     const resync = (id: string) =>
       Effect.gen(function* () {
-        const i = (yield* loadItems).find((x) => x.id === id)
+        const all = yield* loadItems
+        const i = all.find((x) => x.id === id)
         if (i === undefined) return `no plan ${id}`
-        const changed = yield* changedRefs([i])
+        const changed = stale(i, all, yield* changedRefs([i]))
         if (changed.size === 0) return `${id}'s cards are as it was drafted on: nothing to resync`
-        const dry = yield* gherkin.dryRun({ draft: i.changes }).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: ["the dry-run failed"] as ReadonlyArray<string> })))
+        // Over the plans it waits on that have not landed (they apply first), in order.
+        const pending = (x: Item): ReadonlyArray<Item> => all.filter((y) => (x.after ?? []).includes(y.id) && y.status !== "done" && y.dropped !== true).flatMap((y) => [...pending(y), y])
+        const first = [...new Map(pending(i).map((y) => [y.id, y])).values()].sort((a, b) => (Number(a.id.slice(2)) || 0) - (Number(b.id.slice(2)) || 0))
+        const dry = yield* gherkin.dryRun({ draft: [...first.flatMap((y) => y.changes), ...i.changes] }).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: ["the dry-run failed"] as ReadonlyArray<string> })))
         if (dry.ok) {
           const cards = yield* Effect.forEach(i.cards, (c) => (changed.has(c.ref) ? Effect.map(entities.version(target(c.ref)).pipe(Effect.orElseSucceed(() => null)), (v) => ({ ...c, ref: v === null ? c.ref : `${target(c.ref)}@${v}` })) : Effect.succeed(c)))
           yield* saveItem({ ...i, cards, events: [...i.events, { what: "resynced: its changes still fit the cards as they are now", by: "operator" }] })
