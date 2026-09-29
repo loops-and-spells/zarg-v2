@@ -42,3 +42,10 @@ test("archived agents fold into one row at the foot", () => {
   const rows = railRows(initialUi, s, undefined, 24)
   expect(rows.at(-1)).toMatchObject({ glyph: "▸", name: "archived", note: "1" })
 })
+
+test("while zarg's question waits, its agents stand still; a plugin's agents spin on", () => {
+  const s = { ...stateWith({ "rlm-1": node({ id: "rlm-1", preset: "driver" }), "triage:triage-1": node({ id: "triage:triage-1", preset: "triage" }) }), thread: { ...stateWith({}).thread, rlms: { "rlm-1": node({ id: "rlm-1", preset: "driver" }), "triage:triage-1": node({ id: "triage:triage-1", preset: "triage" }) }, pendingInquiry: { id: "q", question: "?", options: [], allowOther: true, about: [] } } } as SessionState
+  const glyphs = Object.fromEntries(railRows(initialUi, s, 200, 24).map((r) => [r.id, r.glyph]))
+  expect(glyphs["rlm-1"]).toBe("⠼")
+  expect(glyphs["triage:triage-1"]).toBe("⠹")
+})

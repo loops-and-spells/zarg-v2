@@ -374,6 +374,11 @@ describe("the working indicator", () => {
     expect(animating(syncUi(ui, waiting, 0), { ...waiting, thread: { ...waiting.thread, rlms: { "rlm-1": root } } })).toBe(false)
     expect(animating(syncUi(ui, idle, 0), idle)).toBe(false)
   })
+  test("a plugin's agents keep the clock while zarg's question waits: they work on, it is not theirs", () => {
+    const worker = { ...root, id: "triage:triage-1", preset: "triage" }
+    const ui = syncUi(initialUi, waiting, 0)
+    expect(animating(ui, { ...waiting, thread: { ...waiting.thread, rlms: { "rlm-1": root, "triage:triage-1": worker } } })).toBe(true)
+  })
 
   test("no line while a question waits or the thread is idle", () => {
     expect(working(syncUi(initialUi, waiting, 0), waiting, 1_000)).toBeUndefined()

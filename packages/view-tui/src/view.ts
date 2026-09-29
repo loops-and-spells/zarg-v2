@@ -273,8 +273,9 @@ export const animating = (ui: Ui, s: SessionState) =>
   ui.runningSince !== undefined ||
   // An unseen request for attention blinks.
   Object.values(s.thread.rlms).some((r) => r.attention !== undefined && ui.seen[r.id] !== r.attention.since) ||
-  // zarg's own row is always there: only agents doing work keep the clock ticking.
-  (s.core === "up" && s.thread.pendingInquiry === undefined && Object.values(s.thread.rlms).some((r) => r.status === "running" && r.preset !== "zarg"))
+  // zarg's own row is always there: only agents doing work keep the clock ticking. zarg's agents wait on its
+  // question with it; a plugin's agents (plugin:agent) work on meanwhile.
+  (s.core === "up" && Object.values(s.thread.rlms).some((r) => r.status === "running" && r.preset !== "zarg" && (s.thread.pendingInquiry === undefined || r.id.includes(":"))))
 
 const withRunClock = (ui: Ui, s: SessionState, now: number): Ui => {
   if (busy(s)) return ui.runningSince === undefined ? { ...ui, runningSince: now } : ui

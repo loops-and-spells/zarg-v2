@@ -55,7 +55,7 @@ export const railRows = (ui: Ui, s: SessionState, now: number | undefined, width
     const hasKids = kids(n.id).length > 0
     const open = isOpen(live, ui.agents, n)
     const unseen = n.attention !== undefined && ui.seen[n.id] !== n.attention.since
-    const glyph = n.attention !== undefined ? (unseen && blink ? "◇" : "◆") : hasKids ? (open ? "▾" : "▸") : n.status === "running" ? (now !== undefined ? spin(now) : "⠼") : ICON[n.status]
+    const glyph = n.attention !== undefined ? (unseen && blink ? "◇" : "◆") : hasKids ? (open ? "▾" : "▸") : n.status === "running" ? (now !== undefined && (s.thread.pendingInquiry === undefined || n.id.includes(":")) ? spin(now) : "⠼") : ICON[n.status]
     const glyphToken: TokenKey = n.attention !== undefined ? "attention" : n.status === "running" ? "accent" : n.status === "failed" ? "error" : "dim"
     const note = noteOf(n, r.hidden.length, open)
     const room = Math.max(4, width - depth * 2 - 2 - Math.min(NOTE, note.length) - 1)
