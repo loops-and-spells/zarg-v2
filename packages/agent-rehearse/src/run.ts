@@ -76,6 +76,10 @@ export interface RunDeps {
   /** A card's version now (`Entities.version`); null when it is gone. */
   readonly version: (card: string) => Effect.Effect<string | null, unknown>
   /** File feedback with the backlog; its ids, in order. */
+  /** Tell the backlog which journeys a run walks now (none: it ended): their feedback is locked meanwhile. */
+  readonly walking: (run: string, journeys: ReadonlyArray<string>) => Effect.Effect<void, unknown>
+  /** The journeys these cards are in. */
+  readonly journeysOf: (cards: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<string>, unknown>
   /** `walked`: the cards the run walked; the backlog closes their feedback it no longer reports. */
   readonly file: (entries: ReadonlyArray<FiledEntry>, opts?: { readonly walked?: ReadonlyArray<string>; readonly run?: string }) => Effect.Effect<{ readonly ids: ReadonlyArray<string> }, unknown>
   /** Where filed feedback stands now. */
@@ -361,6 +365,9 @@ export const makeRehearse = (deps: RunDeps) =>
 
     const launch = (rec: RunRecord) =>
       Effect.gen(function* () {
+        // The journeys it walks have their feedback locked until it ends (it reconciles them then); a draft's run touches none.
+        const real = rec.file !== false
+        if (real) yield* quiet(Effect.flatMap(deps.journeysOf([...new Set(rec.stories.flat())]), (js) => deps.walking(rec.run, js)))
         const fiber = yield* Effect.forkDetach(
           walk(rec).pipe(
             Effect.ensuring(
@@ -368,6 +375,8 @@ export const makeRehearse = (deps: RunDeps) =>
                 if (active?.run === rec.run) active = undefined
               }),
             ),
+            // Done or stopped: its journeys are free again.
+            Effect.ensuring(real ? quiet(deps.walking(rec.run, [])) : Effect.void),
           ),
         )
         active = { run: rec.run, fiber }
@@ -403,6 +412,8 @@ export const makeRehearse = (deps: RunDeps) =>
       const { run, fiber } = active
       yield* Fiber.interrupt(fiber)
       const r = records.get(run)
+      // Its journeys are free again (a run stopped before it began never reached its own release).
+      if (r?.file !== false) yield* quiet(deps.walking(run, []))
       if (r?.status === "running") {
         yield* save({ ...r, status: "stopped" })
         yield* quiet(deps.agents.end({ id: "run", ok: false, message: "stopped" }))

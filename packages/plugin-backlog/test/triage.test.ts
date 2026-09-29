@@ -161,4 +161,25 @@ describe("the triage hub's stages", () => {
     expect(out).toContain("2 entries · 2 on")
     expect(out).not.toContain("entrys")
   })
+  test("a journey being rehearsed has its feedback locked: rows say so, nothing flips, Refine waits; the run's end frees it", async () => {
+    const out = await run((seen) => Effect.gen(function* () {
+      const { ids } = yield* setUp()
+      const h = yield* PluginHost
+      yield* h.invoke("backlog", "walking", { run: "r-7", journeys: ["Set up"] })
+      yield* press("open")
+      const locked = rows(seen).map((r) => [r.readonly === true, r.cells?.status])
+      const summary = stage(seen)
+      const flip = ((yield* h.invoke("backlog", "act", { agent: "feedback", action: "toggle", rows: ids })) as { notice: string }).notice
+      const refine = (yield* press("refine")).notice
+      yield* h.invoke("backlog", "walking", { run: "r-7", journeys: [] })
+      yield* press("open")
+      const free = rows(seen).map((r) => [r.readonly === true, r.cells?.status])
+      return { locked, summary, flip, refine, free }
+    }))
+    expect(out.locked).toEqual([[true, "rehearsing"]])
+    expect(out.summary).toContain("being rehearsed (run r-7)")
+    expect(out.flip).toBe("Set up is being rehearsed (run r-7): its feedback is read-only until the run ends")
+    expect(out.refine).toBe("Set up is being rehearsed (run r-7): Refine when the run ends")
+    expect(out.free).toEqual([[false, ""]])
+  })
 })

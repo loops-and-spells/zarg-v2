@@ -88,6 +88,7 @@ export const Backlog = pluginContract("backlog", {
   rehearsed: { params: Rehearsed, success: Schema.Null },
   drafted: { params: Drafted, success: Schema.Null },
   redraft: { params: Redraft, success: Schema.Null },
+  walking: { params: Schema.Struct({ run: Schema.String, journeys: Schema.Array(Schema.String) }), success: Schema.Null },
   assign: { params: Schema.Struct({ journey: Schema.String, worker: Schema.optionalKey(Schema.String) }), success: Schema.Null },
   redo: { params: Schema.Struct({ journey: Schema.String, card: Schema.String }), success: Schema.Struct({ notice: Schema.String }) },
 })

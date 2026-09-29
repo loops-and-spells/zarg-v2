@@ -16,6 +16,7 @@ const setup = (o: Opts = {}) =>
     const events: Array<{ event: string; id: string; text?: string; progress?: { done: number; total: number } }> = []
     const filedCalls: Array<ReadonlyArray<FiledEntry>> = []
     const filedWith: Array<{ walked?: ReadonlyArray<string>; run?: string }> = []
+    const walking: Array<[string, ReadonlyArray<string>]> = []
     const drafts: Array<[string, unknown]> = []
     const strategies: Array<string> = []
     const agendaChanges = { n: 0 }
@@ -66,6 +67,8 @@ const setup = (o: Opts = {}) =>
         }),
       list: (dir) => Effect.succeed([...files.keys()].filter((k) => k.startsWith(`${dir}/`)).map((k) => k.slice(dir.length + 1))),
       version: (card) => Effect.succeed(gone.has(card) ? null : `v${card.toLowerCase()}00000000000`.slice(0, 12)),
+      walking: (run, journeys) => Effect.sync(() => void walking.push([run, journeys])),
+      journeysOf: (cards) => Effect.succeed(cards.length > 0 ? ["Checkout"] : []),
       file: (entries, opts) => Effect.sync(() => (filedCalls.push(entries), filedWith.push(opts ?? {}), { ids: entries.map((_, i) => (o.fileSome === true ? "" : `F-${i}`)) })),
       status: (ids) => (o.statusDown === true ? Effect.fail("down") : Effect.succeed(ids.map((id) => ({ id, state: o.state ?? "open", on: o.on ?? true })))),
       views: {
@@ -76,7 +79,7 @@ const setup = (o: Opts = {}) =>
       settings: rehearseSettings({ ...(o.inFlight !== undefined ? { in_flight: o.inFlight } : {}) }, "stub:m"),
     }
     const r = yield* makeRehearse(deps)
-    return { r, files, decisions, llm, events, filedCalls, filedWith, overlap, pushes, drafts, agendaChanges, strategies }
+    return { r, files, decisions, llm, events, filedCalls, filedWith, walking, overlap, pushes, drafts, agendaChanges, strategies }
   })
 const until = (check: () => boolean) =>
   Effect.gen(function* () {
@@ -162,6 +165,8 @@ describe("rehearse runs in the plugin", () => {
     expect(t.r.record(t.run)!.filed).toEqual({ [t.r.record(t.run)!.findings[0]!.id]: "F-0" })
     // The cards it walked: their feedback it no longer reports closes in the backlog.
     expect(t.filedWith).toEqual([{ walked: ["A", "B", "C", "D"], run: t.run }])
+    // Its journeys' feedback was locked while it walked, and freed at its end.
+    expect(t.walking).toEqual([[t.run, ["Checkout"]], [t.run, []]])
   })
 
   test("a finding on a card that is gone is not filed; the run still reconciles the cards it walked", async () => {
@@ -257,6 +262,18 @@ describe("rehearse runs in the plugin", () => {
       }),
     )
     expect(t).toEqual({ going: "running", after: "stopped" })
+  })
+
+  test("a stopped run frees its journeys' feedback", async () => {
+    const t = await Effect.runPromise(
+      Effect.gen(function* () {
+        const t = yield* setup({ slowDecide: 20 })
+        const s = (yield* t.r.start({})) as { run: string }
+        yield* t.r.stop()
+        return { ...t, run: s.run }
+      }),
+    )
+    expect(t.walking.at(-1)).toEqual([t.run, []])
   })
 
   test("stop keeps the partial record, marked stopped", async () => {

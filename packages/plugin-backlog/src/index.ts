@@ -72,6 +72,7 @@ export default definePlugin({
     stages: { doc: "Every journey's triage stage (the Triage Agent's work list).", params: Schema.Struct({}), success: Schema.Array(StageData) },
     feedbackOf: { doc: "A journey's open feedback (on and off).", params: Schema.Struct({ journey: Schema.String }), success: Schema.Array(OnEntry) },
     redraft: { doc: "The accepted draft fails as a whole: back to Refine with the problems.", params: Redraft, success: Schema.Null },
+    walking: { doc: "The journeys a rehearse run walks now (none: it ended): their feedback is locked meanwhile.", params: Schema.Struct({ run: Schema.String, journeys: Schema.Array(Schema.String) }), success: Schema.Null },
     assign: { doc: "The triage worker that took a journey (none: back in line).", params: Schema.Struct({ journey: Schema.String, worker: Schema.optionalKey(Schema.String) }), success: Schema.Null },
     redo: { doc: "Draft one card of a journey's round again (the Triage Agent's view, d).", params: Schema.Struct({ journey: Schema.String, card: Schema.String }), success: Notice },
     propose: { doc: "The Triage Agent's proposal for a card.", params: Propose, success: Schema.Null },
@@ -161,7 +162,12 @@ export default definePlugin({
       if (st.stage === "rehearse" || st.stage === "plan") return [`Drafting the plan for ${plural(st.proposals.filter((p) => p.status === "accepted").length, "card")}; it goes to the Backlog.`, ...leftLines, ...noteLine].join("\n")
       return [`On the Backlog as **${st.item ?? "a plan"}**: move it to Ready (in Backlog) to apply it.`, ...leftLines, "", "**r** starts a new round."].join("\n")
     }
+    // The journeys a rehearse run walks now: their feedback is locked until it ends (it reconciles them then).
+    let walking: { readonly run: string; readonly journeys: ReadonlySet<string> } | undefined
+    const walkedBy = (journeys: ReadonlyArray<string>) => (walking !== undefined && journeys.some((j) => walking!.journeys.has(j)) ? walking.run : undefined)
     let journey: string | undefined
+    // Background changes redraw Feedback only once it has been opened (nobody looks otherwise).
+    let feedbackOpened = false
     // ponytail: grows by one per card version that had feedback shown; clear it when that gets large.
     const contextOf = new Map<string, string>()
     const refresh = Effect.gen(function* () {
@@ -180,17 +186,18 @@ export default definePlugin({
       const round = new Set(st !== undefined && st.stage !== "triage" && st.stage !== "planned" ? (st.inputs ?? []) : [])
       const shown = all_.filter((e) => !(st?.stage === "plan" && (st.results?.resolved ?? []).includes(e.id)))
       const statusOf = (e: Entry) => {
+        if (walkedBy(e.journeys) !== undefined) return "rehearsing"
         if (st === undefined || !round.has(e.id)) return ""
         if (st.stage === "rehearse") return "re-rehearsing"
         if (st.stage === "plan") return "still reported"
         const p = st.proposals.find((x) => x.card === (parseRef(e.ref)?.id ?? ""))
         return p === undefined ? "" : p.status === "accepted" ? "drafted" : p.status === "skipped" ? "left out" : st.worker !== undefined ? "waiting" : "queued"
       }
-      const locked = (e: Entry) => st !== undefined && inTriage(st) && round.has(e.id)
+      const locked = (e: Entry) => (st !== undefined && inTriage(st) && round.has(e.id)) || walkedBy(e.journeys) !== undefined
       const on = shown.filter((e) => e.triage.on).length
       // The journey and its counts; how far its triage got is triage's to show (its rows say where they stand).
       yield* views.set("feedback", FeedbackView, "stage", {
-        markdown: journey === undefined ? "No open feedback. Testers file it when they rehearse." : `**${journey}** · ${plural(shown.length, "entry")} · ${on} on${st !== undefined && inTriage(st) ? " · in triage" : ""}`,
+        markdown: journey === undefined ? "No open feedback. Testers file it when they rehearse." : `**${journey}** · ${plural(shown.length, "entry")} · ${on} on${walkedBy([journey]) !== undefined ? ` · being rehearsed (run ${walkedBy([journey])})` : st !== undefined && inTriage(st) ? " · in triage" : ""}`,
       })
       yield* views.set("feedback", FeedbackView, "journeys", { rows: names.map((j) => ({ id: j, cells: { journey: j, open: String(byJourney.get(j)?.length ?? 0) } })) })
       yield* views.set("feedback", FeedbackView, "work", { markdown: st === undefined ? "" : workOf(st, on) })
@@ -451,6 +458,7 @@ export default definePlugin({
     const stageAct = (j: string, action: string) =>
       Effect.gen(function* () {
         if (action === "refine") {
+          if (walkedBy([j]) !== undefined) return `${j} is being rehearsed (run ${walkedBy([j])}): Refine when the run ends`
           const entries = yield* openIn(j)
           const st0 = yield* stageOf(j)
           // From Plan, or out of a re-rehearse that hangs: again, over the draft so far.
@@ -517,9 +525,15 @@ export default definePlugin({
         if (agent !== "feedback") return { notice: `backlog has no view ${agent}` }
         if (action === "journey" && rows[0] !== undefined) journey = rows[0]
         // The view opens with its cursor on the first journey: show that one.
-        if (action === "open") journey = undefined
+        if (action === "open") {
+          journey = undefined
+          feedbackOpened = true
+        }
         // Feedback of a journey in triage is read-only until Plan.
         if (action === "note" || action === "toggle") {
+          // A journey a run walks now: locked until the run ends (it reconciles its feedback then).
+          const walked = (yield* load).filter((e) => rows.includes(e.id)).flatMap((e) => e.journeys).find((j) => walkedBy([j]) !== undefined)
+          if (walked !== undefined) return { notice: `${walked} is being rehearsed (run ${walkedBy([walked])}): its feedback is read-only until the run ends` }
           const stages = yield* loadStages
           const inRound = stages.find((s) => inTriage(s) && (s.inputs ?? []).some((id) => rows.includes(id)))
           if (inRound !== undefined) return { notice: `in ${inRound.journey}'s triage round: read-only until Plan` }
@@ -569,7 +583,7 @@ export default definePlugin({
     const cmd = (f: Effect.Effect<string, unknown>) => Effect.andThen(f, (notice) => Effect.as(refreshBoard, { notice })).pipe(Effect.mapError(fail))
     const nul = <E>(e: Effect.Effect<unknown, E>) => Effect.as(e, null).pipe(Effect.mapError(fail))
     // The agent's moves on a stage: the Feedback view follows them without a key press.
-    const moved_ = <E>(e: Effect.Effect<unknown, E>) => nul(Effect.andThen(e, Effect.ignore(refresh)))
+    const moved_ = <E>(e: Effect.Effect<unknown, E>) => nul(Effect.andThen(e, Effect.ignore(Effect.suspend(() => (feedbackOpened ? refresh : Effect.void)))))
     return {
       file,
       status,
@@ -578,6 +592,13 @@ export default definePlugin({
       stages: () => loadStages.pipe(Effect.mapError(fail)),
       feedbackOf: ({ journey: j }: { journey: string }) => Effect.map(openIn(j), (es) => es.map((e) => ({ id: e.id, ref: e.ref, kind: e.kind, severity: e.severity, note: e.note, persona: e.persona, on: e.triage.on, ...(e.operatorNote !== undefined ? { operatorNote: e.operatorNote } : {}) }))).pipe(Effect.mapError(fail)),
       redraft: (p: typeof Redraft.Type) => moved_(updateStage(p.journey, (st) => (st.stage === "rehearse" || st.stage === "plan" ? redraft(st, p.problems) : st), true)),
+      walking: (p: { run: string; journeys: ReadonlyArray<string> }) =>
+        Effect.gen(function* () {
+          if (p.journeys.length > 0) walking = { run: p.run, journeys: new Set(p.journeys) }
+          else if (walking?.run === p.run) walking = undefined
+          if (feedbackOpened) yield* Effect.ignore(refresh)
+          return null
+        }),
       assign: (p: { journey: string; worker?: string }) =>
         moved_(updateStage(p.journey, (st) => {
           const { worker: _w, ...rest } = st
