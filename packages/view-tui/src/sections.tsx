@@ -1,7 +1,7 @@
 import type { BoxRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import { useTerminalDimensions } from "@opentui/react"
-import { CHAT, type ConversationQuestion, conversationRows, cursorRow, filterOf, followedText, keyFor, searchCount, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
+import { CHAT, type ConversationQuestion, conversationRows, cursorRow, enabledActions, filterOf, followedText, keyFor, searchCount, leafOf, menuEntries, shownRows, OTHER, ordered, rowsOf, type LayoutLeaf, type LayoutSection, type SectionKind, type ViewState, type ViewUi } from "@zarg/view"
 import { fit, gauge, heading } from "./look"
 import { Board } from "./board"
 import { RichText } from "./markdown"
@@ -129,6 +129,21 @@ const tableLayout = (view: ViewState, path: string, leaf: LayoutLeaf, width: num
   const widths = fixedWidths.map((w) => (w === 0 ? Math.max(4, width - gutter - fixed) : w))
   const starts = widths.map((_, i) => gutter + widths.slice(0, i).reduce((a, w) => a + w + 2, 0))
   return { cols, rows, gutter, widths, starts }
+}
+/** An action's line of text, while it is typed: ⏎ sends it, esc drops it. */
+const InputField = (p: { readonly input: NonNullable<ViewUi["input"]>; readonly width: number }) => {
+  const C = useColors()
+  const hint = "  ⏎ save  esc cancel"
+  const room = Math.max(1, p.width - 4 - hint.length)
+  const shown = p.input.text.length > 0 ? p.input.text.slice(-room) : ""
+  return (
+    <text wrapMode="none" bg={C.selection} style={{ flexShrink: 0, marginTop: 1 }}>
+      <span fg={C.accent}>{" ✎ "}</span>
+      {shown.length > 0 ? <span fg={C.text}>{shown}</span> : <span fg={C.dim}>{fit(p.input.placeholder, room)}</span>}
+      <span fg={C.accent}>▎</span>
+      <span fg={C.dim}>{hint}</span>
+    </text>
+  )
 }
 /** A searchable table's field: idle, or its query (with the cursor while typing) and how many rows it keeps. */
 const SearchField = (p: { readonly view: ViewState; readonly ui: ViewUi; readonly path: string; readonly width: number; readonly onSearch?: () => void }) => {
@@ -314,13 +329,13 @@ export const Buttons = (p: { readonly actions: ReadonlyArray<ButtonSpec>; readon
  */
 const buttonsOf = (view: ViewState, ui: ViewUi, leaf: { readonly path: string; readonly leaf: LayoutLeaf }) => {
   // A highlight action runs as the cursor moves: it needs no button.
-  const actions = leaf.leaf.kind === "table" ? (leaf.leaf.actions ?? []).filter((a) => a.highlight !== true) : []
+  const actions = leaf.leaf.kind === "table" ? enabledActions(view, leaf.path).filter((a) => a.highlight !== true) : []
   if (leaf.leaf.kind !== "table" || actions.length === 0) return undefined
   const all = rowsOf(view, leaf.path)
   const rows = (ui.selected[leaf.path] ?? []).filter((id) => all.some((r) => r.id === id))
   const here = shownRows(view, ui, leaf.path)[ui.rows[leaf.path] ?? 0]?.id
   const rowsFor = (id: string): ReadonlyArray<string> | undefined => {
-    const a = (leaf.leaf.actions ?? []).find((x) => x.id === id)
+    const a = actions.find((x) => x.id === id)
     if (a === undefined) return undefined
     if (a.on === "none") return []
     const picked = a.on === "selection" && rows.length > 0 ? rows : here !== undefined ? [here] : []
@@ -582,6 +597,7 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
                 {...(props.onMenuAdjust !== undefined ? { onAdjust: props.onMenuAdjust } : {})}
               />
             ) : null}
+            {props.ui.input?.section === leaf.path ? <InputField input={props.ui.input} width={width} /> : null}
             {buttons !== undefined ? (
               <box style={{ flexShrink: 0, marginTop: 1, paddingLeft: 1 }}>
                 <Buttons

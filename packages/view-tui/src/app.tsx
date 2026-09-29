@@ -1,7 +1,7 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Panel, Session } from "@zarg/client"
-import { afterAction, applyMenu, closeMenu, highlightActs, hintsOf, keyFor, menuAdjust, pickHeader, pickMark, pickRow, pickTab, startUi } from "@zarg/view"
+import { afterAction, applyMenu, closeMenu, highlightActs, pressAction, hintsOf, keyFor, menuAdjust, pickHeader, pickMark, pickRow, pickTab, startUi } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { registerCommands, SLASH_COMMANDS } from "./commands"
 import { fit, gauge, keyGlyphs } from "./look"
@@ -124,7 +124,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     } else if (action.type === "act") {
       // A panel, a popover or a plugin sheet names its agent; the open view's agent is the one it started with.
       const agent = action.agent ?? latest().viewing?.split("@")[0]
-      if (agent !== undefined) void props.session.act(agent, action.action, action.section, action.rows, action.view)
+      if (agent !== undefined) void props.session.act(agent, action.action, action.section, action.rows, action.view, action.text)
     } else if (action.type === "exit") props.onExit()
   }
 
@@ -391,8 +391,11 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             onAct={(section, action, rows) => {
               const v = props.session.state().thread.views?.[viewing]
               if (v === undefined) return
-              act({ type: "act", section, action, rows, view: v.agent })
-              setUi({ ...latest(), view: afterAction(latest().view ?? startUi(v), section) })
+              // One that asks for text opens its input first.
+              const r = pressAction(v, latest().view ?? startUi(v), section, action, rows)
+              if (r.act === undefined) return setUi({ ...latest(), focus: "tile", view: r.ui })
+              act({ type: "act", ...r.act, view: v.agent })
+              setUi({ ...latest(), view: afterAction(r.ui, section) })
             }}
             onClear={(section) => {
               const v = props.session.state().thread.views?.[viewing]
@@ -594,8 +597,10 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             height={Math.max(6, dims.height - 8)}
             width={focusWidth}
             onAct={(section, action, rows) => {
-              act({ type: "act", section, action, rows, agent: sheetViewState.agent.split("@")[0]!, view: sheetViewState.agent })
-              setUi({ ...latest(), sheetView: afterAction(latest().sheetView ?? startUi(sheetViewState), section) })
+              const r = pressAction(sheetViewState, latest().sheetView ?? startUi(sheetViewState), section, action, rows)
+              if (r.act === undefined) return setUi({ ...latest(), sheetView: r.ui })
+              act({ type: "act", ...r.act, agent: sheetViewState.agent.split("@")[0]!, view: sheetViewState.agent })
+              setUi({ ...latest(), sheetView: afterAction(r.ui, section) })
             }}
             onClear={(section) => setUi({ ...latest(), sheetView: afterAction(latest().sheetView ?? startUi(sheetViewState), section) })}
           />}

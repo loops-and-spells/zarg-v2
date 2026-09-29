@@ -20,6 +20,8 @@ export const Action = Schema.Struct({
   default: Schema.optionalKey(Schema.Boolean),
   /** Runs whenever the table's cursor lands on another row (a list whose choice fills the rest of the view). */
   highlight: Schema.optionalKey(Schema.Boolean),
+  /** Asks for a line of text first (this is its placeholder): the act carries it; a row's `text` fills it in. */
+  input: Schema.optionalKey(Schema.String),
 })
 /** A table column; `order` ranks its values for sorting (a severity's "high", "medium", "low"), else they sort as text with numbers as numbers. */
 /** What a column's menu offers beside sorting: ticking by value, nothing, ticking a numeric range (the cell's last number), or a search that sorts by match. */
@@ -39,7 +41,7 @@ export const ListData = Schema.Struct({
 export const LogLine = Schema.Struct({ text: Schema.String, tone: Schema.optionalKey(Tone), at: Schema.optionalKey(Schema.Number) })
 export const LogData = Schema.Struct({ lines: Schema.Array(LogLine) })
 /** `search`: text a searchable table also matches a row by, beyond its cells (a note it does not show). */
-export const TableData = Schema.Struct({ rows: Schema.Array(Schema.Struct({ id: Schema.String, cells: Schema.Record(Schema.String, Schema.String), tone: Schema.optionalKey(Tone), search: Schema.optionalKey(Schema.String), on: Schema.optionalKey(Schema.Boolean) })), labels: Schema.optionalKey(Schema.Record(Schema.String, Schema.Struct({ text: Schema.String, tone: Tone, glyph: Schema.String }))) })
+export const TableData = Schema.Struct({ rows: Schema.Array(Schema.Struct({ id: Schema.String, cells: Schema.Record(Schema.String, Schema.String), tone: Schema.optionalKey(Tone), search: Schema.optionalKey(Schema.String), on: Schema.optionalKey(Schema.Boolean), text: Schema.optionalKey(Schema.String) })), actions: Schema.optionalKey(Schema.Array(Schema.String)), labels: Schema.optionalKey(Schema.Record(Schema.String, Schema.Struct({ text: Schema.String, tone: Tone, glyph: Schema.String }))) })
 export const KeyValueData = Schema.Struct({ pairs: Schema.Array(Schema.Struct({ key: Schema.String, value: Schema.String })) })
 /** `rows`: for a text that follows a table, the text for each of its rows (by id); `markdown` when none fits. */
 export const TextData = Schema.Struct({ markdown: Schema.String, rows: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)) })

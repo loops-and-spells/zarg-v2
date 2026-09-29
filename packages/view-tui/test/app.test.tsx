@@ -26,7 +26,7 @@ const fakeSession = (state: SessionState) => {
     close: () => calls.push("close"),
     command: (t) => calls.push(`command ${t}`),
     pluginCommands: () => [],
-    act: (agent, action, _section, rows) => Promise.resolve(void calls.push(`act ${agent} ${action} ${rows.join(",")}`)),
+    act: (agent, action, _section, rows, _view, text) => Promise.resolve(void calls.push(`act ${agent} ${action} ${rows.join(",")}${text !== undefined ? ` "${text}"` : ""}`)),
     answerPrompt: (id, choice) => Promise.resolve(void calls.push(`prompt ${id} ${choice}`)),
     closePrompt: (id) => Promise.resolve(void calls.push(`close ${id}`)),
     archive: (change) => Promise.resolve(void calls.push(`archive ${JSON.stringify(change)}`)),
@@ -412,6 +412,30 @@ describe("tui frames", () => {
     expect(t.calls.filter((c) => c.startsWith("act"))).toEqual(["act backlog:feedback journey Reconcile"])
     // It runs on its own: no button for it.
     expect(t.captureCharFrame()).not.toContain("Show")
+  })
+
+  test("a table offers only the actions its data names; one that asks for text takes a line, prefilled, and sends it", async () => {
+    const agent = { id: "backlog:feedback", parent: null, preset: "view", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
+    const view = {
+      agent: "backlog:feedback",
+      layout: { name: "feedback", sections: [{ id: "feedback", kind: "table" as const, role: "primary" as const, title: "", columns: [{ id: "card", label: "card" }], actions: [{ id: "refine", label: "Refine", key: "r", on: "none" as const }, { id: "accept", label: "Accept", key: "a", on: "none" as const }, { id: "note", label: "Note", key: "n", on: "row" as const, input: "your note for refinement" }] }] },
+      data: { feedback: { rows: [{ id: "F-1", cells: { card: "UX-0001" }, text: "keep it" }], actions: ["refine", "note"] } },
+    }
+    const t = await render({ thread: { ...initial("main"), status: "running", rlms: { "backlog:feedback": agent }, views: { "backlog:feedback": view } }, core: "up" })
+    t.mockInput.pressKey("a", { meta: true }); await settle(t)
+    t.mockInput.pressEnter(); await settle(t)
+    t.mockInput.pressKey("v", { meta: true }); await settle(t)
+    expect(t.captureCharFrame()).toContain(" Refine ")
+    expect(t.captureCharFrame()).not.toContain(" Accept ")
+    t.mockInput.pressKey("a"); await settle(t)
+    expect(t.calls.filter((c) => c.startsWith("act"))).toEqual([])
+    t.mockInput.pressKey("n"); await settle(t)
+    expect(t.captureCharFrame()).toContain("✎ keep it▎")
+    await t.mockInput.typeText(" short"); await settle(t)
+    t.mockInput.pressEnter(); await settle(t)
+    await Bun.sleep(30); await settle(t)
+    expect(t.calls.filter((c) => c.startsWith("act"))).toEqual(['act backlog:feedback note F-1 "keep it short"'])
+    expect(t.captureCharFrame()).not.toContain("✎")
   })
 
   test("the agents pane folds: → opens a child's subtree, ← closes it", async () => {

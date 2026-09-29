@@ -32,7 +32,7 @@ export interface Session {
   readonly pluginCommands: () => ReadonlyArray<PluginCommandInfo>
   /** An action on an agent's selected rows; its notice shows. */
   /** `view`: the view store key it came from (a panel, popover or sheet), so its `opens` are found. */
-  readonly act: (agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>, view?: string) => Promise<void>
+  readonly act: (agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>, view?: string, text?: string) => Promise<void>
   /** Answer a question in a plugin agent's conversation; its notice shows. */
   readonly answerAgent: (agent: string, question: string, answer: { readonly choice?: string; readonly other?: string }) => Promise<void>
   /** Answer one of the core's prompts (a grant popover); its notice shows. */
@@ -209,9 +209,9 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
           Effect.flatMap((notice) => Effect.sync(() => set({ ...state, notice }))),
         ),
       ),
-    act: (agent, action, section, rows, view) =>
+    act: (agent, action, section, rows, view, text) =>
       Effect.runPromise(
-        opts.client.act(opts.threadId, agent, action, section, rows, view).pipe(
+        opts.client.act(opts.threadId, agent, action, section, rows, view, text).pipe(
           Effect.map((r) => r.notice),
           Effect.catch((e) => Effect.succeed(e.message)),
           Effect.flatMap((notice) => Effect.sync(() => set({ ...state, notice }))),

@@ -19,7 +19,7 @@ export const makeActions = (deps: {
   readonly open?: (plugin: string, surfaces: ReadonlyArray<{ readonly surface: string; readonly agent: string }>) => void
 }) => ({
   /** `view`: the view store key the action came from (a panel, popover or sheet of the agent); the agent's start view when absent. */
-  act: (_thread: string, agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>, view?: string): Effect.Effect<{ readonly notice: string }> => {
+  act: (_thread: string, agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>, view?: string, text?: string): Effect.Effect<{ readonly notice: string }> => {
     const o = owner(agent)
     if (o === undefined) return Effect.succeed({ notice: `${agent} has no actions` })
     // An action that opens surfaces is the shell's to carry out: the plugin is not called.
@@ -35,7 +35,7 @@ export const makeActions = (deps: {
         }
       })
     }
-    return deps.invoke(o.plugin, "act", { agent: o.id, action, ...(section !== undefined ? { section } : {}), rows }).pipe(
+    return deps.invoke(o.plugin, "act", { agent: o.id, action, ...(section !== undefined ? { section } : {}), rows, ...(text !== undefined ? { text } : {}) }).pipe(
       Effect.map((r) => ({ notice: String((r as { notice?: unknown } | null)?.notice ?? "done") })),
       Effect.catch((e) => Effect.succeed({ notice: e.message })),
     )

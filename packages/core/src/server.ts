@@ -43,7 +43,7 @@ export class PluginCommands extends Context.Service<
 export class Actions extends Context.Service<
   Actions,
   {
-    readonly act: (thread: string, agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>, view?: string) => Effect.Effect<{ readonly notice: string }>
+    readonly act: (thread: string, agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>, view?: string, text?: string) => Effect.Effect<{ readonly notice: string }>
     readonly answer: (thread: string, agent: string, question: string, answer: { readonly choice?: string; readonly other?: string }) => Effect.Effect<{ readonly notice: string }>
     readonly message: (thread: string, agent: string, text: string) => Effect.Effect<{ readonly notice: string }>
   }
@@ -216,11 +216,12 @@ const routes = HttpRouter.addAll(
           const { id, agent, action } = yield* HttpRouter.params
           const thread = decodeURIComponent(id ?? "")
           if (!THREAD_ID.test(thread)) return error(400, "invalid thread id")
-          const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as { section?: unknown; rows?: unknown; view?: unknown }
+          const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as { section?: unknown; rows?: unknown; view?: unknown; text?: unknown }
           if (!Array.isArray(body.rows) || !body.rows.every((r) => typeof r === "string")) return error(400, `an action needs { "rows": [ids] }`)
           if (body.section !== undefined && typeof body.section !== "string") return error(400, `an action's "section" must be a string`)
           if (body.view !== undefined && typeof body.view !== "string") return error(400, `an action's "view" must be a string`)
-          return HttpServerResponse.jsonUnsafe(yield* actions.act(thread, decodeURIComponent(agent ?? ""), decodeURIComponent(action ?? ""), body.section as string | undefined, body.rows as ReadonlyArray<string>, body.view as string | undefined))
+          if (body.text !== undefined && typeof body.text !== "string") return error(400, `an action's "text" must be a string`)
+          return HttpServerResponse.jsonUnsafe(yield* actions.act(thread, decodeURIComponent(agent ?? ""), decodeURIComponent(action ?? ""), body.section as string | undefined, body.rows as ReadonlyArray<string>, body.view as string | undefined, body.text as string | undefined))
         }),
       ),
       HttpRouter.route(

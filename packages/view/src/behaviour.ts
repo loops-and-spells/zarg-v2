@@ -1,7 +1,8 @@
 import { rank } from "@zarg/bm25"
 import { keyFor } from "./keys"
 import { leafAt } from "./layout"
-import type { LayoutLeaf, LayoutSection } from "./schema"
+import type { Action as ActionSchema, LayoutLeaf, LayoutSection } from "./schema"
+import { printable } from "./input"
 import type { ViewState } from "./reducer"
 
 /** What the operator has done in a view: the focused section, each tabs section's tab, each table's cursor and selection. */
@@ -20,6 +21,8 @@ export interface ViewUi {
   readonly search?: Readonly<Record<string, string>>
   /** The table whose search field has the keys (typing goes there). */
   readonly searching?: string
+  /** An action's line of text being typed (it acts on Enter). */
+  readonly input?: { readonly section: string; readonly action: string; readonly rows: ReadonlyArray<string>; readonly text: string; readonly placeholder: string }
   /** Each board's cursor (a lane, a card in it) and its folded lanes (by id). */
   readonly board?: Readonly<Record<string, BoardUi>>
 }
@@ -346,10 +349,36 @@ export const boardKey = (view: ViewState, ui: ViewUi, key: { readonly name: stri
   return undefined
 }
 
+/** A table's actions it offers now: those its data names (`actions`), else all. */
+export const enabledActions = (view: ViewState, path: string): ReadonlyArray<typeof ActionSchema.Type> => {
+  const leaf = leafAt(view.layout, path)
+  const all = leaf !== undefined && leaf.kind === "table" ? (leaf.actions ?? []) : []
+  const on = (view.data[path] as { actions?: ReadonlyArray<string> } | undefined)?.actions
+  return on === undefined ? all : all.filter((a) => on.includes(a.id))
+}
+type Act = { readonly section: string | undefined; readonly action: string; readonly rows: ReadonlyArray<string>; readonly text?: string }
+/** Pressing an action (its key or its button): one that asks for text opens its input (from the first row's `text`), the rest act. */
+export const pressAction = (view: ViewState, ui: ViewUi, section: string, action: string, rows: ReadonlyArray<string>): { readonly ui: ViewUi; readonly act?: Act } => {
+  const a = enabledActions(view, section).find((x) => x.id === action)
+  if (a?.input === undefined) return { ui, act: { section, action, rows } }
+  const row = (view.data[section] as { rows?: ReadonlyArray<{ id: string; text?: string }> } | undefined)?.rows?.find((r) => r.id === rows[0])
+  return { ui: { ...ui, input: { section, action, rows, text: row?.text ?? "", placeholder: a.input } } }
+}
+/** A key while an input is open: typing edits it, Enter acts with the text, Esc closes it; undefined when none is open. */
+export const inputKey = (ui: ViewUi, key: { readonly name: string; readonly ctrl?: boolean; readonly meta?: boolean }): { readonly ui: ViewUi; readonly act?: Act } | undefined => {
+  if (ui.input === undefined) return undefined
+  const { input: i, ...off } = ui
+  if (key.name === "escape") return { ui: off }
+  if (key.name === "return") return { ui: off, act: { section: i.section, action: i.action, rows: i.rows, text: i.text } }
+  if (printable({ name: key.name, ...(key.ctrl !== undefined ? { ctrl: key.ctrl } : {}), ...(key.meta !== undefined ? { meta: key.meta } : {}) }))
+    return { ui: { ...ui, input: { ...i, text: key.name === "backspace" ? i.text.slice(0, -1) : `${i.text}${key.name === "space" ? " " : key.name}` } } }
+  return { ui }
+}
+
 /** The action a key triggers on a platform: the focused table's, else the view's own; undefined when none. */
 export const actionFor = (view: ViewState, ui: ViewUi, key: string, platform = "terminal"): { readonly section: string | undefined; readonly action: string; readonly rows: ReadonlyArray<string> } | undefined => {
   const c = current(view, ui)
-  const a = c !== undefined && c.leaf.kind === "table" ? (c.leaf.actions ?? []).find((x) => keyFor(x, platform) === key || (key === "return" && x.default === true)) : undefined
+  const a = c !== undefined && c.leaf.kind === "table" ? enabledActions(view, c.path).find((x) => keyFor(x, platform) === key || (key === "return" && x.default === true)) : undefined
   if (c === undefined || a === undefined) {
     const own = (view.layout.actions ?? []).find((x) => keyFor(x, platform) === key)
     return own === undefined ? undefined : { section: undefined, action: own.id, rows: [] }

@@ -74,6 +74,9 @@ describe("client", () => {
   test("an action on rows of an agent's view", async () => {
     expect(await Effect.runPromise(client.act("main", "rehearse:t-1", "apply", "review.findings", ["R-1"]))).toEqual({ notice: "applied" })
     expect(seen.at(-1)).toMatchObject({ method: "POST", path: "/threads/main/agents/rehearse%3At-1/actions/apply", body: { section: "review.findings", rows: ["R-1"] } })
+    // An action that asked for a line of text carries it.
+    await Effect.runPromise(client.act("main", "rehearse:t-1", "apply", "review.findings", ["R-1"], undefined, "my note"))
+    expect(seen.at(-1)).toMatchObject({ body: { section: "review.findings", rows: ["R-1"], text: "my note" } })
   })
 
   test("plugin commands are listed and run through the core", async () => {

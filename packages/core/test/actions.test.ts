@@ -17,6 +17,8 @@ test("an action goes to the plugin with its section and rows; an action on a gon
   const { actions, calls } = setup()
   expect(await Effect.runPromise(actions.act("main", "rehearse:tester-1", "apply", "review.findings", ["R-1"]))).toEqual({ notice: "1 finding sent to the driver" })
   expect(calls.at(-1)).toEqual(["rehearse", "act", { agent: "tester-1", action: "apply", section: "review.findings", rows: ["R-1"] }])
+  await Effect.runPromise(actions.act("main", "rehearse:tester-1", "note", "review.findings", ["R-1"], undefined, "my note"))
+  expect(calls.at(-1)).toEqual(["rehearse", "act", { agent: "tester-1", action: "note", section: "review.findings", rows: ["R-1"], text: "my note" }])
   // The core keeps the operator's choice itself: the findings gate trusts it, not the plugin's word.
   expect(await Effect.runPromise(actions.act("main", "gone:t-1", "apply", undefined, ["x"]))).toEqual({ notice: "plugin gone is not loaded" })
   expect(await Effect.runPromise(actions.act("main", "rlm-1", "apply", undefined, ["x"]))).toEqual({ notice: "rlm-1 has no actions" })
