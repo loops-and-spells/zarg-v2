@@ -15,7 +15,7 @@ export interface StageView {
   readonly plan?: { readonly title: string; readonly steps: ReadonlyArray<string> }
   readonly dismissed?: ReadonlyArray<{ readonly card: string; readonly kind: string }>
 }
-type OnEntry = { readonly id: string; readonly ref: string; readonly kind: string; readonly severity: string; readonly note: string; readonly persona: string; readonly on: boolean }
+type OnEntry = { readonly id: string; readonly ref: string; readonly kind: string; readonly severity: string; readonly note: string; readonly persona: string; readonly on: boolean; readonly operatorNote?: string }
 type Step = { readonly card: string; readonly title: string; readonly given: string; readonly when: string; readonly thens: ReadonlyArray<string>; readonly by?: ReadonlyArray<string> } | null
 
 /** The Triage Agent's powers, as plain functions (the plugin wires them to its contracts; tests stub them). */
@@ -60,6 +60,7 @@ const TOOLS = [
 export const SYSTEM = [
   "You refine a product's requirements: Gherkin cards (Given, When, Then) that testers found problems with.",
   "Propose the smallest change to the graph that answers the feedback, as gherkin tool calls in order. Clauses at most 15 words; never 'if' (one card per case).",
+  "The operator's notes say how they want the feedback answered: follow them over the tester's words.",
   `Tools:\n${TOOLS}`,
   "Refer to states that exist by id; name every new state by text (its id is made when the plan is applied, so never guess one).",
   'Answer with JSON only: {"changes":[{"tool":"…","params":{…}}],"answers":["F-…"],"summary":"one sentence for the operator"}.',
@@ -92,7 +93,7 @@ export const makeTriage = (d: TriageDeps) => {
         stepText(step),
         "```",
         "Feedback on it:",
-        ...entries.map((e) => `- ${e.id} ${e.kind} (${e.severity}), by ${e.persona}: ${e.note}`),
+        ...entries.flatMap((e) => [`- ${e.id} ${e.kind} (${e.severity}), by ${e.persona}: ${e.note}`, ...(e.operatorNote !== undefined ? [`  Operator's note: ${e.operatorNote}`] : [])]),
         ...fresh.map((f) => `- new ${f.kind} (${f.severity}): ${f.note}`),
       ].join("\n")
       let prompt = base
@@ -103,7 +104,7 @@ export const makeTriage = (d: TriageDeps) => {
         if (answer === undefined) return yield* d.rehearsing({ journey: st.journey, note: OUTAGE })
         const proposal = parseProposal(answer)
         if (proposal === undefined) {
-          last = { problems: ["the Triage Agent could not draft a proposal: skip this card"] }
+          last = { problems: ["the Triage Agent could not draft a proposal"] }
           prompt = `${base}\n\nYour last answer was not the JSON asked for. Answer with the JSON only.`
           continue
         }
@@ -142,7 +143,8 @@ export const makeTriage = (d: TriageDeps) => {
       // Fresh: new to this journey — not an entry already (on or off), not one the operator skipped.
       const known = (f: { card: string; kind: string }) => entries.some((e) => cardOf(e.ref) === f.card && e.kind === f.kind) || (st.dismissed ?? []).some((x) => x.card === f.card && x.kind === f.kind)
       const fresh = r.findings.filter((f) => f.on && !known(f)).map(({ on: _, ...f }) => f)
-      yield* d.rehearsed({ journey: st.journey, resolved, fresh, next: fresh.length > 0 ? "refine" : "plan", ...(st.cards !== undefined ? { cards: st.cards } : {}) })
+      // On to Plan either way: new findings are named there, and the operator refines again or accepts.
+      yield* d.rehearsed({ journey: st.journey, resolved, fresh, next: "plan", ...(st.cards !== undefined ? { cards: st.cards } : {}) })
     })
 
   /** Plan: a title and steps for the accepted changes (a plain one when the model does not answer). */
@@ -165,11 +167,14 @@ export const makeTriage = (d: TriageDeps) => {
     for (const st of yield* d.stages().pipe(Effect.orElseSucceed(() => []))) {
       if (st.stage === "refine")
         for (const p of st.proposals.filter((x) => x.status === "waiting")) {
+          // Each proposal goes into the draft as it comes: draft the next over the draft as it is now.
+          const now = (yield* d.stages().pipe(Effect.orElseSucceed(() => []))).find((x) => x.journey === st.journey)
+          if (now === undefined || now.stage !== "refine" || !now.proposals.some((x) => x.card === p.card && x.status === "waiting")) break
           yield* quiet(d.status(`${st.journey}: proposing for ${p.card}`))
-          yield* proposeFor(st, p.card)
+          yield* proposeFor(now, p.card)
         }
       if (st.stage === "rehearse") yield* rehearse(st)
-      if (st.stage === "plan" && st.plan === undefined) {
+      if (st.stage === "plan" && st.plan === undefined && st.draft.length > 0) {
         yield* quiet(d.status(`${st.journey}: drafting the plan`))
         yield* draftPlan(st)
       }

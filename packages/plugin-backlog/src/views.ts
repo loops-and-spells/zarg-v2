@@ -19,23 +19,23 @@ export const FeedbackView = defineView("feedback", {
     title: "",
     toggle: true,
     search: true,
-    // Each stage's step, as buttons (a button outside its stage says why it does nothing).
+    // What the journey's stage offers now (the view names them per stage); a note is always there.
     actions: [
       { id: "refine", label: "Refine", key: "r", on: "none" },
       { id: "accept", label: "Accept", key: "a", on: "none" },
-      { id: "skip", label: "Skip", key: "s", on: "none" },
-      { id: "backlog", label: "Backlog plan", key: "b", on: "none" },
-      { id: "plan-now", label: "Plan anyway", key: "n", on: "none" },
+      { id: "note", label: "Note", key: "n", on: "row", input: "your note for refinement" },
     ],
     columns: [
       { id: "card", label: "card", ref: true, filter: "none" },
       { id: "severity", label: "severity", order: ["high", "medium", "low"], filter: "values", tones: { high: "severity.high", medium: "severity.medium", low: "severity.low" } },
       { id: "kind", label: "kind", filter: "values" },
+      // ✎: the operator left a note for refinement (the detail shows it).
+      { id: "note", label: "✎", filter: "none" },
     ],
   },
   // The highlighted entry in full, and its card as the tester saw it.
   detail: { kind: "text", role: "pinned", title: "", follows: "feedback", beside: "feedback" },
-  // The stage's work: the proposal to decide, the re-rehearse, the drafted plan.
+  // The stage's work: the agent drafting, the re-rehearse, the drafted plan and its changes.
   work: { kind: "text", role: "aside", title: "" },
 })
 

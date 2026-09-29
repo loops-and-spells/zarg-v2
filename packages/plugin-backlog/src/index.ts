@@ -1,7 +1,7 @@
 import { Effect, Schema, Semaphore } from "effect"
 import { Agenda, Config, definePlugin, Entities, Files, PluginFailure, Surfaces, Views } from "@zarg/plugin-sdk"
 import { Backlog, Drafted, FiledEntry, ItemData, Lane, Moved, OnEntry, PlanParams, Propose, Redraft, Rehearsed, Rehearsing, StageData } from "./contract"
-import { current, decide, fresh, planNow, redraft, refineMore, type Stage, STAGE_TITLES, slug, startRefine, stepperAt } from "./stages"
+import { current, fresh, redraft, refineAgain, settle, type Stage, stageActions, STAGE_TITLES, slug, startRefine, stepperAt } from "./stages"
 import { parseRef } from "@zarg/entities"
 import { ENTRY_ID, type Entry, entryId, stateOf, target, upsert } from "./feedback"
 import { boardCard, type Item, ITEM_ID, LANE_TITLES, LANES, moved, neighbour, nextId, pickNext } from "./items"
@@ -12,7 +12,7 @@ const ITEMS = ".zarg/backlog"
 const TRIAGE = ".zarg/triage"
 const STAGES = ["Triage", "Refine", "Re-rehearse", "Plan"] as const
 const Notice = Schema.Struct({ notice: Schema.String })
-const Act = Schema.Struct({ agent: Schema.String, action: Schema.String, section: Schema.optionalKey(Schema.String), rows: Schema.Array(Schema.String) })
+const Act = Schema.Struct({ agent: Schema.String, action: Schema.String, section: Schema.optionalKey(Schema.String), rows: Schema.Array(Schema.String), text: Schema.optionalKey(Schema.String) })
 const EntryData = Schema.Struct({
   ...FiledEntry.fields,
   id: Schema.String,
@@ -20,6 +20,7 @@ const EntryData = Schema.Struct({
   triage: Schema.Struct({ on: Schema.Boolean, why: Schema.String, by: Schema.Literals(["agent", "operator"]) }),
   state: Schema.optionalKey(Schema.Literals(["planned", "closed"])),
   runs: Schema.optionalKey(Schema.Array(Schema.String)),
+  operatorNote: Schema.optionalKey(Schema.String),
 })
 const isEntry = Schema.is(EntryData)
 const NO_JOURNEY = "—"
@@ -140,33 +141,30 @@ export default definePlugin({
     const call = (c: { readonly tool: string; readonly params: unknown }) => `- gherkin/${c.tool} ${JSON.stringify(c.params)}`
     /** What the selected journey's stage asks for now. */
     const workOf = (st: Stage, on: number) => {
-      if (st.stage === "triage") return on === 0 ? "Turn feedback on (space) to refine it." : `**r** Refine the ${plural(on, "entry")} that are on: the Triage Agent proposes card changes for each card.`
+      const leftOut = st.proposals.filter((p) => p.status === "skipped" && (p.problems ?? []).length > 0)
+      const leftLines = leftOut.length > 0 ? ["", `Left out: ${leftOut.map((p) => `${p.card} (${p.problems!.join("; ")})`).join(", ")}`] : []
+      const noteLine = st.note !== undefined ? ["", st.note] : []
+      if (st.stage === "triage") return on === 0 ? "Turn feedback on (space) to refine it; **n** adds your note." : `**r** Refine the ${plural(on, "entry")} that are on: the Triage Agent drafts card changes, then re-rehearses the journey on them.`
       if (st.stage === "refine") {
         const p = current(st)
         const done = st.proposals.filter((x) => x.status === "accepted" || x.status === "skipped").length
-        if (p === undefined) return "Every card decided."
-        if (p.status === "waiting") return `The Triage Agent is drafting a proposal for ${p.card} (${done + 1} of ${st.proposals.length}).${st.note !== undefined ? `\n\n${st.note}` : ""}`
-        return [
-          `**${p.card}** · proposal ${done + 1} of ${st.proposals.length}`,
-          "",
-          p.summary,
-          "",
-          ...p.changes.map(call),
-          ...(p.answers.length > 0 ? ["", `answers ${p.answers.join(", ")}`] : []),
-          ...((p.problems ?? []).length > 0 ? ["", `**Problems:** ${p.problems!.join("; ")}`] : []),
-          "",
-          "**a** Accept · **s** Skip",
-        ].join("\n")
+        return [p === undefined ? "Every card drafted." : `The Triage Agent is drafting ${p.card} (${done + 1} of ${st.proposals.length}).`, ...noteLine, ...leftLines].join("\n")
       }
-      if (st.stage === "rehearse") return `Re-rehearsing ${st.journey} on the drafted cards${st.run !== undefined ? ` (run ${st.run})` : ""}: ${plural(st.draft.length, "change")}.${st.note !== undefined ? `\n\n${st.note}` : ""}\n\n**n** Plan anyway`
+      if (st.stage === "rehearse") return [`Re-rehearsing ${st.journey} on the drafted cards${st.run !== undefined ? ` (run ${st.run})` : ""}: ${plural(st.draft.length, "change")}.`, ...noteLine, "", "**r** Refine again"].join("\n")
       if (st.stage === "plan") {
         const r = st.results
+        const accepted = st.proposals.filter((p) => p.status === "accepted")
         return [
-          ...(r !== undefined ? [`Re-rehearsed: ${plural(r.resolved.length, "entry")} resolved${r.fresh.length > 0 ? `, ${r.fresh.length} new (off)` : ""}.`, ""] : []),
-          ...(st.plan !== undefined ? [`**${st.plan.title}**`, "", ...st.plan.steps.map((x, k) => `${k + 1}. ${x}`), "", "**b** Backlog plan · **r** Refine more"] : ["The Triage Agent is drafting the plan."]),
+          ...(r !== undefined ? [`Re-rehearsed: ${plural(r.resolved.length, "entry")} resolved${r.fresh.length > 0 ? `; new: ${r.fresh.map((f) => `${f.card} ${f.kind}`).join(", ")}` : ""}.`, ""] : []),
+          ...(st.plan !== undefined ? [`**${st.plan.title}**`, "", ...st.plan.steps.map((x, k) => `${k + 1}. ${x}`)] : [st.draft.length > 0 ? "The Triage Agent is drafting the plan." : "Nothing drafted to plan."]),
+          ...(accepted.length > 0 ? ["", ...accepted.flatMap((p) => [`${p.card}: ${p.summary}`, ...p.changes.map(call)])] : []),
+          ...leftLines,
+          ...noteLine,
+          "",
+          st.plan !== undefined ? "**a** Accept (to the Backlog) · **r** Refine again" : "**r** Refine again",
         ].join("\n")
       }
-      return `Backlogged as ${st.item ?? "a plan"}.`
+      return `Backlogged as ${st.item ?? "a plan"}. **r** starts a new round.`
     }
     let journey: string | undefined
     // ponytail: grows by one per card version that had feedback shown; clear it when that gets large.
@@ -181,9 +179,12 @@ export default definePlugin({
       // Journeys with open feedback, and those a stage is still working on.
       const names = [...new Set([...byJourney.keys(), ...stages.filter((x) => x.stage !== "triage" && x.stage !== "planned").map((x) => x.journey)])].sort((a, b) => (a === NO_JOURNEY ? 1 : b === NO_JOURNEY ? -1 : a.localeCompare(b)))
       if (journey === undefined || !names.includes(journey)) journey = names[0]
-      const shown = journey === undefined ? [] : (byJourney.get(journey) ?? [])
-      const on = shown.filter((e) => e.triage.on).length
       const st = journey === undefined ? undefined : staged(journey)
+      const all_ = journey === undefined ? [] : (byJourney.get(journey) ?? [])
+      // Past Triage, the list is what the round works on; at Plan, what the re-rehearse did not resolve.
+      const working = st !== undefined && st.stage !== "triage" && st.stage !== "planned" && st.inputs !== undefined
+      const shown = working ? all_.filter((e) => st!.inputs!.includes(e.id) && !(st!.stage === "plan" && (st!.results?.resolved ?? []).includes(e.id))) : all_
+      const on = shown.filter((e) => e.triage.on).length
       const at = st === undefined ? 0 : Math.min(3, stepperAt(st))
       const stepper = STAGES.map((s, i) => (i < at || st?.stage === "planned" ? `✓ ${s}` : i === at ? `**● ${s}**` : `○ ${s}`)).join("  ───  ")
       yield* views.set("feedback", FeedbackView, "stage", {
@@ -194,10 +195,12 @@ export default definePlugin({
       const sev = { high: 0, medium: 1, low: 2 } as const
       const sorted = [...shown].sort((a, b) => sev[a.severity] - sev[b.severity] || a.id.localeCompare(b.id))
       yield* views.set("feedback", FeedbackView, "feedback", {
+        actions: st === undefined ? ["note"] : [...stageActions(st), "note"],
         rows: sorted.map((e) => ({
           id: e.id,
           on: e.triage.on,
-          cells: { card: target(e.ref), severity: e.severity, kind: e.kind },
+          ...(e.operatorNote !== undefined ? { text: e.operatorNote } : {}),
+          cells: { card: target(e.ref), severity: e.severity, kind: e.kind, note: e.operatorNote !== undefined ? "✎" : "" },
           search: [e.id, e.ref, e.persona, e.kind, e.severity, e.note, ...e.journeys].join(" "),
         })),
       })
@@ -210,6 +213,7 @@ export default definePlugin({
           `**${e.kind} · ${e.severity}** · ${e.triage.on ? "on" : "off"} (${e.triage.by === "operator" ? "your call" : "the agent's call"}: ${e.triage.why})`,
           "",
           e.note,
+          ...(e.operatorNote !== undefined ? ["", `**Your note:** ${e.operatorNote}`] : []),
           "",
           `by ${e.persona} · in ${e.journeys.join(", ") || NO_JOURNEY} · from ${e.from.agent} ${e.from.run}${e.count > 1 ? ` · reported ${e.count} times` : ""}`,
           ...(context.length > 0 ? ["", "```gherkin", context.trim(), "```"] : []),
@@ -367,32 +371,23 @@ export default definePlugin({
         if (action === "refine") {
           const entries = yield* openIn(j)
           const st0 = yield* stageOf(j)
-          if (st0.stage === "plan") {
-            const refused = yield* updateStage(j, (st) => refineMore(st, entries), true)
-            return refused ?? `${j}: refining more`
+          // From Plan, or out of a re-rehearse that hangs: again, over the draft so far.
+          if (st0.stage === "plan" || st0.stage === "rehearse") {
+            const refused = yield* updateStage(j, (st) => refineAgain(st, entries), true)
+            if (refused !== undefined) return refused
+            return `${j}: refining ${plural((yield* stageOf(j)).proposals.filter((p) => p.status === "waiting").length, "card")} again`
           }
-          const refused = yield* updateStage(j, (st) => (st.stage === "triage" || st.stage === "planned" ? startRefine(st, entries) : `${j} is in ${STAGE_TITLES[st.stage]} already`), true)
+          const refused = yield* updateStage(j, (st) => (st.stage === "triage" || st.stage === "planned" ? startRefine(st, entries) : `${j} is being refined already`), true)
           return refused ?? `${j}: refining ${plural(new Set(entries.filter((e) => e.triage.on).map((e) => target(e.ref))).size, "card")}`
         }
-        if (action === "accept" || action === "skip") {
-          const before = yield* stageOf(j)
-          const card = current(before)?.card
-          const refused = yield* updateStage(j, (st) => decide(st, action), true)
-          if (refused !== undefined) return refused
-          const after = yield* stageOf(j)
-          return `${j}: ${action === "accept" ? "accepted" : "skipped"} ${card}${after.stage === "rehearse" ? "; re-rehearsing next" : ""}`
-        }
-        if (action === "plan-now") {
-          const refused = yield* updateStage(j, planNow, true)
-          return refused ?? `${j}: planning with what is accepted`
-        }
-        // Backlog plan: the draft, the cards it changes (at their versions now), the feedback it answers.
+        if (action !== "accept") return `nothing to ${action}`
+        // Accept: the plan to the Backlog, with the draft, the cards it changes (at their versions now), the feedback it answers.
         return yield* Effect.gen(function* () {
           const st = yield* stageOf(j)
-          if (st.stage !== "plan" || st.plan === undefined) return `${j} has no plan to backlog yet`
+          if (st.stage !== "plan" || st.plan === undefined) return `${j} has no plan to accept yet`
           if (st.draft.length === 0) {
             yield* updateStage(j, (x) => ({ ...fresh(x.journey), ...(x.dismissed !== undefined ? { dismissed: x.dismissed } : {}) }))
-            return `nothing to backlog in ${j}: every proposal was skipped`
+            return `nothing to backlog in ${j}: every change was left out`
           }
           const entries = yield* openIn(j)
           const accepted = st.proposals.filter((p) => p.status === "accepted")
@@ -407,7 +402,7 @@ export default definePlugin({
           return `${j}: backlogged as ${id}`
         }).pipe(planning.withPermits(1))
       })
-    const act = ({ agent, action, rows }: { agent: string; action: string; rows: ReadonlyArray<string> }) =>
+    const act = ({ agent, action, rows, text }: { agent: string; action: string; rows: ReadonlyArray<string>; text?: string }) =>
       Effect.gen(function* () {
         if (agent === "backlog") {
           const notice = yield* boardAct(action, rows)
@@ -418,7 +413,20 @@ export default definePlugin({
         if (action === "journey" && rows[0] !== undefined) journey = rows[0]
         // The view opens with its cursor on the first journey: show that one.
         if (action === "open") journey = undefined
-        if (["refine", "accept", "skip", "backlog", "plan-now"].includes(action)) {
+        // The operator's note on an entry, for refinement: blank clears it.
+        if (action === "note") {
+          const saved = yield* Effect.gen(function* () {
+            const e = (yield* load).find((x) => x.id === rows[0])
+            if (e === undefined) return false
+            const { operatorNote: _, ...rest } = e
+            const t = (text ?? "").trim()
+            yield* save(t.length > 0 ? { ...rest, operatorNote: t } : rest)
+            return t.length > 0
+          }).pipe(writing.withPermits(1))
+          yield* refresh
+          return { notice: saved ? "note saved" : "note cleared" }
+        }
+        if (["refine", "accept"].includes(action)) {
           if (journey === undefined) yield* refresh
           const notice = journey === undefined ? "no journey with feedback" : yield* stageAct(journey, action)
           yield* refresh
@@ -455,10 +463,10 @@ export default definePlugin({
       act,
       agenda,
       stages: () => loadStages.pipe(Effect.mapError(fail)),
-      feedbackOf: ({ journey: j }: { journey: string }) => Effect.map(openIn(j), (es) => es.map((e) => ({ id: e.id, ref: e.ref, kind: e.kind, severity: e.severity, note: e.note, persona: e.persona, on: e.triage.on }))).pipe(Effect.mapError(fail)),
-      redraft: (p: typeof Redraft.Type) => nul(updateStage(p.journey, (st) => (st.stage === "rehearse" ? redraft(st, p.problems) : st))),
-      propose: (p: typeof Propose.Type) =>
-        nul(updateStage(p.journey, (st) => ({ ...st, proposals: st.proposals.map((x) => (x.card === p.card && (x.status === "waiting" || x.status === "proposed") ? { card: p.card, changes: p.changes, answers: p.answers, summary: p.summary, status: "proposed" as const, ...(p.problems !== undefined && p.problems.length > 0 ? { problems: p.problems } : {}) } : x)) }))),
+      feedbackOf: ({ journey: j }: { journey: string }) => Effect.map(openIn(j), (es) => es.map((e) => ({ id: e.id, ref: e.ref, kind: e.kind, severity: e.severity, note: e.note, persona: e.persona, on: e.triage.on, ...(e.operatorNote !== undefined ? { operatorNote: e.operatorNote } : {}) }))).pipe(Effect.mapError(fail)),
+      redraft: (p: typeof Redraft.Type) => nul(updateStage(p.journey, (st) => (st.stage === "rehearse" ? redraft(st, p.problems) : st), true)),
+      // Into the draft as it comes (or left out with its problems); the last one moves on, and the agent wakes for it.
+      propose: (p: typeof Propose.Type) => nul(updateStage(p.journey, (st) => settle(st, p), true)),
       rehearsing: (p: typeof Rehearsing.Type) =>
         nul(
           updateStage(p.journey, (st) => {
@@ -472,8 +480,8 @@ export default definePlugin({
           updateStage(p.journey, (st) => {
             const { run: _r, note: _n, ...rest } = st
             const results = { resolved: p.resolved, fresh: p.fresh }
-            // Fresh findings that are on send the journey back to Refine: one waiting proposal per card.
-            if (p.next === "refine") return { ...rest, stage: "refine" as const, results, proposals: [...st.proposals, ...[...new Set(p.fresh.map((f) => f.card))].map((card) => ({ card, changes: [], answers: [], summary: "", status: "waiting" as const, fromFresh: true }))], ...(p.cards !== undefined ? { cards: p.cards } : {}) }
+            // On to Plan, where new findings are shown (a later rehearse files them as feedback).
+            if (st.stage !== "rehearse") return st
             return { ...rest, stage: "plan" as const, results, ...(p.cards !== undefined ? { cards: p.cards } : {}) }
           }, true),
         ),

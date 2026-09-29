@@ -54,6 +54,7 @@ export const StageData = Schema.Struct({
   item: Schema.optionalKey(Schema.String),
   note: Schema.optionalKey(Schema.String),
   inputs: Schema.optionalKey(Schema.Array(Schema.String)),
+  redrafts: Schema.optionalKey(Schema.Number),
   dismissed: Schema.optionalKey(Schema.Array(Schema.Struct({ card: Schema.String, kind: Schema.String }))),
 })
 export const Propose = Schema.Struct({ journey: Schema.String, card: Schema.String, changes: DraftCalls, answers: Schema.Array(Schema.String), summary: Schema.String, problems: Schema.optionalKey(Schema.Array(Schema.String)) })
@@ -67,7 +68,7 @@ export const Rehearsed = Schema.Struct({
   cards: Schema.optionalKey(Schema.Array(Schema.String)),
 })
 export const Drafted = Schema.Struct({ journey: Schema.String, title: Schema.String, steps: Schema.Array(Schema.String) })
-export const OnEntry = Schema.Struct({ id: Schema.String, ref: Schema.String, kind: Schema.String, severity: Schema.String, note: Schema.String, persona: Schema.String, on: Schema.Boolean })
+export const OnEntry = Schema.Struct({ id: Schema.String, ref: Schema.String, kind: Schema.String, severity: Schema.String, note: Schema.String, persona: Schema.String, on: Schema.Boolean, operatorNote: Schema.optionalKey(Schema.String) })
 /** The backlog's surface for other plugins: file feedback and ask where it stands; add a plan, take the next, record a move. */
 export const Backlog = pluginContract("backlog", {
   file: { params: Schema.Struct({ entries: Schema.Array(FiledEntry) }), success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
