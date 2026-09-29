@@ -778,7 +778,7 @@ describe("review fixes (look)", () => {
     const t = await render({ ...viewState, thread: { ...viewState.thread, views: { ...viewState.thread.views, "rehearse:t1": v }, panels: [zargBar, drawer] } }, { width: 130, height: 24 })
     t.mockInput.pressKey("a", { meta: true }); await settle(t); t.mockInput.pressEnter(); await settle(t)
     const f = t.captureCharFrame()
-    expect(f).toContain("drawer")
+    expect(f).toContain("×")
     const line = f.split("\n").find((l) => l.includes("word word"))!
     expect(line).not.toContain("…")
   })
@@ -792,6 +792,19 @@ describe("review fixes (look)", () => {
     const line = t.captureCharFrame().split("\n").find((l) => l.includes("word"))!
     // The view's first words stay in sight, left of the drawer.
     expect(line).toMatch(/word word/)
+  })
+  test("an overlay drawer shows its view's text, under no name (its × at the right)", async () => {
+    const side = { agent: "rehearse:t1@side", layout: { name: "side", sections: [{ id: "item", kind: "text" as const, role: "primary" as const, title: "" }] }, data: { item: { markdown: "PLAN BODY\n\nsecond line" } } }
+    const drawer = { id: "rehearse:item:rehearse:t1", plugin: "rehearse", agent: "rehearse:t1", view: "rehearse:t1@side", name: "item", scope: "agent" as const, edge: "right" as const, size: 50, input: "onFocus" as const, overlay: true }
+    const zargBar = { id: "zarg:bar:zarg", plugin: "zarg", agent: "zarg", view: "zarg", name: "bar", scope: "shell" as const, edge: "bottom" as const, size: 1, input: "onFocus" as const }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, views: { ...viewState.thread.views, "rehearse:t1@side": side }, panels: [zargBar, drawer] } }, { width: 130, height: 24 })
+    t.mockInput.pressKey("a", { meta: true }); await settle(t); t.mockInput.pressEnter(); await settle(t)
+    await Bun.sleep(30); await settle(t)
+    const f = t.captureCharFrame()
+    expect(f).toContain("PLAN BODY")
+    expect(f).toContain("second line")
+    expect(f).not.toMatch(/item ×/)
+    expect(f).toContain("×")
   })
   test("at 80 columns the status line keeps its keys (the status gives way)", async () => {
     const t = await render(waiting, { width: 80, height: 24 })

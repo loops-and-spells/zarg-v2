@@ -562,7 +562,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const panelBox = (p: Panel) => {
     const v = s.thread.views?.[p.view]
     const focusedHere = ui.focus === "panel" && ui.panel === p.id
-    const size = p.edge === "right" ? { width: p.size + 3, flexShrink: 0 } : { height: p.size + 1, flexShrink: 0 }
+    // A right panel runs the tile's height (a drawer grows to fill its overlay; a side panel stretches in its row); top and bottom ones their size in rows.
+    const size = p.edge === "right" ? { width: p.size + 3, flexShrink: 0, ...(p.overlay === true ? { flexGrow: 1 } : {}) } : { height: p.size + 1, flexShrink: 0 }
     return (
       <box
         key={p.id}
@@ -574,9 +575,12 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         style={{ ...size, flexDirection: "column", paddingLeft: 2, paddingRight: 1 }}
       >
         <box style={{ flexDirection: "row", height: 1, flexShrink: 0 }}>
-          <text fg={focusedHere ? C.accent : C.dim} wrapMode="none">
-            <b>{`${p.name} `}</b>
-          </text>
+          {/* A drawer needs no name: its × alone, at the right. */}
+          {p.overlay === true ? <box style={{ flexGrow: 1 }} /> : (
+            <text fg={focusedHere ? C.accent : C.dim} wrapMode="none">
+              <b>{`${p.name} `}</b>
+            </text>
+          )}
           <text
             fg={C.faint}
             onMouseDown={(e: { stopPropagation: () => void }) => {
