@@ -20,7 +20,12 @@ test("the Triage Agent loads through the host with gherkin, the backlog and rehe
   const out = await Effect.gen(function* () {
     const root = yield* (yield* FileSystem.FileSystem).makeTempDirectoryScoped()
     const grants = yield* makeGrants({ file: join(mkdtempSync(join(tmpdir(), "zt-triage-")), "grants.json"), project: root })
+    const seen = new Map<string, unknown>()
     const host = hostLayer(plugins, {
+      agents: (_plugin, e) => {
+        const ev = e as { event?: string; id?: string; section?: string; data?: unknown }
+        if (ev.event === "set") seen.set(`${ev.id}/${ev.section}`, ev.data)
+      },
       grants,
       vault: () => Effect.succeed(undefined),
       config: () => ({}),
@@ -34,9 +39,12 @@ test("the Triage Agent loads through the host with gherkin, the backlog and rehe
     return yield* Effect.gen(function* () {
       const h = yield* PluginHost
       yield* h.loadWaiting
-      return { names: h.manifests.map((m) => m.name), tick: yield* h.invoke("triage", "tick", {}) }
+      const tick = yield* h.invoke("triage", "tick", {})
+      return { names: h.manifests.map((m) => m.name), tick, summary: (seen.get("triage/summary") as { markdown?: string } | undefined)?.markdown }
     }).pipe(Effect.provide(Layer.provideMerge(host, graphLayer(join(root, ".zarg/graph")))))
   }).pipe(Effect.scoped, Effect.provide(BunServices.layer), Effect.runPromise)
   expect(out.names).toEqual(expect.arrayContaining(["gherkin", "backlog", "rehearse", "triage"]))
   expect(out.tick).toBeNull()
+  // Its view is drawn after each tick: idle, with nothing to do.
+  expect(out.summary).toContain("**idle**")
 }, 60_000)

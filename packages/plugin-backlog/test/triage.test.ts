@@ -114,4 +114,19 @@ describe("the triage hub's stages", () => {
     expect(out.given).toBe("Deny should say why.")
     expect(out.cleared).toBeUndefined()
   })
+  test("draft again: one card waits again for the Triage Agent, over the draft without its changes", async () => {
+    const out = await run(() => Effect.gen(function* () {
+      const { ids } = yield* setUp()
+      const h = yield* PluginHost
+      yield* press("refine")
+      yield* h.invoke("backlog", "propose", { journey: "Set up", card: "UX-0001", title: "Plugin asks for a scope", changes: [{ tool: "edit-state", params: { id: "S-0002", text: "asked: once, always, deny" } }], answers: ids, summary: "s", tries: [{ ms: 900, tokensIn: 100, tokensOut: 50, reasoning: 20, finish: "stop", problems: [] }] })
+      const before = ((yield* h.invoke("backlog", "stages", {})) as Array<{ stage: string; proposals: Array<{ tries?: unknown[]; title?: string }> }>)[0]!
+      const again = (yield* h.invoke("backlog", "redo", { journey: "Set up", card: "UX-0001" })) as { notice: string }
+      const after = ((yield* h.invoke("backlog", "stages", {})) as Array<{ stage: string; draft: unknown[]; proposals: Array<{ status: string }> }>)[0]!
+      return { before: [before.stage, before.proposals[0]!.tries?.length, before.proposals[0]!.title], again: again.notice, after: [after.stage, after.draft.length, after.proposals[0]!.status] }
+    }))
+    expect(out.before).toEqual(["rehearse", 1, "Plugin asks for a scope"])
+    expect(out.again).toBe("Set up: drafting UX-0001 again")
+    expect(out.after).toEqual(["refine", 0, "waiting"])
+  })
 })

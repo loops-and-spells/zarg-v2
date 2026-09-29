@@ -5,9 +5,22 @@ export const STAGE_NAMES = ["triage", "refine", "rehearse", "plan", "planned"] a
 export type StageName = (typeof STAGE_NAMES)[number]
 export const STAGE_TITLES: Readonly<Record<StageName, string>> = { triage: "Triage", refine: "Refine", rehearse: "Re-rehearse", plan: "Plan", planned: "Planned" }
 
+/** One ask of the model for a card: how long, its tokens, how it ended, what was wrong with it (none: it went in). */
+export interface Try {
+  readonly ms: number
+  readonly tokensIn: number
+  readonly tokensOut: number
+  readonly reasoning: number
+  readonly finish?: string
+  readonly problems: ReadonlyArray<string>
+}
 /** The Triage Agent's proposal for one card: gherkin tool calls, the feedback they answer, and the operator's call on it. */
 export interface Proposal {
   readonly card: string
+  /** The card's title when it was drafted. */
+  readonly title?: string
+  /** Each ask of the model for it, in order. */
+  readonly tries?: ReadonlyArray<Try>
   readonly changes: Draft
   readonly answers: ReadonlyArray<string>
   readonly summary: string
@@ -76,14 +89,14 @@ export const redraft = (s: Stage, problems: ReadonlyArray<string>): Stage => {
 }
 
 /** The Triage Agent's proposal for a card: into the draft when it passed its checks, else left out with its problems; the last moves on. */
-export const settle = (s: Stage, p: { readonly card: string; readonly changes: Draft; readonly answers: ReadonlyArray<string>; readonly summary: string; readonly problems?: ReadonlyArray<string> }): Stage => {
+export const settle = (s: Stage, p: { readonly card: string; readonly title?: string; readonly changes: Draft; readonly answers: ReadonlyArray<string>; readonly summary: string; readonly problems?: ReadonlyArray<string>; readonly tries?: ReadonlyArray<Try> }): Stage => {
   if (s.stage !== "refine") return s
   const left = (p.problems ?? []).length > 0
   let taken = false
   const proposals = s.proposals.map((x) => {
     if (taken || x.card !== p.card || x.status !== "waiting") return x
     taken = true
-    return { card: p.card, changes: p.changes, answers: p.answers, summary: p.summary, status: left ? ("skipped" as const) : ("accepted" as const), ...(left ? { problems: p.problems! } : {}) }
+    return { card: p.card, changes: p.changes, answers: p.answers, summary: p.summary, status: left ? ("skipped" as const) : ("accepted" as const), ...(left ? { problems: p.problems! } : {}), ...(p.title !== undefined ? { title: p.title } : {}), ...(p.tries !== undefined ? { tries: p.tries } : {}) }
   })
   if (!taken) return s
   const draft = left ? s.draft : [...s.draft, ...p.changes]
@@ -96,3 +109,12 @@ export const settle = (s: Stage, p: { readonly card: string; readonly changes: D
 /** The buttons a stage offers (a note is always there). */
 export const stageActions = (s: Stage): ReadonlyArray<string> =>
   s.stage === "refine" ? [] : s.stage === "plan" && s.plan !== undefined ? ["accept", "refine"] : ["refine"]
+
+/** Draft one card again: it waits again (keeping what failed, for the model), its changes leave the draft, the round goes back to Refine. */
+export const redo = (s: Stage, card: string): Stage | string => {
+  if (s.stage === "triage" || s.stage === "planned") return `${s.journey} has no round to draft again`
+  if (!s.proposals.some((p) => p.card === card)) return `${card} is not in ${s.journey}'s round`
+  const proposals = s.proposals.map((p) => (p.card === card ? { card, answers: [], summary: "", changes: [], status: "waiting" as const, ...(p.title !== undefined ? { title: p.title } : {}), ...(p.problems !== undefined ? { problems: p.problems } : {}) } : p))
+  const { plan: _p, results: _r, run: _run, note: _n, ...rest } = s
+  return { ...rest, stage: "refine", proposals, draft: proposals.filter((p) => p.status === "accepted").flatMap((p) => p.changes) }
+}

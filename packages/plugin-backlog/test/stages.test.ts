@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { fresh, redraft, refineAgain, settle, slug, type Stage, stageActions, startRefine, stepperAt } from "../src/stages"
+import { fresh, redo, redraft, refineAgain, settle, slug, type Stage, stageActions, startRefine, stepperAt } from "../src/stages"
 
 const on = (id: string, card: string) => ({ id, ref: `gherkin/card:${card}@abc`, triage: { on: true } })
 const off = (id: string, card: string) => ({ id, ref: `gherkin/card:${card}@abc`, triage: { on: false } })
@@ -53,5 +53,22 @@ describe("a journey's stages", () => {
     expect([r.stage, r.draft, r.proposals.map((p) => p.status), r.redrafts]).toEqual(["refine", [], ["waiting", "skipped"], 1])
     const r2 = redraft({ ...r, stage: "rehearse", proposals: r.proposals.map((p) => ({ ...p, status: p.status === "waiting" ? ("accepted" as const) : p.status })), draft: [{ tool: "x", params: {} }] }, ["still"])
     expect([r2.stage, r2.draft, r2.proposals.map((p) => [p.status, p.problems])]).toEqual(["plan", [], [["skipped", ["still"]], ["skipped", undefined]]])
+  })
+  test("a proposal keeps its tries and the card's title", () => {
+    const s = startRefine(fresh("Set up"), [on("F-1", "UX-0001")]) as Stage
+    const tries = [{ ms: 1200, tokensIn: 900, tokensOut: 400, reasoning: 300, finish: "stop", problems: [] }]
+    const a = settle(s, { card: "UX-0001", title: "Plugin asks", changes: [{ tool: "edit-card", params: {} }], answers: [], summary: "s", tries })
+    expect([a.proposals[0]!.tries, a.proposals[0]!.title]).toEqual([tries, "Plugin asks"])
+  })
+  test("drafting one card again: it waits again with what failed, its changes leave the draft, the round goes back to Refine", () => {
+    const one = { tool: "edit-card", params: { id: "UX-0001" } }
+    const two = { tool: "edit-card", params: { id: "UX-0003" } }
+    const s: Stage = { ...fresh("Set up"), stage: "plan", plan: { title: "t", steps: [] }, results: { resolved: [], fresh: [] }, draft: [one, two], proposals: [{ ...proposed("UX-0001"), changes: [one], status: "accepted" }, { ...proposed("UX-0003"), changes: [two], status: "accepted" }, { ...proposed("UX-0004"), status: "skipped", problems: ["6 thens"] }] }
+    const a = redo(s, "UX-0001")
+    expect(typeof a === "string" ? a : [a.stage, a.draft, a.plan, a.results, a.proposals.map((p) => p.status)]).toEqual(["refine", [two], undefined, undefined, ["waiting", "accepted", "skipped"]])
+    const b = redo(s, "UX-0004")
+    expect(typeof b === "string" ? b : [b.proposals[2]!.status, b.proposals[2]!.problems, b.draft.length]).toEqual(["waiting", ["6 thens"], 2])
+    expect(redo(s, "UX-0099")).toBe("UX-0099 is not in Set up's round")
+    expect(redo(fresh("Set up"), "UX-0001")).toBe("Set up has no round to draft again")
   })
 })

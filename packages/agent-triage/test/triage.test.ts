@@ -11,6 +11,7 @@ const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string
   const calls: Array<[string, unknown]> = []
   const answers = [...(o.answers ?? [])]
   let dries = 0
+  let clock = 0
   const deps: TriageDeps = {
     stages: () => Effect.succeed(o.stages as never),
     feedbackOf: () => Effect.succeed([entry, offEntry]),
@@ -27,6 +28,8 @@ const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string
     result: () => Effect.succeed((o.result ?? { status: "running", findings: [] }) as never),
     status: () => Effect.void,
     log: (text) => Effect.sync(() => void calls.push(["log", text])),
+    now: Effect.sync(() => (clock += 1500)),
+    render: Effect.sync(() => void calls.push(["render", null])),
   }
   return { t: makeTriage(deps), calls, deps }
 }
@@ -40,7 +43,7 @@ describe("the Triage Agent", () => {
     // The operator's note says how they want it fixed.
     expect(calls.find(([k]) => k === "complete")?.[1]).toContain("Operator's note: Deny should say why.")
     expect(SYSTEM_TEXT()).toContain("operator's notes")
-    expect(calls.find(([k]) => k === "propose")?.[1]).toEqual({ journey: "Set up", card: "UX-0001", changes: [{ tool: "edit-state", params: { id: "S-0002", text: "the operator sees: once, always, deny" } }], answers: ["F-00000001"], summary: "Name the choices." })
+    expect(calls.find(([k]) => k === "propose")?.[1]).toMatchObject({ journey: "Set up", card: "UX-0001", changes: [{ tool: "edit-state", params: { id: "S-0002", text: "the operator sees: once, always, deny" } }], answers: ["F-00000001"], summary: "Name the choices." })
   })
   test("a proposal that fails its dry-run is retried once with the problems; still failing, it is shown with them", async () => {
     const { t, calls } = setup({ stages: [stage({ proposals: [{ card: "UX-0001", changes: [], answers: [], summary: "", status: "waiting" }] })], answers: [proposalJson, proposalJson], dry: () => ({ ok: false, problems: ["a clause has if"], touched: [] }) })
@@ -82,7 +85,7 @@ describe("the Triage Agent", () => {
     // Nothing drafted: no plan to write.
     const none = setup({ stages: [stage({ stage: "plan", proposals: [] })] })
     await Effect.runPromise(none.t.tick)
-    expect(none.calls).toEqual([])
+    expect(none.calls.filter(([k]) => k !== "render")).toEqual([])
     const a = setup({ stages: [stage({ stage: "plan", proposals: accepted, draft })], answers: [JSON.stringify({ title: "Grant prompt names its choices", steps: ["Name them"] })] })
     await Effect.runPromise(a.t.tick)
     expect(a.calls.find(([k]) => k === "drafted")?.[1]).toEqual({ journey: "Set up", title: "Grant prompt names its choices", steps: ["Name them"] })
@@ -128,7 +131,7 @@ describe("the Triage Agent", () => {
   test("stages that wait on the operator, or are done, are left alone", async () => {
     const { t, calls } = setup({ stages: [stage({ stage: "triage" }), stage({ stage: "refine", proposals: [{ card: "UX-0001", changes: [], answers: [], summary: "s", status: "proposed" }] }), stage({ stage: "plan", plan: { title: "t", steps: [] } }), stage({ stage: "planned" })] })
     await Effect.runPromise(t.tick)
-    expect(calls).toEqual([])
+    expect(calls.filter(([k]) => k !== "render")).toEqual([])
   })
   test("a stopped re-rehearse starts again; the agent never waits on a dead run", async () => {
     const { t, calls } = setup({ stages: [stage({ stage: "rehearse", run: "r-8", draft: [{ tool: "edit-state", params: {} }] })], result: { status: "stopped", findings: [] } })
@@ -160,5 +163,30 @@ describe("the Triage Agent", () => {
     expect(SYSTEM_TEXT()).toContain('link {"card":"UX-0001","edge":"then","state":{"text":')
     expect(SYSTEM_TEXT()).toContain("by text")
     expect(calls.length).toBeGreaterThan(0)
+  })
+  test("each try is recorded (time, tokens, how it ended, what was wrong) and sent with the card's title", async () => {
+    const waiting = { card: "UX-0001", changes: [], answers: [], summary: "", status: "waiting" }
+    const { t, calls } = setup({ stages: [stage({ proposals: [waiting] })], answers: ["no json here", proposalJson] })
+    await Effect.runPromise(t.tick)
+    const p = calls.find(([k]) => k === "propose")![1] as { title: string; tries: Array<{ ms: number; problems: string[]; tokensOut: number }> }
+    expect(p.title).toBe("card UX-0001")
+    expect(p.tries.map((x) => [x.ms, x.problems])).toEqual([[1500, ["the model did not answer with the JSON asked for"]], [1500, []]])
+    // The view follows: it is drawn when a card starts and when it is done.
+    expect(calls.filter(([k]) => k === "render").length).toBeGreaterThanOrEqual(2)
+  })
+  test("a card drafted again gets what failed before", async () => {
+    const again = { card: "UX-0001", changes: [], answers: [], summary: "", status: "waiting", problems: ["UX-0001 would have 6 thens; it needs 1-5"] }
+    const { t, calls } = setup({ stages: [stage({ proposals: [again] })], answers: [proposalJson] })
+    await Effect.runPromise(t.tick)
+    expect(calls.find(([k]) => k === "complete")?.[1]).toContain("Your last proposal for this card failed: UX-0001 would have 6 thens; it needs 1-5")
+  })
+  test("paused, it does nothing until resumed", async () => {
+    const { t, calls } = setup({ stages: [stage({ proposals: [{ card: "UX-0001", changes: [], answers: [], summary: "", status: "waiting" }] })], answers: [proposalJson] })
+    expect(t.pause()).toBe(true)
+    await Effect.runPromise(t.tick)
+    expect(calls.filter(([k]) => k === "complete")).toEqual([])
+    expect(t.pause()).toBe(false)
+    await Effect.runPromise(t.tick)
+    expect(calls.filter(([k]) => k === "propose").length).toBe(1)
   })
 })

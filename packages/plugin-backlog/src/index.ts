@@ -1,7 +1,7 @@
 import { Effect, Schema, Semaphore } from "effect"
 import { Agenda, Config, definePlugin, Entities, Files, PluginFailure, Surfaces, Views } from "@zarg/plugin-sdk"
 import { Backlog, Drafted, FiledEntry, ItemData, Lane, Moved, OnEntry, PlanParams, Propose, Redraft, Rehearsed, Rehearsing, StageData } from "./contract"
-import { current, fresh, redraft, refineAgain, settle, type Stage, stageActions, STAGE_TITLES, slug, startRefine, stepperAt } from "./stages"
+import { current, fresh, redo, redraft, refineAgain, settle, type Stage, stageActions, STAGE_TITLES, slug, startRefine, stepperAt } from "./stages"
 import { parseRef } from "@zarg/entities"
 import { ENTRY_ID, type Entry, entryId, stateOf, target, upsert } from "./feedback"
 import { boardCard, type Item, ITEM_ID, LANE_TITLES, LANES, moved, neighbour, nextId, pickNext } from "./items"
@@ -68,6 +68,7 @@ export default definePlugin({
     stages: { doc: "Every journey's triage stage (the Triage Agent's work list).", params: Schema.Struct({}), success: Schema.Array(StageData) },
     feedbackOf: { doc: "A journey's open feedback (on and off).", params: Schema.Struct({ journey: Schema.String }), success: Schema.Array(OnEntry) },
     redraft: { doc: "The accepted draft fails as a whole: back to Refine with the problems.", params: Redraft, success: Schema.Null },
+    redo: { doc: "Draft one card of a journey's round again (the Triage Agent's view, d).", params: Schema.Struct({ journey: Schema.String, card: Schema.String }), success: Notice },
     propose: { doc: "The Triage Agent's proposal for a card.", params: Propose, success: Schema.Null },
     rehearsing: { doc: "The Triage Agent started (or waits for) a re-rehearse.", params: Rehearsing, success: Schema.Null },
     rehearsed: { doc: "A re-rehearse's results: on to Plan, or back to Refine with fresh feedback.", params: Rehearsed, success: Schema.Null },
@@ -467,6 +468,12 @@ export default definePlugin({
       stages: () => loadStages.pipe(Effect.mapError(fail)),
       feedbackOf: ({ journey: j }: { journey: string }) => Effect.map(openIn(j), (es) => es.map((e) => ({ id: e.id, ref: e.ref, kind: e.kind, severity: e.severity, note: e.note, persona: e.persona, on: e.triage.on, ...(e.operatorNote !== undefined ? { operatorNote: e.operatorNote } : {}) }))).pipe(Effect.mapError(fail)),
       redraft: (p: typeof Redraft.Type) => moved_(updateStage(p.journey, (st) => (st.stage === "rehearse" ? redraft(st, p.problems) : st), true)),
+      redo: (p: { journey: string; card: string }) =>
+        Effect.gen(function* () {
+          const refused = yield* updateStage(p.journey, (st) => redo(st, p.card), true)
+          yield* Effect.ignore(refresh)
+          return { notice: refused ?? `${p.journey}: drafting ${p.card} again` }
+        }).pipe(Effect.mapError(fail)),
       // Into the draft as it comes (or left out with its problems); the last one moves on, and the agent wakes for it.
       propose: (p: typeof Propose.Type) => moved_(updateStage(p.journey, (st) => settle(st, p), true)),
       rehearsing: (p: typeof Rehearsing.Type) =>

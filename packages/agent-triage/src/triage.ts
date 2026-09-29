@@ -1,8 +1,10 @@
 import { Effect, Semaphore } from "effect"
 import { parseRef } from "@zarg/entities"
+import type { Working } from "./view"
 
 type Draft = ReadonlyArray<{ readonly tool: string; readonly params: unknown }>
-type Proposal = { readonly card: string; readonly changes: Draft; readonly answers: ReadonlyArray<string>; readonly summary: string; readonly status: "waiting" | "proposed" | "accepted" | "skipped"; readonly problems?: ReadonlyArray<string> }
+type Try = { readonly ms: number; readonly tokensIn: number; readonly tokensOut: number; readonly reasoning: number; readonly finish?: string; readonly problems: ReadonlyArray<string> }
+type Proposal = { readonly card: string; readonly title?: string; readonly tries?: ReadonlyArray<Try>; readonly changes: Draft; readonly answers: ReadonlyArray<string>; readonly summary: string; readonly status: "waiting" | "proposed" | "accepted" | "skipped"; readonly problems?: ReadonlyArray<string> }
 type Fresh = { readonly card: string; readonly kind: string; readonly severity: string; readonly note: string }
 export interface StageView {
   readonly journey: string
@@ -13,6 +15,7 @@ export interface StageView {
   readonly run?: string
   readonly results?: { readonly resolved: ReadonlyArray<string>; readonly fresh: ReadonlyArray<Fresh> }
   readonly plan?: { readonly title: string; readonly steps: ReadonlyArray<string> }
+  readonly item?: string
   readonly dismissed?: ReadonlyArray<{ readonly card: string; readonly kind: string }>
 }
 type OnEntry = { readonly id: string; readonly ref: string; readonly kind: string; readonly severity: string; readonly note: string; readonly persona: string; readonly on: boolean; readonly operatorNote?: string }
@@ -25,8 +28,8 @@ export interface TriageDeps {
   readonly journeys: () => Effect.Effect<ReadonlyArray<{ readonly id: string; readonly name: string; readonly cards: ReadonlyArray<string> }>, unknown>
   readonly step: (card: string, draft: Draft) => Effect.Effect<Step, unknown>
   readonly dryRun: (draft: Draft) => Effect.Effect<{ readonly ok: boolean; readonly problems: ReadonlyArray<string>; readonly touched: ReadonlyArray<string>; readonly cards: ReadonlyArray<string> }, unknown>
-  readonly complete: (req: { readonly messages: ReadonlyArray<{ readonly role: "system" | "user"; readonly content: string }>; readonly maxTokens?: number }) => Effect.Effect<{ readonly text: string; readonly completionTokens?: number; readonly reasoningTokens?: number; readonly finishReason?: string }, unknown>
-  readonly propose: (p: { readonly journey: string; readonly card: string; readonly changes: Draft; readonly answers: ReadonlyArray<string>; readonly summary: string; readonly problems?: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
+  readonly complete: (req: { readonly messages: ReadonlyArray<{ readonly role: "system" | "user"; readonly content: string }>; readonly maxTokens?: number }) => Effect.Effect<{ readonly text: string; readonly promptTokens?: number; readonly completionTokens?: number; readonly reasoningTokens?: number; readonly finishReason?: string }, unknown>
+  readonly propose: (p: { readonly journey: string; readonly card: string; readonly title?: string; readonly tries?: ReadonlyArray<Try>; readonly changes: Draft; readonly answers: ReadonlyArray<string>; readonly summary: string; readonly problems?: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
   readonly rehearsing: (p: { readonly journey: string; readonly run?: string; readonly cards?: ReadonlyArray<string>; readonly note?: string; readonly clear?: boolean }) => Effect.Effect<void, unknown>
   /** The accepted draft fails as a whole: back to Refine with the problems. */
   readonly redraft: (p: { readonly journey: string; readonly problems: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
@@ -38,6 +41,10 @@ export interface TriageDeps {
   readonly status: (text: string) => Effect.Effect<void, unknown>
   /** A line in the agent's history: what it did, and why when it failed. */
   readonly log: (text: string) => Effect.Effect<void, unknown>
+  /** The time now (ms): how long each try takes. */
+  readonly now: Effect.Effect<number, unknown>
+  /** Draw the agent's view again (a card started or ended, a run started). */
+  readonly render: Effect.Effect<void, unknown>
 }
 
 /** The first JSON object in a model's answer (in a fence, or with words around it); undefined when there is none. */
@@ -73,6 +80,12 @@ const cardOf = (ref: string) => parseRef(ref)?.id ?? ref
 /** The Triage Agent: the agent's part of each journey's stage, whenever the core wakes it. */
 export const makeTriage = (d: TriageDeps) => {
   const quiet = <A>(e: Effect.Effect<A, unknown>) => Effect.ignore(e)
+  const clock = d.now.pipe(Effect.orElseSucceed(() => 0))
+  // What it is on (a card, or "" for the run it waits on), and since when; paused, it does nothing.
+  let working: Working | undefined
+  let paused = false
+  const runsSince = new Map<string, number>()
+  const on = (w: Working | undefined) => Effect.andThen(Effect.sync(() => (working = w)), quiet(d.render))
   /** The model's answer; undefined when it did not answer at all (an outage, not a bad answer). */
   // Room to reason before the JSON: a thinking model spends most of its answer there.
   const answerOf = (user: string) => d.complete({ messages: [{ role: "system", content: SYSTEM }, { role: "user", content: user }], maxTokens: 16384 }).pipe(Effect.orElseSucceed(() => undefined))
@@ -104,12 +117,19 @@ export const makeTriage = (d: TriageDeps) => {
         "Feedback on it:",
         ...entries.flatMap((e) => [`- ${e.id} ${e.kind} (${e.severity}), by ${e.persona}: ${e.note}`, ...(e.operatorNote !== undefined ? [`  Operator's note: ${e.operatorNote}`] : [])]),
         ...fresh.map((f) => `- new ${f.kind} (${f.severity}): ${f.note}`),
+        // Drafted again: what was wrong the last time.
+        ...((st.proposals.find((p) => p.card === card)?.problems ?? []).length > 0 ? ["", `Your last proposal for this card failed: ${st.proposals.find((p) => p.card === card)!.problems!.join("; ")}. Avoid that.`] : []),
       ].join("\n")
       let prompt = base
       let last: { problems: ReadonlyArray<string>; proposal?: ReturnType<typeof parseProposal> } = { problems: [] }
+      const tries: Array<Try> = []
       for (let attempt = 0; attempt < 2; attempt++) {
+        const t0 = yield* clock
         const reply = yield* answerOf(prompt)
         const answer = reply?.text
+        const ms = (yield* clock) - t0
+        const tried = (problems: ReadonlyArray<string>) =>
+          tries.push({ ms, tokensIn: reply?.promptTokens ?? 0, tokensOut: reply?.completionTokens ?? 0, reasoning: reply?.reasoningTokens ?? 0, ...(reply?.finishReason !== undefined ? { finish: reply.finishReason } : {}), problems })
         // No answer at all: the proposal stays waiting, and the operator is told why.
         if (answer === undefined) {
           yield* say(`${card}: ${OUTAGE}`)
@@ -119,19 +139,21 @@ export const makeTriage = (d: TriageDeps) => {
         if (proposal === undefined) {
           const excerpt = answer.replace(/\s+/g, " ").trim()
           yield* say(excerpt.length === 0 ? `${card}: the model gave no answer: ${emptyWhy(reply!)}` : `${card}: the model did not answer with the JSON asked for: “${excerpt.length > 160 ? `${excerpt.slice(0, 160)}…` : excerpt}”`)
+          tried([excerpt.length === 0 ? "the model gave no answer" : "the model did not answer with the JSON asked for"])
           last = { problems: ["the Triage Agent could not draft a proposal"] }
           prompt = `${base}\n\nYour last answer was not the JSON asked for. Answer with the JSON only.`
           continue
         }
         const dry = yield* d.dryRun([...st.draft, ...proposal.changes]).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: ["the dry-run failed"], touched: [] })))
         last = { problems: dry.problems, proposal }
+        tried(dry.problems)
         if (dry.ok) break
         yield* say(`${card}: the proposal failed its checks: ${dry.problems.join("; ")}`)
         prompt = `${base}\n\nYour last proposal did not pass the checks:\n${dry.problems.map((p) => `- ${p}`).join("\n")}\nFix it.`
       }
       const p = last.proposal
       yield* say(last.problems.length > 0 ? `${card} left out: ${last.problems.join("; ")}` : `${card} into the draft: ${p?.summary ?? ""}`)
-      yield* d.propose({ journey: st.journey, card, changes: p?.changes ?? [], answers: p?.answers ?? [], summary: p?.summary ?? "", ...(last.problems.length > 0 ? { problems: last.problems } : {}) })
+      yield* d.propose({ journey: st.journey, card, ...(step !== null ? { title: step.title } : {}), tries, changes: p?.changes ?? [], answers: p?.answers ?? [], summary: p?.summary ?? "", ...(last.problems.length > 0 ? { problems: last.problems } : {}) })
     })
 
   /** Re-rehearse: check the whole draft, start a run over it (again, when one stopped), or read the one going. */
@@ -190,21 +212,35 @@ export const makeTriage = (d: TriageDeps) => {
   // One pass at a time: two wakes close together must not propose twice or start two runs.
   const lock = Effect.runSync(Semaphore.make(1))
   const tick = Effect.gen(function* () {
+    if (paused) return
     for (const st of yield* d.stages().pipe(Effect.orElseSucceed(() => []))) {
+      if (paused) break
       if (st.stage === "refine")
         for (const p of st.proposals.filter((x) => x.status === "waiting")) {
           // Each proposal goes into the draft as it comes: draft the next over the draft as it is now.
           const now = (yield* d.stages().pipe(Effect.orElseSucceed(() => []))).find((x) => x.journey === st.journey)
-          if (now === undefined || now.stage !== "refine" || !now.proposals.some((x) => x.card === p.card && x.status === "waiting")) break
+          if (paused || now === undefined || now.stage !== "refine" || !now.proposals.some((x) => x.card === p.card && x.status === "waiting")) break
           yield* quiet(d.status(`${st.journey}: proposing for ${p.card}`))
+          yield* on({ journey: st.journey, card: p.card, since: yield* clock })
           yield* proposeFor(now, p.card)
         }
-      if (st.stage === "rehearse") yield* rehearse(st)
+      if (st.stage === "rehearse") {
+        // Since when it waits on this journey's run (first seen, if it started before this process).
+        if (!runsSince.has(st.journey)) runsSince.set(st.journey, yield* clock)
+        yield* on({ journey: st.journey, card: "", since: runsSince.get(st.journey)! })
+        yield* rehearse(st)
+      } else runsSince.delete(st.journey)
       if (st.stage === "plan" && st.plan === undefined && st.draft.length > 0) {
         yield* quiet(d.status(`${st.journey}: drafting the plan`))
         yield* draftPlan(st)
       }
     }
-  }).pipe(Effect.catchCause(() => Effect.void), lock.withPermits(1))
-  return { tick }
+  }).pipe(Effect.catchCause(() => Effect.void), Effect.ensuring(on(undefined)), lock.withPermits(1))
+  return {
+    tick,
+    /** p: pause (after the card in flight) or resume; answers whether it is paused now. */
+    pause: () => (paused = !paused),
+    /** What the view shows beside the stages. */
+    state: () => ({ working, paused }),
+  }
 }

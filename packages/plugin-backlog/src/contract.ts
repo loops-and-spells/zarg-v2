@@ -42,10 +42,12 @@ export const ItemData = Schema.Struct({
   events: Schema.Array(Schema.Struct({ what: Schema.String, by: Schema.String })),
 })
 const DraftCalls = Schema.Array(Schema.Struct({ tool: Schema.String, params: Schema.Unknown }))
+/** One ask of the model for a card. */
+export const Try = Schema.Struct({ ms: Schema.Number, tokensIn: Schema.Number, tokensOut: Schema.Number, reasoning: Schema.Number, finish: Schema.optionalKey(Schema.String), problems: Schema.Array(Schema.String) })
 export const StageData = Schema.Struct({
   journey: Schema.String,
   stage: Schema.Literals(["triage", "refine", "rehearse", "plan", "planned"]),
-  proposals: Schema.Array(Schema.Struct({ card: Schema.String, changes: DraftCalls, answers: Schema.Array(Schema.String), summary: Schema.String, status: Schema.Literals(["waiting", "proposed", "accepted", "skipped"]), problems: Schema.optionalKey(Schema.Array(Schema.String)), fromFresh: Schema.optionalKey(Schema.Boolean) })),
+  proposals: Schema.Array(Schema.Struct({ card: Schema.String, title: Schema.optionalKey(Schema.String), tries: Schema.optionalKey(Schema.Array(Try)), changes: DraftCalls, answers: Schema.Array(Schema.String), summary: Schema.String, status: Schema.Literals(["waiting", "proposed", "accepted", "skipped"]), problems: Schema.optionalKey(Schema.Array(Schema.String)), fromFresh: Schema.optionalKey(Schema.Boolean) })),
   draft: DraftCalls,
   cards: Schema.optionalKey(Schema.Array(Schema.String)),
   run: Schema.optionalKey(Schema.String),
@@ -57,7 +59,7 @@ export const StageData = Schema.Struct({
   redrafts: Schema.optionalKey(Schema.Number),
   dismissed: Schema.optionalKey(Schema.Array(Schema.Struct({ card: Schema.String, kind: Schema.String }))),
 })
-export const Propose = Schema.Struct({ journey: Schema.String, card: Schema.String, changes: DraftCalls, answers: Schema.Array(Schema.String), summary: Schema.String, problems: Schema.optionalKey(Schema.Array(Schema.String)) })
+export const Propose = Schema.Struct({ journey: Schema.String, card: Schema.String, title: Schema.optionalKey(Schema.String), tries: Schema.optionalKey(Schema.Array(Try)), changes: DraftCalls, answers: Schema.Array(Schema.String), summary: Schema.String, problems: Schema.optionalKey(Schema.Array(Schema.String)) })
 export const Rehearsing = Schema.Struct({ journey: Schema.String, run: Schema.optionalKey(Schema.String), cards: Schema.optionalKey(Schema.Array(Schema.String)), note: Schema.optionalKey(Schema.String), clear: Schema.optionalKey(Schema.Boolean) })
 export const Redraft = Schema.Struct({ journey: Schema.String, problems: Schema.Array(Schema.String) })
 export const Rehearsed = Schema.Struct({
@@ -83,4 +85,5 @@ export const Backlog = pluginContract("backlog", {
   rehearsed: { params: Rehearsed, success: Schema.Null },
   drafted: { params: Drafted, success: Schema.Null },
   redraft: { params: Redraft, success: Schema.Null },
+  redo: { params: Schema.Struct({ journey: Schema.String, card: Schema.String }), success: Schema.Struct({ notice: Schema.String }) },
 })
