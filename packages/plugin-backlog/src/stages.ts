@@ -19,8 +19,10 @@ export interface Proposal {
   readonly card: string
   /** The card's title when it was drafted. */
   readonly title?: string
-  /** Each ask of the model for it, in order. */
+  /** Each ask of the model for it, in order (across rounds). */
   readonly tries?: ReadonlyArray<Try>
+  /** How many rounds of tries failed: it is drafted again on its own until ROUNDS, then left out. */
+  readonly rounds?: number
   readonly changes: Draft
   readonly answers: ReadonlyArray<string>
   readonly summary: string
@@ -94,18 +96,26 @@ export const redraft = (s: Stage, problems: ReadonlyArray<string>): Stage => {
   return { ...rest, stage: "refine", draft: [], redrafts: (s.redrafts ?? 0) + 1, proposals: s.proposals.map((p) => (p.status === "accepted" ? { ...p, status: "waiting" as const } : p)), note: `The changes did not fit together, drafting them again: ${problems.join("; ")}` }
 }
 
+/** How many rounds of tries a card gets before it is left out. */
+export const ROUNDS = 3
 /** The Triage Agent's proposal for a card: into the draft when it passed its checks, else left out with its problems; the last moves on. */
 export const settle = (s: Stage, p: { readonly card: string; readonly title?: string; readonly changes: Draft; readonly answers: ReadonlyArray<string>; readonly summary: string; readonly problems?: ReadonlyArray<string>; readonly tries?: ReadonlyArray<Try> }): Stage => {
   if (s.stage !== "refine") return s
-  const left = (p.problems ?? []).length > 0
+  const failed = (p.problems ?? []).length > 0
   let taken = false
+  let left = false
   const proposals = s.proposals.map((x) => {
     if (taken || x.card !== p.card || x.status !== "waiting") return x
     taken = true
-    return { card: p.card, changes: p.changes, answers: p.answers, summary: p.summary, status: left ? ("skipped" as const) : ("accepted" as const), ...(left ? { problems: p.problems! } : {}), ...(p.title !== undefined ? { title: p.title } : {}), ...(p.tries !== undefined ? { tries: p.tries } : {}) }
+    // Failed: drafted again on its own (the model often gets it the next time), until ROUNDS; then left out.
+    const rounds = (x.rounds ?? 0) + (failed ? 1 : 0)
+    left = failed && rounds >= ROUNDS
+    const status = !failed ? ("accepted" as const) : left ? ("skipped" as const) : ("waiting" as const)
+    const tries = [...(x.tries ?? []), ...(p.tries ?? [])]
+    return { card: p.card, changes: p.changes, answers: p.answers, summary: p.summary, status, ...(failed ? { problems: p.problems! } : {}), ...(p.title !== undefined ? { title: p.title } : {}), ...(tries.length > 0 ? { tries } : {}), ...(rounds > 0 ? { rounds } : {}) }
   })
   if (!taken) return s
-  const draft = left ? s.draft : [...s.draft, ...p.changes]
+  const draft = failed ? s.draft : [...s.draft, ...p.changes]
   const next: Stage = { ...s, proposals, draft }
   if (current(next) !== undefined) return next
   const { note: _n, ...rest } = next

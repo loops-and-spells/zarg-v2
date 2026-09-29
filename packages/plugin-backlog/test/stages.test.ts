@@ -15,11 +15,14 @@ describe("a journey's stages", () => {
     const s = startRefine(fresh("Set up"), [on("F-1", "UX-0001"), on("F-4", "UX-0003")]) as Stage
     const a = settle(s, { card: "UX-0001", changes: [{ tool: "edit-card", params: { id: "UX-0001" } }], answers: ["F-1"], summary: "fix UX-0001" })
     expect([a.stage, a.draft.length, a.proposals.map((p) => p.status)]).toEqual(["refine", 1, ["accepted", "waiting"]])
-    const b = settle(a, { card: "UX-0003", changes: [{ tool: "edit-card", params: {} }], answers: [], summary: "", problems: ["a clause has if"] })
+    // Its last round (it failed twice before): left out.
+    const last = { ...a, proposals: a.proposals.map((p) => (p.card === "UX-0003" ? { ...p, rounds: 2 } : p)) }
+    const b = settle(last, { card: "UX-0003", changes: [{ tool: "edit-card", params: {} }], answers: [], summary: "", problems: ["a clause has if"] })
     expect([b.stage, b.draft.length, b.proposals.map((p) => p.status), b.proposals[1]!.problems]).toEqual(["rehearse", 1, ["accepted", "skipped"], ["a clause has if"]])
   })
   test("every proposal left out: straight to Plan, nothing to re-rehearse", () => {
-    const s = startRefine(fresh("Set up"), [on("F-1", "UX-0001")]) as Stage
+    const s0 = startRefine(fresh("Set up"), [on("F-1", "UX-0001")]) as Stage
+    const s = { ...s0, proposals: s0.proposals.map((p) => ({ ...p, rounds: 2 })) }
     expect(settle(s, { card: "UX-0001", changes: [], answers: [], summary: "", problems: ["no proposal"] }).stage).toBe("plan")
   })
   test("the buttons each stage offers", () => {
@@ -87,5 +90,18 @@ describe("a journey's stages", () => {
     const a = redo(s, "UX-0001")
     const b = refineAgain(s, [on("F-1", "UX-0001")])
     expect([typeof a === "string" ? a : [a.run, a.dropRun], typeof b === "string" ? b : [b.run, b.dropRun]]).toEqual([[undefined, "r-9"], [undefined, "r-9"]])
+  })
+  test("a card that fails is drafted again on its own, up to 3 rounds, keeping every try; then it is left out", () => {
+    const s0 = startRefine(fresh("Set up"), [on("F-1", "UX-0001")]) as Stage
+    const fail = (s: Stage) => settle(s, { card: "UX-0001", changes: [], answers: [], summary: "", problems: ["6 thens"], tries: [{ ms: 1, tokensIn: 1, tokensOut: 1, reasoning: 0, problems: ["6 thens"] }] })
+    const r1 = fail(s0)
+    const r2 = fail(r1)
+    const r3 = fail(r2)
+    expect([r1, r2, r3].map((s) => [s.stage, s.proposals[0]!.status, s.proposals[0]!.rounds, s.proposals[0]!.tries?.length])).toEqual([
+      ["refine", "waiting", 1, 1],
+      ["refine", "waiting", 2, 2],
+      ["plan", "skipped", 3, 3],
+    ])
+    expect(r1.proposals[0]!.problems).toEqual(["6 thens"])
   })
 })

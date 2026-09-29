@@ -77,7 +77,8 @@ describe("the triage hub's stages", () => {
       const { ids } = yield* setUp()
       const h = yield* PluginHost
       yield* press("refine")
-      yield* h.invoke("backlog", "propose", { journey: "Set up", card: "UX-0001", changes: [], answers: ids, summary: "", problems: ["the Triage Agent could not draft a proposal"] })
+      // Three rounds that fail: then it is left out.
+      for (let i = 0; i < 3; i++) yield* h.invoke("backlog", "propose", { journey: "Set up", card: "UX-0001", changes: [], answers: ids, summary: "", problems: ["the Triage Agent could not draft a proposal"] })
       yield* press("open")
       const leftOut = { stage: stage(seen), work: work(seen) }
       const refineAgain = (yield* press("refine")).notice

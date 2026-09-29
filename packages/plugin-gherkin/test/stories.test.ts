@@ -66,6 +66,8 @@ describe("stories", () => {
       hasFailure: true,
       journeys: [],
       by: [],
+      // The states' ids, so an agent proposing changes names them (reuse, unlink) rather than guessing.
+      ids: { given: expect.any(String), context: [], thens: [expect.any(String)] },
     })
     expect(stepView(graph, "D")?.hasFailure).toBe(false)
     // Its journeys and personas, by name (none here).

@@ -47,7 +47,7 @@ export const Try = Schema.Struct({ ms: Schema.Number, tokensIn: Schema.Number, t
 export const StageData = Schema.Struct({
   journey: Schema.String,
   stage: Schema.Literals(["triage", "refine", "rehearse", "plan", "planned"]),
-  proposals: Schema.Array(Schema.Struct({ card: Schema.String, title: Schema.optionalKey(Schema.String), tries: Schema.optionalKey(Schema.Array(Try)), changes: DraftCalls, answers: Schema.Array(Schema.String), summary: Schema.String, status: Schema.Literals(["waiting", "proposed", "accepted", "skipped"]), problems: Schema.optionalKey(Schema.Array(Schema.String)), fromFresh: Schema.optionalKey(Schema.Boolean) })),
+  proposals: Schema.Array(Schema.Struct({ card: Schema.String, title: Schema.optionalKey(Schema.String), tries: Schema.optionalKey(Schema.Array(Try)), rounds: Schema.optionalKey(Schema.Number), changes: DraftCalls, answers: Schema.Array(Schema.String), summary: Schema.String, status: Schema.Literals(["waiting", "proposed", "accepted", "skipped"]), problems: Schema.optionalKey(Schema.Array(Schema.String)), fromFresh: Schema.optionalKey(Schema.Boolean) })),
   draft: DraftCalls,
   cards: Schema.optionalKey(Schema.Array(Schema.String)),
   run: Schema.optionalKey(Schema.String),

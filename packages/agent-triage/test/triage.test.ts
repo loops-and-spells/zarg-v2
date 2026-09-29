@@ -16,7 +16,7 @@ const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string
     stages: () => Effect.succeed(o.stages as never),
     feedbackOf: () => Effect.succeed([entry, offEntry]),
     journeys: () => Effect.succeed((o.journeys ?? [{ id: "J-0001", name: "Set up", cards: ["UX-0001", "UX-0002"] }]) as never),
-    step: (card) => Effect.succeed({ card, title: `card ${card}`, given: "the plugin runs", when: "it needs a scope", thens: ["the operator is asked"], fork: [], hasFailure: false }),
+    step: (card) => Effect.succeed({ card, title: `card ${card}`, given: "the plugin runs", when: "it needs a scope", thens: ["the operator is asked"], fork: [], hasFailure: false, ids: { given: "S-0001", context: [], thens: ["S-0002"] } }),
     dryRun: (draft) => Effect.succeed({ cards: draft.length > 0 ? ["UX-0001", "UX-0003"] : [], ...(o.dry?.(dries++) ?? { ok: true, problems: [], touched: draft.length > 0 ? ["S-0002", "UX-0001"] : [] }) }),
     complete: (req) => (o.down === true ? Effect.fail("model down") : Effect.sync(() => (calls.push(["complete", req.messages.at(-1)?.content]), calls.push(["maxTokens", req.maxTokens]), calls.push(["reasoning", req.reasoning]), o.spent === true ? { text: "", completionTokens: 16384, reasoningTokens: 16384, finishReason: "length" } : { text: answers.shift() ?? "{}" }))),
     propose: (p) => Effect.sync(() => void calls.push(["propose", p])),
@@ -101,9 +101,13 @@ describe("the Triage Agent", () => {
   test("each card is drafted over the draft as it stands after the last one went in", async () => {
     const waiting = (card: string) => ({ card, changes: [], answers: [], summary: "", status: "waiting" })
     const first = { tool: "edit-state", params: { id: "S-0002", text: "the operator sees: once, always, deny" } }
-    let reads = 0
+    // The first proposal goes in: the stage has it in the draft from then on.
+    let proposed = 0
     const drafts: Array<unknown> = []
-    const base = { stages: () => Effect.sync(() => (reads++ < 3 ? [stage({ proposals: [waiting("UX-0001"), waiting("UX-0002")] })] : [stage({ proposals: [{ ...waiting("UX-0001"), status: "accepted" }, waiting("UX-0002")], draft: [first] })]) as never) }
+    const base = {
+      stages: () => Effect.sync(() => (proposed === 0 ? [stage({ proposals: [waiting("UX-0001"), waiting("UX-0002")] })] : proposed === 1 ? [stage({ proposals: [{ ...waiting("UX-0001"), status: "accepted" }, waiting("UX-0002")], draft: [first] })] : [stage({ stage: "planned" })]) as never),
+      propose: () => Effect.sync(() => void proposed++),
+    }
     const s = setup({ stages: [], answers: [proposalJson, proposalJson] })
     const made = makeTriage({ ...s.deps, ...base, dryRun: (d) => Effect.sync(() => (drafts.push(d), { ok: true, problems: [], touched: [], cards: [] })) })
     await Effect.runPromise(Effect.andThen(made.tick, made.idle))
@@ -231,5 +235,32 @@ describe("the Triage Agent", () => {
     const { t, calls } = setup({ stages: [stage({ stage: "refine", dropRun: "r-old", proposals: [] })] })
     await Effect.runPromise(t.tick)
     expect(calls.filter(([k]) => k === "stop" || k === "rehearsing")).toEqual([["stop", "r-old"], ["rehearsing", { journey: "Set up", dropped: true }]])
+  })
+  test("the prompt names each state by id, and the rules name the mistakes the checks refuse", async () => {
+    const { t, calls } = setup({ stages: [stage({ proposals: [{ card: "UX-0001", changes: [], answers: [], summary: "", status: "waiting" }] })], answers: [proposalJson] })
+    await Effect.runPromise(t.tick)
+    const prompt = calls.find(([k]) => k === "complete")![1] as string
+    expect(prompt).toContain("Given the plugin runs  # S-0001")
+    expect(prompt).toContain("Then  the operator is asked  # S-0002")
+    expect(SYSTEM_TEXT()).toContain("add-card needs 1-5 then states")
+    expect(SYSTEM_TEXT()).toContain("unlink only an edge the card has")
+    expect(SYSTEM_TEXT()).toContain("reuse its id")
+  })
+  test("a card that failed is drafted again in the same run: the worker goes on while its journey changes", async () => {
+    let st = stage({ proposals: [{ card: "UX-0001", changes: [], answers: [], summary: "", status: "waiting" }] })
+    const s = setup({ stages: [], answers: ["no json", "still none", proposalJson] })
+    const made = makeTriage({
+      ...s.deps,
+      stages: () => Effect.sync(() => [st] as never),
+      // The backlog's settle: a failed round waits again, a proposal goes in.
+      propose: (p) => Effect.sync(() => {
+        s.calls.push(["propose", p])
+        const ok = (p.problems ?? []).length === 0
+        const cur = st as unknown as { proposals: Array<{ tries?: unknown[] }> }
+        st = { ...st, proposals: [{ ...cur.proposals[0]!, status: ok ? "accepted" : "waiting", tries: [...(cur.proposals[0]!.tries ?? []), ...(p.tries ?? [])] }], ...(ok ? { stage: "rehearse" } : {}) } as never
+      }),
+    }, 1)
+    await Effect.runPromise(Effect.andThen(made.tick, made.idle))
+    expect(s.calls.filter(([k]) => k === "propose").map(([, p]) => ((p as { problems?: string[] }).problems ?? []).length > 0)).toEqual([true, false])
   })
 })

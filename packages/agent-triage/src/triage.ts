@@ -22,7 +22,7 @@ export interface StageView {
   readonly dismissed?: ReadonlyArray<{ readonly card: string; readonly kind: string }>
 }
 type OnEntry = { readonly id: string; readonly ref: string; readonly kind: string; readonly severity: string; readonly note: string; readonly persona: string; readonly on: boolean; readonly operatorNote?: string }
-type Step = { readonly card: string; readonly title: string; readonly given: string; readonly when: string; readonly thens: ReadonlyArray<string>; readonly by?: ReadonlyArray<string> } | null
+type Step = { readonly card: string; readonly title: string; readonly given: string; readonly when: string; readonly thens: ReadonlyArray<string>; readonly by?: ReadonlyArray<string>; readonly ids?: { readonly given: string; readonly context: ReadonlyArray<string>; readonly thens: ReadonlyArray<string> } } | null
 
 /** The Triage Agent's powers, as plain functions (the plugin wires them to its contracts; tests stub them). */
 export interface TriageDeps {
@@ -81,9 +81,20 @@ export const SYSTEM = [
   "The operator's notes say how they want the feedback answered: follow them over the tester's words.",
   `Tools:\n${TOOLS}`,
   "Refer to states that exist by id; name every new state by text (its id is made when the plan is applied, so never guess one).",
+  [
+    "The checks refuse these, so avoid them:",
+    "- add-card needs 1-5 then states, and exactly one arrives.",
+    "- unlink only an edge the card has, by the id shown after it; the Given (arrives) cannot be unlinked: link arrives replaces it.",
+    "- a new state must say something new: to mean an existing state, reuse its id (a new text repeating one is refused).",
+    "- a card keeps 1-5 thens: unlink one before linking a sixth.",
+  ].join("\n"),
   'Answer with JSON only: {"changes":[{"tool":"…","params":{…}}],"answers":["F-…"],"summary":"one sentence for the operator"}.',
 ].join("\n\n")
-const stepText = (s: Step) => (s === null ? "(this card is not in the graph)" : [`${s.card} ${s.title}`, ...(s.by !== undefined && s.by.length > 0 ? [`By    ${s.by.join(", ")}`] : []), `Given ${s.given}`, `When  ${s.when}`, ...s.thens.map((t, i) => `${i === 0 ? "Then" : "And "}  ${t}`)].join("\n"))
+// Each state with its id, so the model reuses and unlinks by id rather than guessing.
+const idOf = (id: string | undefined) => (id !== undefined ? `  # ${id}` : "")
+const stepText = (s: Step) =>
+  s === null ? "(this card is not in the graph)"
+  : [`${s.card} ${s.title}`, ...(s.by !== undefined && s.by.length > 0 ? [`By    ${s.by.join(", ")}`] : []), `Given ${s.given}${idOf(s.ids?.given)}`, ...(s.ids?.context ?? []).map((id) => `And   (context)${idOf(id)}`), `When  ${s.when}`, ...s.thens.map((t, i) => `${i === 0 ? "Then" : "And "}  ${t}${idOf(s.ids?.thens[i])}`)].join("\n")
 const cardOf = (ref: string) => parseRef(ref)?.id ?? ref
 
 /** The Triage Agent: the agent's part of each journey's stage, whenever the core wakes it. */
@@ -287,8 +298,17 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
       if (w.journey !== undefined && !w.busy) {
         w.busy = true
         const journey = w.journey
+        // Pass after pass while the journey changes (a failed card waits again, drafted next time); still: wait for a wake.
+        const sign = Effect.map(d.stages().pipe(Effect.orElseSucceed(() => [])), (all) => JSON.stringify(all.find((x) => x.journey === journey) ?? null))
+        const loop: Effect.Effect<void> = Effect.gen(function* () {
+          for (let i = 0; i < 50 && !paused; i++) {
+            const before = yield* sign
+            yield* pass(w, journey)
+            if ((yield* sign) === before) break
+          }
+        })
         const fiber = yield* Effect.forkDetach(
-          pass(w, journey).pipe(
+          loop.pipe(
             Effect.ensuring(Effect.sync(() => (w.busy = false))),
             Effect.ensuring(at(w, undefined)),
           ),

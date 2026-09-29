@@ -19,6 +19,7 @@ export const StepView = Schema.NullOr(
     // Optional for plugins built against an older contract.
     journeys: Schema.optionalKey(Schema.Array(Schema.String)),
     by: Schema.optionalKey(Schema.Array(Schema.String)),
+    ids: Schema.optionalKey(Schema.Struct({ given: Schema.String, context: Schema.Array(Schema.String), thens: Schema.Array(Schema.String) })),
   }),
 )
 
