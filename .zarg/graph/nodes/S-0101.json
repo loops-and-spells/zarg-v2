@@ -1,8 +1,0 @@
-{
-  "edges": [],
-  "id": "S-0101",
-  "props": {
-    "text": "the operator extends the operator-granted scopes"
-  },
-  "type": "gherkin/state"
-}

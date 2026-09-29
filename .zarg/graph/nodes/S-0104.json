@@ -1,8 +1,0 @@
-{
-  "edges": [],
-  "id": "S-0104",
-  "props": {
-    "text": "the read is served with the file path"
-  },
-  "type": "gherkin/state"
-}
