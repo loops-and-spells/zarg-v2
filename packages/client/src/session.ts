@@ -130,6 +130,7 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
     },
     command: (text) => {
       const [name = "", ...args] = text.trim().split(/\s+/)
+      // @card UX-0067 UX-0070
       if (name === "/yolo") {
         // `/yolo [on|off] [plugin=<name>]`: a bare /yolo turns it on.
         const on = args[0] !== "off"

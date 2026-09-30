@@ -62,6 +62,7 @@ describe("thread runs", () => {
     expect(tasks[0]).not.toContain("y".repeat(4_001))
   })
 
+  // @card UX-0014
   test("an empty agenda with gaps found in code: the driver asks from them at once, without reading the whole graph", async () => {
     const tasks: Array<string> = []
     const driver: Driver = (spec, asker) =>
@@ -106,6 +107,7 @@ describe("thread runs", () => {
     expect(WHAT_NEXT).not.toContain("the next journey")
   })
 
+  // @card UX-0014 UX-0015
   test("nothing open and no gaps: zarg asks what to work on itself, from the intent's next goals, and the answer goes to the driver", async () => {
     const tasks: Array<string> = []
     const driver: Driver = (spec) => Effect.sync(() => (tasks.push(spec.task), outcome("ok")))
@@ -219,6 +221,7 @@ describe("thread runs", () => {
     expect(tasks[0]).toStartWith(WHAT_NEXT)
   })
 
+  // @card UX-0012
   test("a message while a question is pending opens a discussion of it; the question stays open for the driver", async () => {
     const answers: Array<unknown> = []
     let calls = 0
@@ -239,6 +242,7 @@ describe("thread runs", () => {
     expect(texts(second)).toEqual(["actually, do payments first", "(discussing: Which?)", "adapted"])
   })
 
+  // @card UX-0071
   test("the driver can choose an option of the question under discussion for the developer, once", async () => {
     const out: Record<string, unknown> = {}
     let calls = 0
@@ -421,6 +425,7 @@ describe("thread runs", () => {
     expect(last(out.second)).toMatchObject({ type: "RUN_FINISHED", runId: "r2", outcome: { type: "interrupt" } })
   })
 
+  // @card UX-0044
   test("stop interrupts the running driver and records it", async () => {
     let interrupted = false
     const driver: Driver = () => Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => void (interrupted = true)))) as never
@@ -453,6 +458,7 @@ describe("thread runs", () => {
     expect(events.some((e) => e.type === "ACTIVITY_SNAPSHOT")).toBe(true)
   })
 
+  // @card UX-0045
   test("secrets are redacted before events are stored or sent", async () => {
     const driver: Driver = (_spec, asker) => Effect.gen(function* () { return (yield* asker.ask({ ...question, question: "use zt-secret?" })) as never }) as never
     const events = await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setup(driver); return yield* collect(thread.run({ runId: "r1" })) }))

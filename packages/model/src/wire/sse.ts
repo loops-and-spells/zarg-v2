@@ -74,6 +74,7 @@ export const parseSse = (response: Response, t: SseTimeouts, startedAt: number =
   }
 
   /** Handle one SSE frame (the text between blank lines). */
+  // @card UX-0037
   const frame = (s: State, text: string): Effect.Effect<void, ModelError> =>
     Effect.gen(function* () {
       // Lines starting with ":" are comments (zarg-router sends ": warming <model>").

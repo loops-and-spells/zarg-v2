@@ -31,6 +31,7 @@ describe("zarg cli", () => {
     expect(zarg("render").out).toContain("Then  the plan picker is shown  # S-0002")
   })
 
+  // @card UX-0082
   test("audit: JSON with exit 1 while a card has no tag; --summary; a new file's tag counts", () => {
     const TAG = "@" + "card"
     const before = zarg("audit")
@@ -85,10 +86,13 @@ describe("zarg cli", () => {
     expect(json("query", "neighbors", "S-0001", "--k", "1")).toEqual(["S-0001", "UX-0001"])
   })
 
+  // @card UX-0081
   test("query code finds @card tags in tracked files", async () => {
-    await Bun.write(join(dir, "app.ts"), "// @card UX-0999\n")
+    // Built from parts: this file holds no tag of its own.
+    const tag = `// ${"@" + "card"} UX-0999`
+    await Bun.write(join(dir, "app.ts"), `${tag}\n`)
     git("add", "app.ts")
-    expect(json("query", "code", "UX-0999")).toEqual(["app.ts:1:// @card UX-0999"])
+    expect(json("query", "code", "UX-0999")).toEqual([`app.ts:1:${tag}`])
     expect(json("query", "code", "UX-0998")).toEqual([])
   })
 
@@ -182,6 +186,7 @@ describe("zarg core", () => {
 })
 
 describe("zarg affected and checkpoint", () => {
+  // @card UX-0080
   test("affected lists the cards to reconcile; checkpoint records the graph so nothing is left", () => {
     const root = mkdtempSync(join(tmpdir(), "zarg-affected-"))
     const g = (...args: Array<string>) => Bun.spawnSync(["git", "-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd: root })

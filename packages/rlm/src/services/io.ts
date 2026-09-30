@@ -35,6 +35,7 @@ const Question = Schema.Struct({
 /** `kind: "grant"`: a permission question zarg itself asks (never a cell: the schema has no such field); only its options are offered. */
 export type Question = typeof Question.Type & { readonly kind?: "grant" }
 /** An option id, or free text; `interjected` when the operator wrote a message instead of answering. */
+// @card UX-0013
 const Answer = Schema.Struct({
   choice: Schema.optionalKey(Schema.String).annotate({ description: "The option the developer picked." }),
   other: Schema.optionalKey(Schema.String).annotate({ description: "What the developer wrote instead (Something else…, or a message about the question)." }),

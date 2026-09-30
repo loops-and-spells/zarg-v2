@@ -23,6 +23,7 @@
   ],
   "id": "UX-0027",
   "props": {
+    "planned": true,
     "title": "Valid values are stored",
     "when": "the provider accepts the entered values"
   },

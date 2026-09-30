@@ -134,6 +134,7 @@ export const makeReconcile = (deps: ReconcileDeps) =>
     })
 
     /** Findings about the thread's focus (or all, without one), first on the driver's agenda. */
+    // @card UX-0025
     const agenda = (focus: ReadonlySet<string> | undefined): ReadonlyArray<AgendaItem> =>
       findings
         .list()

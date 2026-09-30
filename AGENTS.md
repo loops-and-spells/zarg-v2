@@ -29,6 +29,7 @@ packages/<name>/
 - `packages/highlight` (`@zarg/highlight`): syntax highlighting as data, no dependencies: `highlight(lang, source)` → lines of spans with token kinds (keyword, id, comment, title, flow, string, number); platforms map kinds to their theme. Knows zarg's Gherkin; `@zarg/markdown` draws those fences with the host's colours.
 - `packages/tokens` (`@zarg/tokens`): the design language: token keys (surfaces, text, intent, identity, severity, status, syntax), a platform-free `Theme` (keys to colour names, aliases resolved once) over a per-platform `Palette` (terminal truecolor, 256, 16; web dark, light), both Effect services (`Palette.on(platform)`, `Palette.terminal` from `ZARG_THEME_COLORS` / `COLORTERM` / `TERM`; `Theme.layer`). Plugins name intent, identity and severity keys only.
 - `packages/frontmatter` (`@zarg/frontmatter`): the parsable data at the top of a Markdown file (a YAML subset, no dependencies, so it runs in the plugin sandbox): `parse(md) → { data, body }`, `stringify`. Intents keep `personas` and `next` there, plans `card`, `hash`, `title`.
+- `packages/audit` (`@zarg/audit`): checks cards against their `@card` tags (`zarg audit`, `--summary`, `--card <id>`): untagged, planned-but-tagged, orphan; tags come from one `git grep` over tracked and untracked files, never `docs/`.
 - `packages/bm25` (`@zarg/bm25`): Okapi BM25 over short texts (`bm25(docs).score(query)`, `rank`), with a light stemmer; no dependencies.
 - `packages/entities` (`@zarg/entities`): references to any plugin's data (`<plugin>/<kind>:<id>[@<version>]`), canonical versions, the entity shapes; no dependencies (runs in the sandbox). Plugins declare kinds (`entities` in `definePlugin`, with a tone and glyph) and serve them; graph node kinds are served for free; the host routes every ref to its one owner; plugins read them with the `Entities` power (scope `entities: { read, command }`), RLMs with the `Entities` service (typed per kind, `Entities:read` in the driver, plan and research presets); a table column with `ref: true` shows labels the core resolves.
 - `packages/plugin` (`@zarg/plugin/server`, `@zarg/plugin/runtime`): the plugin runtime (each plugin in its own locked-down Bun process with `ses`, powers served by the host), grants (`~/.config/zarg/grants.json`), `PluginHost` and the write pipeline. Plugins load only through it; a test fails if another package imports a plugin.
@@ -67,7 +68,7 @@ This repo's requirements live in its own zarg graph under `.zarg/graph`.
 - Use the `zarg-drive` skill (`.claude/skills/zarg-drive/SKILL.md`) to refine requirements. It edits only the graph.
 - Use the `zarg-implement` skill (`.claude/skills/zarg-implement/SKILL.md`) to make code match the graph when no zarg core is running (a running core plans and implements on its own). It edits only code and `.zarg/plans`.
 - Never edit `.zarg/graph` files by hand. Change them through `zarg tool call`.
-- Tag code that implements a card with a `// @card <id>` comment (for example `// @card UX-0003`).
+- Tag code that implements a card with a `// @card <id>` comment (for example `// @card UX-0003`), and its test. A card with no code yet is `planned` (`gherkin/edit-card {"planned": true}`). `mise run audit` (part of `verify`) fails on an untagged card, a planned card with tags, or a tag naming no card.
 
 ## Tasks
 

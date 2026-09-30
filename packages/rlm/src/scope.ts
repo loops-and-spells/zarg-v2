@@ -27,6 +27,7 @@ export const pathInScope = (scope: Scope, rel: string): boolean =>
   (scope.paths ?? []).some((g) => new Bun.Glob(g).match(rel))
 
 /** Env files hold secrets; only the schema is readable. */
+// @card UX-0046
 export const isEnvSecretFile = (rel: string): boolean => {
   const base = rel.split("/").pop() ?? ""
   return base.startsWith(".env") && base !== ".env.schema"

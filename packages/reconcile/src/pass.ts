@@ -207,6 +207,7 @@ const body = (
             (r) => r.failed.map((c) => c.branch),
           ),
         )
+        // @card UX-0054
         for (const b of conflicts) {
           const item = live.find((i) => branchOf(name(i)) === b)!
           failures.set(item, { ok: false, kind: "merge-conflict", title: `${item} conflicts with other cards in this pass`, detail: `branch ${b} could not be merged` })
@@ -214,6 +215,7 @@ const body = (
         live = live.filter((i) => !failures.has(i))
       }
 
+      // @card UX-0023
       const gate = (label: string) =>
         act(
           label,
@@ -242,12 +244,14 @@ const body = (
       if (yield* isStopped("stopped:verify")) return stoppedResult
       const verified = yield* gate("verify")
       if (yield* isStopped("stopped:verified")) return stoppedResult
+      // @card UX-0055
       if (!verified.passed) {
         yield* report("verify", [{ kind: "verify-failing", title: "verify still fails after the fix attempts", detail: verified.output.slice(-4000), about: live }])
         return { status: "failed", landed: [], failed: [...live, ...failed()].sort() } satisfies PassResult
       }
 
       // One commit on top of the base: the whole graph tree, plans and code, and the checkpoint.
+      // @card UX-0022
       const squash = (base: string, graph: string) =>
         Effect.gen(function* () {
           yield* git(main, ["reset", "-q", "--soft", base])
@@ -272,6 +276,7 @@ const body = (
           lock(land(spec.repo, commit, base, payload.branch)),
         )
         if (r.status === "landed") break
+        // @card UX-0052
         if (r.status === "moved") {
           const rebased = yield* act(
             `rebase:${attempt}`,
@@ -296,12 +301,14 @@ const body = (
           commit = yield* act(`rebased:${attempt}`, Schema.String, squash(base, payload.graph))
           continue
         }
+        // @card UX-0051
         if (r.status === "refused" || attempt >= spec.landAttempts) {
           const detail = r.status === "refused" ? r.reason! : `waiting on your uncommitted edits in ${(r.paths ?? []).join(", ")}`
           yield* report(`land:${attempt}`, [{ kind: "landing-blocked", title: "the implementation commit cannot land", detail, about: live }])
           return { status: "failed", commit, landed: [], failed: [...live, ...failed()].sort() } satisfies PassResult
         }
         if (yield* isStopped(`stopped:land:${attempt}`)) return stoppedResult
+        // @card UX-0050
         yield* DurableClock.sleep({ name: `land-wait:${attempt}`, duration: spec.landRetry })
         if (yield* isStopped(`stopped:land-waited:${attempt}`)) return stoppedResult
       }

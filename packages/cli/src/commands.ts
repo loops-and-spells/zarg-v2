@@ -82,6 +82,7 @@ const neighbors = Command.make("neighbors", { id: Argument.String("id"), k }, (o
   Effect.flatMap(GraphStore.use((s) => s.snapshot), (snap) => print(Snapshot.neighbors(snap, o.id, o.k))),
 )
 
+// @card UX-0081
 const code = Command.make("code", { id: Argument.String("id") }, ({ id }) => Effect.flatMap(cardRefs(root, id), print))
 
 const query = Command.make("query").pipe(Command.withSubcommands([neighbors, code]))
@@ -95,7 +96,7 @@ const diffCmd = Command.make("diff", { since: Flag.String("since").pipe(Flag.wit
   }),
 )
 
-// @card UX-0079
+// @card UX-0079 UX-0080
 const affected = Command.make("affected", {}, () =>
   Effect.gen(function* () {
     const base = yield* baseTree(root)
@@ -183,12 +184,14 @@ const confirm = (question: string) =>
     return false
   })
 
+// @card UX-0060
 const pluginAdd = Command.make("add", { source: Argument.String("source") }, ({ source }) =>
   Effect.flatMap(installPlugin(resolve(source), USER_DIR), (r) =>
     print({ installed: r.name, dir: r.dir, next: `list it in .zarg/config.toml as [plugins.${r.name}] source = ${JSON.stringify(source)}, then approve it with \`zarg plugin grant ${r.name}\`` }),
   ),
 )
 
+// @card UX-0061
 const pluginGrant = Command.make(
   "grant",
   {

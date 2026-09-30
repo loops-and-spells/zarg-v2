@@ -68,6 +68,7 @@ const recover = (repo: string, commit: string) =>
  * working state is written to a landing note first, so a failed or killed landing restores them.
  * Idempotent: a commit already on the branch counts as landed.
  */
+// @card UX-0049
 export const land = (repo: string, commit: string, base: string, branch: string) =>
   Effect.gen(function* () {
     yield* recover(repo, commit)
@@ -83,6 +84,7 @@ export const land = (repo: string, commit: string, base: string, branch: string)
     const touched = new Set(zPaths(yield* git(repo, ["diff", "--name-only", "-z", "--no-renames", base, commit])))
     const dirty = (yield* statusPaths(repo)).filter((p) => touched.has(p))
     const blocked = dirty.filter((p) => !p.startsWith(`${GRAPH}/`))
+    // @card UX-0050
     if (blocked.length > 0) return { status: "waiting", paths: blocked } satisfies LandResult
 
     const note: Note = {}

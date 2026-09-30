@@ -19,6 +19,7 @@
   ],
   "id": "UX-0019",
   "props": {
+    "planned": true,
     "title": "Operator picks a version",
     "when": "the operator picks a version"
   },

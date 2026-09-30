@@ -66,6 +66,7 @@ describe("openRouterWire.stream", () => {
     expect(err).toMatchObject({ _tag: "ModelError", kind: "stream", message: "engine dropped the socket", status: 502 })
   })
 
+  // @card UX-0037
   test("warming comments keep the connection alive but do not count as output", async () => {
     const ok = serve(() => sse([": warming m\n\n", 30, ": warming m\n\n", 30, delta({ content: "ready" })]))
     const events = await collect(openRouterWire({ baseUrl: ok.url, timeouts: { idleMs: 50, firstOutputMs: 500 } }).stream(req))

@@ -19,6 +19,7 @@
   ],
   "id": "UX-0035",
   "props": {
+    "planned": true,
     "title": "Operator picks a model",
     "when": "the operator picks a model for the role"
   },

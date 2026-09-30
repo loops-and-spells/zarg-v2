@@ -19,6 +19,7 @@ const packageDir = (marker: string) => {
 }
 
 describe("installPlugin", () => {
+  // @card UX-0060
   test("a package with install scripts is unpacked without running them", async () => {
     const marker = join(tmp(), "ran")
     const { dir, pkg } = packageDir(marker)

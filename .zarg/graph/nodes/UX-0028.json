@@ -27,6 +27,7 @@
   ],
   "id": "UX-0028",
   "props": {
+    "planned": true,
     "title": "Rejected values are not stored",
     "when": "the provider rejects the entered values"
   },

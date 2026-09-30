@@ -30,6 +30,7 @@ describe("service powers", () => {
     expect(seen).toEqual(["svc"])
   })
 
+  // @card UX-0066
   test("undeclared scopes and undeclared roles are refused; a spent budget is BudgetExceeded", async () => {
     const noScope = await Effect.runPromise(Effect.exit(hostWith([await fixturePlugin(plugin(`{}`, `return yield* d.decide({ state: "s", questions: {} })`))], (h) => h.invoke("svc", "go", {}), { decide: () => Effect.succeed({}) })))
     expect(JSON.stringify(noScope)).toContain("decisions")

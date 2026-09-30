@@ -41,6 +41,7 @@ export const startReconciler = (opts: ReconcilerOptions) => {
     if (result.status === "failed") attempts.set(key, attempt + 1)
     return result
   })
+  // @card UX-0020
   const trigger = makeTrigger(opts.quietMs, () =>
     Effect.runPromise(
       once.pipe(
@@ -61,6 +62,7 @@ export const startReconciler = (opts: ReconcilerOptions) => {
   )
   const dir = join(opts.repo, GRAPH)
   mkdirSync(dir, { recursive: true })
+  // @card UX-0020
   const watcher = existsSync(dir) ? watch(dir, { recursive: true }, () => trigger.notify()) : undefined
   return {
     notify: trigger.notify,

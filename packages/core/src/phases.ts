@@ -190,17 +190,20 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
           Effect.gen(function* () {
             const c = yield* card(cwd, item)
             const out = (yield* run("plan", "plan", item, planTask(item, c.text), cwd)) as { plan?: string; blocked?: string }
+            // @card UX-0057
             if (out.blocked !== undefined || out.plan === undefined) {
               return { ok: false, kind: "unplannable", title: `${item} cannot be planned`, detail: out.blocked ?? "the planner returned no plan" } satisfies ItemOutcome
             }
             const file = join(cwd, planPath(item))
             mkdirSync(dirname(file), { recursive: true })
             // The plan's data in frontmatter: its card, the card's hash when planned, its title.
+            // @card UX-0056
             writeFileSync(file, stringify({ card: item, hash: c.hash, title: c.title }, `# ${item} ${c.title}\n\n${out.plan.trim()}\n`))
             return { ok: true } satisfies ItemOutcome
           }),
       },
       {
+        // @card UX-0021
         name: "implement",
         setup: true,
         protect: [".zarg"],
@@ -210,6 +213,7 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
             const planFile = join(cwd, planPath(item))
             const plan = existsSync(planFile) ? readFileSync(planFile, "utf8") : "(no plan)"
             const out = (yield* run("implement", "implement-card", item, implementTask(item, c.text, plan), cwd).pipe(Effect.ensuring(Effect.orDie(keepRequirements(cwd))))) as { blocked?: string }
+            // @card UX-0024
             if (out.blocked !== undefined) return { ok: false, kind: "blocked-card", title: `${item} cannot be implemented as written`, detail: out.blocked } satisfies ItemOutcome
             return { ok: true } satisfies ItemOutcome
           }),
@@ -219,6 +223,7 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
     onRemoved: (items, cwd) => Effect.sync(() => items.forEach((i) => rmSync(join(cwd, planPath(i)), { force: true }))),
     verify: (cwd) =>
       Effect.map(Effect.orDie(command(cwd, deps.settings.verify)), (r) => ({ passed: r.exitCode === 0, output: `${r.stdout}\n${r.stderr}`.trim().slice(-8000) })),
+    // @card UX-0023
     fix: (cwd, output, attempt) =>
       run(
         "implement",
@@ -227,6 +232,7 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
         `Verify fails after merging this pass's cards (attempt ${attempt}). Make it pass without changing what the cards require. Never edit anything under .zarg/.\n\n${output}\n\nFinish with \`yield* Rlm.done({ value: "<what you changed>" })\`.`,
         cwd,
       ).pipe(Effect.ensuring(Effect.orDie(keepRequirements(cwd))), Effect.asVoid, Effect.orElseSucceed(() => undefined)),
+    // @card UX-0053
     resolve: (cwd, files) =>
       run(
         "implement",

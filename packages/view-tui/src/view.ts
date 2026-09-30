@@ -298,6 +298,7 @@ export const SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
 export const spin = (now: number) => SPINNER[Math.floor(now / 100) % SPINNER.length]!
 
 /** The line under the conversation while zarg works on a reply or a question: spinner, elapsed time, driver turn. */
+// @card UX-0072
 export const working = (ui: Ui, s: SessionState, now: number): string | undefined => {
   if (!busy(s) || ui.runningSince === undefined) return undefined
   const secs = Math.max(0, Math.floor((now - ui.runningSince) / 1000))
@@ -360,6 +361,7 @@ export const ICON: Record<RlmNode["status"], string> = { running: "●", done: "
 const BAR = 6
 
 // Children in id order; a node whose parent is unknown is a root.
+// @card UX-0041
 export const childrenOf = (rlms: Readonly<Record<string, RlmNode>>) => {
   const nodes = Object.values(rlms).sort((a, b) => idNumber(a.id) - idNumber(b.id))
   return (parent: string | null) => nodes.filter((n) => (parent === null ? n.parent === null || rlms[n.parent] === undefined : n.parent === parent))
@@ -373,6 +375,7 @@ const driverRoot = (rlms: Readonly<Record<string, RlmNode>>): RlmNode | undefine
 }
 
 // Roots start open, everything below starts collapsed; `toggled` flips that per id.
+// @card UX-0074
 export const isOpen = (rlms: Readonly<Record<string, RlmNode>>, agents: Agents, n: RlmNode) =>
   agents.toggled[n.id] ?? (n.parent === null || rlms[n.parent] === undefined)
 
@@ -382,6 +385,7 @@ export interface Visible {
   readonly hidden: ReadonlyArray<RlmNode>
 }
 
+// @card UX-0074
 export const visible = (rlms: Readonly<Record<string, RlmNode>>, agents: Agents): ReadonlyArray<Visible> => {
   const children = childrenOf(rlms)
   const below = (n: RlmNode): Array<RlmNode> => children(n.id).flatMap((c) => [c, ...below(c)])
@@ -505,6 +509,7 @@ export const attentionLine = (rlms: Readonly<Record<string, RlmNode>>) =>
     .join("   ")
 
 /** The card for the highlighted RLM (the first root when none): status, task, turns, decisions, error. */
+// @card UX-0042 UX-0073
 export const agentDetail = (rlms: Readonly<Record<string, RlmNode>>, cursor: string | undefined): ReadonlyArray<string> => {
   const n = (cursor !== undefined ? rlms[cursor] : undefined) ?? driverRoot(rlms)
   if (n === undefined) return []
@@ -614,6 +619,7 @@ export interface Meta {
 }
 
 /** Most important first, so a narrow terminal cuts the driver model, never the core state. */
+// @card UX-0067 UX-0070
 export const statusLine = (s: SessionState, meta: Meta) =>
   [
     s.core === "down" ? "core stopped" : `core ${meta.mode}`,

@@ -29,6 +29,7 @@ export const snapshotAt = (root: string, ref: string) =>
   })
 
 /** `path:line:text` hits for `@card <id>` in tracked and untracked files (not ignored ones). */
+// @card UX-0081 UX-0082
 export const cardRefs = (root: string, id: string) =>
   sh(root, ["grep", "-n", "--untracked", "-w", "-e", `@card ${id}`]).pipe(
     Effect.map((out) => out.split("\n").filter((l) => l.length > 0)),

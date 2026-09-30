@@ -4,6 +4,7 @@ import * as E from "./events"
 import type { ThreadLog } from "./log"
 
 /** The thread main is when zarg could not load: every run says why, and the core keeps serving. */
+// @card UX-0030
 export const notLoaded = (log: ThreadLog, id: string, focus: ReadonlyArray<string>, why: string): Effect.Effect<Thread> =>
   Effect.succeed({
     id,

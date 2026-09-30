@@ -238,6 +238,7 @@ const routes = HttpRouter.addAll(
           return HttpServerResponse.jsonUnsafe(yield* archive.apply(thread, change))
         }),
       ),
+      // @card UX-0044
       HttpRouter.route(
         "POST",
         "/threads/:id/stop",

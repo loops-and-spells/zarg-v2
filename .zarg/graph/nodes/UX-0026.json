@@ -23,6 +23,7 @@
   ],
   "id": "UX-0026",
   "props": {
+    "planned": true,
     "title": "Operator sets up a provider plugin",
     "when": "the operator opens a provider plugin's setup"
   },

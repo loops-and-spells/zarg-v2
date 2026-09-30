@@ -57,6 +57,7 @@ describe("reconciler", () => {
     while (!cond() && Date.now() < end) await sleep(50)
   }
 
+  // @card UX-0020
   test("a graph edit is reconciled into a landed commit after the quiet period", async () => {
     const r = repo()
     const { rec, results } = start(r)

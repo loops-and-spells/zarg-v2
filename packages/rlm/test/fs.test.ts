@@ -33,6 +33,7 @@ const run = (cells: ReadonlyArray<string>) =>
   )
 
 describe("Fs follows no symlink out of bounds", () => {
+  // @card UX-0046
   test("a symlink to an env file is refused", async () => {
     const [out] = await run(['return yield* Fs.read({ path: "src/cfg" })'])
     expect(out).toContain("OutOfScope")

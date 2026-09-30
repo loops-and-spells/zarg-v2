@@ -91,6 +91,7 @@ describe("Inquire, Agenda and Verify", () => {
     expect(asked).toEqual(["Which?"])
   })
 
+  // @card UX-0071
   test("Inquire.choose accepts an option of a question under discussion for the developer", async () => {
     const chosen: Array<unknown> = []
     const svc = inquire({

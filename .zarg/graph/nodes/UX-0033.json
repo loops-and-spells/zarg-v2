@@ -19,6 +19,7 @@
   ],
   "id": "UX-0033",
   "props": {
+    "planned": true,
     "title": "Operator picks another model",
     "when": "the operator picks another model"
   },

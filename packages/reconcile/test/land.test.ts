@@ -24,6 +24,7 @@ const passCommit = async () => {
 }
 
 describe("land", () => {
+  // @card UX-0049
   test("fast-forwards; the driver's identical uncommitted cards end up clean; landing again is a no-op", async () => {
     const { r, base, commit } = await passCommit()
     expect(await run(land(r, commit, base, "main"))).toEqual({ status: "landed" })
@@ -32,6 +33,7 @@ describe("land", () => {
     expect(await run(land(r, commit, base, "main"))).toEqual({ status: "landed" })
   })
 
+  // @card UX-0050
   test("your edits in other files stay; edits in a file the commit changes make it wait", async () => {
     const { r, base, commit } = await passCommit()
     write(r, "README.md", "mine\n")
@@ -58,6 +60,7 @@ describe("land", () => {
     expect(existsSync(join(r, ".zarg/graph/nodes/UX-0001.json"))).toBe(false)
   })
 
+  // @card UX-0052
   test("a moved branch is reported; after a rebase the commit lands", async () => {
     const { r, base, wt } = await passCommit()
     sh(r, "rm -rf .zarg/graph")

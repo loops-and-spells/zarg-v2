@@ -15,6 +15,7 @@ const graph = (r: string, cards: ReadonlyArray<string>) => {
 }
 
 describe("reconcile pass", () => {
+  // @card UX-0022 UX-0056
   test("lands one commit with the graph, plans, code and checkpoint; worktrees are removed", async () => {
     const r = repo()
     graph(r, ["UX-0001", "UX-0002"])
@@ -57,6 +58,7 @@ describe("reconcile pass", () => {
     expect(spec.calls.filter((c) => c !== "verify")).toEqual(["plan UX-0002", "implement UX-0002"])
   })
 
+  // @card UX-0024
   test("a blocked card becomes a finding; the other cards still land; the blocked card has no code", async () => {
     const r = repo()
     graph(r, ["UX-0001", "UX-0002"])
@@ -67,6 +69,7 @@ describe("reconcile pass", () => {
     expect(spec.findings.list().map((f) => [f.kind, f.about])).toEqual([["blocked-card", ["UX-0002"]]])
   })
 
+  // @card UX-0053 UX-0054
   test("cards that conflict: an obvious conflict is resolved, a major one becomes a finding", async () => {
     const r = repo()
     graph(r, ["UX-0001", "UX-0002"])
@@ -82,6 +85,7 @@ describe("reconcile pass", () => {
     expect(readFileSync(join(r2, "src/shared.ts"), "utf8")).toBe("a\nb\n")
   })
 
+  // @card UX-0023 UX-0055
   test("verify still failing after two fixes: a finding, nothing lands, the pass worktree is kept", async () => {
     const r = repo()
     graph(r, ["UX-0001"])
@@ -100,6 +104,7 @@ describe("reconcile pass", () => {
     expect(readFileSync(join(r2, "src/x.ts"), "utf8")).toBe("fixed\n")
   })
 
+  // @card UX-0050 UX-0051
   test("your uncommitted edits in a file it changes: landing waits, then gives up with a finding", async () => {
     const r = repo()
     graph(r, ["UX-0001"])
@@ -110,6 +115,7 @@ describe("reconcile pass", () => {
     expect(readFileSync(join(r, "src/UX-0001.ts"), "utf8")).toBe("mine\n")
   })
 
+  // @card UX-0052
   test("your branch moved during the pass: the commit is rebased, verified again and lands on top", async () => {
     const r = repo()
     graph(r, ["UX-0001"])

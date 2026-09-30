@@ -121,6 +121,7 @@ describe("PluginHost.call", () => {
     expect(r.warnings.map((w) => w.code)).toEqual(["todo"])
   })
 
+  // @card UX-0016
   test("a caller expectation that no longer holds fails with StaleNode", async () => {
     const err = await run(
       Effect.gen(function* () {
@@ -204,6 +205,7 @@ describe("plugins in their processes", () => {
     expect(out[0][0]!.detail).toContain("can read your graph and send it to a.test")
     expect(out[1]).toEqual([])
   })
+  // @card UX-0069
   test("a first-party plugin with only graph scope is granted without a question", async () => {
     const asked: Array<unknown> = []
     const r = await runWith(() => [notes], () => options({ firstParty: () => true, ask: (q) => Effect.sync(() => (asked.push(q), "deny" as const)) }), PluginHost.use((h) => h.call("notes/add-topic", { name: "a" })))
@@ -251,6 +253,7 @@ describe("plugins in their processes", () => {
     }))
     expect(r.added).toEqual(["T-0002"])
   })
+  // @card UX-0068
   test("three restarts in ten minutes disable a plugin", async () => {
     const out = await run(Effect.gen(function* () {
       const h = yield* PluginHost

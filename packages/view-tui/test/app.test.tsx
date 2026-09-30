@@ -304,6 +304,7 @@ describe("tui frames", () => {
     expect(t.captureCharFrame()).toContain("core stopped · error")
   })
 
+  // @card UX-0073
   test("alt+a gives the agents list the keys; the highlight walks a tall tree and the detail follows", async () => {
     const rlms = Object.fromEntries(
       Array.from({ length: 40 }, (_, i) => [`rlm-${i + 1}`, { id: `rlm-${i + 1}`, parent: i === 0 ? null : "rlm-1", preset: i === 0 ? "driver" : "research", depth: i === 0 ? 0 : 1, turns: 1, budget: 15, status: "done" as const, decisions: [] }]),

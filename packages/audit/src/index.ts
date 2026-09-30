@@ -24,7 +24,7 @@ export const parseTags = (grep: string): Array<Tag> =>
   grep.split("\n").flatMap((l) => {
     const m = /^(.*?):(\d+):(.*)$/.exec(l)
     if (m === null) return []
-    // Every mark on the line (`// @card UX-1 @card UX-2`), each with the ids after it.
+    // Every mark on the line (a line may carry the mark twice), each with the ids after it.
     return [...m[3]!.matchAll(TAG_RE)].flatMap((t) => t[1]!.trim().split(/\s+/).map((id) => ({ id, file: m[1]!, line: Number(m[2]) })))
   })
 

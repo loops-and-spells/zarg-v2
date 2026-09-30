@@ -78,6 +78,7 @@ describe("config loader", () => {
     expect(e.file).toContain(".zarg/config.toml")
   })
 
+  // @card UX-0034
   test("roleModel explains which key to set", async () => {
     const e = await Effect.runPromise(Effect.flip(Config.roleModel({ providers: {}, roles: {}, extra: {} }, "driver")))
     expect(e.message).toBe('no model for role "driver"; set roles.driver in .zarg/config.toml')

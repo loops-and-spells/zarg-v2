@@ -8,7 +8,12 @@ bun = "1.4.2"
 
 [tasks.verify]
 description = "Typecheck and test every package. Exit code is the verdict."
-depends = ["//...:typecheck", "//...:test"]
+depends = ["//...:typecheck", "//...:test", "audit"]
+
+[tasks.audit]
+description = "Every card is tagged in the code or planned; no tag names a missing card (zarg audit)"
+depends = ["//...:build"]
+run = "mise x -- bun packages/cli/src/main.ts audit --summary"
 
 [tasks.zarg]
 description = "Run this repo's zarg CLI: mise run zarg -- agenda (builds every plugin in the monorepo first)"

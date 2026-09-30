@@ -157,6 +157,7 @@ export const fs = (ctx: CoreContext): Bound =>
   })
 
 /** Run a command with a deadline, a scrubbed env and redacted, capped output. */
+// @card UX-0045 UX-0047
 export const runCommand = (ctx: CoreContext, argv: ReadonlyArray<string>, timeoutMs: number) =>
   Effect.tryPromise({
     try: async (signal) => {

@@ -20,6 +20,7 @@ const firstLines = (text: string, n: number) => {
 const line = (text: string, tone?: "dim" | "error" | "accent"): LogLine => (tone === undefined ? { text } : { text, tone })
 
 /** One transcript record as history lines. */
+// @card UX-0042
 export const rlmLines = (l: Record<string, any>): ReadonlyArray<LogLine> => {
   switch (l.type) {
     case "start":

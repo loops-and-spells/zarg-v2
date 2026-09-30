@@ -92,6 +92,7 @@ export const layer = (dir: string): Layer.Layer<GraphStore, never, FileSystem.Fi
               return yield* new InvalidNode({ file: fileOf(id), message: `${id} failed to load; restore or fix the file first` })
             }
           }
+          // @card UX-0016
           for (const [id, expected] of Object.entries(expect)) {
             const cur = before.nodes.get(id)
             const actual = cur === undefined ? undefined : hash(cur)
