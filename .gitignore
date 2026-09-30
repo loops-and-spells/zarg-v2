@@ -7,3 +7,4 @@ packages/*/dist/
 .zarg/rehearse/
 packages/plugin/test/fixtures/.gen/
 .zarg/findings/
+.zarg/inbox/

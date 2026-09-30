@@ -168,7 +168,7 @@ describe("the inbox", () => {
     const first = await setup(d, () => now)
     Effect.runFork(first.inbox.ask(from, { ...grant, blocking: true }))
     const kept = await Effect.runPromise(first.inbox.post(from, grant))
-    const old = await Effect.runPromise(first.inbox.post(from, grant))
+    const old = await Effect.runPromise(first.inbox.post(from, { kind: "report", title: "run done", why: "run" }))
     await Effect.runPromise(first.inbox.read(old))
     await Bun.sleep(5)
     writeFileSync(join(d.dir, "T-broken.json"), "{")
