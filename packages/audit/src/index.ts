@@ -15,7 +15,7 @@ export type Report = {
 
 const MARK = "@" + "card"
 /** A tag: the mark, then one or more ids. */
-const TAG_RE = new RegExp(`${MARK}((?:\\s+[A-Z]+-\\d+)+)`)
+const TAG_RE = new RegExp(`${MARK}((?:\\s+[A-Z]+-\\d+)+)`, "g")
 /** Paths never searched: docs quote tags as examples. */
 export const IGNORED = ["docs"]
 
@@ -23,8 +23,9 @@ export const IGNORED = ["docs"]
 export const parseTags = (grep: string): Array<Tag> =>
   grep.split("\n").flatMap((l) => {
     const m = /^(.*?):(\d+):(.*)$/.exec(l)
-    const t = m === null ? null : TAG_RE.exec(m[3]!)
-    return m === null || t === null ? [] : t[1]!.trim().split(/\s+/).map((id) => ({ id, file: m[1]!, line: Number(m[2]) }))
+    if (m === null) return []
+    // Every mark on the line (`// @card UX-1 @card UX-2`), each with the ids after it.
+    return [...m[3]!.matchAll(TAG_RE)].flatMap((t) => t[1]!.trim().split(/\s+/).map((id) => ({ id, file: m[1]!, line: Number(m[2]) })))
   })
 
 /** Every card with its status and tags; the problems: untagged, planned-but-tagged, orphan (a tag naming no card). */

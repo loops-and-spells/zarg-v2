@@ -20,6 +20,9 @@ describe("the card audit", () => {
       { id: "UX-0003", file: "README.md", line: 1 },
     ])
   })
+  test("parseTags: a line with the mark twice names both cards", () => {
+    expect(parseTags(`src/live.ts:201:    // ${TAG} UX-0058 ${TAG} UX-0059`).map((t) => t.id)).toEqual(["UX-0058", "UX-0059"])
+  })
   test("built, planned, and the three problems; a tag on a state or a missing card is an orphan", () => {
     const r = audit(snap, [
       { id: "UX-0001", file: "src/a.ts", line: 3 },
