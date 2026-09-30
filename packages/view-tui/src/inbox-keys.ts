@@ -53,7 +53,8 @@ export const inboxKey = (ui: Ui, s: SessionState, k: Key): Out => {
     }
     if (k.name === "return" && answersOf(t)[ui.inbox.pick ?? 0] !== undefined) return { ui: withInbox(ui, { open: undefined }), action: { type: "answer-topic", id: openId, answer: answersOf(t)[ui.inbox.pick ?? 0]!.id } }
     if (k.name === "t" && t?.state === "open" && (answersOf(t).length > 0 || t.text !== undefined)) return { ui: withInbox(ui, { typing: { id: openId, text: "" } }) }
-    if (k.name === "r" && t?.state === "open") return { ui: withInbox(ui, { typing: { id: openId, text: "", reply: true } }) }
+    // A reply is chat with whoever asked: only zarg hears replies.
+    if (k.name === "r" && t?.state === "open" && t.from.agent === "zarg") return { ui: withInbox(ui, { typing: { id: openId, text: "", reply: true } }) }
     if (k.name === "z") return { ui, action: { type: "snooze-topic", id: openId } }
     if (k.name === "o" && t?.origin !== undefined) return { ui: goTo(ui, "agent", t.origin.view) }
     return { ui }

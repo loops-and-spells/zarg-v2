@@ -482,6 +482,7 @@ describe("zarg's questions as inbox topics", () => {
       answer: (id: string, r: unknown, by: string) => Effect.sync(() => void calls.push(["answer", id, r, by])),
       settle: (id: string, why: string) => Effect.sync(() => void calls.push(["settle", id, why])),
       message: (id: string, by: string, text: string) => Effect.sync(() => void calls.push(["message", id, by, text])),
+      find: (key: string) => Effect.sync(() => (key.endsWith("inq-old") ? { id: "T-00000099", title: "Old question?", state: "open", answers: [{ id: "a", label: "Old A" }] } : undefined)),
     }
     return { inbox, calls }
   }
@@ -504,7 +505,7 @@ describe("zarg's questions as inbox topics", () => {
   test("a question is raised as a topic: its options are the answers, its own answer the text, its cards the about", async () => {
     const { inbox, calls } = fakeInbox()
     await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setupWith(askOnce([]), inbox); yield* collect(thread.run({ runId: "r1" })) }))
-    expect(calls[0]).toEqual(["post", { kind: "question", title: "Which?", why: "zarg asks", about: ["UX-0001"], answers: [{ id: "a", label: "Option A", recommended: true, why: "simpler" }, { id: "b", label: "Option B" }], text: { placeholder: "your own answer" }, key: expect.stringMatching(/^inq-/) }])
+    expect(calls[0]).toEqual(["post", { kind: "question", title: "Which?", why: "zarg asks", about: ["UX-0001"], answers: [{ id: "a", label: "Option A", recommended: true, why: "simpler" }, { id: "b", label: "Option B" }], text: { placeholder: "your own answer" }, key: expect.stringMatching(/^main\|inq-/) }])
   })
   test("answered in the inbox: the driver goes on as if answered in the bar; answered in the bar: the topic is answered too", async () => {
     const viaInbox: Array<unknown> = []
@@ -564,5 +565,81 @@ describe("zarg's questions as inbox topics", () => {
       yield* thread.stop
     }))
     expect(s.calls).toContainEqual(["settle", "T-00000001", "zarg was stopped"])
+  })
+  test("the same question answered in the bar and in the inbox counts once", async () => {
+    const answers: Array<unknown> = []
+    const tasks: Array<string> = []
+    let n = 0
+    const driver: Driver = (spec, asker) =>
+      Effect.gen(function* () {
+        tasks.push(spec.task)
+        if (n++ > 0) return yield* Effect.never
+        answers.push(yield* asker.ask(question))
+        return outcome("done")
+      }) as never
+    const { inbox } = fakeInbox()
+    await Effect.runPromise(Effect.gen(function* () {
+      const { thread } = yield* setupWith(driver, inbox)
+      const first = yield* collect(thread.run({ runId: "r1" }))
+      const id = (last(first) as any).outcome.interrupts[0].id
+      yield* thread.inbox!.answered({ id: "T-00000001", title: "Which?", answers: question.options }, { answer: "b" })
+      yield* Effect.forkChild(collect(thread.run({ runId: "r2", resume: [{ interruptId: id, payload: { choice: "a" } }] })))
+      yield* Effect.sleep(100)
+    }))
+    expect(answers).toEqual([{ choice: "b" }])
+    expect(tasks.some((t) => t.includes("The developer said"))).toBe(false)
+  })
+  test("after a restart the bar's answer to an old question answers its topic and reaches zarg by its label", async () => {
+    const tasks: Array<string> = []
+    const driver: Driver = (spec) => Effect.sync(() => (tasks.push(spec.task), outcome("ok"))) as never
+    const { inbox, calls } = fakeInbox()
+    await Effect.runPromise(Effect.gen(function* () {
+      const { thread } = yield* setupWith(driver, inbox)
+      yield* collect(thread.run({ runId: "r1", resume: [{ interruptId: "inq-old", payload: { choice: "a" } }] }).pipe(Stream.take(4)))
+      yield* Effect.sleep(50)
+    }))
+    expect(calls).toContainEqual(["answer", "T-00000099", { answer: "a" }, "operator"])
+    expect(tasks.some((t) => t.includes('(you answered "Old question?": Old A)'))).toBe(true)
+  })
+  test("an answer delivered while another question waits is not taken as discussion of it", async () => {
+    const answers: Array<unknown> = []
+    const { inbox, calls } = fakeInbox()
+    await Effect.runPromise(Effect.gen(function* () {
+      const { thread } = yield* setupWith(askOnce(answers), inbox)
+      yield* collect(thread.run({ runId: "r1" }))
+      yield* thread.inbox!.answered({ id: "T-00000077", title: "Earlier?", answers: [{ id: "x", label: "X" }] }, { answer: "x" })
+      yield* Effect.sleep(100)
+    }))
+    expect(answers).toEqual([])
+    expect(calls.filter((c) => (c as Array<unknown>)[0] === "message")).toEqual([])
+  })
+  test("a queued question behind the head answered in the inbox resumes its own ask", async () => {
+    const { inbox } = fakeInbox()
+    const got: Array<unknown> = []
+    const driver: Driver = (_spec, asker) =>
+      Effect.gen(function* () {
+        const a = yield* Effect.forkChild(asker.ask(question))
+        const b = yield* Effect.forkChild(asker.ask({ ...question, question: "Second?" }))
+        got.push(yield* Fiber.join(b))
+        yield* Fiber.interrupt(a)
+        return yield* Effect.never
+      }) as never
+    await Effect.runPromise(Effect.gen(function* () {
+      const { thread } = yield* setupWith(driver, inbox)
+      yield* Effect.forkChild(collect(thread.run({ runId: "r1" })))
+      yield* Effect.sleep(50)
+      yield* thread.inbox!.answered({ id: "T-00000002", title: "Second?", answers: question.options }, { answer: "a" })
+      yield* Effect.sleep(50)
+    }))
+    expect(got).toEqual([{ choice: "a" }])
+  })
+  test("an empty answer of your own in the bar settles the topic (the inbox takes no empty answer)", async () => {
+    const { inbox, calls } = fakeInbox()
+    await Effect.runPromise(Effect.gen(function* () {
+      const { thread } = yield* setupWith(askOnce([]), inbox)
+      const first = yield* collect(thread.run({ runId: "r1" }))
+      yield* collect(thread.run({ runId: "r2", resume: [{ interruptId: (last(first) as any).outcome.interrupts[0].id, payload: { other: "" } }] }).pipe(Stream.take(4)))
+    }))
+    expect(calls).toContainEqual(["settle", "T-00000001", "answered in the bar without words"])
   })
 })

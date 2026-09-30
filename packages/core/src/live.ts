@@ -22,7 +22,7 @@ import { outsideReads } from "./outside"
 import { makePrompts } from "./prompts"
 import { makeInbox, type TopicInput } from "./inbox"
 import { syncFindingTopics, syncPluginTopics } from "./plugin-topics"
-import { grantAsk } from "./grant"
+import { grantAsk, threadOfTopic } from "./grant"
 import { makeSurfaces, NAV, navItems } from "./surfaces"
 import { makeActions } from "./actions"
 import { makeLog } from "./log"
@@ -74,14 +74,27 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     const prompts = makePrompts(log)
     yield* prompts.closeStale
     // The operator's inbox: a posted topic's answer goes to the plugin that raised it (its `answered` method).
-    // zarg's own questions go to its main thread (set once it exists): it resumes the question or hears the answer as a message.
-    let zargThread: Thread | undefined
+    // zarg's own questions go to the thread that asked (its key names it): it resumes the question or hears the answer
+    // as a message. Until the threads exist, answers and replies wait here and go once they do.
+    let threadOf: ((id: string) => Thread | undefined) | undefined
+    const early: Array<(f: (id: string) => Thread | undefined) => Effect.Effect<void>> = []
+    const toZarg = (key: string | undefined, go: (th: NonNullable<Thread["inbox"]>) => Effect.Effect<void>) => {
+      const send = (f: (id: string) => Thread | undefined) => Effect.suspend(() => {
+        const th = f(threadOfTopic(key))?.inbox
+        return th === undefined ? Effect.void : go(th)
+      })
+      if (threadOf === undefined) {
+        early.push(send)
+        return Effect.void
+      }
+      return send(threadOf)
+    }
     const inbox = yield* makeInbox({
       log,
       dir: join(root, ".zarg", "inbox"),
       answered: (t, r) =>
-        t.from.plugin !== "zarg" ? Effect.ignore(host.invoke(t.from.plugin, "answered", { id: t.id, ...(t.key !== undefined ? { key: t.key } : {}), ...r })) : t.from.agent === "zarg" && zargThread?.inbox !== undefined ? zargThread.inbox.answered(t, r) : Effect.void,
-      replied: (t, text) => (t.from.plugin === "zarg" && t.from.agent === "zarg" && zargThread?.inbox !== undefined ? zargThread.inbox.replied(t, text) : Effect.void),
+        t.from.plugin !== "zarg" ? Effect.ignore(host.invoke(t.from.plugin, "answered", { id: t.id, ...(t.key !== undefined ? { key: t.key } : {}), ...r })) : t.from.agent === "zarg" ? toZarg(t.key, (th) => th.answered(t, r)) : Effect.void,
+      replied: (t, text) => (t.from.plugin === "zarg" && t.from.agent === "zarg" ? toZarg(t.key, (th) => th.replied(t, text)) : Effect.void),
     })
     // Panels, tiles and sheets plugins open; a new core starts with none (the last core's agents are over).
     const surfaces = makeSurfaces(log, "main")
@@ -150,7 +163,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       log,
       sensitive,
       agenda,
-      outsideReads: outsideReads({ grants: agentGrants, userDir: USER_DIR, ask: ((q: Question) => grantAsk(inbox)({ plugin: "zarg", agent: "agents" }, q)) as never, yolo: () => yoloControl.on("zarg:agents") }),
+      outsideReads: outsideReads({ grants: agentGrants, userDir: USER_DIR, ask: ((q: Question) => grantAsk(inbox)("agents", q)) as never, yolo: () => yoloControl.on("zarg:agents") }),
       panels: { open: (p) => surfaces.openPanel({ ...p, id: `zarg:${p.name}:zarg`, plugin: "zarg", agent: "zarg" }) },
       // zarg's questions: blocking topics that survive a restart (the answer reaches zarg whenever it comes).
       inbox: {
@@ -158,6 +171,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         answer: (id, reply, by) => inbox.answer(id, reply, by),
         settle: (id, why) => inbox.settle("zarg", id, why),
         message: (id, by, text) => inbox.message(id, by, text),
+        find: (key) => Effect.sync(() => inbox.list().find((t) => t.from.plugin === "zarg" && t.from.agent === "zarg" && t.key === key)),
       },
     }
     const zarg = yield* trustedAgents(ZARG_ROOT).pipe(
@@ -178,7 +192,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     })
     // A plugin's grant question is asked on main, like any driver question.
     const main = yield* threads.get("main", [])
-    zargThread = main
+    threadOf = (id) => threads.list().find((t) => t.id === id)
+    for (const send of early.splice(0)) yield* Effect.forkDetach(send(threadOf))
     // Plugins waiting on their grant load, then clients fetch their commands again.
     // The loaded plugins' nav items, for every client (again whenever more plugins load).
     const announceNav = Effect.suspend(() => log.append("main", E.activitySnapshot("main:nav", { items: navItems(host.manifests) }, NAV)))
@@ -232,7 +247,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
               : inbox.update(plugin, a.id ?? "", a.patch ?? {})
     }, (plugin) => void Effect.runFork(inbox.stopped(plugin)))
     control.setAsk((q) =>
-      grantAsk(inbox)({ plugin: q.plugin }, { question: `Plugin ${q.plugin} wants to ${q.what}.`, options: q.options.map((o) => ({ id: o.id, label: o.label, ...(o.id === "once" ? { recommended: true } : {}) })), allowOther: false, kind: "grant" })
+      grantAsk(inbox)(q.plugin, { question: `Plugin ${q.plugin} wants to ${q.what}.`, options: q.options.map((o) => ({ id: o.id, label: o.label, ...(o.id === "once" ? { recommended: true } : {}) })), allowOther: false, kind: "grant" })
         .pipe(Effect.map((a) => q.options.find((o) => o.id === a.choice)?.id ?? "deny")),
     )
     // Plugins that lack only their load grant: asked about now that main can ask (YOLO loads them without asking).
@@ -319,6 +334,7 @@ const pluginsFor = (
   const tables = (config.extra.plugins ?? {}) as Readonly<Record<string, unknown>>
   // [plugins] grant_timeout = <seconds>: a grant question left that long counts as deny (none: it waits until answered).
   const grantTimeout = tables.grant_timeout
+  if (grantTimeout !== undefined && (typeof grantTimeout !== "number" || grantTimeout <= 0)) console.error(`zarg-core: [plugins] grant_timeout must be a number of seconds; grants wait until answered`)
   return pluginHostLayer({
     ...(typeof grantTimeout === "number" && grantTimeout > 0 ? { askTimeoutMs: grantTimeout * 1000 } : {}),
     ...(models ?? {}),

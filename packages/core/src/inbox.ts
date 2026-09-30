@@ -230,7 +230,8 @@ export const makeInbox = (opts: {
       /** A plugin stopped (it exited, crashed or restarted): the asks it was waiting on are moot, and their callers fail. */
       stopped: (plugin: string) =>
         Effect.gen(function* () {
-          for (const t of [...topics.values()].filter((x) => x.from.plugin === plugin && x.state === "open" && x.blocking)) {
+          // Its own asks, and the grants it asked for (raised as zarg's, naming it).
+          for (const t of [...topics.values()].filter((x) => (x.from.plugin === plugin || (x.from.plugin === "zarg" && x.kind === "grant" && x.from.agent === plugin)) && x.state === "open" && x.blocking)) {
             yield* save({ ...t, state: "moot", moot: `${plugin} stopped`, updated: now() })
             const d = waiting.get(t.id)
             if (d !== undefined) {

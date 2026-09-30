@@ -93,3 +93,9 @@ test("the status line keeps the core state first; the inbox count follows it (an
   const st = { ...s(topic("T-1", { blocking: true })), core: "up" } as SessionState
   expect(statusLine(st, { threadId: "main", mode: "child" })).toStartWith("core child · ◆ 1 blocking · 1 open")
 })
+
+test("r replies only where someone hears it (zarg's questions); a plugin's topic takes no reply", () => {
+  const st = s(topic("T-1", { kind: "plan", from: { plugin: "backlog" } }))
+  const opened = inboxKey(home, st, key("return")).ui
+  expect(inboxKey(opened, st, key("r")).ui.inbox.typing).toBeUndefined()
+})
