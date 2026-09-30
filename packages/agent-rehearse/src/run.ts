@@ -45,7 +45,7 @@ export interface RunRecord {
 }
 /** Gherkin tool calls, in order (gherkin's `Draft`). */
 export type Draft = ReadonlyArray<{ readonly tool: string; readonly params: unknown }>
-export interface Started { readonly run: string; readonly stories: number; readonly steps: number; readonly personas: ReadonlyArray<string> }
+export interface Started { readonly run: string; readonly stories: number; readonly steps: number; readonly personas: ReadonlyArray<string>; readonly notes?: ReadonlyArray<string> }
 
 /** A tester's own card: one its persona acts in (a record from before personas: every card). */
 export const ownCard = (p: Persona, card: string) => p.cards === undefined || p.cards.includes(card)
@@ -409,13 +409,22 @@ export const makeRehearse = (deps: RunDeps) =>
           const all = yield* deps.stories(strategy, focus, opts.draft).pipe(Effect.orElseSucceed(() => ({ stories: [], unreachable: 0 })))
           // Only what is built is walked: a story stops before a planned card, or one whose code is not tagged.
           const builtOf = new Map<string, Built>()
+          let unreadable = false
           if (deps.code !== undefined)
             for (const card of [...new Set(all.stories.flat())]) {
               const step = yield* deps.step(card, undefined, opts.draft).pipe(Effect.orElseSucceed(() => null))
-              const code = step?.planned === true ? [] : yield* deps.code(card).pipe(Effect.orElseSucceed(() => [{ file: "", line: 0, text: "" }]))
-              builtOf.set(card, step?.planned === true ? "planned" : code.length === 0 ? "untagged" : "built")
+              if (step?.planned === true) {
+                builtOf.set(card, "planned")
+                continue
+              }
+              // Code that cannot be read (no git) checks nothing: the card is walked, and the run says so.
+              const code = unreadable ? undefined : yield* deps.code(card).pipe(Effect.orElseSucceed(() => undefined))
+              if (code === undefined) unreadable = true
+              builtOf.set(card, code === undefined || code.length > 0 ? "built" : "untagged")
             }
           const cut = cutStories(all.stories, (c) => builtOf.get(c) ?? "built")
+          const notes = [...cut.notes, ...(unreadable ? ["the cards' code could not be read: built or not, every card is walked"] : [])]
+          if (cut.stories.length === 0 && all.stories.length > 0) return { refused: `nothing built to walk: ${notes.join("; ")}` }
           const planned = { stories: cut.stories, unreachable: all.unreachable }
           const graph = yield* deps.personas().pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<{ readonly name: string; readonly text: string; readonly cards: ReadonlyArray<string> }>))
           if (graph.length === 0) return { refused: "no personas yet: the Driver Agent asks about them" }
@@ -425,10 +434,10 @@ export const makeRehearse = (deps: RunDeps) =>
           if (personas.length === 0) return { refused: `no such personas: ${opts.personas!.join(", ")}` }
           const startedAt = yield* deps.now.pipe(Effect.orElseSucceed(() => 0))
           const run = `r-${(yield* deps.uuid.pipe(Effect.orElseSucceed(() => String(startedAt)))).slice(0, 8)}`
-          const rec: RunRecord = { run, startedAt, status: "running", strategy, focus: focus ?? [], personas, stories: planned.stories, unreachable: planned.unreachable, screened: {}, raw: [], infra: cut.notes, findings: [], ...(opts.draft !== undefined && opts.draft.length > 0 ? { draft: opts.draft } : {}), ...(opts.file === false ? { file: false } : {}) }
+          const rec: RunRecord = { run, startedAt, status: "running", strategy, focus: focus ?? [], personas, stories: planned.stories, unreachable: planned.unreachable, screened: {}, raw: [], infra: notes, findings: [], ...(opts.draft !== undefined && opts.draft.length > 0 ? { draft: opts.draft } : {}), ...(opts.file === false ? { file: false } : {}) }
           yield* save(rec)
           yield* launch(rec)
-          return { run, stories: planned.stories.length, steps: planned.stories.reduce((n, s) => n + s.length, 0), personas: personas.map((p) => p.name) } satisfies Started
+          return { run, stories: planned.stories.length, steps: planned.stories.reduce((n, s) => n + s.length, 0), personas: personas.map((p) => p.name), ...(notes.length > 0 ? { notes } : {}) } satisfies Started
         }),
       )
 

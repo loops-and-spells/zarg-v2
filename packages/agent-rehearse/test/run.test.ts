@@ -7,7 +7,7 @@ import { FEEDBACK_COLUMNS, RunView, TesterView } from "../src/views"
 
 const noul = (p: number): Answer => ({ type: "noul", answer: p >= 0.5, probability: p, confidence: 0 })
 
-type Opts = { statusDown?: boolean; fileSome?: boolean; inFlight?: number; slowWrite?: number; down?: boolean; slowDecide?: number; gone?: ReadonlyArray<string>; state?: string; on?: boolean; unreachable?: number; personas?: ReadonlyArray<{ name: string; text: string; cards: ReadonlyArray<string> }>; files?: Map<string, string>; cardText?: (card: string) => string; built?: Record<string, "planned" | "untagged">; prompts?: Array<string> }
+type Opts = { statusDown?: boolean; fileSome?: boolean; inFlight?: number; slowWrite?: number; down?: boolean; slowDecide?: number; gone?: ReadonlyArray<string>; state?: string; on?: boolean; unreachable?: number; personas?: ReadonlyArray<{ name: string; text: string; cards: ReadonlyArray<string> }>; files?: Map<string, string>; cardText?: (card: string) => string; built?: Record<string, "planned" | "untagged">; prompts?: Array<string>; codeDown?: boolean }
 const setup = (o: Opts = {}) =>
   Effect.gen(function* () {
     const files = o.files ?? new Map<string, string>()
@@ -30,7 +30,7 @@ const setup = (o: Opts = {}) =>
       personas: () => Effect.succeed(o.personas ?? [{ name: "Operator", text: "The operator, through the zarg TUI.", cards: ["A", "B", "C", "D"] }]),
       stories: (strategy, _f, draft) => Effect.sync(() => (drafts.push(["stories", draft]), strategies.push(strategy), { stories: [["A", "B", "C"], ["A", "B", "D"]], unreachable: o.unreachable ?? 0 })),
       step: (card, _via, draft) => Effect.sync(() => (drafts.push(["step", draft]), draft !== undefined && card === "B" ? { ...view(card), thens: ["after B, drafted"] } : { ...view(card), ...(o.built?.[card] === "planned" ? { planned: true } : {}) })),
-      ...(o.built !== undefined ? { code: (card: string) => Effect.succeed(o.built![card] !== undefined ? [] : [{ file: `src/${card}.ts`, line: 1, text: `export const do${card} = () => "${card} code"` }]) } : {}),
+      ...(o.built !== undefined ? { code: (card: string) => o.codeDown === true ? Effect.fail("no git") : Effect.succeed(o.built![card] !== undefined ? [] : [{ file: `src/${card}.ts`, line: 1, text: `export const do${card} = () => "${card} code"` }]) } : {}),
       agendaChanged: Effect.sync(() => void agendaChanges.n++),
       decide: (req) =>
         Effect.andThen(
@@ -391,7 +391,28 @@ test("the findings columns colour by meaning: card, journey, severity keys", () 
 test("stories stop before a planned or untagged card (the run notes why); testers see the step's code", async () => {
   const prompts: Array<string> = []
   const out = await finish({ built: { C: "planned", D: "untagged" }, prompts })
-  expect(out.r.record(out.run)?.stories).toEqual([["A", "B"], ["A", "B"]])
+  // The same story twice after the cut is one story.
+  expect(out.r.record(out.run)?.stories).toEqual([["A", "B"]])
   expect(out.r.record(out.run)?.infra).toEqual(expect.arrayContaining(["C: not built yet (planned): not walked", "D: no code tagged and not planned: tag its code or mark it planned"]))
   expect(prompts.some((p) => p.includes("What zarg does now") && p.includes('export const doB = () => "B code"'))).toBe(true)
+})
+
+test("the cut is said where the operator sees it: in the start result; with nothing built to walk the run is refused with why", async () => {
+  const r = await Effect.runPromise(Effect.gen(function* () {
+    const t = yield* setup({ built: { C: "planned", D: "untagged" } })
+    const started = (yield* t.r.start({})) as { notes?: ReadonlyArray<string> }
+    const t2 = yield* setup({ built: { A: "untagged" } })
+    const refused = (yield* t2.r.start({})) as { refused?: string }
+    return { started, refused }
+  }))
+  expect(r.started.notes).toEqual(["C: not built yet (planned): not walked", "D: no code tagged and not planned: tag its code or mark it planned"])
+  expect(r.refused.refused).toBe("nothing built to walk: A: no code tagged and not planned: tag its code or mark it planned")
+})
+test("code that cannot be read (no git) checks no card: every card is walked, and the run says so", async () => {
+  const r = await Effect.runPromise(Effect.gen(function* () {
+    const t = yield* setup({ built: {}, codeDown: true })
+    return (yield* t.r.start({})) as { notes?: ReadonlyArray<string>; stories: number }
+  }))
+  expect(r.stories).toBe(2)
+  expect(r.notes).toEqual(["the cards' code could not be read: built or not, every card is walked"])
 })

@@ -17,7 +17,7 @@ export default definePlugin({
   // reasoning: let the model reason before answering (off: on cards it reasoned to its token limit and never answered).
   config: Schema.Struct({ workers: Schema.optionalKey(Schema.Number), reasoning: Schema.optionalKey(Schema.Boolean) }),
   pluginDependencies: [Gherkin, Backlog, Rehearse],
-  scopes: { decisions: true, models: ["driver"], agents: true, entities: { read: ["gherkin/*"] } },
+  scopes: { decisions: true, models: ["driver"], agents: true, code: true, entities: { read: ["gherkin/*"] } },
   views: [RollupView, WorkerView],
   methods: {
     act: { doc: "Triage's views: p pauses or resumes (the rollup), d drafts a card again (a worker).", params: Schema.Struct({ agent: Schema.String, action: Schema.String, section: Schema.optionalKey(Schema.String), rows: Schema.Array(Schema.String) }), success: Schema.Struct({ notice: Schema.String }) },

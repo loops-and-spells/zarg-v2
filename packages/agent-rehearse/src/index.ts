@@ -33,7 +33,7 @@ export default definePlugin({
     // One card per run: its progress and its testers.
     { kind: "card", name: "run", view: "run", headline: "progress", recent: "testers" },
   ],
-  scopes: { decisions: true, models: ["rehearse"], agents: true, entities: { read: ["gherkin/*"] }, fs: { read: [".zarg/rehearse/**", "intent/**"], write: [".zarg/rehearse/**"] } },
+  scopes: { decisions: true, models: ["rehearse"], agents: true, code: true, entities: { read: ["gherkin/*"] }, fs: { read: [".zarg/rehearse/**", "intent/**"], write: [".zarg/rehearse/**"] } },
   commands: [
     {
       cmd: "/rehearse",
@@ -99,7 +99,7 @@ export default definePlugin({
           (s) =>
             "refused" in s
               ? { notice: `Rehearse did not start: ${s.refused}` }
-              : { notice: `Rehearse run ${s.run} started: ${s.stories} stories, ${s.steps} steps, testers: ${s.personas.join(", ")}. Watch it in the agents pane (Tab).` },
+              : { notice: `Rehearse run ${s.run} started: ${s.stories} stories, ${s.steps} steps, testers: ${s.personas.join(", ")}.${(s.notes ?? []).length > 0 ? ` Not walked: ${s.notes!.join("; ")}.` : ""} Watch it in the agents pane (Tab).` },
         ),
       act: () => Effect.as(r.refresh, { notice: "refreshed" }),
       result: ({ run: id }: { run: string }) => Effect.succeed(r.result(id)),

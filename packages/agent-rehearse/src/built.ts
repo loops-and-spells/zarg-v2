@@ -16,5 +16,7 @@ export const cutStories = (stories: ReadonlyArray<ReadonlyArray<string>>, built:
     const kept = at >= 0 ? s.slice(0, at) : s
     return kept.length > 0 ? [kept] : []
   })
-  return { stories: out, notes: [...notes.values()] }
+  // Two stories cut to the same path are one story.
+  const seen = new Set<string>()
+  return { stories: out.filter((s) => (seen.has(s.join(">")) ? false : (seen.add(s.join(">")), true))), notes: [...notes.values()] }
 }

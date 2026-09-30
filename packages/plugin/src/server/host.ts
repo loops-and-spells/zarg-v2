@@ -232,6 +232,7 @@ const scopeWords = (s: ManifestScopes) =>
     ...((s.models ?? []).length > 0 ? [`use the model roles ${s.models!.join(", ")}`] : []),
     s.agents === true ? "show agents" : undefined,
     ...(s.entities?.read ?? []).map((t) => `read ${t}`),
+    s.code === true ? "read the code tagged with cards" : undefined,
     ...(s.entities?.command ?? []).map((t) => `change ${t}`),
   ].filter((p) => p !== undefined)
 
@@ -245,7 +246,7 @@ export const describeScopes = (m: { readonly scopes: ManifestScopes; readonly op
 
 /** A plugin with no network, secret or file scope can only touch the graph. */
 // @card UX-0069
-const graphOnly = (m: Manifest) => m.scopes.net === undefined && m.scopes.secrets === undefined && m.scopes.fs === undefined
+const graphOnly = (m: Manifest) => m.scopes.net === undefined && m.scopes.secrets === undefined && m.scopes.fs === undefined && m.scopes.code !== true
 
 interface Running {
   readonly manifest: Manifest
@@ -644,7 +645,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           const r = running.get(owner)
           return r === undefined ? Effect.fail({ message: `${owner} is not running` }) : invoke(r, "$entity", p)
         },
-        ...(opts.projectRoot !== undefined ? { code: codeOf(opts.projectRoot, opts.redact) } : {}),
+        ...(opts.projectRoot !== undefined ? { code: codeOf(opts.projectRoot, opts.redact, ...(opts.userDir !== undefined ? [opts.userDir] : [])) } : {}),
         write: (owner, method, params) => call(`${owner}/${method}`, params).pipe(Effect.mapError((e) => ({ _tag: e._tag, message: e._tag === "LintFailed" ? e.findings.map((f) => f.message).join("; ") : String((e as { message?: unknown }).message ?? e._tag) }))),
         invoke: (owner, method, params) => {
           const r = running.get(owner)

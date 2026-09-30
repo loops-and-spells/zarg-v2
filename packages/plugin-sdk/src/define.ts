@@ -18,6 +18,8 @@ export interface Scopes {
   readonly agents?: boolean
   /** The operator's inbox: topics to ask, post, settle and update. */
   readonly inbox?: boolean
+  /** Read the code tagged with cards (`Entities.code`): source files, beyond the cards themselves. */
+  readonly code?: boolean
   /** Other plugins' entity types it reads or commands (patterns: `plugin/kind`, `plugin/*`); its own always. */
   readonly entities?: { readonly read?: ReadonlyArray<string>; readonly command?: ReadonlyArray<string> }
 }

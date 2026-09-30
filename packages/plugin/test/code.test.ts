@@ -20,3 +20,12 @@ test("a card's code: each tag's file and line and the code after it, stopping at
   expect(code.find((c) => c.file === "long.ts")!.text.split("\n").length).toBe(40)
   expect(await Effect.runPromise(codeOf(root, (t) => t)("UX-0404"))).toEqual([])
 })
+
+test("a tag in a secret or config file, or a symlink, is never served", async () => {
+  const root = mkdtempSync(join(tmpdir(), "zarg-code-"))
+  Bun.spawnSync(["git", "init", "-q"], { cwd: root })
+  writeFileSync(join(root, "bunfig.toml"), `# ${TAG} UX-0001\n[install]\n`)
+  writeFileSync(join(root, "ok.ts"), `// ${TAG} UX-0001\nexport const ok = 1\n`)
+  const code = await Effect.runPromise(codeOf(root, (t) => t)("UX-0001"))
+  expect(code.map((c) => c.file)).toEqual(["ok.ts"])
+})

@@ -85,7 +85,8 @@ describe("zarg cli", () => {
   // @card UX-0001
   test("agenda and focus", () => {
     const ids = json("agenda").map((i: { id: string }) => i.id)
-    expect(ids).toEqual(["plugin-grant:backlog", "plugin-grant:rehearse", "gherkin:dead-end:S-0002"])
+    // First-party plugins that read files or code wait for their grant (triage reads the code tagged with cards).
+    expect(ids).toEqual(["plugin-grant:backlog", "plugin-grant:rehearse", "plugin-grant:triage", "gherkin:dead-end:S-0002"])
     expect(json("query", "neighbors", "S-0001", "--k", "1")).toEqual(["S-0001", "UX-0001"])
   })
 

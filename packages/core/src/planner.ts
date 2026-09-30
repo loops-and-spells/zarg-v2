@@ -91,7 +91,8 @@ export const makePlanner = (d: PlannerDeps) => {
     d.notify()
   }).pipe(lock.withPermits(1))
 
-  const runningPlans = Effect.map(d.running().pipe(Effect.orElseSucceed(() => [])), (rs) => rs.map((r) => ({ id: r.id, plan: r.data as Plan })))
+  // A code plan is the operator's (no graph changes to apply, no pass of its own): a pass's result never moves it.
+  const runningPlans = Effect.map(d.running().pipe(Effect.orElseSucceed(() => [])), (rs) => rs.map((r) => ({ id: r.id, plan: r.data as Plan })).filter((r) => (r.plan as { kind?: string }).kind !== "code"))
   /** A pass landed these cards: a Running plan whose cards all landed (or were removed by it) is ready for review. */
   const landed = (cards: ReadonlyArray<string>) =>
     Effect.gen(function* () {

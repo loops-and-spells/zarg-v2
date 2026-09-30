@@ -117,4 +117,10 @@ describe("the Planner", () => {
       ["call", "gherkin/edit-card", { id: "UX-0031", planned: false }],
     ])
   })
+  test("a code plan the operator moved to Running is theirs: a landed or failed pass leaves it", async () => {
+    const { p, log } = setup({ running: [{ id: "B-05", data: item({ id: "B-05", status: "running", kind: "code" }) }] })
+    await Effect.runPromise(p.landed(["UX-0001"]))
+    await Effect.runPromise(p.failed(["UX-0001"]))
+    expect(log.filter((l) => (l as Array<unknown>)[1] === "moved")).toEqual([])
+  })
 })

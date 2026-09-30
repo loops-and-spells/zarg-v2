@@ -176,4 +176,31 @@ describe("the backlog's topics in the inbox", () => {
     )
     expect(out).toMatchObject({ on: true, operatorNote: "reword the card to match the code" })
   })
+  test("while a run walks the journey, a drift answer changes nothing and its topic settles; the run's end raises it again", async () => {
+    const out = await run((seen) =>
+      Effect.gen(function* () {
+        const { card, h } = yield* setUp()
+        const { ids } = (yield* h.invoke("backlog", "file", { entries: [{ ref: card.ref, journeys: ["Set up"], persona: "Operator", kind: "drift", severity: "medium", note: "differ", from: { agent: "rehearse", run: "r-5" }, triage: { on: true, why: "ask · real 1.00" } }] })) as { ids: string[] }
+        const d = { ...topic(seen, `drift:${ids[0]}`)! }
+        yield* h.invoke("backlog", "walking", { run: "r-6", journeys: ["Set up"] })
+        const during = topic(seen, `drift:${ids[0]}`)?.state
+        const r = (yield* h.invoke("backlog", "answered", { id: d.id, key: `drift:${ids[0]}`, answer: "code" })) as { notice: string }
+        yield* h.invoke("backlog", "walking", { run: "r-6", journeys: [] })
+        const after = (seen.inbox ?? []).filter((t) => t.key === `drift:${ids[0]}` && t.state === "open").length
+        return { during, notice: r.notice, after, plans: (yield* h.invoke("backlog", "next", {})) }
+      }),
+    )
+    expect(out.during).toBe("moot")
+    expect(out.notice).toBe("that feedback's journey is being rehearsed: read-only until the run ends")
+    expect(out.after).toBe(1)
+  })
+  test("Leave it out on a round that moved on changes nothing and says so", async () => {
+    const out = await run(() =>
+      Effect.gen(function* () {
+        const { h } = yield* setUp()
+        return ((yield* h.invoke("backlog", "answered", { id: "T-00000009", key: "left:Set up:UX-0001", answer: "leave" })) as { notice: string }).notice
+      }),
+    )
+    expect(out).toBe("UX-0001 is no longer left out of Set up's round")
+  })
 })

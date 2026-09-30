@@ -332,6 +332,8 @@ export const makePowers = (opts: {
     },
     "entities.call": async (args) => {
       if (opts.entities === undefined) throw pluginError(`${opts.plugin}: this host has no entities`)
+      // Reading the code tagged with cards is its own scope: reading the cards alone does not show the source.
+      if ((args as { op?: unknown }).op === "code" && opts.manifest.scopes.code !== true) throw notGranted(`${opts.plugin}: it has no code scope`)
       return await opts.entities(args)
     },
     ...(opts.snapshot !== undefined ? { "graph.snapshot": async () => await opts.snapshot!() } : {}),

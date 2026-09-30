@@ -34,3 +34,15 @@ test("Inbox: ask waits past the call's deadline for the answer; post and settle 
   const refused = await Effect.runPromise(Effect.exit(hostWith([await fixturePlugin(plugin(`{}`))], (h) => h.invoke("asker", "post", {}), { inbox } as never)))
   expect(JSON.stringify(refused)).toContain("has no inbox scope")
 })
+
+test("a card's code needs the code scope, not only reading the cards", async () => {
+  const src = (scopes: string) => `
+import { Effect, Schema } from "effect"
+import { definePlugin, Entities } from "@zarg/plugin-sdk"
+export default definePlugin({ name: "reader", service: "Reader", archetype: "service", config: Schema.Struct({}), scopes: ${scopes},
+  methods: { go: { doc: "go", params: Schema.Struct({}), success: Schema.Unknown } },
+  make: Effect.gen(function* () { const e = yield* Entities
+    return { go: () => e.code("gherkin/card:UX-0001") } }) })`
+  const refused = await Effect.runPromise(Effect.exit(hostWith([await fixturePlugin(src(`{ entities: { read: ["gherkin/*"] } }`))], (h) => h.invoke("reader", "go", {}))))
+  expect(JSON.stringify(refused)).toContain("has no code scope")
+})
