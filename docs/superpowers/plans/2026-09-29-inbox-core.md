@@ -179,6 +179,8 @@ describe("the inbox", () => {
     expect(byId.has(old)).toBe(false)
     expect([...byId.values()].find((t) => t.blocking)).toMatchObject({ state: "moot", moot: "zarg restarted before it was answered" })
     expect(readdirSync(d.dir)).not.toContain(`${old}.json`)
+    // The corrupt file is reported once, as a report from zarg.
+    expect([...byId.values()].filter((t) => t.kind === "report" && t.title === "Inbox file T-broken.json is not a topic").length).toBe(1)
   })
 })
 ```
@@ -218,14 +220,23 @@ export const makeInbox = (opts: { readonly log: ThreadLog; readonly dir: string;
         yield* Effect.ignore(opts.log.append("main", E.custom(INBOX, { topic: t })))
       })
     // Load: skip what is not a topic, drop closed ones older than a week, and moot blocking ones (their asker is gone).
+    const corrupt: Array<string> = []
     for (const name of readdirSync(opts.dir).filter((n) => n.endsWith(".json"))) {
       let t: Topic | undefined
-      try { t = JSON.parse(readFileSync(join(opts.dir, name), "utf8")) as Topic } catch { continue }
-      if (typeof t?.id !== "string" || typeof t.state !== "string") continue
+      try { t = JSON.parse(readFileSync(join(opts.dir, name), "utf8")) as Topic } catch { corrupt.push(name); continue }
+      if (typeof t?.id !== "string" || typeof t.state !== "string") { corrupt.push(name); continue }
       if (t.state !== "open" && now() - t.updated > WEEK) { rmSync(join(opts.dir, name), { force: true }); continue }
       topics.set(t.id, t)
       if (t.state === "open" && t.blocking) yield* save({ ...t, state: "moot", moot: "zarg restarted before it was answered", updated: now() })
       else yield* Effect.ignore(opts.log.append("main", E.custom(INBOX, { topic: t })))
+    }
+    // A corrupt file is reported once (a report keyed by its name), and skipped.
+    for (const name of corrupt) {
+      const key = `corrupt:${name}`
+      if (![...topics.values()].some((x) => x.key === key)) {
+        const at = now()
+        yield* save({ id: newId(), kind: "report", key, from: { plugin: "zarg" }, title: `Inbox file ${name} is not a topic`, why: "inbox", evidence: `zarg skips .zarg/inbox/${name}. Fix or remove it.`, about: [], blocking: false, messages: [], state: "open", created: at, updated: at })
+      }
     }
     const make = (from: Topic["from"], t: TopicInput, blocking: boolean): Topic => ({ ...t, id: newId(), from, about: t.about ?? [], blocking, messages: [], state: "open", created: now(), updated: now() })
     const check = (t: Topic | undefined, r: Reply): string | undefined => {
@@ -720,6 +731,7 @@ test("home is the inbox: blocking first with ◆, an empty inbox says so, the st
     - space marks it, refused with "a batch is one kind of topic" when its kind differs from the marked ones;
     - with marks, `1-9` answers the batch with the n-th answer of the first marked topic;
     - `a` toggles `all`;
+    - `/` searches: a query ranks rows with `@zarg/bm25` over title, why and evidence (as tables with `search: true` do), and Esc clears it;
     - `z` snoozes (refused locally with the same notice as the core on blocking topics); Esc clears marks.
   - **Topic** (`open`):
     - `1-9` answers the n-th answer;
