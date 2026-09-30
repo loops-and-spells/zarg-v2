@@ -5,7 +5,7 @@ import { lintSlashInput, parseSlashInput, SLASH_COMMANDS, type SlashCycle, type 
 /** Where the keys go: the agents list, the tile area (the open agent's view, or a sheet), the message bar, or a panel. */
 export type Focus = "agents" | "tile" | "bar" | "panel"
 /** What the focus area shows: the grid of agents (home), one agent's view, zarg's conversation, the review queue. */
-export type Main = "grid" | "agent" | "zarg" | "review"
+export type Main = "grid" | "agent" | "zarg" | "review" | "inbox"
 
 /** UI-only state: what is focused and selected. Everything else comes from the session. */
 export interface Ui {
@@ -73,6 +73,15 @@ export interface Ui {
   /** The view a plugin's sheet shows (with `sheet`); undefined: zarg's sheet. */
   readonly sheetOf?: string
   readonly sheetView?: ViewUi
+  /** The inbox: the highlighted row, the open topic (and its highlighted answer), marked rows, answered ones shown, a reason being typed. */
+  readonly inbox: {
+    readonly cursor: number
+    readonly open?: string
+    readonly pick?: number
+    readonly marked: ReadonlyArray<string>
+    readonly all: boolean
+    readonly typing?: { readonly id: string; readonly text: string }
+  }
 }
 
 export interface Agents {
@@ -89,7 +98,7 @@ export const POPOVER_GUARD_MS = 300
 export const NAVIGATE_FRESH_MS = 10_000
 export { CHAT, OTHER }
 
-export const initialUi: Ui = { focus: "bar", sheet: false, main: "grid", back: [], arrived: false, grid: { cursor: 0 }, review: { cursor: 0, selected: [] }, pick: 0, other: false, agents: { toggled: {}, tree: 0 }, popover: { pick: 0 }, seen: {}, closedPanels: [] }
+export const initialUi: Ui = { focus: "bar", sheet: false, main: "inbox", back: [], arrived: false, grid: { cursor: 0 }, review: { cursor: 0, selected: [] }, pick: 0, other: false, agents: { toggled: {}, tree: 0 }, popover: { pick: 0 }, seen: {}, closedPanels: [], inbox: { cursor: 0, marked: [], all: false } }
 
 export interface PickerRow {
   readonly id: string
@@ -212,11 +221,11 @@ export const goTo = (ui: Ui, main: Main, viewing?: string): Ui => {
   const { viewing: _, view: __, ...rest } = ui
   return { ...rest, main, back, ...(main === "agent" && viewing !== undefined ? { viewing } : {}) }
 }
-/** Home: the grid, with zarg's sheet open when nothing is going on and closed when agents work. */
+/** Home: the inbox, with zarg's sheet open when nothing is going on and closed when agents work. */
 export const goHome = (ui: Ui, s: SessionState): Ui => {
   const { viewing: _, view: __, sheetOf: ___, ...rest } = ui
   const idle = !agentsWork(s)
-  return { ...rest, main: "grid", back: [], sheet: idle, focus: idle && ui.focus === "bar" ? "bar" : "tile" }
+  return { ...rest, main: "inbox", back: [], sheet: idle, focus: idle && ui.focus === "bar" ? "bar" : "tile" }
 }
 /** Back one step; with nothing to go back to, home. */
 export const goBack = (ui: Ui, s: SessionState): Ui => {
@@ -618,10 +627,18 @@ export interface Meta {
   readonly mode: "child" | "headless"
 }
 
+/** The inbox's count for the status line: `◆ 1 blocking · 3 open`, or nothing when it is empty. */
+const inboxCount = (s: SessionState) => {
+  const open = Object.values(s.thread.inbox ?? {}).filter((t) => t.state === "open")
+  const blocking = open.filter((t) => t.blocking).length
+  return open.length === 0 ? [] : [blocking > 0 ? `◆ ${blocking} blocking · ${open.length} open` : `${open.length} open`]
+}
 /** Most important first, so a narrow terminal cuts the driver model, never the core state. */
 // @card UX-0067 UX-0070
 export const statusLine = (s: SessionState, meta: Meta) =>
   [
+    // What waits on the operator comes first: a blocked agent must never be out of sight.
+    ...inboxCount(s),
     s.core === "down" ? "core stopped" : `core ${meta.mode}`,
     // Right after the core state: a narrow terminal cuts from the end, and YOLO must stay visible.
     ...(s.thread.yolo === true ? ["YOLO"] : []),
@@ -658,6 +675,11 @@ export type Action =
   | { readonly type: "scroll-talk"; readonly delta: number }
   /** Answer the popover at the head of the queue (a grant). */
   | { readonly type: "answer-prompt"; readonly id: string; readonly choice: string }
+  /** The inbox: answer a topic (an answer, a reason, or both), a batch of one kind, snooze, read. */
+  | { readonly type: "answer-topic"; readonly id: string; readonly answer?: string; readonly text?: string }
+  | { readonly type: "answer-topics"; readonly ids: ReadonlyArray<string>; readonly answer: string }
+  | { readonly type: "snooze-topic"; readonly id: string }
+  | { readonly type: "read-topic"; readonly id: string }
   | { readonly type: "exit" }
 
 /** What a key press does: the next UI state and, maybe, an action for the session. */

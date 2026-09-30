@@ -1,6 +1,6 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
-import type { Panel, Session } from "@zarg/client"
+import type { Panel, Session, Topic } from "@zarg/client"
 import { afterAction, applyMenu, closeMenu, highlightActs, pickCard, pickChoice, pressAction, hintsOf, keyFor, menuAdjust, pickHeader, pickMark, pickRow, pickTab, startUi } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { registerCommands, SLASH_COMMANDS } from "./commands"
@@ -12,12 +12,14 @@ import { contextOf, displayName, railRows } from "./rail"
 import { reviewActs, reviewGroups } from "./review"
 import { Buttons, Heading } from "./sections"
 import { RichText } from "./markdown"
+import { inboxRows } from "./inbox-keys"
 import { onKey, SHELL } from "./layers"
 import { AgentView, NowContext, type Scroller } from "./sections"
 import {
   type Action,
   activate,
   agentDetail,
+  goHome,
   ARCHIVED,
   openAgent,
   treeRows,
@@ -119,6 +121,10 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     else if (action.type === "close-prompt") void props.session.closePrompt(action.id)
     else if (action.type === "review-acts") for (const a of action.acts) void props.session.act(a.agent, a.action, a.section, a.rows)
     else if (action.type === "archive") void props.session.archive(action.change)
+    else if (action.type === "answer-topic") void props.session.answerTopic(action.id, action.answer, action.text)
+    else if (action.type === "answer-topics") void props.session.answerTopics(action.ids, action.answer)
+    else if (action.type === "snooze-topic") void props.session.snoozeTopic(action.id)
+    else if (action.type === "read-topic") void props.session.readTopic(action.id)
     else if (action.type === "answer-agent") {
       const agent = action.agent ?? latest().viewing?.split("@")[0]
       if (agent !== undefined) void props.session.answerAgent(agent, action.question, action.answer)
@@ -200,6 +206,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   )
   // Gutter, space, guide, glyph, space, name, at least one space, note, space: the name gets what is left.
   const railName = (r: { readonly name: string; readonly note: string; readonly guide: string }) => fit(r.name, Math.max(1, inner - 6 - r.guide.length - r.note.length))
+  const inboxOpen = Object.values(s.thread.inbox ?? {}).filter((t) => t.state === "open").length
+  const inboxBlocking = Object.values(s.thread.inbox ?? {}).filter((t) => t.state === "open" && t.blocking).length
   const railLine = (r: { readonly glyph: string; readonly glyphColor: string; readonly name: string; readonly note: string; readonly noteColor?: string; readonly guide: string; readonly on: boolean; readonly dimmed: boolean; readonly onPick?: () => void }) => (
     <text
       wrapMode="none"
@@ -261,8 +269,20 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       ) : (
         <text fg={C.accent}>{"◆"}</text>
       )}
-      {/* VIEWS: plugins' views (Journeys, …); a click or Enter opens one. */}
-      {nav.length > 0 && wide ? band("VIEWS", String(nav.length), C.dim) : null}
+      {/* VIEWS: the inbox (home), then plugins' views (Journeys, …); a click or Enter opens one. */}
+      {wide ? band("VIEWS", String(nav.length + 1), C.dim) : null}
+      <box key="inbox" style={{ flexShrink: 0, height: 1 }}>
+        {railLine({
+          glyph: inboxBlocking > 0 ? "◆" : "▤",
+          glyphColor: inboxBlocking > 0 ? C.attention : ui.main === "inbox" ? C.accent : C.dim,
+          name: "Inbox",
+          note: inboxOpen > 0 ? String(inboxOpen) : "",
+          guide: "",
+          on: ui.main === "inbox" && ui.focus !== "agents",
+          dimmed: false,
+          onPick: () => setUi({ ...goHome(latest(), props.session.state()), sheet: false, focus: "tile" }),
+        })}
+      </box>
       {nav.map((n) => {
         const id = `${NAV}${n.id}`
         const on = (ui.agents.cursor === id && ui.focus === "agents") || n.view === viewing
@@ -789,6 +809,94 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     </box>
   )
 
+  // The inbox (home): every topic that wants the operator, most urgent first; Enter opens one, its answers as buttons.
+  const topics = inboxRows(ui, s)
+  const inboxAt = Math.min(ui.inbox.cursor, Math.max(0, topics.length - 1))
+  const ago = (at: number) => {
+    const m = Math.max(0, Math.floor((Date.now() - at) / 60_000))
+    return m < 1 ? "now" : m < 60 ? `${m}m` : m < 1440 ? `${Math.floor(m / 60)}h` : `${Math.floor(m / 1440)}d`
+  }
+  const topicGlyph = (t: Topic) =>
+    t.state === "answered" ? { g: "✓", c: C.dim } : t.state !== "open" ? { g: "–", c: C.dim } : t.blocking ? { g: "◆", c: C.attention } : (t.answers ?? []).length > 0 ? { g: "◇", c: C.accent } : { g: "·", c: C.dim }
+  const topicHint = (t: Topic) =>
+    [t.kind, ...(t.blocking ? ["waiting"] : []), ...((t.answers ?? []).length > 1 ? [`${t.answers!.length} options`] : []), ...(t.messages.length > 0 ? [`${t.messages.length} ${t.messages.length === 1 ? "reply" : "replies"}`] : [])].join(" · ")
+  const openTopic = ui.inbox.open === undefined ? undefined : s.thread.inbox?.[ui.inbox.open]
+  const inbox =
+    openTopic !== undefined ? (
+      <box style={{ flexGrow: 1, flexDirection: "column", paddingLeft: 2, paddingRight: 2 }}>
+        <text wrapMode="none">
+          <span fg={C.dim}>{"← Inbox   "}</span>
+          <span fg={C.text}>
+            <b>{fit(openTopic.title, focusWidth - 14)}</b>
+          </span>
+        </text>
+        <text fg={C.dim} wrapMode="none">{fit([openTopic.from.agent ?? openTopic.from.plugin, openTopic.kind, openTopic.why, ago(openTopic.created)].filter((x) => x !== "").join(" · "), focusWidth - 4)}</text>
+        <text> </text>
+        <scrollbox focusable={false} style={{ flexGrow: 1 }}>
+          {openTopic.evidence !== undefined ? <RichText content={openTopic.evidence} width={focusWidth - 6} /> : null}
+          {openTopic.messages.map((m, i) => (
+            <box key={`m${i}`} style={{ flexDirection: "column", flexShrink: 0, marginTop: 1 }}>
+              <text fg={C.dim} wrapMode="none">{`${m.by} · ${ago(m.at)}`}</text>
+              <RichText content={m.text} width={focusWidth - 8} />
+            </box>
+          ))}
+          {openTopic.state !== "open" ? <text fg={C.dim}>{openTopic.state === "moot" ? `It stopped mattering: ${openTopic.moot ?? ""}` : `Answered: ${openTopic.answer?.id ?? ""}${openTopic.answer?.text !== undefined ? ` (${openTopic.answer.text})` : ""}`}</text> : null}
+        </scrollbox>
+        {openTopic.state === "open" && (openTopic.answers ?? []).length > 0 ? (
+          <box style={{ flexDirection: "column", flexShrink: 0, marginTop: 1 }}>
+            {openTopic.answers!.map((a, i) => {
+              const on = (ui.inbox.pick ?? 0) === i
+              return (
+                <text key={a.id} wrapMode="none" {...(on ? { bg: C.selection } : {})} onMouseDown={() => act({ type: "answer-topic", id: openTopic.id, answer: a.id })}>
+                  <span fg={C.accent}>{on ? "▍" : " "}</span>
+                  <span fg={C.accent}>{`${i + 1}  `}</span>
+                  <span fg={C.text}>{a.label}</span>
+                  <span fg={C.dim}>{`${a.recommended === true ? "  (recommended)" : ""}${a.why !== undefined ? `  ${a.why}` : ""}`}</span>
+                </text>
+              )
+            })}
+          </box>
+        ) : null}
+        {ui.inbox.typing !== undefined ? (
+          <text wrapMode="none" style={{ marginTop: 1 }}>
+            <span fg={C.accent}>{"› "}</span>
+            <span fg={C.text}>{ui.inbox.typing.text}</span>
+            <span fg={C.dim}>{ui.inbox.typing.text === "" ? `${openTopic.text?.placeholder ?? "the reason"}, Enter to send` : "▏"}</span>
+          </text>
+        ) : null}
+      </box>
+    ) : (
+      <box style={{ flexGrow: 1, flexDirection: "column", paddingLeft: 2, paddingRight: 2 }}>
+        <text wrapMode="none">
+          <span fg={ui.focus === "tile" ? C.accent : C.dim}>
+            <b>inbox</b>
+          </span>
+          <span fg={C.dim}>{`   ${topics.length} ${ui.inbox.all ? "topics" : "open"}${ui.inbox.marked.length > 0 ? ` · ${ui.inbox.marked.length} marked` : ""}`}</span>
+        </text>
+        <text> </text>
+        {topics.length === 0 ? <text fg={C.dim}>Nothing needs you.</text> : null}
+        <scrollbox focusable={false} style={{ flexGrow: 1 }}>
+          {topics.map((t, i) => {
+            const on = i === inboxAt
+            const g = topicGlyph(t)
+            const marked = ui.inbox.marked.includes(t.id)
+            const who = t.from.agent ?? t.from.plugin
+            const hint = topicHint(t)
+            const age = ago(t.created)
+            return (
+              <text key={t.id} wrapMode="none" {...(on ? { bg: C.selection } : {})} onMouseDown={() => setUi({ ...latest(), inbox: { ...latest().inbox, cursor: i, open: t.id } })}>
+                <span fg={C.accent}>{on ? "▍" : " "}</span>
+                <span fg={marked ? C.accent : g.c}>{marked ? "● " : `${g.g} `}</span>
+                <span fg={C.dim}>{`${fit(who, 12).padEnd(12)}  `}</span>
+                <span fg={on ? C.text : t.state === "open" ? C.text : C.dim}>{fit(t.title, Math.max(10, focusWidth - 24 - hint.length - age.length))}</span>
+                <span fg={C.dim}>{`  ${hint}  ${age}`}</span>
+              </text>
+            )
+          })}
+        </scrollbox>
+      </box>
+    )
+
   // ^k: a rounded box over everything: the query, then what it finds.
   const found = ui.palette === undefined ? [] : paletteEntries(s, ui.palette.query, SLASH_COMMANDS)
   const palWidth = Math.min(60, dims.width - 4)
@@ -840,7 +948,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           {shown.top.map(panelBox)}
           <box style={{ flexGrow: 1, flexDirection: "row" }}>
             <box style={{ flexGrow: 1, flexDirection: "column" }}>
-              {narrow && ui.focus === "agents" ? agentsList : ui.main === "zarg" ? sheet : ui.main === "grid" ? grid : ui.main === "review" ? review : view}
+              {narrow && ui.focus === "agents" ? agentsList : ui.main === "zarg" ? sheet : ui.main === "grid" ? grid : ui.main === "review" ? review : ui.main === "inbox" ? inbox : view}
               {!(narrow && ui.focus === "agents") && overSheet ? (
                 <box style={{ position: "absolute", left: 3, right: 3, bottom: 0, height: Math.max(8, Math.floor(areaHeight * 0.65)), flexDirection: "column" }}>
                   <text fg={C.shade} bg={C.bg} wrapMode="none" style={{ flexShrink: 0 }}>

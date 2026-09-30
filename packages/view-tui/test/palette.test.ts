@@ -9,8 +9,8 @@ const s: SessionState = { thread: { ...initial("main"), rlms: { "p:tester-1": no
 const commands = [{ cmd: "/rehearse", desc: "testers walk the journeys" }, { cmd: "/yolo", desc: "YOLO on or off" }]
 
 describe("the palette", () => {
-  test("agents, then the grid, review and zarg, then commands; the query filters them", () => {
-    expect(paletteEntries(s, "", commands).map((e) => e.label)).toEqual(["tester-1", "tester-2", "grid", "review", "zarg", "/rehearse", "/yolo"])
+  test("agents, then the inbox, the agents grid, review and zarg, then commands; the query filters them", () => {
+    expect(paletteEntries(s, "", commands).map((e) => e.label)).toEqual(["tester-1", "tester-2", "inbox", "agents", "review", "zarg", "/rehearse", "/yolo"])
     expect(paletteEntries(s, "TES", commands).map((e) => e.label)).toEqual(["tester-1", "tester-2"])
     expect(paletteEntries(s, "nothing like it", commands)).toEqual([])
   })

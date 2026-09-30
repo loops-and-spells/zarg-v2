@@ -22,7 +22,8 @@ export const paletteEntries = (s: SessionState, query: string, commands: Readonl
       go: { main: "agent", viewing: n.id },
     }))
   const places: ReadonlyArray<PaletteEntry> = [
-    { id: "grid", glyph: "▦", label: "grid", detail: "all agents", go: { main: "grid" } },
+    { id: "inbox", glyph: "▤", label: "inbox", detail: "what needs you", go: { main: "inbox" } },
+    { id: "grid", glyph: "▦", label: "agents", detail: "all agents, as cards", go: { main: "grid" } },
     { id: "review", glyph: "●", label: "review", detail: "every agent's findings", go: { main: "review" } },
     { id: "zarg", glyph: "›", label: "zarg", detail: "the conversation", go: { main: "zarg" } },
   ]

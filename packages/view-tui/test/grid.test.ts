@@ -48,7 +48,7 @@ describe("the grid", () => {
   })
   test("keys on the grid: arrows move, ⏎ opens the card's agent, its action key acts on it", () => {
     const s = st({ "p:t1": plugin("p:t1", "running"), "p:t2": plugin("p:t2", "running") }, { views: { "p:t1": tester as never } })
-    const ui: Ui = { ...syncUi(initialUi, s), focus: "tile" }
+    const ui: Ui = { ...syncUi(initialUi, s), main: "grid", focus: "tile" }
     const moved = onKey(ui, s, { name: "right" }, 0)
     expect(moved.by).toBe("grid")
     expect(moved.ui.grid.cursor).toBe(1)
@@ -60,14 +60,14 @@ describe("the grid", () => {
 describe("grid review fixes", () => {
   test("the cursor follows its agent when the order changes", () => {
     const s = st({ "p:a": plugin("p:a", "running"), "p:b": plugin("p:b", "running") })
-    const on = onKey({ ...syncUi(initialUi, s), focus: "tile" }, s, { name: "right" }, 0).ui
+    const on = onKey({ ...syncUi(initialUi, s), main: "grid", focus: "tile" }, s, { name: "right" }, 0).ui
     const reordered = st({ "p:a": plugin("p:a", "running"), "p:b": plugin("p:b", "running"), "p:c": plugin("p:c", "done", { attention: { reason: "r", since: 1 } }) })
     const after = syncUi(on, reordered)
     expect(onKey(after, reordered, { name: "return" }, 0).ui).toMatchObject({ viewing: "p:b" })
   })
   test("Esc on the grid goes back", () => {
     const s = st({ "p:a": plugin("p:a", "running") })
-    const ui: Ui = { ...syncUi(initialUi, s), focus: "tile", back: [{ main: "review" }] }
+    const ui: Ui = { ...syncUi(initialUi, s), main: "grid", focus: "tile", back: [{ main: "review" }] }
     expect(onKey(ui, s, { name: "escape" }, 0).ui.main).toBe("review")
   })
   test("the grid's shape: two columns beside the rail at 100 columns; one when the terminal is narrow", () => {

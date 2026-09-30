@@ -93,6 +93,16 @@ const settle = async (t: { renderOnce: () => Promise<void>; waitForVisualIdle: (
   await t.waitForVisualIdle()
 }
 
+// Home is the inbox: go to the grid the way the operator does, ^k "agents" ⏎.
+const toGrid = async <T extends { mockInput: { pressKey: (k: string, m?: { ctrl?: boolean }) => void; typeText: (s: string) => Promise<void>; pressEnter: () => void }; renderOnce: () => Promise<void>; waitForVisualIdle: () => Promise<unknown> }>(t: T) => {
+  t.mockInput.pressKey("k", { ctrl: true })
+  await settle(t)
+  await t.mockInput.typeText("agents")
+  t.mockInput.pressEnter()
+  await settle(t)
+  return t
+}
+
 describe("tui frames", () => {
   // @card UX-0076
   test("zarg's sheet renders Mermaid inside agent messages", async () => {
@@ -203,11 +213,11 @@ describe("tui frames", () => {
     expect(t.captureCharFrame()).toContain("› Login")
   })
 
-  test("Escape in the view goes back to the grid; zarg's question waits in the bar, alt+m opens it", async () => {
+  test("Escape in the view goes back home to the inbox; zarg's question waits in the bar, alt+m opens it", async () => {
     const t = await openTester({ width: 130, height: 22 })
     t.mockInput.pressEscape()
     await settle(t)
-    expect(t.captureCharFrame()).toContain("all agents")
+    expect(t.captureCharFrame()).toContain("Nothing needs you.")
     expect(t.captureCharFrame()).toContain("◆ zarg asks Which card first?")
     t.mockInput.pressKey("m", { meta: true })
     await settle(t)
@@ -219,7 +229,7 @@ describe("tui frames", () => {
   test("with no agent open, zarg's sheet holds its messages and its question beside the agents list", async () => {
     const t = await render(waiting)
     const lines = t.captureCharFrame().split("\n")
-    expect(lines[0]).toContain("agents")
+    expect(lines[0]).toContain("inbox")
     expect(lines.find((l) => l.includes("zarg  The agenda is empty."))).toBeDefined()
     const q = lines.find((l) => l.includes("Which card first?") && !l.includes("zarg asks"))
     expect(q).toBeDefined()
@@ -356,9 +366,9 @@ describe("tui frames", () => {
     expect(t.captureCharFrame()).toContain("research rlm-2: Find")
     t.mockInput.pressEscape()
     await settle(t)
-    // Back to where it was opened from: the grid, with zarg's sheet inset over it.
+    // Back to where it was opened from: home, the inbox, with zarg's sheet inset over it.
     expect(t.captureCharFrame()).toContain("The agenda is empty.")
-    expect(t.captureCharFrame()).toContain("all agents")
+    expect(t.captureCharFrame()).toContain("Nothing needs you.")
   })
 
   test("a plugin agent's view: its steps, a Findings table, and a key that acts on the highlighted row", async () => {
@@ -591,7 +601,7 @@ describe("the shell", () => {
   test("the agents list runs full height on the left; the bar sits under the tile area only", async () => {
     const t = await render(idleState, wide)
     const lines = t.captureCharFrame().split("\n")
-    expect(lines[0]).toContain("agents")
+    expect(lines[0]).toContain("inbox")
     // The bar starts with the keys: you can type to zarg at once.
     const bar = lines.findIndex((l) => l.includes("type a message"))
     expect(bar).toBeGreaterThan(10)
@@ -845,20 +855,35 @@ describe("focuses", () => {
     const n = (id: string) => ({ id, parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [], row: { text: `walking ${id}` } })
     return { ...idleState, thread: { ...idleState.thread, rlms: { "p:a": n("p:a"), "p:b": n("p:b") }, views: { "p:a": v("p:a", ["R-1", "R-3"]), "p:b": v("p:b", ["R-2"]) } } }
   }
-  test("arrival with agents working: their cards, no sheet", async () => {
+  test("arrival with agents working: the inbox, no sheet", async () => {
     const t = await render(two(), big)
     const f = t.captureCharFrame()
-    expect(f).toContain("all agents")
-    expect(f).toContain("walking p:a")
-    expect(f).toMatch(/╭/)
+    expect(f).toContain("inbox")
+    expect(f).toContain("Nothing needs you.")
     expect(f).not.toContain("zarg  Hello.")
+  })
+  test("the inbox: blocking first with ◆, a report with ·; the status line counts; Enter opens a topic and a number answers it", async () => {
+    const topic = (id: string, over: Record<string, unknown>) => ({ id, kind: "grant", from: { plugin: "backlog" }, title: `title ${id}`, why: "fs write", about: [], blocking: false, messages: [], state: "open", created: Date.now(), updated: 0, ...over })
+    const inbox = {
+      "T-2": topic("T-2", { kind: "report", from: { plugin: "rehearse" }, title: "Watch agents run done" }),
+      "T-1": topic("T-1", { blocking: true, title: "backlog wants to write .zarg/triage", answers: [{ id: "once", label: "Allow once", recommended: true }, { id: "deny", label: "Deny" }], evidence: "Refine saves the round." }),
+    }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, inbox } as never }, big)
+    const f = t.captureCharFrame()
+    expect(f.indexOf("◆ backlog")).toBeGreaterThan(-1)
+    expect(f.indexOf("◆ backlog")).toBeLessThan(f.indexOf("· rehearse"))
+    expect(f).toContain("◆ 1 blocking · 2 open")
+    t.mockInput.pressEnter(); await settle(t)
+    expect(t.captureCharFrame()).toContain("Refine saves the round.")
+    t.mockInput.pressKey("2"); await settle(t)
+    expect(t.calls).toContain("topic T-1 deny")
   })
   test("arrival with nothing working: the grid behind zarg's open sheet", async () => {
     const t = await render(idleState, big)
     expect(t.captureCharFrame()).toContain("zarg  Hello.")
   })
   test("⏎ on a card opens its view; Esc comes back to the grid", async () => {
-    const t = await render(two(), big)
+    const t = await toGrid(await render(two(), big))
     t.mockInput.pressEnter()
     await settle(t)
     expect(t.captureCharFrame()).toContain("note R-1")
@@ -867,7 +892,7 @@ describe("focuses", () => {
     expect(t.captureCharFrame()).toContain("all agents")
   })
   test("a click on a card opens its view", async () => {
-    const t = await render(two(), big)
+    const t = await toGrid(await render(two(), big))
     const lines = t.captureCharFrame().split("\n")
     const y = lines.findIndex((l) => l.includes("walking p:b"))
     await t.mockMouse.click(lines[y]!.indexOf("walking p:b") + 2, y)
@@ -908,7 +933,7 @@ describe("focuses", () => {
     expect(t.captureCharFrame()).toContain("note R-2")
   })
   test("at 80×24 the grid is one column", async () => {
-    const t = await render(two(), { width: 80, height: 24 })
+    const t = await toGrid(await render(two(), { width: 80, height: 24 }))
     const lines = t.captureCharFrame().split("\n")
     const a = lines.findIndex((l) => l.includes("walking p:a"))
     const b = lines.findIndex((l) => l.includes("walking p:b"))
@@ -941,7 +966,7 @@ describe("focus review fixes (frames)", () => {
     const n = { id: "p:a", parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [], row: { text: "walking p:a" } }
     fake.update({ thread: { ...initial("main"), seq: 30, rlms: { "p:a": n }, messages: [{ id: "m1", role: "assistant", text: "Hello." }] }, core: "up" })
     await settle(t)
-    expect(t.captureCharFrame()).toContain("walking p:a")
+    expect(t.captureCharFrame()).toContain("Nothing needs you.")
     expect(t.captureCharFrame()).not.toContain("zarg  Hello.")
   })
 })
@@ -949,7 +974,7 @@ describe("focus review fixes (frames)", () => {
 describe("the inset sheet", () => {
   test("zarg's sheet rises from the bar inset over the grid: the top cards and the edges stay visible", async () => {
     const n = (id: string) => ({ id, parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [], row: { text: `walking ${id}` } })
-    const t = await render({ ...idleState, thread: { ...idleState.thread, rlms: { "p:a": n("p:a"), "p:b": n("p:b") } } }, { width: 130, height: 32 })
+    const t = await toGrid(await render({ ...idleState, thread: { ...idleState.thread, rlms: { "p:a": n("p:a"), "p:b": n("p:b") } } }, { width: 130, height: 32 }))
     t.mockInput.pressKey("m", { meta: true })
     await settle(t)
     t.mockInput.pressKey("m", { meta: true })

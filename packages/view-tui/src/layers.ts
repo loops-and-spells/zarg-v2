@@ -1,3 +1,5 @@
+import { openTopics } from "@zarg/client"
+import { inboxKey } from "./inbox-keys"
 import type { SessionState } from "@zarg/client"
 import { closeMenu, dispatch, focused, type InputKey, type InputLayer, keyFor, type KeyHint, leafOf, printable, startUi, type ViewState, type ViewUi } from "@zarg/view"
 import { gridCards, gridCursor } from "./grid"
@@ -18,6 +20,7 @@ import {
   POPOVER_GUARD_MS,
   focusBar,
   goBack,
+  goHome,
   goTo,
   type Key,
   onAgentsKey,
@@ -85,8 +88,13 @@ const slashFrom = (ui: Ui, s: SessionState) => {
   return { ui: { ...focusBar(ui, s), ...(q !== undefined ? { chatting: q.id, other: false } : {}) }, draft: "/" }
 }
 
-/** g: the next agent that needs the operator, the ones not yet seen first, then tree order (zarg first). */
+/** g: a blocking topic first (open in the inbox), then the next agent that needs the operator, the ones not yet seen first, then tree order (zarg first). */
 const nextAttention = (ui: Ui, s: SessionState) => {
+  const blocking = openTopics(s.thread).find((t) => t.blocking && t.id !== ui.inbox.open)
+  if (blocking !== undefined) {
+    const home = goHome(ui, s)
+    return { ui: { ...home, sheet: false, focus: "tile" as const, inbox: { ...home.inbox, open: blocking.id, pick: 0 } } }
+  }
   const all = attentionOf(s.thread.rlms)
   if (all.length === 0) return { ui }
   const unseen = all.filter((a) => ui.seen[a.id] !== s.thread.rlms[a.id]?.attention?.since)
@@ -346,6 +354,25 @@ export const SHELL: ReadonlyArray<Layer> = [
               ? { action: { type: "scroll" as const, delta: r.scroll } }
               : {}),
       }
+    },
+  },
+  {
+    // The inbox (home): the list and the open topic; its own keys first, then g, / and ⇥ as anywhere.
+    id: "inbox",
+    when: (ui) => ui.focus === "tile" && ui.main === "inbox" && !ui.sheet,
+    hints: (ui) =>
+      ui.inbox.typing !== undefined
+        ? [{ keys: "Enter", does: "send" }, { keys: "Esc", does: "cancel" }]
+        : ui.inbox.open !== undefined
+          ? [{ keys: "1-9", does: "answer" }, { keys: "t", does: "with a reason" }, { keys: "z", does: "snooze" }, { keys: "Esc", does: "back" }]
+          : [{ keys: "↑↓", does: "move" }, { keys: "Enter", does: "open" }, { keys: "1-9", does: "answer" }, { keys: "Space", does: "mark" }, { keys: "a", does: "all" }],
+    handle: (ui, w, k) => {
+      if (ui.inbox.typing === undefined) {
+        const c = common(ui, w, k)
+        if (c !== undefined) return c
+      }
+      const r = inboxKey(ui, w.s, k)
+      return r.ui === ui && r.action === undefined ? "pass" : r
     },
   },
   {
