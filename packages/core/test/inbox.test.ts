@@ -3,6 +3,8 @@ import { existsSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Fiber } from "effect"
+import { makeLog } from "../src/log"
+import { makeInbox } from "../src/inbox"
 import { dirs, setup } from "./inbox-helper"
 
 const grant = { kind: "grant", title: "backlog wants to write .zarg/triage", why: "fs write", answers: [{ id: "once", label: "Allow once" }, { id: "deny", label: "Deny", reason: "optional" as const }] }
@@ -35,6 +37,8 @@ describe("the inbox", () => {
     expect(b).toBe(a)
     expect(inbox.list().map((t) => t.title)).toEqual(["again"])
     await Effect.runPromise(inbox.answer(a, { answer: "once" }))
+    // The plugin hears of it in the background.
+    await Bun.sleep(5)
     expect(answered).toEqual([[a, { answer: "once" }]])
   })
   test("batch: same kind, all offering the answer; else nothing is applied", async () => {
@@ -88,5 +92,40 @@ describe("the inbox", () => {
     expect(readdirSync(d.dir)).not.toContain(`${old}.json`)
     // The corrupt file is reported once, as a report from zarg.
     expect([...byId.values()].filter((t) => t.kind === "report" && t.title === "Inbox file T-broken.json is not a topic").length).toBe(1)
+  })
+  test("a plugin cannot choose a topic's id, owner or state: update and post take only topic fields", async () => {
+    const { inbox, d } = await setup()
+    const victim = await Effect.runPromise(inbox.post({ plugin: "v" }, grant))
+    const mine = await Effect.runPromise(inbox.post(from, { ...grant, key: "k" }))
+    await Effect.runPromise(inbox.update("backlog", mine, { id: victim, from: { plugin: "v" }, state: "open", title: "hijacked" } as never))
+    await Effect.runPromise(inbox.update("backlog", mine, { id: "../escaped" } as never))
+    await Effect.runPromise(inbox.post(from, { ...grant, key: "k", id: victim, blocking: true, state: "answered" } as never))
+    expect(inbox.list().find((t) => t.id === victim)).toMatchObject({ title: grant.title, from: { plugin: "v" } })
+    expect(inbox.list().find((t) => t.id === mine)).toMatchObject({ from: { plugin: "backlog" }, state: "open", blocking: false })
+    expect(existsSync(join(d.dir, "..", "escaped.json"))).toBe(false)
+  })
+  test("a batch answers each topic once", async () => {
+    const { inbox, answered } = await setup()
+    const a = await Effect.runPromise(inbox.post(from, grant))
+    expect(await Effect.runPromise(inbox.answerMany([a, a], { answer: "once" }))).toEqual({ ok: true, notice: "1 answered" })
+    await Bun.sleep(5)
+    expect(answered.length).toBe(1)
+  })
+  test("the answer does not wait for the plugin's answered", async () => {
+    const d = dirs()
+    const log = await Effect.runPromise(makeLog(d.log, (t) => t))
+    const inbox = await Effect.runPromise(makeInbox({ log, dir: d.dir, answered: () => Effect.sleep("2 seconds") }))
+    const id = await Effect.runPromise(inbox.post(from, grant))
+    const t0 = Date.now()
+    await Effect.runPromise(inbox.answer(id, { answer: "once" }))
+    expect(Date.now() - t0).toBeLessThan(500)
+  })
+  test("a plugin that exits leaves its waiting asks moot", async () => {
+    const { inbox } = await setup()
+    const f = Effect.runFork(Effect.exit(inbox.ask(from, { ...grant, blocking: true })))
+    await Bun.sleep(5)
+    await Effect.runPromise(inbox.stopped("backlog"))
+    expect(inbox.list()[0]).toMatchObject({ state: "moot", moot: "backlog stopped" })
+    expect((await Effect.runPromise(Fiber.join(f)))._tag).toBe("Failure")
   })
 })

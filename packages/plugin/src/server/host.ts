@@ -106,6 +106,8 @@ export interface HostOptions {
   readonly projectRoot?: string
   /** The decision model for plugins with the decisions scope. */
   readonly decide?: (req: unknown) => Effect.Effect<unknown, unknown>
+  /** A plugin's process ended by itself (a crash, a deadline): what it was waiting on is over. */
+  readonly stopped?: (plugin: string) => void
   /** The operator's inbox (the `Inbox` power), per plugin. */
   readonly inbox?: (plugin: string, op: "ask" | "post" | "settle" | "update", args: unknown) => Effect.Effect<unknown, unknown>
   /** A model role for plugins with the models scope. */
@@ -376,6 +378,9 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           // @card UX-0068
           onExit: (why) => {
             if (why === "stop") return
+            // Its questions to the operator die with it: nothing waits on them any more.
+            asking = 0
+            opts.stopped?.(m.name)
             const now = Date.now()
             restarts.push(now)
             while (restarts.length > 0 && now - restarts[0]! > RESTART_WINDOW_MS) restarts.shift()

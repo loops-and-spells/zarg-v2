@@ -200,7 +200,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     control.setInbox((plugin, op, args) => {
       const a = args as { topic?: TopicInput; id?: string; why?: string; patch?: Partial<TopicInput> & { message?: string } }
       return op === "ask" ? inbox.ask({ plugin }, a.topic!) : op === "post" ? inbox.post({ plugin }, a.topic!) : op === "settle" ? inbox.settle(plugin, a.id ?? "", a.why ?? "") : inbox.update(plugin, a.id ?? "", a.patch ?? {})
-    })
+    }, (plugin) => void Effect.runFork(inbox.stopped(plugin)))
     control.setAsk((q) =>
       prompts
         .ask({ question: `Plugin ${q.plugin} wants to ${q.what}.`, options: q.options.map((o) => ({ id: o.id, label: o.label, ...(o.id === "once" ? { recommended: true } : {}) })), allowOther: false, kind: "grant" })

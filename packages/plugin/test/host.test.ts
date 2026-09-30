@@ -264,6 +264,13 @@ describe("plugins in their processes", () => {
     expect(out.after).toContain("disabled")
     expect(out.agenda).toContain("plugin-disabled:notes")
   })
+  test("a plugin that ends by itself (a deadline, a crash) is reported stopped: the core moots what it waited on", async () => {
+    const stopped: Array<string> = []
+    await runWith(() => [notes], () => ({ ...options(), stopped: (p: string) => void stopped.push(p) }), Effect.gen(function* () {
+      yield* Effect.flip((yield* PluginHost).call("notes/spin", {}))
+    }))
+    expect(stopped).toContain("notes")
+  })
 })
 
 describe("review fixes: the host", () => {

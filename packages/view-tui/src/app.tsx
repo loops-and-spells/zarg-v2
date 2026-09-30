@@ -12,7 +12,7 @@ import { contextOf, displayName, railRows } from "./rail"
 import { reviewActs, reviewGroups } from "./review"
 import { Buttons, Heading } from "./sections"
 import { RichText } from "./markdown"
-import { inboxRows } from "./inbox-keys"
+import { inboxRows, openTopicUi } from "./inbox-keys"
 import { onKey, SHELL } from "./layers"
 import { AgentView, NowContext, type Scroller } from "./sections"
 import {
@@ -884,7 +884,11 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             const hint = topicHint(t)
             const age = ago(t.created)
             return (
-              <text key={t.id} wrapMode="none" {...(on ? { bg: C.selection } : {})} onMouseDown={() => setUi({ ...latest(), inbox: { ...latest().inbox, cursor: i, open: t.id } })}>
+              <text key={t.id} wrapMode="none" {...(on ? { bg: C.selection } : {})} onMouseDown={() => {
+                  const r = openTopicUi({ ...latest(), inbox: { ...latest().inbox, cursor: i } }, t)
+                  setUi(r.ui)
+                  act(r.action)
+                }}>
                 <span fg={C.accent}>{on ? "▍" : " "}</span>
                 <span fg={marked ? C.accent : g.c}>{marked ? "● " : `${g.g} `}</span>
                 <span fg={C.dim}>{`${fit(who, 12).padEnd(12)}  `}</span>

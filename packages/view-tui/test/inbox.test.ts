@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { initial, type SessionState } from "@zarg/client"
-import { inboxKey, inboxRows } from "../src/inbox-keys"
-import { initialUi, type Ui } from "../src/view"
+import { inboxKey, inboxRows, openTopicUi } from "../src/inbox-keys"
+import { goHome, initialUi, type Ui } from "../src/view"
 
 const topic = (id: string, over: Record<string, unknown> = {}) => ({ id, kind: "grant", from: { plugin: "backlog" }, title: `t ${id}`, why: "fs write", about: [], blocking: false, messages: [], state: "open", created: Number(id.slice(2)), updated: 0, answers: [{ id: "once", label: "Allow once" }, { id: "deny", label: "Deny", reason: "optional" }], ...over })
 const s = (...ts: Array<ReturnType<typeof topic>>) => ({ core: "up", thread: { ...initial("main"), inbox: Object.fromEntries(ts.map((t) => [t.id, t])) } }) as unknown as SessionState
@@ -35,4 +35,16 @@ test("a report opened is read; a shows answered ones too", () => {
   const st = s(topic("T-1", { kind: "report", answers: undefined }), topic("T-2", { state: "answered" }))
   expect(inboxKey(home, st, key("return")).action).toEqual({ type: "read-topic", id: "T-1" })
   expect(inboxRows(inboxKey(home, st, key("a")).ui, st).map((t) => t.id)).toEqual(["T-2", "T-1"])
+})
+
+test("opening a topic by click: the recommended answer highlighted (not the last topic's), the keys to the inbox; a report is read", () => {
+  const st = s(topic("T-1", { answers: [{ id: "a", label: "A" }, { id: "b", label: "B", recommended: true }] }), topic("T-2", { kind: "report", answers: undefined }))
+  const r = openTopicUi({ ...home, focus: "bar", inbox: { ...home.inbox, pick: 5 } }, st.thread.inbox!["T-1"]!)
+  expect([r.ui.inbox.open, r.ui.inbox.pick, r.ui.focus]).toEqual(["T-1", 1, "tile"])
+  expect(openTopicUi(home, st.thread.inbox!["T-2"]!).action).toEqual({ type: "read-topic", id: "T-2" })
+})
+test("home on arrival: zarg's sheet stays closed while topics wait, so the inbox shows", () => {
+  const st = s(topic("T-1"))
+  expect(goHome(initialUi, st)).toMatchObject({ main: "inbox", sheet: false })
+  expect(goHome(initialUi, s())).toMatchObject({ main: "inbox", sheet: true })
 })

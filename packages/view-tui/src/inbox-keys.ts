@@ -17,9 +17,9 @@ const withInbox = (ui: Ui, patch: Patch): Ui => {
 }
 const digit = (k: Key) => (/^[1-9]$/.test(k.name) ? Number(k.name) - 1 : undefined)
 const answersOf = (t: Topic | undefined) => t?.answers ?? []
-/** Opening a topic: a report (nothing to answer) is read by being opened. */
-const open = (ui: Ui, t: Topic): Out => ({
-  ui: withInbox(ui, { open: t.id, pick: Math.max(0, answersOf(t).findIndex((a) => a.recommended === true)) }),
+/** Opening a topic (Enter or a click): the keys to the inbox, its recommended answer highlighted; a report (nothing to answer) is read by being opened. */
+export const openTopicUi = (ui: Ui, t: Topic): Out => ({
+  ui: { ...withInbox(ui, { open: t.id, pick: Math.max(0, answersOf(t).findIndex((a) => a.recommended === true)), typing: undefined }), focus: "tile" },
   ...(t.state === "open" && !t.blocking && answersOf(t).length === 0 ? { action: { type: "read-topic" as const, id: t.id } } : {}),
 })
 
@@ -61,7 +61,7 @@ export const inboxKey = (ui: Ui, s: SessionState, k: Key): Out => {
   if (k.name === "a") return { ui: withInbox(ui, { all: !ui.inbox.all, cursor: 0 }) }
   if (k.name === "escape" && ui.inbox.marked.length > 0) return { ui: withInbox(ui, { marked: [] }) }
   if (here === undefined) return { ui }
-  if (k.name === "return") return open(ui, here)
+  if (k.name === "return") return openTopicUi(ui, here)
   if (k.name === "space") {
     const marked = ui.inbox.marked
     if (marked.includes(here.id)) return { ui: withInbox(ui, { marked: marked.filter((m) => m !== here.id) }) }

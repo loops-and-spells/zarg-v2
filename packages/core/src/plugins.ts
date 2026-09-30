@@ -36,7 +36,7 @@ export class PluginControl extends Context.Service<
     /** Where plugins' agents go (main's agents pane), set once the log exists. */
     readonly setAgents: (f: (plugin: string, event: unknown) => void) => void
     /** Where plugins' inbox calls go (the core's inbox), set once it exists; until then they fail. */
-    readonly setInbox: (f: NonNullable<HostOptions["inbox"]>) => void
+    readonly setInbox: (f: NonNullable<HostOptions["inbox"]>, stopped: (plugin: string) => void) => void
     /** Plugins zarg ships (loaded from its own packages): trusted where a third party is not. */
     readonly firstParty: (plugin: string) => boolean
     readonly yolo: {
@@ -128,6 +128,7 @@ export const pluginHostLayer = (opts: {
   let agendaChanged: (plugin: string) => void = () => {}
   let agents: (plugin: string, event: unknown) => void = () => {}
   let inbox: NonNullable<HostOptions["inbox"]> = () => Effect.fail(new Error("the inbox is not ready"))
+  let stopped: (plugin: string) => void = () => {}
   const yolo = yoloState(userDir, opts.root, opts.yolo === true)
   const own = new Set<string>()
   const control = PluginControl.of({
@@ -135,7 +136,10 @@ export const pluginHostLayer = (opts: {
     setAsk: (a) => void (ask = a),
     setAgendaChanged: (f) => void (agendaChanged = f),
     setAgents: (f) => void (agents = f),
-    setInbox: (f) => void (inbox = f),
+    setInbox: (f, s) => {
+      inbox = f
+      stopped = s
+    },
     yolo,
   })
   const host = Layer.unwrap(
@@ -163,6 +167,7 @@ export const pluginHostLayer = (opts: {
         agendaChanged: (plugin) => agendaChanged(plugin),
         agents: (plugin, event) => agents(plugin, event),
         inbox: (plugin, op, args) => inbox(plugin, op, args),
+        stopped: (plugin) => stopped(plugin),
         budget: (name) => {
           const b = (opts.pluginConfig?.(name) as { budget?: { decisions_per_hour?: number; tokens_per_hour?: number } } | undefined)?.budget
           return b === undefined ? undefined : { decisionsPerHour: b.decisions_per_hour ?? 20_000, tokensPerHour: b.tokens_per_hour ?? 2_000_000 }

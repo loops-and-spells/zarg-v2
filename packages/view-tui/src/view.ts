@@ -221,10 +221,11 @@ export const goTo = (ui: Ui, main: Main, viewing?: string): Ui => {
   const { viewing: _, view: __, ...rest } = ui
   return { ...rest, main, back, ...(main === "agent" && viewing !== undefined ? { viewing } : {}) }
 }
-/** Home: the inbox, with zarg's sheet open when nothing is going on and closed when agents work. */
+/** Home: the inbox, with zarg's sheet open when nothing is going on (no agent works, no topic waits) and closed otherwise. */
 export const goHome = (ui: Ui, s: SessionState): Ui => {
   const { viewing: _, view: __, sheetOf: ___, ...rest } = ui
-  const idle = !agentsWork(s)
+  const waiting = Object.values(s.thread.inbox ?? {}).some((t) => t.state === "open")
+  const idle = !agentsWork(s) && !waiting
   return { ...rest, main: "inbox", back: [], sheet: idle, focus: idle && ui.focus === "bar" ? "bar" : "tile" }
 }
 /** Back one step; with nothing to go back to, home. */

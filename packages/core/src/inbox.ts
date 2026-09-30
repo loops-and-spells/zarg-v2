@@ -25,6 +25,22 @@ export type Topic = TopicInput & {
 export type Reply = { readonly answer?: string; readonly text?: string }
 
 const WEEK = 7 * 24 * 3600 * 1000
+const ID = /^T-[0-9a-f]{8}$/
+const str = (x: unknown) => (typeof x === "string" ? x : undefined)
+/** What a plugin may say of a topic: its fields, checked; never its id, owner, state or whether it blocks. */
+const fields = (x: Partial<TopicInput>): Partial<TopicInput> => {
+  const out: Record<string, unknown> = {}
+  for (const k of ["kind", "title", "why", "evidence", "key"] as const) if (str(x[k]) !== undefined) out[k] = x[k]
+  if (Array.isArray(x.about)) out.about = x.about.filter((a) => typeof a === "string")
+  if (x.severity === "high" || x.severity === "medium" || x.severity === "low") out.severity = x.severity
+  if (Array.isArray(x.answers))
+    out.answers = x.answers
+      .filter((a) => str(a?.id) !== undefined && str(a?.label) !== undefined)
+      .map((a) => ({ id: a.id, label: a.label, ...(a.recommended === true ? { recommended: true } : {}), ...(str(a.why) !== undefined ? { why: a.why } : {}), ...(a.reason === "optional" || a.reason === "required" ? { reason: a.reason } : {}) }))
+  if (str(x.text?.placeholder) !== undefined) out.text = { placeholder: x.text!.placeholder }
+  if (str(x.origin?.view) !== undefined) out.origin = { view: x.origin!.view, ...(str(x.origin!.row) !== undefined ? { row: x.origin!.row } : {}) }
+  return out as Partial<TopicInput>
+}
 const newId = () => `T-${crypto.randomUUID().replaceAll("-", "").slice(0, 8)}`
 
 /** The operator's inbox: topics raised by plugins and the core, one file each, every change logged on main. */
@@ -36,6 +52,8 @@ export const makeInbox = (opts: { readonly log: ThreadLog; readonly dir: string;
     const waiting = new Map<string, Deferred.Deferred<Reply>>()
     const save = (t: Topic) =>
       Effect.gen(function* () {
+        // The id names the file: only the inbox's own ids (T-<8 hex>), never a path.
+        if (!ID.test(t.id)) return yield* Effect.die(new Error(`not an inbox topic id: ${t.id}`))
         topics.set(t.id, t)
         const file = join(opts.dir, `${t.id}.json`)
         writeFileSync(`${file}.tmp`, `${JSON.stringify(t, null, 2)}\n`)
@@ -61,7 +79,10 @@ export const makeInbox = (opts: { readonly log: ThreadLog; readonly dir: string;
         yield* save({ id: newId(), kind: "report", key, from: { plugin: "zarg" }, title: `Inbox file ${name} is not a topic`, why: "inbox", evidence: `zarg skips .zarg/inbox/${name}. Fix or remove it.`, about: [], blocking: false, messages: [], state: "open", created: at, updated: at })
       }
     }
-    const make = (from: Topic["from"], t: TopicInput, blocking: boolean): Topic => ({ ...t, id: newId(), from, about: t.about ?? [], blocking, messages: [], state: "open", created: now(), updated: now() })
+    const make = (from: Topic["from"], input: TopicInput, blocking: boolean): Topic => {
+      const t = fields(input)
+      return { ...t, kind: t.kind ?? "question", title: t.title ?? "", why: t.why ?? "", id: newId(), from, about: t.about ?? [], blocking, messages: [], state: "open", created: now(), updated: now() }
+    }
     const check = (t: Topic | undefined, r: Reply): string | undefined => {
       if (t === undefined) return "no such topic"
       if (t.state !== "open") return `that topic is ${t.state}`
@@ -71,13 +92,17 @@ export const makeInbox = (opts: { readonly log: ThreadLog; readonly dir: string;
       if (a.reason === "required" && (r.text ?? "").trim() === "") return `${a.label} needs a reason`
       return undefined
     }
-    const settleOne = (t: Topic, r: Reply, by: string) =>
+    const settleOne = (t0: Topic, r: Reply, by: string) =>
       Effect.gen(function* () {
+        // Still open now (a batch runs one by one; another client may have answered meanwhile).
+        const t = topics.get(t0.id)
+        if (t === undefined || t.state !== "open") return
         const done: Topic = { ...t, state: "answered", answer: { ...(r.answer !== undefined ? { id: r.answer } : {}), ...(r.text !== undefined ? { text: r.text } : {}), by, at: now() }, updated: now() }
         yield* save(done)
         const d = waiting.get(t.id)
         if (d !== undefined) { waiting.delete(t.id); yield* Deferred.succeed(d, r) }
-        else if (opts.answered !== undefined) yield* Effect.ignore(opts.answered(done, r))
+        // The plugin hears of it in the background: the operator's answer never waits on a plugin.
+        else if (opts.answered !== undefined) yield* Effect.forkDetach(Effect.ignore(opts.answered(done, r)))
       })
     const mine = (plugin: string, id: string) => {
       const t = topics.get(id)
@@ -103,7 +128,7 @@ export const makeInbox = (opts: { readonly log: ThreadLog; readonly dir: string;
       post: (from: Topic["from"], input: TopicInput) =>
         Effect.gen(function* () {
           const same = input.key === undefined ? undefined : [...topics.values()].find((x) => x.from.plugin === from.plugin && x.key === input.key && x.state === "open")
-          const t: Topic = same !== undefined ? { ...same, ...input, about: input.about ?? same.about, updated: now() } : make(from, input, false)
+          const t: Topic = same !== undefined ? { ...same, ...fields(input), updated: now() } : make(from, input, false)
           yield* save(t)
           return t.id
         }),
@@ -121,7 +146,7 @@ export const makeInbox = (opts: { readonly log: ThreadLog; readonly dir: string;
           if (!("id" in t)) return t
           const { message, ...rest } = patch
           const { snoozed: _, ...woken } = t
-          yield* save({ ...woken, ...rest, messages: message === undefined ? t.messages : [...t.messages, { by: plugin, at: now(), text: message }], updated: now() })
+          yield* save({ ...woken, ...fields(rest), messages: typeof message !== "string" ? t.messages : [...t.messages, { by: plugin, at: now(), text: message }], updated: now() })
           return { notice: "updated" }
         }),
       answer: (id: string, r: Reply, by = "operator") =>
@@ -134,7 +159,7 @@ export const makeInbox = (opts: { readonly log: ThreadLog; readonly dir: string;
         }),
       answerMany: (ids: ReadonlyArray<string>, r: Reply, by = "operator") =>
         Effect.gen(function* () {
-          const ts = ids.map((id) => topics.get(id))
+          const ts = [...new Set(ids)].map((id) => topics.get(id))
           const kinds = new Set(ts.map((t) => t?.kind))
           const why = kinds.size > 1 ? "a batch is one kind of topic" : ts.map((t) => check(t, r)).find((x) => x !== undefined)
           if (why !== undefined) return { ok: false, notice: why }
@@ -155,6 +180,18 @@ export const makeInbox = (opts: { readonly log: ThreadLog; readonly dir: string;
           if (t === undefined || t.state !== "open" || (t.answers ?? []).length > 0 || t.blocking) return { ok: false, notice: "only reports are read" }
           yield* save({ ...t, state: "read", updated: now() })
           return { ok: true, notice: "read" }
+        }),
+      /** A plugin stopped (it exited, crashed or restarted): the asks it was waiting on are moot, and their callers fail. */
+      stopped: (plugin: string) =>
+        Effect.gen(function* () {
+          for (const t of [...topics.values()].filter((x) => x.from.plugin === plugin && x.state === "open" && x.blocking)) {
+            yield* save({ ...t, state: "moot", moot: `${plugin} stopped`, updated: now() })
+            const d = waiting.get(t.id)
+            if (d !== undefined) {
+              waiting.delete(t.id)
+              yield* Deferred.interrupt(d)
+            }
+          }
         }),
       list: () => [...topics.values()],
     }
