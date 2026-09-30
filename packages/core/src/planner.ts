@@ -96,7 +96,15 @@ export const makePlanner = (d: PlannerDeps) => {
   const landed = (cards: ReadonlyArray<string>) =>
     Effect.gen(function* () {
       // Landed cards are built now: planned is cleared (affected ignores it, so no pass follows).
-      if (cards.length > 0) yield* Effect.ignore(d.calls(cards.map((id) => ({ name: "gherkin/edit-card", params: { id, planned: false } })), { before: Effect.void, failure: () => Effect.void, after: () => Effect.void }))
+      // One call per card (one that fails leaves the rest), committed when it changed the card.
+      for (const id of cards)
+        yield* Effect.ignore(
+          d.calls([{ name: "gherkin/edit-card", params: { id, planned: false } }], {
+            before: Effect.void,
+            failure: () => Effect.void,
+            after: (_, touched) => (touched.length > 0 ? Effect.asVoid(Effect.ignore(d.commit(touched, `req: ${id} is built (landed)`))) : Effect.void),
+          }),
+        )
       const done = new Set(cards)
       for (const { id, plan } of yield* runningPlans) {
         const ids = cardIds(plan)

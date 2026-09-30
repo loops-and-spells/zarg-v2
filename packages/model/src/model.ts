@@ -44,7 +44,6 @@ export const make = (providers: ReadonlyArray<Provider>, config: ZargConfig) =>
       if (settings === undefined) continue
       clients.set(p.name, yield* p.connect(settings))
     }
-    // @card UX-0030
     const client = (name: string) => {
       const c = clients.get(name)
       return c === undefined
@@ -76,7 +75,6 @@ export const make = (providers: ReadonlyArray<Provider>, config: ZargConfig) =>
       client,
       list,
       info,
-      // @card UX-0037
       warm: (ref) =>
         Effect.gen(function* () {
           const { provider, model } = yield* splitRef(ref)

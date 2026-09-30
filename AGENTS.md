@@ -68,7 +68,7 @@ This repo's requirements live in its own zarg graph under `.zarg/graph`.
 - Use the `zarg-drive` skill (`.claude/skills/zarg-drive/SKILL.md`) to refine requirements. It edits only the graph.
 - Use the `zarg-implement` skill (`.claude/skills/zarg-implement/SKILL.md`) to make code match the graph when no zarg core is running (a running core plans and implements on its own). It edits only code and `.zarg/plans`.
 - Never edit `.zarg/graph` files by hand. Change them through `zarg tool call`.
-- Tag code that implements a card with a `// @card <id>` comment (for example `// @card UX-0003`), and its test. A card with no code yet is `planned` (`gherkin/edit-card {"planned": true}`). `mise run audit` (part of `verify`) fails on an untagged card, a planned card with tags, or a tag naming no card.
+- Tag code that implements a card with a `// @card <id>` comment (the id as in `UX-0003`), and its test. A card with no code yet is `planned` (`gherkin/edit-card {"planned": true}`). `mise run audit` (part of `verify`) fails on an untagged card, a planned card with tags, or a tag naming no card.
 
 ## Tasks
 

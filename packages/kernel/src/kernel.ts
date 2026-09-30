@@ -187,7 +187,6 @@ export const make = (opts: KernelOptions) =>
         })
         send(answer)
       }
-      // @card UX-0048
       if (def === undefined || handler === undefined) {
         reply(Exit.fail({ _tag: "UnknownService", message: `${m.service}.${m.method} is not in this kernel's layer` }))
         return Effect.void

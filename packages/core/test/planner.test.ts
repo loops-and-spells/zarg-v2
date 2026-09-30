@@ -7,7 +7,7 @@ const item = (over: Record<string, unknown> = {}) => ({
   changes: [{ tool: "edit-state", params: { id: "S-0002", text: "x" } }, { tool: "add-card", params: { title: "y" } }],
   feedback: [], steps: [], status: "ready", events: [], ...over,
 })
-const setup = (o: { next?: unknown; fail?: string; reconcile?: boolean; running?: ReadonlyArray<unknown>; movedFails?: boolean; dirty?: ReadonlyArray<string>; gone?: ReadonlyArray<string> } = {}) => {
+const setup = (o: { planned?: ReadonlyArray<string>; next?: unknown; fail?: string; reconcile?: boolean; running?: ReadonlyArray<unknown>; movedFails?: boolean; dirty?: ReadonlyArray<string>; gone?: ReadonlyArray<string> } = {}) => {
   const log: Array<unknown> = []
   let nexts = [o.next === undefined ? item() : o.next]
   const p = makePlanner({
@@ -28,7 +28,12 @@ const setup = (o: { next?: unknown; fail?: string; reconcile?: boolean; running?
             yield* Effect.ignore(hooks.failure(b, touched))
             return yield* Effect.fail({ touched, error: { _tag: "LintFailed", message: `${c.name}: ${o.fail}` } })
           }
+          if (c.name === "gherkin/edit-card" && (c.params as { id: string }).id === "UX-GONE") {
+            yield* Effect.ignore(hooks.failure(b, touched))
+            return yield* Effect.fail({ touched, error: { _tag: "ToolError", message: "no card UX-GONE" } })
+          }
           log.push(["call", c.name, c.params])
+          if (c.name === "gherkin/edit-card" && (o.planned ?? []).includes((c.params as { id: string }).id)) touched.push((c.params as { id: string }).id)
           touched.push(...(c.name.endsWith("add-card") ? ["UX-0009"] : c.name.endsWith("edit-state") ? ["S-0002"] : []))
         }
         return { touched, before: b, after: yield* hooks.after(b, touched) }
@@ -103,11 +108,12 @@ describe("the Planner", () => {
       ["backlog", "moved", { id: "B-03", to: "ready", by: "reconcile", what: "the pass failed on UX-0007", needs: "the reconcile pass failed on UX-0007: see the driver's agenda, then move it to Ready" }],
     ])
   })
-  test("a landed pass clears planned on its cards: they are built now", async () => {
-    const { p, log } = setup({ running: [] })
-    await Effect.runPromise(p.landed(["UX-0026", "UX-0031"]))
+  test("a landed pass clears planned on its cards and commits it; a card that fails does not stop the rest", async () => {
+    const { p, log } = setup({ running: [], planned: ["UX-0026"] })
+    await Effect.runPromise(p.landed(["UX-GONE", "UX-0026", "UX-0031"]))
     expect(log).toEqual([
       ["call", "gherkin/edit-card", { id: "UX-0026", planned: false }],
+      ["commit", ["UX-0026"], "req: UX-0026 is built (landed)"],
       ["call", "gherkin/edit-card", { id: "UX-0031", planned: false }],
     ])
   })

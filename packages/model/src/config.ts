@@ -132,7 +132,6 @@ export const layer = (opts: { readonly userDir: string; readonly projectDir: str
   Layer.effect(Config, load(opts))
 
 /** The model reference configured for a role, or a ConfigError naming the key to set. */
-// @card UX-0034
 export const roleModel = (config: ZargConfig, role: string) =>
   config.roles[role] === undefined
     ? Effect.fail(new ConfigError({ message: `no model for role "${role}"; set roles.${role} in .zarg/config.toml`, key: `roles.${role}` }))

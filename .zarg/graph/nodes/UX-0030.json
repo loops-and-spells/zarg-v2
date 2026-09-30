@@ -19,6 +19,7 @@
   ],
   "id": "UX-0030",
   "props": {
+    "planned": true,
     "title": "A role needs a missing key",
     "when": "a role uses a provider without a key"
   },

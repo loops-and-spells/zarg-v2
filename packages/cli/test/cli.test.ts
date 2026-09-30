@@ -94,6 +94,10 @@ describe("zarg cli", () => {
     git("add", "app.ts")
     expect(json("query", "code", "UX-0999")).toEqual([`app.ts:1:${tag}`])
     expect(json("query", "code", "UX-0998")).toEqual([])
+    // The second id on a tag line is found too.
+    await Bun.write(join(dir, "two.ts"), `// ${"@" + "card"} UX-0997 UX-0996\n`)
+    expect(json("query", "code", "UX-0996")).toEqual([`two.ts:1:// ${"@" + "card"} UX-0997 UX-0996`])
+    require("node:fs").rmSync(join(dir, "two.ts"))
   })
 
   test("a malformed --expect is an error, not ignored", () => {

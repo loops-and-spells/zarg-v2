@@ -19,6 +19,7 @@
   ],
   "id": "UX-0038",
   "props": {
+    "planned": true,
     "title": "Driver Agent starts after warm-up",
     "when": "the Driver Agent reads the agenda"
   },

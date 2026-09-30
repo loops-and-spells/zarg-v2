@@ -123,7 +123,7 @@ describe("zarg-core process", () => {
       JSON.stringify({
         cells: [
           'yield* Rlm.done({ value: { plan: "## Approach\\nAdd it.\\n## Files\\n- src/UX-0001.ts — new\\n## Tests\\n- none — stub\\n## Depends on\\nnone" } })',
-          'yield* Fs.write({ path: "src/UX-0001.ts", content: "// @card UX-0001\\nexport const ok = true\\n" })\nyield* Rlm.done({ value: { files: ["src/UX-0001.ts"], summary: "added" } })',
+          'yield* Fs.write({ path: "src/UX-0001.ts", content: "// @" + "card UX-0001\\nexport const ok = true\\n" })\nyield* Rlm.done({ value: { files: ["src/UX-0001.ts"], summary: "added" } })',
         ],
       }),
     )

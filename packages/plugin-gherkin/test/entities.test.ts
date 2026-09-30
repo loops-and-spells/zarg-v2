@@ -23,6 +23,11 @@ describe("gherkin card entities", () => {
     const joined = Snapshot.make([...s.nodes.values()].map((n) => (n.id === "UX-0062" ? { ...n, edges: [...n.edges, { type: "gherkin/in", to: "J-0001" }] } : n)) as never)
     expect(cardVersion(joined, "UX-0062")).toBe(cardVersion(s, "UX-0062"))
   })
+  test("marking it planned does not (it is not what a tester reads)", () => {
+    const s = graph("asked once")
+    const planned = Snapshot.make([...s.nodes.values()].map((n) => (n.id === "UX-0062" ? { ...n, props: { ...n.props, planned: true } } : n)) as never)
+    expect(cardVersion(planned, "UX-0062")).toBe(cardVersion(s, "UX-0062"))
+  })
   test("an unrelated node does not", () => {
     expect(cardVersion(graph("asked once", "a"), "UX-0062")).toBe(cardVersion(graph("asked once", "b"), "UX-0062"))
   })
