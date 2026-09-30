@@ -179,17 +179,20 @@ export const addCard = tool({
 
 export const editCard = tool({
   name: "edit-card",
-  description: "Change a card's title or When.",
+  description: "Change a card's title or When, or mark it planned (true: not built yet; false: clears it).",
   params: Schema.Struct({
     id: Schema.String,
     title: Schema.optionalKey(Schema.NonEmptyString),
     when: Schema.optionalKey(Schema.NonEmptyString),
+    planned: Schema.optionalKey(Schema.Boolean),
   }),
-  run: ({ id, ...patch }, snap) =>
-    Effect.map(getNode(snap, id, CARD), (n) => ({
-      changes: [Put({ ...n, props: { ...n.props, ...patch } })],
-      message: `updated ${id}`,
-    })),
+  run: ({ id, planned, ...patch }, snap) =>
+    Effect.map(getNode(snap, id, CARD), (n) => {
+      // planned is stored only while true: false removes it.
+      const { planned: was, ...rest } = n.props
+      const keep = planned ?? was === true
+      return { changes: [Put({ ...n, props: { ...rest, ...patch, ...(keep ? { planned: true } : {}) } })], message: `updated ${id}` }
+    }),
 })
 
 export const link = tool({

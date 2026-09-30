@@ -29,6 +29,13 @@ describe("affectedCards", () => {
     expect(affectedCards(base, after)).toEqual({ cards: [], removed: ["UX-2"] })
     expect(affectedCards(base, base)).toEqual({ cards: [], removed: [] })
   })
+  test("a change to planned alone affects no card", () => {
+    const planned = (c: ReturnType<typeof card>) => ({ ...c, props: { ...c.props, planned: true } })
+    const after = snap(state("S-1", "home"), state("S-2", "cart"), state("S-3", "paid"), planned(card("UX-1", "S-1", ["S-2"])), card("UX-2", "S-2", ["S-3"]))
+    expect(affectedCards(base, after).cards).toEqual([])
+    const reworded = snap(state("S-1", "home"), state("S-2", "cart"), state("S-3", "paid"), planned(card("UX-1", "S-1", ["S-2"], "the user taps")), card("UX-2", "S-2", ["S-3"]))
+    expect(affectedCards(after, reworded).cards).toEqual(["UX-1"])
+  })
 })
 
 test("a persona's text change affects no card; a card's by change affects that card", () => {

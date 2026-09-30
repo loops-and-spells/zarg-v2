@@ -16,6 +16,7 @@ export const renderCard = (snap: Snapshot.Snapshot, card: Node): string => {
   const names = by.map((id) => { const n = snap.nodes.get(id); return n === undefined ? `<missing ${id}>` : personaName(n) })
   return [
     `${card.id} ${String(card.props.title)}`,
+    ...(card.props.planned === true ? ["  Status planned"] : []),
     ...(by.length > 0 ? [`  By    ${names.join(", ")}  # ${by.join(", ")}`] : []),
     ...(tags.length > 0 ? [`  In    ${tags.map((id) => { const n = snap.nodes.get(id); return n === undefined ? `<missing ${id}>` : journeyName(n) }).join(", ")}  # ${tags.join(", ")}`] : []),
     ...givens.map((id, i) => line(i === 0 ? "Given" : "And", snap, id)),

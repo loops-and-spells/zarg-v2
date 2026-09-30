@@ -212,3 +212,18 @@ describe("gherkin rules", () => {
     expect(r.changed).toEqual(["UX-0004"])
   })
 })
+
+test("a planned card says so under its title; planned: false clears it", async () => {
+  const [on, off] = await run(
+    Effect.gen(function* () {
+      yield* pricing
+      yield* call("edit-card", { id: "UX-0003", planned: true })
+      const on = yield* PluginHost.use((h) => h.render(new Set(["UX-0003"])))
+      yield* call("edit-card", { id: "UX-0003", planned: false })
+      const off = yield* PluginHost.use((h) => h.render(new Set(["UX-0003"])))
+      return [on, off] as const
+    }),
+  )
+  expect(on.split("\n").slice(0, 2)).toEqual(["UX-0003 Visitor picks Pro", "  Status planned"])
+  expect(off).not.toContain("Status")
+})
