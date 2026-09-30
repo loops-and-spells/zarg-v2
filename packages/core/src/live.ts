@@ -13,7 +13,7 @@ import { PluginHost } from "@zarg/plugin/server"
 import { openrouter } from "@zarg/provider-openrouter"
 import { zargRouter } from "@zarg/provider-zarg-router"
 import { decisionsService, type Question, Rlm, settings } from "@zarg/rlm"
-import type { AgentHost } from "@zarg/agent-host"
+import type { AgentHost, Thread } from "@zarg/agent-host"
 import { closeStale, makeActivity } from "./activity"
 import { type Archive, makeArchive, parseTtl } from "./archive"
 import { threadViews } from "./views"
@@ -74,7 +74,15 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     const prompts = makePrompts(log)
     yield* prompts.closeStale
     // The operator's inbox: a posted topic's answer goes to the plugin that raised it (its `answered` method).
-    const inbox = yield* makeInbox({ log, dir: join(root, ".zarg", "inbox"), answered: (t, r) => (t.from.plugin === "zarg" ? Effect.void : Effect.ignore(host.invoke(t.from.plugin, "answered", { id: t.id, ...r }))) })
+    // zarg's own questions go to its main thread (set once it exists): it resumes the question or hears the answer as a message.
+    let zargThread: Thread | undefined
+    const inbox = yield* makeInbox({
+      log,
+      dir: join(root, ".zarg", "inbox"),
+      answered: (t, r) =>
+        t.from.plugin !== "zarg" ? Effect.ignore(host.invoke(t.from.plugin, "answered", { id: t.id, ...r })) : t.from.agent === "zarg" && zargThread?.inbox !== undefined ? zargThread.inbox.answered(t, r) : Effect.void,
+      replied: (t, text) => (t.from.plugin === "zarg" && t.from.agent === "zarg" && zargThread?.inbox !== undefined ? zargThread.inbox.replied(t, text) : Effect.void),
+    })
     // Panels, tiles and sheets plugins open; a new core starts with none (the last core's agents are over).
     const surfaces = makeSurfaces(log, "main")
     yield* surfaces.announce
@@ -139,6 +147,13 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       agenda,
       outsideReads: outsideReads({ grants: agentGrants, userDir: USER_DIR, ask: ((q: Question) => grantAsk(inbox)({ plugin: "zarg", agent: "agents" }, q)) as never, yolo: () => yoloControl.on("zarg:agents") }),
       panels: { open: (p) => surfaces.openPanel({ ...p, id: `zarg:${p.name}:zarg`, plugin: "zarg", agent: "zarg" }) },
+      // zarg's questions: blocking topics that survive a restart (the answer reaches zarg whenever it comes).
+      inbox: {
+        post: (t) => inbox.raise({ plugin: "zarg", agent: "zarg" }, t, { blocking: true, durable: true }),
+        answer: (id, reply, by) => inbox.answer(id, reply, by),
+        settle: (id, why) => inbox.settle("zarg", id, why),
+        message: (id, by, text) => inbox.message(id, by, text),
+      },
     }
     const zarg = yield* trustedAgents(ZARG_ROOT).pipe(
       Effect.map((agents) => agents.find((a) => a.name === "zarg")),
@@ -158,6 +173,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     })
     // A plugin's grant question is asked on main, like any driver question.
     const main = yield* threads.get("main", [])
+    zargThread = main
     // Plugins waiting on their grant load, then clients fetch their commands again.
     // The loaded plugins' nav items, for every client (again whenever more plugins load).
     const announceNav = Effect.suspend(() => log.append("main", E.activitySnapshot("main:nav", { items: navItems(host.manifests) }, NAV)))

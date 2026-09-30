@@ -367,7 +367,7 @@ export const SHELL: ReadonlyArray<Layer> = [
           ? (() => {
               const t = w.s.thread.inbox?.[ui.inbox.open!]
               const answerable = t?.state === "open" && ((t.answers ?? []).length > 0 || t.text !== undefined)
-              return [...(answerable ? [{ keys: "1-9", does: "answer" }, { keys: "t", does: "with a reason" }] : []), ...(t?.origin !== undefined ? [{ keys: "o", does: "open" }] : []), { keys: "z", does: "snooze" }, { keys: "Esc", does: "back" }]
+              return [...(answerable ? [{ keys: "1-9", does: "answer" }, { keys: "t", does: "with a reason" }] : []), ...(t?.state === "open" ? [{ keys: "r", does: "reply" }] : []), ...(t?.origin !== undefined ? [{ keys: "o", does: "open" }] : []), { keys: "z", does: "snooze" }, { keys: "Esc", does: "back" }]
             })()
           : [{ keys: "↑↓", does: "move" }, { keys: "Enter", does: "open" }, { keys: "1-9", does: "answer" }, { keys: "Space", does: "mark" }, { keys: "a", does: "all" }],
     handle: (ui, w, k) => {

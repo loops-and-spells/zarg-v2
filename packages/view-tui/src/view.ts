@@ -80,7 +80,8 @@ export interface Ui {
     readonly pick?: number
     readonly marked: ReadonlyArray<string>
     readonly all: boolean
-    readonly typing?: { readonly id: string; readonly text: string }
+    /** A line being typed in the open topic: a reason with the highlighted answer, or a reply (`reply`: chat about it). */
+    readonly typing?: { readonly id: string; readonly text: string; readonly reply?: boolean }
   }
 }
 
@@ -650,11 +651,11 @@ const inboxCount = (s: SessionState) => {
 // @card UX-0067 UX-0070
 export const statusLine = (s: SessionState, meta: Meta) =>
   [
-    // What waits on the operator comes first: a blocked agent must never be out of sight.
-    ...inboxCount(s),
     s.core === "down" ? "core stopped" : `core ${meta.mode}`,
     // Right after the core state: a narrow terminal cuts from the end, and YOLO must stay visible.
     ...(s.thread.yolo === true ? ["YOLO"] : []),
+    // Then what waits on the operator: a blocked agent must not be out of sight.
+    ...inboxCount(s),
     s.thread.status,
     `thread ${meta.threadId}`,
     meta.driver ?? "driver model unknown",
@@ -693,6 +694,8 @@ export type Action =
   | { readonly type: "answer-topics"; readonly ids: ReadonlyArray<string>; readonly answer: string }
   | { readonly type: "snooze-topic"; readonly id: string }
   | { readonly type: "read-topic"; readonly id: string }
+  /** A reply in a topic: talk it over with whoever asked. */
+  | { readonly type: "reply-topic"; readonly id: string; readonly text: string }
   | { readonly type: "exit" }
 
 /** What a key press does: the next UI state and, maybe, an action for the session. */

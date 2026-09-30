@@ -32,6 +32,8 @@ export const inboxKey = (ui: Ui, s: SessionState, k: Key): Out => {
     const t = s.thread.inbox?.[typing.id]
     if (k.name === "escape") return { ui: withInbox(ui, { typing: undefined }) }
     if (k.name === "backspace") return { ui: withInbox(ui, { typing: { ...typing, text: typing.text.slice(0, -1) } }) }
+    if (k.name === "return" && typing.reply === true)
+      return typing.text.trim() === "" ? { ui } : { ui: withInbox(ui, { typing: undefined }), action: { type: "reply-topic", id: typing.id, text: typing.text } }
     if (k.name === "return") {
       const answer = answersOf(t)[ui.inbox.pick ?? 0]?.id
       return { ui: withInbox(ui, { typing: undefined, open: undefined }), action: { type: "answer-topic", id: typing.id, ...(answer !== undefined ? { answer } : {}), text: typing.text } }
@@ -51,6 +53,7 @@ export const inboxKey = (ui: Ui, s: SessionState, k: Key): Out => {
     }
     if (k.name === "return" && answersOf(t)[ui.inbox.pick ?? 0] !== undefined) return { ui: withInbox(ui, { open: undefined }), action: { type: "answer-topic", id: openId, answer: answersOf(t)[ui.inbox.pick ?? 0]!.id } }
     if (k.name === "t" && t?.state === "open" && (answersOf(t).length > 0 || t.text !== undefined)) return { ui: withInbox(ui, { typing: { id: openId, text: "" } }) }
+    if (k.name === "r" && t?.state === "open") return { ui: withInbox(ui, { typing: { id: openId, text: "", reply: true } }) }
     if (k.name === "z") return { ui, action: { type: "snooze-topic", id: openId } }
     if (k.name === "o" && t?.origin !== undefined) return { ui: goTo(ui, "agent", t.origin.view) }
     return { ui }

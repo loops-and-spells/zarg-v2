@@ -7,7 +7,7 @@ import * as E from "@zarg/core/events"
 import type { NextOption } from "./intent"
 import type { Interrupt } from "@ag-ui/core"
 import type { WireEvent } from "@zarg/core"
-import type { Thread } from "@zarg/agent-host"
+import type { AgentInbox, InboxTopicRef, Thread } from "@zarg/agent-host"
 import type { ThreadLog } from "@zarg/core"
 
 /** An agenda item for the driver's prompt; a plugin's text is marked as that plugin's, not the operator's or zarg's. */
@@ -57,6 +57,8 @@ export interface ThreadDeps {
   readonly whatNext?: (focus: ReadonlySet<string> | undefined) => Effect.Effect<ReadonlyArray<NextOption>, unknown>
   /** Gaps found in code (plugins' suggest), for the "what next" question when the agenda is empty. */
   readonly suggest?: (focus: ReadonlySet<string> | undefined) => Effect.Effect<ReadonlyArray<AgendaItem>, unknown>
+  /** The operator's inbox: each question is a topic there too, answered there or in the bar (whichever comes first). */
+  readonly inbox?: AgentInbox
 }
 
 // The agenda the driver sees up front; the rest it can still read with Graph.agenda.
@@ -71,6 +73,8 @@ interface Pending {
   readonly answer: Deferred.Deferred<Answer>
   /** The AG-UI interrupt, kept to send again to a run that brings no answer. */
   readonly interrupt: Interrupt
+  /** Its inbox topic, when there is an inbox. */
+  readonly topic?: string
 }
 
 /** One driver thread: a loop of driver RLMs, one per agenda item, paused at inquiries. */
@@ -118,6 +122,13 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
       return emitAll(E.textMessage(`${threadId}-${crypto.randomUUID()}`, role, text))
     }
 
+    // The question's inbox topic: best effort (the bar still asks without it). Topics answered here are not heard back.
+    const answeredHere = new Set<string>()
+    const topicSay = (f: (i: AgentInbox) => Effect.Effect<unknown, unknown>) => (deps.inbox === undefined ? Effect.void : Effect.ignore(f(deps.inbox)))
+    const answerTopic = (p: Pending, reply: { readonly answer?: string; readonly text?: string }, by: string) =>
+      p.topic === undefined ? Effect.void : Effect.andThen(Effect.sync(() => answeredHere.add(p.topic!)), topicSay((i) => i.answer(p.topic!, reply, by)))
+    const settleTopics = (ps: ReadonlyArray<Pending>, why: string) => Effect.forEach(ps.filter((p) => p.topic !== undefined), (p) => topicSay((i) => i.settle(p.topic!, why)), { discard: true })
+
     // Inquire: park the cell and end the current run with an interrupt; a later run's resume answers it.
     const loopAsk = (question: Question) =>
         Effect.gen(function* () {
@@ -135,9 +146,24 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
                 ],
               },
             } as unknown as Interrupt
+          // @card UX-0009 UX-0011
+          const topic =
+            deps.inbox === undefined
+              ? undefined
+              : yield* deps.inbox
+                  .post({
+                    kind: "question",
+                    title: question.question,
+                    why: "zarg asks",
+                    about: question.about ?? [],
+                    answers: question.options.map((o) => ({ id: o.id, label: o.label, ...(o.recommended === true ? { recommended: true } : {}), ...(o.why !== undefined ? { why: o.why } : {}) })),
+                    ...((question.allowOther ?? true) ? { text: { placeholder: question.otherLabel ?? "your own answer" } } : {}),
+                    key: id,
+                  })
+                  .pipe(Effect.orElseSucceed(() => undefined))
           yield* locked(
             Effect.gen(function* () {
-              queue.push({ id, question, answer, interrupt })
+              queue.push({ id, question, answer, interrupt, ...(topic !== undefined ? { topic } : {}) })
               syncAttention()
               // Behind another question: shown once that one is answered.
               if (queue.length === 1) yield* emit(E.runInterrupted(threadId, runId, interrupt))
@@ -156,13 +182,23 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
         if (option === undefined) {
           return yield* Effect.fail<ServiceFailure>({ _tag: "InvalidChoice", message: `${c.choice} is not an option of "${q.question}" (${q.options.map((o) => o.id).join(", ")})` })
         }
+        const p = discussed[at]!
         discussed.splice(at, 1)
         yield* note("assistant", `zarg chose ${option.label} for you: ${c.why}`)
+        yield* answerTopic(p, { answer: option.id, text: c.why }, "zarg")
         return { choice: option.id }
       })
     const asker: Asker = {
       // A new question from the driver replaces any it was discussing.
-      ask: (q) => Effect.andThen(Effect.sync(() => void (discussed.length = 0)), loopAsk(q)),
+      ask: (q) =>
+        Effect.andThen(
+          Effect.suspend(() => {
+            const was = [...discussed]
+            discussed.length = 0
+            return settleTopics(was, "zarg asked again")
+          }),
+          loopAsk(q),
+        ),
       choose,
     }
 
@@ -313,6 +349,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
             // zarg's own what-next question, set aside because new work arrived: nothing to say for the operator.
             queue.shift()
             syncAttention()
+            yield* settleTopics([head], "new work arrived")
             yield* Deferred.succeed(head.answer, { other: "" })
           } else if (resume !== undefined && head !== undefined && resume.interruptId === head.id) {
             // @card UX-0009 UX-0011
@@ -323,6 +360,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
             queue.shift()
             syncAttention()
             yield* note("user", chosen?.label ?? String(payload.other ?? ""))
+            yield* answerTopic(p, payload.choice !== undefined ? { answer: payload.choice } : { text: String(payload.other ?? "") }, "operator")
             yield* Deferred.succeed(p.answer, answer)
           } else if (input.message !== undefined && head !== undefined) {
             // A message instead of an answer: the operator is discussing the question. It stays open (for
@@ -332,6 +370,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
             syncAttention()
             // @card UX-0012
             discussed.push(p)
+            if (!fromInbox.has(input.runId) && p.topic !== undefined) yield* topicSay((i) => i.message(p.topic!, "you", input.message!))
             yield* note("user", input.message)
             yield* note("assistant", `(discussing: ${p.question.question})`)
             yield* Deferred.succeed(p.answer, { other: input.message, interjected: true, question: p.id } as Answer)
@@ -364,6 +403,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
       Effect.gen(function* () {
         const f = loop
         loopGen++
+        yield* settleTopics([...queue, ...discussed], "zarg was stopped")
         dropLoopQuestions()
         paused = undefined
         if (f !== undefined) yield* Fiber.interrupt(f)
@@ -392,12 +432,42 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
       )
     })
 
+    /** An answer or a reply reaches zarg as a message (no question waits for it: after a restart, or one it moved past). */
+    const deliver = (text: string) => Stream.runDrain(run({ runId: `inbox-${crypto.randomUUID().slice(0, 8)}`, message: text }))
+    const labelOf = (t: InboxTopicRef, reply: { readonly answer?: string; readonly text?: string }) =>
+      [t.answers?.find((a) => a.id === reply.answer)?.label ?? reply.answer, reply.text].filter((x) => x !== undefined && x !== "").join(": ")
+    const fromInbox = new Set<string>()
+    const inboxHandlers = {
+      answered: (t: InboxTopicRef, reply: { readonly answer?: string; readonly text?: string }) =>
+        Effect.suspend(() => {
+          if (answeredHere.has(t.id)) return Effect.void
+          answeredHere.add(t.id)
+          const head = pending()
+          // The question waits: the answer goes where the bar's would, in a run of its own.
+          if (head?.topic === t.id)
+            return Effect.asVoid(Effect.forkDetach(Stream.runDrain(run({ runId: `inbox-${crypto.randomUUID().slice(0, 8)}`, resume: [{ interruptId: head.id, payload: reply.answer !== undefined ? { choice: reply.answer } : { other: reply.text ?? "" } }] }))))
+          return Effect.asVoid(Effect.forkDetach(deliver(`(you answered "${t.title}": ${labelOf(t, reply)})`)))
+        }),
+      replied: (t: InboxTopicRef, text: string) =>
+        Effect.suspend(() => {
+          const head = pending()
+          const runId = `inbox-${crypto.randomUUID().slice(0, 8)}`
+          // The question waits: the reply is chat about it (the topic keeps the message already).
+          if (head?.topic === t.id) {
+            fromInbox.add(runId)
+            return Effect.asVoid(Effect.forkDetach(Stream.runDrain(run({ runId, message: text }))))
+          }
+          return Effect.asVoid(Effect.forkDetach(deliver(`(about "${t.title}": ${text})`)))
+        }),
+    }
+
     return {
       id: threadId,
       focus: deps.focus,
       run,
       wake,
       stop,
+      inbox: inboxHandlers,
       status: () => (pending() ? "waiting" : loop ? "running" : "idle"),
     }
   })

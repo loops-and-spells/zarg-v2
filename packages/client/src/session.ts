@@ -40,6 +40,8 @@ export interface Session {
   readonly answerTopics: (ids: ReadonlyArray<string>, answer: string, text?: string) => Promise<void>
   readonly snoozeTopic: (id: string) => Promise<void>
   readonly readTopic: (id: string) => Promise<void>
+  /** Reply in a topic: talk it over with whoever asked (zarg answers in the conversation). */
+  readonly replyTopic: (id: string, text: string) => Promise<void>
   /** Answer one of the core's prompts (a grant popover); its notice shows. */
   readonly answerPrompt: (id: string, choice: string) => Promise<void>
   /** Archive, restore or delete agents of the tree; its notice shows. */
@@ -204,6 +206,7 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
     answerTopics: (ids, answer, text) => notify(opts.client.answerTopics({ ids, answer, ...(text !== undefined ? { text } : {}) })),
     snoozeTopic: (id) => notify(opts.client.snoozeTopic(id)),
     readTopic: (id) => notify(opts.client.readTopic(id)),
+    replyTopic: (id, text) => notify(opts.client.replyTopic(id, text)),
     answerPrompt: (id, choice) =>
       Effect.runPromise(
         opts.client.answerPrompt(id, choice).pipe(

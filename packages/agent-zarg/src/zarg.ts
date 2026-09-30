@@ -81,6 +81,7 @@ export const makeZarg = (host: AgentHost) =>
           render,
           suggest,
           whatNext,
+          ...(host.inbox !== undefined ? { inbox: host.inbox } : {}),
           driver: (spec, asker, observe) => Effect.flatMap(makeRlm(asker, observe), (rlm) => rlm.exec(spec)),
         }),
     }

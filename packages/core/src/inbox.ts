@@ -20,6 +20,8 @@ export type Topic = TopicInput & {
   readonly state: "open" | "answered" | "moot" | "read"
   readonly answer?: { readonly id?: string; readonly text?: string; readonly by: string; readonly at: number }
   readonly moot?: string; readonly snoozed?: { readonly until: "change" }
+  /** A restart keeps it open: its owner hears the answer whenever it comes (zarg's questions). */
+  readonly durable?: boolean
   readonly created: number; readonly updated: number
 }
 export type Reply = { readonly answer?: string; readonly text?: string }
@@ -44,7 +46,14 @@ const fields = (x: Partial<TopicInput>): Partial<TopicInput> => {
 const newId = () => `T-${crypto.randomUUID().replaceAll("-", "").slice(0, 8)}`
 
 /** The operator's inbox: topics raised by plugins and the core, one file each, every change logged on main. */
-export const makeInbox = (opts: { readonly log: ThreadLog; readonly dir: string; readonly now?: () => number; readonly answered?: (t: Topic, r: Reply) => Effect.Effect<void> }) =>
+export const makeInbox = (opts: {
+  readonly log: ThreadLog
+  readonly dir: string
+  readonly now?: () => number
+  readonly answered?: (t: Topic, r: Reply) => Effect.Effect<void>
+  /** The operator replied in a topic (to talk it over): its owner hears it. */
+  readonly replied?: (t: Topic, text: string) => Effect.Effect<void>
+}) =>
   Effect.gen(function* () {
     const now = opts.now ?? Date.now
     mkdirSync(opts.dir, { recursive: true })
@@ -70,7 +79,7 @@ export const makeInbox = (opts: { readonly log: ThreadLog; readonly dir: string;
       if (typeof t?.id !== "string" || typeof t.state !== "string") { corrupt.push(name); continue }
       if (t.state !== "open" && now() - t.updated > WEEK) { rmSync(join(opts.dir, name), { force: true }); continue }
       topics.set(t.id, t)
-      if (t.state === "open" && t.blocking) yield* save({ ...t, state: "moot", moot: "zarg restarted before it was answered", updated: now() })
+      if (t.state === "open" && t.blocking && t.durable !== true) yield* save({ ...t, state: "moot", moot: "zarg restarted before it was answered", updated: now() })
       // Closed topics are in the log already; open ones are told again so clients that start fresh see them.
       else if (t.state === "open") yield* Effect.ignore(opts.log.append("main", E.custom(INBOX, { topic: t })))
     }
@@ -142,6 +151,31 @@ export const makeInbox = (opts: { readonly log: ThreadLog; readonly dir: string;
           const t = make(from, input, false)
           yield* save(t)
           return t.id
+        }),
+      /** A topic of the core or a trusted agent: blocking or not, durable or not; its answer goes to `answered` (the owner waits in its own way). */
+      raise: (from: Topic["from"], input: TopicInput, o: { readonly blocking: boolean; readonly durable: boolean }) =>
+        Effect.gen(function* () {
+          const t = make(from, input, o.blocking)
+          yield* save(o.durable ? { ...t, durable: true } : t)
+          return t.id
+        }),
+      /** The operator's reply in an open topic: kept as a message, and its owner hears it. */
+      reply: (id: string, text: string) =>
+        Effect.gen(function* () {
+          const t = topics.get(id)
+          if (t === undefined || t.state !== "open") return { ok: false, notice: t === undefined ? "no such topic" : `that topic is ${t.state}` }
+          if (text.trim() === "") return { ok: false, notice: "an empty reply" }
+          const next = { ...t, messages: [...t.messages, { by: "you", at: now(), text }], updated: now() }
+          yield* save(next)
+          if (opts.replied !== undefined) yield* Effect.forkDetach(Effect.ignore(opts.replied(next, text)))
+          return { ok: true, notice: "sent" }
+        }),
+      /** A message from the topic's owner (zarg's note on it). */
+      message: (id: string, by: string, text: string) =>
+        Effect.gen(function* () {
+          const t = topics.get(id)
+          if (t === undefined) return
+          yield* save({ ...t, messages: [...t.messages, { by, at: now(), text }], updated: now() })
         }),
       settle: (plugin: string, id: string, why: string) =>
         Effect.gen(function* () {

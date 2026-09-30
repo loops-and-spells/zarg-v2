@@ -201,6 +201,8 @@ const routes = HttpRouter.addAll(
                 ? yield* inbox.snooze(topic)
                 : op === "read"
                   ? yield* inbox.read(topic)
+                  : op === "reply"
+                    ? yield* inbox.reply(topic, typeof body.text === "string" ? body.text : "")
                   : { ok: false, notice: `unknown inbox action ${op}` }
           return HttpServerResponse.jsonUnsafe({ notice: r.notice }, { status: r.ok ? 200 : 409 })
         }),
@@ -301,5 +303,6 @@ const routes = HttpRouter.addAll(
  *   POST /inbox/:id/answer     { answer?, text? } → { notice } (409 when the topic is not open or the answer is refused)
  *   POST /inbox/answer         { ids, answer, text? } → { notice } (a batch: one kind, all offering the answer)
  *   POST /inbox/:id/snooze     → { notice } (not a blocking topic); POST /inbox/:id/read → { notice } (a report)
+ *   POST /inbox/:id/reply      { text } → { notice } (talk a topic over: its owner hears it)
  */
 export const api = Layer.mergeAll(routes, auth)

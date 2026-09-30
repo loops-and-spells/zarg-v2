@@ -17,7 +17,7 @@ const opened = (state: SessionState) => {
     pluginCommands: () => [],
     act: () => Promise.resolve(),
     answerAgent: () => Promise.resolve(),
-    answerPrompt: () => Promise.resolve(), answerTopic: () => Promise.resolve(), answerTopics: () => Promise.resolve(), snoozeTopic: () => Promise.resolve(), readTopic: () => Promise.resolve(),
+    answerPrompt: () => Promise.resolve(), answerTopic: () => Promise.resolve(), answerTopics: () => Promise.resolve(), snoozeTopic: () => Promise.resolve(), readTopic: () => Promise.resolve(), replyTopic: () => Promise.resolve(),
     closePrompt: () => Promise.resolve(),
     archive: () => Promise.resolve(),
   }

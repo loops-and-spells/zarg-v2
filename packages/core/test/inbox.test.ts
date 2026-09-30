@@ -152,4 +152,20 @@ describe("the inbox", () => {
     const { d } = await setup()
     expect(readFileSync(join(d.dir, ".gitignore"), "utf8")).toBe("*\n")
   })
+  test("zarg's questions: raised (blocking, durable) survive a restart; answers and replies go to their owner, and a reply is kept as a message", async () => {
+    const d = dirs()
+    const seen: Array<unknown> = []
+    const log = await Effect.runPromise(makeLog(d.log, (t) => t))
+    const opts = { log, dir: d.dir, answered: (t: { id: string }, r: unknown) => Effect.sync(() => void seen.push(["answered", t.id, r])), replied: (t: { id: string }, text: string) => Effect.sync(() => void seen.push(["replied", t.id, text])) }
+    const first = await Effect.runPromise(makeInbox(opts))
+    const id = await Effect.runPromise(first.raise({ plugin: "zarg", agent: "zarg" }, { kind: "question", title: "Which card first?", why: "zarg asks", answers: [{ id: "a", label: "Checkout" }] }, { blocking: true, durable: true }))
+    const second = await Effect.runPromise(makeInbox(opts))
+    expect(second.list().find((t) => t.id === id)).toMatchObject({ state: "open", blocking: true, durable: true })
+    expect(await Effect.runPromise(second.reply(id, "why Checkout?"))).toEqual({ ok: true, notice: "sent" })
+    expect(second.list().find((t) => t.id === id)!.messages.map((m) => [m.by, m.text])).toEqual([["you", "why Checkout?"]])
+    await Effect.runPromise(second.answer(id, { answer: "a" }))
+    await Bun.sleep(5)
+    expect(seen).toEqual([["replied", id, "why Checkout?"], ["answered", id, { answer: "a" }]])
+    expect((await Effect.runPromise(second.reply(id, "late"))).ok).toBe(false)
+  })
 })

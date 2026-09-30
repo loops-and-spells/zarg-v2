@@ -56,4 +56,7 @@ test("POST /inbox/:id/answer answers; a second answer is 409 with the topic's st
   expect(await post(`/inbox/${c}/snooze`, {})).toEqual([200, { notice: "snoozed until it changes" }])
   const r = await Effect.runPromise(inbox.post(from, { kind: "report", title: "done", why: "run" }))
   expect(await post(`/inbox/${r}/read`, {})).toEqual([200, { notice: "read" }])
+  const q = await Effect.runPromise(inbox.post(from, grant))
+  expect(await post(`/inbox/${q}/reply`, { text: "why?" })).toEqual([200, { notice: "sent" }])
+  expect((await post(`/inbox/${q}/reply`, {}))[0]).toBe(409)
 })

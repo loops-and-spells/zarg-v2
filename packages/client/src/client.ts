@@ -112,6 +112,7 @@ export const makeClient = (info: Pick<CoreInfo, "socket" | "token">) => {
     answerTopics: (body: { readonly ids: ReadonlyArray<string>; readonly answer: string; readonly text?: string }) => inboxPost(`/inbox/answer`, body),
     snoozeTopic: (id: string) => inboxPost(`/inbox/${encodeURIComponent(id)}/snooze`, {}),
     readTopic: (id: string) => inboxPost(`/inbox/${encodeURIComponent(id)}/read`, {}),
+    replyTopic: (id: string, text: string) => inboxPost(`/inbox/${encodeURIComponent(id)}/reply`, { text }),
     /** Answer one of the core's prompts (a grant). */
     answerPrompt: (id: string, choice: string) =>
       request(`/prompts/${encodeURIComponent(id)}`, { method: "POST", body: JSON.stringify({ choice }) }).pipe(

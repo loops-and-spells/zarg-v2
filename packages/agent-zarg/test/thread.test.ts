@@ -471,3 +471,98 @@ test("the driver shows every card with who acts in it (By), and names by when it
   expect(REPLY_RULE).toContain("By / Given / When / Then")
   expect(REPLY_RULE).toContain("every card names who acts in it with by")
 })
+
+describe("zarg's questions as inbox topics", () => {
+  /** A recording inbox: topics raised by the thread, and what it answered, settled and noted. */
+  const fakeInbox = () => {
+    const calls: Array<unknown> = []
+    let n = 0
+    const inbox = {
+      post: (t: { title: string; answers?: ReadonlyArray<unknown>; key?: string; text?: unknown }) => Effect.sync(() => (calls.push(["post", t]), `T-0000000${++n}`)),
+      answer: (id: string, r: unknown, by: string) => Effect.sync(() => void calls.push(["answer", id, r, by])),
+      settle: (id: string, why: string) => Effect.sync(() => void calls.push(["settle", id, why])),
+      message: (id: string, by: string, text: string) => Effect.sync(() => void calls.push(["message", id, by, text])),
+    }
+    return { inbox, calls }
+  }
+  const setupWith = (driver: Driver, inbox: NonNullable<ThreadDeps["inbox"]>) =>
+    Effect.gen(function* () {
+      const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zarg-thread-")), (t) => t)
+      const thread = yield* makeThread({ id: "main", focus: [], log, agenda: () => Effect.succeed([]), driver, inbox })
+      return { log, thread }
+    })
+  const askOnce = (answers: Array<unknown>): Driver => {
+    let calls = 0
+    return (_spec, asker) =>
+      Effect.gen(function* () {
+        if (calls++ > 0) return yield* Effect.never
+        answers.push(yield* asker.ask({ ...question, about: ["UX-0001"] }))
+        return outcome("done")
+      }) as never
+  }
+
+  test("a question is raised as a topic: its options are the answers, its own answer the text, its cards the about", async () => {
+    const { inbox, calls } = fakeInbox()
+    await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setupWith(askOnce([]), inbox); yield* collect(thread.run({ runId: "r1" })) }))
+    expect(calls[0]).toEqual(["post", { kind: "question", title: "Which?", why: "zarg asks", about: ["UX-0001"], answers: [{ id: "a", label: "Option A", recommended: true, why: "simpler" }, { id: "b", label: "Option B" }], text: { placeholder: "your own answer" }, key: expect.stringMatching(/^inq-/) }])
+  })
+  test("answered in the inbox: the driver goes on as if answered in the bar; answered in the bar: the topic is answered too", async () => {
+    const viaInbox: Array<unknown> = []
+    const a = fakeInbox()
+    await Effect.runPromise(Effect.gen(function* () {
+      const { thread } = yield* setupWith(askOnce(viaInbox), a.inbox)
+      yield* collect(thread.run({ runId: "r1" }))
+      yield* thread.inbox!.answered({ id: "T-00000001", title: "Which?", answers: question.options }, { answer: "b" })
+      yield* Effect.sleep(50)
+    }))
+    expect(viaInbox).toEqual([{ choice: "b" }])
+    const viaBar: Array<unknown> = []
+    const b = fakeInbox()
+    await Effect.runPromise(Effect.gen(function* () {
+      const { thread } = yield* setupWith(askOnce(viaBar), b.inbox)
+      const first = yield* collect(thread.run({ runId: "r1" }))
+      yield* collect(thread.run({ runId: "r2", resume: [{ interruptId: (last(first) as any).outcome.interrupts[0].id, payload: { choice: "a" } }] }).pipe(Stream.take(6)))
+    }))
+    expect(viaBar).toEqual([{ choice: "a" }])
+    expect(b.calls).toContainEqual(["answer", "T-00000001", { answer: "a" }, "operator"])
+  })
+  test("an answer no question waits for (after a restart) reaches zarg as a message, before the agenda", async () => {
+    const tasks: Array<string> = []
+    const driver: Driver = (spec) => Effect.sync(() => (tasks.push(spec.task), outcome("ok"))) as never
+    const { inbox } = fakeInbox()
+    await Effect.runPromise(Effect.gen(function* () {
+      const { thread } = yield* setupWith(driver, inbox)
+      yield* thread.inbox!.answered({ id: "T-00000009", title: "Which card first?", answers: [{ id: "a", label: "Checkout" }] }, { answer: "a" })
+      yield* Effect.sleep(100)
+    }))
+    expect(tasks.some((t) => t.includes('(you answered "Which card first?": Checkout)'))).toBe(true)
+  })
+  test("a reply in the topic is chat about it: the driver discusses the question; zarg's choice answers the topic as zarg; a stop moots the open ones", async () => {
+    const answers: Array<unknown> = []
+    const { inbox, calls } = fakeInbox()
+    let calls2 = 0
+    const driver: Driver = (_spec, asker) =>
+      Effect.gen(function* () {
+        if (calls2++ > 0) return yield* Effect.never
+        const a = yield* asker.ask(question)
+        answers.push(a)
+        yield* asker.choose!({ question: a.question!, choice: "b", why: "smaller" })
+        return outcome("done")
+      }) as never
+    await Effect.runPromise(Effect.gen(function* () {
+      const { thread } = yield* setupWith(driver, inbox)
+      yield* collect(thread.run({ runId: "r1" }))
+      yield* thread.inbox!.replied({ id: "T-00000001", title: "Which?", answers: question.options }, "which is smaller?")
+      yield* Effect.sleep(100)
+    }))
+    expect(answers).toEqual([{ other: "which is smaller?", interjected: true, question: expect.stringMatching(/^inq-/) }])
+    expect(calls).toContainEqual(["answer", "T-00000001", { answer: "b", text: "smaller" }, "zarg"])
+    const s = fakeInbox()
+    await Effect.runPromise(Effect.gen(function* () {
+      const { thread } = yield* setupWith(askOnce([]), s.inbox)
+      yield* collect(thread.run({ runId: "r1" }))
+      yield* thread.stop
+    }))
+    expect(s.calls).toContainEqual(["settle", "T-00000001", "zarg was stopped"])
+  })
+})

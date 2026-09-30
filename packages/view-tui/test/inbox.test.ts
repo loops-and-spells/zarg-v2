@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { initial, type SessionState } from "@zarg/client"
 import { inboxKey, inboxRows, openTopicUi, unseenBlocking } from "../src/inbox-keys"
-import { goHome, goTo, initialUi, queueOf, type Ui } from "../src/view"
+import { goHome, goTo, initialUi, queueOf, statusLine, type Ui } from "../src/view"
 
 const topic = (id: string, over: Record<string, unknown> = {}) => ({ id, kind: "grant", from: { plugin: "backlog" }, title: `t ${id}`, why: "fs write", about: [], blocking: false, messages: [], state: "open", created: Number(id.slice(2)), updated: 0, answers: [{ id: "once", label: "Allow once" }, { id: "deny", label: "Deny", reason: "optional" }], ...over })
 const s = (...ts: Array<ReturnType<typeof topic>>) => ({ core: "up", thread: { ...initial("main"), inbox: Object.fromEntries(ts.map((t) => [t.id, t])) } }) as unknown as SessionState
@@ -75,4 +75,21 @@ test("a blocking topic not yet opened is unseen (its ◆ blinks); opening it see
 test("the popover queue shows open grant topics, first raised first; an answered one leaves it", () => {
   const st = s(topic("T-2", { blocking: true, created: 2, title: "b wants x" }), topic("T-1", { blocking: true, created: 1, title: "a wants y" }), topic("T-3", { blocking: true, state: "answered" }), topic("T-4", { kind: "drift" }))
   expect(queueOf(home, st).map((p) => [p.id, p.question, p.kind])).toEqual([["T-1", "a wants y", "grant"], ["T-2", "b wants x", "grant"]])
+})
+
+test("r in an open topic types a reply: Enter sends it and the topic stays open", () => {
+  const st = s(topic("T-1", { kind: "question", from: { plugin: "zarg", agent: "zarg" } }))
+  const opened = inboxKey(home, st, key("return")).ui
+  let ui = inboxKey(opened, st, key("r")).ui
+  expect(ui.inbox.typing).toEqual({ id: "T-1", text: "", reply: true })
+  for (const c of "why") ui = inboxKey(ui, st, key(c)).ui
+  const sent = inboxKey(ui, st, key("return"))
+  expect(sent.action).toEqual({ type: "reply-topic", id: "T-1", text: "why" })
+  expect(sent.ui.inbox.open).toBe("T-1")
+  expect(sent.ui.inbox.typing).toBeUndefined()
+})
+
+test("the status line keeps the core state first; the inbox count follows it (and YOLO)", () => {
+  const st = { ...s(topic("T-1", { blocking: true })), core: "up" } as SessionState
+  expect(statusLine(st, { threadId: "main", mode: "child" })).toStartWith("core child · ◆ 1 blocking · 1 open")
 })

@@ -127,6 +127,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     else if (action.type === "answer-topics") void props.session.answerTopics(action.ids, action.answer)
     else if (action.type === "snooze-topic") void props.session.snoozeTopic(action.id)
     else if (action.type === "read-topic") void props.session.readTopic(action.id)
+    else if (action.type === "reply-topic") void props.session.replyTopic(action.id, action.text)
     else if (action.type === "answer-agent") {
       const agent = action.agent ?? latest().viewing?.split("@")[0]
       if (agent !== undefined) void props.session.answerAgent(agent, action.question, action.answer)
@@ -864,7 +865,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           <text wrapMode="none" style={{ marginTop: 1 }}>
             <span fg={C.accent}>{"› "}</span>
             <span fg={C.text}>{ui.inbox.typing.text}</span>
-            <span fg={C.dim}>{ui.inbox.typing.text === "" ? `${openTopic.text?.placeholder ?? "the reason"}, Enter to send` : "▏"}</span>
+            <span fg={C.dim}>{ui.inbox.typing.text === "" ? `${ui.inbox.typing.reply === true ? "your reply" : (openTopic.text?.placeholder ?? "the reason")}, Enter to send` : "▏"}</span>
           </text>
         ) : null}
       </box>

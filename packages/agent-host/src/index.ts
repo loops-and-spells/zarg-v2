@@ -21,6 +21,34 @@ export interface Thread {
   readonly wake: Effect.Effect<void>
   readonly stop: Effect.Effect<void>
   readonly status: () => "idle" | "running" | "waiting"
+  /** Its questions are inbox topics: the operator's answer or reply to one, from the inbox. */
+  readonly inbox?: {
+    readonly answered: (topic: InboxTopicRef, reply: { readonly answer?: string; readonly text?: string }) => Effect.Effect<void>
+    readonly replied: (topic: InboxTopicRef, text: string) => Effect.Effect<void>
+  }
+}
+
+/** What a thread needs of an inbox topic to act on its answer: its id, its question and its answers. */
+export interface InboxTopicRef {
+  readonly id: string
+  readonly title: string
+  readonly answers?: ReadonlyArray<{ readonly id: string; readonly label: string }>
+}
+
+/** The inbox as a trusted agent uses it: raise its own topics (blocking, durable), answer, settle and note them. */
+export interface AgentInbox {
+  readonly post: (t: {
+    readonly kind: string
+    readonly title: string
+    readonly why: string
+    readonly about?: ReadonlyArray<string>
+    readonly answers?: ReadonlyArray<{ readonly id: string; readonly label: string; readonly recommended?: boolean; readonly why?: string }>
+    readonly text?: { readonly placeholder: string }
+    readonly key?: string
+  }) => Effect.Effect<string, unknown>
+  readonly answer: (id: string, reply: { readonly answer?: string; readonly text?: string }, by: string) => Effect.Effect<unknown, unknown>
+  readonly settle: (id: string, why: string) => Effect.Effect<unknown, unknown>
+  readonly message: (id: string, by: string, text: string) => Effect.Effect<unknown, unknown>
 }
 
 export interface AgendaEntry {
@@ -50,6 +78,8 @@ export interface AgentHost {
   readonly agenda: (focus: ReadonlySet<string> | undefined) => Effect.Effect<ReadonlyArray<AgendaEntry>, unknown>
   /** The gate for reads outside the repository (the core asks the operator itself). */
   readonly outsideReads: unknown
+  /** The operator's inbox, for this agent's own questions. */
+  readonly inbox?: AgentInbox
   /** Panels this agent opens (its message bar): shown by every client until closed. */
   readonly panels: {
     readonly open: (p: { readonly name: string; readonly view: string; readonly scope: "agent" | "shell"; readonly edge: "top" | "bottom" | "right"; readonly size: number; readonly input: "none" | "onFocus" }) => void

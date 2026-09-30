@@ -32,6 +32,7 @@ const fakeSession = (state: SessionState) => {
     answerTopics: (ids, answer) => Promise.resolve(void calls.push(`topics ${ids.join(",")} ${answer}`)),
     snoozeTopic: (id) => Promise.resolve(void calls.push(`snooze ${id}`)),
     readTopic: (id) => Promise.resolve(void calls.push(`read ${id}`)),
+    replyTopic: (id, text) => Promise.resolve(void calls.push(`reply ${id} ${text}`)),
     closePrompt: (id) => Promise.resolve(void calls.push(`close ${id}`)),
     archive: (change) => Promise.resolve(void calls.push(`archive ${JSON.stringify(change)}`)),
     answerAgent: (agent, question, answer) => Promise.resolve(void calls.push(`answer ${agent} ${question} ${JSON.stringify(answer)}`)),
