@@ -69,7 +69,8 @@ export const makeInbox = (opts: { readonly log: ThreadLog; readonly dir: string;
       if (t.state !== "open" && now() - t.updated > WEEK) { rmSync(join(opts.dir, name), { force: true }); continue }
       topics.set(t.id, t)
       if (t.state === "open" && t.blocking) yield* save({ ...t, state: "moot", moot: "zarg restarted before it was answered", updated: now() })
-      else yield* Effect.ignore(opts.log.append("main", E.custom(INBOX, { topic: t })))
+      // Closed topics are in the log already; open ones are told again so clients that start fresh see them.
+      else if (t.state === "open") yield* Effect.ignore(opts.log.append("main", E.custom(INBOX, { topic: t })))
     }
     // A corrupt file is reported once (a report keyed by its name), and skipped.
     for (const name of corrupt) {
@@ -128,7 +129,15 @@ export const makeInbox = (opts: { readonly log: ThreadLog; readonly dir: string;
       post: (from: Topic["from"], input: TopicInput) =>
         Effect.gen(function* () {
           const same = input.key === undefined ? undefined : [...topics.values()].find((x) => x.from.plugin === from.plugin && x.key === input.key && x.state === "open")
-          const t: Topic = same !== undefined ? { ...same, ...fields(input), updated: now() } : make(from, input, false)
+          if (same !== undefined) {
+            // The same post again changes nothing; a new one wakes it (snoozed until it changes).
+            const { snoozed: _, ...woken } = same
+            const next: Topic = { ...woken, ...fields(input), updated: same.updated }
+            if (JSON.stringify(next) === JSON.stringify(same)) return same.id
+            yield* save({ ...next, updated: now() })
+            return same.id
+          }
+          const t = make(from, input, false)
           yield* save(t)
           return t.id
         }),
@@ -159,6 +168,7 @@ export const makeInbox = (opts: { readonly log: ThreadLog; readonly dir: string;
         }),
       answerMany: (ids: ReadonlyArray<string>, r: Reply, by = "operator") =>
         Effect.gen(function* () {
+          if (ids.length === 0) return { ok: false, notice: "nothing to answer" }
           const ts = [...new Set(ids)].map((id) => topics.get(id))
           const kinds = new Set(ts.map((t) => t?.kind))
           const why = kinds.size > 1 ? "a batch is one kind of topic" : ts.map((t) => check(t, r)).find((x) => x !== undefined)

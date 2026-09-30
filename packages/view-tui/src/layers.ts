@@ -360,11 +360,15 @@ export const SHELL: ReadonlyArray<Layer> = [
     // The inbox (home): the list and the open topic; its own keys first, then g, / and ⇥ as anywhere.
     id: "inbox",
     when: (ui) => ui.focus === "tile" && ui.main === "inbox" && !ui.sheet,
-    hints: (ui) =>
+    hints: (ui, w) =>
       ui.inbox.typing !== undefined
         ? [{ keys: "Enter", does: "send" }, { keys: "Esc", does: "cancel" }]
         : ui.inbox.open !== undefined
-          ? [{ keys: "1-9", does: "answer" }, { keys: "t", does: "with a reason" }, { keys: "z", does: "snooze" }, { keys: "Esc", does: "back" }]
+          ? (() => {
+              const t = w.s.thread.inbox?.[ui.inbox.open!]
+              const answerable = t?.state === "open" && ((t.answers ?? []).length > 0 || t.text !== undefined)
+              return [...(answerable ? [{ keys: "1-9", does: "answer" }, { keys: "t", does: "with a reason" }] : []), ...(t?.origin !== undefined ? [{ keys: "o", does: "open" }] : []), { keys: "z", does: "snooze" }, { keys: "Esc", does: "back" }]
+            })()
           : [{ keys: "↑↓", does: "move" }, { keys: "Enter", does: "open" }, { keys: "1-9", does: "answer" }, { keys: "Space", does: "mark" }, { keys: "a", does: "all" }],
     handle: (ui, w, k) => {
       if (ui.inbox.typing === undefined) {

@@ -1,5 +1,5 @@
 import { openTopics, type SessionState, sortTopics, type Topic } from "@zarg/client"
-import type { Action, Ui } from "./view"
+import { type Action, goTo, type Ui } from "./view"
 
 type Key = { readonly name: string; readonly sequence?: string; readonly ctrl?: boolean; readonly meta?: boolean; readonly shift?: boolean }
 type Out = { readonly ui: Ui; readonly action?: Action }
@@ -19,7 +19,7 @@ const digit = (k: Key) => (/^[1-9]$/.test(k.name) ? Number(k.name) - 1 : undefin
 const answersOf = (t: Topic | undefined) => t?.answers ?? []
 /** Opening a topic (Enter or a click): the keys to the inbox, its recommended answer highlighted; a report (nothing to answer) is read by being opened. */
 export const openTopicUi = (ui: Ui, t: Topic): Out => ({
-  ui: { ...withInbox(ui, { open: t.id, pick: Math.max(0, answersOf(t).findIndex((a) => a.recommended === true)), typing: undefined }), focus: "tile" },
+  ui: { ...withInbox(ui, { open: t.id, pick: Math.max(0, answersOf(t).findIndex((a) => a.recommended === true)), typing: undefined }), focus: "tile", seen: { ...ui.seen, [`inbox:${t.id}`]: 1 } },
   ...(t.state === "open" && !t.blocking && answersOf(t).length === 0 ? { action: { type: "read-topic" as const, id: t.id } } : {}),
 })
 
@@ -34,7 +34,7 @@ export const inboxKey = (ui: Ui, s: SessionState, k: Key): Out => {
     if (k.name === "backspace") return { ui: withInbox(ui, { typing: { ...typing, text: typing.text.slice(0, -1) } }) }
     if (k.name === "return") {
       const answer = answersOf(t)[ui.inbox.pick ?? 0]?.id
-      return { ui: withInbox(ui, { typing: undefined }), action: { type: "answer-topic", id: typing.id, ...(answer !== undefined ? { answer } : {}), text: typing.text } }
+      return { ui: withInbox(ui, { typing: undefined, open: undefined }), action: { type: "answer-topic", id: typing.id, ...(answer !== undefined ? { answer } : {}), text: typing.text } }
     }
     const ch = k.name === "space" ? " " : k.name.length === 1 ? (k.shift === true ? k.name.toUpperCase() : k.name) : (k.sequence ?? "")
     return ch.length === 1 && k.ctrl !== true && k.meta !== true ? { ui: withInbox(ui, { typing: { ...typing, text: typing.text + ch } }) } : { ui }
@@ -52,6 +52,7 @@ export const inboxKey = (ui: Ui, s: SessionState, k: Key): Out => {
     if (k.name === "return" && answersOf(t)[ui.inbox.pick ?? 0] !== undefined) return { ui: withInbox(ui, { open: undefined }), action: { type: "answer-topic", id: openId, answer: answersOf(t)[ui.inbox.pick ?? 0]!.id } }
     if (k.name === "t" && t?.state === "open" && (answersOf(t).length > 0 || t.text !== undefined)) return { ui: withInbox(ui, { typing: { id: openId, text: "" } }) }
     if (k.name === "z") return { ui, action: { type: "snooze-topic", id: openId } }
+    if (k.name === "o" && t?.origin !== undefined) return { ui: goTo(ui, "agent", t.origin.view) }
     return { ui }
   }
   const at = Math.min(ui.inbox.cursor, Math.max(0, rows.length - 1))
@@ -77,3 +78,7 @@ export const inboxKey = (ui: Ui, s: SessionState, k: Key): Out => {
   if (k.name === "z") return { ui, action: { type: "snooze-topic", id: here.id } }
   return { ui }
 }
+
+/** Blocking topics the operator has not opened yet: the rail's Inbox ◆ blinks while there are any. */
+export const unseenBlocking = (ui: Ui, s: SessionState) =>
+  Object.values(s.thread.inbox ?? {}).filter((t) => t.state === "open" && t.blocking && ui.seen[`inbox:${t.id}`] === undefined).length

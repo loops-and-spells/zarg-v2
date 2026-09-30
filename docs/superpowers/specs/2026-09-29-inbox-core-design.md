@@ -108,7 +108,7 @@ Inbox.update(id, patch)       // new evidence, title or messages; wakes a snooze
 
 So the inbox is useful from day one, the host's `plugin-disabled` / `plugin-failed` / `plugin-needs` agenda items also post a `plugin` topic. They have no TUI surface today.
 
-- **Answers:** "Restart it" restarts the plugin (the host's restart, if it exists; else the answer says to restart zarg), or "Leave it off".
+- **Answers:** none. The host cannot restart one plugin, so the topic says to restart zarg; it is read once opened.
 - **Settles when:** the plugin loads again.
 
 Grants, zarg's questions and the rest move onto the inbox in specs 2 and 3.

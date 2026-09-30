@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { initial, type SessionState } from "@zarg/client"
-import { inboxKey, inboxRows, openTopicUi } from "../src/inbox-keys"
-import { goHome, initialUi, type Ui } from "../src/view"
+import { inboxKey, inboxRows, openTopicUi, unseenBlocking } from "../src/inbox-keys"
+import { goHome, goTo, initialUi, type Ui } from "../src/view"
 
 const topic = (id: string, over: Record<string, unknown> = {}) => ({ id, kind: "grant", from: { plugin: "backlog" }, title: `t ${id}`, why: "fs write", about: [], blocking: false, messages: [], state: "open", created: Number(id.slice(2)), updated: 0, answers: [{ id: "once", label: "Allow once" }, { id: "deny", label: "Deny", reason: "optional" }], ...over })
 const s = (...ts: Array<ReturnType<typeof topic>>) => ({ core: "up", thread: { ...initial("main"), inbox: Object.fromEntries(ts.map((t) => [t.id, t])) } }) as unknown as SessionState
@@ -47,4 +47,25 @@ test("home on arrival: zarg's sheet stays closed while topics wait, so the inbox
   const st = s(topic("T-1"))
   expect(goHome(initialUi, st)).toMatchObject({ main: "inbox", sheet: false })
   expect(goHome(initialUi, s())).toMatchObject({ main: "inbox", sheet: true })
+})
+
+test("a reason sent closes the topic; leaving the inbox drops a half-typed reason; t only where there is something to answer", () => {
+  const st = s(topic("T-1"), topic("T-2", { kind: "report", answers: undefined }))
+  const opened = inboxKey(home, st, key("return")).ui
+  let typing = inboxKey(opened, st, key("t")).ui
+  typing = inboxKey(typing, st, key("x")).ui
+  expect(inboxKey(typing, st, key("return")).ui.inbox.open).toBeUndefined()
+  expect(goTo(typing, "grid").inbox.typing).toBeUndefined()
+  const report = openTopicUi(home, st.thread.inbox!["T-2"]!).ui
+  expect(inboxKey(report, st, key("t")).ui.inbox.typing).toBeUndefined()
+})
+test("o opens the topic's origin view", () => {
+  const st = s(topic("T-1", { origin: { view: "backlog:board" } }))
+  const opened = inboxKey(home, st, key("return")).ui
+  expect(inboxKey(opened, st, key("o")).ui).toMatchObject({ main: "agent", viewing: "backlog:board" })
+})
+test("a blocking topic not yet opened is unseen (its ◆ blinks); opening it sees it", () => {
+  const st = s(topic("T-1", { blocking: true }))
+  expect(unseenBlocking(home, st)).toBe(1)
+  expect(unseenBlocking(openTopicUi(home, st.thread.inbox!["T-1"]!).ui, st)).toBe(0)
 })

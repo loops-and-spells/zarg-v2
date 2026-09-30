@@ -219,7 +219,9 @@ export const goTo = (ui: Ui, main: Main, viewing?: string): Ui => {
   const same = here.main === main && here.viewing === viewing
   const back = same ? ui.back : [...ui.back, here].slice(-20)
   const { viewing: _, view: __, ...rest } = ui
-  return { ...rest, main, back, ...(main === "agent" && viewing !== undefined ? { viewing } : {}) }
+  // A reason half typed in the inbox goes with it.
+  const { typing: ___, ...inbox } = ui.inbox
+  return { ...rest, inbox, main, back, ...(main === "agent" && viewing !== undefined ? { viewing } : {}) }
 }
 /** Home: the inbox, with zarg's sheet open when nothing is going on (no agent works, no topic waits) and closed otherwise. */
 export const goHome = (ui: Ui, s: SessionState): Ui => {
@@ -291,8 +293,9 @@ export const animating = (ui: Ui, s: SessionState) =>
   ui.runningSince !== undefined ||
   // A view still loading: its spinner turns.
   Object.values(s.thread.views ?? {}).some((v) => Object.values(v.data).some((d) => (d as { loading?: unknown } | undefined)?.loading !== undefined)) ||
-  // An unseen request for attention blinks.
+  // An unseen request for attention blinks, and so does an unseen blocking topic.
   Object.values(s.thread.rlms).some((r) => r.attention !== undefined && ui.seen[r.id] !== r.attention.since) ||
+  Object.values(s.thread.inbox ?? {}).some((t) => t.state === "open" && t.blocking && ui.seen[`inbox:${t.id}`] === undefined) ||
   // zarg's own row is always there: only agents doing work keep the clock ticking. zarg's agents wait on its
   // question with it; a plugin's agents (plugin:agent) work on meanwhile.
   (s.core === "up" && Object.values(s.thread.rlms).some((r) => r.status === "running" && r.preset !== "zarg" && (s.thread.pendingInquiry === undefined || r.id.includes(":"))))

@@ -15,3 +15,13 @@ const tier = (t: Topic) =>
 /** The one priority: lower is sooner. Blocking, then answers, then severity, then reports; older first; snoozed last. */
 export const priorityOf = (t: Topic, _now: number) => tier(t) * 1e13 + t.created
 export const sortTopics = (ts: Iterable<Topic>, now: number) => [...ts].sort((a, b) => priorityOf(a, now) - priorityOf(b, now))
+
+/** A refused inbox request's notice: the core's `{ notice }`, or the body as it is. */
+export const noticeOf = (body: string): string => {
+  try {
+    const n = (JSON.parse(body) as { notice?: unknown }).notice
+    return typeof n === "string" ? n : body
+  } catch {
+    return body
+  }
+}

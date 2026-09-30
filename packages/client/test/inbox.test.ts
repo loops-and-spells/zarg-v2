@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { priorityOf, sortTopics, type Topic } from "../src/inbox"
+import { noticeOf, priorityOf, sortTopics, type Topic } from "../src/inbox"
 
 const t = (id: string, over: Partial<Topic> = {}): Topic => ({ id, kind: "question", from: { plugin: "p" }, title: id, why: "", about: [], blocking: false, messages: [], state: "open", created: 0, updated: 0, ...over })
 test("priority: blocking, then answers, then by severity, then reports; older first within a tier; snoozed last", () => {
@@ -14,4 +14,9 @@ test("priority: blocking, then answers, then by severity, then reports; older fi
   ]
   expect(sortTopics(list, 100).map((x) => x.id)).toEqual(["grant", "choice-old", "choice-new", "finding-high", "finding-low", "report", "snoozed"])
   expect(priorityOf(list[5]!, 100)).toBeLessThan(priorityOf(list[4]!, 100))
+})
+
+test("a refusal's notice: the core's JSON notice, or the body itself when it is not JSON", () => {
+  expect(noticeOf('{"notice":"that topic is answered"}')).toBe("that topic is answered")
+  expect(noticeOf("Conflict")).toBe("Conflict")
 })

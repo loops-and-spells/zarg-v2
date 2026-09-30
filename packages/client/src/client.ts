@@ -1,3 +1,4 @@
+import { noticeOf } from "./inbox"
 import { Data, Effect, Stream } from "effect"
 import type { Answer, WireEvent } from "./events"
 import type { CoreInfo } from "./info"
@@ -64,7 +65,7 @@ export const makeClient = (info: Pick<CoreInfo, "socket" | "token">) => {
       Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly notice: string }>)),
       // 409: the topic was not open, or the answer was refused; its notice says why.
       Effect.catch((e) =>
-        e.status === 409 ? Effect.succeed({ notice: String((JSON.parse(e.message) as { notice?: unknown }).notice ?? e.message) }) : Effect.fail(e),
+        e.status === 409 ? Effect.succeed({ notice: noticeOf(e.message) }) : Effect.fail(e),
       ),
     )
 

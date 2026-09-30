@@ -12,7 +12,7 @@ import { contextOf, displayName, railRows } from "./rail"
 import { reviewActs, reviewGroups } from "./review"
 import { Buttons, Heading } from "./sections"
 import { RichText } from "./markdown"
-import { inboxRows, openTopicUi } from "./inbox-keys"
+import { inboxRows, openTopicUi, unseenBlocking } from "./inbox-keys"
 import { onKey, SHELL } from "./layers"
 import { AgentView, NowContext, type Scroller } from "./sections"
 import {
@@ -20,6 +20,7 @@ import {
   activate,
   agentDetail,
   goHome,
+  PULSE_MS,
   ARCHIVED,
   openAgent,
   treeRows,
@@ -273,7 +274,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       {wide ? band("VIEWS", String(nav.length + 1), C.dim) : null}
       <box key="inbox" style={{ flexShrink: 0, height: 1 }}>
         {railLine({
-          glyph: inboxBlocking > 0 ? "◆" : "▤",
+          // An unseen blocking topic blinks, as an agent asking for attention does.
+          glyph: inboxBlocking > 0 ? (unseenBlocking(ui, s) > 0 && moving && Math.floor(now / PULSE_MS) % 2 === 1 ? "◇" : "◆") : "▤",
           glyphColor: inboxBlocking > 0 ? C.attention : ui.main === "inbox" ? C.accent : C.dim,
           name: "Inbox",
           note: inboxOpen > 0 ? String(inboxOpen) : "",
