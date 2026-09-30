@@ -8,7 +8,6 @@ import type { Powers } from "./process"
 export type Answer = "once" | "folder" | "always" | "deny"
 export type Ask = (q: { readonly plugin: string; readonly what: string; readonly options: ReadonlyArray<{ readonly id: Answer; readonly label: string }> }) => Effect.Effect<Answer>
 
-const ASK_TIMEOUT_MS = 10 * 60_000
 /** Files larger than this are refused: a plugin cannot make the core read a huge file into memory. */
 const READ_MAX_BYTES = 10 * 1024 * 1024
 
@@ -178,7 +177,8 @@ export const makePowers = (opts: {
         opts.asking?.(false)
       })
     }
-    const a = await Promise.race([open!.answer, new Promise<Answer>((res) => setTimeout(() => res("deny"), opts.askTimeoutMs ?? ASK_TIMEOUT_MS).unref())])
+    // A grant waits for the operator; only a configured timeout ([plugins] grant_timeout) turns silence into deny.
+    const a = opts.askTimeoutMs === undefined ? await open!.answer : await Promise.race([open!.answer, new Promise<Answer>((res) => setTimeout(() => res("deny"), opts.askTimeoutMs).unref())])
     if (a === "deny") throw notGranted(`${opts.plugin}: ${printable(what)} was denied`)
   }
 

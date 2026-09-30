@@ -12,7 +12,7 @@ import { makeGrants } from "@zarg/plugin/runtime"
 import { PluginHost } from "@zarg/plugin/server"
 import { openrouter } from "@zarg/provider-openrouter"
 import { zargRouter } from "@zarg/provider-zarg-router"
-import { decisionsService, Rlm, settings } from "@zarg/rlm"
+import { decisionsService, type Question, Rlm, settings } from "@zarg/rlm"
 import type { AgentHost } from "@zarg/agent-host"
 import { closeStale, makeActivity } from "./activity"
 import { type Archive, makeArchive, parseTtl } from "./archive"
@@ -22,6 +22,7 @@ import { outsideReads } from "./outside"
 import { makePrompts } from "./prompts"
 import { makeInbox, type TopicInput } from "./inbox"
 import { syncPluginTopics } from "./plugin-topics"
+import { grantAsk } from "./grant"
 import { makeSurfaces, NAV, navItems } from "./surfaces"
 import { makeActions } from "./actions"
 import { makeLog } from "./log"
@@ -136,7 +137,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       log,
       sensitive,
       agenda,
-      outsideReads: outsideReads({ grants: agentGrants, userDir: USER_DIR, ask: prompts.ask as never, yolo: () => yoloControl.on("zarg:agents") }),
+      outsideReads: outsideReads({ grants: agentGrants, userDir: USER_DIR, ask: ((q: Question) => grantAsk(inbox)({ plugin: "zarg", agent: "agents" }, q)) as never, yolo: () => yoloControl.on("zarg:agents") }),
       panels: { open: (p) => surfaces.openPanel({ ...p, id: `zarg:${p.name}:zarg`, plugin: "zarg", agent: "zarg" }) },
     }
     const zarg = yield* trustedAgents(ZARG_ROOT).pipe(
@@ -202,8 +203,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       return op === "ask" ? inbox.ask({ plugin }, a.topic!) : op === "post" ? inbox.post({ plugin }, a.topic!) : op === "settle" ? inbox.settle(plugin, a.id ?? "", a.why ?? "") : inbox.update(plugin, a.id ?? "", a.patch ?? {})
     }, (plugin) => void Effect.runFork(inbox.stopped(plugin)))
     control.setAsk((q) =>
-      prompts
-        .ask({ question: `Plugin ${q.plugin} wants to ${q.what}.`, options: q.options.map((o) => ({ id: o.id, label: o.label, ...(o.id === "once" ? { recommended: true } : {}) })), allowOther: false, kind: "grant" })
+      grantAsk(inbox)({ plugin: q.plugin }, { question: `Plugin ${q.plugin} wants to ${q.what}.`, options: q.options.map((o) => ({ id: o.id, label: o.label, ...(o.id === "once" ? { recommended: true } : {}) })), allowOther: false, kind: "grant" })
         .pipe(Effect.map((a) => q.options.find((o) => o.id === a.choice)?.id ?? "deny")),
     )
     // Plugins that lack only their load grant: asked about now that main can ask (YOLO loads them without asking).
@@ -287,7 +287,10 @@ const pluginsFor = (
   models?: { readonly decide: NonNullable<Parameters<typeof pluginHostLayer>[0]["decide"]>; readonly complete: NonNullable<Parameters<typeof pluginHostLayer>[0]["complete"]> },
 ) => {
   const tables = (config.extra.plugins ?? {}) as Readonly<Record<string, unknown>>
+  // [plugins] grant_timeout = <seconds>: a grant question left that long counts as deny (none: it waits until answered).
+  const grantTimeout = tables.grant_timeout
   return pluginHostLayer({
+    ...(typeof grantTimeout === "number" && grantTimeout > 0 ? { askTimeoutMs: grantTimeout * 1000 } : {}),
     ...(models ?? {}),
     root,
     listed: Object.keys(tables).filter((name) => (tables[name] as { source?: unknown } | undefined)?.source !== undefined),

@@ -118,7 +118,8 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     else if (action.type === "stop") props.session.stop()
     else if (action.type === "scroll") scroller.current?.(action.delta)
     else if (action.type === "scroll-talk") talkRef.current?.scrollBy(action.delta)
-    else if (action.type === "answer-prompt") void props.session.answerPrompt(action.id, action.choice)
+    // A grant topic's popover answers the topic (older cores' grant prompts answer the prompt).
+    else if (action.type === "answer-prompt") void (action.id.startsWith("T-") ? props.session.answerTopic(action.id, action.choice) : props.session.answerPrompt(action.id, action.choice))
     else if (action.type === "close-prompt") void props.session.closePrompt(action.id)
     else if (action.type === "review-acts") for (const a of action.acts) void props.session.act(a.agent, a.action, a.section, a.rows)
     else if (action.type === "archive") void props.session.archive(action.change)

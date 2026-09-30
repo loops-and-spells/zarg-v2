@@ -259,7 +259,15 @@ export const typing = (ui: Ui, s: SessionState) => {
 }
 /** The shared popover queue, in the order the core asked: nothing on the client reorders it. */
 // A stopped core cannot take an answer, and a prompt without options cannot be answered: neither holds the keys.
-export const queueOf = (_ui: Ui, s: SessionState): ReadonlyArray<Prompt> => (s.core === "down" ? [] : (s.thread.prompts ?? []).filter((p) => p.kind === "surface" || p.options.length > 0))
+export const queueOf = (_ui: Ui, s: SessionState): ReadonlyArray<Prompt> => {
+  if (s.core === "down") return []
+  // Grants are inbox topics now: the popover shows the open ones, first raised first (answering it answers the topic).
+  const grants = Object.values(s.thread.inbox ?? {})
+    .filter((t) => t.kind === "grant" && t.state === "open" && t.blocking)
+    .sort((a, b) => a.created - b.created)
+    .map((t): Prompt => ({ id: t.id, question: t.title, options: (t.answers ?? []).map((a) => ({ id: a.id, label: a.label, ...(a.recommended === true ? { recommended: true } : {}) })), kind: "grant" }))
+  return [...(s.thread.prompts ?? []).filter((p) => p.kind === "surface" || p.options.length > 0), ...grants]
+}
 /** The bar's input has the keys: it takes text and no popover is up. */
 export const inputFocused = (ui: Ui, s: SessionState) => typing(ui, s) && queueOf(ui, s).length === 0 && ui.palette === undefined
 /** The bar takes focus; while zarg asks, the sheet opens with the question. */

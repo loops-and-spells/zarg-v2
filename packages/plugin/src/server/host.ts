@@ -92,6 +92,8 @@ export interface HostOptions {
   readonly vault: (name: string) => Effect.Effect<Redacted.Redacted<string> | undefined>
   readonly config: (plugin: string) => unknown
   readonly ask: Ask
+  /** Seconds a grant question waits before it counts as deny; none: until answered. */
+  readonly askTimeoutMs?: number
   readonly yolo: { readonly on: (plugin: string) => boolean }
   readonly log: (line: string) => void
   readonly redact: (text: string) => string
@@ -332,6 +334,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           // The plugin reads the graph as it is at call time: a restarted process gets it whole again.
           ...(m.scopes.graph !== undefined ? { snapshot: () => Effect.runPromise(store.snapshot.pipe(Effect.map(json), Effect.orDie)) } : {}),
           ask: opts.ask,
+          ...(opts.askTimeoutMs !== undefined ? { askTimeoutMs: opts.askTimeoutMs } : {}),
           yolo: () => opts.yolo.on(m.name),
           log: opts.log,
           redact: opts.redact,

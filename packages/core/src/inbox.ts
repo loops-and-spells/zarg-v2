@@ -1,5 +1,5 @@
 import { Deferred, Effect } from "effect"
-import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import * as E from "./events"
 import type { ThreadLog } from "./log"
@@ -48,6 +48,8 @@ export const makeInbox = (opts: { readonly log: ThreadLog; readonly dir: string;
   Effect.gen(function* () {
     const now = opts.now ?? Date.now
     mkdirSync(opts.dir, { recursive: true })
+    // Operator state, never the project's: a * .gitignore inside keeps it out of the repository.
+    if (!existsSync(join(opts.dir, ".gitignore"))) writeFileSync(join(opts.dir, ".gitignore"), "*\n")
     const topics = new Map<string, Topic>()
     const waiting = new Map<string, Deferred.Deferred<Reply>>()
     const save = (t: Topic) =>

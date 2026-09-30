@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { existsSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs"
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Fiber } from "effect"
@@ -147,5 +147,9 @@ describe("the inbox", () => {
     await Effect.runPromise(first.inbox.answer(closed, { answer: "once" }))
     const second = await setup({ ...d, log: dirs().log })
     expect(second.events().map((e) => e.id)).toEqual([open])
+  })
+  test("the inbox keeps itself out of the project's repository (a * .gitignore inside)", async () => {
+    const { d } = await setup()
+    expect(readFileSync(join(d.dir, ".gitignore"), "utf8")).toBe("*\n")
   })
 })

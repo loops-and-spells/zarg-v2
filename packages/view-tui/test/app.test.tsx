@@ -866,7 +866,7 @@ describe("focuses", () => {
     const topic = (id: string, over: Record<string, unknown>) => ({ id, kind: "grant", from: { plugin: "backlog" }, title: `title ${id}`, why: "fs write", about: [], blocking: false, messages: [], state: "open", created: Date.now(), updated: 0, ...over })
     const inbox = {
       "T-2": topic("T-2", { kind: "report", from: { plugin: "rehearse" }, title: "Watch agents run done" }),
-      "T-1": topic("T-1", { blocking: true, title: "backlog wants to write .zarg/triage", answers: [{ id: "once", label: "Allow once", recommended: true }, { id: "deny", label: "Deny" }], evidence: "Refine saves the round." }),
+      "T-1": topic("T-1", { kind: "question", blocking: true, title: "backlog wants to write .zarg/triage", answers: [{ id: "once", label: "Allow once", recommended: true }, { id: "deny", label: "Deny" }], evidence: "Refine saves the round." }),
     }
     const t = await render({ ...viewState, thread: { ...viewState.thread, inbox } as never }, big)
     const f = t.captureCharFrame()
@@ -877,6 +877,14 @@ describe("focuses", () => {
     expect(t.captureCharFrame()).toContain("Refine saves the round.")
     t.mockInput.pressKey("2"); await settle(t)
     expect(t.calls).toContain("topic T-1 deny")
+  })
+  test("a grant topic shows as the popover; its Enter answers the topic", async () => {
+    const grant = { id: "T-9", kind: "grant", from: { plugin: "tracker" }, title: "Plugin tracker wants to reach a.test.", why: "grant", about: [], blocking: true, messages: [], state: "open", created: 1, updated: 1, answers: [{ id: "once", label: "Allow once", recommended: true }, { id: "deny", label: "Deny" }] }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-9": grant } } as never }, big)
+    expect(t.captureCharFrame()).toContain("Plugin tracker wants to reach a.test.")
+    await Bun.sleep(350)
+    t.mockInput.pressEnter(); await settle(t)
+    expect(t.calls).toContain("topic T-9 once")
   })
   test("arrival with nothing working: the grid behind zarg's open sheet", async () => {
     const t = await render(idleState, big)

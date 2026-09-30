@@ -119,6 +119,8 @@ export const pluginHostLayer = (opts: {
   /** The decision model and model roles for service plugins. */
   readonly decide?: HostOptions["decide"]
   readonly complete?: HostOptions["complete"]
+  /** How long a grant question waits before it counts as deny (ms); none: until answered. */
+  readonly askTimeoutMs?: number
   /** False for one-shot commands (the CLI): background plugins do not start with the host. */
   readonly startServices?: boolean
 }): Layer.Layer<PluginHost | PluginControl, PluginConfigError, GraphStore> => {
@@ -163,6 +165,7 @@ export const pluginHostLayer = (opts: {
         projectRoot: opts.root,
         ...(opts.startServices === false ? { startServices: false } : {}),
         ...(opts.decide !== undefined ? { decide: opts.decide } : {}),
+        ...(opts.askTimeoutMs !== undefined ? { askTimeoutMs: opts.askTimeoutMs } : {}),
         ...(opts.complete !== undefined ? { complete: opts.complete } : {}),
         agendaChanged: (plugin) => agendaChanged(plugin),
         agents: (plugin, event) => agents(plugin, event),
