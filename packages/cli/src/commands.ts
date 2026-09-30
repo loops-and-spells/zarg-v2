@@ -134,7 +134,13 @@ const auditCmd = Command.make(
       const report = auditOf(snap, yield* auditTags(root))
       if (Option.isSome(o.card)) {
         const id = o.card.value
-        return yield* print(report.cards.find((c) => c.id === id) ?? { id, missing: true })
+        const found = report.cards.find((c) => c.id === id)
+        yield* print(found ?? { id, missing: true })
+        if (found === undefined)
+          yield* Effect.sync(() => {
+            process.exitCode = 1
+          })
+        return
       }
       yield* print(o.summary ? auditSummary(report) : report)
       if (report.problems.length > 0)

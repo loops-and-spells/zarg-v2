@@ -20,6 +20,9 @@ describe("the card audit", () => {
       { id: "UX-0003", file: "README.md", line: 1 },
     ])
   })
+  test("parseTags: git grep -z output keeps a path with :digits: whole", () => {
+    expect(parseTags(`a:1:b.ts\u00007\u0000// ${TAG} UX-0001`)).toEqual([{ id: "UX-0001", file: "a:1:b.ts", line: 7 }])
+  })
   test("parseTags: a line with the mark twice names both cards", () => {
     expect(parseTags(`src/live.ts:201:    // ${TAG} UX-0058 ${TAG} UX-0059`).map((t) => t.id)).toEqual(["UX-0058", "UX-0059"])
   })
@@ -59,7 +62,8 @@ describe("the card audit", () => {
     writeFileSync(join(root, "ignored.ts"), `// ${TAG} UX-0003\n`)
     writeFileSync(join(root, "docs/plan.md"), `// ${TAG} UX-0004\n`)
     writeFileSync(join(root, "src/test.ts"), 'const TAG = "@" + "card"\n')
+    writeFileSync(join(root, "src/tab.ts"), `//\t${TAG}\tUX-0005\n`)
     const found = await Effect.runPromise(tags(root))
-    expect(found.map((t) => `${t.id} ${t.file}:${t.line}`).sort()).toEqual(["UX-0001 src/tracked.ts:1", "UX-0002 src/new.ts:1"])
+    expect(found.map((t) => `${t.id} ${t.file}:${t.line}`).sort()).toEqual(["UX-0001 src/tracked.ts:1", "UX-0002 src/new.ts:1", "UX-0005 src/tab.ts:1"])
   })
 })

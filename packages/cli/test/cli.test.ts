@@ -45,6 +45,9 @@ describe("zarg cli", () => {
     expect(json("query", "code", "UX-0001")).toEqual([`pricing.ts:1:export const open = () => 1 // ${TAG} UX-0001`])
     expect(json("audit", "--card", "UX-0001")).toMatchObject({ id: "UX-0001", status: "built", tags: [{ file: "pricing.ts", line: 1 }] })
     require("node:fs").rmSync(join(dir, "pricing.ts"))
+    // An unknown card: exit 1.
+    const unknown = zarg("audit", "--card", "UX-9999")
+    expect([unknown.code, JSON.parse(unknown.out)]).toEqual([1, { id: "UX-9999", missing: true }])
   })
 
   test("show returns the node, its hash and inbound edges", () => {

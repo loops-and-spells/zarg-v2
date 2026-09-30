@@ -19,10 +19,10 @@ const TAG_RE = new RegExp(`${MARK}((?:\\s+[A-Z]+-\\d+)+)`, "g")
 /** Paths never searched: docs quote tags as examples. */
 export const IGNORED = ["docs"]
 
-/** `git grep -n` output (`path:line:text`) as tags, one per id a line names. */
+/** `git grep -n` output as tags, one per id a line names: `path\0line\0text` (with -z, so a path may hold `:`), or `path:line:text`. */
 export const parseTags = (grep: string): Array<Tag> =>
   grep.split("\n").flatMap((l) => {
-    const m = /^(.*?):(\d+):(.*)$/.exec(l)
+    const m = /^([^\0]*)\0(\d+)\0(.*)$/.exec(l) ?? /^(.*?):(\d+):(.*)$/.exec(l)
     if (m === null) return []
     // Every mark on the line (a line may carry the mark twice), each with the ids after it.
     return [...m[3]!.matchAll(TAG_RE)].flatMap((t) => t[1]!.trim().split(/\s+/).map((id) => ({ id, file: m[1]!, line: Number(m[2]) })))
@@ -62,7 +62,7 @@ export const summary = (r: Report): string => {
 export const tags = (root: string) =>
   Effect.tryPromise({
     try: async () => {
-      const p = await Bun.$`git grep -n --untracked -E ${`${MARK}( +[A-Z]+-[0-9]+)+`} -- . ${IGNORED.map((d) => `:!${d}`)}`.cwd(root).quiet().nothrow()
+      const p = await Bun.$`git grep -z -n --untracked -E ${`${MARK}([[:space:]]+[A-Z]+-[0-9]+)+`} -- . ${IGNORED.map((d) => `:!${d}`)}`.cwd(root).quiet().nothrow()
       // git grep exits 1 when nothing matches.
       if (p.exitCode > 1) throw new Error(p.stderr.toString().trim())
       return parseTags(p.stdout.toString())

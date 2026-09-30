@@ -32,7 +32,7 @@ export const snapshotAt = (root: string, ref: string) =>
 // @card UX-0081 UX-0082
 export const cardRefs = (root: string, id: string) =>
   // The id anywhere in a tag's list: `@card UX-0081 UX-0082` is a tag for both.
-  sh(root, ["grep", "-n", "--untracked", "-E", "-e", `@card( +[A-Z]+-[0-9]+)* +${id}([^0-9]|$)`]).pipe(
+  sh(root, ["grep", "-n", "--untracked", "-E", "-e", `@card([[:space:]]+[A-Z]+-[0-9]+)*[[:space:]]+${id}([^0-9]|$)`]).pipe(
     Effect.map((out) => out.split("\n").filter((l) => l.length > 0)),
     // git grep exits 1 when nothing matches.
     Effect.catch(() => Effect.succeed([] as ReadonlyArray<string>)),
