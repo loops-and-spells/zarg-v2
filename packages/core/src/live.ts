@@ -21,6 +21,7 @@ import { notLoaded } from "./not-loaded"
 import { outsideReads } from "./outside"
 import { makePrompts } from "./prompts"
 import { makeInbox, type TopicInput } from "./inbox"
+import { syncPluginTopics } from "./plugin-topics"
 import { makeSurfaces, NAV, navItems } from "./surfaces"
 import { makeActions } from "./actions"
 import { makeLog } from "./log"
@@ -169,7 +170,10 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // The Triage Agent's pass over every journey's stage (when it is loaded).
     const triageTick = Effect.suspend(() => (host.manifests.some((m) => m.name === "triage") ? Effect.ignore(host.invoke("triage", "tick", {})) : Effect.void))
     // The backlog's or rehearse's agenda changing wakes the Triage Agent (a stage's turn, a re-rehearse done).
+    // The host's plugin problems in the operator's inbox, whenever an agenda changes (and once plugins load, below).
+    const syncPlugins = Effect.ignore(Effect.flatMap(host.agenda(), (items) => syncPluginTopics(inbox, items)))
     control.setAgendaChanged((plugin) => {
+      if (plugin === "host") return void Effect.runFork(syncPlugins)
       Effect.runFork(main.wake)
       if (plugin === "backlog") Effect.runFork(planner.tick)
       if (plugin === "backlog" || plugin === "rehearse") Effect.runFork(triageTick)
@@ -204,7 +208,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     )
     // Plugins that lack only their load grant: asked about now that main can ask (YOLO loads them without asking).
     // Then the agents pick up where a restart left them: a Ready plan, a journey's stage halfway.
-    yield* Effect.forkDetach(Effect.andThen(loadPlugins, Effect.andThen(planner.tick, triageTick)))
+    yield* Effect.forkDetach(Effect.andThen(loadPlugins, Effect.andThen(syncPlugins, Effect.andThen(planner.tick, triageTick))))
 
     // @card UX-0058 @card UX-0059
     /** `/reconcile`: turn plan and implement on for this session (the config's section and `enabled` are overridden). */

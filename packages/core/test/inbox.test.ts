@@ -3,16 +3,8 @@ import { existsSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Fiber } from "effect"
-import { makeLog } from "../src/log"
-import { INBOX, makeInbox } from "../src/inbox"
+import { dirs, setup } from "./inbox-helper"
 
-const dirs = () => ({ log: mkdtempSync(join(tmpdir(), "zarg-inbox-log-")), dir: mkdtempSync(join(tmpdir(), "zarg-inbox-")) })
-const setup = async (d = dirs(), now = () => 1000, answered: Array<unknown> = []) => {
-  const log = await Effect.runPromise(makeLog(d.log, (t) => t))
-  const inbox = await Effect.runPromise(makeInbox({ log, dir: d.dir, now, answered: (t, r) => Effect.sync(() => void answered.push([t.id, r])) }))
-  const events = () => log.all().filter((e) => e.type === "CUSTOM" && e.name === INBOX).map((e) => (e.value as { topic: { id: string; state: string } }).topic)
-  return { inbox, log, events, d, answered }
-}
 const grant = { kind: "grant", title: "backlog wants to write .zarg/triage", why: "fs write", answers: [{ id: "once", label: "Allow once" }, { id: "deny", label: "Deny", reason: "optional" as const }] }
 const from = { plugin: "backlog" }
 

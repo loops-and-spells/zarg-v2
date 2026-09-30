@@ -265,8 +265,12 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
       const scope = yield* Effect.scope
       const hostItems: Array<AgendaItem> = [...(opts.notices ?? [])]
       const running = new Map<string, Running>()
-      const failed = (m: Manifest, why: string) =>
-        void hostItems.push({ id: `plugin-failed:${m.name}`, title: `Plugin ${m.name} failed to load`, detail: why, about: [], priority: 1 })
+      // A plugin problem is news for the core (it raises it in the operator's inbox).
+      const problem = (item: AgendaItem) => {
+        hostItems.push(item)
+        opts.agendaChanged?.("host")
+      }
+      const failed = (m: Manifest, why: string) => problem({ id: `plugin-failed:${m.name}`, title: `Plugin ${m.name} failed to load`, detail: why, about: [], priority: 1 })
       const services = new Set<string>()
       // Built once the host's calls exist (below); a plugin asking before then is told so.
       let entities: ReturnType<typeof makeEntities> | undefined
@@ -293,7 +297,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         walk(p.manifest.name)
       }
       const needs = (m: Manifest, dep: string, why: string) =>
-        void hostItems.push({ id: `plugin-needs:${m.name}:${dep}`, title: `Plugin ${m.name} needs ${dep}, which is not loaded`, detail: why, about: [], priority: 1 })
+        problem({ id: `plugin-needs:${m.name}:${dep}`, title: `Plugin ${m.name} needs ${dep}, which is not loaded`, detail: why, about: [], priority: 1 })
       const startable = plugins.filter((p) => {
         const m = p.manifest
         if (cyclic.has(m.name)) {
@@ -378,7 +382,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
             const r = running.get(m.name)
             if (r !== undefined && restarts.length >= MAX_RESTARTS && !r.disabled) {
               r.disabled = true
-              hostItems.push({ id: `plugin-disabled:${m.name}`, title: `Plugin ${m.name} was disabled after ${MAX_RESTARTS} restarts`, detail: "It crashed or ran past its deadline three times in ten minutes. Restart zarg to try it again.", about: [], priority: 1 })
+              problem({ id: `plugin-disabled:${m.name}`, title: `Plugin ${m.name} was disabled after ${MAX_RESTARTS} restarts`, detail: "It crashed or ran past its deadline three times in ten minutes. Restart zarg to try it again.", about: [], priority: 1 })
               disableDependents(m.name)
             }
           },
@@ -427,7 +431,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           d.disabled = true
           // Its background work must not go on without what it needs.
           Effect.runFork(d.process.stop)
-          hostItems.push({ id: `plugin-disabled:${d.manifest.name}`, title: `Plugin ${d.manifest.name} was disabled: ${name}, which it needs, was disabled`, detail: "Restart zarg to try them again.", about: [], priority: 1 })
+          problem({ id: `plugin-disabled:${d.manifest.name}`, title: `Plugin ${d.manifest.name} was disabled: ${name}, which it needs, was disabled`, detail: "Restart zarg to try them again.", about: [], priority: 1 })
           disableDependents(d.manifest.name)
         }
       }
