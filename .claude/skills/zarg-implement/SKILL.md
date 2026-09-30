@@ -35,7 +35,8 @@ Run the CLI from the repo root as `mise run -q zarg -- <command>`.
      - <card ids, or none>
      ```
    - If the card contradicts another card or cannot be implemented as written, do not guess and do not edit the graph: stop and tell the user which card and why, and suggest running `zarg-drive` on it.
-4. Implement each plan test-first. Tag the implementation and its tests with `// @card <id>`. Never edit `.zarg/graph` or another card's plan.
-5. Run `mise run verify`. It must pass; fix what fails (at most two attempts before you stop and report).
-6. Record the checkpoint: `mise run -q zarg -- checkpoint`. It writes `.zarg/reconciled.json` with the graph you implemented and stages it with `.zarg/graph` (and the removal of a legacy `.zarg/sync.json`).
-7. Stage the plans and code, then commit everything together: `git add -A -- .zarg/plans <code paths> && git commit -m "feat: implement <card ids>"`.
+4. Implement each plan test-first. Tag the implementation and its tests with `// @card <id>`. Never edit `.zarg/graph` or another card's plan; the one graph change this skill makes is the next step's.
+5. Run `mise run -q zarg -- audit --card <id>`. When it shows the card's tags and `status: planned`, the card is built now: clear the flag with `mise run -q zarg -- tool call gherkin/edit-card '{"id":"<id>","planned":false}'`.
+6. Run `mise run verify`. It must pass; fix what fails (at most two attempts before you stop and report).
+7. Record the checkpoint: `mise run -q zarg -- checkpoint`. It writes `.zarg/reconciled.json` with the graph you implemented and stages it with `.zarg/graph` (and the removal of a legacy `.zarg/sync.json`).
+8. Stage the plans and code, then commit everything together: `git add -A -- .zarg/plans <code paths> && git commit -m "feat: implement <card ids>"`.

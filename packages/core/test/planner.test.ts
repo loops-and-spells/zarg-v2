@@ -79,7 +79,7 @@ describe("the Planner", () => {
   test("a landed pass moves Running plans whose cards all landed to Review", async () => {
     const { p, log } = setup({ running: [{ id: "B-01", data: item({ status: "running", cards: [{ ref: "gherkin/card:UX-0001@abc" }, { ref: "gherkin/card:UX-0002@def" }] }) }, { id: "B-02", data: item({ id: "B-02", status: "running" }) }] })
     await Effect.runPromise(p.landed(["UX-0001"]))
-    expect(log).toEqual([["backlog", "moved", { id: "B-02", to: "review", by: "reconcile", what: "landed" }]])
+    expect(log).toEqual([["call", "gherkin/edit-card", { id: "UX-0001", planned: false }], ["backlog", "moved", { id: "B-02", to: "review", by: "reconcile", what: "landed" }]])
   })
   test("the Running move fails: nothing is applied", async () => {
     const { p, log } = setup({ movedFails: true })
@@ -98,8 +98,17 @@ describe("the Planner", () => {
     await Effect.runPromise(p.landed(["UX-0001"]))
     await Effect.runPromise(p.failed(["UX-0007"]))
     expect(log).toEqual([
+      ["call", "gherkin/edit-card", { id: "UX-0001", planned: false }],
       ["backlog", "moved", { id: "B-01", to: "review", by: "reconcile", what: "landed" }],
       ["backlog", "moved", { id: "B-03", to: "ready", by: "reconcile", what: "the pass failed on UX-0007", needs: "the reconcile pass failed on UX-0007: see the driver's agenda, then move it to Ready" }],
+    ])
+  })
+  test("a landed pass clears planned on its cards: they are built now", async () => {
+    const { p, log } = setup({ running: [] })
+    await Effect.runPromise(p.landed(["UX-0026", "UX-0031"]))
+    expect(log).toEqual([
+      ["call", "gherkin/edit-card", { id: "UX-0026", planned: false }],
+      ["call", "gherkin/edit-card", { id: "UX-0031", planned: false }],
     ])
   })
 })
