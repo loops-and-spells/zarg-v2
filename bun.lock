@@ -198,6 +198,7 @@
     "packages/plugin": {
       "name": "@zarg/plugin",
       "dependencies": {
+        "@zarg/audit": "workspace:*",
         "@zarg/bm25": "workspace:*",
         "@zarg/entities": "workspace:*",
         "@zarg/graph": "workspace:*",
