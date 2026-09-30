@@ -44,9 +44,11 @@ test("opening a topic by click: the recommended answer highlighted (not the last
   expect(openTopicUi(home, st.thread.inbox!["T-2"]!).action).toEqual({ type: "read-topic", id: "T-2" })
 })
 test("home on arrival: zarg's sheet stays closed while topics wait, so the inbox shows", () => {
-  const st = s(topic("T-1"))
+  const st = s(topic("T-1", { kind: "drift" }))
   expect(goHome(initialUi, st)).toMatchObject({ main: "inbox", sheet: false })
   expect(goHome(initialUi, s())).toMatchObject({ main: "inbox", sheet: true })
+  // Grants show as popovers and zarg's own questions in its sheet: neither keeps the sheet closed.
+  expect(goHome(initialUi, s(topic("T-2", { blocking: true }), topic("T-3", { kind: "question", from: { plugin: "zarg", agent: "zarg" } })))).toMatchObject({ sheet: true })
 })
 
 test("a reason sent closes the topic; leaving the inbox drops a half-typed reason; t only where there is something to answer", () => {

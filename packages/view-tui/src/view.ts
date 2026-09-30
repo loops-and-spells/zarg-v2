@@ -226,7 +226,8 @@ export const goTo = (ui: Ui, main: Main, viewing?: string): Ui => {
 /** Home: the inbox, with zarg's sheet open when nothing is going on (no agent works, no topic waits) and closed otherwise. */
 export const goHome = (ui: Ui, s: SessionState): Ui => {
   const { viewing: _, view: __, sheetOf: ___, ...rest } = ui
-  const waiting = Object.values(s.thread.inbox ?? {}).some((t) => t.state === "open")
+  // Topics that wait in the inbox alone: grants show as popovers, and zarg's own questions in its sheet.
+  const waiting = Object.values(s.thread.inbox ?? {}).some((t) => t.state === "open" && t.kind !== "grant" && t.from.agent !== "zarg")
   const idle = !agentsWork(s) && !waiting
   return { ...rest, main: "inbox", back: [], sheet: idle, focus: idle && ui.focus === "bar" ? "bar" : "tile" }
 }
