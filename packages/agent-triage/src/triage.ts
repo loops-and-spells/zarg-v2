@@ -42,6 +42,8 @@ export interface TriageDeps {
   readonly drafted: (p: { readonly journey: string; readonly title: string; readonly steps: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
   /** A folded round's plans to the Backlog, in order; each waits on the plans it names by index. */
   readonly plans: (journey: string, plans: ReadonlyArray<{ readonly title: string; readonly steps: ReadonlyArray<string>; readonly changes: Draft; readonly cards: ReadonlyArray<string>; readonly feedback: ReadonlyArray<string>; readonly after: ReadonlyArray<number> }>) => Effect.Effect<void, unknown>
+  /** A card's code (its @card tags and what follows): the proposal is drafted against what zarg does now. */
+  readonly code?: (card: string) => Effect.Effect<ReadonlyArray<{ readonly file: string; readonly line: number; readonly text: string }>, unknown>
   /** The decision model: each question answered (noul: answer and confidence). */
   readonly decide: (req: { readonly state: string; readonly questions: Record<string, unknown> }) => Effect.Effect<Record<string, any>, unknown>
   /** Stop that rehearse run, when it is the one going. */
@@ -149,12 +151,15 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
       yield* say(`drafting ${card} (${entries.length} feedback)`)
       const fresh = (st.results?.fresh ?? []).filter((f) => f.card === card)
       const step = yield* d.step(card, st.draft).pipe(Effect.orElseSucceed(() => null))
+      const code = d.code === undefined ? [] : yield* d.code(card).pipe(Effect.orElseSucceed(() => []))
+      const codeLines = code.map((c) => `${c.file}:${c.line}\n${c.text}`).join("\n\n").split("\n").slice(0, 60)
       const base = [
         `Journey: ${st.journey}`,
         "The card, as drafted so far:",
         "```gherkin",
         stepText(step),
         "```",
+        ...(codeLines.length > 0 && codeLines.join("").length > 0 ? ["What zarg does now (the card's code):", "```", ...codeLines, "```"] : []),
         "Feedback on it:",
         ...entries.flatMap((e) => [`- ${e.id} ${e.kind} (${e.severity}), by ${e.persona}: ${e.note}`, ...(e.operatorNote !== undefined ? [`  Operator's note: ${e.operatorNote}`] : [])]),
         ...fresh.map((f) => `- new ${f.kind} (${f.severity}): ${f.note}`),

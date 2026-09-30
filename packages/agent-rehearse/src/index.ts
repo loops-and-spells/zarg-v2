@@ -66,6 +66,7 @@ export default definePlugin({
       personas: () => gherkin.personas({}),
       stories: (strategy, focus, draft) => gherkin.stories({ strategy, ...(focus !== undefined ? { focus } : {}), ...(draft !== undefined ? { draft } : {}) }),
       step: (card, via, draft) => gherkin.step({ card, ...(via !== undefined ? { via } : {}), ...(draft !== undefined ? { draft } : {}) }),
+      code: (card) => entities.code(`gherkin/card:${card}`),
       agendaChanged: agendaPower.changed,
       decide: (req) => decisions.decide(req),
       complete: (req) => models.complete({ role: "rehearse", ...req }).pipe(Effect.mapError((e) => ({ message: e.message }))),

@@ -4,7 +4,7 @@ import { Effect } from "effect"
 import { stepText, storyText } from "./screen"
 import type { Complete, Finding, Kind, Persona, Reason, StepView } from "./types"
 
-const KINDS: ReadonlyArray<Kind> = ["friction", "gap", "contradiction", "transition", "feature", "delight"]
+const KINDS: ReadonlyArray<Kind> = ["friction", "gap", "contradiction", "transition", "feature", "delight", "drift"]
 const SEVERITIES = ["high", "medium", "low"] as const
 const MAX_PER_STEP = 5
 
@@ -45,11 +45,11 @@ const textOf = (complete: Complete, system: string, user: string, outputSchema?:
 type Raw = { readonly kind: Kind; readonly card: string; readonly edge?: { from: string; to: string }; readonly severity: "high" | "medium" | "low"; readonly note: string; readonly op?: unknown }
 
 /** A flagged step, looked at by a large-model tester in the persona's shoes. */
-export const diagnose = (complete: Complete, persona: Persona, prior: ReadonlyArray<StepView>, step: StepView, flags: ReadonlyArray<Reason>) =>
+export const diagnose = (complete: Complete, persona: Persona, prior: ReadonlyArray<StepView>, step: StepView, flags: ReadonlyArray<Reason>, code = "") =>
   textOf(
     complete,
-    `You ARE ${persona.text}. You are walking a product's specified journey, one step at a time, and report what is wrong with this step for you: friction (unclear), gap (something missing, like a failure you must handle), contradiction, transition (the step does not follow from the one before), feature (something you would want), delight. At most ${MAX_PER_STEP}; notes of two sentences at most. Suggest a graph change in op when you can. Most steps are fine: report nothing then.`,
-    `So far: ${storyText(prior) || "you just started"}.\nThis step:\n${stepText(step)}\nIt was flagged because ${flags.map((f) => WHY[f]).join(" and ")}.`,
+    `You ARE ${persona.text}. You are walking a product's specified journey, one step at a time, and report what is wrong with this step for you: friction (unclear), gap (something missing, like a failure you must handle), contradiction, transition (the step does not follow from the one before), feature (something you would want), delight, drift (the step as written and what zarg does now differ: only when its code is shown). Judge the step against what zarg does now when its code is shown; never report as missing what the code already does. At most ${MAX_PER_STEP}; notes of two sentences at most. Suggest a graph change in op when you can. Most steps are fine: report nothing then.`,
+    `So far: ${storyText(prior) || "you just started"}.\nThis step:\n${stepText(step)}\nIt was flagged because ${flags.map((f) => WHY[f]).join(" and ")}.${code.length > 0 ? `\n\nWhat zarg does now (the step's code):\n${code}` : ""}`,
     FINDINGS_SCHEMA,
   ).pipe(
     Effect.map((text) => {

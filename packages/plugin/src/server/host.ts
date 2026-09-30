@@ -1,3 +1,4 @@
+import { codeOf } from "./code"
 import { Cause, Context, Data, Effect, Exit, Layer, type Redacted, Scope, Semaphore } from "effect"
 import { entitiesProblem, keysProblem, type Layout, opensProblem, reviewProblem, surfacesProblem, tonesProblem } from "@zarg/view"
 import { diff, type Expect, GraphStore, type GraphError, hash, type IoError, type Loaded, Snapshot } from "@zarg/graph"
@@ -643,6 +644,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           const r = running.get(owner)
           return r === undefined ? Effect.fail({ message: `${owner} is not running` }) : invoke(r, "$entity", p)
         },
+        ...(opts.projectRoot !== undefined ? { code: codeOf(opts.projectRoot, opts.redact) } : {}),
         write: (owner, method, params) => call(`${owner}/${method}`, params).pipe(Effect.mapError((e) => ({ _tag: e._tag, message: e._tag === "LintFailed" ? e.findings.map((f) => f.message).join("; ") : String((e as { message?: unknown }).message ?? e._tag) }))),
         invoke: (owner, method, params) => {
           const r = running.get(owner)

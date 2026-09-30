@@ -1,3 +1,4 @@
+import { type Built, cutStories } from "./built"
 import { Deferred, Effect, Fiber, Semaphore } from "effect"
 import { consolidate, diagnose, report } from "./findings"
 import { screenStep, stepHash } from "./screen"
@@ -58,6 +59,8 @@ export interface RunDeps {
   readonly personas: () => Effect.Effect<ReadonlyArray<{ readonly name: string; readonly text: string; readonly cards: ReadonlyArray<string> }>, unknown>
   readonly stories: (strategy: "journey" | "edge-pair" | "teleport", focus?: ReadonlyArray<string>, draft?: Draft) => Effect.Effect<{ readonly stories: ReadonlyArray<ReadonlyArray<string>>; readonly unreachable: number }, unknown>
   readonly step: (card: string, via?: string, draft?: Draft) => Effect.Effect<StepView | null, unknown>
+  /** A card's code (its @card tags and what follows): testers walk only built cards, and see what zarg does. */
+  readonly code?: (card: string) => Effect.Effect<ReadonlyArray<{ readonly file: string; readonly line: number; readonly text: string }>, unknown>
   /** Tell the core a run ended (the Triage Agent waits for its re-rehearse). */
   readonly agendaChanged: Effect.Effect<void, unknown>
   readonly decide: Decide
@@ -146,6 +149,20 @@ export const makeRehearse = (deps: RunDeps) =>
         let rec = start
         const update = (f: (r: RunRecord) => RunRecord) => Effect.suspend(() => save((rec = f(rec))))
         const views = new Map<string, StepView | undefined>()
+        // What zarg does now at a step: its tagged code, at most 60 lines (none without a code power).
+        const codes = new Map<string, string>()
+        const codeText = (card: string) =>
+          deps.code === undefined
+            ? Effect.succeed("")
+            : Effect.suspend(() =>
+                codes.has(card)
+                  ? Effect.succeed(codes.get(card)!)
+                  : Effect.map(deps.code!(card).pipe(Effect.orElseSucceed(() => [])), (cs) => {
+                      const text = cs.map((c) => `${c.file}:${c.line}\n${c.text}`).join("\n\n").split("\n").slice(0, 60).join("\n")
+                      codes.set(card, text)
+                      return text
+                    }),
+              )
         const viewOf = (card: string, via?: string) =>
           Effect.gen(function* () {
             const key = `${via ?? ""}>${card}`
@@ -265,7 +282,7 @@ export const makeRehearse = (deps: RunDeps) =>
                           walking.set(n, { path: pathAt(i), state: "waiting", detail: "queued" })
                           yield* showWorkers
                         }
-                        const d = screened !== undefined && screened.flags.length > 0 ? yield* inSlot(`diagnosing ${screened.flags.join(", ")}`, diagnose(deps.complete, persona, prior, step, screened.flags)) : undefined
+                        const d = screened !== undefined && screened.flags.length > 0 ? yield* inSlot(`diagnosing ${screened.flags.join(", ")}`, Effect.flatMap(codeText(step.card), (code) => diagnose(deps.complete, persona, prior, step, screened.flags, code))) : undefined
                         // One write, after the diagnosis: a restart before it screens and diagnoses the step again.
                         yield* update((r) => ({
                           ...r,
@@ -389,7 +406,17 @@ export const makeRehearse = (deps: RunDeps) =>
           const strategy = opts.strategy ?? "journey"
           // No focus, or an empty one, is every story.
           const focus = opts.focus !== undefined && opts.focus.length > 0 ? opts.focus : undefined
-          const planned = yield* deps.stories(strategy, focus, opts.draft).pipe(Effect.orElseSucceed(() => ({ stories: [], unreachable: 0 })))
+          const all = yield* deps.stories(strategy, focus, opts.draft).pipe(Effect.orElseSucceed(() => ({ stories: [], unreachable: 0 })))
+          // Only what is built is walked: a story stops before a planned card, or one whose code is not tagged.
+          const builtOf = new Map<string, Built>()
+          if (deps.code !== undefined)
+            for (const card of [...new Set(all.stories.flat())]) {
+              const step = yield* deps.step(card, undefined, opts.draft).pipe(Effect.orElseSucceed(() => null))
+              const code = step?.planned === true ? [] : yield* deps.code(card).pipe(Effect.orElseSucceed(() => [{ file: "", line: 0, text: "" }]))
+              builtOf.set(card, step?.planned === true ? "planned" : code.length === 0 ? "untagged" : "built")
+            }
+          const cut = cutStories(all.stories, (c) => builtOf.get(c) ?? "built")
+          const planned = { stories: cut.stories, unreachable: all.unreachable }
           const graph = yield* deps.personas().pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<{ readonly name: string; readonly text: string; readonly cards: ReadonlyArray<string> }>))
           if (graph.length === 0) return { refused: "no personas yet: the Driver Agent asks about them" }
           const acting = graph.filter((p) => p.cards.length > 0)
@@ -398,7 +425,7 @@ export const makeRehearse = (deps: RunDeps) =>
           if (personas.length === 0) return { refused: `no such personas: ${opts.personas!.join(", ")}` }
           const startedAt = yield* deps.now.pipe(Effect.orElseSucceed(() => 0))
           const run = `r-${(yield* deps.uuid.pipe(Effect.orElseSucceed(() => String(startedAt)))).slice(0, 8)}`
-          const rec: RunRecord = { run, startedAt, status: "running", strategy, focus: focus ?? [], personas, stories: planned.stories, unreachable: planned.unreachable, screened: {}, raw: [], infra: [], findings: [], ...(opts.draft !== undefined && opts.draft.length > 0 ? { draft: opts.draft } : {}), ...(opts.file === false ? { file: false } : {}) }
+          const rec: RunRecord = { run, startedAt, status: "running", strategy, focus: focus ?? [], personas, stories: planned.stories, unreachable: planned.unreachable, screened: {}, raw: [], infra: cut.notes, findings: [], ...(opts.draft !== undefined && opts.draft.length > 0 ? { draft: opts.draft } : {}), ...(opts.file === false ? { file: false } : {}) }
           yield* save(rec)
           yield* launch(rec)
           return { run, stories: planned.stories.length, steps: planned.stories.reduce((n, s) => n + s.length, 0), personas: personas.map((p) => p.name) } satisfies Started

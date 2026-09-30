@@ -7,7 +7,7 @@ import { FEEDBACK_COLUMNS, RunView, TesterView } from "../src/views"
 
 const noul = (p: number): Answer => ({ type: "noul", answer: p >= 0.5, probability: p, confidence: 0 })
 
-type Opts = { statusDown?: boolean; fileSome?: boolean; inFlight?: number; slowWrite?: number; down?: boolean; slowDecide?: number; gone?: ReadonlyArray<string>; state?: string; on?: boolean; unreachable?: number; personas?: ReadonlyArray<{ name: string; text: string; cards: ReadonlyArray<string> }>; files?: Map<string, string>; cardText?: (card: string) => string }
+type Opts = { statusDown?: boolean; fileSome?: boolean; inFlight?: number; slowWrite?: number; down?: boolean; slowDecide?: number; gone?: ReadonlyArray<string>; state?: string; on?: boolean; unreachable?: number; personas?: ReadonlyArray<{ name: string; text: string; cards: ReadonlyArray<string> }>; files?: Map<string, string>; cardText?: (card: string) => string; built?: Record<string, "planned" | "untagged">; prompts?: Array<string> }
 const setup = (o: Opts = {}) =>
   Effect.gen(function* () {
     const files = o.files ?? new Map<string, string>()
@@ -29,7 +29,8 @@ const setup = (o: Opts = {}) =>
     const deps: RunDeps = {
       personas: () => Effect.succeed(o.personas ?? [{ name: "Operator", text: "The operator, through the zarg TUI.", cards: ["A", "B", "C", "D"] }]),
       stories: (strategy, _f, draft) => Effect.sync(() => (drafts.push(["stories", draft]), strategies.push(strategy), { stories: [["A", "B", "C"], ["A", "B", "D"]], unreachable: o.unreachable ?? 0 })),
-      step: (card, _via, draft) => Effect.sync(() => (drafts.push(["step", draft]), draft !== undefined && card === "B" ? { ...view(card), thens: ["after B, drafted"] } : view(card))),
+      step: (card, _via, draft) => Effect.sync(() => (drafts.push(["step", draft]), draft !== undefined && card === "B" ? { ...view(card), thens: ["after B, drafted"] } : { ...view(card), ...(o.built?.[card] === "planned" ? { planned: true } : {}) })),
+      ...(o.built !== undefined ? { code: (card: string) => Effect.succeed(o.built![card] !== undefined ? [] : [{ file: `src/${card}.ts`, line: 1, text: `export const do${card} = () => "${card} code"` }]) } : {}),
       agendaChanged: Effect.sync(() => void agendaChanges.n++),
       decide: (req) =>
         Effect.andThen(
@@ -45,6 +46,7 @@ const setup = (o: Opts = {}) =>
       complete: (req) =>
         Effect.sync(() => {
           llm.n++
+          o.prompts?.push(req.messages.map((m) => m.content).join("\n"))
           return { text: req.outputSchema ? JSON.stringify({ findings: [{ kind: "friction", severity: "medium", note: "B is unclear" }] }) : "Testers stalled at B." }
         }),
       agents: {
@@ -384,4 +386,12 @@ test("the findings columns colour by meaning: card, journey, severity keys", () 
     ["severity", undefined, { high: "severity.high", medium: "severity.medium", low: "severity.low" }],
     ["now", undefined, { open: "attention", off: "dim", stale: "dim", planned: "accent", closed: "ok" }],
   ])
+})
+
+test("stories stop before a planned or untagged card (the run notes why); testers see the step's code", async () => {
+  const prompts: Array<string> = []
+  const out = await finish({ built: { C: "planned", D: "untagged" }, prompts })
+  expect(out.r.record(out.run)?.stories).toEqual([["A", "B"], ["A", "B"]])
+  expect(out.r.record(out.run)?.infra).toEqual(expect.arrayContaining(["C: not built yet (planned): not walked", "D: no code tagged and not planned: tag its code or mark it planned"]))
+  expect(prompts.some((p) => p.includes("What zarg does now") && p.includes('export const doB = () => "B code"'))).toBe(true)
 })

@@ -7,7 +7,7 @@ type Stage = Parameters<TriageDeps["propose"]>[0] extends never ? never : any
 const stage = (over: Record<string, unknown>) => ({ journey: "Set up", stage: "refine", proposals: [], draft: [], ...over })
 const entry = { id: "F-00000001", ref: "gherkin/card:UX-0001@abc", kind: "gap", severity: "high", note: "No deny path.", persona: "Operator", on: true, operatorNote: "Deny should say why." }
 const offEntry = { id: "F-00000002", ref: "gherkin/card:UX-0002@abc", kind: "friction", severity: "low", note: "Wordy.", persona: "Operator", on: false }
-const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string>; spent?: boolean; workers?: number; reasoning?: boolean; dry?: (n: number, draft: ReadonlyArray<{ tool: string; params: unknown }>) => { ok: boolean; problems: string[]; touched: string[]; cards?: string[] }; run?: unknown; result?: unknown; fresh?: boolean; down?: boolean; journeys?: ReadonlyArray<unknown>; atomic?: boolean; decisionsDown?: boolean }) => {
+const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string>; spent?: boolean; workers?: number; reasoning?: boolean; dry?: (n: number, draft: ReadonlyArray<{ tool: string; params: unknown }>) => { ok: boolean; problems: string[]; touched: string[]; cards?: string[] }; run?: unknown; result?: unknown; fresh?: boolean; down?: boolean; journeys?: ReadonlyArray<unknown>; atomic?: boolean; decisionsDown?: boolean; code?: boolean }) => {
   const calls: Array<[string, unknown]> = []
   const answers = [...(o.answers ?? [])]
   let dries = 0
@@ -24,6 +24,7 @@ const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string
     rehearsed: (p) => Effect.sync(() => void calls.push(["rehearsed", p])),
     drafted: (p) => Effect.sync(() => void calls.push(["drafted", p])),
     plans: (journey, plans) => Effect.sync(() => void calls.push(["plans", { journey, plans }])),
+    ...(o.code === true ? { code: (card: string) => Effect.succeed([{ file: `src/${card}.ts`, line: 3, text: "export const grant = () => ask()" }]) } : {}),
     decide: (req) => (o.decisionsDown === true ? Effect.fail("down") : Effect.sync(() => (calls.push(["decide", req.state]), Object.fromEntries(Object.keys(req.questions).map((k) => [k, { type: "noul", answer: o.atomic ?? true, confidence: 0.9 }]))))),
     redraft: (p) => Effect.sync(() => void calls.push(["redraft", p])),
     stop: (run) => Effect.sync(() => void calls.push(["stop", run])),
@@ -302,5 +303,12 @@ describe("the Triage Agent", () => {
     const prompts = s.calls.filter(([k]) => k === "complete").map(([, p]) => p as string)
     expect(prompts[1]).toContain("reaches UX-0050, outside Set up (a state it shares): link a new state for UX-0001 instead of rewording a shared one")
     expect((s.calls.find(([k]) => k === "propose")![1] as { problems?: string[] }).problems?.[0]).toContain("reaches UX-0050")
+  })
+  test("the proposal prompt carries what zarg does now: the card's code", async () => {
+    const { t, calls } = setup({ stages: [stage({ proposals: [{ card: "UX-0001", changes: [], answers: [], summary: "", status: "waiting" }] })], answers: [proposalJson], code: true })
+    await Effect.runPromise(t.tick)
+    const prompt = String(calls.find(([k]) => k === "complete")?.[1])
+    expect(prompt).toContain("What zarg does now (the card's code):")
+    expect(prompt).toContain("export const grant = () => ask()")
   })
 })

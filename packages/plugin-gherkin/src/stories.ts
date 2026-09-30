@@ -16,6 +16,8 @@ export interface StepView {
   readonly by: ReadonlyArray<string>
   /** The states by id: the Given (arrives), the extra context (given), the Thens. */
   readonly ids: { readonly given: string; readonly context: ReadonlyArray<string>; readonly thens: ReadonlyArray<string> }
+  /** Not built yet: rehearse does not walk it. */
+  readonly planned?: boolean
 }
 
 const arrivesOf = (snap: Snapshot.Snapshot, card: string) => snap.nodes.get(card)?.edges.find((e) => e.type === ARRIVES)?.to
@@ -146,5 +148,6 @@ export const stepView = (snap: Snapshot.Snapshot, card: string, via?: string): S
     by: Snapshot.out(snap, card, BY).flatMap((e) => { const n = snap.nodes.get(e.to); return n === undefined ? [] : [personaName(n)] }),
     // The states by id: the Given (arrives), the extra context (given), the Thens, in the order shown.
     ids: { given: from, context: Snapshot.out(snap, card, GIVEN).map((e) => e.to), thens: thensOf(snap, card) },
+    ...(node.props.planned === true ? { planned: true } : {}),
   }
 }

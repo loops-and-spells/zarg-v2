@@ -15,6 +15,8 @@ export const triage = (decide: Decide, finding: Finding, step: StepView | undefi
     // A liked step is kept, not changed; a wanted feature is the operator's call.
     if (finding.kind === "delight") return { ...finding, real: 1, route: "drop" } satisfies Triaged
     if (finding.kind === "feature") return { ...finding, real: 1, route: "ask" } satisfies Triaged
+    // The card and the code differ: which one gives way is the operator's call.
+    if (finding.kind === "drift") return { ...finding, real: 1, route: "ask" } satisfies Triaged
     const a = yield* decide({
       state: `A product's specified step:\n${stepText(step)}\nA tester reported (${finding.kind}, ${finding.severity}): ${finding.notes.join(" / ")}`,
       questions: {

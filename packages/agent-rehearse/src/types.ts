@@ -13,11 +13,13 @@ export interface StepView {
   /** The card's journeys and personas, by name (absent from an older gherkin). */
   readonly journeys?: ReadonlyArray<string>
   readonly by?: ReadonlyArray<string>
+  /** Not built yet: not walked. */
+  readonly planned?: boolean
 }
 export interface Persona { readonly name: string; readonly text: string; readonly cards?: ReadonlyArray<string> }
 export type Reason = "feel" | "fail" | "fork" | "seam"
 export interface Screened { readonly feel: number; readonly fail: number; readonly arrive: number; readonly fork?: number; readonly flags: ReadonlyArray<Reason> }
-export type Kind = "friction" | "gap" | "contradiction" | "transition" | "feature" | "delight"
+export type Kind = "friction" | "gap" | "contradiction" | "transition" | "feature" | "delight" | "drift"
 export interface Finding {
   readonly id: string
   readonly kind: Kind

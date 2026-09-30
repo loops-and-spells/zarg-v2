@@ -20,6 +20,7 @@ export const StepView = Schema.NullOr(
     journeys: Schema.optionalKey(Schema.Array(Schema.String)),
     by: Schema.optionalKey(Schema.Array(Schema.String)),
     ids: Schema.optionalKey(Schema.Struct({ given: Schema.String, context: Schema.Array(Schema.String), thens: Schema.Array(Schema.String) })),
+    planned: Schema.optionalKey(Schema.Boolean),
   }),
 )
 

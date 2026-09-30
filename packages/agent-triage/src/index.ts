@@ -2,7 +2,7 @@ import { Effect, Schema } from "effect"
 import { Rehearse } from "@zarg/agent-rehearse/contract"
 import { Backlog } from "@zarg/plugin-backlog/contract"
 import { Gherkin } from "@zarg/plugin-gherkin/contract"
-import { Agents, Clock, Config, Decisions, definePlugin, Models, Views } from "@zarg/plugin-sdk"
+import { Agents, Clock, Config, Decisions, definePlugin, Entities, Models, Views } from "@zarg/plugin-sdk"
 import { makeTriage } from "./triage"
 import { rollupView, workerView } from "./view"
 import { RollupView, WorkerView } from "./views"
@@ -17,7 +17,7 @@ export default definePlugin({
   // reasoning: let the model reason before answering (off: on cards it reasoned to its token limit and never answered).
   config: Schema.Struct({ workers: Schema.optionalKey(Schema.Number), reasoning: Schema.optionalKey(Schema.Boolean) }),
   pluginDependencies: [Gherkin, Backlog, Rehearse],
-  scopes: { decisions: true, models: ["driver"], agents: true },
+  scopes: { decisions: true, models: ["driver"], agents: true, entities: { read: ["gherkin/*"] } },
   views: [RollupView, WorkerView],
   methods: {
     act: { doc: "Triage's views: p pauses or resumes (the rollup), d drafts a card again (a worker).", params: Schema.Struct({ agent: Schema.String, action: Schema.String, section: Schema.optionalKey(Schema.String), rows: Schema.Array(Schema.String) }), success: Schema.Struct({ notice: Schema.String }) },
@@ -28,6 +28,7 @@ export default definePlugin({
     const backlog = yield* Backlog
     const rehearse = yield* Rehearse
     const models = yield* Models
+    const entities = yield* Entities
     const decisions = yield* Decisions
     const agents = yield* Agents
     const views = yield* Views
@@ -94,6 +95,7 @@ export default definePlugin({
         feedbackOf: (journey) => backlog.feedbackOf({ journey }),
         journeys: () => gherkin.journeys({}),
         step: (card, draft) => gherkin.step({ card, draft }) as never,
+        code: (card) => entities.code(`gherkin/card:${card}`),
         dryRun: (draft) => gherkin.dryRun({ draft }),
         complete: (req) => models.complete({ role: "driver", ...req }),
         propose: (p) => backlog.propose(p as never),

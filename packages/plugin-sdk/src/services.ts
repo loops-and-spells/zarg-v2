@@ -36,6 +36,8 @@ export class Entities extends Context.Service<Entities, {
   readonly changed: (ref: string) => Effect.Effect<boolean, PluginFailure>
   readonly label: (ref: string) => Effect.Effect<EntityView["label"], PluginFailure>
   readonly context: (ref: string) => Effect.Effect<string, PluginFailure>
+  /** A gherkin card's code: each `@card` tag's file and line and the code after it (redacted); none when untagged. */
+  readonly code: (ref: string) => Effect.Effect<ReadonlyArray<{ readonly file: string; readonly line: number; readonly text: string }>, PluginFailure>
   readonly command: (ref: string, name: string, args: unknown) => Effect.Effect<unknown, PluginFailure>
 }>()("@zarg/plugin-sdk/Entities") {}
 export class Config extends Context.Service<Config, { readonly value: unknown }>()("@zarg/plugin-sdk/Config") {}
@@ -180,6 +182,7 @@ export const servicesFrom = (raw: RawPowers) => ({
     changed: (ref) => power(raw, "entities.call", { op: "changed", ref }),
     label: (ref) => power(raw, "entities.call", { op: "label", ref }),
     context: (ref) => power(raw, "entities.call", { op: "context", ref }),
+    code: (ref) => power(raw, "entities.call", { op: "code", ref }),
     command: (ref, name, args) => power(raw, "entities.call", { op: "command", ref, name, args }),
   }),
   graph: Graph.of({
