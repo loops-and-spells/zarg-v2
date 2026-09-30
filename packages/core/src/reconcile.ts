@@ -26,7 +26,7 @@ export interface ReconcileDeps {
   readonly onLanded?: (cards: ReadonlyArray<string>) => void
   /** A pass failed on these cards (their plans go back to Ready, for the operator). */
   readonly onFailed?: (cards: ReadonlyArray<string>) => void
-  /** A pass ended (landed, failed, stopped or not): its findings may have changed. */
+  /** A pass's outcome is known (landed, failed, skipped, errored): the findings may have changed. */
   readonly onPassEnd?: () => void
 }
 
@@ -102,14 +102,14 @@ export const makeReconcile = (deps: ReconcileDeps) =>
               if (exit._tag === "Success" && exit.value.status === "landed" && exit.value.landed.length > 0) deps.onLanded?.(exit.value.landed)
               if (exit._tag === "Success" && exit.value.failed.length > 0 && !stopRequested) deps.onFailed?.(exit.value.failed)
               for (const t of ["plan", "implement"] as const) emit(t, E.runFinished(t, runId))
-              deps.onPassEnd?.()
             }),
           ),
         )
       })
 
     let closing = false
-    const reconciler = startReconciler({ repo: deps.repo, quietMs: deps.settings.quietMs, findings, execute })
+    // Every outcome (a pass, a skip, an error), after the findings changed: the inbox follows them.
+    const reconciler = startReconciler({ repo: deps.repo, quietMs: deps.settings.quietMs, findings, execute, onResult: () => deps.onPassEnd?.() })
     yield* Effect.addFinalizer(() =>
       Effect.sync(() => {
         closing = true

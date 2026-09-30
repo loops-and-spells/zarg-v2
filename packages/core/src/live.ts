@@ -112,7 +112,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // The core's own scope: reconcile started later (by /reconcile) closes with the core.
     const scope = yield* Effect.scope
     // Reconcile's findings, as inbox topics (none while reconcile is off).
-    const syncFindings = Effect.suspend(() => Effect.ignore(syncFindingTopics(inbox, reconcile?.findings.list() ?? [])))
+    const syncFindings = Effect.suspend(() => Effect.ignore(syncFindingTopics(inbox, reconcile?.findings.list() ?? [], reconcile === undefined ? "reconcile is off" : "the finding cleared")))
     const startReconcile = (settings: ReconcileSettings) =>
       makeReconcile({
         repo: root,

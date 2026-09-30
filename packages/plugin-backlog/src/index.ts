@@ -334,11 +334,13 @@ export default definePlugin({
         yield* saveItem(needs !== undefined ? { ...withCards, needs } : withCards)
         if (to === "done") yield* markFeedback(i.feedback, "closed")
         return `${id} → ${LANE_TITLES[to]}`
-      }).pipe(writing.withPermits(1), Effect.tap(() => (to === "ready" ? ready : Effect.void)))
+      }).pipe(writing.withPermits(1), Effect.tap(() => (to === "ready" ? ready : Effect.ignore(syncTopics))))
     const drop = (id: string) =>
       Effect.gen(function* () {
         const i = (yield* loadItems).find((x) => x.id === id)
         if (i === undefined) return `no plan ${id}`
+        // Dropped already: nothing to do again (its feedback may be another plan's by now).
+        if (i.dropped === true) return `${id} is already dropped`
         yield* saveItem({ ...i, dropped: true, events: [...i.events, { what: "dropped", by: "operator" }] })
         yield* markFeedback(i.feedback, undefined)
         // Its journey is as if never planned once its round's last plan is gone: nothing says Planned for plans that are gone.
@@ -346,7 +348,7 @@ export default definePlugin({
         const all = yield* loadItems
         if (st !== undefined && (st.items ?? [id]).every((x) => x === id || all.find((y) => y.id === x)?.dropped === true)) yield* saveStage(fresh(st.journey))
         return `${id} dropped; its feedback is open again`
-      }).pipe(writing.withPermits(1))
+      }).pipe(writing.withPermits(1), Effect.tap(() => ready))
     const plan = (p: PlanParams) =>
       Effect.gen(function* () {
         const id = nextId(yield* loadItems)
@@ -407,7 +409,7 @@ export default definePlugin({
             if (run !== undefined && ids.some((x) => x !== "")) {
               const filed = (yield* load).filter((e) => ids.includes(e.id))
               const journeys = [...new Set(filed.flatMap((e) => e.journeys))]
-              yield* report(`run:${run}`, `Rehearse run ${run}: ${plural_(filed.length, "entry")} on ${journeys.join(", ")}`, "feedback")
+              yield* report(`run:${run}`, `Rehearse run ${run}: ${plural_(filed.length, "entry")}${journeys.length > 0 ? ` on ${journeys.join(", ")}` : ""}`, "feedback")
             }
             yield* ready
           }),
@@ -469,6 +471,7 @@ export default definePlugin({
           if (st.stage !== "plan" || st.plan === undefined) return `${j} has no plan yet`
           if (st.draft.length === 0) {
             yield* updateStage(j, (x) => ({ ...fresh(x.journey), ...(x.dismissed !== undefined ? { dismissed: x.dismissed } : {}) }))
+            yield* Effect.ignore(syncTopics)
             return `nothing to backlog in ${j}: every change was left out`
           }
           const entries = yield* openIn(j)
@@ -481,6 +484,8 @@ export default definePlugin({
           const worst = closes.map((e) => e.severity).sort((a, b) => ["high", "medium", "low"].indexOf(a) - ["high", "medium", "low"].indexOf(b))[0]
           const { id } = yield* plan({ title: st.plan.title, journey: j, cards: cards.flat(), changes: st.draft, feedback: closes.map((e) => e.id), steps: st.plan.steps, ...(closes[0] !== undefined ? { persona: closes[0].persona } : {}), ...(worst !== undefined ? { severity: worst } : {}) })
           yield* updateStage(j, (x) => ({ ...x, stage: "planned", item: id }))
+          // The round is over: what it left out no longer waits on the operator.
+          yield* Effect.ignore(syncTopics)
           return `${j}: backlogged as ${id}`
       }).pipe(planning.withPermits(1))
     /** A folded round's plans to the Backlog lane, in order: each with its cards at their versions now and the plans it waits on by id; the journey planned with all of them. */
@@ -619,6 +624,8 @@ export default definePlugin({
               if (e !== undefined) yield* save({ ...e, triage: { on: !e.triage.on, why: e.triage.why, by: "operator" } })
             }
           }).pipe(writing.withPermits(1))
+        // The operator decided in Feedback: what asked them about it settles.
+        if (action === "toggle" || action === "note") yield* Effect.ignore(syncTopics)
         const r = yield* refresh
         return { notice: action === "toggle" ? `${plural(rows.length, "entry")} flipped` : r.open === 0 ? "no open feedback" : `${plural(r.open, "open entry")} in ${plural(r.journeys, "journey")}` }
       }).pipe(Effect.mapError(fail))
@@ -648,11 +655,13 @@ export default definePlugin({
       const want = new Map<string, Parameters<typeof inbox.post>[0]>()
       for (const i of (yield* loadItems).filter((x) => x.needs !== undefined && x.dropped !== true))
         want.set(`needs:${i.id}`, { kind: "plan", key: `needs:${i.id}`, title: `${i.id} ${i.title} can't apply: ${i.needs}`, why: "plan", about: i.cards.map((c) => target(c.ref).split(":")[1] ?? c.ref), answers: [{ id: "ready", label: "Back to Ready", recommended: true }, { id: "drop", label: "Drop" }], origin: { view: "backlog" } })
+      // An entry in a triage round, or a journey a run walks, is locked: asked again once the lock ends.
+      const rounds = new Set((yield* loadStages).filter(inTriage).flatMap((x) => x.inputs ?? []))
       for (const { e, state } of yield* withStates(yield* load))
-        if (state === "open" && e.triage.by !== "operator" && e.triage.why.startsWith("ask"))
+        if (state === "open" && e.triage.by !== "operator" && e.triage.why.startsWith("ask") && !rounds.has(e.id) && walkedBy(e.journeys) === undefined)
           want.set(`ask:${e.id}`, { kind: "question", key: `ask:${e.id}`, title: `Keep this feedback on? ${target(e.ref).split(":")[1] ?? e.ref}: ${e.note}`, why: `rehearse asks (${e.kind}, ${e.severity})`, about: [target(e.ref).split(":")[1] ?? e.ref], severity: e.severity, answers: [{ id: "on", label: "Keep it on", recommended: true }, { id: "off", label: "Turn it off" }], origin: { view: "feedback" } })
       for (const st of (yield* loadStages).filter((x) => inTriage(x)))
-        for (const p of st.proposals.filter((x) => x.status === "skipped"))
+        for (const p of st.proposals.filter((x) => x.status === "skipped" && x.leftOut !== true))
           want.set(`left:${st.journey}:${p.card}`, { kind: "plan", key: `left:${st.journey}:${p.card}`, title: `${p.card} left out of ${st.journey}'s round`, why: "triage", about: [p.card], ...((p.problems ?? []).length > 0 ? { evidence: p.problems!.map((x) => `- ${x}`).join("\n") } : {}), answers: [{ id: "draft", label: "Draft again", recommended: true }, { id: "leave", label: "Leave it out" }], origin: { view: "feedback" } })
       for (const t of want.values()) yield* inbox.post(t)
       const isMine = (key: string | undefined) => key !== undefined && /^(needs|ask|left):/.test(key)
@@ -666,15 +675,23 @@ export default definePlugin({
       Effect.gen(function* () {
         const [kind, ...rest] = (key ?? "").split(":")
         if (kind === "needs" && rest[0] !== undefined) {
+          const i = (yield* loadItems).find((x) => x.id === rest[0])
+          if (i === undefined || i.dropped === true || i.needs === undefined) return { notice: `${rest[0]} no longer needs you` }
           const notice = answer === "drop" ? yield* drop(rest[0]) : yield* move(rest[0], "ready", "operator")
           yield* refreshBoard
           return { notice }
         }
         if (kind === "ask" && rest[0] !== undefined) {
           const id = rest[0]
+          const e = (yield* load).find((x) => x.id === id)
+          const now = e === undefined ? undefined : (yield* withStates([e]))[0]?.state
+          if (e === undefined || now !== "open") return { notice: "that feedback moved on" }
+          if (e.triage.by === "operator") return { notice: "that feedback moved on: you decided it in Feedback" }
+          if ((yield* loadStages).some((x) => inTriage(x) && (x.inputs ?? []).includes(id))) return { notice: "that feedback is in a triage round: read-only until Plan" }
+          if (walkedBy(e.journeys) !== undefined) return { notice: "that feedback's journey is being rehearsed: read-only until the run ends" }
           yield* Effect.gen(function* () {
-            const e = (yield* load).find((x) => x.id === id)
-            if (e !== undefined) yield* save({ ...e, triage: { on: answer !== "off", why: e.triage.why, by: "operator" } })
+            const cur = (yield* load).find((x) => x.id === id)
+            if (cur !== undefined) yield* save({ ...cur, triage: { on: answer !== "off", why: cur.triage.why, by: "operator" } })
           }).pipe(writing.withPermits(1))
           yield* ready
           if (feedbackOpened) yield* Effect.ignore(refresh)
@@ -683,7 +700,11 @@ export default definePlugin({
         if (kind === "left" && rest.length >= 2) {
           const card = rest.at(-1)!
           const journey = rest.slice(0, -1).join(":")
-          if (answer !== "draft") return { notice: `${card} stays left out` }
+          if (answer !== "draft") {
+            // Kept left out: not raised again in this round.
+            yield* updateStage(journey, (st) => ({ ...st, proposals: st.proposals.map((p) => (p.card === card && p.status === "skipped" ? { ...p, leftOut: true } : p)) }))
+            return { notice: `${card} stays left out` }
+          }
           const refused = yield* updateStage(journey, (st) => redo(st, card), true)
           if (feedbackOpened) yield* Effect.ignore(refresh)
           return { notice: refused ?? `${journey}: drafting ${card} again` }
@@ -691,6 +712,8 @@ export default definePlugin({
         return { notice: "not a backlog topic" }
       }).pipe(Effect.mapError(fail))
 
+    // Topics whose cause went away while zarg was down settle once the backlog runs.
+    yield* Effect.forkDetach(Effect.ignore(syncTopics))
     return {
       answered,
       file,

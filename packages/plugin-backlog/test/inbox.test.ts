@@ -81,4 +81,61 @@ describe("the backlog's topics in the inbox", () => {
     )
     expect(out).toEqual(["Set up folded into 1 plan: B-01", "Rehearse run r-2: 1 entry on Set up"])
   })
+  test("stale answers change nothing and say so: a parked plan's Back to Ready, a dropped plan's Drop", async () => {
+    const out = await run((seen) =>
+      Effect.gen(function* () {
+        const { card, ids, h } = yield* setUp()
+        yield* h.invoke("backlog", "plan", { title: "T", journey: "Set up", cards: [{ ref: card.ref }], changes: [], feedback: ids, steps: [] })
+        yield* h.invoke("backlog", "moved", { id: "B-01", to: "ready", by: "Planner", needs: "commit first" })
+        const t = { ...topic(seen, "needs:B-01")! }
+        // The operator parks it on the board: the need is gone, so is the topic.
+        yield* h.invoke("backlog", "moved", { id: "B-01", to: "backlog", by: "operator" })
+        const settled = topic(seen, "needs:B-01")?.state
+        const r = (yield* h.invoke("backlog", "answered", { id: t.id, key: "needs:B-01", answer: "ready" })) as { notice: string }
+        const item = (yield* h.entities.get("backlog/item:B-01")).data as { status: string }
+        return { settled, notice: r.notice, status: item.status }
+      }),
+    )
+    expect(out.settled).toBe("moot")
+    expect(out.notice).toBe("B-01 no longer needs you")
+    expect(out.status).toBe("backlog")
+  })
+  test("an ask settles when the operator flips the entry in Feedback; answering it then changes nothing", async () => {
+    const out = await run((seen) =>
+      Effect.gen(function* () {
+        const { ids, h } = yield* setUp("ask · real 0.62")
+        const t = { ...topic(seen, `ask:${ids[0]}`)! }
+        yield* h.invoke("backlog", "act", { agent: "feedback", action: "open", rows: [] })
+        yield* h.invoke("backlog", "act", { agent: "feedback", action: "toggle", rows: ids })
+        const settled = topic(seen, `ask:${ids[0]}`)?.state
+        const r = (yield* h.invoke("backlog", "answered", { id: t.id, key: `ask:${ids[0]}`, answer: "on" })) as { notice: string }
+        const status = (yield* h.invoke("backlog", "status", { ids })) as Array<{ on: boolean }>
+        return { settled, notice: r.notice, on: status[0]!.on }
+      }),
+    )
+    expect(out.settled).toBe("moot")
+    expect(out.notice).toBe("that feedback moved on: you decided it in Feedback")
+    expect(out.on).toBe(false)
+  })
+  test("Leave it out is kept: the card is not raised again", async () => {
+    const out = await run((seen) =>
+      Effect.gen(function* () {
+        const { h } = yield* setUp()
+        yield* gherkin("add-card", { title: "Plugin loads", when: "the plugin starts", by: [{ id: "P-0001" }], arrives: { id: "S-0001" }, then: [{ text: "the plugin is loaded" }] })
+        const two = yield* h.entities.get("gherkin/card:UX-0002")
+        yield* h.invoke("backlog", "file", { entries: [{ ref: two.ref, journeys: ["Set up"], persona: "Operator", kind: "gap", severity: "low", note: "Say when.", from: { agent: "rehearse", run: "r-1" }, triage: { on: true, why: "fix · real 0.90" } }] })
+        yield* h.invoke("backlog", "act", { agent: "feedback", action: "open", rows: [] })
+        yield* h.invoke("backlog", "act", { agent: "feedback", action: "refine", rows: [] })
+        for (let i = 0; i < 3; i++) yield* h.invoke("backlog", "propose", { journey: "Set up", card: "UX-0001", changes: [], answers: [], summary: "", problems: ["a clause has if"] })
+        yield* h.invoke("backlog", "propose", { journey: "Set up", card: "UX-0002", changes: [{ tool: "edit-card", params: { id: "UX-0002", when: "the plugin starts up" } }], answers: [], summary: "s" })
+        const t = { ...topic(seen, "left:Set up:UX-0001")! }
+        Object.assign(topic(seen, "left:Set up:UX-0001")!, { state: "answered" })
+        yield* h.invoke("backlog", "answered", { id: t.id, key: "left:Set up:UX-0001", answer: "leave" })
+        // Anything else changes (a new filing syncs the topics): the card is not raised again.
+        yield* h.invoke("backlog", "file", { entries: [{ ref: two.ref, journeys: ["Set up"], persona: "Operator", kind: "friction", severity: "low", note: "Wordy.", from: { agent: "rehearse", run: "r-3" }, triage: { on: false, why: "drop · real 0.10" } }] })
+        return (seen.inbox ?? []).filter((x) => x.key === "left:Set up:UX-0001" && x.state === "open").length
+      }),
+    )
+    expect(out).toBe(0)
+  })
 })

@@ -31,3 +31,15 @@ test("a reconcile finding is a finding topic (zarg takes it up: no answers); it 
   await Effect.runPromise(syncFindingTopics(inbox, []))
   expect(inbox.list()[0]).toMatchObject({ state: "moot", moot: "the finding cleared" })
 })
+
+test("a finding topic the operator read is not raised again while the finding stays; reconcile off settles with that reason", async () => {
+  const { inbox } = await setup()
+  const f = { id: "finding-2", kind: "blocked-card" as const, title: "UX-0024 cannot be implemented", detail: "contradicts UX-0023", about: ["UX-0024"], pass: "p1", at: "2026-09-30" }
+  await Effect.runPromise(syncFindingTopics(inbox, [f]))
+  await Effect.runPromise(inbox.read(inbox.list()[0]!.id))
+  await Effect.runPromise(syncFindingTopics(inbox, [f]))
+  expect(inbox.list().map((t) => t.state)).toEqual(["read"])
+  await Effect.runPromise(syncFindingTopics(inbox, [{ ...f, id: "finding-3" }]))
+  await Effect.runPromise(syncFindingTopics(inbox, [], "reconcile is off"))
+  expect(inbox.list().find((t) => t.key === "finding:finding-3")).toMatchObject({ state: "moot", moot: "reconcile is off" })
+})

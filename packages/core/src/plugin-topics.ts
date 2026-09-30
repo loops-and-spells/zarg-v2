@@ -18,11 +18,14 @@ export const syncPluginTopics = (inbox: InboxService, items: ReadonlyArray<{ rea
 export const syncFindingTopics = (
   inbox: InboxService,
   findings: ReadonlyArray<{ readonly id: string; readonly kind: string; readonly title: string; readonly detail: string; readonly about: ReadonlyArray<string> }>,
+  gone = "the finding cleared",
 ) =>
   Effect.gen(function* () {
-    for (const f of findings)
+    // One the operator already read stays read while the finding stays.
+    const seen = new Set(inbox.list().filter((t) => t.from.plugin === "zarg" && t.kind === "finding" && (t.state === "read" || t.state === "answered")).map((t) => t.key))
+    for (const f of findings.filter((x) => !seen.has(`finding:${x.id}`)))
       yield* inbox.post({ plugin: "zarg" }, { kind: "finding", key: `finding:${f.id}`, title: f.title, why: f.kind, evidence: `${f.detail}\n\nzarg takes this up first on its agenda.`, about: f.about, severity: "high" })
     const keys = new Set(findings.map((f) => `finding:${f.id}`))
     for (const t of inbox.list())
-      if (t.from.plugin === "zarg" && t.kind === "finding" && t.state === "open" && t.key !== undefined && !keys.has(t.key)) yield* inbox.settle("zarg", t.id, "the finding cleared")
+      if (t.from.plugin === "zarg" && t.kind === "finding" && t.state === "open" && t.key !== undefined && !keys.has(t.key)) yield* inbox.settle("zarg", t.id, gone)
   })

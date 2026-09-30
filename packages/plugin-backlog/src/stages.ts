@@ -31,6 +31,8 @@ export interface Proposal {
   readonly problems?: ReadonlyArray<string>
   /** Born of a re-rehearse finding (skipping it dismisses that finding for this journey). */
   readonly fromFresh?: boolean
+  /** The operator kept it left out (the inbox's Leave it out): not raised again this round. */
+  readonly leftOut?: boolean
 }
 /** Where a journey's triage stands: the stage, the proposals and the draft they built, the re-rehearse, the plan. */
 export interface Stage {
