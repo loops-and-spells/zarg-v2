@@ -10,6 +10,7 @@ import { describeScopes, installPlugin } from "@zarg/plugin/server"
 import { buildPlugin } from "@zarg/plugin-sdk/tools"
 import { readClaim, startHeadless, stopCore } from "@zarg/client"
 import { baseTree, CHECKPOINT, git, LEGACY_CHECKPOINT, snapshotAtTree, workingGraphTree } from "@zarg/reconcile"
+import { audit as auditOf, summary as auditSummary, tags as auditTags } from "@zarg/audit"
 import { cardRefs, snapshotAt } from "./git"
 import { root } from "./root"
 
@@ -94,7 +95,7 @@ const diffCmd = Command.make("diff", { since: Flag.String("since").pipe(Flag.wit
   }),
 )
 
-// @card UX-0020
+// @card UX-0079
 const affected = Command.make("affected", {}, () =>
   Effect.gen(function* () {
     const base = yield* baseTree(root)
@@ -104,7 +105,7 @@ const affected = Command.make("affected", {}, () =>
   }),
 )
 
-// @card UX-0022
+// @card UX-0083
 const checkpoint = Command.make("checkpoint", {}, () =>
   Effect.gen(function* () {
     const graph = yield* workingGraphTree(root)
@@ -117,6 +118,29 @@ const checkpoint = Command.make("checkpoint", {}, () =>
     yield* git(root, ["rm", "-q", "--cached", "--ignore-unmatch", "--", LEGACY_CHECKPOINT])
     yield* print({ graph })
   }),
+)
+
+/** Every card against its @card tags: JSON (or --summary), exit 1 on problems; --card for one card. */
+const auditCmd = Command.make(
+  "audit",
+  {
+    summary: Flag.Boolean("summary").pipe(Flag.withDefault(false), Flag.withDescription("a line per problem and the counts, for people and CI logs")),
+    card: Flag.String("card").pipe(Flag.optional, Flag.withDescription("one card's status and tags")),
+  },
+  (o) =>
+    Effect.gen(function* () {
+      const snap = yield* GraphStore.use((s) => s.snapshot)
+      const report = auditOf(snap, yield* auditTags(root))
+      if (Option.isSome(o.card)) {
+        const id = o.card.value
+        return yield* print(report.cards.find((c) => c.id === id) ?? { id, missing: true })
+      }
+      yield* print(o.summary ? auditSummary(report) : report)
+      if (report.problems.length > 0)
+        yield* Effect.sync(() => {
+          process.exitCode = 1
+        })
+    }),
 )
 
 const coreStart = Command.make(
@@ -223,4 +247,4 @@ export const zarg = Command.make(
     yolo: Flag.Boolean("yolo").pipe(Flag.withDefault(false), Flag.withDescription("plugins use every scope they declare without asking, until /yolo off (nothing saved)")),
   },
   ({ thread, focus, yolo }) => Effect.flatMap(Effect.promise(() => import("./tui/run")), (m) => m.runTui({ root, threadId: thread, focus, yolo })),
-).pipe(Command.withSubcommands([tool, show, render, agenda, lint, query, diffCmd, affected, checkpoint, core, plugin]))
+).pipe(Command.withSubcommands([tool, show, render, agenda, lint, query, diffCmd, affected, checkpoint, auditCmd, core, plugin]))

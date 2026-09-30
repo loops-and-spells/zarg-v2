@@ -31,6 +31,21 @@ describe("zarg cli", () => {
     expect(zarg("render").out).toContain("Then  the plan picker is shown  # S-0002")
   })
 
+  test("audit: JSON with exit 1 while a card has no tag; --summary; a new file's tag counts", () => {
+    const TAG = "@" + "card"
+    const before = zarg("audit")
+    expect(before.code).toBe(1)
+    expect(JSON.parse(before.out).problems).toContainEqual({ kind: "untagged", card: "UX-0001", title: "Open pricing" })
+    expect(zarg("audit", "--summary").out).toContain("untagged            UX-0001 Open pricing")
+    // A new, untracked file's tag counts, and query code finds it.
+    require("node:fs").writeFileSync(join(dir, "pricing.ts"), `export const open = () => 1 // ${TAG} UX-0001\n`)
+    const mine = (JSON.parse(zarg("audit").out).problems as Array<{ card?: string }>).filter((p) => p.card === "UX-0001")
+    expect(mine).toEqual([])
+    expect(json("query", "code", "UX-0001")).toEqual([`pricing.ts:1:export const open = () => 1 // ${TAG} UX-0001`])
+    expect(json("audit", "--card", "UX-0001")).toMatchObject({ id: "UX-0001", status: "built", tags: [{ file: "pricing.ts", line: 1 }] })
+    require("node:fs").rmSync(join(dir, "pricing.ts"))
+  })
+
   test("show returns the node, its hash and inbound edges", () => {
     const s = json("show", "S-0002")
     expect(s.node.props.text).toBe("the plan picker is shown")

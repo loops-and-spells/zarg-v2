@@ -28,9 +28,9 @@ export const snapshotAt = (root: string, ref: string) =>
     return { snapshot: Snapshot.make(nodes), problems }
   })
 
-/** `path:line:text` hits for `@card <id>` in tracked files. */
+/** `path:line:text` hits for `@card <id>` in tracked and untracked files (not ignored ones). */
 export const cardRefs = (root: string, id: string) =>
-  sh(root, ["grep", "-n", "-w", "-e", `@card ${id}`]).pipe(
+  sh(root, ["grep", "-n", "--untracked", "-w", "-e", `@card ${id}`]).pipe(
     Effect.map((out) => out.split("\n").filter((l) => l.length > 0)),
     // git grep exits 1 when nothing matches.
     Effect.catch(() => Effect.succeed([] as ReadonlyArray<string>)),
