@@ -6,7 +6,7 @@
   "persona": "Driver Agent",
   "kind": "gap",
   "severity": "high",
-  "note": "Stale refusal is reported with no recovery; nothing says whether my answer is discarded, re-asked, or handed to the other thread / A\n refusal\n is\n a\n failure\n you\n must\n handle,\n but\n the\n journey\n stops\n at\n 'save\n is\n refused'.\n Nothing\n says\n how\n the\n operator\n recovers\n or\n what\n the\n next\n question\n becomes,\n so\n the\n step\n dead-ends. / After the refusal there is no defined recovery -- the operator's typed choice is dropped and no replacement question appears. You must handle concurrent edits by re-showing the question for the current node, not merely rejecting the save.",
+  "note": "Stale refusal is reported with no recovery; nothing says whether my answer is discarded, re-asked, or handed to the other thread / A refusal is a failure you must handle, but the journey stops at 'save is refused'. Nothing says how the operator recovers or what the next question becomes, so the step dead-ends. / After the refusal there is no defined recovery -- the operator's typed choice is dropped and no replacement question appears. You must handle concurrent edits by re-showing the question for the current node, not merely rejecting the save.",
   "from": {
     "agent": "rehearse",
     "run": "r-254dec3c"

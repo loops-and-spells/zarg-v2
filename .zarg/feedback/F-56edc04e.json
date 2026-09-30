@@ -6,7 +6,7 @@
   "persona": "Driver Agent",
   "kind": "contradiction",
   "severity": "medium",
-  "note": "Given a question with options is shown, then the node being answered is changed by another thread: the premise and intervention collide, so the question I answer may not be the node / One\n question\n at\n a\n time\n implies\n a\n serial,\n single-writer\n flow,\n yet\n another\n thread\n can\n mutate\n the\n very\n node\n under\n answer.\n That\n concurrent\n write\n does\n not\n follow\n from\n 'one\n question\n with\n options\n is\n shown'. / The precondition \"one question with options is shown\" conflicts with \"another thread changed the node being answered\": the shown question may already belong to a node no longer being answered. That mismatch makes the stale rule look arbitrary rather than principled.",
+  "note": "Given a question with options is shown, then the node being answered is changed by another thread: the premise and intervention collide, so the question I answer may not be the node / One question at a time implies a serial, single-writer flow, yet another thread can mutate the very node under answer. That concurrent write does not follow from 'one question with options is shown'. / The precondition \"one question with options is shown\" conflicts with \"another thread changed the node being answered\": the shown question may already belong to a node no longer being answered. That mismatch makes the stale rule look arbitrary rather than principled.",
   "from": {
     "agent": "rehearse",
     "run": "r-254dec3c"
