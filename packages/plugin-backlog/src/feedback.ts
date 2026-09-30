@@ -21,7 +21,9 @@ const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim()
 export const entryId = (f: Pick<FiledEntry, "ref" | "kind" | "note">) => `F-${versionOf({ ref: f.ref, kind: f.kind, note: norm(f.note) }).slice(0, 8)}`
 
 /** File a report: new, or counted again; the operator's call stands, the agent's is replaced by its latest. */
-export const upsert = (had: Entry | undefined, f: FiledEntry): Entry => {
+export const upsert = (had: Entry | undefined, filed: FiledEntry): Entry => {
+  // A note is one line of words: a model's newlines (one per word, at worst) and runs of spaces collapse.
+  const f = { ...filed, note: filed.note.replace(/\s+/g, " ").trim() }
   const run = `${f.from.agent}:${f.from.run}`
   if (had === undefined) return { ...f, id: entryId(f), count: 1, runs: [run], triage: { ...f.triage, by: "agent" } }
   const runs = had.runs ?? [`${had.from.agent}:${had.from.run}`]

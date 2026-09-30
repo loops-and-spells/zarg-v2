@@ -50,3 +50,8 @@ describe("rehearse findings", () => {
     expect(await Effect.runPromise(report(replying(new Error("down")), [], { steps: 3, flagged: 1, unscreened: 0 }))).toContain("report unavailable")
   })
 })
+
+test("a tester's note with a newline per word reads as one line", async () => {
+  const text = JSON.stringify({ findings: [{ kind: "feature", severity: "medium", note: "I\n would\n want\n a  refresh." }] })
+  expect(await Effect.runPromise(diagnose(replying(text), persona, [], step, ["fail"]))).toEqual({ findings: [{ kind: "feature", card: "UX-1", severity: "medium", note: "I would want a refresh." }] })
+})

@@ -62,7 +62,7 @@ export const diagnose = (complete: Complete, persona: Persona, prior: ReadonlyAr
         const j = JSON.parse(json) as { findings?: ReadonlyArray<Partial<Raw>> }
         const findings = (j.findings ?? []).slice(0, MAX_PER_STEP).flatMap((f) =>
           KINDS.includes(f.kind as Kind) && SEVERITIES.includes(f.severity as never) && typeof f.note === "string"
-            ? [{ kind: f.kind as Kind, card: step.card, ...(f.edge ? { edge: f.edge } : {}), severity: f.severity as Raw["severity"], note: f.note, ...(f.op !== undefined ? { op: f.op } : {}) }]
+            ? [{ kind: f.kind as Kind, card: step.card, ...(f.edge ? { edge: f.edge } : {}), severity: f.severity as Raw["severity"], note: f.note!.replace(/\s+/g, " ").trim(), ...(f.op !== undefined ? { op: f.op } : {}) }]
             : [],
         )
         return { findings }

@@ -35,3 +35,8 @@ describe("feedback entries", () => {
     expect([stateOf(e, false), stateOf(e, true), stateOf({ ...e, state: "planned" }, true), stateOf({ ...e, state: "closed" }, false)]).toEqual(["open", "stale", "planned", "closed"])
   })
 })
+
+test("a note is one line of words: a model's newlines and runs of spaces are collapsed when it is filed", () => {
+  const f = { ref: "gherkin/card:UX-0016@abc", journeys: ["Talk"], persona: "Operator", kind: "feature", severity: "medium" as const, note: "I\n would\n want   a\tconflict\n resolution.", from: { agent: "rehearse", run: "r-1" }, triage: { on: true, why: "ask" } }
+  expect(upsert(undefined, f).note).toBe("I would want a conflict resolution.")
+})
