@@ -1,3 +1,4 @@
+import { sortTopics, type Topic } from "./inbox"
 import { isViewEvent, reduceView, type Views } from "@zarg/view"
 import type { Option, WireEvent } from "./events"
 
@@ -116,6 +117,8 @@ export interface ThreadState {
   readonly nav?: ReadonlyArray<NavItem>
   /** The last tile or sheet a plugin opened for the operator, with the event's seq and time. */
   readonly navigate?: { readonly seq: number; readonly kind: "tile" | "sheet"; readonly view: string; readonly at: number }
+  /** The operator's inbox, by topic id (every topic the core sent, open or not). */
+  readonly inbox?: Readonly<Record<string, Topic>>
 }
 
 export const initial = (threadId: string): ThreadState => ({ threadId, messages: [], rlms: {}, status: "idle", seq: 0, trees: 0 })
@@ -139,6 +142,11 @@ const patchRlms = (rlms: ThreadState["rlms"], patch: ReadonlyArray<Patch>) => {
 
 /** Fold one core event into a thread's state. Events of other threads are ignored. */
 export const reduce = (s: ThreadState, e: WireEvent): ThreadState => {
+  // Inbox topics are the core's too: every client keeps them, whatever thread it follows.
+  if (e.type === "CUSTOM" && e.name === "zarg.inbox" && e.seq > s.seq) {
+    const topic = (e.value as { topic?: Topic } | undefined)?.topic
+    return topic === undefined ? { ...s, seq: e.seq } : { ...s, seq: e.seq, inbox: { ...(s.inbox ?? {}), [topic.id]: topic } }
+  }
   // Prompts are the core's own questions: every client queues them, whatever thread it follows.
   if (e.type === "CUSTOM" && (e.name === "zarg.prompt" || e.name === "zarg.prompt.done") && e.seq > s.seq) {
     const v = e.value as { id?: unknown; question?: unknown; options?: ReadonlyArray<Option>; kind?: unknown; view?: unknown; agent?: unknown }
@@ -225,3 +233,6 @@ export const reduce = (s: ThreadState, e: WireEvent): ThreadState => {
       return t
   }
 }
+
+/** The open topics, most urgent first. */
+export const openTopics = (s: ThreadState, now = Date.now()) => sortTopics(Object.values(s.inbox ?? {}).filter((t) => t.state === "open"), now)

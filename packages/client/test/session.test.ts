@@ -202,3 +202,24 @@ test("plugins that load after the session started bring their commands: the core
   expect(session.pluginCommands().map((c) => c.cmd)).toEqual(["/rehearse"])
   session.close()
 })
+
+test("inbox: answer, batch, snooze and read reach the core; each shows its notice", async () => {
+  const f = fakeClient()
+  const calls: Array<unknown> = []
+  const client = {
+    ...f.client,
+    answerTopic: (id: string, body: unknown) => Effect.sync(() => (calls.push(["answer", id, body]), { notice: "answered" })),
+    answerTopics: (body: unknown) => Effect.sync(() => (calls.push(["batch", body]), { notice: "2 answered" })),
+    snoozeTopic: (id: string) => Effect.sync(() => (calls.push(["snooze", id]), { notice: "snoozed until it changes" })),
+    readTopic: (id: string) => Effect.sync(() => (calls.push(["read", id]), { notice: "read" })),
+  } as unknown as Client
+  const session = makeSession({ client, threadId: "main" })
+  await session.answerTopic("T-1", "deny", "wrong card")
+  expect(session.state().notice).toBe("answered")
+  await session.answerTopics(["T-1", "T-2"], "once")
+  expect(session.state().notice).toBe("2 answered")
+  await session.snoozeTopic("T-3")
+  await session.readTopic("T-4")
+  expect(calls).toEqual([["answer", "T-1", { answer: "deny", text: "wrong card" }], ["batch", { ids: ["T-1", "T-2"], answer: "once" }], ["snooze", "T-3"], ["read", "T-4"]])
+  session.close()
+})

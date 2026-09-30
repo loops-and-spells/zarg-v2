@@ -205,4 +205,9 @@ describe("archive", () => {
     ])
     expect(Object.keys(s.archived ?? {})).toEqual(["rehearse:t1"])
   })
+  test("zarg.inbox events fold into inbox by id, whatever thread the session follows", () => {
+    const topic = { id: "T-1", kind: "grant", from: { plugin: "p" }, title: "t", why: "", about: [], blocking: true, messages: [], state: "open", created: 1, updated: 1 }
+    const s = fold([ev("CUSTOM", { name: "zarg.inbox", value: { topic } }, "main"), ev("CUSTOM", { name: "zarg.inbox", value: { topic: { ...topic, state: "answered" } } }, "main")], initial("other"))
+    expect(s.inbox).toEqual({ "T-1": { ...topic, state: "answered" } })
+  })
 })

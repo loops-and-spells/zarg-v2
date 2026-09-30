@@ -59,6 +59,15 @@ export const makeClient = (info: Pick<CoreInfo, "socket" | "token">) => {
       ),
     )
 
+  const inboxPost = (path: string, body: unknown) =>
+    request(path, { method: "POST", body: JSON.stringify(body) }).pipe(
+      Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly notice: string }>)),
+      // 409: the topic was not open, or the answer was refused; its notice says why.
+      Effect.catch((e) =>
+        e.status === 409 ? Effect.succeed({ notice: String((JSON.parse(e.message) as { notice?: unknown }).notice ?? e.message) }) : Effect.fail(e),
+      ),
+    )
+
   const events = (path: string, init?: RequestInit): Stream.Stream<WireEvent, CoreError> =>
     Stream.unwrap(Effect.map(request(path, init), (res) => parseSse(res.body!))).pipe(
       Stream.mapError((e) => (e instanceof CoreError ? e : new CoreError({ status: 0, message: `core stopped: ${e.message}` }))),
@@ -97,6 +106,11 @@ export const makeClient = (info: Pick<CoreInfo, "socket" | "token">) => {
       request(`/threads/${encodeURIComponent(threadId)}/agents/${encodeURIComponent(agent)}/answers`, { method: "POST", body: JSON.stringify({ question, answer }) }).pipe(
         Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ notice: string }>)),
       ),
+    /** The operator's inbox: answer a topic, a batch, snooze, read. A refusal (409) still carries the core's notice. */
+    answerTopic: (id: string, body: { readonly answer?: string; readonly text?: string }) => inboxPost(`/inbox/${encodeURIComponent(id)}/answer`, body),
+    answerTopics: (body: { readonly ids: ReadonlyArray<string>; readonly answer: string; readonly text?: string }) => inboxPost(`/inbox/answer`, body),
+    snoozeTopic: (id: string) => inboxPost(`/inbox/${encodeURIComponent(id)}/snooze`, {}),
+    readTopic: (id: string) => inboxPost(`/inbox/${encodeURIComponent(id)}/read`, {}),
     /** Answer one of the core's prompts (a grant). */
     answerPrompt: (id: string, choice: string) =>
       request(`/prompts/${encodeURIComponent(id)}`, { method: "POST", body: JSON.stringify({ choice }) }).pipe(

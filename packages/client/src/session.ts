@@ -1,5 +1,5 @@
 import { Effect, Fiber, Stream } from "effect"
-import type { Client, PluginCommandInfo, RunRequest } from "./client"
+import type { Client, CoreError, PluginCommandInfo, RunRequest } from "./client"
 import type { Answer } from "./events"
 import { initial, reduce, type ThreadState } from "./state"
 
@@ -35,6 +35,11 @@ export interface Session {
   readonly act: (agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>, view?: string, text?: string) => Promise<void>
   /** Answer a question in a plugin agent's conversation; its notice shows. */
   readonly answerAgent: (agent: string, question: string, answer: { readonly choice?: string; readonly other?: string }) => Promise<void>
+  /** The operator's inbox: answer a topic (an answer, text, or both), a batch of one kind, snooze, read; each notice shows. */
+  readonly answerTopic: (id: string, answer?: string, text?: string) => Promise<void>
+  readonly answerTopics: (ids: ReadonlyArray<string>, answer: string, text?: string) => Promise<void>
+  readonly snoozeTopic: (id: string) => Promise<void>
+  readonly readTopic: (id: string) => Promise<void>
   /** Answer one of the core's prompts (a grant popover); its notice shows. */
   readonly answerPrompt: (id: string, choice: string) => Promise<void>
   /** Archive, restore or delete agents of the tree; its notice shows. */
@@ -110,6 +115,15 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
       ),
     )
 
+  /** A request whose notice the operator sees (or why it failed). */
+  const notify = (e: Effect.Effect<{ readonly notice: string }, CoreError>) =>
+    Effect.runPromise(
+      e.pipe(
+        Effect.map((r) => r.notice),
+        Effect.catch((x) => Effect.succeed(x.message)),
+        Effect.flatMap((notice) => Effect.sync(() => set({ ...state, notice }))),
+      ),
+    )
   return {
     state: () => state,
     subscribe: (l) => {
@@ -186,6 +200,10 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
           Effect.flatMap((notice) => Effect.sync(() => set({ ...state, notice }))),
         ),
       ),
+    answerTopic: (id, answer, text) => notify(opts.client.answerTopic(id, { ...(answer !== undefined ? { answer } : {}), ...(text !== undefined ? { text } : {}) })),
+    answerTopics: (ids, answer, text) => notify(opts.client.answerTopics({ ids, answer, ...(text !== undefined ? { text } : {}) })),
+    snoozeTopic: (id) => notify(opts.client.snoozeTopic(id)),
+    readTopic: (id) => notify(opts.client.readTopic(id)),
     answerPrompt: (id, choice) =>
       Effect.runPromise(
         opts.client.answerPrompt(id, choice).pipe(
