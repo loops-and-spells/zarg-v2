@@ -1,3 +1,4 @@
+import type { InboxService } from "./inbox"
 import { Context, type Duration, Effect, Layer, Stream } from "effect"
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { RunAgentInputSchema } from "@ag-ui/core/schemas"
@@ -56,6 +57,9 @@ export class Prompts extends Context.Service<Prompts, {
   readonly close: (id: string) => Effect.Effect<{ readonly notice: string }>
 }>()("@zarg/core/Prompts") {}
 
+/** The operator's inbox: answers, batches, snooze, read (`POST /inbox/...`). */
+export class InboxControl extends Context.Service<InboxControl, InboxService>()("@zarg/core/InboxControl") {}
+
 /** Archive, restore or delete agents of a thread's tree (`POST /threads/:id/archive`). */
 export class ArchiveControl extends Context.Service<ArchiveControl, {
   readonly apply: (thread: string, change: { readonly archive?: ReadonlyArray<string>; readonly restore?: ReadonlyArray<string>; readonly delete?: ReadonlyArray<string> }) => Effect.Effect<{ readonly notice: string }>
@@ -113,6 +117,7 @@ const routes = HttpRouter.addAll(
     const actions = yield* Actions
     const commands = yield* PluginCommands
     const prompts = yield* Prompts
+    const inbox = yield* InboxControl
     const archive = yield* ArchiveControl
     const heartbeat = yield* Heartbeat
     const log = yield* Log
@@ -170,6 +175,34 @@ const routes = HttpRouter.addAll(
           if (body.close === true) return HttpServerResponse.jsonUnsafe(yield* prompts.close(decodeURIComponent(id ?? "")))
           if (typeof body.choice !== "string") return error(400, `an answer needs { "choice" } or { "close": true }`)
           return HttpServerResponse.jsonUnsafe(yield* prompts.answer(decodeURIComponent(id ?? ""), { choice: body.choice }))
+        }),
+      ),
+      HttpRouter.route(
+        "POST",
+        "/inbox/answer",
+        Effect.gen(function* () {
+          const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as { ids?: unknown; answer?: unknown; text?: unknown }
+          if (!Array.isArray(body.ids) || typeof body.answer !== "string") return error(400, `a batch needs { "ids", "answer" }`)
+          const r = yield* inbox.answerMany(body.ids.map(String), { answer: body.answer, ...(typeof body.text === "string" ? { text: body.text } : {}) })
+          return HttpServerResponse.jsonUnsafe({ notice: r.notice }, { status: r.ok ? 200 : 409 })
+        }),
+      ),
+      HttpRouter.route(
+        "POST",
+        "/inbox/:id/:op",
+        Effect.gen(function* () {
+          const { id, op } = yield* HttpRouter.params
+          const topic = decodeURIComponent(id ?? "")
+          const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as { answer?: unknown; text?: unknown }
+          const r =
+            op === "answer"
+              ? yield* inbox.answer(topic, { ...(typeof body.answer === "string" ? { answer: body.answer } : {}), ...(typeof body.text === "string" ? { text: body.text } : {}) })
+              : op === "snooze"
+                ? yield* inbox.snooze(topic)
+                : op === "read"
+                  ? yield* inbox.read(topic)
+                  : { ok: false, notice: `unknown inbox action ${op}` }
+          return HttpServerResponse.jsonUnsafe({ notice: r.notice }, { status: r.ok ? 200 : 409 })
         }),
       ),
       HttpRouter.route("GET", "/commands", Effect.sync(() => HttpServerResponse.jsonUnsafe(commands.list()))),
@@ -265,5 +298,8 @@ const routes = HttpRouter.addAll(
  *   POST /threads/:id/agents/:agent/actions/:action  { rows } → { notice }
  *   POST /threads/:id/archive  { archive | restore | delete: [ids] } → { notice }
  *   POST /prompts/:id          { choice } → { notice } (a grant popover's answer); { close: true } closes a plugin's popover
+ *   POST /inbox/:id/answer     { answer?, text? } → { notice } (409 when the topic is not open or the answer is refused)
+ *   POST /inbox/answer         { ids, answer, text? } → { notice } (a batch: one kind, all offering the answer)
+ *   POST /inbox/:id/snooze     → { notice } (not a blocking topic); POST /inbox/:id/read → { notice } (a report)
  */
 export const api = Layer.mergeAll(routes, auth)

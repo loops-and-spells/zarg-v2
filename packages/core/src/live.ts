@@ -20,6 +20,7 @@ import { threadViews } from "./views"
 import { notLoaded } from "./not-loaded"
 import { outsideReads } from "./outside"
 import { makePrompts } from "./prompts"
+import { makeInbox } from "./inbox"
 import { makeSurfaces, NAV, navItems } from "./surfaces"
 import { makeActions } from "./actions"
 import { makeLog } from "./log"
@@ -70,6 +71,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // Grants are the core's own questions: popovers on every client, never in zarg's conversation.
     const prompts = makePrompts(log)
     yield* prompts.closeStale
+    // The operator's inbox: a posted topic's answer goes to the plugin that raised it (its `answered` method).
+    const inbox = yield* makeInbox({ log, dir: join(root, ".zarg", "inbox"), answered: (t, r) => (t.from.plugin === "zarg" ? Effect.void : Effect.ignore(host.invoke(t.from.plugin, "answered", { id: t.id, ...r }))) })
     // Panels, tiles and sheets plugins open; a new core starts with none (the last core's agents are over).
     const surfaces = makeSurfaces(log, "main")
     yield* surfaces.announce
@@ -262,7 +265,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
           return { notice: change.delete !== undefined ? `deleted ${n}` : change.restore !== undefined ? `restored ${n}` : `archived ${n}` }
         }),
     }
-    return { log, threads, driver: roles.driver, turnOn, yolo, actions, commands, prompts, archive }
+    return { log, threads, driver: roles.driver, turnOn, yolo, actions, commands, prompts, archive, inbox }
   })
 
 /** The project's plugin host options from its environment and config (`[plugins.<name>]` tables). */
