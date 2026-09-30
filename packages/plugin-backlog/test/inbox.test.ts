@@ -32,19 +32,22 @@ describe("the backlog's topics in the inbox", () => {
     expect([out.item.status, out.item.needs]).toEqual(["ready", undefined])
     expect(out.after).toMatchObject({ state: "moot" })
   })
-  test("feedback rehearse routed to ask is a question topic; Turn it off flips it off as the operator; the topic settles", async () => {
+  test("feedback rehearse routed to ask is one topic per journey, not one per entry; Turn them all off flips each off as the operator; the topic settles", async () => {
     const out = await run((seen) =>
       Effect.gen(function* () {
-        const { ids, h } = yield* setUp("ask · real 0.62")
-        const t = { ...topic(seen, `ask:${ids[0]}`)! }
-        yield* h.invoke("backlog", "answered", { id: t.id, key: `ask:${ids[0]}`, answer: "off" })
-        const status = (yield* h.invoke("backlog", "status", { ids })) as Array<{ on: boolean }>
-        return { t, on: status[0]!.on, after: topic(seen, `ask:${ids[0]}`) }
+        const { card, ids, h } = yield* setUp("ask · real 0.62")
+        const more = (yield* h.invoke("backlog", "file", { entries: [{ ref: card.ref, journeys: ["Set up"], persona: "Operator", kind: "friction", severity: "low", note: "Wordy.", from: { agent: "rehearse", run: "r-1" }, triage: { on: true, why: "ask · real 0.55" } }] })) as { ids: string[] }
+        const all = [...ids, ...more.ids]
+        const topics = (seen.inbox ?? []).filter((t) => t.key?.startsWith("ask:"))
+        const t = { ...topics[0]! }
+        yield* h.invoke("backlog", "answered", { id: t.id, key: t.key, answer: "off" })
+        const status = (yield* h.invoke("backlog", "status", { ids: all })) as Array<{ on: boolean }>
+        return { keys: topics.map((x) => x.key), t, on: status.map((x) => x.on), after: topic(seen, "ask:Set up") }
       }),
     )
-    expect(out.t).toMatchObject({ kind: "question", answers: [{ id: "on" }, { id: "off" }] })
-    expect(out.t.title).toContain("No deny path.")
-    expect(out.on).toBe(false)
+    expect(out.keys).toEqual(["ask:Set up"])
+    expect(out.t).toMatchObject({ kind: "question", title: "Set up: 2 feedback entries want your call", answers: [{ id: "on" }, { id: "off" }] })
+    expect(out.on).toEqual([false, false])
     expect(out.after).toMatchObject({ state: "moot" })
   })
   test("a card left out of a round is a plan topic; Draft again sends it back to triage; the round's plans are a report", async () => {
@@ -104,17 +107,17 @@ describe("the backlog's topics in the inbox", () => {
     const out = await run((seen) =>
       Effect.gen(function* () {
         const { ids, h } = yield* setUp("ask · real 0.62")
-        const t = { ...topic(seen, `ask:${ids[0]}`)! }
+        const t = { ...topic(seen, "ask:Set up")! }
         yield* h.invoke("backlog", "act", { agent: "feedback", action: "open", rows: [] })
         yield* h.invoke("backlog", "act", { agent: "feedback", action: "toggle", rows: ids })
-        const settled = topic(seen, `ask:${ids[0]}`)?.state
-        const r = (yield* h.invoke("backlog", "answered", { id: t.id, key: `ask:${ids[0]}`, answer: "on" })) as { notice: string }
+        const settled = topic(seen, "ask:Set up")?.state
+        const r = (yield* h.invoke("backlog", "answered", { id: t.id, key: "ask:Set up", answer: "on" })) as { notice: string }
         const status = (yield* h.invoke("backlog", "status", { ids })) as Array<{ on: boolean }>
         return { settled, notice: r.notice, on: status[0]!.on }
       }),
     )
     expect(out.settled).toBe("moot")
-    expect(out.notice).toBe("that feedback moved on: you decided it in Feedback")
+    expect(out.notice).toBe("Set up: nothing left to decide there")
     expect(out.on).toBe(false)
   })
   test("Leave it out is kept: the card is not raised again", async () => {
@@ -144,7 +147,7 @@ describe("the backlog's topics in the inbox", () => {
         const { card, h } = yield* setUp()
         const { ids } = (yield* h.invoke("backlog", "file", { entries: [{ ref: card.ref, journeys: ["Set up"], persona: "Operator", kind: "drift", severity: "medium", note: "The card says one agent stops; the code stops the whole run.", from: { agent: "rehearse", run: "r-5" }, triage: { on: true, why: "ask · real 1.00" } }] })) as { ids: string[] }
         const d = { ...topic(seen, `drift:${ids[0]}`)! }
-        const noAsk = topic(seen, `ask:${ids[0]}`)
+        const noAsk = topic(seen, "ask:Set up")
         yield* h.invoke("backlog", "answered", { id: d.id, key: `drift:${ids[0]}`, answer: "code" })
         const item = (yield* h.entities.get("backlog/item:B-01")).data as { kind?: string; status: string; changes: unknown[] }
         yield* h.invoke("backlog", "moved", { id: "B-01", to: "ready", by: "operator" })

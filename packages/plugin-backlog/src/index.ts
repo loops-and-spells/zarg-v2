@@ -652,6 +652,16 @@ export default definePlugin({
      * product decision), a card a round left out. Posted by key (an unchanged post changes nothing); settled once
      * its cause is gone, including topics from before a restart.
      */
+    /** The journey an entry's ask topic is under (its first; entries in several are asked once). */
+    const journeyOf = (e: Entry) => e.journeys[0] ?? "(no journey)"
+    /** Feedback in a journey rehearse wants the operator's call on, still undecided and not locked. */
+    const askableIn = (j: string) =>
+      Effect.gen(function* () {
+        const rounds = new Set((yield* loadStages).filter(inTriage).flatMap((x) => x.inputs ?? []))
+        return (yield* withStates(yield* load))
+          .filter(({ e, state }) => state === "open" && e.kind !== "drift" && e.triage.by !== "operator" && e.triage.why.startsWith("ask") && !rounds.has(e.id) && walkedBy(e.journeys) === undefined && journeyOf(e) === j)
+          .map(({ e }) => e)
+      })
     /** What zarg does now for a card (its tagged code), as a topic's evidence. */
     const codeEvidence = (ref: string) =>
       Effect.map(entities.code(target(ref)).pipe(Effect.orElseSucceed(() => undefined)), (cs) =>
@@ -666,6 +676,7 @@ export default definePlugin({
       // An entry in a triage round, or a journey a run walks, is locked: asked again once the lock ends.
       const rounds = new Set((yield* loadStages).filter(inTriage).flatMap((x) => x.inputs ?? []))
       const keepOpen = new Set<string>()
+      const asks = new Map<string, Array<Entry>>()
       const openKeys = new Set((yield* inbox.list()).flatMap((t) => (t.key !== undefined ? [t.key] : [])))
       for (const { e, state } of yield* withStates(yield* load, true))
         if (state === "open" && e.triage.by !== "operator" && e.triage.why.startsWith("ask") && !rounds.has(e.id) && walkedBy(e.journeys) === undefined && e.kind === "drift") {
@@ -678,7 +689,23 @@ export default definePlugin({
           const code = read ?? "(its code could not be read)"
           want.set(`drift:${e.id}`, { kind: "drift", key: `drift:${e.id}`, title: `${target(e.ref).split(":")[1] ?? e.ref}: the card and the code differ`, why: `rehearse (${e.severity})`, about: [target(e.ref).split(":")[1] ?? e.ref], severity: e.severity, evidence: `${e.note}\n\n${code}`, answers: [{ id: "card", label: "Reword the card", why: "the code is right" }, { id: "code", label: "Change the code", recommended: true, why: "the card is right" }], origin: { view: "feedback" } })
         } else if (state === "open" && e.triage.by !== "operator" && e.triage.why.startsWith("ask") && !rounds.has(e.id) && walkedBy(e.journeys) === undefined)
-          want.set(`ask:${e.id}`, { kind: "question", key: `ask:${e.id}`, title: `Keep this feedback on? ${target(e.ref).split(":")[1] ?? e.ref}: ${e.note}`, why: `rehearse asks (${e.kind}, ${e.severity})`, about: [target(e.ref).split(":")[1] ?? e.ref], severity: e.severity, answers: [{ id: "on", label: "Keep it on", recommended: true }, { id: "off", label: "Turn it off" }], origin: { view: "feedback" } })
+          asks.set(journeyOf(e), [...(asks.get(journeyOf(e)) ?? []), e])
+      // Feedback rehearse wants a call on: one topic per journey (the entries are gone through in Feedback), never one each.
+      for (const [j, es] of asks) {
+        const worst = es.map((e) => e.severity).sort((a, b) => ["high", "medium", "low"].indexOf(a) - ["high", "medium", "low"].indexOf(b))[0]
+        const lines = es.slice(0, 30).map((e) => `- ${target(e.ref).split(":")[1] ?? e.ref} (${e.kind}, ${e.severity}): ${e.note}`)
+        want.set(`ask:${j}`, {
+          kind: "question",
+          key: `ask:${j}`,
+          title: `${j}: ${es.length} feedback ${es.length === 1 ? "entry wants" : "entries want"} your call`,
+          why: "rehearse asks",
+          about: [...new Set(es.map((e) => target(e.ref).split(":")[1] ?? e.ref))],
+          ...(worst !== undefined ? { severity: worst } : {}),
+          evidence: [...lines, ...(es.length > 30 ? [`… and ${es.length - 30} more`] : []), "", "Go through them one by one in Feedback (o), or decide them all here."].join("\n"),
+          answers: [{ id: "on", label: "Keep them all on", recommended: true }, { id: "off", label: "Turn them all off" }],
+          origin: { view: "feedback" },
+        })
+      }
       for (const st of (yield* loadStages).filter((x) => inTriage(x)))
         for (const p of st.proposals.filter((x) => x.status === "skipped" && x.leftOut !== true))
           want.set(`left:${st.journey}:${p.card}`, { kind: "plan", key: `left:${st.journey}:${p.card}`, title: `${p.card} left out of ${st.journey}'s round`, why: "triage", about: [p.card], ...((p.problems ?? []).length > 0 ? { evidence: p.problems!.map((x) => `- ${x}`).join("\n") } : {}), answers: [{ id: "draft", label: "Draft again", recommended: true }, { id: "leave", label: "Leave it out" }], origin: { view: "feedback" } })
@@ -702,21 +729,18 @@ export default definePlugin({
           yield* refreshBoard
           return { notice }
         }
-        if (kind === "ask" && rest[0] !== undefined) {
-          const id = rest[0]
-          const e = (yield* load).find((x) => x.id === id)
-          const now = e === undefined ? undefined : (yield* withStates([e]))[0]?.state
-          if (e === undefined || now !== "open") return { notice: "that feedback moved on" }
-          if (e.triage.by === "operator") return { notice: "that feedback moved on: you decided it in Feedback" }
-          if ((yield* loadStages).some((x) => inTriage(x) && (x.inputs ?? []).includes(id))) return { notice: "that feedback is in a triage round: read-only until Plan" }
-          if (walkedBy(e.journeys) !== undefined) return { notice: "that feedback's journey is being rehearsed: read-only until the run ends" }
+        if (kind === "ask" && rest.length > 0) {
+          const j = rest.join(":")
+          // The entries still undecided now (what you or a lock settled meanwhile is left alone).
+          const es = yield* askableIn(j)
+          if (es.length === 0) return { notice: `${j}: nothing left to decide there` }
+          const ids = new Set(es.map((e) => e.id))
           yield* Effect.gen(function* () {
-            const cur = (yield* load).find((x) => x.id === id)
-            if (cur !== undefined) yield* save({ ...cur, triage: { on: answer !== "off", why: cur.triage.why, by: "operator" } })
+            for (const cur of (yield* load).filter((x) => ids.has(x.id))) yield* save({ ...cur, triage: { on: answer !== "off", why: cur.triage.why, by: "operator" } })
           }).pipe(writing.withPermits(1))
           yield* ready
           if (feedbackOpened) yield* Effect.ignore(refresh)
-          return { notice: answer === "off" ? "turned off" : "kept on" }
+          return { notice: `${j}: ${plural_(es.length, "entry")} ${answer === "off" ? "turned off" : "kept on"}` }
         }
         if (kind === "drift" && rest[0] !== undefined) {
           const id = rest[0]
