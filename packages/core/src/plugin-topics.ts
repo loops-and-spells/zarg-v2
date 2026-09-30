@@ -13,3 +13,16 @@ export const syncPluginTopics = (inbox: InboxService, items: ReadonlyArray<{ rea
     for (const t of inbox.list())
       if (t.from.plugin === "zarg" && t.kind === "plugin" && t.state === "open" && t.key !== undefined && !keys.has(t.key)) yield* inbox.settle("zarg", t.id, "the plugin loaded")
   })
+
+/** Reconcile's findings as inbox topics (zarg takes them up; the operator sees them): one per finding, settled once it clears. */
+export const syncFindingTopics = (
+  inbox: InboxService,
+  findings: ReadonlyArray<{ readonly id: string; readonly kind: string; readonly title: string; readonly detail: string; readonly about: ReadonlyArray<string> }>,
+) =>
+  Effect.gen(function* () {
+    for (const f of findings)
+      yield* inbox.post({ plugin: "zarg" }, { kind: "finding", key: `finding:${f.id}`, title: f.title, why: f.kind, evidence: `${f.detail}\n\nzarg takes this up first on its agenda.`, about: f.about, severity: "high" })
+    const keys = new Set(findings.map((f) => `finding:${f.id}`))
+    for (const t of inbox.list())
+      if (t.from.plugin === "zarg" && t.kind === "finding" && t.state === "open" && t.key !== undefined && !keys.has(t.key)) yield* inbox.settle("zarg", t.id, "the finding cleared")
+  })

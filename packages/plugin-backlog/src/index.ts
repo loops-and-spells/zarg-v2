@@ -1,5 +1,5 @@
 import { Effect, Schema, Semaphore } from "effect"
-import { Agenda, Config, definePlugin, Entities, Files, PluginFailure, Surfaces, Views } from "@zarg/plugin-sdk"
+import { Agenda, Config, definePlugin, Entities, Files, Inbox, PluginFailure, Surfaces, Views } from "@zarg/plugin-sdk"
 import { Gherkin } from "@zarg/plugin-gherkin/contract"
 import { Backlog, Drafted, PlansParams, FiledEntry, ItemData, Lane, Moved, OnEntry, PlanParams, Propose, Redraft, Rehearsed, Rehearsing, StageData } from "./contract"
 import { current, fresh, inTriage, nextQueued, redo, redraft, refineAgain, settle, type Stage, stageActions, stageLabel, slug, startRefine } from "./stages"
@@ -36,7 +36,7 @@ export default definePlugin({
   archetype: "service",
   implements: Backlog,
   config: Schema.Struct({}),
-  scopes: { agents: true, fs: { read: [`${DIR}/**`, `${ITEMS}/**`, `${TRIAGE}/**`], write: [`${DIR}/**`, `${ITEMS}/**`, `${TRIAGE}/**`] }, entities: { read: ["gherkin/*"] } },
+  scopes: { agents: true, inbox: true, fs: { read: [`${DIR}/**`, `${ITEMS}/**`, `${TRIAGE}/**`], write: [`${DIR}/**`, `${ITEMS}/**`, `${TRIAGE}/**`] }, entities: { read: ["gherkin/*"] } },
   views: [FeedbackView, BacklogView, ItemView],
   // Resync dry-runs a plan's changes on the graph as it is now.
   pluginDependencies: [Gherkin],
@@ -59,6 +59,7 @@ export default definePlugin({
     },
   },
   methods: {
+    answered: { doc: "The operator answered one of the backlog's inbox topics (a plan that needs them, an ask, a card left out).", params: Schema.Struct({ id: Schema.String, key: Schema.optionalKey(Schema.String), answer: Schema.optionalKey(Schema.String), text: Schema.optionalKey(Schema.String) }), success: Notice },
     file: { doc: "File feedback (the same report on the same version again counts it); with the cards a run walked, their feedback it no longer reports closes.", params: Schema.Struct({ entries: Schema.Array(FiledEntry), walked: Schema.optionalKey(Schema.Array(Schema.String)), run: Schema.optionalKey(Schema.String) }), success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
     status: { doc: "Where feedback stands.", params: Schema.Struct({ ids: Schema.Array(Schema.String) }), success: Schema.Array(Schema.Struct({ id: Schema.String, state: Schema.Literals(["open", "stale", "planned", "closed"]), on: Schema.Boolean })) },
     act: { doc: "The Feedback view: open it, show a journey, flip an entry.", params: Act, success: Notice },
@@ -87,7 +88,10 @@ export default definePlugin({
     const views = yield* Views
     const surfaces = yield* Surfaces
     // A plan that becomes Ready says so: the core's Planner wakes on it.
-    const ready = Effect.ignore((yield* Agenda).changed)
+    const agendaPower = yield* Agenda
+    const inbox = yield* Inbox
+    // Whatever changed: what waits on the operator is posted or settled in the inbox, then the agenda is told.
+    const ready = Effect.suspend(() => Effect.andThen(Effect.ignore(syncTopics), Effect.ignore(agendaPower.changed)))
     const entities = yield* Entities
     const gherkin = yield* Gherkin
     yield* Config
@@ -395,7 +399,21 @@ export default definePlugin({
           }
         }
         return { ids }
-      }).pipe(writing.withPermits(1), Effect.mapError(fail))
+      }).pipe(
+        writing.withPermits(1),
+        // A run's filing is news: a report, and whatever now waits on the operator (asks) in the inbox.
+        Effect.tap(({ ids }) =>
+          Effect.gen(function* () {
+            if (run !== undefined && ids.some((x) => x !== "")) {
+              const filed = (yield* load).filter((e) => ids.includes(e.id))
+              const journeys = [...new Set(filed.flatMap((e) => e.journeys))]
+              yield* report(`run:${run}`, `Rehearse run ${run}: ${plural_(filed.length, "entry")} on ${journeys.join(", ")}`, "feedback")
+            }
+            yield* ready
+          }),
+        ),
+        Effect.mapError(fail),
+      )
     const status = ({ ids }: { ids: ReadonlyArray<string> }) =>
       Effect.gen(function* () {
         const all = yield* withStates((yield* load).filter((e) => ids.includes(e.id)))
@@ -483,6 +501,8 @@ export default definePlugin({
           const { item: _, ...rest } = st
           return { ...rest, stage: "planned", items: ids }
         })
+        yield* report(`plans:${p.journey}:${ids.join(",")}`, `${p.journey} folded into ${plural_(ids.length, "plan")}: ${ids.join(", ")}`, "backlog")
+        yield* ready
         return { ids }
       }).pipe(planning.withPermits(1), Effect.tap(() => Effect.ignore(Effect.suspend(() => (feedbackOpened ? refresh : Effect.void)))), Effect.mapError(fail))
     const stageAct = (j: string, action: string) =>
@@ -618,7 +638,61 @@ export default definePlugin({
     const nul = <E>(e: Effect.Effect<unknown, E>) => Effect.as(e, null).pipe(Effect.mapError(fail))
     // The agent's moves on a stage: the Feedback view follows them without a key press.
     const moved_ = <E>(e: Effect.Effect<unknown, E>) => nul(Effect.andThen(e, Effect.ignore(Effect.suspend(() => (feedbackOpened ? refresh : Effect.void)))))
+    /**
+     * What waits on the operator, as inbox topics: a plan that needs them, feedback rehearse routed to "ask" (a
+     * product decision), a card a round left out. Posted by key (an unchanged post changes nothing); settled once
+     * its cause is gone, including topics from before a restart.
+     */
+    // ponytail: reads every entry, plan and stage on each change; an index when there are thousands.
+    const syncTopics = Effect.gen(function* () {
+      const want = new Map<string, Parameters<typeof inbox.post>[0]>()
+      for (const i of (yield* loadItems).filter((x) => x.needs !== undefined && x.dropped !== true))
+        want.set(`needs:${i.id}`, { kind: "plan", key: `needs:${i.id}`, title: `${i.id} ${i.title} can't apply: ${i.needs}`, why: "plan", about: i.cards.map((c) => target(c.ref).split(":")[1] ?? c.ref), answers: [{ id: "ready", label: "Back to Ready", recommended: true }, { id: "drop", label: "Drop" }], origin: { view: "backlog" } })
+      for (const { e, state } of yield* withStates(yield* load))
+        if (state === "open" && e.triage.by !== "operator" && e.triage.why.startsWith("ask"))
+          want.set(`ask:${e.id}`, { kind: "question", key: `ask:${e.id}`, title: `Keep this feedback on? ${target(e.ref).split(":")[1] ?? e.ref}: ${e.note}`, why: `rehearse asks (${e.kind}, ${e.severity})`, about: [target(e.ref).split(":")[1] ?? e.ref], severity: e.severity, answers: [{ id: "on", label: "Keep it on", recommended: true }, { id: "off", label: "Turn it off" }], origin: { view: "feedback" } })
+      for (const st of (yield* loadStages).filter((x) => inTriage(x)))
+        for (const p of st.proposals.filter((x) => x.status === "skipped"))
+          want.set(`left:${st.journey}:${p.card}`, { kind: "plan", key: `left:${st.journey}:${p.card}`, title: `${p.card} left out of ${st.journey}'s round`, why: "triage", about: [p.card], ...((p.problems ?? []).length > 0 ? { evidence: p.problems!.map((x) => `- ${x}`).join("\n") } : {}), answers: [{ id: "draft", label: "Draft again", recommended: true }, { id: "leave", label: "Leave it out" }], origin: { view: "feedback" } })
+      for (const t of want.values()) yield* inbox.post(t)
+      const isMine = (key: string | undefined) => key !== undefined && /^(needs|ask|left):/.test(key)
+      for (const t of yield* inbox.list()) if (isMine(t.key) && !want.has(t.key!)) yield* inbox.settle(t.id, "it no longer waits on you")
+    })
+    const plural_ = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`
+    /** A report for the inbox: read once opened. */
+    const report = (key: string, title: string, view: string) => Effect.ignore(inbox.post({ kind: "report", key, title, why: "report", origin: { view } }))
+    /** The operator's answer to one of the backlog's topics: the same as the matching action in its views. */
+    const answered = ({ key, answer }: { id: string; key?: string; answer?: string }) =>
+      Effect.gen(function* () {
+        const [kind, ...rest] = (key ?? "").split(":")
+        if (kind === "needs" && rest[0] !== undefined) {
+          const notice = answer === "drop" ? yield* drop(rest[0]) : yield* move(rest[0], "ready", "operator")
+          yield* refreshBoard
+          return { notice }
+        }
+        if (kind === "ask" && rest[0] !== undefined) {
+          const id = rest[0]
+          yield* Effect.gen(function* () {
+            const e = (yield* load).find((x) => x.id === id)
+            if (e !== undefined) yield* save({ ...e, triage: { on: answer !== "off", why: e.triage.why, by: "operator" } })
+          }).pipe(writing.withPermits(1))
+          yield* ready
+          if (feedbackOpened) yield* Effect.ignore(refresh)
+          return { notice: answer === "off" ? "turned off" : "kept on" }
+        }
+        if (kind === "left" && rest.length >= 2) {
+          const card = rest.at(-1)!
+          const journey = rest.slice(0, -1).join(":")
+          if (answer !== "draft") return { notice: `${card} stays left out` }
+          const refused = yield* updateStage(journey, (st) => redo(st, card), true)
+          if (feedbackOpened) yield* Effect.ignore(refresh)
+          return { notice: refused ?? `${journey}: drafting ${card} again` }
+        }
+        return { notice: "not a backlog topic" }
+      }).pipe(Effect.mapError(fail))
+
     return {
+      answered,
       file,
       status,
       act,

@@ -111,7 +111,7 @@ export interface HostOptions {
   /** A plugin's process ended by itself (a crash, a deadline): what it was waiting on is over. */
   readonly stopped?: (plugin: string) => void
   /** The operator's inbox (the `Inbox` power), per plugin. */
-  readonly inbox?: (plugin: string, op: "ask" | "post" | "settle" | "update", args: unknown) => Effect.Effect<unknown, unknown>
+  readonly inbox?: (plugin: string, op: "ask" | "post" | "settle" | "update" | "list", args: unknown) => Effect.Effect<unknown, unknown>
   /** A model role for plugins with the models scope. */
   readonly complete?: (req: { readonly role: string; readonly messages: ReadonlyArray<unknown>; readonly outputSchema?: unknown; readonly maxTokens?: number; readonly reasoning?: { readonly effort?: string; readonly enabled?: boolean } }) => Effect.Effect<{ readonly text: string; readonly promptTokens: number; readonly completionTokens: number; readonly reasoningTokens?: number; readonly finishReason?: string }, unknown>
   /** A plugin's agents events (start, status, step, end), for the agents pane. */
@@ -339,7 +339,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           log: opts.log,
           redact: opts.redact,
           asking: (open) => void (asking += open ? 1 : -1),
-          ...(opts.inbox !== undefined ? { inbox: (op: "ask" | "post" | "settle" | "update", args: unknown) => Effect.runPromise(opts.inbox!(m.name, op, args)) } : {}),
+          ...(opts.inbox !== undefined ? { inbox: (op: "ask" | "post" | "settle" | "update" | "list", args: unknown) => Effect.runPromise(opts.inbox!(m.name, op, args)) } : {}),
           ...(opts.decide !== undefined ? { decide: (req: unknown) => Effect.runPromise(opts.decide!(req).pipe(Effect.mapError((e) => ({ tag: "DecisionError", message: String((e as { message?: string }).message ?? e) })))) } : {}),
           ...(opts.complete !== undefined ? { complete: (req: Parameters<NonNullable<HostOptions["complete"]>>[0]) => Effect.runPromise(opts.complete!(req).pipe(Effect.mapError((e) => ({ tag: "ModelError", message: String((e as { message?: string }).message ?? e) })))) } : {}),
           agendaChanged: () => opts.agendaChanged?.(m.name),

@@ -102,6 +102,8 @@ export class Inbox extends Context.Service<Inbox, {
   readonly post: (t: TopicInput) => Effect.Effect<string, PluginFailure>
   readonly settle: (id: string, why: string) => Effect.Effect<void, PluginFailure>
   readonly update: (id: string, patch: Partial<TopicInput> & { readonly message?: string }) => Effect.Effect<void, PluginFailure>
+  /** This plugin's open topics (to settle the ones whose cause is gone, after a restart too). */
+  readonly list: () => Effect.Effect<ReadonlyArray<{ readonly id: string; readonly key?: string }>, PluginFailure>
 }>()("@zarg/plugin-sdk/Inbox") {}
 /** A question an agent asks in its conversation. */
 export interface AgentQuestion {
@@ -160,6 +162,7 @@ export const servicesFrom = (raw: RawPowers) => ({
     post: (t) => power<string>(raw, "inbox.call", { op: "post", topic: t }),
     settle: (id, why) => Effect.asVoid(power(raw, "inbox.call", { op: "settle", id, why })),
     update: (id, patch) => Effect.asVoid(power(raw, "inbox.call", { op: "update", id, patch })),
+    list: () => power<ReadonlyArray<{ readonly id: string; readonly key?: string }>>(raw, "inbox.call", { op: "list" }),
   }),
   attention: Attention.of({
     request: (agent, reason) => Effect.asVoid(power(raw, "agents.event", { event: "attention", id: agent, reason })),

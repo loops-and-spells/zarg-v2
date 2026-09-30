@@ -21,7 +21,7 @@ import { notLoaded } from "./not-loaded"
 import { outsideReads } from "./outside"
 import { makePrompts } from "./prompts"
 import { makeInbox, type TopicInput } from "./inbox"
-import { syncPluginTopics } from "./plugin-topics"
+import { syncFindingTopics, syncPluginTopics } from "./plugin-topics"
 import { grantAsk } from "./grant"
 import { makeSurfaces, NAV, navItems } from "./surfaces"
 import { makeActions } from "./actions"
@@ -80,7 +80,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       log,
       dir: join(root, ".zarg", "inbox"),
       answered: (t, r) =>
-        t.from.plugin !== "zarg" ? Effect.ignore(host.invoke(t.from.plugin, "answered", { id: t.id, ...r })) : t.from.agent === "zarg" && zargThread?.inbox !== undefined ? zargThread.inbox.answered(t, r) : Effect.void,
+        t.from.plugin !== "zarg" ? Effect.ignore(host.invoke(t.from.plugin, "answered", { id: t.id, ...(t.key !== undefined ? { key: t.key } : {}), ...r })) : t.from.agent === "zarg" && zargThread?.inbox !== undefined ? zargThread.inbox.answered(t, r) : Effect.void,
       replied: (t, text) => (t.from.plugin === "zarg" && t.from.agent === "zarg" && zargThread?.inbox !== undefined ? zargThread.inbox.replied(t, text) : Effect.void),
     })
     // Panels, tiles and sheets plugins open; a new core starts with none (the last core's agents are over).
@@ -98,6 +98,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // Plan and implement: the reconcile loop, unless `[reconcile] enabled = false`.
     // The core's own scope: reconcile started later (by /reconcile) closes with the core.
     const scope = yield* Effect.scope
+    // Reconcile's findings, as inbox topics (none while reconcile is off).
+    const syncFindings = Effect.suspend(() => Effect.ignore(syncFindingTopics(inbox, reconcile?.findings.list() ?? [])))
     const startReconcile = (settings: ReconcileSettings) =>
       makeReconcile({
         repo: root,
@@ -113,6 +115,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         affected: (before, after) => host.affected(before, after),
         onLanded: (cards) => void Effect.runFork(planner.landed(cards)),
         onFailed: (cards) => void Effect.runFork(planner.failed(cards)),
+        // Findings in the operator's inbox: raised when a pass finds them, settled once they clear.
+        onPassEnd: () => void Effect.runFork(syncFindings),
       }).pipe(Effect.provideService(EffectScope.Scope, scope))
     // The Planner Agent: Ready plans on the Backlog are applied to the graph, then reconcile implements them.
     const planner = makePlanner({
@@ -131,6 +135,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // stderr: stdout carries the `ready` handshake a starting client waits for.
     if (!gate.on) yield* Effect.sync(() => console.error(`zarg-core: ${gate.reason}`))
     let reconcile = gate.on ? yield* startReconcile(gate.settings) : undefined
+    yield* syncFindings
     const agenda = (focus: ReadonlySet<string> | undefined) =>
       Effect.map(host.agenda(focus), (items): ReadonlyArray<AgendaItem> => [...(reconcile?.agenda(focus) ?? []), ...forDriver(items)])
     // zarg, the conversational agent, is a trusted agent plugin: it gets what it needs from the core as a host.
@@ -216,7 +221,15 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // A plugin's inbox calls, as that plugin: it settles and updates only its own topics.
     control.setInbox((plugin, op, args) => {
       const a = args as { topic?: TopicInput; id?: string; why?: string; patch?: Partial<TopicInput> & { message?: string } }
-      return op === "ask" ? inbox.ask({ plugin }, a.topic!) : op === "post" ? inbox.post({ plugin }, a.topic!) : op === "settle" ? inbox.settle(plugin, a.id ?? "", a.why ?? "") : inbox.update(plugin, a.id ?? "", a.patch ?? {})
+      return op === "ask"
+        ? inbox.ask({ plugin }, a.topic!)
+        : op === "post"
+          ? inbox.post({ plugin }, a.topic!)
+          : op === "settle"
+            ? inbox.settle(plugin, a.id ?? "", a.why ?? "")
+            : op === "list"
+              ? Effect.succeed(inbox.list().filter((t) => t.from.plugin === plugin && t.state === "open").map((t) => ({ id: t.id, ...(t.key !== undefined ? { key: t.key } : {}) })))
+              : inbox.update(plugin, a.id ?? "", a.patch ?? {})
     }, (plugin) => void Effect.runFork(inbox.stopped(plugin)))
     control.setAsk((q) =>
       grantAsk(inbox)({ plugin: q.plugin }, { question: `Plugin ${q.plugin} wants to ${q.what}.`, options: q.options.map((o) => ({ id: o.id, label: o.label, ...(o.id === "once" ? { recommended: true } : {}) })), allowOther: false, kind: "grant" })
@@ -238,6 +251,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       if (problem !== undefined) return { on: false, reason: `no pass can run: ${problem}` } satisfies ReconcileAnswer
       if (reconcile === undefined && forced?.on) {
         reconcile = yield* startReconcile(forced.settings)
+        yield* syncFindings
         for (const t of reconcile.threads) threads.add(t)
       }
       if (reconcile === undefined) return { on: false, reason: "reconcile could not start" } satisfies ReconcileAnswer
