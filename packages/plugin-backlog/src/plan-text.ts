@@ -33,6 +33,7 @@ export const planText = (i: Pick<Item, "id" | "title" | "journey" | "persona" | 
     `${plural(cards.length, "card")}: ${edited.length} changed, ${added.length} new · ${plural(i.changes.length, "change")} · closes ${feedback.length} feedback${high.length > 0 ? ` (${high.length} high)` : ""}`,
     ...(links.after.length > 0 || links.before.length > 0 ? [[...(links.after.length > 0 ? [`Waits on ${links.after.join(", ")}`] : []), ...(links.before.length > 0 ? [`${links.before.join(", ")} ${links.before.length === 1 ? "waits" : "wait"} on this`] : [])].join(" · ")] : []),
     ...(changed.size === 1 ? [`⚠ ${cardOf([...changed][0]!)} changed since this plan was drafted: **s** Resync`] : changed.size > 1 ? [`⚠ ${changed.size} cards changed since this plan was drafted (${[...changed].map(cardOf).join(", ")}): **s** Resync`] : []),
+    ...((i as { kind?: string }).kind === "code" ? ["", "**A code change.** The card stays as it is: change the code so it does what the card says (zarg-implement, or by hand), then move this plan to Done."] : []),
     ...(i.steps.length > 0 ? ["", "**The plan**", ...i.steps.map((s, k) => `${k + 1}. ${s}`)] : []),
     // Cards with the same change (a reworded state they share) show it once.
     ...(edited.length > 0 ? ["", "**Changed cards**", ...groups(edited, diff).flatMap((g) => ["", g.length === 1 ? `**${g[0]!.id}** ${g[0]!.title}` : `**${g.map((c) => c.id).join(", ")}** ${g.length} cards, the same change`, "```diff", ...diff(g[0]!), "```"])] : []),

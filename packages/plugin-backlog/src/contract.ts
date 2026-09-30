@@ -28,6 +28,8 @@ export const PlanParams = Schema.Struct({
   after: Schema.optionalKey(Schema.Array(Schema.String)),
   persona: Schema.optionalKey(Schema.String),
   severity: Schema.optionalKey(Severity),
+  /** A code plan changes the code, not the graph (a drift the operator settled for the card): the Planner never takes it. */
+  kind: Schema.optionalKey(Schema.Literals(["graph", "code"])),
 })
 export type PlanParams = typeof PlanParams.Type
 export const Lane = Schema.Literals(["backlog", "ready", "running", "review", "done"])

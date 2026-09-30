@@ -26,6 +26,8 @@ export interface Item {
   readonly dropped?: boolean
   /** Why it needs the operator (an apply that failed), until it moves again. */
   readonly needs?: string
+  /** A code plan: the code must change to match the card (the Planner never takes it). */
+  readonly kind?: "graph" | "code"
 }
 
 export const ITEM_ID = /^B-\d{2,}$/
@@ -59,7 +61,7 @@ export const stale = (item: Item, all: ReadonlyArray<Item>, changed: ReadonlySet
 /** The Planner's next: the oldest Ready item whose after items are done and whose cards have not changed since it was drafted. */
 export const pickNext = (items: ReadonlyArray<Item>, changed: (ref: string) => boolean) =>
   [...items]
-    .filter((i) => i.status === "ready" && i.dropped !== true && i.needs === undefined && waitingOn(i, items).length === 0 && stale(i, items, new Set(i.cards.map((c) => c.ref).filter(changed))).size === 0)
+    .filter((i) => i.status === "ready" && i.kind !== "code" && i.dropped !== true && i.needs === undefined && waitingOn(i, items).length === 0 && stale(i, items, new Set(i.cards.map((c) => c.ref).filter(changed))).size === 0)
     .sort((a, b) => order(a) - order(b))[0]
 
 /** How an item shows on the board: its stripe, top line, badge, then who it is for, who works it, why it waits. */
@@ -75,6 +77,7 @@ export const boardCard = (item: Item, all: ReadonlyArray<Item>, changedRefs: Rea
     badge: `◇${item.feedback.length}`,
     lines: [
       ...(item.persona !== undefined ? [{ text: item.persona, tone: "persona" as const }] : []),
+      ...(item.kind === "code" ? [{ text: "code change", tone: "accent" as const }] : []),
       ...(item.status === "running" && item.agent !== undefined ? [{ text: `⠼ ${item.agent}`, tone: "accent" as const }] : []),
       ...(waits.length > 0 && item.status !== "done" ? [{ text: `⇠ after ${waits.map((id) => (all.find((i) => i.id === id)?.dropped === true ? `${id} (dropped)` : id)).join(", ")}`, tone: "error" as const }] : []),
       ...(changed ? [{ text: "⚠ card changed", tone: "attention" as const }] : []),

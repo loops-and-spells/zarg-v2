@@ -650,6 +650,11 @@ export default definePlugin({
      * product decision), a card a round left out. Posted by key (an unchanged post changes nothing); settled once
      * its cause is gone, including topics from before a restart.
      */
+    /** What zarg does now for a card (its tagged code), as a topic's evidence. */
+    const codeEvidence = (ref: string) =>
+      Effect.map(entities.code(target(ref)).pipe(Effect.orElseSucceed(() => [])), (cs) =>
+        cs.length === 0 ? "(no code tagged)" : ["What zarg does now:", ...cs.map((c) => `${c.file}:${c.line}\n\n\`\`\`\n${c.text}\n\`\`\``)].join("\n\n"),
+      )
     // ponytail: reads every entry, plan and stage on each change; an index when there are thousands.
     const syncTopics = Effect.gen(function* () {
       const want = new Map<string, Parameters<typeof inbox.post>[0]>()
@@ -658,13 +663,17 @@ export default definePlugin({
       // An entry in a triage round, or a journey a run walks, is locked: asked again once the lock ends.
       const rounds = new Set((yield* loadStages).filter(inTriage).flatMap((x) => x.inputs ?? []))
       for (const { e, state } of yield* withStates(yield* load))
-        if (state === "open" && e.triage.by !== "operator" && e.triage.why.startsWith("ask") && !rounds.has(e.id) && walkedBy(e.journeys) === undefined)
+        if (state === "open" && e.triage.by !== "operator" && e.triage.why.startsWith("ask") && !rounds.has(e.id) && walkedBy(e.journeys) === undefined && e.kind === "drift")
+          want.set(`drift:${e.id}`, { kind: "drift", key: `drift:${e.id}`, title: `${target(e.ref).split(":")[1] ?? e.ref}: the card and the code differ`, why: `rehearse (${e.severity})`, about: [target(e.ref).split(":")[1] ?? e.ref], severity: e.severity, evidence: `${e.note}\n\n${yield* codeEvidence(e.ref)}`, answers: [{ id: "card", label: "Reword the card", why: "the code is right" }, { id: "code", label: "Change the code", recommended: true, why: "the card is right" }], origin: { view: "feedback" } })
+        else if (state === "open" && e.triage.by !== "operator" && e.triage.why.startsWith("ask") && !rounds.has(e.id) && walkedBy(e.journeys) === undefined)
           want.set(`ask:${e.id}`, { kind: "question", key: `ask:${e.id}`, title: `Keep this feedback on? ${target(e.ref).split(":")[1] ?? e.ref}: ${e.note}`, why: `rehearse asks (${e.kind}, ${e.severity})`, about: [target(e.ref).split(":")[1] ?? e.ref], severity: e.severity, answers: [{ id: "on", label: "Keep it on", recommended: true }, { id: "off", label: "Turn it off" }], origin: { view: "feedback" } })
       for (const st of (yield* loadStages).filter((x) => inTriage(x)))
         for (const p of st.proposals.filter((x) => x.status === "skipped" && x.leftOut !== true))
           want.set(`left:${st.journey}:${p.card}`, { kind: "plan", key: `left:${st.journey}:${p.card}`, title: `${p.card} left out of ${st.journey}'s round`, why: "triage", about: [p.card], ...((p.problems ?? []).length > 0 ? { evidence: p.problems!.map((x) => `- ${x}`).join("\n") } : {}), answers: [{ id: "draft", label: "Draft again", recommended: true }, { id: "leave", label: "Leave it out" }], origin: { view: "feedback" } })
+      for (const i of (yield* loadItems).filter((x) => x.kind === "code" && x.dropped !== true && x.status !== "done"))
+        want.set(`code:${i.id}`, { kind: "plan", key: `code:${i.id}`, title: `${i.id} is a code change: ${i.title}`, why: "plan", about: i.cards.map((c) => target(c.ref).split(":")[1] ?? c.ref), evidence: i.steps.join("\n"), answers: [{ id: "done", label: "Done: the code does it", recommended: true }, { id: "drop", label: "Drop" }], origin: { view: "backlog" } })
       for (const t of want.values()) yield* inbox.post(t)
-      const isMine = (key: string | undefined) => key !== undefined && /^(needs|ask|left):/.test(key)
+      const isMine = (key: string | undefined) => key !== undefined && /^(needs|ask|left|drift|code):/.test(key)
       for (const t of yield* inbox.list()) if (isMine(t.key) && !want.has(t.key!)) yield* inbox.settle(t.id, "it no longer waits on you")
     })
     const plural_ = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`
@@ -696,6 +705,34 @@ export default definePlugin({
           yield* ready
           if (feedbackOpened) yield* Effect.ignore(refresh)
           return { notice: answer === "off" ? "turned off" : "kept on" }
+        }
+        if (kind === "drift" && rest[0] !== undefined) {
+          const id = rest[0]
+          const e = (yield* load).find((x) => x.id === id)
+          const now = e === undefined ? undefined : (yield* withStates([e]))[0]?.state
+          if (e === undefined || now !== "open") return { notice: "that feedback moved on" }
+          if (e.triage.by === "operator") return { notice: "that feedback moved on: you decided it in Feedback" }
+          if ((yield* loadStages).some((x) => inTriage(x) && (x.inputs ?? []).includes(id))) return { notice: "that feedback is in a triage round: read-only until Plan" }
+          if (answer === "code") {
+            const card = target(e.ref).split(":")[1] ?? e.ref
+            const { id: planId } = yield* plan({ title: `Change the code: ${card} ${e.note.length > 60 ? `${e.note.slice(0, 59)}…` : e.note}`, journey: e.journeys[0] ?? "", cards: [{ ref: e.ref }], changes: [], feedback: [e.id], steps: [`Change the code so ${card} does what it says: ${e.note}`], persona: e.persona, severity: e.severity, kind: "code" })
+            yield* refreshBoard
+            return { notice: `${planId}: a code change on the Backlog` }
+          }
+          yield* Effect.gen(function* () {
+            const cur = (yield* load).find((x) => x.id === id)
+            if (cur !== undefined) yield* save({ ...cur, triage: { on: true, why: cur.triage.why, by: "operator" }, operatorNote: "reword the card to match the code" })
+          }).pipe(writing.withPermits(1))
+          yield* ready
+          if (feedbackOpened) yield* Effect.ignore(refresh)
+          return { notice: "kept on: the next Refine rewords the card to match the code" }
+        }
+        if (kind === "code" && rest[0] !== undefined) {
+          const i = (yield* loadItems).find((x) => x.id === rest[0])
+          if (i === undefined || i.dropped === true || i.status === "done") return { notice: `${rest[0]} moved on` }
+          const notice = answer === "drop" ? yield* drop(rest[0]) : yield* move(rest[0], "done", "operator")
+          yield* refreshBoard
+          return { notice }
         }
         if (kind === "left" && rest.length >= 2) {
           const card = rest.at(-1)!

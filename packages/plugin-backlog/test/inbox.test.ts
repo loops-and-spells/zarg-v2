@@ -138,4 +138,42 @@ describe("the backlog's topics in the inbox", () => {
     )
     expect(out).toBe(0)
   })
+  test("a drift is the operator's decision: Change the code files a code plan the Planner never takes; its topic's Done moves it to Done and closes the feedback", async () => {
+    const out = await run((seen) =>
+      Effect.gen(function* () {
+        const { card, h } = yield* setUp()
+        const { ids } = (yield* h.invoke("backlog", "file", { entries: [{ ref: card.ref, journeys: ["Set up"], persona: "Operator", kind: "drift", severity: "medium", note: "The card says one agent stops; the code stops the whole run.", from: { agent: "rehearse", run: "r-5" }, triage: { on: true, why: "ask · real 1.00" } }] })) as { ids: string[] }
+        const d = { ...topic(seen, `drift:${ids[0]}`)! }
+        const noAsk = topic(seen, `ask:${ids[0]}`)
+        yield* h.invoke("backlog", "answered", { id: d.id, key: `drift:${ids[0]}`, answer: "code" })
+        const item = (yield* h.entities.get("backlog/item:B-01")).data as { kind?: string; status: string; changes: unknown[] }
+        yield* h.invoke("backlog", "moved", { id: "B-01", to: "ready", by: "operator" })
+        const next = yield* h.invoke("backlog", "next", {})
+        const c = { ...topic(seen, "code:B-01")! }
+        yield* h.invoke("backlog", "answered", { id: c.id, key: "code:B-01", answer: "done" })
+        const done = (yield* h.entities.get("backlog/item:B-01")).data as { status: string }
+        const fb = (yield* h.invoke("backlog", "status", { ids })) as Array<{ state: string }>
+        return { d, noAsk, item, next, c, done: done.status, fb: fb[0]!.state }
+      }),
+    )
+    expect(out.d).toMatchObject({ kind: "drift", answers: [{ id: "card" }, { id: "code" }] })
+    expect(out.noAsk).toBeUndefined()
+    expect([out.item.kind, out.item.status, out.item.changes]).toEqual(["code", "backlog", []])
+    expect(out.next).toBeNull()
+    expect(out.c).toMatchObject({ kind: "plan", answers: [{ id: "done" }, { id: "drop" }] })
+    expect([out.done, out.fb]).toEqual(["done", "closed"])
+  })
+  test("a drift answered Reword the card keeps the entry on with the operator's note, for the next Refine", async () => {
+    const out = await run((seen) =>
+      Effect.gen(function* () {
+        const { card, h } = yield* setUp()
+        const { ids } = (yield* h.invoke("backlog", "file", { entries: [{ ref: card.ref, journeys: ["Set up"], persona: "Operator", kind: "drift", severity: "medium", note: "The card and the code differ.", from: { agent: "rehearse", run: "r-5" }, triage: { on: true, why: "ask · real 1.00" } }] })) as { ids: string[] }
+        const d = { ...topic(seen, `drift:${ids[0]}`)! }
+        yield* h.invoke("backlog", "answered", { id: d.id, key: `drift:${ids[0]}`, answer: "card" })
+        const e = (yield* h.invoke("backlog", "feedbackOf", { journey: "Set up" })) as Array<{ id: string; on: boolean; operatorNote?: string }>
+        return e.find((x) => x.id === ids[0])
+      }),
+    )
+    expect(out).toMatchObject({ on: true, operatorNote: "reword the card to match the code" })
+  })
 })
