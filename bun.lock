@@ -70,6 +70,13 @@
         "@zarg/client": "workspace:*",
       },
     },
+    "packages/audit": {
+      "name": "@zarg/audit",
+      "dependencies": {
+        "@zarg/graph": "workspace:*",
+        "effect": "^4.0.0-rc.117",
+      },
+    },
     "packages/bm25": {
       "name": "@zarg/bm25",
     },
@@ -419,6 +426,8 @@
     "@zarg/agent-triage": ["@zarg/agent-triage@workspace:packages/agent-triage"],
 
     "@zarg/agent-zarg": ["@zarg/agent-zarg@workspace:packages/agent-zarg"],
+
+    "@zarg/audit": ["@zarg/audit@workspace:packages/audit"],
 
     "@zarg/bm25": ["@zarg/bm25@workspace:packages/bm25"],
 

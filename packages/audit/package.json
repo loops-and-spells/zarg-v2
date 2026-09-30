@@ -1,0 +1,12 @@
+{
+  "name": "@zarg/audit",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@zarg/graph": "workspace:*",
+    "effect": "^4.0.0-rc.117"
+  }
+}
