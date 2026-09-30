@@ -81,6 +81,28 @@ export class Attention extends Context.Service<Attention, {
   readonly request: (agent: string, reason: string) => Effect.Effect<void, PluginFailure>
   readonly clear: (agent: string) => Effect.Effect<void, PluginFailure>
 }>()("@zarg/plugin-sdk/Attention") {}
+/** A topic for the operator's inbox: what it is, who it blocks, the answers it takes, the evidence. */
+export interface TopicInput {
+  readonly kind: string
+  readonly title: string
+  readonly why: string
+  readonly about?: ReadonlyArray<string>
+  readonly blocking?: boolean
+  readonly severity?: "high" | "medium" | "low"
+  readonly answers?: ReadonlyArray<{ readonly id: string; readonly label: string; readonly recommended?: boolean; readonly why?: string; readonly reason?: "optional" | "required" }>
+  readonly text?: { readonly placeholder: string }
+  readonly evidence?: string
+  readonly origin?: { readonly view: string; readonly row?: string }
+  /** Your own stable key: posting the same key again updates that topic. */
+  readonly key?: string
+}
+/** The operator's inbox (scope `inbox: true`): ask (waits for the answer), post (the answer comes to your `answered` method), settle, update. */
+export class Inbox extends Context.Service<Inbox, {
+  readonly ask: (t: TopicInput) => Effect.Effect<{ readonly answer?: string; readonly text?: string }, PluginFailure>
+  readonly post: (t: TopicInput) => Effect.Effect<string, PluginFailure>
+  readonly settle: (id: string, why: string) => Effect.Effect<void, PluginFailure>
+  readonly update: (id: string, patch: Partial<TopicInput> & { readonly message?: string }) => Effect.Effect<void, PluginFailure>
+}>()("@zarg/plugin-sdk/Inbox") {}
 /** A question an agent asks in its conversation. */
 export interface AgentQuestion {
   readonly question: string
@@ -126,6 +148,18 @@ export const servicesFrom = (raw: RawPowers) => ({
   surfaces: Surfaces.of({
     open: (s) => Effect.asVoid(power(raw, "agents.event", { event: "open", surfaces: Array.isArray(s) ? s : [s] })),
     close: (surface, agent) => Effect.asVoid(power(raw, "agents.event", { event: "close", surface, id: agent })),
+  }),
+  inbox: Inbox.of({
+    // A waiting ask stops the call's deadline, as a conversation's question does.
+    ask: (t) =>
+      Effect.acquireUseRelease(
+        power(raw, "conversation.asking", { open: true }),
+        () => power<{ readonly answer?: string; readonly text?: string }>(raw, "inbox.call", { op: "ask", topic: t }),
+        () => Effect.ignore(power(raw, "conversation.asking", { open: false })),
+      ),
+    post: (t) => power<string>(raw, "inbox.call", { op: "post", topic: t }),
+    settle: (id, why) => Effect.asVoid(power(raw, "inbox.call", { op: "settle", id, why })),
+    update: (id, patch) => Effect.asVoid(power(raw, "inbox.call", { op: "update", id, patch })),
   }),
   attention: Attention.of({
     request: (agent, reason) => Effect.asVoid(power(raw, "agents.event", { event: "attention", id: agent, reason })),

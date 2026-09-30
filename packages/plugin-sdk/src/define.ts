@@ -3,7 +3,7 @@ import type { Contract } from "./contract"
 import { entitiesProblem, layoutOf, opensProblem, type Surface, surfacesProblem, tonesProblem, type ViewDef } from "@zarg/view"
 import { conversations } from "./conversation"
 import { type EntityDecl, type EntityHandlers, opsOf, serveEntity } from "./entities"
-import { Agenda, Agents, Attention, Clock, Conversation, Config, Decisions, Entities, Files, Graph, Http, Models, PluginFailure, type RawPowers, Secrets, servicesFrom, Surfaces, Views } from "./services"
+import { Agenda, Agents, Attention, Inbox, Clock, Conversation, Config, Decisions, Entities, Files, Graph, Http, Models, PluginFailure, type RawPowers, Secrets, servicesFrom, Surfaces, Views } from "./services"
 
 export interface Scopes {
   readonly net?: ReadonlyArray<string> | "ask"
@@ -16,6 +16,8 @@ export interface Scopes {
   readonly models?: ReadonlyArray<string>
   /** Agents in the agents pane. */
   readonly agents?: boolean
+  /** The operator's inbox: topics to ask, post, settle and update. */
+  readonly inbox?: boolean
   /** Other plugins' entity types it reads or commands (patterns: `plugin/kind`, `plugin/*`); its own always. */
   readonly entities?: { readonly read?: ReadonlyArray<string>; readonly command?: ReadonlyArray<string> }
 }
@@ -120,7 +122,7 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
     )
     const layer = Layer.mergeAll(
       Layer.succeed(Secrets, s.secrets), Layer.succeed(Http, s.http), Layer.succeed(Files, s.files), Layer.succeed(Graph, s.graph), Layer.succeed(Entities, s.entities),
-      Layer.succeed(Decisions, s.decisions), Layer.succeed(Models, s.models), Layer.succeed(Clock, s.clock), Layer.succeed(Agenda, s.agenda), Layer.succeed(Agents, s.agents), Layer.succeed(Views, s.views), Layer.succeed(Surfaces, s.surfaces), Layer.succeed(Attention, s.attention), Layer.succeed(Conversation, talks.service),
+      Layer.succeed(Decisions, s.decisions), Layer.succeed(Models, s.models), Layer.succeed(Clock, s.clock), Layer.succeed(Agenda, s.agenda), Layer.succeed(Agents, s.agents), Layer.succeed(Views, s.views), Layer.succeed(Surfaces, s.surfaces), Layer.succeed(Attention, s.attention), Layer.succeed(Inbox, s.inbox), Layer.succeed(Conversation, talks.service),
       Layer.effect(Config, Effect.map(Effect.promise(() => raw.call("config.get", {})), (value) => Config.of({ value }))),
       ...deps,
     )

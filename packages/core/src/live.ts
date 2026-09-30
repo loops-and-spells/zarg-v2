@@ -20,7 +20,7 @@ import { threadViews } from "./views"
 import { notLoaded } from "./not-loaded"
 import { outsideReads } from "./outside"
 import { makePrompts } from "./prompts"
-import { makeInbox } from "./inbox"
+import { makeInbox, type TopicInput } from "./inbox"
 import { makeSurfaces, NAV, navItems } from "./surfaces"
 import { makeActions } from "./actions"
 import { makeLog } from "./log"
@@ -192,6 +192,11 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     }
     const agentEvents = pluginAgents(log, "main", layoutOf, surfaceOf, surfaces, prompts, surfacesOf, (refs) => host.entities.many(refs)) as (plugin: string, event: unknown) => void
     control.setAgents(agentEvents)
+    // A plugin's inbox calls, as that plugin: it settles and updates only its own topics.
+    control.setInbox((plugin, op, args) => {
+      const a = args as { topic?: TopicInput; id?: string; why?: string; patch?: Partial<TopicInput> & { message?: string } }
+      return op === "ask" ? inbox.ask({ plugin }, a.topic!) : op === "post" ? inbox.post({ plugin }, a.topic!) : op === "settle" ? inbox.settle(plugin, a.id ?? "", a.why ?? "") : inbox.update(plugin, a.id ?? "", a.patch ?? {})
+    })
     control.setAsk((q) =>
       prompts
         .ask({ question: `Plugin ${q.plugin} wants to ${q.what}.`, options: q.options.map((o) => ({ id: o.id, label: o.label, ...(o.id === "once" ? { recommended: true } : {}) })), allowOther: false, kind: "grant" })

@@ -11,6 +11,7 @@ export interface ManifestScopes {
   readonly decisions?: boolean
   readonly models?: ReadonlyArray<string>
   readonly agents?: boolean
+  readonly inbox?: boolean
   readonly entities?: { readonly read?: ReadonlyArray<string>; readonly command?: ReadonlyArray<string> }
 }
 export type Grant =

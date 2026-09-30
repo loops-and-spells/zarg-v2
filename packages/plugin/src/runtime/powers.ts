@@ -128,6 +128,8 @@ export const makePowers = (opts: {
   readonly budget?: { readonly decisionsPerHour: number; readonly tokensPerHour: number }
   /** Told while a question to the operator is open, so the call's deadline can stop. */
   readonly asking?: (open: boolean) => void
+  /** The operator's inbox, served by the core. */
+  readonly inbox?: (op: "ask" | "post" | "settle" | "update", args: unknown) => Promise<unknown>
   /** Any plugin's data by ref, under this plugin's `entities` scope (the host routes it). */
   readonly entities?: (args: unknown) => Promise<unknown>
 }): Powers => {
@@ -295,9 +297,16 @@ export const makePowers = (opts: {
     },
     // An agent's conversation waits on the operator: its call's deadline and the idle timer stop meanwhile.
     "conversation.asking": async (a) => {
-      if (opts.manifest.scopes.agents !== true) throw notGranted(`${opts.plugin}: it has no agents scope`)
+      if (opts.manifest.scopes.agents !== true && opts.manifest.scopes.inbox !== true) throw notGranted(`${opts.plugin}: it has no agents scope`)
       opts.asking?.((a as { open?: unknown }).open === true)
       return null
+    },
+    "inbox.call": async (a) => {
+      if (opts.manifest.scopes.inbox !== true) throw notGranted(`${opts.plugin}: it has no inbox scope`)
+      if (opts.inbox === undefined) throw pluginError(`${opts.plugin}: this host has no inbox`)
+      const op = String((a as { op?: unknown }).op)
+      if (op !== "ask" && op !== "post" && op !== "settle" && op !== "update") throw pluginError(`${opts.plugin}: unknown inbox op ${printable(op)}`)
+      return await opts.inbox(op, a)
     },
     "agents.event": async (e) => {
       if (opts.manifest.scopes.agents !== true) throw notGranted(`${opts.plugin}: it has no agents scope`)
