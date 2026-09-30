@@ -828,14 +828,15 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const inbox =
     openTopic !== undefined ? (
       <box style={{ flexGrow: 1, flexDirection: "column", paddingLeft: 2, paddingRight: 2 }}>
-        <text wrapMode="none">
+        {/* The header keeps its lines however long the evidence below (a column shrinks its children otherwise). */}
+        <text wrapMode="none" style={{ flexShrink: 0 }}>
           <span fg={C.dim}>{"← Inbox   "}</span>
           <span fg={C.text}>
             <b>{fit(openTopic.title, focusWidth - 14)}</b>
           </span>
         </text>
-        <text fg={C.dim} wrapMode="none">{fit([openTopic.from.agent ?? openTopic.from.plugin, openTopic.kind, openTopic.why, ago(openTopic.created)].filter((x) => x !== "").join(" · "), focusWidth - 4)}</text>
-        <text> </text>
+        <text fg={C.dim} wrapMode="none" style={{ flexShrink: 0 }}>{fit([openTopic.from.agent ?? openTopic.from.plugin, openTopic.kind, openTopic.why, ago(openTopic.created)].filter((x) => x !== "").join(" · "), focusWidth - 4)}</text>
+        <text style={{ flexShrink: 0 }}> </text>
         <scrollbox focusable={false} style={{ flexGrow: 1 }}>
           {openTopic.evidence !== undefined ? <RichText content={openTopic.evidence} width={focusWidth - 6} /> : null}
           {openTopic.messages.map((m, i) => (
@@ -871,7 +872,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       </box>
     ) : (
       <box style={{ flexGrow: 1, flexDirection: "column", paddingLeft: 2, paddingRight: 2 }}>
-        <text wrapMode="none">
+        <text wrapMode="none" style={{ flexShrink: 0 }}>
           <span fg={ui.focus === "tile" ? C.accent : C.dim}>
             <b>inbox</b>
           </span>

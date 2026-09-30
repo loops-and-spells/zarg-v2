@@ -879,6 +879,15 @@ describe("focuses", () => {
     t.mockInput.pressKey("2"); await settle(t)
     expect(t.calls).toContain("topic T-1 deny")
   })
+  test("a topic with long evidence keeps its header: the title line and who asks, each on its own line", async () => {
+    const long = Array.from({ length: 80 }, (_, i) => `- UX-00${i} (feature, medium): a long note that goes on and on about what the tester wanted`).join("\n")
+    const t0 = { id: "T-7", kind: "question", from: { plugin: "backlog" }, title: "Set up: 80 feedback entries want your call", why: "rehearse asks", about: [], blocking: false, messages: [], state: "open", created: Date.now(), updated: 0, evidence: long, answers: [{ id: "on", label: "Keep them all on" }, { id: "off", label: "Turn them all off" }] }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-7": t0 } } as never }, big)
+    t.mockInput.pressEnter(); await settle(t)
+    const lines = t.captureCharFrame().split("\n")
+    expect(lines.some((l) => l.includes("← Inbox") && l.includes("Set up: 80 feedback entries want your call"))).toBe(true)
+    expect(lines.some((l) => l.includes("backlog · question · rehearse asks"))).toBe(true)
+  })
   test("a grant topic shows as the popover; its Enter answers the topic", async () => {
     const grant = { id: "T-9", kind: "grant", from: { plugin: "tracker" }, title: "Plugin tracker wants to reach a.test.", why: "grant", about: [], blocking: true, messages: [], state: "open", created: 1, updated: 1, answers: [{ id: "once", label: "Allow once", recommended: true }, { id: "deny", label: "Deny" }] }
     const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-9": grant } } as never }, big)
