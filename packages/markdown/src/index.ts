@@ -50,8 +50,8 @@ const graphFits = (source: string): boolean => {
   return graph.nodes.size <= 32 && graph.edges.length <= 64
 }
 
-// @card UX-0077
-// @card UX-0078
+// @card C-0077
+// @card C-0078
 /** Colours for highlighted code blocks, by token kind (the host's theme); a kind without one is plain text. */
 export type Highlight = Partial<Record<Token, ColorInput>>
 

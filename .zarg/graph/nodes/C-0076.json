@@ -1,0 +1,30 @@
+{
+  "edges": [
+    {
+      "to": "S-0085",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0076",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0079",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0001",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
+  "id": "C-0076",
+  "props": {
+    "title": "Operator reads an agent's formatted report",
+    "when": "the agent's report or message holds Markdown"
+  },
+  "type": "gherkin/card"
+}

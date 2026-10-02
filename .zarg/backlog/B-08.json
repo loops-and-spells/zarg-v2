@@ -3,31 +3,31 @@
   "journey": "Watch agents",
   "cards": [
     {
-      "ref": "gherkin/card:UX-0048@d814d2c2e755"
+      "ref": "gherkin/card:C-0048@d814d2c2e755"
     },
     {
-      "ref": "gherkin/card:UX-0040@6c07e8f7bc98"
+      "ref": "gherkin/card:C-0040@6c07e8f7bc98"
     },
     {
-      "ref": "gherkin/card:UX-0041@3ea582a7789a"
+      "ref": "gherkin/card:C-0041@3ea582a7789a"
     },
     {
-      "ref": "gherkin/card:UX-0042@a7cfb9357c2b"
+      "ref": "gherkin/card:C-0042@a7cfb9357c2b"
     },
     {
-      "ref": "gherkin/card:UX-0043@48a0d1e2bb35"
+      "ref": "gherkin/card:C-0043@48a0d1e2bb35"
     },
     {
-      "ref": "gherkin/card:UX-0044@87b512b1586c"
+      "ref": "gherkin/card:C-0044@87b512b1586c"
     },
     {
-      "ref": "gherkin/card:UX-0045@e16b9771bc17"
+      "ref": "gherkin/card:C-0045@e16b9771bc17"
     },
     {
-      "ref": "gherkin/card:UX-0046@cc3b24b9f8ef"
+      "ref": "gherkin/card:C-0046@cc3b24b9f8ef"
     },
     {
-      "ref": "gherkin/card:UX-0047@0cf0f58be66d"
+      "ref": "gherkin/card:C-0047@0cf0f58be66d"
     }
   ],
   "changes": [
@@ -55,7 +55,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0048",
+        "id": "C-0048",
         "title": "A service outside the operator-granted scopes is refused",
         "when": "an agent attempts to invoke a service outside the operator-granted scopes"
       }
@@ -63,7 +63,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "UX-0048",
+        "card": "C-0048",
         "edge": "then",
         "state": {
           "text": "the agent surfaces the refusal to the operator, extends the grant, and retries"

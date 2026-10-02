@@ -312,7 +312,7 @@ export default definePlugin({
         const feedback = (yield* load).filter((e) => i.feedback.includes(e.id))
         const changed = stale(i, all, yield* changedRefs([i]))
         // The whole picture in one call: each card it touches (new ones too), as it is, as the plan leaves it, as text.
-        const own = i.cards.map((c) => parseRef(c.ref)?.id ?? "").filter((c) => /^UX-/.test(c))
+        const own = i.cards.map((c) => parseRef(c.ref)?.id ?? "").filter((c) => /^C-/.test(c))
         const compared = (yield* gherkin.compare({ draft: i.changes, cards: own }).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: [] as ReadonlyArray<string>, cards: [] as ReadonlyArray<{ id: string; before: null; after: null; text: string }> })))).cards
         const lines = (x: { given: string; when: string; thens: ReadonlyArray<string> } | null) => (x === null ? [] : [`Given ${x.given}`, `When  ${x.when}`, ...x.thens.map((t, k) => `${k === 0 ? "Then" : "And "}  ${t}`)])
         const diffs = compared.map((c) => ({ id: c.id, title: c.after?.title ?? c.before?.title ?? c.id, before: lines(c.before), after: lines(c.after) }))
@@ -421,7 +421,8 @@ export default definePlugin({
     const status = ({ ids }: { ids: ReadonlyArray<string> }) =>
       Effect.gen(function* () {
         const all = yield* withStates((yield* load).filter((e) => ids.includes(e.id)))
-        return all.map((x) => ({ id: x.e.id, state: x.state, on: x.e.triage.on }))
+        // In the order asked for.
+        return all.sort((a, b) => ids.indexOf(a.e.id) - ids.indexOf(b.e.id)).map((x) => ({ id: x.e.id, state: x.state, on: x.e.triage.on }))
       })
     const boardAct = (action: string, rows: ReadonlyArray<string>, text?: string) =>
       Effect.gen(function* () {
@@ -482,7 +483,7 @@ export default definePlugin({
           const answers = (e: Entry) => accepted.some((p) => p.answers.includes(e.id) || p.card === (parseRef(e.ref)?.id ?? ""))
           const inputs = entries.filter((e) => (st.inputs ?? entries.filter((x) => x.triage.on).map((x) => x.id)).includes(e.id))
           const closes = inputs.filter(answers)
-          const cards = yield* Effect.forEach([...new Set([...(st.cards ?? []), ...accepted.map((p) => p.card)])].filter((c) => /^UX-/.test(c)), (c) => Effect.map(entities.version(`gherkin/card:${c}`).pipe(Effect.orElseSucceed(() => null)), (v) => (v === null ? [] : [{ ref: `gherkin/card:${c}@${v}` }])))
+          const cards = yield* Effect.forEach([...new Set([...(st.cards ?? []), ...accepted.map((p) => p.card)])].filter((c) => /^C-/.test(c)), (c) => Effect.map(entities.version(`gherkin/card:${c}`).pipe(Effect.orElseSucceed(() => null)), (v) => (v === null ? [] : [{ ref: `gherkin/card:${c}@${v}` }])))
           const worst = closes.map((e) => e.severity).sort((a, b) => ["high", "medium", "low"].indexOf(a) - ["high", "medium", "low"].indexOf(b))[0]
           const { id } = yield* plan({ title: st.plan.title, journey: j, cards: cards.flat(), changes: st.draft, feedback: closes.map((e) => e.id), steps: st.plan.steps, ...(closes[0] !== undefined ? { persona: closes[0].persona } : {}), ...(worst !== undefined ? { severity: worst } : {}) })
           yield* updateStage(j, (x) => ({ ...x, stage: "planned", item: id }))
@@ -499,7 +500,7 @@ export default definePlugin({
         for (const x of p.plans) {
           const closes = entries.filter((e) => x.feedback.includes(e.id))
           const worst = closes.map((e) => e.severity).sort((a, b) => rank(a) - rank(b))[0]
-          const cards = yield* Effect.forEach(x.cards.filter((c) => /^UX-/.test(c)), (c) => Effect.map(entities.version(`gherkin/card:${c}`).pipe(Effect.orElseSucceed(() => null)), (v) => (v === null ? [] : [{ ref: `gherkin/card:${c}@${v}` }])))
+          const cards = yield* Effect.forEach(x.cards.filter((c) => /^C-/.test(c)), (c) => Effect.map(entities.version(`gherkin/card:${c}`).pipe(Effect.orElseSucceed(() => null)), (v) => (v === null ? [] : [{ ref: `gherkin/card:${c}@${v}` }])))
           const after = x.after.flatMap((k) => (ids[k] !== undefined ? [ids[k]!] : []))
           const { id } = yield* plan({ title: x.title, journey: p.journey, cards: cards.flat(), changes: x.changes, feedback: x.feedback, steps: x.steps, ...(after.length > 0 ? { after } : {}), ...(closes[0] !== undefined ? { persona: closes[0].persona } : {}), ...(worst !== undefined ? { severity: worst } : {}) })
           ids.push(id)

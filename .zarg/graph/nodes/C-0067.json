@@ -1,0 +1,30 @@
+{
+  "edges": [
+    {
+      "to": "S-0062",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0067",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0068",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
+  "id": "C-0067",
+  "props": {
+    "title": "Operator turns on YOLO",
+    "when": "the operator runs /yolo on"
+  },
+  "type": "gherkin/card"
+}

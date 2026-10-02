@@ -3,88 +3,88 @@
   "journey": "Talk with zarg",
   "cards": [
     {
-      "ref": "gherkin/card:UX-0001@3eedf92e1836"
+      "ref": "gherkin/card:C-0001@3eedf92e1836"
     },
     {
-      "ref": "gherkin/card:UX-0002@3bf6c689296a"
+      "ref": "gherkin/card:C-0002@3bf6c689296a"
     },
     {
-      "ref": "gherkin/card:UX-0003@26bc1ce49670"
+      "ref": "gherkin/card:C-0003@26bc1ce49670"
     },
     {
-      "ref": "gherkin/card:UX-0004@689d06f016c0"
+      "ref": "gherkin/card:C-0004@689d06f016c0"
     },
     {
-      "ref": "gherkin/card:UX-0005@12e7104c2bd5"
+      "ref": "gherkin/card:C-0005@12e7104c2bd5"
     },
     {
-      "ref": "gherkin/card:UX-0006@d2ea9a633ed7"
+      "ref": "gherkin/card:C-0006@d2ea9a633ed7"
     },
     {
-      "ref": "gherkin/card:UX-0007@7fac86f52546"
+      "ref": "gherkin/card:C-0007@7fac86f52546"
     },
     {
-      "ref": "gherkin/card:UX-0009@a6e81910cdc3"
+      "ref": "gherkin/card:C-0009@a6e81910cdc3"
     },
     {
-      "ref": "gherkin/card:UX-0010@5ad0f6b9a995"
+      "ref": "gherkin/card:C-0010@5ad0f6b9a995"
     },
     {
-      "ref": "gherkin/card:UX-0011@684c7ae392a9"
+      "ref": "gherkin/card:C-0011@684c7ae392a9"
     },
     {
-      "ref": "gherkin/card:UX-0012@580d42ae0eb9"
+      "ref": "gherkin/card:C-0012@580d42ae0eb9"
     },
     {
-      "ref": "gherkin/card:UX-0013@2193362c2b4a"
+      "ref": "gherkin/card:C-0013@2193362c2b4a"
     },
     {
-      "ref": "gherkin/card:UX-0015@e728ab53a78c"
+      "ref": "gherkin/card:C-0015@e728ab53a78c"
     },
     {
-      "ref": "gherkin/card:UX-0016@36177b5e4040"
+      "ref": "gherkin/card:C-0016@36177b5e4040"
     },
     {
-      "ref": "gherkin/card:UX-0017@ca238d7b08b6"
+      "ref": "gherkin/card:C-0017@ca238d7b08b6"
     },
     {
-      "ref": "gherkin/card:UX-0019@d2888fbcc21b"
+      "ref": "gherkin/card:C-0019@d2888fbcc21b"
     },
     {
-      "ref": "gherkin/card:UX-0071@7cb0e5dc19cc"
+      "ref": "gherkin/card:C-0071@7cb0e5dc19cc"
     },
     {
-      "ref": "gherkin/card:UX-0075@730ed4a536e3"
+      "ref": "gherkin/card:C-0075@730ed4a536e3"
     },
     {
-      "ref": "gherkin/card:UX-0076@a1c234506d0b"
+      "ref": "gherkin/card:C-0076@a1c234506d0b"
     },
     {
-      "ref": "gherkin/card:UX-0077@5b2bff4ba701"
+      "ref": "gherkin/card:C-0077@5b2bff4ba701"
     },
     {
-      "ref": "gherkin/card:UX-0079@5c9ae10a8131"
+      "ref": "gherkin/card:C-0079@5c9ae10a8131"
     },
     {
-      "ref": "gherkin/card:UX-0080@00b52c92e87d"
+      "ref": "gherkin/card:C-0080@00b52c92e87d"
     },
     {
-      "ref": "gherkin/card:UX-0084@093e1b9c9708"
+      "ref": "gherkin/card:C-0084@093e1b9c9708"
     },
     {
-      "ref": "gherkin/card:UX-0085@402d03be2163"
+      "ref": "gherkin/card:C-0085@402d03be2163"
     },
     {
-      "ref": "gherkin/card:UX-0086@c9f21e6eab4d"
+      "ref": "gherkin/card:C-0086@c9f21e6eab4d"
     },
     {
-      "ref": "gherkin/card:UX-0088@cd720928e8f6"
+      "ref": "gherkin/card:C-0088@cd720928e8f6"
     },
     {
-      "ref": "gherkin/card:UX-0018@47e1ce1ea2ca"
+      "ref": "gherkin/card:C-0018@47e1ce1ea2ca"
     },
     {
-      "ref": "gherkin/card:UX-0008@fc877300ae43"
+      "ref": "gherkin/card:C-0008@fc877300ae43"
     }
   ],
   "changes": [
@@ -117,7 +117,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0011",
+        "id": "C-0011",
         "title": "Operator selects offered option",
         "when": "the operator chooses one of the question options"
       }
@@ -151,7 +151,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "UX-0015",
+        "card": "C-0015",
         "edge": "then",
         "state": {
           "text": "the operator's next choice is explicit"
@@ -161,7 +161,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0015",
+        "id": "C-0015",
         "title": "Operator picks a topic",
         "when": "the operator picks a topic"
       }
@@ -183,14 +183,14 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0013",
+        "id": "C-0013",
         "when": "the Driver Agent applies the agenda rule to the options"
       }
     },
     {
       "tool": "link",
       "params": {
-        "card": "UX-0013",
+        "card": "C-0013",
         "edge": "then",
         "state": {
           "text": "the recommended option is marked"
@@ -200,7 +200,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "UX-0013",
+        "card": "C-0013",
         "edge": "then",
         "state": {
           "text": "the rationale shows the agenda rule and the message evidence"
@@ -210,7 +210,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "UX-0013",
+        "card": "C-0013",
         "edge": "then",
         "state": {
           "text": "the Operator picks the marked option or asks to clarify"
@@ -250,7 +250,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "UX-0076",
+        "card": "C-0076",
         "edge": "then",
         "state": {
           "text": "a collapse/expand toggle, copy, or open-full afford long reports, tables, code"
@@ -260,7 +260,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "UX-0076",
+        "card": "C-0076",
         "edge": "then",
         "state": {
           "text": "the Operator continues, collapses, expands, or acts"
@@ -290,14 +290,14 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0071",
+        "id": "C-0071",
         "when": "the operator confirms one option after discussion"
       }
     },
     {
       "tool": "link",
       "params": {
-        "card": "UX-0071",
+        "card": "C-0071",
         "edge": "then",
         "state": {
           "text": "the saved answer carries the option and its reason"
@@ -307,7 +307,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "UX-0071",
+        "card": "C-0071",
         "edge": "then",
         "state": {
           "text": "the operator can amend or reopen the saved choice"
@@ -317,7 +317,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "UX-0071",
+        "card": "C-0071",
         "edge": "then",
         "state": {
           "text": "the Driver Agent reads the agenda again and one question with options is shown"
@@ -350,7 +350,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0019",
+        "id": "C-0019",
         "title": "Operator resolves a conflict-resolution pick",
         "when": "the operator resolves the conflict by choosing a version"
       }
@@ -494,7 +494,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0012",
+        "id": "C-0012",
         "title": "Operator chats and signals Continue or Return",
         "when": "operator sends a chat turn and taps Continue or Return"
       }
@@ -575,7 +575,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "UX-0077",
+        "card": "C-0077",
         "edge": "then",
         "state": {
           "text": "the diagram mimics structure only, arrows and labels as characters"
@@ -641,7 +641,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0017",
+        "id": "C-0017",
         "title": "Driver Agent merges compatible edits after version drift resolves",
         "when": "the staleness resolves by version match"
       }
@@ -675,7 +675,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0010",
+        "id": "C-0010",
         "when": "the Driver Agent reads the agenda for the saved answer"
       }
     },
@@ -705,7 +705,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "UX-0010",
+        "card": "C-0010",
         "edge": "then",
         "state": {
           "text": "only unanswered agenda items remain"
@@ -794,7 +794,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "UX-0009",
+        "card": "C-0009",
         "edge": "then",
         "state": {
           "text": "the save loop routes to the next question id when questions remain"
@@ -804,7 +804,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0009",
+        "id": "C-0009",
         "title": "Operator picks one answer in a repeated series",
         "when": "the operator picks an option from the shown question"
       }
@@ -861,7 +861,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "UX-0016",
+        "card": "C-0016",
         "edge": "then",
         "state": {
           "text": "the save refusal leads to re-asking the current node"
@@ -878,7 +878,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0075",
+        "id": "C-0075",
         "when": "zarg replies with streaming Markdown"
       }
     },
@@ -930,7 +930,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "UX-0075",
+        "card": "C-0075",
         "edge": "then",
         "state": {
           "text": "the reply offers next-action choices to the operator"
@@ -1009,21 +1009,21 @@
     "F-ff453887"
   ],
   "steps": [
-    "Keep UX-0018 merge question unchanged.",
-    "Split UX-0011 typed answer from option pick.",
-    "Separate UX-0015 topic pick and question.",
-    "Set UX-0013 agenda wording precedence.",
-    "Fix UX-0076 pixel share and add ops.",
-    "Make UX-0071 settle need confirmation.",
-    "Rename UX-0019 merge as conflict.",
-    "Reword UX-0012 given and thens.",
-    "Insert UX-0077 Mermaid recognition step.",
-    "Add UX-0017 named merge record.",
-    "Driver reads agenda for UX-0010.",
-    "Leave UX-0008 blocked by then cap.",
-    "UX-0009 pick stores option id.",
-    "UX-0016 add revision marker refusal.",
-    "UX-0075 retries rendering, offers choice."
+    "Keep C-0018 merge question unchanged.",
+    "Split C-0011 typed answer from option pick.",
+    "Separate C-0015 topic pick and question.",
+    "Set C-0013 agenda wording precedence.",
+    "Fix C-0076 pixel share and add ops.",
+    "Make C-0071 settle need confirmation.",
+    "Rename C-0019 merge as conflict.",
+    "Reword C-0012 given and thens.",
+    "Insert C-0077 Mermaid recognition step.",
+    "Add C-0017 named merge record.",
+    "Driver reads agenda for C-0010.",
+    "Leave C-0008 blocked by then cap.",
+    "C-0009 pick stores option id.",
+    "C-0016 add revision marker refusal.",
+    "C-0075 retries rendering, offers choice."
   ],
   "persona": "Driver Agent",
   "severity": "high",

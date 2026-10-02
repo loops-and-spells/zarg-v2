@@ -147,7 +147,7 @@ describe("session", () => {
 })
 
 describe("/yolo", () => {
-  // @card UX-0067 UX-0070
+  // @card C-0067 C-0070
   test("/yolo on, /yolo off plugin=tracker and a bare /yolo reach the core and say what happened", async () => {
     const f = fakeClient()
     const session = makeSession({ client: f.client, threadId: "main" })
@@ -169,9 +169,9 @@ test("a plugin's slash command runs through the core and shows its notice", asyn
   session.start()
   await tick()
   expect(session.pluginCommands().map((c) => c.cmd)).toEqual(["/rehearse"])
-  session.command("/rehearse teleport focus=UX-1")
+  session.command("/rehearse teleport focus=C-1")
   await tick()
-  expect(f.pluginRuns).toEqual([["rehearse", "/rehearse", ["teleport", "focus=UX-1"]]])
+  expect(f.pluginRuns).toEqual([["rehearse", "/rehearse", ["teleport", "focus=C-1"]]])
   expect(session.state().notice).toBe("/rehearse started")
   session.close()
 })

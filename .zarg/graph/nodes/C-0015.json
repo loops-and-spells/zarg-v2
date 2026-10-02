@@ -1,0 +1,30 @@
+{
+  "edges": [
+    {
+      "to": "S-0014",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0015",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0009",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0001",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
+  "id": "C-0015",
+  "props": {
+    "title": "Operator picks a topic",
+    "when": "the operator picks a topic"
+  },
+  "type": "gherkin/card"
+}

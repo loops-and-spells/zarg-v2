@@ -1,0 +1,30 @@
+{
+  "edges": [
+    {
+      "to": "S-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0009",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0010",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0001",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    }
+  ],
+  "id": "C-0008",
+  "props": {
+    "title": "Driver Agent opens with a question",
+    "when": "the Driver Agent reads the agenda"
+  },
+  "type": "gherkin/card"
+}

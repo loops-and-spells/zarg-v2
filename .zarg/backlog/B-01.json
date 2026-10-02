@@ -3,52 +3,52 @@
   "journey": "Watch agents",
   "cards": [
     {
-      "ref": "gherkin/card:UX-0001@c0b0cf241e6f"
+      "ref": "gherkin/card:C-0001@c0b0cf241e6f"
     },
     {
-      "ref": "gherkin/card:UX-0002@448d699ea76a"
+      "ref": "gherkin/card:C-0002@448d699ea76a"
     },
     {
-      "ref": "gherkin/card:UX-0003@48c56829f9e3"
+      "ref": "gherkin/card:C-0003@48c56829f9e3"
     },
     {
-      "ref": "gherkin/card:UX-0004@f98906e430a1"
+      "ref": "gherkin/card:C-0004@f98906e430a1"
     },
     {
-      "ref": "gherkin/card:UX-0005@ab3e3abce7f1"
+      "ref": "gherkin/card:C-0005@ab3e3abce7f1"
     },
     {
-      "ref": "gherkin/card:UX-0007@ac07eeb7d0f5"
+      "ref": "gherkin/card:C-0007@ac07eeb7d0f5"
     },
     {
-      "ref": "gherkin/card:UX-0041@3ea582a7789a"
+      "ref": "gherkin/card:C-0041@3ea582a7789a"
     },
     {
-      "ref": "gherkin/card:UX-0046@cc3b24b9f8ef"
+      "ref": "gherkin/card:C-0046@cc3b24b9f8ef"
     },
     {
-      "ref": "gherkin/card:UX-0048@d814d2c2e755"
+      "ref": "gherkin/card:C-0048@d814d2c2e755"
     },
     {
-      "ref": "gherkin/card:UX-0079@8ababa1b5408"
+      "ref": "gherkin/card:C-0079@8ababa1b5408"
     },
     {
-      "ref": "gherkin/card:UX-0080@87e7ff61c806"
+      "ref": "gherkin/card:C-0080@87e7ff61c806"
     },
     {
-      "ref": "gherkin/card:UX-0084"
+      "ref": "gherkin/card:C-0084"
     },
     {
-      "ref": "gherkin/card:UX-0085"
+      "ref": "gherkin/card:C-0085"
     },
     {
-      "ref": "gherkin/card:UX-0086"
+      "ref": "gherkin/card:C-0086"
     },
     {
-      "ref": "gherkin/card:UX-0087"
+      "ref": "gherkin/card:C-0087"
     },
     {
-      "ref": "gherkin/card:UX-0088"
+      "ref": "gherkin/card:C-0088"
     }
   ],
   "changes": [
@@ -62,14 +62,14 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0041",
+        "id": "C-0041",
         "when": "an agent hands work to a child agent as an explicit handoff"
       }
     },
     {
       "tool": "link",
       "params": {
-        "card": "UX-0041",
+        "card": "C-0041",
         "edge": "then",
         "state": {
           "text": "the parent run accepts the handoff and assigns the next work to that child"
@@ -146,7 +146,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0048",
+        "id": "C-0048",
         "title": "A service outside the operator-granted scopes is refused",
         "when": "an agent uses a service outside the operator-granted scopes"
       }
@@ -184,7 +184,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0046",
+        "id": "C-0046",
         "title": "Env files beyond served scopes are refused",
         "when": "an agent reads an env file beyond its served powers"
       }
@@ -199,7 +199,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "UX-0046",
+        "card": "C-0046",
         "edge": "then",
         "state": {
           "text": "the reason says widen scope or ask operator"
@@ -241,9 +241,9 @@
     "F-ef320313"
   ],
   "steps": [
-    "UX-0041: keep parent run, label handoff, add parent-run acceptance and child queued, plus failure branches",
-    "UX-0048: preset operator-granted scopes; add Plugin Agent refusal card so operator extends grant and agent retries",
-    "UX-0046: split env-file reads into out-of-scope refusal and in-scope served; add workspace precondition and actionable refusal reason"
+    "C-0041: keep parent run, label handoff, add parent-run acceptance and child queued, plus failure branches",
+    "C-0048: preset operator-granted scopes; add Plugin Agent refusal card so operator extends grant and agent retries",
+    "C-0046: split env-file reads into out-of-scope refusal and in-scope served; add workspace precondition and actionable refusal reason"
   ],
   "persona": "Driver Agent",
   "severity": "high",

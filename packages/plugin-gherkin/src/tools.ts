@@ -84,7 +84,7 @@ export const addState = tool({
     }),
 })
 
-// @card UX-0004
+// @card C-0004
 export const editState = tool({
   name: "edit-state",
   description: "Reword a state or change its entry/terminal flags. Every card using it updates.",
@@ -141,7 +141,7 @@ export const editJourney = tool({
   run: ({ id, name }, snap) => Effect.map(getNode(snap, id, JOURNEY), (n) => ({ changes: [Put({ ...n, props: { ...n.props, name } })], message: `updated ${id}` })),
 })
 
-// @card UX-0002
+// @card C-0002
 export const addCard = tool({
   name: "add-card",
   description: "Add a card: one arrival Given, up to 3 extra Givens, one When, 1-5 Thens. States by {id} or {text}.",
@@ -161,7 +161,7 @@ export const addCard = tool({
       const arrives = yield* r.resolve(p.arrives)
       const given = yield* Effect.forEach(p.given ?? [], r.resolve)
       const then = yield* Effect.forEach(p.then, r.resolve)
-      const id = r.next("UX")
+      const id = r.next("C")
       const card: Node = {
         id,
         type: CARD,

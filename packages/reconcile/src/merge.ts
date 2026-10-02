@@ -30,7 +30,7 @@ export const mergeBranches = <E, R>(cwd: string, branches: ReadonlyArray<string>
       }
       const files = yield* conflictedFiles(cwd)
       const conflict = { branch, files }
-      // @card UX-0053
+      // @card C-0053
       const ok = files.length > 0 && (yield* resolve(conflict)) && !(yield* hasConflictMarkers(cwd, files))
       if (ok) {
         yield* git(cwd, ["add", "-A"])

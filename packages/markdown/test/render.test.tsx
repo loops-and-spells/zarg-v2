@@ -9,9 +9,9 @@ let destroy: (() => void) | undefined
 afterEach(async () => { await act(async () => destroy?.()) })
 const diagram = "```mermaid\nflowchart LR\n  A[Read] --> B[Render]\n```"
 
-// @card UX-0075
-// @card UX-0077
-// @card UX-0078
+// @card C-0075
+// @card C-0077
+// @card C-0078
 test("embedded Markdown streams Mermaid, falls back for narrow views, and recovers on resize", async () => {
   let update!: (value: { content: string; width: number }) => void
   const View = () => {
@@ -36,7 +36,7 @@ test("embedded Markdown streams Mermaid, falls back for narrow views, and recove
   expect(await frame()).not.toContain("flowchart")
 })
 
-// @card UX-0078
+// @card C-0078
 test("unsupported, invalid, and excessive Mermaid stays readable alongside prose", async () => {
   const content = "```mermaid\npie\n\"Work\" : 20\n```\n\n```mermaid\nnonsense\n```\n\nStill readable.\n\n```mermaid\nflowchart TD\nA[" + "x".repeat(10_000) + "]\n```"
   const t = await testRender(<Markdown content={content} width={80} syntaxStyle={style} />, { width: 80, height: 160, exitOnCtrlC: false, exitSignals: [] })
@@ -48,7 +48,7 @@ test("unsupported, invalid, and excessive Mermaid stays readable alongside prose
   expect(frame).toContain("Still readable.")
 })
 
-// @card UX-0078
+// @card C-0078
 test.each([
   "flowchart TD\nA[Good] --> B[Broken",
   "flowchart TD\nA --> B; B --> C",
@@ -74,7 +74,7 @@ test.each([
   expect(performance.now() - start).toBeLessThan(1000)
 })
 
-// @card UX-0077
+// @card C-0077
 test.each([
   ["stateDiagram-v2", "[*] --> Ready\nReady --> Done"],
   ["sequenceDiagram", "Alice->>Bob: Hello"],
@@ -91,7 +91,7 @@ test.each([
 
 test("a gherkin fence is highlighted with the host's colours: keywords, ids, comments; the text is unchanged", async () => {
   const colours = { keyword: "#ff0000", id: "#00ff00", comment: "#0000ff" }
-  const src = "```gherkin\nUX-0001 Operator answers\n  Given the question is shown  # S-0001\n```"
+  const src = "```gherkin\nC-0001 Operator answers\n  Given the question is shown  # S-0001\n```"
   const t = await testRender(<Markdown content={src} width={60} syntaxStyle={style} highlight={colours} />, { width: 60, height: 10, exitOnCtrlC: false, exitSignals: [] })
   destroy = () => t.renderer.destroy()
   await t.renderOnce(); await Bun.sleep(20); await t.renderOnce()
@@ -99,6 +99,6 @@ test("a gherkin fence is highlighted with the host's colours: keywords, ids, com
   const hex = (c: { r: number; g: number; b: number }) => `#${[c.r, c.g, c.b].map((v) => Math.round(v * 255).toString(16).padStart(2, "0")).join("")}`
   const fgOf = (word: string) => t.captureSpans().lines.flatMap((l) => l.spans).find((s) => s.text.includes(word))
   expect(hex(fgOf("Given")!.fg)).toBe("#ff0000")
-  expect(hex(fgOf("UX-0001")!.fg)).toBe("#00ff00")
+  expect(hex(fgOf("C-0001")!.fg)).toBe("#00ff00")
   expect(hex(fgOf("# S-0001")!.fg)).toBe("#0000ff")
 })

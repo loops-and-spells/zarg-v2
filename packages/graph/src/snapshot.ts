@@ -89,7 +89,7 @@ export const neighbors = (snap: Snapshot, id: string, k: number): ReadonlyArray<
   return [...seen].sort()
 }
 
-/** Next free id for a prefix: `UX` -> `UX-0004` when `UX-0003` is the highest. */
+/** Next free id for a prefix: `C` -> `C-0004` when `C-0003` is the highest. */
 export const nextId = (snap: Snapshot, prefix: string): string => {
   let max = 0
   const re = new RegExp(`^${prefix}-(\\d+)$`)

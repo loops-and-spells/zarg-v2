@@ -12,7 +12,7 @@ import { PluginConfigError } from "./validate"
  * `<userDir>/plugins/<name>/<sha256>/`, and make it the current version. Only the bundle and manifest are
  * copied: no package scripts run and no dependencies install (a plugin's dependencies are in its bundle).
  */
-// @card UX-0060
+// @card C-0060
 export const installPlugin = (source: string, userDir: string): Effect.Effect<{ readonly name: string; readonly dir: string }, PluginConfigError> =>
   Effect.gen(function* () {
     let root = source

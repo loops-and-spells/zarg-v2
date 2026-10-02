@@ -46,7 +46,7 @@ export const makeActivity = (log: ThreadLog, threadId: string, messageId = `${th
       progress: { done: turns, total: Math.max(budget, turns) },
     })
   }
-  // @card UX-0040
+  // @card C-0040
   const observe = (e: Rlm.RlmEvent, prefix = "") => {
     const id = `${prefix}${e.id}`
     // Transcripts get what each RLM was asked and did; the activity tree gets its shape and status.

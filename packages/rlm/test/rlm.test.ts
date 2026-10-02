@@ -102,14 +102,14 @@ describe("spawning", () => {
     const events: Array<Rlm.RlmEvent> = []
     const stub = stubModel({
       driver: [
-        { cell: 'const r = yield* Effect.catch(Rlm.exec({ task: "find it", preset: "research", scope: { graph: { focus: ["Rehearse", "UX-0001"], k: 2 } } }), (e) => Effect.succeed(e.message))\nreturn r' },
+        { cell: 'const r = yield* Effect.catch(Rlm.exec({ task: "find it", preset: "research", scope: { graph: { focus: ["Rehearse", "C-0001"], k: 2 } } }), (e) => Effect.succeed(e.message))\nreturn r' },
         { cell: 'yield* Rlm.done({ value: "ok" })' },
       ],
     })
     await Effect.runPromise(
       Effect.gen(function* () {
         const s = yield* settings({})
-        const rlm = yield* Rlm.make({ settings: s, services: factory, roles: { driver: "stub:m" }, cellTimeoutMs: 5000, observe: (e) => events.push(e), unknownIds: (ids) => Effect.succeed(ids.filter((i) => i !== "UX-0001")) })
+        const rlm = yield* Rlm.make({ settings: s, services: factory, roles: { driver: "stub:m" }, cellTimeoutMs: 5000, observe: (e) => events.push(e), unknownIds: (ids) => Effect.succeed(ids.filter((i) => i !== "C-0001")) })
         yield* rlm.exec({ task: "t", preset: "driver", scope: {} })
       }).pipe(Effect.provide(stub.layer)),
     )

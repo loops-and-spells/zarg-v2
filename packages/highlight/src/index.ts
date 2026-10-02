@@ -24,7 +24,7 @@ const splitBy = (text: string, re: RegExp, token: Token, rest: (t: string) => Re
   return [...out, ...rest(text.slice(at))]
 }
 
-const ID = /\b(?:UX|S|P|J)-\d+\b/g
+const ID = /\b(?:C|S|P|J|I|G|K|Q)-\d+\b/g
 const QUOTED = /"[^"]*"/g
 const NUMBER = /\b\d+(?:\.\d+)?\b/g
 /** Prose inside a clause: quoted text, then numbers. */
@@ -37,7 +37,7 @@ const withComment = (t: string, body: (x: string) => ReadonlyArray<Span>): Reado
 
 /** zarg's Gherkin, as its render and journey flows print it: cards, By / In / Given / When / Then lines, flow arrows. */
 const gherkin = (line: string): Line => {
-  const card = /^(UX-\d+)( +)(.*)$/.exec(line)
+  const card = /^(C-\d+)( +)(.*)$/.exec(line)
   if (card !== null) return [...span(card[1]!, "id"), ...span(card[2]!), ...span(card[3]!, "title")]
   const step = /^(\s*)(Given|And|When|Then|By|In)\b(.*)$/.exec(line)
   if (step !== null) {

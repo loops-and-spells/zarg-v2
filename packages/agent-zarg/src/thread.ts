@@ -157,7 +157,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
                 ],
               },
             } as unknown as Interrupt
-          // @card UX-0009 UX-0011
+          // @card C-0009 C-0011
           const topic =
             deps.inbox === undefined
               ? undefined
@@ -183,7 +183,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
           return yield* Deferred.await(answer)
         })
     /** The driver accepts an option of a question under discussion for the operator; they see it and why. */
-    // @card UX-0071
+    // @card C-0071
     const choose = (c: Choice) =>
       Effect.gen(function* () {
         const at = discussed.findIndex((p) => p.id === c.question)
@@ -224,7 +224,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
     const scope: Scope = deps.focus.length > 0 ? { graph: { focus: deps.focus, k: 2 } } : {}
     const focusSet = deps.focus.length > 0 ? new Set(deps.focus) : undefined
 
-    // @card UX-0008 UX-0010
+    // @card C-0008 C-0010
     const body = Effect.gen(function* () {
       let lastItem = ""
       let passes = 0
@@ -236,7 +236,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
         lastItem = item?.id ?? ""
         // The same item still open after two passes: ask what next instead of looping on it.
         const stuck = item !== undefined && passes > 2
-        // @card UX-0014
+        // @card C-0014
         const gaps =
           said.length === 0 && (item === undefined || stuck) && deps.suggest !== undefined
             ? yield* deps.suggest(focusSet).pipe(Effect.catchCause(() => Effect.succeed([] as ReadonlyArray<AgendaItem>)))
@@ -252,7 +252,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
           // A message about it is not a discussion to settle: it is what they want.
           yield* settleTopics([...discussed], "you said what you want")
           discussed.length = 0
-          // @card UX-0015
+          // @card C-0015
           const text = next.find((o) => o.id === a.choice)?.task ?? a.other ?? ""
           if (text.length > 0) inbox.push(text)
           continue
@@ -265,7 +265,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
                 Effect.catchCause(() => Effect.succeed("")),
               )
             : ""
-        // @card UX-0013
+        // @card C-0013
         const task = [
           said.length > 0
             ? `The developer said: ${said.map((m) => JSON.stringify(m)).join(" then ")}\nAnswer them directly. If a choice is needed, ask with Inquire.ask (options, one recommended).`
@@ -367,7 +367,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
             yield* settleTopics([head], "new work arrived")
             yield* Deferred.succeed(head.answer, { other: "" })
           } else if (resume !== undefined && head !== undefined && resume.interruptId === head.id) {
-            // @card UX-0009 UX-0011
+            // @card C-0009 C-0011
             const payload = (resume.payload ?? {}) as { choice?: string; other?: string }
             const chosen = head.question.options.find((o) => o.id === payload.choice)
             const answer: Answer = payload.choice !== undefined ? { choice: payload.choice } : { other: String(payload.other ?? "") }
@@ -386,7 +386,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
             const p = head
             queue.shift()
             syncAttention()
-            // @card UX-0012
+            // @card C-0012
             discussed.push(p)
             if (!fromInbox.has(input.runId) && p.topic !== undefined) yield* topicSay((i) => i.message(p.topic!, "you", input.message!))
             yield* note("user", input.message)

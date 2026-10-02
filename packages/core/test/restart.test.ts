@@ -15,7 +15,7 @@ test("a starting core marks agents the previous core left running as stopped; fi
   await Effect.runPromise(before.append("main", E.activitySnapshot("main-old-activity", { rlms: {} })))
   await Effect.runPromise(before.append("main", E.activityDelta("main-old-activity", [node("tester-1", "running"), node("tester-2", "done")])))
   await Effect.runPromise(before.append("plan", E.activitySnapshot("plan-activity", { rlms: {} })))
-  await Effect.runPromise(before.append("plan", E.activityDelta("plan-activity", [node("UX-1/rlm-1", "running")])))
+  await Effect.runPromise(before.append("plan", E.activityDelta("plan-activity", [node("C-1/rlm-1", "running")])))
   // The next core, on the same log.
   const log = await Effect.runPromise(makeLog(dir, (t) => t))
   await Effect.runPromise(closeStale(log))
@@ -23,7 +23,7 @@ test("a starting core marks agents the previous core left running as stopped; fi
   expect(main.rlms["tester-1"]).toMatchObject({ status: "stopped", error: "zarg restarted" })
   expect(main.rlms["tester-2"]!.status).toBe("done")
   const plan = log.all().filter((e) => e.threadId === "plan").reduce(reduce, initial("plan"))
-  expect(plan.rlms["UX-1/rlm-1"]!.status).toBe("stopped")
+  expect(plan.rlms["C-1/rlm-1"]!.status).toBe("stopped")
   // Nothing left running: a second start adds nothing.
   const n = log.all().length
   await Effect.runPromise(closeStale(log))

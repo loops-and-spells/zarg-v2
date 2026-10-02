@@ -11,7 +11,7 @@ Run the CLI from the repo root as `mise run -q zarg -- <command>`.
 
 ## Steps
 
-<!-- @card UX-0080 -->
+<!-- @card C-0080 -->
 1. Find the work: `mise run -q zarg -- affected`. It prints `cards` (added, changed, or using a reworded state) and `removed`. If both are empty, report "in sync" and stop.
 2. For each removed card, delete `.zarg/plans/<id>.md`.
 3. Plan each card in `cards`:

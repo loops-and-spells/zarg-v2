@@ -1,0 +1,34 @@
+{
+  "edges": [
+    {
+      "to": "S-0040",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0041",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0042",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0048",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0003",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
+  "id": "C-0040",
+  "props": {
+    "title": "Operator watches agents work",
+    "when": "the operator opens the activity view"
+  },
+  "type": "gherkin/card"
+}

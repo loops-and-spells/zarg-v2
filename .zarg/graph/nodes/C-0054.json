@@ -1,0 +1,26 @@
+{
+  "edges": [
+    {
+      "to": "S-0019",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0022",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0004",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0005",
+      "type": "gherkin/by"
+    }
+  ],
+  "id": "C-0054",
+  "props": {
+    "title": "A major merge conflict",
+    "when": "card worktrees conflict beyond an obvious fix"
+  },
+  "type": "gherkin/card"
+}

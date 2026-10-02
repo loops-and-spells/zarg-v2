@@ -24,17 +24,17 @@ test("a plugin topic the operator read does not come back as a new one when the 
 
 test("a reconcile finding is a finding topic (zarg takes it up: no answers); it settles when the finding clears", async () => {
   const { inbox } = await setup()
-  const f = { id: "finding-1", kind: "verify-failing" as const, title: "verify still fails after the fix attempts", detail: "2 tests failed", about: ["UX-0023"], pass: "p1", at: "2026-09-30" }
+  const f = { id: "finding-1", kind: "verify-failing" as const, title: "verify still fails after the fix attempts", detail: "2 tests failed", about: ["C-0023"], pass: "p1", at: "2026-09-30" }
   await Effect.runPromise(syncFindingTopics(inbox, [f]))
   await Effect.runPromise(syncFindingTopics(inbox, [f]))
-  expect(inbox.list().map((t) => [t.kind, t.key, t.title, t.about, t.answers, t.state])).toEqual([["finding", "finding:finding-1", "verify still fails after the fix attempts", ["UX-0023"], undefined, "open"]])
+  expect(inbox.list().map((t) => [t.kind, t.key, t.title, t.about, t.answers, t.state])).toEqual([["finding", "finding:finding-1", "verify still fails after the fix attempts", ["C-0023"], undefined, "open"]])
   await Effect.runPromise(syncFindingTopics(inbox, []))
   expect(inbox.list()[0]).toMatchObject({ state: "moot", moot: "the finding cleared" })
 })
 
 test("a finding topic the operator read is not raised again while the finding stays; reconcile off settles with that reason", async () => {
   const { inbox } = await setup()
-  const f = { id: "finding-2", kind: "blocked-card" as const, title: "UX-0024 cannot be implemented", detail: "contradicts UX-0023", about: ["UX-0024"], pass: "p1", at: "2026-09-30" }
+  const f = { id: "finding-2", kind: "blocked-card" as const, title: "C-0024 cannot be implemented", detail: "contradicts C-0023", about: ["C-0024"], pass: "p1", at: "2026-09-30" }
   await Effect.runPromise(syncFindingTopics(inbox, [f]))
   await Effect.runPromise(inbox.read(inbox.list()[0]!.id))
   await Effect.runPromise(syncFindingTopics(inbox, [f]))

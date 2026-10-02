@@ -6,7 +6,7 @@ test("render shows a missing state instead of crashing", () => {
   const snap = Snapshot.make([
     { id: "S-0001", type: "gherkin/state", props: { text: "start" }, edges: [] },
     {
-      id: "UX-0001",
+      id: "C-0001",
       type: "gherkin/card",
       props: { title: "Go", when: "the user goes" },
       edges: [
@@ -16,6 +16,6 @@ test("render shows a missing state instead of crashing", () => {
     },
   ])
   expect(render(snap)).toBe(
-    ["UX-0001 Go", "  Given start  # S-0001", "  When  the user goes", "  Then  <missing S-0002>  # S-0002"].join("\n"),
+    ["C-0001 Go", "  Given start  # S-0001", "  When  the user goes", "  Then  <missing S-0002>  # S-0002"].join("\n"),
   )
 })

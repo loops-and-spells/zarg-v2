@@ -83,7 +83,7 @@ These are warnings, not errors, until the migration is done, so `verify` stays g
   3. Fold the changes into small plans with dependencies (triage's `fold`). Each plan says which statement it serves, and lands in the Backlog lane through `backlog.plans`.
   4. Send the inbox what it cannot decide:
      - "G-0007 has no journey: add to Watch agents, or a new journey?"
-     - "K-0002 conflicts with UX-0045: keep the constraint, or change the card?"
+     - "K-0002 conflicts with C-0045: keep the constraint, or change the card?"
 - **After a round:** the checkpoint moves forward. The agent works rounds one at a time, has workers like triage, and its view shows each round.
 - **Guards:**
   - Drafts never touch the graph: the Planner applies plans.

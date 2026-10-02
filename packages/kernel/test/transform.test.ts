@@ -23,7 +23,7 @@ describe("checker", () => {
   test("a correct cell passes", () => {
     expect(checker.check('const r = yield* Notes.add({ text: "hi" })\nreturn r.id')).toEqual({ ok: true, errors: [] })
   })
-  // @card UX-0048
+  // @card C-0048
   test("a service outside the manifest is an error on the cell's own line numbers", () => {
     const r = checker.check("const x = 1\nconst y = yield* Fs.read({ path: 'a' })")
     expect(r.ok).toBe(false)

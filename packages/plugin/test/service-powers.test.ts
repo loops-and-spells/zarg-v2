@@ -30,7 +30,7 @@ describe("service powers", () => {
     expect(seen).toEqual(["svc"])
   })
 
-  // @card UX-0066
+  // @card C-0066
   test("undeclared scopes and undeclared roles are refused; a spent budget is BudgetExceeded", async () => {
     const noScope = await Effect.runPromise(Effect.exit(hostWith([await fixturePlugin(plugin(`{}`, `return yield* d.decide({ state: "s", questions: {} })`))], (h) => h.invoke("svc", "go", {}), { decide: () => Effect.succeed({}) })))
     expect(JSON.stringify(noScope)).toContain("decisions")
@@ -55,7 +55,7 @@ export default definePlugin({ name: "svc", service: "Svc", archetype: "service",
     return { go: () => Effect.gen(function* () {
       yield* a.start({ id: "t1", title: "tester", task: "walk" })
       yield* a.status({ id: "t1", progress: { done: 1, total: 2 }, text: "1/2" })
-      yield* a.step({ id: "t1", text: "UX-1: ok" })
+      yield* a.step({ id: "t1", text: "C-1: ok" })
       yield* a.end({ id: "t1", ok: true })
       return "ok" }) } }) })`
     const seen: Array<unknown> = []

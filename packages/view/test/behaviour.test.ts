@@ -293,9 +293,9 @@ describe("table search", () => {
     data: {
       list: {
         rows: [
-          { id: "F1", cells: { card: "UX-0035", kind: "transition" }, search: "The prior step promised local-first ordering" },
-          { id: "F2", cells: { card: "UX-0062", kind: "friction" }, search: "The grant question names scope and target" },
-          { id: "F3", cells: { card: "UX-0062", kind: "gap" }, search: "No failure path when the operator denies the grant" },
+          { id: "F1", cells: { card: "C-0035", kind: "transition" }, search: "The prior step promised local-first ordering" },
+          { id: "F2", cells: { card: "C-0062", kind: "friction" }, search: "The grant question names scope and target" },
+          { id: "F3", cells: { card: "C-0062", kind: "gap" }, search: "No failure path when the operator denies the grant" },
         ],
       },
     },

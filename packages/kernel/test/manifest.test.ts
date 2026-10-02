@@ -58,8 +58,8 @@ describe("readable declarations", () => {
       ].join("\n"),
     )
     const checker = makeChecker(text)
-    expect(checker.check('yield* Ask.ask({ question: "q", options: [{ id: "a", label: "A" }], about: ["UX-1"] })').ok).toBe(true)
-    expect(checker.check('yield* Ask.ask({ question: "q", options: [{ id: "a", label: "A", about: ["UX-1"] }] })').ok).toBe(false)
+    expect(checker.check('yield* Ask.ask({ question: "q", options: [{ id: "a", label: "A" }], about: ["C-1"] })').ok).toBe(true)
+    expect(checker.check('yield* Ask.ask({ question: "q", options: [{ id: "a", label: "A", about: ["C-1"] }] })').ok).toBe(false)
   })
 })
 

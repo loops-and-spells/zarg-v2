@@ -105,7 +105,7 @@ const toGrid = async <T extends { mockInput: { pressKey: (k: string, m?: { ctrl?
 }
 
 describe("tui frames", () => {
-  // @card UX-0076
+  // @card C-0076
   test("zarg's sheet renders Mermaid inside agent messages", async () => {
     const t = await render({ thread: { ...initial("main"), messages: [{ id: "m1", role: "assistant", text: "```mermaid\nflowchart LR\nA[Read] --> B[Render]\n```" }] }, core: "up" })
     const frame = t.captureCharFrame()
@@ -133,7 +133,7 @@ describe("tui frames", () => {
   const testerView = {
     agent: "rehearse:tester-1",
     layout: { name: "tester", sections: [{ id: "steps", kind: "log" as const, role: "log" as const, title: "Steps" }, { id: "review", kind: "tabs" as const, role: "pinned" as const, tabs: [{ id: "findings", kind: "table" as const, title: "Findings", columns: [{ id: "id", label: "id" }], selectable: true, actions: [{ id: "apply", label: "Apply", key: "a", on: "selection" as const }] }] }] },
-    data: { steps: { lines: [{ text: "UX-1: feel 1.80" }] }, "review.findings": { rows: [{ id: "R-1", cells: { id: "R-1" } }, { id: "R-2", cells: { id: "R-2" } }] } },
+    data: { steps: { lines: [{ text: "C-1: feel 1.80" }] }, "review.findings": { rows: [{ id: "R-1", cells: { id: "R-1" } }, { id: "R-2", cells: { id: "R-2" } }] } },
   }
   const tester = { id: "rehearse:tester-1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [], attention: { reason: "2 findings to review", since: 1 } }
   const withTester: SessionState = { ...waiting, thread: { ...waiting.thread, rlms: { ...waiting.thread.rlms, "rehearse:tester-1": tester }, views: { "rehearse:tester-1": testerView } } }
@@ -319,7 +319,7 @@ describe("tui frames", () => {
     expect(t.captureCharFrame()).toContain("core stopped · error")
   })
 
-  // @card UX-0073
+  // @card C-0073
   test("alt+a gives the agents list the keys; the highlight walks a tall tree and the detail follows", async () => {
     const rlms = Object.fromEntries(
       Array.from({ length: 40 }, (_, i) => [`rlm-${i + 1}`, { id: `rlm-${i + 1}`, parent: i === 0 ? null : "rlm-1", preset: i === 0 ? "driver" : "research", depth: i === 0 ? 0 : 1, turns: 1, budget: 15, status: "done" as const, decisions: [] }]),
@@ -383,7 +383,7 @@ describe("tui frames", () => {
           { id: "review", kind: "tabs" as const, role: "pinned" as const, tabs: [{ id: "findings", kind: "table" as const, title: "Findings", columns: [{ id: "id", label: "id" }, { id: "note", label: "note" }], selectable: true, actions: [{ id: "apply", label: "Apply", key: "a", on: "selection" as const }] }, { id: "likes", kind: "table" as const, title: "Likes", columns: [{ id: "id", label: "id" }] }] },
         ],
       },
-      data: { steps: { lines: [{ text: "UX-1: feel 1.80" }] }, "review.findings": { rows: [{ id: "R-1", cells: { id: "R-1", note: "no error shown" } }] } },
+      data: { steps: { lines: [{ text: "C-1: feel 1.80" }] }, "review.findings": { rows: [{ id: "R-1", cells: { id: "R-1", note: "no error shown" } }] } },
     }
     const t = await render({ thread: { ...initial("main"), status: "running", rlms: { "rehearse:tester-1": tester }, views: { "rehearse:tester-1": view } }, core: "up" })
     t.mockInput.pressKey("a", { meta: true })
@@ -393,7 +393,7 @@ describe("tui frames", () => {
     await Bun.sleep(30)
     await settle(t)
     const frame = t.captureCharFrame()
-    expect(frame).toContain("UX-1: feel 1.80")
+    expect(frame).toContain("C-1: feel 1.80")
     expect(frame).toMatch(/Findings 1   Likes 0 ─/)
     // The view opens on its table: its highlighted row takes the action at once.
     expect(t.captureCharFrame()).toContain("▍○ R-1   no error shown")
@@ -435,7 +435,7 @@ describe("tui frames", () => {
     const view = {
       agent: "backlog:feedback",
       layout: { name: "feedback", sections: [{ id: "feedback", kind: "table" as const, role: "primary" as const, title: "", columns: [{ id: "card", label: "card" }], actions: [{ id: "refine", label: "Refine", key: "r", on: "none" as const }, { id: "accept", label: "Accept", key: "a", on: "none" as const }, { id: "note", label: "Note", key: "n", on: "row" as const, input: "your note for refinement" }] }] },
-      data: { feedback: { rows: [{ id: "F-1", cells: { card: "UX-0001" }, text: "keep it" }], actions: ["refine", "note"] } },
+      data: { feedback: { rows: [{ id: "F-1", cells: { card: "C-0001" }, text: "keep it" }], actions: ["refine", "note"] } },
     }
     const t = await render({ thread: { ...initial("main"), status: "running", rlms: { "backlog:feedback": agent }, views: { "backlog:feedback": view } }, core: "up" })
     t.mockInput.pressKey("a", { meta: true }); await settle(t)
@@ -880,7 +880,7 @@ describe("focuses", () => {
     expect(t.calls).toContain("topic T-1 deny")
   })
   test("a topic with long evidence keeps its header: the title line and who asks, each on its own line", async () => {
-    const long = Array.from({ length: 80 }, (_, i) => `- UX-00${i} (feature, medium): a long note that goes on and on about what the tester wanted`).join("\n")
+    const long = Array.from({ length: 80 }, (_, i) => `- C-00${i} (feature, medium): a long note that goes on and on about what the tester wanted`).join("\n")
     const t0 = { id: "T-7", kind: "question", from: { plugin: "backlog" }, title: "Set up: 80 feedback entries want your call", why: "rehearse asks", about: [], blocking: false, messages: [], state: "open", created: Date.now(), updated: 0, evidence: long, answers: [{ id: "on", label: "Keep them all on" }, { id: "off", label: "Turn them all off" }] }
     const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-7": t0 } } as never }, big)
     t.mockInput.pressEnter(); await settle(t)
@@ -1406,8 +1406,8 @@ describe("nav items above the agents", () => {
       flow: {
         markdown: "No journeys yet.",
         rows: {
-          "J-0002": "```gherkin\nBrowse  # J-0002 · 1 card\n\nUX-0001 Visitor opens pricing\n  Given the visitor is on the home page  # S-0001\n```",
-          "J-0001": "```text\nCheckout  # J-0001 · 2 cards\n\nUX-0004 Payment succeeds\n```",
+          "J-0002": "```gherkin\nBrowse  # J-0002 · 1 card\n\nC-0001 Visitor opens pricing\n  Given the visitor is on the home page  # S-0001\n```",
+          "J-0001": "```text\nCheckout  # J-0001 · 2 cards\n\nC-0004 Payment succeeds\n```",
         },
       },
     },
@@ -1480,9 +1480,9 @@ describe("nav items above the agents", () => {
 describe("table search and a detail beside its list", () => {
   const tester = { id: "rehearse:tester-1", parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
   const rows = [
-    { id: "F1", cells: { card: "UX-0035", kind: "transition" }, search: "The prior step promised local-first ordering" },
-    { id: "F2", cells: { card: "UX-0062", kind: "friction" }, search: "The grant question names scope and target" },
-    { id: "F3", cells: { card: "UX-0062", kind: "gap" }, search: "No failure path when the operator denies the grant" },
+    { id: "F1", cells: { card: "C-0035", kind: "transition" }, search: "The prior step promised local-first ordering" },
+    { id: "F2", cells: { card: "C-0062", kind: "friction" }, search: "The grant question names scope and target" },
+    { id: "F3", cells: { card: "C-0062", kind: "gap" }, search: "No failure path when the operator denies the grant" },
   ]
   const state: SessionState = {
     thread: {
@@ -1530,13 +1530,13 @@ describe("table search and a detail beside its list", () => {
     const frame = t.captureCharFrame()
     expect(frame).toContain("⌕ grant▎")
     expect(frame).toContain("2 of 3")
-    expect(frame).not.toContain("UX-0035")
+    expect(frame).not.toContain("C-0035")
     t.mockInput.pressEscape(); await settle(t)
-    expect(t.captureCharFrame()).toContain("UX-0035")
+    expect(t.captureCharFrame()).toContain("C-0035")
     expect(t.captureCharFrame()).not.toContain("2 of 3")
   })
   test("the search field stays at the top while the rows scroll under it", async () => {
-    const many = Array.from({ length: 40 }, (_, i) => ({ id: `M${i}`, cells: { card: `UX-${String(i).padStart(4, "0")}`, kind: "gap" } }))
+    const many = Array.from({ length: 40 }, (_, i) => ({ id: `M${i}`, cells: { card: `C-${String(i).padStart(4, "0")}`, kind: "gap" } }))
     const v = state.thread.views!["rehearse:tester-1"]!
     const long = { ...state, thread: { ...state.thread, views: { "rehearse:tester-1": { ...v, data: { ...v.data, findings: { rows: many } } } } } }
     const t = await render(long, { width: 130, height: 24 })
@@ -1544,11 +1544,11 @@ describe("table search and a detail beside its list", () => {
     for (let i = 0; i < 35; i++) t.mockInput.pressArrow("down")
     await settle(t); await Bun.sleep(30); await settle(t)
     const ls = lines(t)
-    expect(t.captureCharFrame()).toContain("UX-0035")
-    expect(t.captureCharFrame()).not.toContain("UX-0000")
+    expect(t.captureCharFrame()).toContain("C-0035")
+    expect(t.captureCharFrame()).not.toContain("C-0000")
     const field = ls.findIndex((l) => l.includes("⌕ search"))
     expect(field).toBeGreaterThan(0)
-    expect(field).toBeLessThan(ls.findIndex((l) => l.includes("UX-0035")))
+    expect(field).toBeLessThan(ls.findIndex((l) => l.includes("C-0035")))
   })
   test("Enter leaves the field with the search kept; a click on the field types into it again", async () => {
     const t = await open()

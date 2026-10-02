@@ -1,0 +1,30 @@
+{
+  "edges": [
+    {
+      "to": "S-0079",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0082",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "J-0001",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
+  "id": "C-0075",
+  "props": {
+    "title": "Operator reads zarg's formatted reply",
+    "when": "zarg replies with Markdown"
+  },
+  "type": "gherkin/card"
+}

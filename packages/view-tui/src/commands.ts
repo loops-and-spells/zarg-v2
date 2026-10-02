@@ -46,7 +46,7 @@ export const decodeCommands = (raw: ReadonlyArray<unknown>): ReadonlyArray<Slash
     }
   })
 
-// @card UX-0058
+// @card C-0058
 const table: Array<SlashCommand> = [...decodeCommands([
   { cmd: "/reconcile", desc: "turn plan and implement on for this session", arg: { kind: "none" } },
   {

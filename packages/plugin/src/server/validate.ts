@@ -28,7 +28,7 @@ const checkNode = (reg: ManifestRegistry, ctx: LintContext, node: Node): Readonl
       out.push(error("edge-target", `${node.id}: "${edge.type}" must point to a ${spec.to}, ${edge.to} is a ${target.type}`, [node.id, edge.to]))
     }
   }
-  // @card UX-0007
+  // @card C-0007
   const seen = new Set<string>()
   for (const edge of node.edges) {
     const key = `${edge.type}\u0000${edge.to}`

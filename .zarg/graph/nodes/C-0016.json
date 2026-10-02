@@ -1,0 +1,26 @@
+{
+  "edges": [
+    {
+      "to": "S-0009",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0016",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0001",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    }
+  ],
+  "id": "C-0016",
+  "props": {
+    "title": "Answer meets a newer edit",
+    "when": "another thread changed the node being answered"
+  },
+  "type": "gherkin/card"
+}

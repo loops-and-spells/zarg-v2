@@ -7,7 +7,7 @@ import { makeLog } from "../src/log"
 import { forDriver, makeYolo, yoloState } from "../src/plugins"
 
 describe("YOLO control", () => {
-  // @card UX-0067 UX-0070
+  // @card C-0067 C-0070
   test("turning YOLO on or off tells every client on main, and answers whether any plugin is in YOLO", async () => {
     const out = await Effect.runPromise(Effect.gen(function* () {
       const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zt-yolo-")), (t) => t)

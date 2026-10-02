@@ -3,7 +3,7 @@
   "journey": "Watch agents",
   "cards": [
     {
-      "ref": "gherkin/card:UX-0046@cc3b24b9f8ef"
+      "ref": "gherkin/card:C-0046@cc3b24b9f8ef"
     }
   ],
   "changes": [
@@ -33,7 +33,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0046",
+        "id": "C-0046",
         "when": "an agent reads an env file inside its declared workspace"
       }
     },
@@ -47,7 +47,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0046",
+        "id": "C-0046",
         "title": "Env files stay hidden; refusal reason names file and gate"
       }
     }

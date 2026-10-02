@@ -42,7 +42,7 @@ const stub = (cells: Record<string, (card: string) => string>) =>
     warm: () => Effect.void,
     stream: (req) => {
       const preset = /zarg (\S+) agent/.exec(String(req.messages[0]?.content))?.[1] ?? "?"
-      const card = /card (UX-\d+)/.exec(String(req.messages[1]?.content))?.[1] ?? ""
+      const card = /card (C-\d+)/.exec(String(req.messages[1]?.content))?.[1] ?? ""
       const code = cells[preset]?.(card) ?? 'yield* Rlm.done({ value: "?" })'
       const events: ReadonlyArray<StreamEvent> = [
         { type: "toolCall", call: { id: `c${Math.random()}`, type: "function", function: { name: "exec", arguments: JSON.stringify({ code }) } } },
@@ -54,7 +54,7 @@ const stub = (cells: Record<string, (card: string) => string>) =>
 
 const PLAN = "## Approach\\nAdd a module.\\n## Files\\n- src/x.ts — new\\n## Tests\\n- test — works\\n## Depends on\\nnone"
 const planner = (card: string) =>
-  card === "UX-0002" ? 'yield* Rlm.done({ value: { blocked: "UX-0002 contradicts UX-0001" } })' : `yield* Rlm.done({ value: { plan: "${PLAN}" } })`
+  card === "C-0002" ? 'yield* Rlm.done({ value: { blocked: "C-0002 contradicts C-0001" } })' : `yield* Rlm.done({ value: { plan: "${PLAN}" } })`
 const implementer = (card: string) =>
   [
     `yield* Fs.write({ path: "src/${card}.ts", content: "// @card ${card}\\nexport const ok = true\\n" })`,
@@ -71,7 +71,7 @@ const pass = (repo: string, model: Layer.Layer<Model.Model>) =>
       const findings = makeFindings(repo)
       const spec = reconcileSpec({
         repo,
-        settings: yield* reconcileSettings({ verify: "test -f src/UX-0001.ts", land_retry_ms: 50, land_attempts: 2 }),
+        settings: yield* reconcileSettings({ verify: "test -f src/C-0001.ts", land_retry_ms: 50, land_attempts: 2 }),
         sensitive: [],
         findings,
         pluginHost: testPlugins(repo),
@@ -89,27 +89,27 @@ const pass = (repo: string, model: Layer.Layer<Model.Model>) =>
 
 describe("plan and implement phases", () => {
   test("a card gets a plan file and code in one landed commit; requirements stay untouched", async () => {
-    const r = project(["UX-0001"])
+    const r = project(["C-0001"])
     const before = readFileSync(join(r, ".zarg/graph/nodes/S-0001.json"), "utf8")
     const { out } = await pass(r, stub({ plan: planner, "implement-card": implementer }))
-    expect(out).toMatchObject({ status: "landed", landed: ["UX-0001"] })
-    const plan = readFileSync(join(r, ".zarg/plans/UX-0001.md"), "utf8")
+    expect(out).toMatchObject({ status: "landed", landed: ["C-0001"] })
+    const plan = readFileSync(join(r, ".zarg/plans/C-0001.md"), "utf8")
     // The plan's data is frontmatter: its card, the card's hash when planned, its title.
     const { data, body } = parse(plan)
-    expect(data).toEqual({ card: "UX-0001", hash: expect.stringMatching(/^[0-9a-f]+$/), title: "Card UX-0001" })
-    expect(body).toStartWith("# UX-0001 Card UX-0001\n")
+    expect(data).toEqual({ card: "C-0001", hash: expect.stringMatching(/^[0-9a-f]+$/), title: "Card C-0001" })
+    expect(body).toStartWith("# C-0001 Card C-0001\n")
     expect(plan).toContain("## Files\n- src/x.ts — new")
-    expect(readFileSync(join(r, "src/UX-0001.ts"), "utf8")).toContain(`// ${"@" + "card"} UX-0001`)
+    expect(readFileSync(join(r, "src/C-0001.ts"), "utf8")).toContain(`// ${"@" + "card"} C-0001`)
     expect(readFileSync(join(r, ".zarg/graph/nodes/S-0001.json"), "utf8")).toBe(before)
-    expect(sh(r, "git log -1 --format=%s")).toBe("feat: implement UX-0001")
+    expect(sh(r, "git log -1 --format=%s")).toBe("feat: implement C-0001")
   }, 60_000)
 
   test("a card the planner calls contradictory becomes an unplannable finding; the other card lands", async () => {
-    const r = project(["UX-0001", "UX-0002"])
+    const r = project(["C-0001", "C-0002"])
     const { out, findings } = await pass(r, stub({ plan: planner, "implement-card": implementer }))
-    expect(out).toMatchObject({ status: "landed", landed: ["UX-0001"], failed: ["UX-0002"] })
-    expect(findings.map((f) => [f.kind, f.about])).toEqual([["unplannable", ["UX-0002"]]])
-    expect(existsSync(join(r, ".zarg/plans/UX-0002.md"))).toBe(false)
+    expect(out).toMatchObject({ status: "landed", landed: ["C-0001"], failed: ["C-0002"] })
+    expect(findings.map((f) => [f.kind, f.about])).toEqual([["unplannable", ["C-0002"]]])
+    expect(existsSync(join(r, ".zarg/plans/C-0002.md"))).toBe(false)
   }, 60_000)
 })
 

@@ -10,7 +10,7 @@ import { PluginHost } from "@zarg/plugin/server"
 import { gherkin, gherkinHost } from "./gherkin-host"
 import { agenda, AgendaDef, DecisionsDef, decisionsService, graph, GraphDef, inquire, InquireDef, pluginService, type Scope, verify } from "../src"
 
-/** A real graph with the gherkin plugin: S-0001 → UX-0001 → S-0002, plus an unrelated S-0003. */
+/** A real graph with the gherkin plugin: S-0001 → C-0001 → S-0002, plus an unrelated S-0003. */
 const withGraph = <A>(scope: Scope, body: (k: Kernel.Kernel) => Effect.Effect<A>) =>
   Effect.gen(function* () {
     const host = yield* PluginHost
@@ -32,13 +32,13 @@ const withGraph = <A>(scope: Scope, body: (k: Kernel.Kernel) => Effect.Effect<A>
 
 describe("Graph service", () => {
   test("render and agenda are narrowed to the scope's focus", async () => {
-    const out = await withGraph({ graph: { focus: ["UX-0001"], k: 1 } }, (k) => k.run("return yield* Graph.render({})"))
-    expect(out.output).toContain("UX-0001 Open pricing")
+    const out = await withGraph({ graph: { focus: ["C-0001"], k: 1 } }, (k) => k.run("return yield* Graph.render({})"))
+    expect(out.output).toContain("C-0001 Open pricing")
     expect(out.output).not.toContain("S-0003")
   })
 
   test("show returns the node with its hash; nodes outside the scope are refused", async () => {
-    const out = await withGraph({ graph: { focus: ["UX-0001"], k: 1 } }, (k) =>
+    const out = await withGraph({ graph: { focus: ["C-0001"], k: 1 } }, (k) =>
       Effect.all([k.run('return (yield* Graph.show({ id: "S-0002" })).hash'), k.run('return yield* Graph.show({ id: "S-0003" })')]),
     )
     expect(out[0].output).toMatch(/^[0-9a-f]{12}$/)
@@ -60,15 +60,15 @@ describe("plugin tools as services", () => {
   })
 
   test("text that merely looks like an id is not treated as one", async () => {
-    const out = await withGraph({ graph: { focus: ["UX-0001"], k: 1 } }, (k) =>
-      k.run('return (yield* Gherkin.editCard({ id: "UX-0001", title: "Dates use ISO-8601" })).changed'),
+    const out = await withGraph({ graph: { focus: ["C-0001"], k: 1 } }, (k) =>
+      k.run('return (yield* Gherkin.editCard({ id: "C-0001", title: "Dates use ISO-8601" })).changed'),
     )
-    expect(out.output).toContain("UX-0001")
+    expect(out.output).toContain("C-0001")
     expect(out.output).not.toContain("OutOfScope")
   })
 
   test("writes that name nodes outside the scope are refused", async () => {
-    const out = await withGraph({ graph: { focus: ["UX-0001"], k: 1 } }, (k) => k.run('return yield* Gherkin.editState({ id: "S-0003", text: "changed" })'))
+    const out = await withGraph({ graph: { focus: ["C-0001"], k: 1 } }, (k) => k.run('return yield* Gherkin.editState({ id: "S-0003", text: "changed" })'))
     expect(out.output).toContain("OutOfScope")
   })
 })
@@ -91,7 +91,7 @@ describe("Inquire, Agenda and Verify", () => {
     expect(asked).toEqual(["Which?"])
   })
 
-  // @card UX-0071
+  // @card C-0071
   test("Inquire.choose accepts an option of a question under discussion for the developer", async () => {
     const chosen: Array<unknown> = []
     const svc = inquire({
@@ -117,10 +117,10 @@ describe("Inquire, Agenda and Verify", () => {
   test("Agenda.raise hands the item to the inbox", async () => {
     const titles: Array<string> = []
     const out = await kernel([agenda({ raise: (i) => Effect.sync(() => (titles.push(i.title), "A-1")) })], (k) =>
-      k.run('return yield* Agenda.raise({ title: "UX-0007 contradicts UX-0003", detail: "d", about: ["UX-0007"] })'),
+      k.run('return yield* Agenda.raise({ title: "C-0007 contradicts C-0003", detail: "d", about: ["C-0007"] })'),
     )
     expect(out.output).toContain('"id": "A-1"')
-    expect(titles).toEqual(["UX-0007 contradicts UX-0003"])
+    expect(titles).toEqual(["C-0007 contradicts C-0003"])
   })
 
   test("Verify reports the gate's verdict", async () => {

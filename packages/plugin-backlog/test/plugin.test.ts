@@ -10,7 +10,7 @@ const setUp = Effect.gen(function* () {
   yield* gherkin("add-state", { text: "the plugin runs", entry: true })
   yield* gherkin("add-card", { title: "Plugin asks for a scope", when: "the plugin needs a scope", by: [{ id: "P-0001" }], arrives: { id: "S-0001" }, then: [{ text: "the operator is asked" }] })
   const h = yield* PluginHost
-  return yield* h.entities.get("gherkin/card:UX-0001")
+  return yield* h.entities.get("gherkin/card:C-0001")
 })
 const report = (ref: string, note = "No path when the operator denies.") => ({
   ref, journeys: ["Set up"], persona: "Operator", kind: "gap", severity: "medium", note, from: { agent: "rehearse", run: "r-1" }, triage: { on: true, why: "fix · real 0.80" },
@@ -30,7 +30,7 @@ describe("the backlog's feedback", () => {
     expect(out.a.ids).toEqual(out.b.ids)
     expect(out.files).toEqual([`${out.a.ids[0]}.json`])
     expect(out.journeys.map((r) => [r.id, r.cells.open, Object.keys(r.cells)])).toEqual([["Set up", "1", ["journey", "open"]]])
-    expect(out.feedback.map((r) => [r.id, r.on, r.cells.card])).toEqual([[out.a.ids[0], true, "gherkin/card:UX-0001"]])
+    expect(out.feedback.map((r) => [r.id, r.on, r.cells.card])).toEqual([[out.a.ids[0], true, "gherkin/card:C-0001"]])
   })
   test("flipping an entry is the operator's call, kept", async () => {
     const out = await run((seen) => Effect.gen(function* () {
@@ -72,7 +72,7 @@ describe("the backlog's feedback", () => {
       return { feedback: rows(seen, "feedback"), e: yield* h.entities.get(`backlog/feedback:${ids[0]}`) }
     }))
     expect(out.feedback.length).toBe(1)
-    expect(out.e.label).toEqual({ text: "gap on UX-0001: No path when the operator denies.", tone: "attention", glyph: "◇" })
+    expect(out.e.label).toEqual({ text: "gap on C-0001: No path when the operator denies.", tone: "attention", glyph: "◇" })
   })
   test("an entry file of the wrong shape, or whose id is not its name, is skipped (named on the agenda); the view still fills", async () => {
     const out = await run((seen, root) => Effect.gen(function* () {
@@ -107,7 +107,7 @@ describe("the backlog's feedback", () => {
       const card = yield* setUp
       const h = yield* PluginHost
       yield* h.invoke("backlog", "file", { entries: [report(card.ref)] })
-      const again = (yield* h.invoke("backlog", "file", { entries: [report(card.ref), report("gherkin/card:UX-0001", "no version")] })) as { ids: string[] }
+      const again = (yield* h.invoke("backlog", "file", { entries: [report(card.ref), report("gherkin/card:C-0001", "no version")] })) as { ids: string[] }
       const e = yield* h.entities.get(`backlog/feedback:${again.ids[0]}`)
       return { ids: again.ids, count: (e.data as { count: number }).count }
     }))
@@ -119,7 +119,7 @@ describe("the backlog's feedback", () => {
       yield* setUp
       const h = yield* PluginHost
       for (let i = 2; i <= 60; i++) yield* gherkin("add-card", { title: `Operator does thing ${i}`, when: `the operator does thing ${i}`, by: [{ id: "P-0001" }], arrives: { id: "S-0001" }, then: [{ text: `thing ${i} is done` }] })
-      const refs = yield* Effect.forEach(Array.from({ length: 60 }, (_, i) => `gherkin/card:UX-${String(i + 1).padStart(4, "0")}`), (r) => Effect.map(h.entities.get(r), (e) => e.ref))
+      const refs = yield* Effect.forEach(Array.from({ length: 60 }, (_, i) => `gherkin/card:C-${String(i + 1).padStart(4, "0")}`), (r) => Effect.map(h.entities.get(r), (e) => e.ref))
       yield* h.invoke("backlog", "file", { entries: Array.from({ length: 200 }, (_, i) => report(refs[i % 60]!, `Report number ${i}.`)) })
       yield* h.invoke("backlog", "act", { agent: "feedback", action: "open", rows: [] })
       const id = rows(seen, "feedback")[0]!.id
@@ -151,12 +151,12 @@ describe("the backlog's feedback", () => {
       const card = yield* setUp
       yield* gherkin("add-card", { title: "Plugin runs again", when: "the plugin runs again", by: [{ id: "P-0001" }], arrives: { id: "S-0001" }, then: [{ text: "it runs" }] })
       const h = yield* PluginHost
-      const other = (yield* h.entities.get("gherkin/card:UX-0002")).ref
+      const other = (yield* h.entities.get("gherkin/card:C-0002")).ref
       const r1 = (yield* h.invoke("backlog", "file", { entries: [report(card.ref, "No path when the operator denies."), { ...report(card.ref, "Wordy prompt."), kind: "friction" }, { ...report(card.ref, "Unclear who asks."), kind: "transition" }, report(other, "Elsewhere.")] })) as { ids: string[] }
       // You noted the transition entry: it is yours.
       yield* h.invoke("backlog", "act", { agent: "feedback", action: "note", rows: [r1.ids[2]!], text: "keep" })
-      // The next run walks UX-0001 only: the gap again, worded anew; the friction and the transition not.
-      const r2 = (yield* h.invoke("backlog", "file", { entries: [{ ...report(card.ref, "Denying leaves no way on."), from: { agent: "rehearse", run: "r-2" } }], walked: ["UX-0001"] })) as { ids: string[] }
+      // The next run walks C-0001 only: the gap again, worded anew; the friction and the transition not.
+      const r2 = (yield* h.invoke("backlog", "file", { entries: [{ ...report(card.ref, "Denying leaves no way on."), from: { agent: "rehearse", run: "r-2" } }], walked: ["C-0001"] })) as { ids: string[] }
       const status = (yield* h.invoke("backlog", "status", { ids: r1.ids })) as Array<{ id: string; state: string }>
       const gap = (yield* h.entities.get(`backlog/feedback:${r1.ids[0]}`)).data as { count: number }
       const noted = (yield* h.entities.get(`backlog/feedback:${r1.ids[2]}`)).data as { notReportedIn?: string }

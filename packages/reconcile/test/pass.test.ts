@@ -15,23 +15,23 @@ const graph = (r: string, cards: ReadonlyArray<string>) => {
 }
 
 describe("reconcile pass", () => {
-  // @card UX-0022 UX-0056
+  // @card C-0022 C-0056
   test("lands one commit with the graph, plans, code and checkpoint; worktrees are removed", async () => {
     const r = repo()
-    graph(r, ["UX-0001", "UX-0002"])
+    graph(r, ["C-0001", "C-0002"])
     const spec = stubSpec(r)
     const out = await runPass(spec, db())
-    expect(out).toMatchObject({ status: "landed", landed: ["UX-0001", "UX-0002"], failed: [] })
-    expect(sh(r, "git log --format=%s")).toBe("feat: implement UX-0001, UX-0002\ninit")
+    expect(out).toMatchObject({ status: "landed", landed: ["C-0001", "C-0002"], failed: [] })
+    expect(sh(r, "git log --format=%s")).toBe("feat: implement C-0001, C-0002\ninit")
     expect(sh(r, "git show --name-only --format= HEAD").split("\n").sort()).toEqual([
+      ".zarg/graph/nodes/C-0001.json",
+      ".zarg/graph/nodes/C-0002.json",
       ".zarg/graph/nodes/S-0001.json",
-      ".zarg/graph/nodes/UX-0001.json",
-      ".zarg/graph/nodes/UX-0002.json",
-      ".zarg/plans/UX-0001.md",
-      ".zarg/plans/UX-0002.md",
+      ".zarg/plans/C-0001.md",
+      ".zarg/plans/C-0002.md",
       ".zarg/reconciled.json",
-      "src/UX-0001.ts",
-      "src/UX-0002.ts",
+      "src/C-0001.ts",
+      "src/C-0002.ts",
     ])
     expect(JSON.parse(readFileSync(join(r, ".zarg/reconciled.json"), "utf8")).graph).toBe(sh(r, "git rev-parse HEAD:.zarg/graph"))
     expect(sh(r, "git status --porcelain")).toBe("")
@@ -41,7 +41,7 @@ describe("reconcile pass", () => {
 
   test("a graph with nothing new to reconcile makes no commit", async () => {
     const r = repo()
-    graph(r, ["UX-0001"])
+    graph(r, ["C-0001"])
     await runPass(stubSpec(r), db())
     const head = sh(r, "git rev-parse HEAD")
     expect(await runPass(stubSpec(r), db())).toMatchObject({ status: "nothing" })
@@ -50,75 +50,75 @@ describe("reconcile pass", () => {
 
   test("a changed card is re-planned and re-implemented; untouched cards are not", async () => {
     const r = repo()
-    graph(r, ["UX-0001", "UX-0002"])
+    graph(r, ["C-0001", "C-0002"])
     await runPass(stubSpec(r), db())
-    writeNode(r, card("UX-0002", "S-0001", "S-0001", "the user taps twice"))
+    writeNode(r, card("C-0002", "S-0001", "S-0001", "the user taps twice"))
     const spec = stubSpec(r)
-    expect(await runPass(spec, db())).toMatchObject({ status: "landed", landed: ["UX-0002"] })
-    expect(spec.calls.filter((c) => c !== "verify")).toEqual(["plan UX-0002", "implement UX-0002"])
+    expect(await runPass(spec, db())).toMatchObject({ status: "landed", landed: ["C-0002"] })
+    expect(spec.calls.filter((c) => c !== "verify")).toEqual(["plan C-0002", "implement C-0002"])
   })
 
-  // @card UX-0024
+  // @card C-0024
   test("a blocked card becomes a finding; the other cards still land; the blocked card has no code", async () => {
     const r = repo()
-    graph(r, ["UX-0001", "UX-0002"])
-    const spec = stubSpec(r, { blocked: ["UX-0002"] })
-    expect(await runPass(spec, db())).toMatchObject({ status: "landed", landed: ["UX-0001"], failed: ["UX-0002"] })
-    expect(existsSync(join(r, "src/UX-0002.ts"))).toBe(false)
-    expect(existsSync(join(r, ".zarg/graph/nodes/UX-0002.json"))).toBe(true)
-    expect(spec.findings.list().map((f) => [f.kind, f.about])).toEqual([["blocked-card", ["UX-0002"]]])
+    graph(r, ["C-0001", "C-0002"])
+    const spec = stubSpec(r, { blocked: ["C-0002"] })
+    expect(await runPass(spec, db())).toMatchObject({ status: "landed", landed: ["C-0001"], failed: ["C-0002"] })
+    expect(existsSync(join(r, "src/C-0002.ts"))).toBe(false)
+    expect(existsSync(join(r, ".zarg/graph/nodes/C-0002.json"))).toBe(true)
+    expect(spec.findings.list().map((f) => [f.kind, f.about])).toEqual([["blocked-card", ["C-0002"]]])
   })
 
-  // @card UX-0053 UX-0054
+  // @card C-0053 C-0054
   test("cards that conflict: an obvious conflict is resolved, a major one becomes a finding", async () => {
     const r = repo()
-    graph(r, ["UX-0001", "UX-0002"])
-    const code = { "UX-0001": { file: "src/shared.ts", text: "a\n" }, "UX-0002": { file: "src/shared.ts", text: "b\n" } }
+    graph(r, ["C-0001", "C-0002"])
+    const code = { "C-0001": { file: "src/shared.ts", text: "a\n" }, "C-0002": { file: "src/shared.ts", text: "b\n" } }
     const major = stubSpec(r, { code })
-    expect(await runPass(major, db())).toMatchObject({ status: "landed", landed: ["UX-0001"], failed: ["UX-0002"] })
+    expect(await runPass(major, db())).toMatchObject({ status: "landed", landed: ["C-0001"], failed: ["C-0002"] })
     expect(major.findings.list().map((f) => f.kind)).toEqual(["merge-conflict"])
 
     const r2 = repo()
-    graph(r2, ["UX-0001", "UX-0002"])
+    graph(r2, ["C-0001", "C-0002"])
     const obvious = stubSpec(r2, { code, resolve: (cwd) => (write(cwd, "src/shared.ts", "a\nb\n"), true) })
-    expect(await runPass(obvious, db())).toMatchObject({ status: "landed", landed: ["UX-0001", "UX-0002"] })
+    expect(await runPass(obvious, db())).toMatchObject({ status: "landed", landed: ["C-0001", "C-0002"] })
     expect(readFileSync(join(r2, "src/shared.ts"), "utf8")).toBe("a\nb\n")
   })
 
-  // @card UX-0023 UX-0055
+  // @card C-0023 C-0055
   test("verify still failing after two fixes: a finding, nothing lands, the pass worktree is kept", async () => {
     const r = repo()
-    graph(r, ["UX-0001"])
-    const spec = stubSpec(r, { code: { "UX-0001": { file: "src/x.ts", text: "BROKEN\n" } }, brokenFixes: 2 })
+    graph(r, ["C-0001"])
+    const spec = stubSpec(r, { code: { "C-0001": { file: "src/x.ts", text: "BROKEN\n" } }, brokenFixes: 2 })
     const head = sh(r, "git rev-parse HEAD")
-    expect(await runPass(spec, db())).toMatchObject({ status: "failed", failed: ["UX-0001"] })
+    expect(await runPass(spec, db())).toMatchObject({ status: "failed", failed: ["C-0001"] })
     expect(spec.calls.filter((c) => c === "fix")).toHaveLength(2)
     expect(sh(r, "git rev-parse HEAD")).toBe(head)
     expect(spec.findings.list().map((f) => f.kind)).toEqual(["verify-failing"])
     expect(sh(r, "git worktree list").split("\n").length).toBeGreaterThan(1)
 
     const r2 = repo()
-    graph(r2, ["UX-0001"])
-    const fixed = stubSpec(r2, { code: { "UX-0001": { file: "src/x.ts", text: "BROKEN\n" } }, brokenFixes: 1 })
+    graph(r2, ["C-0001"])
+    const fixed = stubSpec(r2, { code: { "C-0001": { file: "src/x.ts", text: "BROKEN\n" } }, brokenFixes: 1 })
     expect(await runPass(fixed, db())).toMatchObject({ status: "landed" })
     expect(readFileSync(join(r2, "src/x.ts"), "utf8")).toBe("fixed\n")
   })
 
-  // @card UX-0050 UX-0051
+  // @card C-0050 C-0051
   test("your uncommitted edits in a file it changes: landing waits, then gives up with a finding", async () => {
     const r = repo()
-    graph(r, ["UX-0001"])
-    write(r, "src/UX-0001.ts", "mine\n")
+    graph(r, ["C-0001"])
+    write(r, "src/C-0001.ts", "mine\n")
     const spec = stubSpec(r, { landAttempts: 3 })
     expect(await runPass(spec, db())).toMatchObject({ status: "failed" })
-    expect(spec.findings.list().map((f) => [f.kind, f.detail])).toEqual([["landing-blocked", "waiting on your uncommitted edits in src/UX-0001.ts"]])
-    expect(readFileSync(join(r, "src/UX-0001.ts"), "utf8")).toBe("mine\n")
+    expect(spec.findings.list().map((f) => [f.kind, f.detail])).toEqual([["landing-blocked", "waiting on your uncommitted edits in src/C-0001.ts"]])
+    expect(readFileSync(join(r, "src/C-0001.ts"), "utf8")).toBe("mine\n")
   })
 
-  // @card UX-0052
+  // @card C-0052
   test("your branch moved during the pass: the commit is rebased, verified again and lands on top", async () => {
     const r = repo()
-    graph(r, ["UX-0001"])
+    graph(r, ["C-0001"])
     let committed = false
     const spec = stubSpec(r, {
       during: () => {
@@ -129,39 +129,39 @@ describe("reconcile pass", () => {
       },
     })
     expect(await runPass(spec, db())).toMatchObject({ status: "landed" })
-    expect(sh(r, "git log --format=%s")).toBe("feat: implement UX-0001\nyours\ninit")
+    expect(sh(r, "git log --format=%s")).toBe("feat: implement C-0001\nyours\ninit")
     expect(spec.calls.filter((c) => c === "verify")).toHaveLength(2)
     expect(sh(r, "git status --porcelain")).toBe("")
   })
 
   test("a pass killed mid-way resumes after the last finished step", async () => {
     const r = repo()
-    graph(r, ["UX-0001", "UX-0002"])
+    graph(r, ["C-0001", "C-0002"])
     const file = db()
     const log = join(r, "..", `calls-${Date.now()}.log`)
     const script = join(import.meta.dir, "resume-fixture.ts")
-    const first = Bun.spawnSync([process.execPath, script, r, file, log], { env: { ...process.env, CRASH_ON: "UX-0002" } })
+    const first = Bun.spawnSync([process.execPath, script, r, file, log], { env: { ...process.env, CRASH_ON: "C-0002" } })
     expect(first.exitCode).toBe(9)
     const second = Bun.spawnSync([process.execPath, script, r, file, log])
     expect(second.stdout.toString()).toContain('"status":"landed"')
     const calls = readFileSync(log, "utf8").trim().split("\n")
-    expect(calls.filter((c) => c === "plan UX-0001")).toHaveLength(1)
-    expect(calls.filter((c) => c === "implement UX-0001")).toHaveLength(1)
-    expect(calls.filter((c) => c === "implement UX-0002")).toHaveLength(2)
-    expect(sh(r, "git log --format=%s")).toBe("feat: implement UX-0001, UX-0002\ninit")
+    expect(calls.filter((c) => c === "plan C-0001")).toHaveLength(1)
+    expect(calls.filter((c) => c === "implement C-0001")).toHaveLength(1)
+    expect(calls.filter((c) => c === "implement C-0002")).toHaveLength(2)
+    expect(sh(r, "git log --format=%s")).toBe("feat: implement C-0001, C-0002\ninit")
   }, 30_000)
 
   test("a card whose phase dies fails alone with a finding; the others land", async () => {
     const r = repo()
-    graph(r, ["UX-0001", "UX-0002"])
-    const spec = stubSpec(r, { implementDies: ["UX-0002"] })
-    expect(await runPass(spec, db())).toMatchObject({ status: "landed", landed: ["UX-0001"], failed: ["UX-0002"] })
-    expect(spec.findings.list().map((f) => [f.kind, f.about])).toEqual([["pass-error", ["UX-0002"]]])
+    graph(r, ["C-0001", "C-0002"])
+    const spec = stubSpec(r, { implementDies: ["C-0002"] })
+    expect(await runPass(spec, db())).toMatchObject({ status: "landed", landed: ["C-0001"], failed: ["C-0002"] })
+    expect(spec.findings.list().map((f) => [f.kind, f.about])).toEqual([["pass-error", ["C-0002"]]])
   })
 
   test("a pass that dies ends as failed with a finding; the next attempt runs it again", async () => {
     const r = repo()
-    graph(r, ["UX-0001"])
+    graph(r, ["C-0001"])
     const file = db()
     const spec = stubSpec(r, { verifyDies: 1 })
     expect(await runPass(spec, file, 0)).toMatchObject({ status: "failed" })
@@ -172,15 +172,15 @@ describe("reconcile pass", () => {
 
   test("a plan that fails after writing a partial file leaves nothing in the commit", async () => {
     const r = repo()
-    graph(r, ["UX-0001", "UX-0002"])
-    expect(await runPass(stubSpec(r, { planFails: ["UX-0002"] }), db())).toMatchObject({ landed: ["UX-0001"], failed: ["UX-0002"] })
-    expect(existsSync(join(r, ".zarg/plans/UX-0002.md"))).toBe(false)
+    graph(r, ["C-0001", "C-0002"])
+    expect(await runPass(stubSpec(r, { planFails: ["C-0002"] }), db())).toMatchObject({ landed: ["C-0001"], failed: ["C-0002"] })
+    expect(existsSync(join(r, ".zarg/plans/C-0002.md"))).toBe(false)
     expect(sh(r, "git status --porcelain")).toBe("")
   })
 
   test("two passes on one repository never run at the same time", async () => {
     const r = repo()
-    graph(r, ["UX-0001"])
+    graph(r, ["C-0001"])
     const file = db()
     const spec = stubSpec(r)
     let active = 0
@@ -193,7 +193,7 @@ describe("reconcile pass", () => {
 
   test("stop ends a running pass at once: nothing lands, no findings, and it does not resume", async () => {
     const r = repo()
-    graph(r, ["UX-0001"])
+    graph(r, ["C-0001"])
     const spec = stubSpec(r)
     let requested = false
     let release: () => void = () => {}
@@ -218,7 +218,7 @@ describe("reconcile pass", () => {
 
   test("a phase that edits and commits requirements or plans cannot change them in the landed commit", async () => {
     const r = repo()
-    graph(r, ["UX-0001"])
+    graph(r, ["C-0001"])
     const original = readFileSync(join(r, ".zarg/graph/nodes/S-0001.json"), "utf8")
     const spec = stubSpec(r)
     const tamper = {
@@ -232,7 +232,7 @@ describe("reconcile pass", () => {
                 Effect.andThen(p.run(item, cwd), Effect.sync(() => {
                   write(cwd, ".zarg/graph/nodes/S-0001.json", "tampered\n")
                   write(cwd, `.zarg/plans/${item}.md`, "tampered\n")
-                  write(cwd, ".zarg/graph/nodes/UX-9999.json", "new\n")
+                  write(cwd, ".zarg/graph/nodes/C-9999.json", "new\n")
                   sh(cwd, "git add -A && git commit -qm sneaky")
                   return { ok: true } as const
                 })),
@@ -242,14 +242,14 @@ describe("reconcile pass", () => {
     }
     expect(await runPass(tamper, db())).toMatchObject({ status: "landed" })
     expect(sh(r, "git show HEAD:.zarg/graph/nodes/S-0001.json")).toBe(original.trim())
-    expect(sh(r, "git show HEAD:.zarg/plans/UX-0001.md")).toBe("# UX-0001")
-    expect(sh(r, "git ls-tree -r --name-only HEAD -- .zarg/graph")).not.toContain("UX-9999")
+    expect(sh(r, "git show HEAD:.zarg/plans/C-0001.md")).toBe("# C-0001")
+    expect(sh(r, "git ls-tree -r --name-only HEAD -- .zarg/graph")).not.toContain("C-9999")
   })
 
   test("a stop while landing waits on your edits ends the pass even after your edits go away", async () => {
     const r = repo()
-    graph(r, ["UX-0001"])
-    write(r, "src/UX-0001.ts", "mine\n")
+    graph(r, ["C-0001"])
+    write(r, "src/C-0001.ts", "mine\n")
     const spec = stubSpec(r, { landAttempts: 50 })
     let requested = false
     let release: () => void = () => {}
@@ -258,19 +258,19 @@ describe("reconcile pass", () => {
     await Bun.sleep(1500)
     requested = true
     release()
-    sh(r, "rm src/UX-0001.ts")
+    sh(r, "rm src/C-0001.ts")
     expect(await running).toMatchObject({ status: "failed" })
     expect(sh(r, "git log --format=%s")).toBe("init")
   }, 20_000)
 
   test("a removed card's plan and code are deleted in the next pass", async () => {
     const r = repo()
-    graph(r, ["UX-0001", "UX-0002"])
+    graph(r, ["C-0001", "C-0002"])
     await runPass(stubSpec(r), db())
-    sh(r, "rm .zarg/graph/nodes/UX-0002.json")
+    sh(r, "rm .zarg/graph/nodes/C-0002.json")
     expect(await runPass(stubSpec(r), db())).toMatchObject({ status: "landed" })
-    expect(existsSync(join(r, "src/UX-0002.ts"))).toBe(false)
-    expect(existsSync(join(r, ".zarg/plans/UX-0002.md"))).toBe(false)
+    expect(existsSync(join(r, "src/C-0002.ts"))).toBe(false)
+    expect(existsSync(join(r, ".zarg/plans/C-0002.md"))).toBe(false)
     expect(sh(r, "git status --porcelain")).toBe("")
   })
 })

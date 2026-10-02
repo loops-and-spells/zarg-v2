@@ -8,23 +8,23 @@ import { card, cleanup, repo, sh, state, write, writeNode } from "./repo"
 afterAll(cleanup)
 const run = <A, E>(e: Effect.Effect<A, E>) => Effect.runPromise(e)
 
-/** A repo whose driver wrote S-0001 and UX-0001 (uncommitted), and a pass commit with those cards plus code. */
+/** A repo whose driver wrote S-0001 and C-0001 (uncommitted), and a pass commit with those cards plus code. */
 const passCommit = async () => {
   const r = repo()
   const base = sh(r, "git rev-parse HEAD")
   writeNode(r, state("S-0001", "home"))
-  writeNode(r, card("UX-0001", "S-0001", "S-0001"))
+  writeNode(r, card("C-0001", "S-0001", "S-0001"))
   const wt = join(worktreeRoot(r), "p", "main")
   await run(ensureWorktree(r, wt, "zarg/p/main", base))
   writeNode(wt, state("S-0001", "home"))
-  writeNode(wt, card("UX-0001", "S-0001", "S-0001"))
+  writeNode(wt, card("C-0001", "S-0001", "S-0001"))
   write(wt, "src/home.ts", "export const home = 1\n")
-  sh(wt, "git add -A && git commit -qm 'feat: implement UX-0001'")
+  sh(wt, "git add -A && git commit -qm 'feat: implement C-0001'")
   return { r, base, wt, commit: sh(wt, "git rev-parse HEAD") }
 }
 
 describe("land", () => {
-  // @card UX-0049
+  // @card C-0049
   test("fast-forwards; the driver's identical uncommitted cards end up clean; landing again is a no-op", async () => {
     const { r, base, commit } = await passCommit()
     expect(await run(land(r, commit, base, "main"))).toEqual({ status: "landed" })
@@ -33,7 +33,7 @@ describe("land", () => {
     expect(await run(land(r, commit, base, "main"))).toEqual({ status: "landed" })
   })
 
-  // @card UX-0050
+  // @card C-0050
   test("your edits in other files stay; edits in a file the commit changes make it wait", async () => {
     const { r, base, commit } = await passCommit()
     write(r, "README.md", "mine\n")
@@ -47,20 +47,20 @@ describe("land", () => {
 
   test("a card the driver edited again keeps its newer content after landing", async () => {
     const { r, base, commit } = await passCommit()
-    writeNode(r, card("UX-0001", "S-0001", "S-0001", "the user taps twice"))
+    writeNode(r, card("C-0001", "S-0001", "S-0001", "the user taps twice"))
     expect(await run(land(r, commit, base, "main"))).toEqual({ status: "landed" })
-    expect(readFileSync(join(r, ".zarg/graph/nodes/UX-0001.json"), "utf8")).toContain("taps twice")
-    expect(sh(r, "git status --porcelain")).toBe("M .zarg/graph/nodes/UX-0001.json")
+    expect(readFileSync(join(r, ".zarg/graph/nodes/C-0001.json"), "utf8")).toContain("taps twice")
+    expect(sh(r, "git status --porcelain")).toBe("M .zarg/graph/nodes/C-0001.json")
   })
 
   test("a card the driver removed during the pass stays removed", async () => {
     const { r, base, commit } = await passCommit()
-    sh(r, "rm .zarg/graph/nodes/UX-0001.json")
+    sh(r, "rm .zarg/graph/nodes/C-0001.json")
     expect(await run(land(r, commit, base, "main"))).toEqual({ status: "landed" })
-    expect(existsSync(join(r, ".zarg/graph/nodes/UX-0001.json"))).toBe(false)
+    expect(existsSync(join(r, ".zarg/graph/nodes/C-0001.json"))).toBe(false)
   })
 
-  // @card UX-0052
+  // @card C-0052
   test("a moved branch is reported; after a rebase the commit lands", async () => {
     const { r, base, wt } = await passCommit()
     sh(r, "rm -rf .zarg/graph")

@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "S-0016",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0018",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0001",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    }
+  ],
+  "id": "C-0018",
+  "props": {
+    "planned": true,
+    "title": "Driver Agent asks about conflicting edits",
+    "when": "the Driver Agent finds the edits conflicting"
+  },
+  "type": "gherkin/card"
+}

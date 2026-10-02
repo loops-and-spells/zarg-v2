@@ -76,10 +76,10 @@ export const jsonIn = (text: string): unknown => {
 
 const TOOLS = [
   'edit-state {"id":"S-0002","text":"…"}: reword a Given/Then sentence (every card using it changes)',
-  'edit-card {"id":"UX-0001","title":"…","when":"…"}: change a card\'s title or When',
+  'edit-card {"id":"C-0001","title":"…","when":"…"}: change a card\'s title or When',
   'add-card {"title":"Who does what","when":"the one action","by":[{"name":"Operator"}],"arrives":{"id":"S-0001"},"then":[{"text":"…"}]}: a new card (1-5 thens)',
-  'link {"card":"UX-0001","edge":"then","state":{"text":"…"}}: add a then (or given; arrives replaces the Given)',
-  'unlink {"card":"UX-0001","edge":"then","state":"S-0002"}: remove one (a card keeps at least one then)',
+  'link {"card":"C-0001","edge":"then","state":{"text":"…"}}: add a then (or given; arrives replaces the Given)',
+  'unlink {"card":"C-0001","edge":"then","state":"S-0002"}: remove one (a card keeps at least one then)',
 ].join("\n")
 export const SYSTEM = [
   "You refine a product's requirements: Gherkin cards (Given, When, Then) that testers found problems with.",
@@ -228,7 +228,7 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
           ...(deps.length > 0 ? ["Needs (a later change uses what an earlier one made):", ...deps.map(([b, a]) => `- ${units[b]!.card} needs ${units[a]!.card}`)] : []),
           "",
           `Fold them into small plans a person can read and approve on their own: one concept each, at most ${CAP} cards, every card in exactly one plan.`,
-          'Answer {"groups":[{"title":"at most 8 words","steps":["one line per step"],"cards":["UX-…"]}]}. JSON only.',
+          'Answer {"groups":[{"title":"at most 8 words","steps":["one line per step"],"cards":["C-…"]}]}. JSON only.',
         ].join("\n"),
       )
       if (text === undefined) return yield* d.rehearsing({ journey: st.journey, note: OUTAGE })

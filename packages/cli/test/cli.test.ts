@@ -22,42 +22,42 @@ beforeAll(() => {
 afterAll(() => rmSync(dir, { recursive: true, force: true }))
 
 describe("zarg cli", () => {
-  // @card UX-0002
+  // @card C-0002
   test("tool call writes the graph and render shows it", () => {
     expect(json("tool", "call", "gherkin/add-state", '{"text":"the home page is shown","entry":true}').added).toEqual(["S-0001"])
     json("tool", "call", "gherkin/add-persona", JSON.stringify({ name: "User", kind: "human", text: "Someone using the product." }))
     const r = json("tool", "call", "gherkin/add-card", JSON.stringify({ title: "Open pricing", when: "the user clicks Pricing", by: [{ name: "User" }], arrives: { id: "S-0001" }, then: [{ text: "the plan picker is shown" }] }))
-    expect(r.message).toBe("created UX-0001; new states S-0002")
+    expect(r.message).toBe("created C-0001; new states S-0002")
     expect(zarg("render").out).toContain("Then  the plan picker is shown  # S-0002")
   })
 
-  // @card UX-0082
+  // @card C-0082
   test("audit: JSON with exit 1 while a card has no tag; --summary; a new file's tag counts", () => {
     const TAG = "@" + "card"
     const before = zarg("audit")
     expect(before.code).toBe(1)
-    expect(JSON.parse(before.out).problems).toContainEqual({ kind: "untagged", card: "UX-0001", title: "Open pricing" })
-    expect(zarg("audit", "--summary").out).toContain("untagged            UX-0001 Open pricing")
+    expect(JSON.parse(before.out).problems).toContainEqual({ kind: "untagged", card: "C-0001", title: "Open pricing" })
+    expect(zarg("audit", "--summary").out).toContain("untagged            C-0001 Open pricing")
     // A new, untracked file's tag counts, and query code finds it.
-    require("node:fs").writeFileSync(join(dir, "pricing.ts"), `export const open = () => 1 // ${TAG} UX-0001\n`)
-    const mine = (JSON.parse(zarg("audit").out).problems as Array<{ card?: string }>).filter((p) => p.card === "UX-0001")
+    require("node:fs").writeFileSync(join(dir, "pricing.ts"), `export const open = () => 1 // ${TAG} C-0001\n`)
+    const mine = (JSON.parse(zarg("audit").out).problems as Array<{ card?: string }>).filter((p) => p.card === "C-0001")
     expect(mine).toEqual([])
-    expect(json("query", "code", "UX-0001")).toEqual([`pricing.ts:1:export const open = () => 1 // ${TAG} UX-0001`])
-    expect(json("audit", "--card", "UX-0001")).toMatchObject({ id: "UX-0001", status: "built", tags: [{ file: "pricing.ts", line: 1 }] })
+    expect(json("query", "code", "C-0001")).toEqual([`pricing.ts:1:export const open = () => 1 // ${TAG} C-0001`])
+    expect(json("audit", "--card", "C-0001")).toMatchObject({ id: "C-0001", status: "built", tags: [{ file: "pricing.ts", line: 1 }] })
     require("node:fs").rmSync(join(dir, "pricing.ts"))
     // An unknown card: exit 1.
-    const unknown = zarg("audit", "--card", "UX-9999")
-    expect([unknown.code, JSON.parse(unknown.out)]).toEqual([1, { id: "UX-9999", missing: true }])
+    const unknown = zarg("audit", "--card", "C-9999")
+    expect([unknown.code, JSON.parse(unknown.out)]).toEqual([1, { id: "C-9999", missing: true }])
   })
 
   test("show returns the node, its hash and inbound edges", () => {
     const s = json("show", "S-0002")
     expect(s.node.props.text).toBe("the plan picker is shown")
     expect(s.hash).toMatch(/^[0-9a-f]{12}$/)
-    expect(s.inbound).toEqual([{ from: "UX-0001", type: "gherkin/then" }])
+    expect(s.inbound).toEqual([{ from: "C-0001", type: "gherkin/then" }])
   })
 
-  // @card UX-0003
+  // @card C-0003
   test("failures are JSON on stderr with exit code 1", () => {
     const r = zarg("tool", "call", "gherkin/add-state", '{"text":"shown if paid"}')
     expect(r.code).toBe(1)
@@ -72,7 +72,7 @@ describe("zarg cli", () => {
     expect(JSON.parse(r.err).error).toBe("StaleNode")
   })
 
-  // @card UX-0005
+  // @card C-0005
   test("diff --since compares a git ref with the working tree", () => {
     git("add", ".zarg")
     git("commit", "-qm", "graph")
@@ -82,25 +82,25 @@ describe("zarg cli", () => {
     expect(d.added).toEqual([])
   })
 
-  // @card UX-0001
+  // @card C-0001
   test("agenda and focus", () => {
     const ids = json("agenda").map((i: { id: string }) => i.id)
     // First-party plugins that read files or code wait for their grant (triage reads the code tagged with cards).
     expect(ids).toEqual(["plugin-grant:backlog", "plugin-grant:rehearse", "plugin-grant:triage", "gherkin:dead-end:S-0002"])
-    expect(json("query", "neighbors", "S-0001", "--k", "1")).toEqual(["S-0001", "UX-0001"])
+    expect(json("query", "neighbors", "S-0001", "--k", "1")).toEqual(["C-0001", "S-0001"])
   })
 
-  // @card UX-0081
+  // @card C-0081
   test("query code finds @card tags in tracked files", async () => {
     // Built from parts: this file holds no tag of its own.
-    const tag = `// ${"@" + "card"} UX-0999`
+    const tag = `// ${"@" + "card"} C-0999`
     await Bun.write(join(dir, "app.ts"), `${tag}\n`)
     git("add", "app.ts")
-    expect(json("query", "code", "UX-0999")).toEqual([`app.ts:1:${tag}`])
-    expect(json("query", "code", "UX-0998")).toEqual([])
+    expect(json("query", "code", "C-0999")).toEqual([`app.ts:1:${tag}`])
+    expect(json("query", "code", "C-0998")).toEqual([])
     // The second id on a tag line is found too.
-    await Bun.write(join(dir, "two.ts"), `// ${"@" + "card"} UX-0997 UX-0996\n`)
-    expect(json("query", "code", "UX-0996")).toEqual([`two.ts:1:// ${"@" + "card"} UX-0997 UX-0996`])
+    await Bun.write(join(dir, "two.ts"), `// ${"@" + "card"} C-0997 C-0996\n`)
+    expect(json("query", "code", "C-0996")).toEqual([`two.ts:1:// ${"@" + "card"} C-0997 C-0996`])
     require("node:fs").rmSync(join(dir, "two.ts"))
   })
 
@@ -112,7 +112,7 @@ describe("zarg cli", () => {
 
   test("diff --since a ref without a graph reports everything as added; a bad ref is an error", () => {
     const emptyTree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
-    expect(json("diff", "--since", emptyTree).added.map((n: { id: string }) => n.id)).toEqual(["P-0001", "S-0001", "S-0002", "UX-0001"])
+    expect(json("diff", "--since", emptyTree).added.map((n: { id: string }) => n.id)).toEqual(["C-0001", "P-0001", "S-0001", "S-0002"])
     const r = zarg("diff", "--since", "no-such-ref")
     expect(r.code).toBe(1)
     expect(JSON.parse(r.err).error).toBe("IoError")
@@ -194,7 +194,7 @@ describe("zarg core", () => {
 })
 
 describe("zarg affected and checkpoint", () => {
-  // @card UX-0080
+  // @card C-0080
   test("affected lists the cards to reconcile; checkpoint records the graph so nothing is left", () => {
     const root = mkdtempSync(join(tmpdir(), "zarg-affected-"))
     const g = (...args: Array<string>) => Bun.spawnSync(["git", "-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd: root })
@@ -204,11 +204,11 @@ describe("zarg affected and checkpoint", () => {
       zargIn(root, "tool", "call", "gherkin/add-persona", JSON.stringify({ name: "User", kind: "human", text: "Someone using the product." }))
       zargIn(root, "tool", "call", "gherkin/add-card", JSON.stringify({ title: "Open pricing", when: "the user clicks Pricing", by: [{ name: "User" }], arrives: { id: "S-0001" }, then: [{ text: "the plan picker is shown" }] }))
       const a = JSON.parse(zargIn(root, "affected").out)
-      expect(a).toMatchObject({ cards: ["UX-0001"], removed: [] })
+      expect(a).toMatchObject({ cards: ["C-0001"], removed: [] })
       const c = JSON.parse(zargIn(root, "checkpoint").out)
       expect(c.graph).toBe(a.graph)
       g("add", "-A")
-      g("commit", "-qm", "feat: implement UX-0001")
+      g("commit", "-qm", "feat: implement C-0001")
       expect(JSON.parse(zargIn(root, "affected").out)).toMatchObject({ cards: [], removed: [] })
       // checkpoint stages what it wrote, and retires a legacy sync.json in the index too.
       Bun.write(join(root, ".zarg/sync.json"), "{}")

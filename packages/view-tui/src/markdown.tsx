@@ -31,7 +31,7 @@ const highlightOf = (t: ThemeService) => ({
   journey: t.value("journey").fg,
 })
 
-// @card UX-0076
+// @card C-0076
 export const RichText = (p: { content: string; width: number; streaming?: boolean; onHeight?: (height: number) => void }) => {
   const theme = useTheme()
   const syntaxStyle = useMemo(() => syntaxOf(theme), [theme])

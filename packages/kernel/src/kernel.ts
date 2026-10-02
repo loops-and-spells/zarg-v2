@@ -240,7 +240,7 @@ export const make = (opts: KernelOptions) =>
           yield* restart
           restarted = true
         }
-        // @card UX-0048
+        // @card C-0048
         const checked = checker.check(cell)
         if (!checked.ok) {
           const out = collector(outputCap)

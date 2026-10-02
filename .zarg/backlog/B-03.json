@@ -3,16 +3,16 @@
   "journey": "CLI actor",
   "cards": [
     {
-      "ref": "gherkin/card:UX-0003@26bc1ce49670"
+      "ref": "gherkin/card:C-0003@26bc1ce49670"
     },
     {
-      "ref": "gherkin/card:UX-0004@689d06f016c0"
+      "ref": "gherkin/card:C-0004@689d06f016c0"
     },
     {
-      "ref": "gherkin/card:UX-0006@d2ea9a633ed7"
+      "ref": "gherkin/card:C-0006@d2ea9a633ed7"
     },
     {
-      "ref": "gherkin/card:UX-0079@5c9ae10a8131"
+      "ref": "gherkin/card:C-0079@5c9ae10a8131"
     }
   ],
   "changes": [
@@ -53,7 +53,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0006",
+        "id": "C-0006",
         "when": "the CLI actor applies the dedup hint precondition"
       }
     },
@@ -83,7 +83,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "UX-0006",
+        "card": "C-0006",
         "edge": "then",
         "state": {
           "text": "the saved node file carries a retry-id"
@@ -109,7 +109,7 @@
     "Rewrite Given: CLI actor requests env file",
     "Hint retries: dedup precondition, second hint or abort",
     "Save node file with auditable retry-id",
-    "Keep UX-0079 unchanged"
+    "Keep C-0079 unchanged"
   ],
   "persona": "CLI actor",
   "severity": "high",

@@ -8,3 +8,6 @@ packages/*/dist/
 packages/plugin/test/fixtures/.gen/
 .zarg/findings/
 .zarg/inbox/
+
+# skill mirrors other agent tools generate
+.agents/

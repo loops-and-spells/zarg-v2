@@ -25,7 +25,7 @@ const focusSet = (id: Option.Option<string>, hops: number) =>
     onSome: (id) => Effect.map(GraphStore.use((s) => s.snapshot), (snap) => new Set(Snapshot.neighbors(snap, id, hops))),
   })
 
-/** `--expect S-0001@3f2a9c1b0e4d,UX-0003@absent` */
+/** `--expect S-0001@3f2a9c1b0e4d,C-0003@absent` */
 const parseExpect = (raw: Option.Option<string>) =>
   Effect.forEach(
     Option.match(raw, { onNone: () => [], onSome: (s) => s.split(",") }),
@@ -71,7 +71,7 @@ const render = Command.make("render", { focus, k }, (o) =>
   Effect.flatMap(focusSet(o.focus, o.k), (f) => PluginHost.use((h) => Effect.flatMap(h.render(f), print))),
 )
 
-// @card UX-0001
+// @card C-0001
 const agenda = Command.make("agenda", { focus, k }, (o) =>
   Effect.flatMap(focusSet(o.focus, o.k), (f) => PluginHost.use((h) => Effect.flatMap(h.agenda(f), print))),
 )
@@ -82,12 +82,12 @@ const neighbors = Command.make("neighbors", { id: Argument.String("id"), k }, (o
   Effect.flatMap(GraphStore.use((s) => s.snapshot), (snap) => print(Snapshot.neighbors(snap, o.id, o.k))),
 )
 
-// @card UX-0081
+// @card C-0081
 const code = Command.make("code", { id: Argument.String("id") }, ({ id }) => Effect.flatMap(cardRefs(root, id), print))
 
 const query = Command.make("query").pipe(Command.withSubcommands([neighbors, code]))
 
-// @card UX-0005
+// @card C-0005
 const diffCmd = Command.make("diff", { since: Flag.String("since").pipe(Flag.withDescription("git ref")) }, ({ since }) =>
   Effect.gen(function* () {
     const before = yield* snapshotAt(root, since)
@@ -96,7 +96,7 @@ const diffCmd = Command.make("diff", { since: Flag.String("since").pipe(Flag.wit
   }),
 )
 
-// @card UX-0079 UX-0080
+// @card C-0079 C-0080
 const affected = Command.make("affected", {}, () =>
   Effect.gen(function* () {
     const base = yield* baseTree(root)
@@ -106,7 +106,7 @@ const affected = Command.make("affected", {}, () =>
   }),
 )
 
-// @card UX-0083
+// @card C-0083
 const checkpoint = Command.make("checkpoint", {}, () =>
   Effect.gen(function* () {
     const graph = yield* workingGraphTree(root)
@@ -190,14 +190,14 @@ const confirm = (question: string) =>
     return false
   })
 
-// @card UX-0060
+// @card C-0060
 const pluginAdd = Command.make("add", { source: Argument.String("source") }, ({ source }) =>
   Effect.flatMap(installPlugin(resolve(source), USER_DIR), (r) =>
     print({ installed: r.name, dir: r.dir, next: `list it in .zarg/config.toml as [plugins.${r.name}] source = ${JSON.stringify(source)}, then approve it with \`zarg plugin grant ${r.name}\`` }),
   ),
 )
 
-// @card UX-0061
+// @card C-0061
 const pluginGrant = Command.make(
   "grant",
   {

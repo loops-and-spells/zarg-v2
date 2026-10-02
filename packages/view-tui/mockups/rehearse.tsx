@@ -7,12 +7,12 @@ const RW = 24
 const pad = (s: string, n: number) => (s.length > n ? `${s.slice(0, Math.max(0, n - 1))}…` : s + " ".repeat(n - s.length))
 
 const FINDINGS = [
-  { id: "R-1e108f96", persona: "Operator", journey: "Set up", kind: "transition", card: "UX-0035", sev: "low", sug: "ask 0.75", note: "The prior step promised local-first ordering, but this step doesn't say the chosen model is local; I can't tell whether my choice was honoured." },
-  { id: "R-16011c71", persona: "CLI actor", journey: "Reconcile", kind: "friction", card: "UX-0056", sev: "medium", sug: "fix 0.80", note: "The tester answered in prose: 'works on my machine' is not a result the planner can use; ask for a pass or fail." },
-  { id: "R-1b0b968c", persona: "Operator", journey: "Set up", kind: "friction", card: "UX-0062", sev: "medium", sug: "ask 0.60", note: "The grant question names scope and target but not the choice set: approve, deny or defer. I don't know what 'later' means." },
-  { id: "R-09a2f624", persona: "Operator", journey: "Set up", kind: "gap", card: "UX-0062", sev: "medium", sug: "ask 0.68", note: "No failure path when the operator denies, ignores, or defers the grant. The plugin just waits." },
-  { id: "R-126f1a5d", persona: "Operator", journey: "Reconcile", kind: "feature", card: "UX-0059", sev: "medium", sug: "ask 1.00", note: "A guided setup prompt would be wanted here. Offer inline creation commands or auto-scaffold missing plan/implement models before refusal." },
-  { id: "R-3c7702aa", persona: "Driver Agent", journey: "Set up", kind: "gap", card: "UX-0030", sev: "high", sug: "fix 0.91", note: "When the key is missing the driver offers setup, but never says which role needs it; with three roles I can't tell which to fix." },
+  { id: "R-1e108f96", persona: "Operator", journey: "Set up", kind: "transition", card: "C-0035", sev: "low", sug: "ask 0.75", note: "The prior step promised local-first ordering, but this step doesn't say the chosen model is local; I can't tell whether my choice was honoured." },
+  { id: "R-16011c71", persona: "CLI actor", journey: "Reconcile", kind: "friction", card: "C-0056", sev: "medium", sug: "fix 0.80", note: "The tester answered in prose: 'works on my machine' is not a result the planner can use; ask for a pass or fail." },
+  { id: "R-1b0b968c", persona: "Operator", journey: "Set up", kind: "friction", card: "C-0062", sev: "medium", sug: "ask 0.60", note: "The grant question names scope and target but not the choice set: approve, deny or defer. I don't know what 'later' means." },
+  { id: "R-09a2f624", persona: "Operator", journey: "Set up", kind: "gap", card: "C-0062", sev: "medium", sug: "ask 0.68", note: "No failure path when the operator denies, ignores, or defers the grant. The plugin just waits." },
+  { id: "R-126f1a5d", persona: "Operator", journey: "Reconcile", kind: "feature", card: "C-0059", sev: "medium", sug: "ask 1.00", note: "A guided setup prompt would be wanted here. Offer inline creation commands or auto-scaffold missing plan/implement models before refusal." },
+  { id: "R-3c7702aa", persona: "Driver Agent", journey: "Set up", kind: "gap", card: "C-0030", sev: "high", sug: "fix 0.91", note: "When the key is missing the driver offers setup, but never says which role needs it; with three roles I can't tell which to fix." },
 ]
 const sevTone = (s: string) => (s === "high" ? T.err : s === "medium" ? T.attn : T.dim)
 

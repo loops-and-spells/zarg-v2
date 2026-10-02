@@ -12,7 +12,7 @@ Run the CLI from the repo root as `mise run -q zarg -- <command>`. Output is JSO
 ## The model
 
 - A **state** (`S-NNNN`) is one Given/Then sentence, stored once.
-- A **card** (`UX-NNNN`) is one user action: it arrives from exactly one state (Given), may need up to 3 extra context states (And), has exactly one When, and leads to 1-5 states (Then).
+- A **card** (`C-NNNN`) is one user action: it arrives from exactly one state (Given), may need up to 3 extra context states (And), has exactly one When, and leads to 1-5 states (Then).
 - A choice ("option A, B or N") is several cards that share one arrival state.
 - An outcome branch (success, failure) is one card per outcome, each with its own When.
 - Mark a state `entry` when the user can start there, `terminal` when nothing needs to follow it.

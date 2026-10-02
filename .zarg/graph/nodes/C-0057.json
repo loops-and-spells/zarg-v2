@@ -1,0 +1,26 @@
+{
+  "edges": [
+    {
+      "to": "S-0056",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0022",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0004",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0004",
+      "type": "gherkin/by"
+    }
+  ],
+  "id": "C-0057",
+  "props": {
+    "title": "A card cannot be planned",
+    "when": "the Planner Agent finds the card contradicts another card"
+  },
+  "type": "gherkin/card"
+}

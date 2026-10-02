@@ -22,9 +22,9 @@ describe("checkpoint", () => {
   test("snapshotAtTree reads the nodes stored in a tree", async () => {
     const r = repo()
     writeNode(r, state("S-0001", "home"))
-    writeNode(r, card("UX-0001", "S-0001", "S-0001"))
+    writeNode(r, card("C-0001", "S-0001", "S-0001"))
     const snap = await run(Effect.flatMap(workingGraphTree(r), (t) => snapshotAtTree(r, t)))
-    expect([...snap.nodes.keys()].sort()).toEqual(["S-0001", "UX-0001"])
+    expect([...snap.nodes.keys()].sort()).toEqual(["C-0001", "S-0001"])
   })
 
   test("the base is the committed checkpoint, else the legacy sync.json commit, else empty", async () => {

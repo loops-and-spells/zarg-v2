@@ -15,7 +15,7 @@ test("agent ids are namespaced and checked; events become main's activity in the
   const sink = pluginAgents(log, "main")
   sink("rehearse", { event: "start", id: "run", title: "rehearse", task: "run r-1" })
   sink("rehearse", { event: "start", id: "tester-1", parent: "run", title: "tester", task: "The developer" })
-  sink("rehearse", { event: "step", id: "tester-1", text: "UX-0001: feel 1.80" })
+  sink("rehearse", { event: "step", id: "tester-1", text: "C-0001: feel 1.80" })
   sink("rehearse", { event: "status", id: "tester-1", progress: { done: 1, total: 4 }, text: "1/4 steps" })
   expect(() => sink("rehearse", { event: "start", id: "a:b", title: "x", task: "y" })).toThrow("agent id")
   const events = readFileSync(join(dir, "main.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l))
@@ -30,12 +30,12 @@ test("a plugin agent starts with its declared view; step lines go to its first l
   const tester = layoutOf(defineView("tester", { steps: { kind: "log", role: "log" }, progress: { kind: "stats", role: "summary" } }))
   const on = pluginAgents(log, "main", (plugin, view) => (plugin === "rehearse" && view === "tester" ? tester : undefined))
   on("rehearse", { event: "start", id: "tester-1", title: "tester", task: "The developer", view: "tester" })
-  on("rehearse", { event: "step", id: "tester-1", text: "UX-1 ok" })
+  on("rehearse", { event: "step", id: "tester-1", text: "C-1 ok" })
   on("rehearse", { event: "set", id: "tester-1", section: "progress", data: { items: [] } })
   threadViews(log, "main").flush()
   const views = log.all().filter((e) => (e as { activityType?: string }).activityType === "zarg.view") as ReadonlyArray<Record<string, any>>
   expect(views[0]).toMatchObject({ type: "ACTIVITY_SNAPSHOT", content: { agent: "rehearse:tester-1", layout: tester } })
-  expect(views[1]!.patch).toEqual([{ op: "add", path: "/data/steps/lines/-", value: { text: "UX-1 ok" } }, { op: "replace", path: "/data/progress", value: { items: [] } }])
+  expect(views[1]!.patch).toEqual([{ op: "add", path: "/data/steps/lines/-", value: { text: "C-1 ok" } }, { op: "replace", path: "/data/progress", value: { items: [] } }])
 })
 
 test("a push for an agent this plugin did not start is refused, and so is an undeclared view", async () => {

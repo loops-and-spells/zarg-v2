@@ -1,0 +1,31 @@
+{
+  "edges": [
+    {
+      "to": "S-0033",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0036",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0033",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
+  "id": "C-0036",
+  "props": {
+    "planned": true,
+    "title": "A model without tool calls is refused",
+    "when": "the operator picks a model without tool calling"
+  },
+  "type": "gherkin/card"
+}

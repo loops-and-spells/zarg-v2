@@ -42,7 +42,7 @@ import { definePlugin, Entities } from "@zarg/plugin-sdk"
 export default definePlugin({ name: "reader", service: "Reader", archetype: "service", config: Schema.Struct({}), scopes: ${scopes},
   methods: { go: { doc: "go", params: Schema.Struct({}), success: Schema.Unknown } },
   make: Effect.gen(function* () { const e = yield* Entities
-    return { go: () => e.code("gherkin/card:UX-0001") } }) })`
+    return { go: () => e.code("gherkin/card:C-0001") } }) })`
   const refused = await Effect.runPromise(Effect.exit(hostWith([await fixturePlugin(src(`{ entities: { read: ["gherkin/*"] } }`))], (h) => h.invoke("reader", "go", {}))))
   expect(JSON.stringify(refused)).toContain("has no code scope")
 })

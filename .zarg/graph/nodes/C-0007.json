@@ -1,0 +1,26 @@
+{
+  "edges": [
+    {
+      "to": "S-0001",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0005",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0005",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0002",
+      "type": "gherkin/by"
+    }
+  ],
+  "id": "C-0007",
+  "props": {
+    "title": "A duplicate link is refused",
+    "when": "the CLI actor links a card to the same state twice"
+  },
+  "type": "gherkin/card"
+}

@@ -3,19 +3,19 @@
   "stage": "planned",
   "proposals": [
     {
-      "card": "UX-0041",
+      "card": "C-0041",
       "changes": [
         {
           "tool": "edit-card",
           "params": {
-            "id": "UX-0041",
+            "id": "C-0041",
             "when": "the parent run transfers next work to a child agent"
           }
         },
         {
           "tool": "link",
           "params": {
-            "card": "UX-0041",
+            "card": "C-0041",
             "edge": "then",
             "state": {
               "text": "the child receives ownership of the handed-off work"
@@ -107,7 +107,7 @@
       ]
     },
     {
-      "card": "UX-0048",
+      "card": "C-0048",
       "changes": [
         {
           "tool": "edit-state",
@@ -133,7 +133,7 @@
         {
           "tool": "edit-card",
           "params": {
-            "id": "UX-0048",
+            "id": "C-0048",
             "title": "A service outside the operator-granted scopes is refused",
             "when": "an agent attempts to invoke a service outside the operator-granted scopes"
           }
@@ -141,7 +141,7 @@
         {
           "tool": "link",
           "params": {
-            "card": "UX-0048",
+            "card": "C-0048",
             "edge": "then",
             "state": {
               "text": "the agent surfaces the refusal to the operator, extends the grant, and retries"
@@ -171,7 +171,7 @@
       ]
     },
     {
-      "card": "UX-0046",
+      "card": "C-0046",
       "changes": [
         {
           "tool": "add-card",
@@ -199,7 +199,7 @@
         {
           "tool": "edit-card",
           "params": {
-            "id": "UX-0046",
+            "id": "C-0046",
             "when": "an agent reads an env file inside its declared workspace"
           }
         },
@@ -213,7 +213,7 @@
         {
           "tool": "edit-card",
           "params": {
-            "id": "UX-0046",
+            "id": "C-0046",
             "title": "Env files stay hidden; refusal reason names file and gate"
           }
         }
@@ -242,14 +242,14 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0041",
+        "id": "C-0041",
         "when": "the parent run transfers next work to a child agent"
       }
     },
     {
       "tool": "link",
       "params": {
-        "card": "UX-0041",
+        "card": "C-0041",
         "edge": "then",
         "state": {
           "text": "the child receives ownership of the handed-off work"
@@ -332,7 +332,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0048",
+        "id": "C-0048",
         "title": "A service outside the operator-granted scopes is refused",
         "when": "an agent attempts to invoke a service outside the operator-granted scopes"
       }
@@ -340,7 +340,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "UX-0048",
+        "card": "C-0048",
         "edge": "then",
         "state": {
           "text": "the agent surfaces the refusal to the operator, extends the grant, and retries"
@@ -373,7 +373,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0046",
+        "id": "C-0046",
         "when": "an agent reads an env file inside its declared workspace"
       }
     },
@@ -387,7 +387,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0046",
+        "id": "C-0046",
         "title": "Env files stay hidden; refusal reason names file and gate"
       }
     }

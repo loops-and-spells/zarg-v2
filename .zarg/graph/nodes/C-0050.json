@@ -1,0 +1,26 @@
+{
+  "edges": [
+    {
+      "to": "S-0021",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0055",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0004",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
+  "id": "C-0050",
+  "props": {
+    "title": "Landing waits for the operator",
+    "when": "the operator has uncommitted edits in its files"
+  },
+  "type": "gherkin/card"
+}

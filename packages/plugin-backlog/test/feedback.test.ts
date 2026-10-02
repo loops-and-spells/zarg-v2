@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { entryId, stateOf, upsert } from "../src/feedback"
 
 const filed = (over: Record<string, unknown> = {}) => ({
-  ref: "gherkin/card:UX-0062@3f9a1c20b7e4",
+  ref: "gherkin/card:C-0062@3f9a1c20b7e4",
   journeys: ["Set up"],
   persona: "Operator",
   kind: "gap",
@@ -16,7 +16,7 @@ const filed = (over: Record<string, unknown> = {}) => ({
 describe("feedback entries", () => {
   test("the id is stable for one report on one card version, and differs across versions", () => {
     expect(entryId(filed())).toBe(entryId(filed({ note: "no path when the operator denies." })))
-    expect(entryId(filed())).not.toBe(entryId(filed({ ref: "gherkin/card:UX-0062@000000000000" })))
+    expect(entryId(filed())).not.toBe(entryId(filed({ ref: "gherkin/card:C-0062@000000000000" })))
     expect(entryId(filed())).toMatch(/^F-[0-9a-f]{8}$/)
   })
   test("the same report twice is one entry, count 2; the operator's toggle is kept", () => {
@@ -37,6 +37,6 @@ describe("feedback entries", () => {
 })
 
 test("a note is one line of words: a model's newlines and runs of spaces are collapsed when it is filed", () => {
-  const f = { ref: "gherkin/card:UX-0016@abc", journeys: ["Talk"], persona: "Operator", kind: "feature", severity: "medium" as const, note: "I\n would\n want   a\tconflict\n resolution.", from: { agent: "rehearse", run: "r-1" }, triage: { on: true, why: "ask" } }
+  const f = { ref: "gherkin/card:C-0016@abc", journeys: ["Talk"], persona: "Operator", kind: "feature", severity: "medium" as const, note: "I\n would\n want   a\tconflict\n resolution.", from: { agent: "rehearse", run: "r-1" }, triage: { on: true, why: "ask" } }
   expect(upsert(undefined, f).note).toBe("I would want a conflict resolution.")
 })

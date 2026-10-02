@@ -7,9 +7,9 @@ describe("section data", () => {
     const ok = {
       stats: { items: [{ label: "steps", value: "14/22" }], progress: { done: 14, total: 22 } },
       list: { items: [{ id: "s3", text: "story 3", state: "busy" }] },
-      log: { lines: [{ text: "UX-1 ok", tone: "dim" }] },
+      log: { lines: [{ text: "C-1 ok", tone: "dim" }] },
       table: { rows: [{ id: "R-1", cells: { id: "R-1", note: "unclear" } }] },
-      keyvalue: { pairs: [{ key: "card", value: "UX-1" }] },
+      keyvalue: { pairs: [{ key: "card", value: "C-1" }] },
       text: { markdown: "**done**" },
     } as const
     for (const [kind, data] of Object.entries(ok)) {

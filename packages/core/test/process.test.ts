@@ -114,7 +114,7 @@ describe("zarg-core process", () => {
     git("git init -q -b main && git config user.email t@t && git config user.name t")
     writeFileSync(join(project, ".env.schema"), "# @defaultSensitive=false\n# ---\n")
     mkdirSync(join(project, ".zarg"))
-    writeFileSync(join(project, ".zarg", "config.toml"), '[reconcile]\nquiet_ms = 200\nverify = "test -f src/UX-0001.ts"\n')
+    writeFileSync(join(project, ".zarg", "config.toml"), '[reconcile]\nquiet_ms = 200\nverify = "test -f src/C-0001.ts"\n')
     writeFileSync(join(project, ".gitignore"), ".zarg/run/\n.zarg/threads/\n")
     git("git add -A && git commit -qm init")
     const stub = join(project, "..", `${project.split("/").pop()}-stub.json`)
@@ -122,8 +122,8 @@ describe("zarg-core process", () => {
       stub,
       JSON.stringify({
         cells: [
-          'yield* Rlm.done({ value: { plan: "## Approach\\nAdd it.\\n## Files\\n- src/UX-0001.ts — new\\n## Tests\\n- none — stub\\n## Depends on\\nnone" } })',
-          'yield* Fs.write({ path: "src/UX-0001.ts", content: "// @" + "card UX-0001\\nexport const ok = true\\n" })\nyield* Rlm.done({ value: { files: ["src/UX-0001.ts"], summary: "added" } })',
+          'yield* Rlm.done({ value: { plan: "## Approach\\nAdd it.\\n## Files\\n- src/C-0001.ts — new\\n## Tests\\n- none — stub\\n## Depends on\\nnone" } })',
+          'yield* Fs.write({ path: "src/C-0001.ts", content: "// @" + "card C-0001\\nexport const ok = true\\n" })\nyield* Rlm.done({ value: { files: ["src/C-0001.ts"], summary: "added" } })',
         ],
       }),
     )
@@ -132,20 +132,20 @@ describe("zarg-core process", () => {
     mkdirSync(join(project, ".zarg", "graph", "nodes"), { recursive: true })
     writeFileSync(join(project, ".zarg/graph/nodes/S-0001.json"), `${JSON.stringify({ id: "S-0001", type: "gherkin/state", props: { text: "the home page is shown" }, edges: [] })}\n`)
     writeFileSync(
-      join(project, ".zarg/graph/nodes/UX-0001.json"),
-      `${JSON.stringify({ id: "UX-0001", type: "gherkin/card", props: { title: "Open home", when: "the user opens the app" }, edges: [{ type: "gherkin/arrives", to: "S-0001" }, { type: "gherkin/then", to: "S-0001" }] })}\n`,
+      join(project, ".zarg/graph/nodes/C-0001.json"),
+      `${JSON.stringify({ id: "C-0001", type: "gherkin/card", props: { title: "Open home", when: "the user opens the app" }, edges: [{ type: "gherkin/arrives", to: "S-0001" }, { type: "gherkin/then", to: "S-0001" }] })}\n`,
     )
     const until = Date.now() + 30_000
-    while (git("git log -1 --format=%s") !== "feat: implement UX-0001" && Date.now() < until) await Bun.sleep(200)
+    while (git("git log -1 --format=%s") !== "feat: implement C-0001" && Date.now() < until) await Bun.sleep(200)
     proc.stdin.end()
     await proc.exited
-    expect(git("git log -1 --format=%s")).toBe("feat: implement UX-0001")
+    expect(git("git log -1 --format=%s")).toBe("feat: implement C-0001")
     expect(git("git show --name-only --format= HEAD").split("\n").sort()).toEqual([
+      ".zarg/graph/nodes/C-0001.json",
       ".zarg/graph/nodes/S-0001.json",
-      ".zarg/graph/nodes/UX-0001.json",
-      ".zarg/plans/UX-0001.md",
+      ".zarg/plans/C-0001.md",
       ".zarg/reconciled.json",
-      "src/UX-0001.ts",
+      "src/C-0001.ts",
     ])
     expect(git("git status --porcelain")).toBe("")
     rmSync(project, { recursive: true, force: true })
@@ -161,7 +161,7 @@ describe("zarg-core process", () => {
     writeFileSync(join(project, ".zarg", "config.toml"), '[reconcile]\nenabled = false\nquiet_ms = 200\nverify = "true"\n')
     writeFileSync(join(project, ".gitignore"), ".zarg/run/\n.zarg/threads/\n")
     writeFileSync(join(project, ".zarg/graph/nodes/S-0001.json"), `${JSON.stringify({ id: "S-0001", type: "gherkin/state", props: { text: "home" }, edges: [] })}\n`)
-    writeFileSync(join(project, ".zarg/graph/nodes/UX-0001.json"), `${JSON.stringify({ id: "UX-0001", type: "gherkin/card", props: { title: "Open", when: "the user opens it" }, edges: [{ type: "gherkin/arrives", to: "S-0001" }, { type: "gherkin/then", to: "S-0001" }] })}\n`)
+    writeFileSync(join(project, ".zarg/graph/nodes/C-0001.json"), `${JSON.stringify({ id: "C-0001", type: "gherkin/card", props: { title: "Open", when: "the user opens it" }, edges: [{ type: "gherkin/arrives", to: "S-0001" }, { type: "gherkin/then", to: "S-0001" }] })}\n`)
     git("git add -A && git commit -qm init")
     const stub = join(project, "..", `${project.split("/").pop()}-stub.json`)
     writeFileSync(stub, JSON.stringify({ cells: ['yield* Rlm.done({ value: { plan: "## Approach\\nx" } })', 'yield* Rlm.done({ value: { files: [], summary: "nothing to write" } })'] }))
@@ -174,8 +174,8 @@ describe("zarg-core process", () => {
     expect([first.on, second.on]).toEqual([true, true])
     expect((await Effect.runPromise(client.threads())).map((t) => t.id)).toEqual(["main", "plan", "implement"])
     const until = Date.now() + 30_000
-    while (git("git log -1 --format=%s") !== "feat: implement UX-0001" && Date.now() < until) await Bun.sleep(200)
-    expect(git("git log -1 --format=%s")).toBe("feat: implement UX-0001")
+    while (git("git log -1 --format=%s") !== "feat: implement C-0001" && Date.now() < until) await Bun.sleep(200)
+    expect(git("git log -1 --format=%s")).toBe("feat: implement C-0001")
     const passes = new Set(
       readFileSync(join(project, ".zarg/threads/plan.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l)).filter((e) => e.type === "RUN_STARTED").map((e) => e.runId),
     )

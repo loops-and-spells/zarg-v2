@@ -1,0 +1,26 @@
+{
+  "edges": [
+    {
+      "to": "S-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0062",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
+  "id": "C-0069",
+  "props": {
+    "title": "zarg's own plugins start approved",
+    "when": "zarg loads the plugins it ships with"
+  },
+  "type": "gherkin/card"
+}

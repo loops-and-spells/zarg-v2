@@ -1,0 +1,26 @@
+{
+  "edges": [
+    {
+      "to": "S-0019",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0020",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0004",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0005",
+      "type": "gherkin/by"
+    }
+  ],
+  "id": "C-0021",
+  "props": {
+    "title": "Implementer Agent updates the code",
+    "when": "the Implementer Agent codes each plan in its own worktree"
+  },
+  "type": "gherkin/card"
+}

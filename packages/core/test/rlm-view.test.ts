@@ -11,8 +11,8 @@ import { makeViews } from "../src/views"
 describe("the RLM's view", () => {
   test("history lines read as the history view did: model turns, calls, cells", () => {
     expect(rlmLines({ type: "model", turn: 2, modelMs: 1500, promptTokens: 1200, completionTokens: 80 })).toEqual([{ text: "turn 2 · model 1.5s · 1,200 → 80 tokens", tone: "accent" }])
-    expect(rlmLines({ type: "call", service: "Graph", method: "show", params: { id: "UX-1" }, ms: 4, ok: false, failure: { _tag: "NotFound", message: "no UX-1" } })).toEqual([
-      { text: '  Graph.show {"id":"UX-1"}  4ms  failed: NotFound: no UX-1', tone: "error" },
+    expect(rlmLines({ type: "call", service: "Graph", method: "show", params: { id: "C-1" }, ms: 4, ok: false, failure: { _tag: "NotFound", message: "no C-1" } })).toEqual([
+      { text: '  Graph.show {"id":"C-1"}  4ms  failed: NotFound: no C-1', tone: "error" },
     ])
     expect(rlmLines({ type: "step", text: "", cells: [{ code: "yield* x", ok: true, output: "", ms: 3 }] })).toEqual([
       { text: "  cell ok 3ms", tone: "dim" },

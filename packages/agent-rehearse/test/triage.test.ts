@@ -7,8 +7,8 @@ import { triage } from "../src/triage"
 import type { Finding } from "../src/types"
 
 const s = rehearseSettings({}, "rehearse")
-const f: Finding = { id: "R-00000001", kind: "gap", card: "UX-1", severity: "high", notes: ["payment can fail silently"], count: 1, personas: ["developer"] }
-const step = { card: "UX-1", title: "Pay", given: "the payment form is shown", when: "the visitor pays", thens: ["the order is placed"], fork: [], hasFailure: false }
+const f: Finding = { id: "R-00000001", kind: "gap", card: "C-1", severity: "high", notes: ["payment can fail silently"], count: 1, personas: ["developer"] }
+const step = { card: "C-1", title: "Pay", given: "the payment form is shown", when: "the visitor pays", thens: ["the order is placed"], fork: [], hasFailure: false }
 const answers = (real: number, route: string) => () =>
   Effect.succeed({ real: { type: "noul", answer: real >= 0.5, probability: real, confidence: 0 }, route: { type: "choice", choice: route, probabilities: { [route]: 1 }, confidence: 1 } } as Record<string, Answer>)
 

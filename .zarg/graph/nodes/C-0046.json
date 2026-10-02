@@ -1,0 +1,26 @@
+{
+  "edges": [
+    {
+      "to": "S-0040",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0050",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0003",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0006",
+      "type": "gherkin/by"
+    }
+  ],
+  "id": "C-0046",
+  "props": {
+    "title": "Env files stay hidden from agents",
+    "when": "an agent reads a local env file"
+  },
+  "type": "gherkin/card"
+}

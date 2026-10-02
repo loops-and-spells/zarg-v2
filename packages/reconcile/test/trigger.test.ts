@@ -57,19 +57,19 @@ describe("reconciler", () => {
     while (!cond() && Date.now() < end) await sleep(50)
   }
 
-  // @card UX-0020
+  // @card C-0020
   test("a graph edit is reconciled into a landed commit after the quiet period", async () => {
     const r = repo()
     const { rec, results } = start(r)
     writeNode(r, state("S-0001", "home"))
-    writeNode(r, card("UX-0001", "S-0001", "S-0001"))
+    writeNode(r, card("C-0001", "S-0001", "S-0001"))
     // Under load the two files may land in separate quiet periods: an early pass then finds nothing to do.
     await until(() => results.includes("landed"))
     rec.close()
     // Extra quiet periods may add passes that find nothing (or find it already reconciled): exactly one lands.
     expect(results.filter((x) => x === "landed")).toEqual(["landed"])
     expect(results.every((x) => x === "landed" || x === "nothing" || x === "skipped")).toBe(true)
-    expect(sh(r, "git log -1 --format=%s")).toBe("feat: implement UX-0001")
+    expect(sh(r, "git log -1 --format=%s")).toBe("feat: implement C-0001")
   }, 20_000)
 
   test("a checkout it cannot land on (detached HEAD) raises a finding instead of running", async () => {

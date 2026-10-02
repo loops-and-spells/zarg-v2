@@ -10,7 +10,7 @@ const sh = (cwd: string, args: ReadonlyArray<string>) =>
 const decode = Schema.decodeUnknownEffect(Schema.fromJsonString(Node))
 
 /** The graph as committed at `ref`, read with git (the working tree is untouched). Undecodable files are skipped and reported. */
-// @card UX-0005
+// @card C-0005
 export const snapshotAt = (root: string, ref: string) =>
   Effect.gen(function* () {
     // --full-name: paths from the repo top, which is what `git show ref:path` expects.
@@ -29,9 +29,9 @@ export const snapshotAt = (root: string, ref: string) =>
   })
 
 /** `path:line:text` hits for `@card <id>` in tracked and untracked files (not ignored ones). */
-// @card UX-0081 UX-0082
+// @card C-0081 C-0082
 export const cardRefs = (root: string, id: string) =>
-  // The id anywhere in a tag's list: `@card UX-0081 UX-0082` is a tag for both.
+  // The id anywhere in a tag's list: `@card C-0081 C-0082` is a tag for both.
   sh(root, ["grep", "-n", "--untracked", "-E", "-e", `@card([[:space:]]+[A-Z]+-[0-9]+)*[[:space:]]+${id}([^0-9]|$)`]).pipe(
     Effect.map((out) => out.split("\n").filter((l) => l.length > 0)),
     // git grep exits 1 when nothing matches.

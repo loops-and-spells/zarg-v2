@@ -1,0 +1,31 @@
+{
+  "edges": [
+    {
+      "to": "S-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0033",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "S-0034",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    }
+  ],
+  "id": "C-0034",
+  "props": {
+    "planned": true,
+    "title": "Driver Agent asks for a role's model",
+    "when": "a role has no model set"
+  },
+  "type": "gherkin/card"
+}

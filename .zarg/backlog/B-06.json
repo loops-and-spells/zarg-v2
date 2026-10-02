@@ -3,13 +3,13 @@
   "journey": "Watch agents",
   "cards": [
     {
-      "ref": "gherkin/card:UX-0041@3ea582a7789a"
+      "ref": "gherkin/card:C-0041@3ea582a7789a"
     },
     {
-      "ref": "gherkin/card:UX-0048@d814d2c2e755"
+      "ref": "gherkin/card:C-0048@d814d2c2e755"
     },
     {
-      "ref": "gherkin/card:UX-0046@cc3b24b9f8ef"
+      "ref": "gherkin/card:C-0046@cc3b24b9f8ef"
     }
   ],
   "changes": [
@@ -30,14 +30,14 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0048",
+        "id": "C-0048",
         "when": "an agent attempts to invoke a service outside the operator-granted scopes"
       }
     },
     {
       "tool": "edit-card",
       "params": {
-        "id": "UX-0046",
+        "id": "C-0046",
         "when": "an agent reads an env file local to its declared workspace"
       }
     },
@@ -92,12 +92,12 @@
     "F-ef320313"
   ],
   "steps": [
-    "Rewrite UX-0048 with new When: attempt to invoke outside-granted service",
-    "Add UX-0048 then naming missing name plus grant request",
-    "Keep UX-0041 unchanged until run ownership and state labels set",
-    "Tie UX-0046 env-file reads to declared workspace",
-    "Rewrite UX-0046 refusal naming file and blocking gate",
-    "Add new UX-0046 then card recording refusal to continue run"
+    "Rewrite C-0048 with new When: attempt to invoke outside-granted service",
+    "Add C-0048 then naming missing name plus grant request",
+    "Keep C-0041 unchanged until run ownership and state labels set",
+    "Tie C-0046 env-file reads to declared workspace",
+    "Rewrite C-0046 refusal naming file and blocking gate",
+    "Add new C-0046 then card recording refusal to continue run"
   ],
   "persona": "Driver Agent",
   "severity": "high",

@@ -1,0 +1,26 @@
+{
+  "edges": [
+    {
+      "to": "S-0040",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "S-0045",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0003",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    }
+  ],
+  "id": "C-0043",
+  "props": {
+    "title": "An agent runs out of budget",
+    "when": "an agent exhausts its budget"
+  },
+  "type": "gherkin/card"
+}

@@ -68,7 +68,7 @@ const project = () => {
 }
 const card = (r: string) => {
   write(r, ".zarg/graph/nodes/S-0001.json", `${JSON.stringify({ id: "S-0001", type: "gherkin/state", props: { text: "home" }, edges: [] })}\n`)
-  write(r, ".zarg/graph/nodes/UX-0001.json", `${JSON.stringify({ id: "UX-0001", type: "gherkin/card", props: { title: "Open", when: "the user opens it" }, edges: [{ type: "gherkin/arrives", to: "S-0001" }, { type: "gherkin/then", to: "S-0001" }] })}\n`)
+  write(r, ".zarg/graph/nodes/C-0001.json", `${JSON.stringify({ id: "C-0001", type: "gherkin/card", props: { title: "Open", when: "the user opens it" }, edges: [{ type: "gherkin/arrives", to: "S-0001" }, { type: "gherkin/then", to: "S-0001" }] })}\n`)
 }
 const until = async (cond: () => boolean, ms = 20_000) => {
   const end = Date.now() + ms
@@ -80,17 +80,17 @@ describe("reconcile in the core", () => {
     const r = project()
     const { reconcile, log } = await start(r, 0)
     card(r)
-    await until(() => sh(r, "git log -1 --format=%s") === "feat: implement UX-0001")
+    await until(() => sh(r, "git log -1 --format=%s") === "feat: implement C-0001")
     await until(() => log.all().some((e) => e.threadId === "implement" && e.type === "RUN_FINISHED"))
     const impl = log.all().filter((e) => e.threadId === "implement")
     expect(String(impl[0]?.type)).toBe("RUN_STARTED")
-    expect(impl.filter((e) => e.type === "TEXT_MESSAGE_CONTENT").map((e) => e.delta)).toEqual([expect.stringMatching(/^Landed UX-0001 in [0-9a-f]{7}\.$/)])
-    expect(impl.some((e) => e.type === "ACTIVITY_DELTA" && JSON.stringify(e).includes("UX-0001:rlm-1"))).toBe(true)
+    expect(impl.filter((e) => e.type === "TEXT_MESSAGE_CONTENT").map((e) => e.delta)).toEqual([expect.stringMatching(/^Landed C-0001 in [0-9a-f]{7}\.$/)])
+    expect(impl.some((e) => e.type === "ACTIVITY_DELTA" && JSON.stringify(e).includes("C-0001:rlm-1"))).toBe(true)
     expect(log.all().some((e) => e.threadId === "plan" && e.type === "ACTIVITY_DELTA")).toBe(true)
     expect(reconcile.threads.map((t) => [t.id, t.status()])).toEqual([["plan", "idle"], ["implement", "idle"]])
     // The client sees each card's RLM tree (ids carry the card, and JSON Pointer paths stay one segment).
     const state = impl.reduce(reduce, initial("implement"))
-    expect(Object.keys(state.rlms).some((id) => id.includes("UX-0001"))).toBe(true)
+    expect(Object.keys(state.rlms).some((id) => id.includes("C-0001"))).toBe(true)
   }, 30_000)
 
   test("a core closed mid-pass leaves no finding; the next start resumes the pass and lands it", async () => {
@@ -101,8 +101,8 @@ describe("reconcile in the core", () => {
     await Effect.runPromise(Scope.close(scopes.at(-1)!, Exit.void))
     expect(first.reconcile.findings.list()).toEqual([])
     const second = await start(r, 0)
-    await until(() => sh(r, "git log -1 --format=%s") === "feat: implement UX-0001")
-    expect(sh(r, "git log -1 --format=%s")).toBe("feat: implement UX-0001")
+    await until(() => sh(r, "git log -1 --format=%s") === "feat: implement C-0001")
+    expect(sh(r, "git log -1 --format=%s")).toBe("feat: implement C-0001")
     expect(second.reconcile.findings.list()).toEqual([])
   }, 60_000)
 
