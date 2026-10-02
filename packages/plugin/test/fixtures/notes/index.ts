@@ -26,7 +26,7 @@ export default definePlugin({
     lint: { doc: "Lints.", params: Schema.Struct({ before: Json, after: Json }), success: Findings },
     agenda: { doc: "Topics without notes.", params: Schema.Struct({}), success: Items },
     render: { doc: "Topics.", params: Schema.Struct({ focus: Schema.optionalKey(Schema.Array(Schema.String)) }), success: Schema.String },
-    affected: { doc: "Added notes.", params: Schema.Struct({ before: Json, after: Json }), success: Schema.Struct({ cards: Schema.Array(Schema.String), removed: Schema.Array(Schema.String) }) },
+    affected: { doc: "Added notes.", params: Schema.Struct({ before: Json, after: Json }), success: Schema.Struct({ scenarios: Schema.Array(Schema.String), removed: Schema.Array(Schema.String) }) },
   },
   make: Effect.gen(function* () {
     const graph = yield* Graph
@@ -77,7 +77,7 @@ export default definePlugin({
             .map((t) => `# ${String(t.props.name)}`)
             .join("\n"),
         ),
-      affected: ({ before, after }) => Effect.sync(() => ({ cards: diff(snapOf(before), snapOf(after)).added.filter((n) => n.type === "notes/note").map((n) => n.id).sort(), removed: [] })),
+      affected: ({ before, after }) => Effect.sync(() => ({ scenarios: diff(snapOf(before), snapOf(after)).added.filter((n) => n.type === "notes/note").map((n) => n.id).sort(), removed: [] })),
     }
   }),
 })

@@ -22,5 +22,5 @@
     "title": "A card cannot be planned",
     "when": "the Planner Agent finds the card contradicts another card"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

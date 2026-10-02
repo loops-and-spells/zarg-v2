@@ -1,9 +1,9 @@
 {
   "title": "Child agent appears",
   "journey": "Watch agents",
-  "cards": [
+  "scenarios": [
     {
-      "ref": "gherkin/card:S-0041@85196d3ea738"
+      "ref": "gherkin/scenario:S-0041@85196d3ea738"
     }
   ],
   "changes": [
@@ -17,7 +17,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0041",
+        "scenario": "S-0041",
         "edge": "then",
         "state": {
           "text": "the child receives ownership of the handed-off work"

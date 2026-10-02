@@ -22,5 +22,5 @@
     "title": "zarg's own plugins start approved",
     "when": "zarg loads the plugins it ships with"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

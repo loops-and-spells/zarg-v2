@@ -1,4 +1,4 @@
-// A pass in its own process: `CRASH_ON=<card>` kills the process while that card is being implemented.
+// A pass in its own process: `CRASH_ON=<scenario>` kills the process while that scenario is being implemented.
 import { runPass, stubSpec } from "./stub-spec"
 
 const [repo, db, log] = process.argv.slice(2) as [string, string, string]

@@ -26,5 +26,5 @@
     "title": "Operator stops an agent",
     "when": "the operator stops an agent"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

@@ -22,5 +22,5 @@
     "title": "CLI actor lists changes since a sync",
     "when": "the CLI actor asks for changes since a git ref"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

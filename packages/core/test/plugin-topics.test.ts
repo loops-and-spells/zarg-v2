@@ -34,7 +34,7 @@ test("a reconcile finding is a finding topic (zarg takes it up: no answers); it 
 
 test("a finding topic the operator read is not raised again while the finding stays; reconcile off settles with that reason", async () => {
   const { inbox } = await setup()
-  const f = { id: "finding-2", kind: "blocked-card" as const, title: "S-0024 cannot be implemented", detail: "contradicts S-0023", about: ["S-0024"], pass: "p1", at: "2026-09-30" }
+  const f = { id: "finding-2", kind: "blocked-scenario" as const, title: "S-0024 cannot be implemented", detail: "contradicts S-0023", about: ["S-0024"], pass: "p1", at: "2026-09-30" }
   await Effect.runPromise(syncFindingTopics(inbox, [f]))
   await Effect.runPromise(inbox.read(inbox.list()[0]!.id))
   await Effect.runPromise(syncFindingTopics(inbox, [f]))

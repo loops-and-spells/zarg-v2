@@ -75,7 +75,7 @@ export const layer = (dir: string): Layer.Layer<GraphStore, never, FileSystem.Fi
 
       const snapshot = Effect.map(load, (l) => l.snapshot)
 
-      // @card S-0002
+      // @scenario S-0002
       const commit = (changes: ReadonlyArray<Change>, expect: Expect = {}) =>
         Effect.gen(function* () {
           for (const c of changes) {
@@ -92,7 +92,7 @@ export const layer = (dir: string): Layer.Layer<GraphStore, never, FileSystem.Fi
               return yield* new InvalidNode({ file: fileOf(id), message: `${id} failed to load; restore or fix the file first` })
             }
           }
-          // @card S-0016
+          // @scenario S-0016
           for (const [id, expected] of Object.entries(expect)) {
             const cur = before.nodes.get(id)
             const actual = cur === undefined ? undefined : hash(cur)

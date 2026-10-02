@@ -26,5 +26,5 @@
     "title": "A failing plugin is disabled",
     "when": "the plugin fails three times in ten minutes"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

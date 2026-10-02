@@ -36,7 +36,7 @@ export class Entities extends Context.Service<Entities, {
   readonly changed: (ref: string) => Effect.Effect<boolean, PluginFailure>
   readonly label: (ref: string) => Effect.Effect<EntityView["label"], PluginFailure>
   readonly context: (ref: string) => Effect.Effect<string, PluginFailure>
-  /** A gherkin card's code: each `@card` tag's file and line and the code after it (redacted); none when untagged. */
+  /** A gherkin scenario's code: each `@scenario` tag's file and line and the code after it (redacted); none when untagged. */
   readonly code: (ref: string) => Effect.Effect<ReadonlyArray<{ readonly file: string; readonly line: number; readonly text: string }>, PluginFailure>
   readonly command: (ref: string, name: string, args: unknown) => Effect.Effect<unknown, PluginFailure>
 }>()("@zarg/plugin-sdk/Entities") {}

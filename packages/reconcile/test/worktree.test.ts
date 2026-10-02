@@ -77,7 +77,7 @@ describe("mergeBranches", () => {
     expect(existsSync(join(main, "a.ts")) && existsSync(join(main, "b.ts"))).toBe(true)
   })
 
-  // @card S-0053 S-0054
+  // @scenario S-0053 S-0054
   test("a conflict the resolver fixes is committed; one it cannot fix is aborted and reported", async () => {
     const { r, base, make } = setup()
     await make("a", "README.md", "from a\n")

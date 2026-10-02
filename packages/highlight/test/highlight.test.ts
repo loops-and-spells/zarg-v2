@@ -5,7 +5,7 @@ import { highlight, languages } from "../src"
 const show = (lang: string, src: string) => highlight(lang, src).map((line) => line.map((s) => (s.token === undefined ? s.text : `${s.token}:${s.text}`)))
 
 describe("gherkin", () => {
-  test("a card: its id and title, keywords, quoted text, and the # ids as a comment", () => {
+  test("a scenario: its id and title, keywords, quoted text, and the # ids as a comment", () => {
     expect(show("gherkin", 'S-0003 Visitor picks Pro\n  Given the plan picker is shown  # ST-0002\n  When  the visitor clicks "Pricing"\n  Then  2 plans show  # ST-0004')).toEqual([
       ["id:S-0003", " ", "title:Visitor picks Pro"],
       ["  ", "keyword:Given", " the plan picker is shown", "  ", "comment:# ST-0002"],
@@ -14,15 +14,15 @@ describe("gherkin", () => {
     ])
   })
   test("By and In lines, the journey head, and the flow's arrows with the ids they point at", () => {
-    expect(show("gherkin", "Checkout  # J-0001 · 2 cards\n  By    Operator  # P-0001\n→ S-0002 or S-0003 (branches)\n↺ back to S-0001")).toEqual([
-      ["title:Checkout", "  ", "comment:# J-0001 · 2 cards"],
+    expect(show("gherkin", "Checkout  # J-0001 · 2 scenarios\n  By    Operator  # P-0001\n→ S-0002 or S-0003 (branches)\n↺ back to S-0001")).toEqual([
+      ["title:Checkout", "  ", "comment:# J-0001 · 2 scenarios"],
       ["  ", "keyword:By", "    ", "persona:Operator", "  ", "comment:# P-0001"],
       ["flow:→", " ", "id:S-0002", " or ", "id:S-0003", " (branches)"],
       ["flow:↺", " back to ", "id:S-0001"],
     ])
   })
   test("every line keeps all its text: joining the pieces gives the source back", () => {
-    const src = 'S-1 t\n  And   a "b" c  # ST-1\nNot connected to the journey\'s other cards:\n\n  weird\tline'
+    const src = 'S-1 t\n  And   a "b" c  # ST-1\nNot connected to the journey\'s other scenarios:\n\n  weird\tline'
     expect(highlight("gherkin", src).map((l) => l.map((s) => s.text).join("")).join("\n")).toBe(src)
   })
 })

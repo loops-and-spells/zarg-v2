@@ -22,5 +22,5 @@
     "title": "A child agent appears",
     "when": "an agent hands work to a child agent"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

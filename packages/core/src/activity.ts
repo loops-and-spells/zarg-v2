@@ -7,7 +7,7 @@ import type { ViewStore } from "./views"
 
 /**
  * The RLM tree a thread shows (ACTIVITY_SNAPSHOT / ACTIVITY_DELTA) and its transcript. `prefix` keeps ids
- * apart when several independent RLM runs share one thread (the reconcile threads: one run per card).
+ * apart when several independent RLM runs share one thread (the reconcile threads: one run per scenario).
  */
 // The agents pane shows what an RLM was asked; the full task (often pages of context) stays in the transcript.
 // Redact before cutting: a cut through a secret would no longer match it.
@@ -46,7 +46,7 @@ export const makeActivity = (log: ThreadLog, threadId: string, messageId = `${th
       progress: { done: turns, total: Math.max(budget, turns) },
     })
   }
-  // @card S-0040
+  // @scenario S-0040
   const observe = (e: Rlm.RlmEvent, prefix = "") => {
     const id = `${prefix}${e.id}`
     // Transcripts get what each RLM was asked and did; the activity tree gets its shape and status.

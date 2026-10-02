@@ -8,7 +8,7 @@ import { makeLog, type WireEvent } from "@zarg/core"
 import type { Asker, Rlm } from "@zarg/rlm"
 import { makeThread } from "../src/thread"
 
-const question = { question: "Which card first?", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }] }
+const question = { question: "Which scenario first?", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }] }
 
 test("zarg is a row at the root of main, its driver RLM under it; it asks for attention while its question waits", async () => {
   const out = await Effect.runPromise(
@@ -30,7 +30,7 @@ test("zarg is a row at the root of main, its driver RLM under it; it asks for at
       return { asking, after: state().rlms }
     }),
   )
-  expect(out.asking.zarg).toMatchObject({ preset: "zarg", parent: null, attention: { reason: "asks: Which card first?" } })
+  expect(out.asking.zarg).toMatchObject({ preset: "zarg", parent: null, attention: { reason: "asks: Which scenario first?" } })
   expect(out.asking["rlm-1"]!.parent).toBe("zarg")
   expect(out.after.zarg!.attention).toBeUndefined()
 })

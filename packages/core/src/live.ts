@@ -126,8 +126,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         withGraphLock: (effect) => host.exclusive(effect),
         pluginHost: pluginsFor(root, env, config, sensitive),
         affected: (before, after) => host.affected(before, after),
-        onLanded: (cards) => void Effect.runFork(planner.landed(cards)),
-        onFailed: (cards) => void Effect.runFork(planner.failed(cards)),
+        onLanded: (scenarios) => void Effect.runFork(planner.landed(scenarios)),
+        onFailed: (scenarios) => void Effect.runFork(planner.failed(scenarios)),
         // Findings in the operator's inbox: raised when a pass finds them, settled once they clear.
         onPassEnd: () => void Effect.runFork(syncFindings),
       }).pipe(Effect.provideService(EffectScope.Scope, scope))
@@ -138,7 +138,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       snapshot: store.snapshot,
       affected: (before, after) => host.affected(before as never, after as never),
       files: () => graphFiles(root),
-      exists: (card) => Effect.map(store.snapshot, (s) => s.nodes.has(card)).pipe(Effect.orElseSucceed(() => true)),
+      exists: (scenario) => Effect.map(store.snapshot, (s) => s.nodes.has(scenario)).pipe(Effect.orElseSucceed(() => true)),
       commit: (ids, message) => commitGraph(root, ids, message),
       notify: () => reconcile?.notify(),
       reconcileOn: () => reconcile !== undefined,
@@ -254,7 +254,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // Then the agents pick up where a restart left them: a Ready plan, a journey's stage halfway.
     yield* Effect.forkDetach(Effect.andThen(loadPlugins, Effect.andThen(syncPlugins, Effect.andThen(planner.tick, triageTick))))
 
-    // @card S-0058 @card S-0059
+    // @scenario S-0058 @scenario S-0059
     /** `/reconcile`: turn plan and implement on for this session (the config's section and `enabled` are overridden). */
     // One at a time, and never cut short halfway: two presses must not start two reconcilers.
     const turnOnLock = yield* Semaphore.make(1)

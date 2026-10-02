@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { type FiledEntry, makeRehearse, ownCard, type RunDeps } from "../src/run"
+import { type FiledEntry, makeRehearse, ownScenario, type RunDeps } from "../src/run"
 import { rehearseSettings } from "../src/settings"
 import type { Answer, DecisionRequest, StepView } from "../src/types"
 import { FEEDBACK_COLUMNS, RunView, TesterView } from "../src/views"
 
 const noul = (p: number): Answer => ({ type: "noul", answer: p >= 0.5, probability: p, confidence: 0 })
 
-type Opts = { statusDown?: boolean; fileSome?: boolean; inFlight?: number; slowWrite?: number; down?: boolean; slowDecide?: number; gone?: ReadonlyArray<string>; state?: string; on?: boolean; unreachable?: number; personas?: ReadonlyArray<{ name: string; text: string; cards: ReadonlyArray<string> }>; files?: Map<string, string>; cardText?: (card: string) => string; built?: Record<string, "planned" | "untagged">; prompts?: Array<string>; codeDown?: boolean }
+type Opts = { statusDown?: boolean; fileSome?: boolean; inFlight?: number; slowWrite?: number; down?: boolean; slowDecide?: number; gone?: ReadonlyArray<string>; state?: string; on?: boolean; unreachable?: number; personas?: ReadonlyArray<{ name: string; text: string; scenarios: ReadonlyArray<string> }>; files?: Map<string, string>; scenarioText?: (scenario: string) => string; built?: Record<string, "planned" | "untagged">; prompts?: Array<string>; codeDown?: boolean }
 const setup = (o: Opts = {}) =>
   Effect.gen(function* () {
     const files = o.files ?? new Map<string, string>()
@@ -25,12 +25,12 @@ const setup = (o: Opts = {}) =>
     const overlap = { max: 0 }
     const pushes: Array<{ agent: string; path: string; data?: unknown; lines?: unknown; view?: string }> = []
     let ids = 0
-    const view = (card: string): StepView => ({ card, title: `card ${card}`, given: `before ${card}`, when: o.cardText?.(card) ?? `do ${card}`, thens: [`after ${card}`], fork: [], hasFailure: false, journeys: ["Checkout"], by: ["Operator"] })
+    const view = (scenario: string): StepView => ({ scenario, title: `scenario ${scenario}`, given: `before ${scenario}`, when: o.scenarioText?.(scenario) ?? `do ${scenario}`, thens: [`after ${scenario}`], fork: [], hasFailure: false, journeys: ["Checkout"], by: ["Operator"] })
     const deps: RunDeps = {
-      personas: () => Effect.succeed(o.personas ?? [{ name: "Operator", text: "The operator, through the zarg TUI.", cards: ["A", "B", "C", "D"] }]),
+      personas: () => Effect.succeed(o.personas ?? [{ name: "Operator", text: "The operator, through the zarg TUI.", scenarios: ["A", "B", "C", "D"] }]),
       stories: (strategy, _f, draft) => Effect.sync(() => (drafts.push(["stories", draft]), strategies.push(strategy), { stories: [["A", "B", "C"], ["A", "B", "D"]], unreachable: o.unreachable ?? 0 })),
-      step: (card, _via, draft) => Effect.sync(() => (drafts.push(["step", draft]), draft !== undefined && card === "B" ? { ...view(card), thens: ["after B, drafted"] } : { ...view(card), ...(o.built?.[card] === "planned" ? { planned: true } : {}) })),
-      ...(o.built !== undefined ? { code: (card: string) => o.codeDown === true ? Effect.fail("no git") : Effect.succeed(o.built![card] !== undefined ? [] : [{ file: `src/${card}.ts`, line: 1, text: `export const do${card} = () => "${card} code"` }]) } : {}),
+      step: (scenario, _via, draft) => Effect.sync(() => (drafts.push(["step", draft]), draft !== undefined && scenario === "B" ? { ...view(scenario), thens: ["after B, drafted"] } : { ...view(scenario), ...(o.built?.[scenario] === "planned" ? { planned: true } : {}) })),
+      ...(o.built !== undefined ? { code: (scenario: string) => o.codeDown === true ? Effect.fail("no git") : Effect.succeed(o.built![scenario] !== undefined ? [] : [{ file: `src/${scenario}.ts`, line: 1, text: `export const do${scenario} = () => "${scenario} code"` }]) } : {}),
       agendaChanged: Effect.sync(() => void agendaChanges.n++),
       decide: (req) =>
         Effect.andThen(
@@ -68,9 +68,9 @@ const setup = (o: Opts = {}) =>
           writing.set(path, n - 1)
         }),
       list: (dir) => Effect.succeed([...files.keys()].filter((k) => k.startsWith(`${dir}/`)).map((k) => k.slice(dir.length + 1))),
-      version: (card) => Effect.succeed(gone.has(card) ? null : `v${card.toLowerCase()}00000000000`.slice(0, 12)),
+      version: (scenario) => Effect.succeed(gone.has(scenario) ? null : `v${scenario.toLowerCase()}00000000000`.slice(0, 12)),
       walking: (run, journeys) => Effect.sync(() => void walking.push([run, journeys])),
-      journeysOf: (cards) => Effect.succeed(cards.length > 0 ? ["Checkout"] : []),
+      journeysOf: (scenarios) => Effect.succeed(scenarios.length > 0 ? ["Checkout"] : []),
       file: (entries, opts) => Effect.sync(() => (filedCalls.push(entries), filedWith.push(opts ?? {}), { ids: entries.map((_, i) => (o.fileSome === true ? "" : `F-${i}`)) })),
       status: (ids) => (o.statusDown === true ? Effect.fail("down") : Effect.succeed(ids.map((id) => ({ id, state: o.state ?? "open", on: o.on ?? true })))),
       views: {
@@ -116,22 +116,22 @@ describe("rehearse runs in the plugin", () => {
     expect(t.decisions.filter((d) => d.questions.feel).length).toBe(4)
     expect(t.llm.n).toBe(2)
     const rec = t.r.record(t.run)!
-    expect(rec.findings.map((f) => [f.kind, f.card, f.route])).toEqual([["friction", "B", "fix"]])
+    expect(rec.findings.map((f) => [f.kind, f.scenario, f.route])).toEqual([["friction", "B", "fix"]])
     expect(rec.report).toBe("Testers stalled at B.")
     expect(t.events.filter((e) => e.id === "run" && e.event === "status").at(-1)?.text).toBe("1 feedback entry filed · triage in Feedback")
   })
 
-  test("each finding: card, journey, kind and severity in the list, everything in its search text, and in full in the detail beside it", async () => {
+  test("each finding: scenario, journey, kind and severity in the list, everything in its search text, and in full in the detail beside it", async () => {
     const t = await finish()
     const [row] = rowsNow(t.pushes, "tester-1", "review.feedback") as ReadonlyArray<{ id: string; cells: Record<string, string>; search?: string }>
-    expect(row!.cells).toEqual({ card: "gherkin/card:B", journey: "Checkout", kind: "friction", severity: "medium", now: "open" })
+    expect(row!.cells).toEqual({ scenario: "gherkin/scenario:B", journey: "Checkout", kind: "friction", severity: "medium", now: "open" })
     expect(row!.search).toContain("B is unclear")
     expect(row!.search).toContain("Operator")
     const detail = t.pushes.filter((p) => p.agent === "tester-1" && p.path === "detail").at(-1)?.data as { rows: Record<string, string> }
     const md = detail.rows[row!.id]!
-    expect(md).toContain("card B")
+    expect(md).toContain("scenario B")
     expect(md).toContain("B is unclear")
-    // Who and where on the card's By / In lines, so the highlighter colours them.
+    // Who and where on the scenario's By / In lines, so the highlighter colours them.
     expect(md).toContain("```gherkin\nBy    Operator\nIn    Checkout\nGiven before B\nWhen  do B\nThen  after B\n```")
   })
 
@@ -141,7 +141,7 @@ describe("rehearse runs in the plugin", () => {
     expect(t.r.record(t.run)!.strategy).toBe("journey")
   })
 
-  test("a run over a draft walks the drafted cards, files nothing, and holds its findings for the caller; its end changes the agenda", async () => {
+  test("a run over a draft walks the drafted scenarios, files nothing, and holds its findings for the caller; its end changes the agenda", async () => {
     const draft = [{ tool: "edit-state", params: { id: "ST-0002", text: "after B, drafted" } }]
     const t = await Effect.runPromise(
       Effect.gen(function* () {
@@ -154,24 +154,24 @@ describe("rehearse runs in the plugin", () => {
     expect(t.drafts.length).toBeGreaterThan(0)
     expect(t.drafts.every(([, d]) => JSON.stringify(d) === JSON.stringify(draft))).toBe(true)
     expect(t.filedCalls).toEqual([])
-    expect(t.r.result(t.run)).toEqual({ status: "done", findings: [{ card: "B", kind: "friction", severity: "medium", note: "B is unclear", on: true }] })
+    expect(t.r.result(t.run)).toEqual({ status: "done", findings: [{ scenario: "B", kind: "friction", severity: "medium", note: "B is unclear", on: true }] })
     expect(t.r.result("r-none")).toEqual({ status: "unknown", findings: [] })
     expect(t.agendaChanges.n).toBe(1)
   })
 
-  test("a finished run files each finding with the backlog: the card's version, its journeys, and the run's first call", async () => {
+  test("a finished run files each finding with the backlog: the scenario's version, its journeys, and the run's first call", async () => {
     const t = await finish()
     expect(t.filedCalls).toEqual([
-      [{ ref: "gherkin/card:B@vb0000000000", journeys: ["Checkout"], persona: "Operator", kind: "friction", severity: "medium", note: "B is unclear", from: { agent: "rehearse", run: t.run }, triage: { on: true, why: "fix · real 0.90" } }],
+      [{ ref: "gherkin/scenario:B@vb0000000000", journeys: ["Checkout"], persona: "Operator", kind: "friction", severity: "medium", note: "B is unclear", from: { agent: "rehearse", run: t.run }, triage: { on: true, why: "fix · real 0.90" } }],
     ])
     expect(t.r.record(t.run)!.filed).toEqual({ [t.r.record(t.run)!.findings[0]!.id]: "F-0" })
-    // The cards it walked: their feedback it no longer reports closes in the backlog.
+    // The scenarios it walked: their feedback it no longer reports closes in the backlog.
     expect(t.filedWith).toEqual([{ walked: ["A", "B", "C", "D"], run: t.run }])
     // Its journeys' feedback was locked while it walked, and freed at its end.
     expect(t.walking).toEqual([[t.run, ["Checkout"]], [t.run, []]])
   })
 
-  test("a finding on a card that is gone is not filed; the run still reconciles the cards it walked", async () => {
+  test("a finding on a scenario that is gone is not filed; the run still reconciles the scenarios it walked", async () => {
     const t = await finish({ gone: ["B"] })
     expect(t.filedCalls).toEqual([[]])
     expect(t.filedWith[0]!.walked).toEqual(["A", "B", "C", "D"])
@@ -356,15 +356,15 @@ test("the run's view lists its testers: each with its progress and findings", as
 })
 
 describe("testers from the graph's personas", () => {
-  test("no personas: refused, so the Driver Agent asks; personas that act in no card: refused", async () => {
+  test("no personas: refused, so the Driver Agent asks; personas that act in no scenario: refused", async () => {
     const none = await Effect.runPromise(Effect.flatMap(setup({ personas: [] }), (t) => t.r.start({})))
     expect(none).toEqual({ refused: "no personas yet: the Driver Agent asks about them" })
-    const idle = await Effect.runPromise(Effect.flatMap(setup({ personas: [{ name: "Ghost", text: "nobody", cards: [] }] }), (t) => t.r.start({})))
-    expect(idle).toEqual({ refused: "no persona acts in any card" })
+    const idle = await Effect.runPromise(Effect.flatMap(setup({ personas: [{ name: "Ghost", text: "nobody", scenarios: [] }] }), (t) => t.r.start({})))
+    expect(idle).toEqual({ refused: "no persona acts in any scenario" })
   })
 
-  test("a tester walks only stories with its cards; others' steps are context", async () => {
-    const t = await finish({ personas: [{ name: "Operator", text: "The operator.", cards: ["A", "C"] }, { name: "Driver Agent", text: "The agent.", cards: ["B", "D"] }] })
+  test("a tester walks only stories with its scenarios; others' steps are context", async () => {
+    const t = await finish({ personas: [{ name: "Operator", text: "The operator.", scenarios: ["A", "C"] }, { name: "Driver Agent", text: "The agent.", scenarios: ["B", "D"] }] })
     const screenedBy = (who: string) => t.decisions.filter((d) => d.questions.feel !== undefined && d.state.startsWith(`You are ${who}`)).map((d) => /The next step[\s\S]*When do (\w)/.exec(d.state)![1])
     // The operator judges A and C, never B or D; it sees B as what happened before C.
     expect([...new Set(screenedBy("The operator."))].sort()).toEqual(["A", "C"])
@@ -372,15 +372,15 @@ describe("testers from the graph's personas", () => {
     expect([...new Set(screenedBy("The agent."))].sort()).toEqual(["B", "D"])
   })
 
-  test("a record from before personas walks every card", () => {
-    expect(ownCard({ name: "Operator", text: "The operator." }, "Z")).toBe(true)
-    expect(ownCard({ name: "Operator", text: "The operator.", cards: ["A"] }, "Z")).toBe(false)
+  test("a record from before personas walks every scenario", () => {
+    expect(ownScenario({ name: "Operator", text: "The operator." }, "Z")).toBe(true)
+    expect(ownScenario({ name: "Operator", text: "The operator.", scenarios: ["A"] }, "Z")).toBe(false)
   })
 })
 
-test("the findings columns colour by meaning: card, journey, severity keys", () => {
+test("the findings columns colour by meaning: scenario, journey, severity keys", () => {
   expect(FEEDBACK_COLUMNS.map((c) => [c.id, "tone" in c ? c.tone : undefined, "tones" in c ? c.tones : undefined])).toEqual([
-    ["card", undefined, undefined],
+    ["scenario", undefined, undefined],
     ["journey", "journey", undefined],
     ["kind", undefined, undefined],
     ["severity", undefined, { high: "severity.high", medium: "severity.medium", low: "severity.low" }],
@@ -388,7 +388,7 @@ test("the findings columns colour by meaning: card, journey, severity keys", () 
   ])
 })
 
-test("stories stop before a planned or untagged card (the run notes why); testers see the step's code", async () => {
+test("stories stop before a planned or untagged scenario (the run notes why); testers see the step's code", async () => {
   const prompts: Array<string> = []
   const out = await finish({ built: { C: "planned", D: "untagged" }, prompts })
   // The same story twice after the cut is one story.
@@ -408,11 +408,11 @@ test("the cut is said where the operator sees it: in the start result; with noth
   expect(r.started.notes).toEqual(["C: not built yet (planned): not walked", "D: no code tagged and not planned: tag its code or mark it planned"])
   expect(r.refused.refused).toBe("nothing built to walk: A: no code tagged and not planned: tag its code or mark it planned")
 })
-test("code that cannot be read (no git) checks no card: every card is walked, and the run says so", async () => {
+test("code that cannot be read (no git) checks no scenario: every scenario is walked, and the run says so", async () => {
   const r = await Effect.runPromise(Effect.gen(function* () {
     const t = yield* setup({ built: {}, codeDown: true })
     return (yield* t.r.start({})) as { notes?: ReadonlyArray<string>; stories: number }
   }))
   expect(r.stories).toBe(2)
-  expect(r.notes).toEqual(["the cards' code could not be read: built or not, every card is walked"])
+  expect(r.notes).toEqual(["the scenarios' code could not be read: built or not, every scenario is walked"])
 })

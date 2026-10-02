@@ -108,7 +108,7 @@ describe("zarg-core process", () => {
     Effect.runFork(Fiber.interrupt(follower))
   }, 20_000)
 
-  test("stub mode: a card written to the graph is planned, implemented and landed as one commit", async () => {
+  test("stub mode: a scenario written to the graph is planned, implemented and landed as one commit", async () => {
     const project = mkdtempSync(join(tmpdir(), "zarg-proc-reconcile-"))
     const git = (cmd: string) => Bun.spawnSync(["sh", "-c", cmd], { cwd: project, env: { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" } }).stdout.toString().trim()
     git("git init -q -b main && git config user.email t@t && git config user.name t")
@@ -123,7 +123,7 @@ describe("zarg-core process", () => {
       JSON.stringify({
         cells: [
           'yield* Rlm.done({ value: { plan: "## Approach\\nAdd it.\\n## Files\\n- src/S-0001.ts — new\\n## Tests\\n- none — stub\\n## Depends on\\nnone" } })',
-          'yield* Fs.write({ path: "src/S-0001.ts", content: "// @" + "card S-0001\\nexport const ok = true\\n" })\nyield* Rlm.done({ value: { files: ["src/S-0001.ts"], summary: "added" } })',
+          'yield* Fs.write({ path: "src/S-0001.ts", content: "// @" + "scenario S-0001\\nexport const ok = true\\n" })\nyield* Rlm.done({ value: { files: ["src/S-0001.ts"], summary: "added" } })',
         ],
       }),
     )
@@ -133,7 +133,7 @@ describe("zarg-core process", () => {
     writeFileSync(join(project, ".zarg/graph/nodes/ST-0001.json"), `${JSON.stringify({ id: "ST-0001", type: "gherkin/state", props: { text: "the home page is shown" }, edges: [] })}\n`)
     writeFileSync(
       join(project, ".zarg/graph/nodes/S-0001.json"),
-      `${JSON.stringify({ id: "S-0001", type: "gherkin/card", props: { title: "Open home", when: "the user opens the app" }, edges: [{ type: "gherkin/arrives", to: "ST-0001" }, { type: "gherkin/then", to: "ST-0001" }] })}\n`,
+      `${JSON.stringify({ id: "S-0001", type: "gherkin/scenario", props: { title: "Open home", when: "the user opens the app" }, edges: [{ type: "gherkin/arrives", to: "ST-0001" }, { type: "gherkin/then", to: "ST-0001" }] })}\n`,
     )
     const until = Date.now() + 30_000
     while (git("git log -1 --format=%s") !== "feat: implement S-0001" && Date.now() < until) await Bun.sleep(200)
@@ -161,7 +161,7 @@ describe("zarg-core process", () => {
     writeFileSync(join(project, ".zarg", "config.toml"), '[reconcile]\nenabled = false\nquiet_ms = 200\nverify = "true"\n')
     writeFileSync(join(project, ".gitignore"), ".zarg/run/\n.zarg/threads/\n")
     writeFileSync(join(project, ".zarg/graph/nodes/ST-0001.json"), `${JSON.stringify({ id: "ST-0001", type: "gherkin/state", props: { text: "home" }, edges: [] })}\n`)
-    writeFileSync(join(project, ".zarg/graph/nodes/S-0001.json"), `${JSON.stringify({ id: "S-0001", type: "gherkin/card", props: { title: "Open", when: "the user opens it" }, edges: [{ type: "gherkin/arrives", to: "ST-0001" }, { type: "gherkin/then", to: "ST-0001" }] })}\n`)
+    writeFileSync(join(project, ".zarg/graph/nodes/S-0001.json"), `${JSON.stringify({ id: "S-0001", type: "gherkin/scenario", props: { title: "Open", when: "the user opens it" }, edges: [{ type: "gherkin/arrives", to: "ST-0001" }, { type: "gherkin/then", to: "ST-0001" }] })}\n`)
     git("git add -A && git commit -qm init")
     const stub = join(project, "..", `${project.split("/").pop()}-stub.json`)
     writeFileSync(stub, JSON.stringify({ cells: ['yield* Rlm.done({ value: { plan: "## Approach\\nx" } })', 'yield* Rlm.done({ value: { files: [], summary: "nothing to write" } })'] }))

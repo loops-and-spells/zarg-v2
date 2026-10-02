@@ -26,5 +26,5 @@
     "title": "Operator picks a topic",
     "when": "the operator picks a topic"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

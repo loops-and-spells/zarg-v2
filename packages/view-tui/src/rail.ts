@@ -34,7 +34,7 @@ export interface RailRow {
 }
 
 const NOTE = 8
-// @card S-0040
+// @scenario S-0040
 const noteOf = (n: RlmNode, hidden: number, open: boolean) => {
   if (!open && hidden > 0) return `+${hidden}`
   if (n.attention !== undefined) return /^\d+/.exec(n.attention.reason)?.[0] ?? "asks"

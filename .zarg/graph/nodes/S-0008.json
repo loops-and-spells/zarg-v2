@@ -26,5 +26,5 @@
     "title": "Driver Agent opens with a question",
     "when": "the Driver Agent reads the agenda"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

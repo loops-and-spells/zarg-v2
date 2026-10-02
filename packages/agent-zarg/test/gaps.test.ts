@@ -7,7 +7,7 @@ import { judgeGaps } from "../src/gaps"
 const item = (id: string, title: string): AgendaItem => ({ id, title, detail: `${title}: add a failure case?`, about: [id], priority: 1 })
 
 describe("what-next gaps", () => {
-  test("each candidate is judged on its own card; only a likely yes is kept", async () => {
+  test("each candidate is judged on its own scenario; only a likely yes is kept", async () => {
     const calls: Array<DecisionRequest> = []
     const p: Record<string, number> = { "The developer pays": 0.82, "The page scrolls": 0.12, "The plugin loads": 0.66 }
     const decide = (req: DecisionRequest) =>

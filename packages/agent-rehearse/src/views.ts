@@ -1,8 +1,8 @@
 import { defineView } from "@zarg/plugin-sdk"
 
-// What a tester filed: the card (drawn as its label), where, what, and where the feedback is now (in Feedback).
+// What a tester filed: the scenario (drawn as its label), where, what, and where the feedback is now (in Feedback).
 export const FEEDBACK_COLUMNS = [
-  { id: "card", label: "card", ref: true, filter: "none" },
+  { id: "scenario", label: "scenario", ref: true, filter: "none" },
   { id: "journey", label: "journey", filter: "values", tone: "journey" },
   { id: "kind", label: "kind", filter: "values" },
   { id: "severity", label: "severity", order: ["high", "medium", "low"], filter: "values", tones: { high: "severity.high", medium: "severity.medium", low: "severity.low" } },

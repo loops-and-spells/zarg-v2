@@ -3,29 +3,29 @@ import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { Effect } from "effect"
 import { ensureWorktree, land, rebaseOnto, worktreeRoot } from "../src"
-import { card, cleanup, repo, sh, state, write, writeNode } from "./repo"
+import { scenario, cleanup, repo, sh, state, write, writeNode } from "./repo"
 
 afterAll(cleanup)
 const run = <A, E>(e: Effect.Effect<A, E>) => Effect.runPromise(e)
 
-/** A repo whose driver wrote ST-0001 and S-0001 (uncommitted), and a pass commit with those cards plus code. */
+/** A repo whose driver wrote ST-0001 and S-0001 (uncommitted), and a pass commit with those scenarios plus code. */
 const passCommit = async () => {
   const r = repo()
   const base = sh(r, "git rev-parse HEAD")
   writeNode(r, state("ST-0001", "home"))
-  writeNode(r, card("S-0001", "ST-0001", "ST-0001"))
+  writeNode(r, scenario("S-0001", "ST-0001", "ST-0001"))
   const wt = join(worktreeRoot(r), "p", "main")
   await run(ensureWorktree(r, wt, "zarg/p/main", base))
   writeNode(wt, state("ST-0001", "home"))
-  writeNode(wt, card("S-0001", "ST-0001", "ST-0001"))
+  writeNode(wt, scenario("S-0001", "ST-0001", "ST-0001"))
   write(wt, "src/home.ts", "export const home = 1\n")
   sh(wt, "git add -A && git commit -qm 'feat: implement S-0001'")
   return { r, base, wt, commit: sh(wt, "git rev-parse HEAD") }
 }
 
 describe("land", () => {
-  // @card S-0049
-  test("fast-forwards; the driver's identical uncommitted cards end up clean; landing again is a no-op", async () => {
+  // @scenario S-0049
+  test("fast-forwards; the driver's identical uncommitted scenarios end up clean; landing again is a no-op", async () => {
     const { r, base, commit } = await passCommit()
     expect(await run(land(r, commit, base, "main"))).toEqual({ status: "landed" })
     expect(sh(r, "git rev-parse HEAD")).toBe(commit)
@@ -33,7 +33,7 @@ describe("land", () => {
     expect(await run(land(r, commit, base, "main"))).toEqual({ status: "landed" })
   })
 
-  // @card S-0050
+  // @scenario S-0050
   test("your edits in other files stay; edits in a file the commit changes make it wait", async () => {
     const { r, base, commit } = await passCommit()
     write(r, "README.md", "mine\n")
@@ -45,22 +45,22 @@ describe("land", () => {
     expect(readFileSync(join(r, "README.md"), "utf8")).toBe("mine\n")
   })
 
-  test("a card the driver edited again keeps its newer content after landing", async () => {
+  test("a scenario the driver edited again keeps its newer content after landing", async () => {
     const { r, base, commit } = await passCommit()
-    writeNode(r, card("S-0001", "ST-0001", "ST-0001", "the user taps twice"))
+    writeNode(r, scenario("S-0001", "ST-0001", "ST-0001", "the user taps twice"))
     expect(await run(land(r, commit, base, "main"))).toEqual({ status: "landed" })
     expect(readFileSync(join(r, ".zarg/graph/nodes/S-0001.json"), "utf8")).toContain("taps twice")
     expect(sh(r, "git status --porcelain")).toBe("M .zarg/graph/nodes/S-0001.json")
   })
 
-  test("a card the driver removed during the pass stays removed", async () => {
+  test("a scenario the driver removed during the pass stays removed", async () => {
     const { r, base, commit } = await passCommit()
     sh(r, "rm .zarg/graph/nodes/S-0001.json")
     expect(await run(land(r, commit, base, "main"))).toEqual({ status: "landed" })
     expect(existsSync(join(r, ".zarg/graph/nodes/S-0001.json"))).toBe(false)
   })
 
-  // @card S-0052
+  // @scenario S-0052
   test("a moved branch is reported; after a rebase the commit lands", async () => {
     const { r, base, wt } = await passCommit()
     sh(r, "rm -rf .zarg/graph")

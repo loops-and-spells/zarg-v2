@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect"
 import { type Change, diff, Snapshot } from "@zarg/graph/pure"
-import { affectedCards } from "./affected"
+import { affectedScenarios } from "./affected"
 import type { Finding, Lint, Tool } from "./kit"
 
 /** Edge limits per edge type (the plugin's graph spec): the host checks them on every write. */
@@ -24,7 +24,7 @@ const structure = (snap: Snapshot.Snapshot, ids: ReadonlyArray<string>, limits: 
 export type Draft = ReadonlyArray<{ readonly tool: string; readonly params: unknown }>
 
 /**
- * The graph as it would be after a draft: each call runs on the snapshot the calls before it made, so a card can
+ * The graph as it would be after a draft: each call runs on the snapshot the calls before it made, so a scenario can
  * arrive from a state added earlier in the same draft (the same ids the Planner gets applying it in order).
  */
 export const applyDraft = (snap: Snapshot.Snapshot, draft: Draft, tools: ReadonlyArray<Tool>, limits?: EdgeLimits) =>
@@ -71,7 +71,7 @@ export const dryRun = (snap: Snapshot.Snapshot, draft: Draft, tools: ReadonlyArr
     const findings = [...validate(a.changes), ...lints.flatMap((l) => l({ before: snap, after: a.snapshot, diff: d }))].filter((f) => f.severity === "error")
     const problems = [...a.problems, ...findings.map((f) => f.message)]
     const touched = [...new Set(a.changes.map((c) => (c._tag === "Put" ? c.node.id : c.id)))]
-    // The cards to re-implement: added or changed, or using a reworded state (as the reconcile loop will see it).
-    const cards = affectedCards(snap, a.snapshot).cards
-    return { ok: problems.length === 0, problems, touched, cards, messages: a.messages }
+    // The scenarios to re-implement: added or changed, or using a reworded state (as the reconcile loop will see it).
+    const scenarios = affectedScenarios(snap, a.snapshot).scenarios
+    return { ok: problems.length === 0, problems, touched, scenarios, messages: a.messages }
   })

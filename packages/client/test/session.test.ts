@@ -147,7 +147,7 @@ describe("session", () => {
 })
 
 describe("/yolo", () => {
-  // @card S-0067 S-0070
+  // @scenario S-0067 S-0070
   test("/yolo on, /yolo off plugin=tracker and a bare /yolo reach the core and say what happened", async () => {
     const f = fakeClient()
     const session = makeSession({ client: f.client, threadId: "main" })

@@ -22,5 +22,5 @@
     "title": "Operator allows it once",
     "when": "the operator picks allow once"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

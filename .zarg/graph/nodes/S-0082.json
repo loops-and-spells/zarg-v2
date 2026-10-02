@@ -22,5 +22,5 @@
     "title": "CLI actor tags new code",
     "when": "the CLI actor tags new code with the card's id"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

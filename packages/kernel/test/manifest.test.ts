@@ -26,7 +26,7 @@ describe("readable declarations", () => {
       params: Schema.Struct({
         question: Schema.String.annotate({ description: "One sentence." }),
         options: Schema.Array(Schema.Struct({ id: Schema.String, label: Schema.String })),
-        about: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Card or state ids this question is about, not per option." }),
+        about: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Scenario or state ids this question is about, not per option." }),
       }),
       success: Schema.Struct({ choice: Schema.optionalKey(Schema.String) }),
     },
@@ -52,7 +52,7 @@ describe("readable declarations", () => {
         "    /** One sentence. */",
         "    question: string",
         "    options: ReadonlyArray<{ id: string; label: string }>",
-        "    /** Card or state ids this question is about, not per option. */",
+        "    /** Scenario or state ids this question is about, not per option. */",
         "    about?: ReadonlyArray<string>",
         "  }): Eff<{ choice?: string }>",
       ].join("\n"),

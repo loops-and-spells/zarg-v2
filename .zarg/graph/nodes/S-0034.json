@@ -27,5 +27,5 @@
     "title": "Driver Agent asks for a role's model",
     "when": "a role has no model set"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

@@ -28,9 +28,9 @@ export const repo = () => {
 }
 
 export const state = (id: string, text: string) => ({ id, type: "gherkin/state", props: { text }, edges: [] })
-export const card = (id: string, arrives: string, then: string, when = "the user acts") => ({
+export const scenario = (id: string, arrives: string, then: string, when = "the user acts") => ({
   id,
-  type: "gherkin/card",
+  type: "gherkin/scenario",
   props: { title: id, when },
   edges: [{ type: "gherkin/arrives", to: arrives }, { type: "gherkin/then", to: then }],
 })

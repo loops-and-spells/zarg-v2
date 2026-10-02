@@ -22,5 +22,5 @@
     "title": "An undeclared scope is refused",
     "when": "the plugin reaches a scope it never declared"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

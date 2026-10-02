@@ -22,5 +22,5 @@
     "title": "Operator approves a plugin",
     "when": "the operator approves its listed scopes"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

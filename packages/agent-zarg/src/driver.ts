@@ -5,7 +5,7 @@ import { type Asker, confirmQuestion } from "@zarg/rlm"
 const ASK_FIRST: ServiceFailure = {
   _tag: "AskFirst",
   message:
-    "Requirements change only with the developer's say: show the exact change with Inquire.confirm({ change }) (each card as By / Given / When / Then lines; every card names who acts in it with by, a persona), then write it once they add it. Any other question closes writes again.",
+    "Requirements change only with the developer's say: show the exact change with Inquire.confirm({ change }) (each scenario as By / Given / When / Then lines; every scenario names who acts in it with by, a persona), then write it once they add it. Any other question closes writes again.",
 }
 
 /**
@@ -13,7 +13,7 @@ const ASK_FIRST: ServiceFailure = {
  * item: graph writes open when the operator adds a change shown with Inquire.confirm (or the driver adds a
  * discussed one for them), and close at the next question.
  */
-// @card S-0009
+// @scenario S-0009
 export const askFirst = (asker: Asker) => {
   let open = false
   const touched = new Set<string>()
@@ -61,7 +61,7 @@ export const askFirst = (asker: Asker) => {
                   const named = JSON.stringify(params).match(/\b[A-Za-z]+-\d{4,}\b/g) ?? []
                   const outside = s === undefined ? [] : named.filter((id) => !s.allowed.has(id))
                   if (outside.length > 0) {
-                    return Effect.fail({ _tag: "OutsideFinding", message: `this fix may change only its finding's card and states; ${outside.join(", ")} need Inquire.confirm` })
+                    return Effect.fail({ _tag: "OutsideFinding", message: `this fix may change only its finding's scenario and states; ${outside.join(", ")} need Inquire.confirm` })
                   }
                   return Effect.tap(h(params), (r) =>
                     Effect.sync(() => {

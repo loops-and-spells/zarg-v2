@@ -2,7 +2,7 @@ import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { ensureIgnored } from "./worktree"
 
-export type FindingKind = "unplannable" | "blocked-card" | "merge-conflict" | "verify-failing" | "landing-blocked" | "pass-error"
+export type FindingKind = "unplannable" | "blocked-scenario" | "merge-conflict" | "verify-failing" | "landing-blocked" | "pass-error"
 
 /** Something a phase could not project; it reaches the operator through the driver's agenda. */
 export interface Finding {
@@ -10,7 +10,7 @@ export interface Finding {
   readonly kind: FindingKind
   readonly title: string
   readonly detail: string
-  /** The cards it concerns. */
+  /** The scenarios it concerns. */
   readonly about: ReadonlyArray<string>
   readonly pass: string
   readonly at: string
@@ -22,7 +22,7 @@ export const findingsPath = (repo: string) => join(repo, ".zarg", "reconcile", "
 
 /**
  * Open findings, kept in `.zarg/reconcile/findings.json` (gitignored; survives restarts). A new finding of
- * the same kind about the same cards replaces the old one.
+ * the same kind about the same scenarios replaces the old one.
  */
 export const makeFindings = (repo: string) => {
   const file = findingsPath(repo)
@@ -40,15 +40,15 @@ export const makeFindings = (repo: string) => {
       write([...read().filter((x) => key(x) !== key(f)), finding])
       return finding
     },
-    /** Close findings about no card in particular (a pass that could not start or failed outright): a later pass worked. */
+    /** Close findings about no scenario in particular (a pass that could not start or failed outright): a later pass worked. */
     clearGeneral: () => {
       const all = read()
       const kept = all.filter((f) => f.about.length > 0)
       if (kept.length !== all.length) write(kept)
     },
-    /** Close every finding about any of these cards (they landed, or the driver changed them). */
-    clearFor: (cards: ReadonlyArray<string>) => {
-      const set = new Set(cards)
+    /** Close every finding about any of these scenarios (they landed, or the driver changed them). */
+    clearFor: (scenarios: ReadonlyArray<string>) => {
+      const set = new Set(scenarios)
       const all = read()
       const kept = all.filter((f) => !f.about.some((c) => set.has(c)))
       if (kept.length !== all.length) write(kept)

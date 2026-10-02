@@ -22,5 +22,5 @@
     "title": "Implementer Agent updates the code",
     "when": "the Implementer Agent codes each plan in its own worktree"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

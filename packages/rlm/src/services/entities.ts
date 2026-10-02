@@ -20,7 +20,7 @@ export const entitiesService = (ctx: GraphContext, opts: { readonly write: boole
     return { type: "object", properties: { type: { const: k.type }, id: { type: "string" }, ref: { type: "string" }, version: { type: "string" }, label: { type: "object", properties: { text: { type: "string" }, tone: { type: "string" }, glyph: { type: "string" } }, required: ["text", "tone", "glyph"] }, data: d?.schema ?? {} }, required: ["type", "id", "ref", "version", "label", "data"] }
   })
   const entity = { anyOf: variants.length > 0 ? variants : [{}] }
-  const refParam = doc({ type: "object", properties: { ref: { type: "string", description: "<plugin>/<kind>:<id>[@<version>], e.g. gherkin/card:S-0062" } }, required: ["ref"] })
+  const refParam = doc({ type: "object", properties: { ref: { type: "string", description: "<plugin>/<kind>:<id>[@<version>], e.g. gherkin/scenario:S-0062" } }, required: ["ref"] })
   const m = (d: string, params: unknown, success: unknown) => ({ doc: d, params: Schema.Unknown, success: Schema.Unknown, json: { params, success } })
   const methods = {
     get: m("One entity by ref (narrow on `type` to read its data).", refParam, doc(entity, defs)),

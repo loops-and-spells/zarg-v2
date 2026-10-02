@@ -121,7 +121,7 @@ describe("PluginHost.call", () => {
     expect(r.warnings.map((w) => w.code)).toEqual(["todo"])
   })
 
-  // @card S-0016
+  // @scenario S-0016
   test("a caller expectation that no longer holds fails with StaleNode", async () => {
     const err = await run(
       Effect.gen(function* () {
@@ -138,7 +138,7 @@ describe("PluginHost.call", () => {
 })
 
 describe("PluginHost read side", () => {
-  // @card S-0001
+  // @scenario S-0001
   test("agenda lists plugin items and bad files, filtered by focus", async () => {
     const out = await run(
       Effect.gen(function* () {
@@ -205,7 +205,7 @@ describe("plugins in their processes", () => {
     expect(out[0][0]!.detail).toContain("can read your graph and send it to a.test")
     expect(out[1]).toEqual([])
   })
-  // @card S-0069
+  // @scenario S-0069
   test("a first-party plugin with only graph scope is granted without a question", async () => {
     const asked: Array<unknown> = []
     const r = await runWith(() => [notes], () => options({ firstParty: () => true, ask: (q) => Effect.sync(() => (asked.push(q), "deny" as const)) }), PluginHost.use((h) => h.call("notes/add-topic", { name: "a" })))
@@ -242,7 +242,7 @@ describe("plugins in their processes", () => {
       yield* h.call("notes/add-note", { text: "x", topic: "T-0001" })
       return yield* h.affected(before, yield* store.snapshot)
     }))
-    expect(r).toEqual({ cards: ["N-0001"], removed: [] })
+    expect(r).toEqual({ scenarios: ["N-0001"], removed: [] })
   })
   test("a plugin process stops after idleMs and starts again on the next call", async () => {
     const r = await runWith(() => [notes], () => options({ idleMs: 150 }), Effect.gen(function* () {
@@ -253,7 +253,7 @@ describe("plugins in their processes", () => {
     }))
     expect(r.added).toEqual(["T-0002"])
   })
-  // @card S-0068
+  // @scenario S-0068
   test("three restarts in ten minutes disable a plugin", async () => {
     const out = await run(Effect.gen(function* () {
       const h = yield* PluginHost

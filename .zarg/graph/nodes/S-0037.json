@@ -27,5 +27,5 @@
     "title": "A cold model warms up",
     "when": "the chosen model is cold"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

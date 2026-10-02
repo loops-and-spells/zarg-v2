@@ -1,7 +1,7 @@
 import { Data } from "effect"
 import type { Change, Diff, Snapshot } from "@zarg/graph"
 
-/** Edge cardinality between two of the plugin's node types (local names, e.g. "card"). */
+/** Edge cardinality between two of the plugin's node types (local names, e.g. "scenario"). */
 export interface EdgeSpec {
   readonly from: string
   readonly to: string

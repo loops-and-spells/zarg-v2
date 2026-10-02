@@ -14,7 +14,7 @@ afterAll(() => rmSync(root, { recursive: true, force: true }))
 
 // The driver's model turns: ask, finish the item with the answer, then ask what next.
 const cells = [
-  'const a = yield* Inquire.ask({ question: "Which card first?", options: [{ id: "login", label: "Login" }, { id: "checkout", label: "Checkout", recommended: true, why: "most used" }] })\nreturn a',
+  'const a = yield* Inquire.ask({ question: "Which scenario first?", options: [{ id: "login", label: "Login" }, { id: "checkout", label: "Checkout", recommended: true, why: "most used" }] })\nreturn a',
   'yield* Rlm.done({ value: "Working on Checkout." })',
   'const b = yield* Inquire.ask({ question: "What next?", options: [{ id: "x", label: "Payments" }, { id: "y", label: "Refunds" }] })\nreturn b',
 ]

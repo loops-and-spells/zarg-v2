@@ -1,33 +1,33 @@
 {
   "title": "Outsider service refused",
   "journey": "Watch agents",
-  "cards": [
+  "scenarios": [
     {
-      "ref": "gherkin/card:S-0048@ba9d9e139b95"
+      "ref": "gherkin/scenario:S-0048@ba9d9e139b95"
     },
     {
-      "ref": "gherkin/card:S-0040@6f02dbbcaac5"
+      "ref": "gherkin/scenario:S-0040@6f02dbbcaac5"
     },
     {
-      "ref": "gherkin/card:S-0041@85196d3ea738"
+      "ref": "gherkin/scenario:S-0041@85196d3ea738"
     },
     {
-      "ref": "gherkin/card:S-0042@6e4de5e64d09"
+      "ref": "gherkin/scenario:S-0042@6e4de5e64d09"
     },
     {
-      "ref": "gherkin/card:S-0043@2ad79332dc83"
+      "ref": "gherkin/scenario:S-0043@2ad79332dc83"
     },
     {
-      "ref": "gherkin/card:S-0044@7100a8f67dba"
+      "ref": "gherkin/scenario:S-0044@7100a8f67dba"
     },
     {
-      "ref": "gherkin/card:S-0045@7e212bf04ef4"
+      "ref": "gherkin/scenario:S-0045@7e212bf04ef4"
     },
     {
-      "ref": "gherkin/card:S-0046@d615b2a3f1f3"
+      "ref": "gherkin/scenario:S-0046@d615b2a3f1f3"
     },
     {
-      "ref": "gherkin/card:S-0047@aeb1ef26988f"
+      "ref": "gherkin/scenario:S-0047@aeb1ef26988f"
     }
   ],
   "changes": [
@@ -63,7 +63,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0048",
+        "scenario": "S-0048",
         "edge": "then",
         "state": {
           "text": "the agent surfaces the refusal to the operator, extends the grant, and retries"

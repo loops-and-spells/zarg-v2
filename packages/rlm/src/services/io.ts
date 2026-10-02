@@ -4,12 +4,12 @@ import { bind, type Bound, defineService, type ServiceFailure } from "@zarg/kern
 const Raised = Schema.Struct({
   title: Schema.String,
   detail: Schema.String,
-  about: Schema.Array(Schema.String).annotate({ description: "Card or state ids the item is about." }),
+  about: Schema.Array(Schema.String).annotate({ description: "Scenario or state ids the item is about." }),
 })
 export type Raised = typeof Raised.Type
 
 export const AgendaDef = defineService("Agenda", "Raise items for a driver thread to take up.", {
-  raise: { doc: "Raise an item (for example a card that cannot be implemented as written).", params: Raised, success: Schema.Struct({ id: Schema.String }) },
+  raise: { doc: "Raise an item (for example a scenario that cannot be implemented as written).", params: Raised, success: Schema.Struct({ id: Schema.String }) },
 })
 
 /** Where raised items go; 2b replaces this with the project's agenda. */
@@ -30,7 +30,7 @@ const Question = Schema.Struct({
   options: Schema.Array(Option).annotate({ description: "2 to 4 options." }),
   allowOther: Schema.optionalKey(Schema.Boolean).annotate({ description: "Offer \"Something else…\" for a free-text answer (the answer's `other`)." }),
   otherLabel: Schema.optionalKey(Schema.String).annotate({ description: "The free-text row's label, when not \"Something else\"." }),
-  about: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Card or state ids the whole question is about (not per option)." }),
+  about: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Scenario or state ids the whole question is about (not per option)." }),
 })
 /** `kind: "grant"`: a permission question zarg itself asks (never a cell: the schema has no such field); only its options are offered. */
 export type Question = typeof Question.Type & { readonly kind?: "grant" }
@@ -55,9 +55,9 @@ export type Choice = typeof Choice.Type
 
 const Confirm = Schema.Struct({
   change: Schema.String.annotate({
-    description: "The exact change in the operator's words: each card as By / Given / When / Then lines (and any state or persona edits), as it will be written.",
+    description: "The exact change in the operator's words: each scenario as By / Given / When / Then lines (and any state or persona edits), as it will be written.",
   }),
-  about: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Card or state ids the change touches." }),
+  about: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Scenario or state ids the change touches." }),
 })
 export type Confirm = typeof Confirm.Type
 

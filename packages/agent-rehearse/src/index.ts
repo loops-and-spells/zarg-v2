@@ -30,7 +30,7 @@ export default definePlugin({
   views: [TesterView, RunView, StatusView],
   surfaces: [
     { kind: "panel", name: "status", view: "status", scope: "shell", edge: "bottom", size: 1, input: "none" },
-    // One card per run: its progress and its testers.
+    // One scenario per run: its progress and its testers.
     { kind: "card", name: "run", view: "run", headline: "progress", recent: "testers" },
   ],
   scopes: { decisions: true, models: ["rehearse"], agents: true, code: true, entities: { read: ["gherkin/*"] }, fs: { read: [".zarg/rehearse/**", "intent/**"], write: [".zarg/rehearse/**"] } },
@@ -65,8 +65,8 @@ export default definePlugin({
     const r = yield* makeRehearse({
       personas: () => gherkin.personas({}),
       stories: (strategy, focus, draft) => gherkin.stories({ strategy, ...(focus !== undefined ? { focus } : {}), ...(draft !== undefined ? { draft } : {}) }),
-      step: (card, via, draft) => gherkin.step({ card, ...(via !== undefined ? { via } : {}), ...(draft !== undefined ? { draft } : {}) }),
-      code: (card) => entities.code(`gherkin/card:${card}`),
+      step: (scenario, via, draft) => gherkin.step({ scenario, ...(via !== undefined ? { via } : {}), ...(draft !== undefined ? { draft } : {}) }),
+      code: (scenario) => entities.code(`gherkin/scenario:${scenario}`),
       agendaChanged: agendaPower.changed,
       decide: (req) => decisions.decide(req),
       complete: (req) => models.complete({ role: "rehearse", ...req }).pipe(Effect.mapError((e) => ({ message: e.message }))),
@@ -76,9 +76,9 @@ export default definePlugin({
       read: files.read,
       write: files.write,
       list: files.list,
-      version: (card) => entities.version(`gherkin/card:${card}`),
+      version: (scenario) => entities.version(`gherkin/scenario:${scenario}`),
       walking: (run, journeys) => Effect.asVoid(backlog.walking({ run, journeys })),
-      journeysOf: (cards) => Effect.map(gherkin.journeys({}), (js) => js.filter((j) => j.cards.some((c) => cards.includes(c))).map((j) => j.name)),
+      journeysOf: (scenarios) => Effect.map(gherkin.journeys({}), (js) => js.filter((j) => j.scenarios.some((c) => scenarios.includes(c))).map((j) => j.name)),
       file: (entries, opts) => backlog.file({ entries: entries as never, ...(opts?.walked !== undefined ? { walked: opts.walked } : {}), ...(opts?.run !== undefined ? { run: opts.run } : {}) }),
       status: (ids) => backlog.status({ ids }),
       views: { set: (a, v, path, data) => views.set(a, v as never, path as never, data as never), append: (a, v, path, lines) => views.append(a, v as never, path as never, lines) },

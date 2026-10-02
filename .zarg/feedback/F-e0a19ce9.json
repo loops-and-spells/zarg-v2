@@ -1,5 +1,5 @@
 {
-  "ref": "gherkin/card:S-0079@e90b33022158",
+  "ref": "gherkin/scenario:S-0079@e90b33022158",
   "journeys": [
     "CLI actor"
   ],

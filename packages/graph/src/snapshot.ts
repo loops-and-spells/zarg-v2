@@ -66,7 +66,7 @@ export const inbound = (snap: Snapshot, id: string, type?: string): ReadonlyArra
 
 /**
  * Edges a walk never follows backward (except from where it starts): their target is a hub nearly every node
- * points at (a persona every card names, a journey), and walking back through it would pull in the whole graph.
+ * points at (a persona every scenario names, a journey), and walking back through it would pull in the whole graph.
  */
 // ponytail: one plugin's edge named here; move it to the manifest's edge spec when a second plugin needs one.
 const ONE_WAY = new Set(["gherkin/by", "gherkin/in"])

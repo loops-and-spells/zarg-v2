@@ -1,5 +1,5 @@
 {
-  "ref": "gherkin/card:S-0054@c6154f6a71a4",
+  "ref": "gherkin/scenario:S-0054@c6154f6a71a4",
   "journeys": [
     "Reconcile"
   ],

@@ -1,5 +1,5 @@
 {
-  "ref": "gherkin/card:S-0034@7de76c3a4d91",
+  "ref": "gherkin/scenario:S-0034@7de76c3a4d91",
   "journeys": [
     "Set up"
   ],

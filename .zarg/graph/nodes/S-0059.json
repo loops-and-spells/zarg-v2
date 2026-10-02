@@ -22,5 +22,5 @@
     "title": "Reconcile cannot turn on",
     "when": "the operator types /reconcile without plan or implement models"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

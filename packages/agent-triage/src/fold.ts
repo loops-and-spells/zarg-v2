@@ -1,14 +1,14 @@
 /**
- * Folding a triage round, as the RLM folds a task: the round's drafted cards (units) into small plans,
- * each at most CAP cards, ordered by what they need from each other. Pure: the model's groups and the
+ * Folding a triage round, as the RLM folds a task: the round's drafted scenarios (units) into small plans,
+ * each at most CAP scenarios, ordered by what they need from each other. Pure: the model's groups and the
  * decision model's atomic answers come in from outside.
  */
 type Draft = ReadonlyArray<{ readonly tool: string; readonly params: unknown }>
 
-/** A card the round drafted: its changes (in draft order), what it says, the feedback it answers. */
-export type Unit = { readonly card: string; readonly title: string; readonly summary: string; readonly changes: Draft; readonly answers: ReadonlyArray<string> }
+/** A scenario the round drafted: its changes (in draft order), what it says, the feedback it answers. */
+export type Unit = { readonly scenario: string; readonly title: string; readonly summary: string; readonly changes: Draft; readonly answers: ReadonlyArray<string> }
 /** A group as the model answers it. */
-export type Group = { readonly title: string; readonly steps: ReadonlyArray<string>; readonly cards: ReadonlyArray<string> }
+export type Group = { readonly title: string; readonly steps: ReadonlyArray<string>; readonly scenarios: ReadonlyArray<string> }
 /** A folded plan: its units (indexes, in draft order) and the plans it waits on (indexes into the fold). */
 export type Folded = { readonly title: string; readonly steps: ReadonlyArray<string>; readonly units: ReadonlyArray<number>; readonly after: ReadonlyArray<number> }
 
@@ -28,10 +28,10 @@ const str = (x: unknown) => (typeof x === "string" && x.length > 0 ? [x] : [])
 /** A state as a change refers to it: by id, or by the text it has (or is created with). */
 const stateRefs = (x: unknown) => [...str(obj(x).id), ...str(obj(x).text)]
 
-/** The nodes a change names: ids, the cards and states it points at, states by text. */
+/** The nodes a change names: ids, the scenarios and states it points at, states by text. */
 const names = (c: Draft[number]) => {
   const p = obj(c.params)
-  return [...str(p.id), ...str(p.card), ...stateRefs(p.state), ...stateRefs(p.arrives), ...(Array.isArray(p.then) ? p.then.flatMap(stateRefs) : [])]
+  return [...str(p.id), ...str(p.scenario), ...stateRefs(p.state), ...stateRefs(p.arrives), ...(Array.isArray(p.then) ? p.then.flatMap(stateRefs) : [])]
 }
 /** The nodes a change creates or changes. */
 const made = (c: Draft[number]) => {
@@ -39,15 +39,15 @@ const made = (c: Draft[number]) => {
   switch (c.tool) {
     case "edit-state":
       return [...str(p.id), ...str(p.text)]
-    case "edit-card":
+    case "edit-scenario":
     case "remove":
       return str(p.id)
     case "link":
     case "unlink":
-      return [...str(p.card), ...str(obj(p.state).text)]
+      return [...str(p.scenario), ...str(obj(p.state).text)]
     case "add-state":
       return str(p.text)
-    case "add-card":
+    case "add-scenario":
       return [...str(p.title), ...str(obj(p.arrives).text), ...(Array.isArray(p.then) ? p.then.flatMap((t) => str(obj(t).text)) : [])]
     default:
       return []
@@ -87,7 +87,7 @@ const waits = (groups: ReadonlyArray<Draft_>, deps: ReadonlyArray<readonly [numb
 }
 
 /**
- * The round folded: the model's groups (each unit once; unknown cards dropped, missing units alone), or the
+ * The round folded: the model's groups (each unit once; unknown scenarios dropped, missing units alone), or the
  * dependency components without them; a group the decision model finds not atomic split into its components;
  * groups that would wait on each other merged; at most CAP units a plan, split in draft order; ordered by first unit.
  */
@@ -99,7 +99,7 @@ export const fold = (units: ReadonlyArray<Unit>, deps: ReadonlyArray<readonly [n
     const taken = new Set<number>()
     drafts = []
     for (const g of groups) {
-      const mine = units.flatMap((u, i) => (g.cards.includes(u.card) && !taken.has(i) ? [i] : []))
+      const mine = units.flatMap((u, i) => (g.scenarios.includes(u.scenario) && !taken.has(i) ? [i] : []))
       mine.forEach((i) => taken.add(i))
       if (mine.length === 0) continue
       if (mine.length > 1 && !atomic(g)) drafts.push(...components(mine, deps).map((m) => ({ ...named(units, m), units: m })))

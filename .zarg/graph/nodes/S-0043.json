@@ -22,5 +22,5 @@
     "title": "An agent runs out of budget",
     "when": "an agent exhausts its budget"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

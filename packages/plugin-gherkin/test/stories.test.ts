@@ -1,14 +1,14 @@
 // packages/plugin-gherkin/test/stories.test.ts
 import { describe, expect, test } from "bun:test"
 import { Snapshot } from "@zarg/graph/pure"
-import { ARRIVES, CARD, IN, JOURNEY, STATE, THEN } from "../src/model"
+import { ARRIVES, SCENARIO, IN, JOURNEY, STATE, THEN } from "../src/model"
 import { planStories, stepView } from "../src/stories"
 
 const st = (id: string, text: string, props: Record<string, unknown> = {}) => ({ id, type: STATE, props: { text, ...props }, edges: [] })
 const cd = (id: string, when: string, from: string, to: ReadonlyArray<string>) => ({
   id,
-  type: CARD,
-  props: { title: `card ${id}`, when },
+  type: SCENARIO,
+  props: { title: `scenario ${id}`, when },
   edges: [{ type: ARRIVES, to: from }, ...to.map((t) => ({ type: THEN, to: t }))],
 })
 // S1 (entry) -A-> S2; S2 forks: -B-> S3, -C-> S4; S3 -D-> S5; S4 -E-> S5; S5 -F-> S6 (terminal)
@@ -39,7 +39,7 @@ describe("stories", () => {
     expect(stories.every((s) => new Set(s).size === s.length)).toBe(true)
   })
 
-  test("a root card with nothing after it is a story; cards no root reaches are counted as unreachable", () => {
+  test("a root scenario with nothing after it is a story; scenarios no root reaches are counted as unreachable", () => {
     const g = Snapshot.make([
       st("S1", "the shop is open", { entry: true }), st("S2", "the shop is closed"),
       st("H", "the hall is shown"), st("P", "the porch is shown"),
@@ -49,20 +49,20 @@ describe("stories", () => {
     expect(planStories(g, "edge-pair")).toEqual({ stories: [["A"]], unreachable: 2 })
   })
 
-  test("teleport visits each card once, alone; focus keeps only stories through it", () => {
+  test("teleport visits each scenario once, alone; focus keeps only stories through it", () => {
     expect(planStories(graph, "teleport").stories).toEqual([["A"], ["B"], ["C"], ["D"], ["E"], ["F"]])
     expect(planStories(graph, "edge-pair", new Set(["E"])).stories.every((s) => s.includes("E"))).toBe(true)
   })
 
   test("a step shows its Given, When, Thens, how it was reached, the fork after it, and whether it has a failure case", () => {
     expect(stepView(graph, "B", "A")).toEqual({
-      card: "B",
-      title: "card B",
+      scenario: "B",
+      title: "scenario B",
       given: "the cart is shown",
       when: "the visitor checks out",
       thens: ["the payment form is shown"],
-      via: { card: "A", when: "the visitor opens the cart" },
-      fork: [{ card: "D", when: "the visitor pays" }],
+      via: { scenario: "A", when: "the visitor opens the cart" },
+      fork: [{ scenario: "D", when: "the visitor pays" }],
       hasFailure: true,
       journeys: [],
       by: [],
@@ -87,25 +87,25 @@ describe("journey stories", () => {
   const jn = (id: string, name: string) => ({ id, type: JOURNEY, props: { name }, edges: [] })
   const inJ = (n: { id: string; type: string; props: unknown; edges: ReadonlyArray<{ type: string; to: string }> }, j: string) => ({ ...n, edges: [...n.edges, { type: IN, to: j }] })
   const nodes = [...graph.nodes.values()]
-  const card = (id: string) => nodes.find((n) => n.id === id)! as never
+  const scenario = (id: string) => nodes.find((n) => n.id === id)! as never
   const journeys = Snapshot.make([
     ...nodes.filter((n) => n.type === STATE),
     jn("J-0001", "Checkout"), jn("J-0002", "After"),
-    ...["A", "B", "C", "D"].map((c) => inJ(card(c), "J-0001")),
-    ...["E", "F"].map((c) => inJ(card(c), "J-0002")),
+    ...["A", "B", "C", "D"].map((c) => inJ(scenario(c), "J-0001")),
+    ...["E", "F"].map((c) => inJ(scenario(c), "J-0002")),
     cd("X", "the visitor comes back", "S6", ["S1"]),
   ] as never)
   const key = (s: ReadonlyArray<string>) => s.join(">")
 
-  test("each journey's stories stay inside it and cover its steps and pairs; a seam story per step between journeys; a lone card alone", () => {
+  test("each journey's stories stay inside it and cover its steps and pairs; a seam story per step between journeys; a lone scenario alone", () => {
     const { stories, unreachable } = planStories(journeys, "journey")
     expect(new Set(stories.map(key))).toEqual(new Set(["A>B>D", "A>C", "E>F", "C>E", "D>F", "X"]))
     expect(unreachable).toBe(0)
   })
-  test("focus keeps the stories through a focused card", () => {
+  test("focus keeps the stories through a focused scenario", () => {
     expect(new Set(planStories(journeys, "journey", new Set(["E"])).stories.map(key))).toEqual(new Set(["E>F", "C>E"]))
   })
-  test("a card in two journeys is walked in both", () => {
+  test("a scenario in two journeys is walked in both", () => {
     const both = Snapshot.make([...journeys.nodes.values()].map((n) => (n.id === "F" ? { ...n, edges: [...n.edges, { type: IN, to: "J-0001" }] } : n)) as never)
     const stories = planStories(both, "journey").stories.map(key)
     expect(stories).toContain("A>B>D>F")
@@ -114,11 +114,11 @@ describe("journey stories", () => {
   })
 })
 
-test("a step says whether its card is planned (not built yet)", () => {
+test("a step says whether its scenario is planned (not built yet)", () => {
   const snap = Snapshot.make([
     { id: "ST-1", type: "gherkin/state", props: { text: "a" }, edges: [] },
-    { id: "S-1", type: "gherkin/card", props: { title: "t", when: "w", planned: true }, edges: [{ type: "gherkin/arrives", to: "ST-1" }] },
-    { id: "S-2", type: "gherkin/card", props: { title: "t", when: "w" }, edges: [{ type: "gherkin/arrives", to: "ST-1" }] },
+    { id: "S-1", type: "gherkin/scenario", props: { title: "t", when: "w", planned: true }, edges: [{ type: "gherkin/arrives", to: "ST-1" }] },
+    { id: "S-2", type: "gherkin/scenario", props: { title: "t", when: "w" }, edges: [{ type: "gherkin/arrives", to: "ST-1" }] },
   ] as never)
   expect([stepView(snap, "S-1")?.planned, stepView(snap, "S-2")?.planned]).toEqual([true, undefined])
 })

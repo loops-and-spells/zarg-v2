@@ -27,5 +27,5 @@
     "title": "Operator sets up a provider plugin",
     "when": "the operator opens a provider plugin's setup"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

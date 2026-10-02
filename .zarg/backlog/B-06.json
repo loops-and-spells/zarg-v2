@@ -1,15 +1,15 @@
 {
   "title": "Rework service-grant refusal card",
   "journey": "Watch agents",
-  "cards": [
+  "scenarios": [
     {
-      "ref": "gherkin/card:S-0041@85196d3ea738"
+      "ref": "gherkin/scenario:S-0041@85196d3ea738"
     },
     {
-      "ref": "gherkin/card:S-0048@ba9d9e139b95"
+      "ref": "gherkin/scenario:S-0048@ba9d9e139b95"
     },
     {
-      "ref": "gherkin/card:S-0046@d615b2a3f1f3"
+      "ref": "gherkin/scenario:S-0046@d615b2a3f1f3"
     }
   ],
   "changes": [

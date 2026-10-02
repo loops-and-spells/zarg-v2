@@ -25,7 +25,7 @@ export const FeedbackView = defineView("feedback", {
       { id: "note", label: "Note", key: "n", on: "row", input: "your note for refinement" },
     ],
     columns: [
-      { id: "card", label: "card", ref: true, filter: "none" },
+      { id: "scenario", label: "scenario", ref: true, filter: "none" },
       { id: "severity", label: "severity", order: ["high", "medium", "low"], filter: "values", tones: { high: "severity.high", medium: "severity.medium", low: "severity.low" } },
       { id: "kind", label: "kind", filter: "values" },
       // ✎: the operator left a note for refinement (the detail shows it).
@@ -34,7 +34,7 @@ export const FeedbackView = defineView("feedback", {
       { id: "status", label: "status", filter: "values", tones: { queued: "dim", waiting: "dim", drafted: "ok", "left out": "error", "re-rehearsing": "accent", "still reported": "attention" } },
     ],
   },
-  // The highlighted entry in full, and its card as the tester saw it.
+  // The highlighted entry in full, and its scenario as the tester saw it.
   detail: { kind: "text", role: "pinned", title: "", follows: "feedback", beside: "feedback" },
   // The stage's work: the agent drafting, the re-rehearse, the drafted plan and its changes.
   work: { kind: "text", role: "aside", title: "" },
@@ -46,11 +46,11 @@ export const BacklogView = defineView("backlog", { board: { kind: "board", role:
 /** The drawer (a sheet over the board): one plan in full, and where it can go next. */
 export const ItemView = defineView(
   "item",
-  // Plan: to read (what changes, card by card); For agents: every change, card version and feedback id.
+  // Plan: to read (what changes, scenario by scenario); For agents: every change, scenario version and feedback id.
   { item: { kind: "tabs", role: "primary", tabs: { plan: { kind: "text", title: "Plan" }, agent: { kind: "text", title: "For agents" } } } },
   {
     actions: [
-      // Move to a lane (Ready: the Planner applies it); Drop; Resync, offered only while a card changed.
+      // Move to a lane (Ready: the Planner applies it); Drop; Resync, offered only while a scenario changed.
       { id: "move", label: "Move ▾", key: "m", on: "none", choices: [{ id: "backlog", label: "Backlog" }, { id: "ready", label: "Ready" }, { id: "running", label: "Running" }, { id: "review", label: "Review" }, { id: "done", label: "Done" }] },
       { id: "drop", label: "Drop", key: "X", on: "none" },
       { id: "resync", label: "Resync", key: "s", on: "none" },

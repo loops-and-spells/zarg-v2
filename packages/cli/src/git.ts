@@ -10,7 +10,7 @@ const sh = (cwd: string, args: ReadonlyArray<string>) =>
 const decode = Schema.decodeUnknownEffect(Schema.fromJsonString(Node))
 
 /** The graph as committed at `ref`, read with git (the working tree is untouched). Undecodable files are skipped and reported. */
-// @card S-0005
+// @scenario S-0005
 export const snapshotAt = (root: string, ref: string) =>
   Effect.gen(function* () {
     // --full-name: paths from the repo top, which is what `git show ref:path` expects.
@@ -28,11 +28,11 @@ export const snapshotAt = (root: string, ref: string) =>
     return { snapshot: Snapshot.make(nodes), problems }
   })
 
-/** `path:line:text` hits for `@card <id>` in tracked and untracked files (not ignored ones). */
-// @card S-0081 S-0082
-export const cardRefs = (root: string, id: string) =>
-  // The id anywhere in a tag's list: `@card S-0081 S-0082` is a tag for both.
-  sh(root, ["grep", "-n", "--untracked", "-E", "-e", `@card([[:space:]]+[A-Z]+-[0-9]+)*[[:space:]]+${id}([^0-9]|$)`]).pipe(
+/** `path:line:text` hits for `@scenario <id>` in tracked and untracked files (not ignored ones). */
+// @scenario S-0081 S-0082
+export const scenarioRefs = (root: string, id: string) =>
+  // The id anywhere in a tag's list: `@scenario S-0081 S-0082` is a tag for both.
+  sh(root, ["grep", "-n", "--untracked", "-E", "-e", `@scenario([[:space:]]+[A-Z]+-[0-9]+)*[[:space:]]+${id}([^0-9]|$)`]).pipe(
     Effect.map((out) => out.split("\n").filter((l) => l.length > 0)),
     // git grep exits 1 when nothing matches.
     Effect.catch(() => Effect.succeed([] as ReadonlyArray<string>)),

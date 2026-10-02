@@ -10,7 +10,7 @@ const LIKELY = 0.75
 
 /**
  * Failure candidates worth offering: most one-way steps cannot fail, so only those a decision model finds
- * likely to fail (or branch) are kept. Each is judged on its own card: many cards in one request blur the
+ * likely to fail (or branch) are kept. Each is judged on its own scenario: many scenarios in one request blur the
  * answers to a coin flip. No decision model, no candidates: the driver does not make up failure cases.
  */
 export const judgeGaps = (

@@ -8,7 +8,7 @@ export type Entry = Omit<FiledEntry, "triage"> & {
   readonly triage: { readonly on: boolean; readonly why: string; readonly by: "agent" | "operator" }
   /** Set once a plan takes it (`planned`) or it is resolved (`closed`); otherwise its state follows its ref. */
   readonly state?: "planned" | "closed"
-  /** The latest run that walked its card and did not report it (it stays open only when the operator touched it). */
+  /** The latest run that walked its scenario and did not report it (it stays open only when the operator touched it). */
   readonly notReportedIn?: string
   /** The operator's note for refinement (kept when the report is filed again). */
   readonly operatorNote?: string

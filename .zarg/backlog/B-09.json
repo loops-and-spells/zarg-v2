@@ -1,9 +1,9 @@
 {
   "title": "Env files hidden",
   "journey": "Watch agents",
-  "cards": [
+  "scenarios": [
     {
-      "ref": "gherkin/card:S-0046@d615b2a3f1f3"
+      "ref": "gherkin/scenario:S-0046@d615b2a3f1f3"
     }
   ],
   "changes": [

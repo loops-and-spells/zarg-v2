@@ -23,5 +23,5 @@
     "title": "Operator chooses to set up the provider",
     "when": "the operator chooses provider setup"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

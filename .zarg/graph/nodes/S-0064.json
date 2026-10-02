@@ -26,5 +26,5 @@
     "title": "Operator always allows it",
     "when": "the operator picks always allow"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

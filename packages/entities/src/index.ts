@@ -8,7 +8,7 @@ export const refProblem = (s: string): string | undefined => {
   const colon = s.indexOf(":")
   if (colon < 0) return `"${s}" has no type: a ref is <plugin>/<kind>:<id>`
   const type = s.slice(0, colon)
-  if (!TYPE.test(type)) return `"${type}" is not a type: a type is plugin/kind, like gherkin/card`
+  if (!TYPE.test(type)) return `"${type}" is not a type: a type is plugin/kind, like gherkin/scenario`
   const rest = s.slice(colon + 1)
   if (rest.includes(":")) return `"${s}" has more than one ":"`
   const [id, version, extra] = rest.split("@")

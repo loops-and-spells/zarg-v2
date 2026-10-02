@@ -18,10 +18,10 @@ const syntaxOf = (t: ThemeService) =>
     number: { fg: t.value("number").fg },
   })
 
-/** Code zarg highlights itself (its Gherkin): each token kind by its key (an id is a card). */
+/** Code zarg highlights itself (its Gherkin): each token kind by its key (an id is a scenario). */
 const highlightOf = (t: ThemeService) => ({
   keyword: t.value("keyword").fg,
-  id: t.value("card").fg,
+  id: t.value("scenario").fg,
   comment: t.value("comment").fg,
   title: t.value("text").fg,
   flow: t.value("accent").fg,
@@ -31,7 +31,7 @@ const highlightOf = (t: ThemeService) => ({
   journey: t.value("journey").fg,
 })
 
-// @card S-0076
+// @scenario S-0076
 export const RichText = (p: { content: string; width: number; streaming?: boolean; onHeight?: (height: number) => void }) => {
   const theme = useTheme()
   const syntaxStyle = useMemo(() => syntaxOf(theme), [theme])

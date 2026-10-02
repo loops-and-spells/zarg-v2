@@ -1,5 +1,5 @@
 {
-  "ref": "gherkin/card:S-0048@ba9d9e139b95",
+  "ref": "gherkin/scenario:S-0048@ba9d9e139b95",
   "journeys": [
     "Watch agents"
   ],

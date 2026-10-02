@@ -5,7 +5,7 @@ import { canonical } from "@zarg/graph"
 import { engineLayer, makeFindings, Pass, passLayer, type ReconcileSpec, workingGraphTree } from "../src"
 import { sh, write } from "./repo"
 
-/** Stub phases: plan writes .zarg/plans/<card>.md; implement writes src/<card>.ts (or what `code` says). */
+/** Stub phases: plan writes .zarg/plans/<scenario>.md; implement writes src/<scenario>.ts (or what `code` says). */
 export const stubSpec = (repo: string, opts: {
   blocked?: ReadonlyArray<string>
   code?: Record<string, { file: string; text: string }>
@@ -16,9 +16,9 @@ export const stubSpec = (repo: string, opts: {
   during?: (item: string) => void
   /** Record calls in this file too (for tests that span processes). */
   callLog?: string
-  /** Plan writes a partial file for these cards, then fails. */
+  /** Plan writes a partial file for these scenarios, then fails. */
   planFails?: ReadonlyArray<string>
-  /** Implement throws (a defect) for these cards. */
+  /** Implement throws (a defect) for these scenarios. */
   implementDies?: ReadonlyArray<string>
   /** Verify dies this many times before working. */
   verifyDies?: number
@@ -32,7 +32,7 @@ export const stubSpec = (repo: string, opts: {
     calls,
     repo,
     affected: (before, after) => {
-      const items = [...after.nodes.values()].filter((n) => n.type === "gherkin/card" && (!before.nodes.has(n.id) || canonical(before.nodes.get(n.id)!) !== canonical(n))).map((n) => n.id)
+      const items = [...after.nodes.values()].filter((n) => n.type === "gherkin/scenario" && (!before.nodes.has(n.id) || canonical(before.nodes.get(n.id)!) !== canonical(n))).map((n) => n.id)
       const removed = [...before.nodes.keys()].filter((id) => !after.nodes.has(id) && id.startsWith("S-"))
       return Effect.succeed({ items: items.sort(), removed })
     },
@@ -61,9 +61,9 @@ export const stubSpec = (repo: string, opts: {
             if (opts.callLog) appendFileSync(opts.callLog, `implement ${item}\n`)
             opts.during?.(item)
             if (opts.implementDies?.includes(item)) throw new Error(`boom in ${item}`)
-            if (opts.blocked?.includes(item)) return { ok: false, kind: "blocked-card", title: `${item} contradicts another card`, detail: "stub" } as const
-            if (!existsSync(join(cwd, `.zarg/plans/${item}.md`))) return { ok: false, kind: "blocked-card", title: "no plan", detail: "" } as const
-            const c = opts.code?.[item] ?? { file: `src/${item}.ts`, text: `// @card ${item}\nexport const ok = true\n` }
+            if (opts.blocked?.includes(item)) return { ok: false, kind: "blocked-scenario", title: `${item} contradicts another scenario`, detail: "stub" } as const
+            if (!existsSync(join(cwd, `.zarg/plans/${item}.md`))) return { ok: false, kind: "blocked-scenario", title: "no plan", detail: "" } as const
+            const c = opts.code?.[item] ?? { file: `src/${item}.ts`, text: `// @scenario ${item}\nexport const ok = true\n` }
             write(cwd, c.file, c.text)
             return { ok: true } as const
           }),

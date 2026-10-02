@@ -22,5 +22,5 @@
     "title": "Verify keeps failing",
     "when": "the second fix attempt still fails"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

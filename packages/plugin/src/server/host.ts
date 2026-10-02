@@ -26,7 +26,7 @@ export interface CallResult {
 }
 
 export interface Affected {
-  readonly cards: ReadonlyArray<string>
+  readonly scenarios: ReadonlyArray<string>
   readonly removed: ReadonlyArray<string>
 }
 
@@ -56,12 +56,12 @@ export class PluginHost extends Context.Service<
     /** Every plugin's suggestions within focus, in the order each plugin ranks them. */
     readonly suggest: (focus?: ReadonlySet<string>) => Effect.Effect<ReadonlyArray<AgendaItem>, IoError>
     readonly render: (focus?: ReadonlySet<string>) => Effect.Effect<string, IoError>
-    /** Cards (or other items) a graph change affects, over every graph plugin that answers it. */
+    /** Scenarios (or other items) a graph change affects, over every graph plugin that answers it. */
     readonly affected: (before: Snapshot.Snapshot, after: Snapshot.Snapshot) => Effect.Effect<Affected, IoError>
     /** Stories for testers over every graph plugin that plans them (rehearse). */
     readonly stories: (strategy: "edge-pair" | "teleport", focus?: ReadonlySet<string>) => Effect.Effect<{ readonly stories: ReadonlyArray<ReadonlyArray<string>>; readonly unreachable: number }, IoError>
-    /** What a tester sees at a card, from the plugin that owns it; undefined for an unknown card. */
-    readonly step: (card: string, via?: string) => Effect.Effect<Record<string, unknown> | undefined, IoError>
+    /** What a tester sees at a scenario, from the plugin that owns it; undefined for an unknown scenario. */
+    readonly step: (scenario: string, via?: string) => Effect.Effect<Record<string, unknown> | undefined, IoError>
     /** Slash commands the loaded plugins add. */
     readonly commands: () => ReadonlyArray<{ readonly plugin: string; readonly cmd: string; readonly desc: string; readonly method: string; readonly arg: unknown }>
     /** Call any method of a loaded plugin (the core's reserved calls: act, finding, resolved, stop). */
@@ -232,7 +232,7 @@ const scopeWords = (s: ManifestScopes) =>
     ...((s.models ?? []).length > 0 ? [`use the model roles ${s.models!.join(", ")}`] : []),
     s.agents === true ? "show agents" : undefined,
     ...(s.entities?.read ?? []).map((t) => `read ${t}`),
-    s.code === true ? "read the code tagged with cards" : undefined,
+    s.code === true ? "read the code tagged with scenarios" : undefined,
     ...(s.entities?.command ?? []).map((t) => `change ${t}`),
   ].filter((p) => p !== undefined)
 
@@ -245,7 +245,7 @@ export const describeScopes = (m: { readonly scopes: ManifestScopes; readonly op
 }
 
 /** A plugin with no network, secret or file scope can only touch the graph. */
-// @card S-0069
+// @scenario S-0069
 const graphOnly = (m: Manifest) => m.scopes.net === undefined && m.scopes.secrets === undefined && m.scopes.fs === undefined && m.scopes.code !== true
 
 interface Running {
@@ -380,7 +380,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           bundle: p.bundle,
           powers,
           paused: () => asking > 0,
-          // @card S-0068
+          // @scenario S-0068
           onExit: (why) => {
             if (why === "stop") return
             // Its questions to the operator die with it: nothing waits on them any more.
@@ -419,7 +419,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         if (problem !== undefined) return failed(m, problem)
         const digest = scopesDigest(m.scopes, m.optional, depsOf(m))
         const granted = (yield* opts.grants.of(m.name, digest)).loaded
-        // @card S-0069
+        // @scenario S-0069
         if (!granted && opts.firstParty(p) && graphOnly(m)) yield* opts.grants.approveLoad(m.name, digest)
         else if (!granted) {
           hostItems.push({
@@ -569,7 +569,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           const d = diff(before, after)
           const findings = yield* check(before, after, result.changes)
           const errors = findings.filter((f) => f.severity === "error")
-          // @card S-0006
+          // @scenario S-0006
           if (errors.length > 0) return yield* new LintFailed({ findings: errors })
           // Guard against writes that land between our read and our commit.
           const touched: Record<string, string> = {}
@@ -614,7 +614,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         check(Snapshot.empty, after, [...after.nodes.values()].map((node) => ({ _tag: "Put", node }))),
       )
 
-      // @card S-0001
+      // @scenario S-0001
       const agenda = (focus?: ReadonlySet<string>) =>
         Effect.gen(function* () {
           const loadedGraph = yield* store.load
@@ -658,7 +658,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
 
       const affected = (before: Snapshot.Snapshot, after: Snapshot.Snapshot) =>
         Effect.map(each<Affected>("affected", { before: json(before), after: json(after) }), (parts) => ({
-          cards: [...new Set(defined(parts).flatMap((p) => p.cards))].sort(),
+          scenarios: [...new Set(defined(parts).flatMap((p) => p.scenarios))].sort(),
           removed: [...new Set(defined(parts).flatMap((p) => p.removed))].sort(),
         }))
 
@@ -667,8 +667,8 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           stories: defined(parts).flatMap((p) => p.stories),
           unreachable: defined(parts).reduce((n, p) => n + p.unreachable, 0),
         }))
-      const step = (card: string, via?: string) =>
-        Effect.map(each<Record<string, unknown> | null>("step", { card, ...(via !== undefined ? { via } : {}) }), (parts) => defined(parts).find((p) => p !== null) ?? undefined)
+      const step = (scenario: string, via?: string) =>
+        Effect.map(each<Record<string, unknown> | null>("step", { scenario, ...(via !== undefined ? { via } : {}) }), (parts) => defined(parts).find((p) => p !== null) ?? undefined)
 
       const toolsOf = (m: Manifest): ReadonlyArray<ToolInfo> =>
         Object.entries(m.methods)
@@ -704,7 +704,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
             if (m.archetype === "graph") continue
             const digest = scopesDigest(m.scopes, m.optional, depsOf(m))
             const granted = (yield* opts.grants.of(m.name, digest).pipe(Effect.orElseSucceed(() => ({ loaded: false })))).loaded
-            // @card S-0061
+            // @scenario S-0061
             if (!granted && !opts.yolo.on(m.name)) {
               const what = [`load, to ${describeScopes(m)}`, ...warnings(m.scopes, m.optional, depsOf(m)).map((w) => `(it ${w})`)].join(" ")
               const a = yield* opts.ask({ plugin: m.name, what, options: [{ id: "always", label: "Allow" }, { id: "deny", label: "Not now" }] })

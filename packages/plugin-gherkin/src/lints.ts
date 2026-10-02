@@ -1,11 +1,11 @@
 import type { Node } from "@zarg/graph/pure"
 import type { Finding, Lint } from "./kit"
-import { CARD, JOURNEY, journeyName, journeys, normalize, PERSONA, personaName, personas, similarity, STATE, states, text } from "./model"
+import { SCENARIO, JOURNEY, journeyName, journeys, normalize, PERSONA, personaName, personas, similarity, STATE, states, text } from "./model"
 
 const MAX_WORDS = 15
 
 const clauses = (n: Node): ReadonlyArray<string> =>
-  n.type === STATE ? [text(n)] : n.type === CARD ? [String(n.props.when ?? "")] : []
+  n.type === STATE ? [text(n)] : n.type === SCENARIO ? [String(n.props.when ?? "")] : []
 
 const touched: (ctx: Parameters<Lint>[0]) => ReadonlyArray<Node> = ({ diff }) => [
   ...diff.added,
@@ -13,7 +13,7 @@ const touched: (ctx: Parameters<Lint>[0]) => ReadonlyArray<Node> = ({ diff }) =>
 ]
 
 /** One atomic fact per clause: short, no conditions, no "and" chaining. */
-// @card S-0003
+// @scenario S-0003
 export const clauseShape: Lint = (ctx) =>
   touched(ctx).flatMap((n) =>
     clauses(n).flatMap((c): ReadonlyArray<Finding> => {
@@ -23,7 +23,7 @@ export const clauseShape: Lint = (ctx) =>
         out.push({ severity: "error", code: "clause-too-long", message: `${n.id}: "${c}" has ${count} words; keep clauses to ${MAX_WORDS} or fewer`, about: [n.id] })
       }
       if (/\bif\b/i.test(c)) {
-        out.push({ severity: "error", code: "conditional", message: `${n.id}: "${c}" contains "if"; make one card per case instead`, about: [n.id] })
+        out.push({ severity: "error", code: "conditional", message: `${n.id}: "${c}" contains "if"; make one scenario per case instead`, about: [n.id] })
       }
       if (/\band\b/i.test(c)) {
         out.push({ severity: "warn", code: "and-chaining", message: `${n.id}: "${c}" contains "and"; split it if it states two facts`, about: [n.id] })
@@ -51,7 +51,7 @@ export const stateText: Lint = (ctx) =>
     )
 const words = (s: string) => s.trim().split(/\s+/).filter((w) => w !== "").length
 
-/** A persona: a short unique name (its cards' title prefix), a roleplay text a tester can hold. */
+/** A persona: a short unique name (its scenarios' title prefix), a roleplay text a tester can hold. */
 export const personaShape: Lint = (ctx) =>
   touched(ctx)
     .filter((n) => n.type === PERSONA)

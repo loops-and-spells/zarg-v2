@@ -5,7 +5,7 @@ type Failure = { readonly _tag: string; readonly message?: string; readonly find
 interface Plan {
   readonly id: string
   readonly title: string
-  readonly cards: ReadonlyArray<{ readonly ref: string }>
+  readonly scenarios: ReadonlyArray<{ readonly ref: string }>
   readonly changes: ReadonlyArray<{ readonly tool: string; readonly params: unknown }>
 }
 export interface PlannerDeps {
@@ -19,14 +19,14 @@ export interface PlannerDeps {
     list: ReadonlyArray<{ readonly name: string; readonly params: unknown }>,
     hooks: { readonly before: Effect.Effect<B>; readonly failure: (b: B, touched: ReadonlyArray<string>) => Effect.Effect<void, unknown>; readonly after: (b: B, touched: ReadonlyArray<string>) => Effect.Effect<R> },
   ) => Effect.Effect<{ readonly touched: ReadonlyArray<string>; readonly before: B; readonly after: R }, { readonly touched: ReadonlyArray<string>; readonly error: Failure }>
-  /** The graph now (to know which cards a plan affected). */
+  /** The graph now (to know which scenarios a plan affected). */
   readonly snapshot: Effect.Effect<unknown, unknown>
-  /** The cards a change between two graphs affects (the plugins' `affected`). */
-  readonly affected: (before: unknown, after: unknown) => Effect.Effect<{ readonly cards: ReadonlyArray<string> }, unknown>
+  /** The scenarios a change between two graphs affects (the plugins' `affected`). */
+  readonly affected: (before: unknown, after: unknown) => Effect.Effect<{ readonly scenarios: ReadonlyArray<string> }, unknown>
   /** The graph's node files now: put touched ones back to these bytes; name the touched ones the operator had changed. */
   readonly files: () => Effect.Effect<{ readonly restore: (ids: ReadonlyArray<string>) => Effect.Effect<void, unknown>; readonly dirty: (ids: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<string>, unknown> }, unknown>
-  /** Whether a card is still in the graph (a plan may remove one). */
-  readonly exists: (card: string) => Effect.Effect<boolean, unknown>
+  /** Whether a scenario is still in the graph (a plan may remove one). */
+  readonly exists: (scenario: string) => Effect.Effect<boolean, unknown>
   /** Commit exactly these nodes' files; the commit's sha (undefined: nothing to commit). */
   readonly commit: (ids: ReadonlyArray<string>, message: string) => Effect.Effect<string | undefined, unknown>
   /** Wake the reconcile loop (it implements what changed). */
@@ -36,16 +36,16 @@ export interface PlannerDeps {
   readonly running: () => Effect.Effect<ReadonlyArray<{ readonly id: string; readonly data: unknown }>, unknown>
 }
 const why = (e: Failure) => (e.findings !== undefined && e.findings.length > 0 ? e.findings.map((f) => f.message).join("; ") : (e.message ?? e._tag))
-const cardIds = (p: Plan) => p.cards.map((c) => parseRef(c.ref)?.id ?? "")
+const scenarioIds = (p: Plan) => p.scenarios.map((c) => parseRef(c.ref)?.id ?? "")
 
 /**
- * The Planner Agent: takes the next Ready plan off the Backlog, applies its drafted card changes through the graph's
+ * The Planner Agent: takes the next Ready plan off the Backlog, applies its drafted scenario changes through the graph's
  * write pipeline, commits exactly those nodes, and hands them to the reconcile loop; a landed pass moves it to Review.
  */
 export const makePlanner = (d: PlannerDeps) => {
   const lock = Effect.runSync(Semaphore.make(1))
-  const moved = (id: string, to: string, by: string, what: string, needs?: string, cards?: ReadonlyArray<string>) =>
-    d.invoke("backlog", "moved", { id, to, by, what, ...(needs !== undefined ? { needs } : {}), ...(cards !== undefined && cards.length > 0 ? { cards } : {}) })
+  const moved = (id: string, to: string, by: string, what: string, needs?: string, scenarios?: ReadonlyArray<string>) =>
+    d.invoke("backlog", "moved", { id, to, by, what, ...(needs !== undefined ? { needs } : {}), ...(scenarios !== undefined && scenarios.length > 0 ? { scenarios } : {}) })
   const tick = Effect.gen(function* () {
     const plan = (yield* d.invoke("backlog", "next", {}).pipe(Effect.orElseSucceed(() => null))) as Plan | null
     if (plan === null) return
@@ -83,43 +83,43 @@ export const makePlanner = (d: PlannerDeps) => {
       yield* Effect.ignore(moved(plan.id, "ready", "Planner", "waits for your graph edits", `commit your uncommitted changes to ${dirty.join(", ")} first (the plan changes them too)`))
       return
     }
-    // The cards the plan affected (a reworded state's cards, a new card): the ones a landed pass must cover.
-    const cards = applied.value.before.graph === undefined || graph === undefined ? [] : (yield* d.affected(applied.value.before.graph, graph).pipe(Effect.orElseSucceed(() => ({ cards: [] as ReadonlyArray<string> })))).cards
+    // The scenarios the plan affected (a reworded state's scenarios, a new scenario): the ones a landed pass must cover.
+    const scenarios = applied.value.before.graph === undefined || graph === undefined ? [] : (yield* d.affected(applied.value.before.graph, graph).pipe(Effect.orElseSucceed(() => ({ scenarios: [] as ReadonlyArray<string> })))).scenarios
     const at = sha === undefined ? "applied (nothing to commit)" : `applied in ${sha.slice(0, 7)}`
-    if (!d.reconcileOn()) return yield* Effect.ignore(moved(plan.id, "review", "Planner", `${at}; reconcile is off: implement by hand`, undefined, cards))
-    yield* Effect.ignore(moved(plan.id, "running", "Planner", at, undefined, cards))
+    if (!d.reconcileOn()) return yield* Effect.ignore(moved(plan.id, "review", "Planner", `${at}; reconcile is off: implement by hand`, undefined, scenarios))
+    yield* Effect.ignore(moved(plan.id, "running", "Planner", at, undefined, scenarios))
     d.notify()
   }).pipe(lock.withPermits(1))
 
   // A code plan is the operator's (no graph changes to apply, no pass of its own): a pass's result never moves it.
   const runningPlans = Effect.map(d.running().pipe(Effect.orElseSucceed(() => [])), (rs) => rs.map((r) => ({ id: r.id, plan: r.data as Plan })).filter((r) => (r.plan as { kind?: string }).kind !== "code"))
-  /** A pass landed these cards: a Running plan whose cards all landed (or were removed by it) is ready for review. */
-  const landed = (cards: ReadonlyArray<string>) =>
+  /** A pass landed these scenarios: a Running plan whose scenarios all landed (or were removed by it) is ready for review. */
+  const landed = (scenarios: ReadonlyArray<string>) =>
     Effect.gen(function* () {
-      // Landed cards are built now: planned is cleared (affected ignores it, so no pass follows).
-      // One call per card (one that fails leaves the rest), committed when it changed the card.
-      for (const id of cards)
+      // Landed scenarios are built now: planned is cleared (affected ignores it, so no pass follows).
+      // One call per scenario (one that fails leaves the rest), committed when it changed the scenario.
+      for (const id of scenarios)
         yield* Effect.ignore(
-          d.calls([{ name: "gherkin/edit-card", params: { id, planned: false } }], {
+          d.calls([{ name: "gherkin/edit-scenario", params: { id, planned: false } }], {
             before: Effect.void,
             failure: () => Effect.void,
             after: (_, touched) => (touched.length > 0 ? Effect.asVoid(Effect.ignore(d.commit(touched, `req: ${id} is built (landed)`))) : Effect.void),
           }),
         )
-      const done = new Set(cards)
+      const done = new Set(scenarios)
       for (const { id, plan } of yield* runningPlans) {
-        const ids = cardIds(plan)
+        const ids = scenarioIds(plan)
         if (ids.length === 0 || !ids.some((c) => done.has(c))) continue
         const all = yield* Effect.forEach(ids, (c) => (done.has(c) ? Effect.succeed(true) : Effect.map(d.exists(c).pipe(Effect.orElseSucceed(() => true)), (e) => !e)))
         if (all.every(Boolean)) yield* Effect.ignore(d.invoke("backlog", "moved", { id, to: "review", by: "reconcile", what: "landed" }))
       }
     })
-  /** A pass failed on these cards: a Running plan with one of them goes back to Ready, for the operator. */
-  const failed = (cards: ReadonlyArray<string>) =>
+  /** A pass failed on these scenarios: a Running plan with one of them goes back to Ready, for the operator. */
+  const failed = (scenarios: ReadonlyArray<string>) =>
     Effect.gen(function* () {
-      const bad = new Set(cards)
+      const bad = new Set(scenarios)
       for (const { id, plan } of yield* runningPlans) {
-        const hit = cardIds(plan).filter((c) => bad.has(c))
+        const hit = scenarioIds(plan).filter((c) => bad.has(c))
         if (hit.length > 0)
           yield* Effect.ignore(
             d.invoke("backlog", "moved", { id, to: "ready", by: "reconcile", what: `the pass failed on ${hit.join(", ")}`, needs: `the reconcile pass failed on ${hit.join(", ")}: see the driver's agenda, then move it to Ready` }),

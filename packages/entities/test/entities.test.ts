@@ -3,15 +3,15 @@ import { canonical, formatRef, parseRef, refProblem, versionOf } from "../src"
 
 describe("refs", () => {
   test("parse and format round-trip, with and without a version", () => {
-    for (const s of ["gherkin/card:S-0062", "gherkin/card:S-0062@3f9a1c20b7e4", "backlog/item:B-12"]) expect(formatRef(parseRef(s)!)).toBe(s)
-    expect(parseRef("gherkin/card:S-0062@3f9a")).toEqual({ type: "gherkin/card", id: "S-0062", version: "3f9a" })
+    for (const s of ["gherkin/scenario:S-0062", "gherkin/scenario:S-0062@3f9a1c20b7e4", "backlog/item:B-12"]) expect(formatRef(parseRef(s)!)).toBe(s)
+    expect(parseRef("gherkin/scenario:S-0062@3f9a")).toEqual({ type: "gherkin/scenario", id: "S-0062", version: "3f9a" })
   })
   test("bad refs are refused with the reason", () => {
     expect(refProblem("S-0062")).toMatch(/type/)
-    expect(refProblem("gherkin/card:")).toMatch(/id/)
-    expect(refProblem("card:S-1")).toMatch(/plugin\/kind/)
-    expect(refProblem("gherkin/card:a:b")).toMatch(/one ":"/)
-    expect(refProblem("gherkin/card:S-1@")).toMatch(/version/)
+    expect(refProblem("gherkin/scenario:")).toMatch(/id/)
+    expect(refProblem("scenario:S-1")).toMatch(/plugin\/kind/)
+    expect(refProblem("gherkin/scenario:a:b")).toMatch(/one ":"/)
+    expect(refProblem("gherkin/scenario:S-1@")).toMatch(/version/)
     expect(parseRef("S-0062")).toBeUndefined()
   })
 })

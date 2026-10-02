@@ -26,5 +26,5 @@
     "title": "CLI actor records a checkpoint",
     "when": "the CLI actor records a checkpoint"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

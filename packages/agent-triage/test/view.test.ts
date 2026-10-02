@@ -5,41 +5,41 @@ const t = (ms: number, out: number, reasoning: number, problems: ReadonlyArray<s
 const round = {
   journey: "Talk with zarg",
   stage: "refine" as const,
-  draft: [{ tool: "edit-card", params: {} }],
+  draft: [{ tool: "edit-scenario", params: {} }],
   proposals: [
-    { card: "S-0071", title: "Driver Agent chooses for the operator", status: "accepted" as const, summary: "the operator confirms", changes: [{ tool: "edit-card", params: { id: "S-0071" } }], answers: [], tries: [t(41_000, 1800, 1100)] },
-    { card: "S-0077", title: "Operator sees a diagram", status: "accepted" as const, summary: "one card per case", changes: [], answers: [], tries: [t(30_000, 1500, 900, ["a clause has if"]), t(50_000, 1800, 1200)] },
-    { card: "S-0012", title: "Operator chats about the question", status: "skipped" as const, summary: "", changes: [], answers: [], problems: ["6 thens"], tries: [t(180_000, 16384, 16384, ["the model gave no answer"], "length"), t(70_000, 4900, 3400, ["6 thens"])] },
-    { card: "S-0017", title: "Driver Agent merges compatible edits", status: "waiting" as const, summary: "", changes: [], answers: [] },
-    { card: "S-0010", status: "waiting" as const, summary: "", changes: [], answers: [] },
+    { scenario: "S-0071", title: "Driver Agent chooses for the operator", status: "accepted" as const, summary: "the operator confirms", changes: [{ tool: "edit-scenario", params: { id: "S-0071" } }], answers: [], tries: [t(41_000, 1800, 1100)] },
+    { scenario: "S-0077", title: "Operator sees a diagram", status: "accepted" as const, summary: "one scenario per case", changes: [], answers: [], tries: [t(30_000, 1500, 900, ["a clause has if"]), t(50_000, 1800, 1200)] },
+    { scenario: "S-0012", title: "Operator chats about the question", status: "skipped" as const, summary: "", changes: [], answers: [], problems: ["6 thens"], tries: [t(180_000, 16384, 16384, ["the model gave no answer"], "length"), t(70_000, 4900, 3400, ["6 thens"])] },
+    { scenario: "S-0017", title: "Driver Agent merges compatible edits", status: "waiting" as const, summary: "", changes: [], answers: [] },
+    { scenario: "S-0010", status: "waiting" as const, summary: "", changes: [], answers: [] },
   ],
 }
 const journeys = [{ name: "Talk with zarg", open: 68 }, { name: "Reconcile", open: 57 }]
 
 describe("the Triage Agent's view", () => {
-  test("working: the round's counts and time left; the card in flight; each card's outcome, time, tokens, think and why", () => {
-    const v = workerView({ stage: round, working: { journey: "Talk with zarg", card: "S-0017", since: 1_000 }, now: 39_000, diffs: {} })
+  test("working: the round's counts and time left; the scenario in flight; each scenario's outcome, time, tokens, think and why", () => {
+    const v = workerView({ stage: round, working: { journey: "Talk with zarg", scenario: "S-0017", since: 1_000 }, now: 39_000, diffs: {} })
     expect(v.summary).toContain("**refining Talk with zarg**")
-    expect(v.summary).toContain("3/5 cards · 2 drafted · 1 retried · 1 left out · ~3 min left")
+    expect(v.summary).toContain("3/5 scenarios · 2 drafted · 1 retried · 1 left out · ~3 min left")
     // The view redraws only when the agent pushes: no spinner, no running clock.
     expect(v.summary).toContain("**S-0017** Driver Agent merges compatible edits · drafting")
     expect(v.summary).not.toContain("38 s")
-    // The table is the outcome and the card; the rest is in the detail.
-    expect(v.cards.map((r) => [r.cells.g, r.id, Object.keys(r.cells)])).toEqual([
-      ["✓", "S-0071", ["g", "card"]],
-      ["↻", "S-0077", ["g", "card"]],
-      ["✗", "S-0012", ["g", "card"]],
-      ["⠋", "S-0017", ["g", "card"]],
-      ["·", "S-0010", ["g", "card"]],
+    // The table is the outcome and the scenario; the rest is in the detail.
+    expect(v.scenarios.map((r) => [r.cells.g, r.id, Object.keys(r.cells)])).toEqual([
+      ["✓", "S-0071", ["g", "scenario"]],
+      ["↻", "S-0077", ["g", "scenario"]],
+      ["✗", "S-0012", ["g", "scenario"]],
+      ["⠋", "S-0017", ["g", "scenario"]],
+      ["·", "S-0010", ["g", "scenario"]],
     ])
-    expect(v.cards[2]!.tone).toBe("error")
-    // The card in flight spins in the shell.
-    expect(v.cards.map((r) => r.busy === true)).toEqual([false, false, false, true, false])
-    expect(v.details["S-0017"]).toContain("Asking the model about this card now")
+    expect(v.scenarios[2]!.tone).toBe("error")
+    // The scenario in flight spins in the shell.
+    expect(v.scenarios.map((r) => r.busy === true)).toEqual([false, false, false, true, false])
+    expect(v.details["S-0017"]).toContain("Asking the model about this scenario now")
     expect(v.details["S-0010"]).toContain("Waiting its turn")
-    expect(v.cards[0]!.cells.card).toBe("gherkin/card:S-0071")
+    expect(v.scenarios[0]!.cells.scenario).toBe("gherkin/scenario:S-0071")
   })
-  test("a card's detail: each try (time, tokens, how it ended, what was wrong), then its change", () => {
+  test("a scenario's detail: each try (time, tokens, how it ended, what was wrong), then its change", () => {
     const v = workerView({ stage: round, now: 0, diffs: { "S-0071": "```diff\n- When a\n+ When b\n```" } })
     expect(v.details["S-0012"]).toContain("**S-0012** Operator chats about the question · left out")
     expect(v.details["S-0012"]).toContain("2 tries · 4 m 10 s · 10.4k → 21.3k tokens")
@@ -47,32 +47,32 @@ describe("the Triage Agent's view", () => {
     expect(v.details["S-0012"]).toContain("  the model gave no answer")
     expect(v.details["S-0012"]).toContain("▮▮▮▮▮▮ reasoning")
     // Left out before tries were kept: its problems still show.
-    const old = workerView({ stage: { ...round, proposals: [{ card: "S-0018", status: "skipped" as const, summary: "", changes: [], answers: [], problems: ["the Triage Agent could not draft a proposal"] }] }, now: 0, diffs: {} })
+    const old = workerView({ stage: { ...round, proposals: [{ scenario: "S-0018", status: "skipped" as const, summary: "", changes: [], answers: [], problems: ["the Triage Agent could not draft a proposal"] }] }, now: 0, diffs: {} })
     expect(old.details["S-0018"]).toContain("Left out: the Triage Agent could not draft a proposal")
     expect(v.details["S-0071"]).toContain("```diff\n- When a\n+ When b\n```")
   })
   test("re-rehearsing: one line for the run", () => {
-    const v = workerView({ stage: { ...round, stage: "rehearse", run: "r-4c1a" }, working: { journey: "Talk with zarg", card: "", since: 0 }, now: 720_000, diffs: {} })
+    const v = workerView({ stage: { ...round, stage: "rehearse", run: "r-4c1a" }, working: { journey: "Talk with zarg", scenario: "", since: 0 }, now: 720_000, diffs: {} })
     expect(v.summary).toContain("**re-rehearsing Talk with zarg** over the draft")
     expect(v.summary).toContain("run r-4c1a · its testers are in rehearse's view")
   })
   test("the rollup: how many workers are busy, each worker's journey and progress, the journeys in line", () => {
-    const queued = { ...round, journey: "Reconcile", queued: 2, proposals: [{ card: "S-0030", status: "waiting" as const, summary: "", changes: [], answers: [] }] }
+    const queued = { ...round, journey: "Reconcile", queued: 2, proposals: [{ scenario: "S-0030", status: "waiting" as const, summary: "", changes: [], answers: [] }] }
     const planned = { ...round, journey: "Set up", stage: "plan" as const, plan: { title: "t", steps: [] } }
     const v = rollupView({
       stages: [{ ...round, queued: 1, worker: "triage-1" }, queued, planned],
       journeys: [...journeys, { name: "Set up", open: 53 }, { name: "Watch agents", open: 11 }],
-      workers: [{ id: "triage-1", journey: "Talk with zarg", working: { journey: "Talk with zarg", card: "S-0017", since: 0 } }, { id: "triage-2" }],
+      workers: [{ id: "triage-1", journey: "Talk with zarg", working: { journey: "Talk with zarg", scenario: "S-0017", since: 0 } }, { id: "triage-2" }],
       paused: false,
     })
     expect(v.summary).toContain("**1 of 2 workers busy** · 1 queued")
     expect(v.workers.map((r) => [r.id, r.cells.journey, r.cells.now, r.busy === true])).toEqual([
-      ["triage-1", "Talk with zarg", "Refine 3/5 cards · S-0017", true],
+      ["triage-1", "Talk with zarg", "Refine 3/5 scenarios · S-0017", true],
       ["triage-2", "", "free", false],
     ])
     expect(v.journeys.map((r) => [r.id, r.cells.stage, r.cells.waits])).toEqual([
-      ["Talk with zarg", "triage-1 · Refine 3/5 cards", "2 drafted · 1 left out"],
-      ["Reconcile", "queued #1", "1 card"],
+      ["Talk with zarg", "triage-1 · Refine 3/5 scenarios", "2 drafted · 1 left out"],
+      ["Reconcile", "queued #1", "1 scenario"],
       ["Set up", "Plan", "plan ready: accept or refine again in Feedback"],
       ["Watch agents", "Triage", "11 open · waits for your Refine"],
     ])
@@ -84,14 +84,14 @@ describe("the Triage Agent's view", () => {
   test("durations read as seconds, then minutes and seconds", () => {
     expect([dur(900), dur(38_000), dur(80_000), dur(3_600_000)]).toEqual(["1 s", "38 s", "1 m 20 s", "60 m 00 s"])
   })
-  test("time left averages only the cards whose tries were kept", () => {
-    const early = { card: "S-0018", status: "skipped" as const, summary: "", changes: [], answers: [], problems: ["no proposal"] }
-    const v = workerView({ stage: { ...round, proposals: [early, ...round.proposals] }, working: { journey: "Talk with zarg", card: "S-0017", since: 0 }, now: 0, diffs: {} })
-    // (41 + 80 + 250 s) / 3 cards ≈ 124 s each, 2 waiting: ~4 min.
+  test("time left averages only the scenarios whose tries were kept", () => {
+    const early = { scenario: "S-0018", status: "skipped" as const, summary: "", changes: [], answers: [], problems: ["no proposal"] }
+    const v = workerView({ stage: { ...round, proposals: [early, ...round.proposals] }, working: { journey: "Talk with zarg", scenario: "S-0017", since: 0 }, now: 0, diffs: {} })
+    // (41 + 80 + 250 s) / 3 scenarios ≈ 124 s each, 2 waiting: ~4 min.
     expect(v.summary).toContain("~4 min left")
   })
   test("a try whose counts do not add up still draws: the think bar stays six cells", () => {
-    const odd = { ...round, proposals: [{ card: "S-0001", status: "accepted" as const, summary: "", changes: [], answers: [], tries: [t(1000, 100, 400), t(1000, 0, 0), t(1000, Number.NaN, 10)] }] }
+    const odd = { ...round, proposals: [{ scenario: "S-0001", status: "accepted" as const, summary: "", changes: [], answers: [], tries: [t(1000, 100, 400), t(1000, 0, 0), t(1000, Number.NaN, 10)] }] }
     const d = workerView({ stage: odd, now: 0, diffs: {} }).details["S-0001"]!
     expect(d.match(/[▮▯]{6} reasoning/g)?.length).toBe(3)
   })

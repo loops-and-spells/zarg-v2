@@ -30,19 +30,19 @@ export const RollupView = defineView("triage", {
   journeys: journeysTable,
 })
 
-/** One triage worker: what it is on, its journey's cards (each card's tries and change beside the list). */
+/** One triage worker: what it is on, its journey's scenarios (each scenario's tries and change beside the list). */
 export const WorkerView = defineView("worker", {
   summary: { kind: "text", role: "summary", title: "" },
-  cards: {
+  scenarios: {
     kind: "table",
     role: "primary",
     title: "",
     columns: [
       { id: "g", label: "", filter: "none", tones: { "✓": "ok", "↻": "attention", "✗": "error", "⠋": "accent", "·": "dim" } },
-      { id: "card", label: "card", ref: true, filter: "none" },
+      { id: "scenario", label: "scenario", ref: true, filter: "none" },
     ],
     actions: [{ id: "draft-again", label: "Draft again", key: "d", on: "row" }],
   },
-  // The highlighted card's tries, and its change.
-  detail: { kind: "text", role: "pinned", title: "", follows: "cards", beside: "cards" },
+  // The highlighted scenario's tries, and its change.
+  detail: { kind: "text", role: "pinned", title: "", follows: "scenarios", beside: "scenarios" },
 })

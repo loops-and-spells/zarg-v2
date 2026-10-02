@@ -23,5 +23,5 @@
     "title": "Driver Agent asks about conflicting edits",
     "when": "the Driver Agent finds the edits conflicting"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

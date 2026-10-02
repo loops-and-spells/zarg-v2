@@ -1,45 +1,45 @@
 {
   "title": "Reconcile feedback fixes",
   "journey": "Reconcile",
-  "cards": [
+  "scenarios": [
     {
-      "ref": "gherkin/card:S-0053@0932a455338a"
+      "ref": "gherkin/scenario:S-0053@0932a455338a"
     },
     {
-      "ref": "gherkin/card:S-0021@be3e2dad47a4"
+      "ref": "gherkin/scenario:S-0021@be3e2dad47a4"
     },
     {
-      "ref": "gherkin/card:S-0025@6d66db3e8f9e"
+      "ref": "gherkin/scenario:S-0025@6d66db3e8f9e"
     },
     {
-      "ref": "gherkin/card:S-0054@c6154f6a71a4"
+      "ref": "gherkin/scenario:S-0054@c6154f6a71a4"
     },
     {
-      "ref": "gherkin/card:S-0052@c958d0905237"
+      "ref": "gherkin/scenario:S-0052@c958d0905237"
     },
     {
-      "ref": "gherkin/card:S-0024@d78041d61722"
+      "ref": "gherkin/scenario:S-0024@d78041d61722"
     },
     {
-      "ref": "gherkin/card:S-0022@2d22615daf6e"
+      "ref": "gherkin/scenario:S-0022@2d22615daf6e"
     },
     {
-      "ref": "gherkin/card:S-0056@0cd52e941271"
+      "ref": "gherkin/scenario:S-0056@0cd52e941271"
     },
     {
-      "ref": "gherkin/card:S-0055@29ab5caee369"
+      "ref": "gherkin/scenario:S-0055@29ab5caee369"
     },
     {
-      "ref": "gherkin/card:S-0020@6ebad7b3d410"
+      "ref": "gherkin/scenario:S-0020@6ebad7b3d410"
     },
     {
-      "ref": "gherkin/card:S-0023@5cc13aef0197"
+      "ref": "gherkin/scenario:S-0023@5cc13aef0197"
     },
     {
-      "ref": "gherkin/card:S-0059@db67e9d3a989"
+      "ref": "gherkin/scenario:S-0059@db67e9d3a989"
     },
     {
-      "ref": "gherkin/card:S-0058@d2abbb7f2f1e"
+      "ref": "gherkin/scenario:S-0058@d2abbb7f2f1e"
     }
   ],
   "changes": [
@@ -61,7 +61,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0053",
+        "scenario": "S-0053",
         "edge": "then",
         "state": {
           "text": "the conflict-resolution node routes the overlap"
@@ -71,7 +71,7 @@
     {
       "tool": "unlink",
       "params": {
-        "card": "S-0053",
+        "scenario": "S-0053",
         "edge": "then",
         "state": "ST-0020"
       }
@@ -79,7 +79,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0053",
+        "scenario": "S-0053",
         "edge": "then",
         "state": {
           "text": "the verify gate runs after resolution"
@@ -132,7 +132,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0054",
+        "scenario": "S-0054",
         "edge": "then",
         "state": {
           "text": "the stalled card joins the reconcile finding"
@@ -157,7 +157,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0052",
+        "scenario": "S-0052",
         "edge": "then",
         "state": {
           "text": "the gate accepts: the commit lands"
@@ -167,7 +167,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0052",
+        "scenario": "S-0052",
         "edge": "then",
         "state": {
           "text": "the gate rejects: the commit is reverted"
@@ -177,7 +177,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0052",
+        "scenario": "S-0052",
         "edge": "then",
         "state": {
           "text": "a failed gate triggers repair before re-land"
@@ -262,7 +262,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0020",
+        "scenario": "S-0020",
         "edge": "then",
         "state": {
           "text": "the plan-ready choice is execute, approval, or re-plan"
@@ -313,7 +313,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0023",
+        "scenario": "S-0023",
         "edge": "then",
         "state": {
           "text": "attempt bound with escalation/abort after N failed repairs"
@@ -323,7 +323,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0023",
+        "scenario": "S-0023",
         "edge": "then",
         "state": {
           "text": "failure detector reopens the landed commit"
@@ -333,7 +333,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0023",
+        "scenario": "S-0023",
         "edge": "then",
         "state": {
           "text": "fix -> gate runs -> re-commit"
@@ -343,7 +343,7 @@
     {
       "tool": "unlink",
       "params": {
-        "card": "S-0023",
+        "scenario": "S-0023",
         "edge": "then",
         "state": "ST-0019"
       }
@@ -452,7 +452,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0058",
+        "scenario": "S-0058",
         "edge": "then",
         "state": {
           "text": "operator decides each presented plan before apply"
@@ -495,7 +495,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0021",
+        "scenario": "S-0021",
         "edge": "then",
         "state": {
           "text": "a failed plan verdict loops the Implementer fix loop"
@@ -505,7 +505,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0021",
+        "scenario": "S-0021",
         "edge": "then",
         "state": {
           "text": "a passed plan verdict routes to deliver and merge"
@@ -612,7 +612,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0055",
+        "scenario": "S-0055",
         "edge": "then",
         "state": {
           "text": "a stop or escalate rule applies after the second failure"
@@ -622,7 +622,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0055",
+        "scenario": "S-0055",
         "edge": "then",
         "state": {
           "text": "the Driver agenda shows the reconcile finding and its resolution shape"

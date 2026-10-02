@@ -105,7 +105,7 @@ const toGrid = async <T extends { mockInput: { pressKey: (k: string, m?: { ctrl?
 }
 
 describe("tui frames", () => {
-  // @card S-0076
+  // @scenario S-0076
   test("zarg's sheet renders Mermaid inside agent messages", async () => {
     const t = await render({ thread: { ...initial("main"), messages: [{ id: "m1", role: "assistant", text: "```mermaid\nflowchart LR\nA[Read] --> B[Render]\n```" }] }, core: "up" })
     const frame = t.captureCharFrame()
@@ -319,7 +319,7 @@ describe("tui frames", () => {
     expect(t.captureCharFrame()).toContain("core stopped · error")
   })
 
-  // @card S-0073
+  // @scenario S-0073
   test("alt+a gives the agents list the keys; the highlight walks a tall tree and the detail follows", async () => {
     const rlms = Object.fromEntries(
       Array.from({ length: 40 }, (_, i) => [`rlm-${i + 1}`, { id: `rlm-${i + 1}`, parent: i === 0 ? null : "rlm-1", preset: i === 0 ? "driver" : "research", depth: i === 0 ? 0 : 1, turns: 1, budget: 15, status: "done" as const, decisions: [] }]),

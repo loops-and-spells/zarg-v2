@@ -6,12 +6,12 @@ import { pricing, run } from "./harness"
 
 const draft = [
   { tool: "add-state", params: { text: "the plan picker explains each plan" } },
-  { tool: "add-card", params: { title: "Visitor reads a plan", when: "the visitor opens a plan's details", by: [{ id: "P-0001" }], arrives: { text: "the plan picker explains each plan" }, then: [{ text: "the plan's limits are listed" }] } },
+  { tool: "add-scenario", params: { title: "Visitor reads a plan", when: "the visitor opens a plan's details", by: [{ id: "P-0001" }], arrives: { text: "the plan picker explains each plan" }, then: [{ text: "the plan's limits are listed" }] } },
   { tool: "edit-state", params: { id: "ST-0002", text: "the plan picker is shown with prices" } },
 ]
 
 describe("drafts", () => {
-  test("a draft dry-runs in order (a card arriving from a state added before it); the graph is unchanged", async () => {
+  test("a draft dry-runs in order (a scenario arriving from a state added before it); the graph is unchanged", async () => {
     const out = await run(
       Effect.gen(function* () {
         yield* pricing
@@ -42,13 +42,13 @@ describe("drafts", () => {
     expect(out.lint.problems.join(" ")).toMatch(/if/)
     expect(out.tool.problems).toEqual(["nope is not a gherkin tool"])
   })
-  test("steps and stories over a draft show the drafted cards; journeys list their cards", async () => {
+  test("steps and stories over a draft show the drafted scenarios; journeys list their scenarios", async () => {
     const out = await run(
       Effect.gen(function* () {
         yield* pricing
         const h = yield* PluginHost
-        const step = (yield* h.invoke("gherkin", "step", { card: "S-0001", draft })) as { thens: string[] }
-        const plain = (yield* h.invoke("gherkin", "step", { card: "S-0001" })) as { thens: string[] }
+        const step = (yield* h.invoke("gherkin", "step", { scenario: "S-0001", draft })) as { thens: string[] }
+        const plain = (yield* h.invoke("gherkin", "step", { scenario: "S-0001" })) as { thens: string[] }
         const stories = (yield* h.invoke("gherkin", "stories", { strategy: "teleport", draft })) as { stories: string[][] }
         return { step, plain, stories, journeys: yield* h.invoke("gherkin", "journeys", {}) }
       }),
@@ -58,13 +58,13 @@ describe("drafts", () => {
     expect(out.stories.stories.flat()).toContain("S-0006")
     expect(out.journeys).toEqual([])
   })
-  test("the edge limits a write checks are checked after each call: a card's last then, a sixth then", async () => {
+  test("the edge limits a write checks are checked after each call: a scenario's last then, a sixth then", async () => {
     const out = await run(
       Effect.gen(function* () {
         yield* pricing
         const h = yield* PluginHost
-        const lastThen = (yield* h.invoke("gherkin", "dryRun", { draft: [{ tool: "unlink", params: { card: "S-0001", edge: "then", state: "ST-0002" } }, { tool: "link", params: { card: "S-0001", edge: "then", state: { text: "a new then" } } }] })) as { ok: boolean; problems: string[] }
-        const six = (yield* h.invoke("gherkin", "dryRun", { draft: [1, 2, 3, 4, 5].map((i) => ({ tool: "link", params: { card: "S-0001", edge: "then", state: { text: `then number ${i}` } } })) })) as { ok: boolean; problems: string[] }
+        const lastThen = (yield* h.invoke("gherkin", "dryRun", { draft: [{ tool: "unlink", params: { scenario: "S-0001", edge: "then", state: "ST-0002" } }, { tool: "link", params: { scenario: "S-0001", edge: "then", state: { text: "a new then" } } }] })) as { ok: boolean; problems: string[] }
+        const six = (yield* h.invoke("gherkin", "dryRun", { draft: [1, 2, 3, 4, 5].map((i) => ({ tool: "link", params: { scenario: "S-0001", edge: "then", state: { text: `then number ${i}` } } })) })) as { ok: boolean; problems: string[] }
         return { lastThen, six }
       }),
     )
@@ -73,29 +73,29 @@ describe("drafts", () => {
     expect(out.six.ok).toBe(false)
     expect(out.six.problems.join(" ")).toMatch(/S-0001.*then/)
   })
-  test("a draft names the cards it affects: a reworded state's cards, a new card", async () => {
+  test("a draft names the scenarios it affects: a reworded state's scenarios, a new scenario", async () => {
     const out = await run(
       Effect.gen(function* () {
         yield* pricing
         const h = yield* PluginHost
-        return (yield* h.invoke("gherkin", "dryRun", { draft })) as { cards: string[] }
+        return (yield* h.invoke("gherkin", "dryRun", { draft })) as { scenarios: string[] }
       }),
     )
-    expect(out.cards).toEqual(["S-0001", "S-0002", "S-0003", "S-0006"])
+    expect(out.scenarios).toEqual(["S-0001", "S-0002", "S-0003", "S-0006"])
   })
-  test("compare: every card a draft touches (new ones too), as it is, as the draft leaves it, and as text, in one call", async () => {
+  test("compare: every scenario a draft touches (new ones too), as it is, as the draft leaves it, and as text, in one call", async () => {
     const out = await run(
       Effect.gen(function* () {
         yield* pricing
         const h = yield* PluginHost
-        return (yield* h.invoke("gherkin", "compare", { draft, cards: ["S-0001"] })) as { ok: boolean; cards: Array<{ id: string; before: { thens: string[] } | null; after: { title: string; given: string } | null; text: string }> }
+        return (yield* h.invoke("gherkin", "compare", { draft, scenarios: ["S-0001"] })) as { ok: boolean; scenarios: Array<{ id: string; before: { thens: string[] } | null; after: { title: string; given: string } | null; text: string }> }
       }),
     )
     expect(out.ok).toBe(true)
-    const byId = Object.fromEntries(out.cards.map((c) => [c.id, c]))
+    const byId = Object.fromEntries(out.scenarios.map((c) => [c.id, c]))
     // Asked for, and touched by the reworded state.
     expect(byId["S-0001"]?.before).not.toBeNull()
-    // New: nothing before, the drafted card after.
+    // New: nothing before, the drafted scenario after.
     expect(byId["S-0006"]?.before).toBeNull()
     expect(byId["S-0006"]?.after?.title).toBe("Visitor reads a plan")
     expect(byId["S-0001"]?.text).toContain("S-0001")

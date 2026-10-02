@@ -52,7 +52,7 @@ const grantMatches = (g: Grant, kind: Kind, target: string) =>
 
 export const warnings = (scopes: ManifestScopes, optional: ManifestScopes, dependencies: ReadonlyArray<string> = []): ReadonlyArray<string> => {
   const hosts = [scopes.net, optional.net].flatMap((n) => (n === undefined ? [] : n === "ask" ? ["any host"] : n))
-  // A dependency serves another plugin's data (gherkin's cards): count it as reading the graph.
+  // A dependency serves another plugin's data (gherkin's scenarios): count it as reading the graph.
   const reads = scopes.graph !== undefined || optional.graph !== undefined || dependencies.length > 0
   const secrets = (scopes.secrets?.length ?? 0) + (optional.secrets?.length ?? 0) > 0
   const out: Array<string> = []
@@ -137,23 +137,23 @@ export const makePowers = (opts: {
   // One open question per plugin: a plugin cannot queue up questions ahead of the driver's.
   let open: { readonly key: string; readonly answer: Promise<Answer> } | undefined
 
-  // @card S-0064
+  // @scenario S-0064
   const remember = async (kind: Kind, target: string, a: Answer, folder?: string) => {
     if (a === "always") await Effect.runPromise(opts.grants.add(opts.plugin, (kind === "net" ? { kind, host: target } : kind === "secret" ? { kind, name: target } : { kind, glob: target }) as Grant))
     if (a === "folder" && folder !== undefined) await Effect.runPromise(opts.grants.add(opts.plugin, { kind: kind as "fs-read" | "fs-write", glob: folder }))
   }
 
   /** Allowed when granted; else ask (optional scopes), pass (YOLO) or refuse. */
-  // @card S-0062 S-0063 S-0064 S-0065
+  // @scenario S-0062 S-0063 S-0064 S-0065
   const allow = async (kind: Kind, target: string, what: string, folder?: string) => {
     const granted = await Effect.runPromise(opts.grants.of(opts.plugin, opts.digest))
     // A plugin YOLO loaded has no saved grant: under YOLO what it declares is allowed all the same.
     if ((granted.loaded || opts.yolo()) && declared(opts.manifest.scopes, kind, target, opts.projectRoot) === true) return
     if (granted.extra.some((g) => grantMatches(g, kind, target))) return
     const optional = declared(opts.manifest.optional, kind, target, opts.projectRoot)
-    // @card S-0066
+    // @scenario S-0066
     if (optional === false) throw notGranted(`${opts.plugin}: ${printable(what)} is not declared in its manifest`)
-    // @card S-0067 S-0070
+    // @scenario S-0067 S-0070
     if (opts.yolo()) return void opts.log(`yolo: ${opts.plugin} ${kind} ${printable(target)}`)
     const key = `${kind}\u0000${target}`
     if (open !== undefined && open.key !== key) throw notGranted(`${opts.plugin}: another question from this plugin is waiting for the developer`)
@@ -332,7 +332,7 @@ export const makePowers = (opts: {
     },
     "entities.call": async (args) => {
       if (opts.entities === undefined) throw pluginError(`${opts.plugin}: this host has no entities`)
-      // Reading the code tagged with cards is its own scope: reading the cards alone does not show the source.
+      // Reading the code tagged with scenarios is its own scope: reading the scenarios alone does not show the source.
       if ((args as { op?: unknown }).op === "code" && opts.manifest.scopes.code !== true) throw notGranted(`${opts.plugin}: it has no code scope`)
       return await opts.entities(args)
     },

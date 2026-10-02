@@ -22,5 +22,5 @@
     "title": "Answer meets a newer edit",
     "when": "another thread changed the node being answered"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

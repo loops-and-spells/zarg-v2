@@ -22,5 +22,5 @@
     "title": "A decision is shown",
     "when": "an agent makes a decision"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

@@ -5,11 +5,11 @@ import { deniedPath } from "../runtime/powers"
 import { type Tag, tags } from "@zarg/audit"
 
 const MAX_LINES = 40
-const MARK = "@" + "card"
+const MARK = "@" + "scenario"
 
 /**
- * A card's code, for plugins (`Entities.code`): each `@card` tag's file and line, and the code after it (until the
- * next tag, at most 40 lines), redacted. One `git grep` serves every card for a few seconds.
+ * A scenario's code, for plugins (`Entities.code`): each `@scenario` tag's file and line, and the code after it (until the
+ * next tag, at most 40 lines), redacted. One `git grep` serves every scenario for a few seconds.
  */
 export const codeOf = (root: string, redact: (text: string) => string, userDir = "\0no user dir") => {
   // One grep at a time: callers that come while it runs share it.
@@ -35,10 +35,10 @@ export const codeOf = (root: string, redact: (text: string) => string, userDir =
       return false
     }
   }
-  return (card: string) =>
+  return (scenario: string) =>
     Effect.map(all, (ts) =>
       ts
-        .filter((t) => t.id === card && readable(t.file))
+        .filter((t) => t.id === scenario && readable(t.file))
         .flatMap((t) => {
           let lines: Array<string>
           try {

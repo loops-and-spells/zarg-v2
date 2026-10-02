@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Layer } from "effect"
 import { engineLayer, makeTrigger, Pass, passLayer, startReconciler } from "../src"
-import { card, cleanup, repo, sh, state, writeNode } from "./repo"
+import { scenario, cleanup, repo, sh, state, writeNode } from "./repo"
 import { stubSpec } from "./stub-spec"
 
 afterAll(cleanup)
@@ -57,12 +57,12 @@ describe("reconciler", () => {
     while (!cond() && Date.now() < end) await sleep(50)
   }
 
-  // @card S-0020
+  // @scenario S-0020
   test("a graph edit is reconciled into a landed commit after the quiet period", async () => {
     const r = repo()
     const { rec, results } = start(r)
     writeNode(r, state("ST-0001", "home"))
-    writeNode(r, card("S-0001", "ST-0001", "ST-0001"))
+    writeNode(r, scenario("S-0001", "ST-0001", "ST-0001"))
     // Under load the two files may land in separate quiet periods: an early pass then finds nothing to do.
     await until(() => results.includes("landed"))
     rec.close()

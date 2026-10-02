@@ -6,9 +6,9 @@ import { Effect } from "effect"
 import { codeOf } from "../src/server/code"
 
 // Built from parts: this file holds no tag of its own.
-const TAG = "@" + "card"
+const TAG = "@" + "scenario"
 
-test("a card's code: each tag's file and line and the code after it, stopping at the next tag, at most 40 lines, redacted", async () => {
+test("a scenario's code: each tag's file and line and the code after it, stopping at the next tag, at most 40 lines, redacted", async () => {
   const root = mkdtempSync(join(tmpdir(), "zarg-code-"))
   Bun.spawnSync(["git", "init", "-q"], { cwd: root })
   const lines = [`// ${TAG} S-0001`, "export const a = () => 'zt-secret'", "", `// ${TAG} S-0002`, "export const b = 2"]

@@ -22,5 +22,5 @@
     "title": "Operator types their own answer",
     "when": "the operator types their own answer"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

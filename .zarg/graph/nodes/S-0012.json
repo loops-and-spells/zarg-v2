@@ -26,5 +26,5 @@
     "title": "Operator chats about the question",
     "when": "the operator picks Chat about this"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

@@ -22,5 +22,5 @@
     "title": "Landing stops waiting",
     "when": "ten minutes pass with the files still edited"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

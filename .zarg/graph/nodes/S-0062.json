@@ -22,5 +22,5 @@
     "title": "A plugin asks for an optional scope",
     "when": "the plugin needs a scope it may ask for"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

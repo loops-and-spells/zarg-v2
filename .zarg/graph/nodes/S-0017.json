@@ -27,5 +27,5 @@
     "title": "Driver Agent merges compatible edits",
     "when": "the Driver Agent finds both edits compatible"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

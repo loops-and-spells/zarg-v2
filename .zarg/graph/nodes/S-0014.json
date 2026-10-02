@@ -26,5 +26,5 @@
     "title": "Driver Agent asks what next",
     "when": "the Driver Agent finds the agenda empty"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

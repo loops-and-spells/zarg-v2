@@ -6,16 +6,16 @@ import type { Decide, Finding, StepView, Triaged } from "./types"
 
 /**
  * Is the finding real, and what is it: a local fix the driver applies, a product decision, a removal of
- * something built, or noise? One decision-model request, on the card as it is now.
+ * something built, or noise? One decision-model request, on the scenario as it is now.
  */
 export const triage = (decide: Decide, finding: Finding, step: StepView | undefined, built: boolean, s: RehearseSettings) =>
   Effect.gen(function* () {
-    // The card is gone: nothing to fix.
+    // The scenario is gone: nothing to fix.
     if (step === undefined) return { ...finding, real: 0, route: "drop" } satisfies Triaged
     // A liked step is kept, not changed; a wanted feature is the operator's call.
     if (finding.kind === "delight") return { ...finding, real: 1, route: "drop" } satisfies Triaged
     if (finding.kind === "feature") return { ...finding, real: 1, route: "ask" } satisfies Triaged
-    // The card and the code differ: which one gives way is the operator's call.
+    // The scenario and the code differ: which one gives way is the operator's call.
     if (finding.kind === "drift") return { ...finding, real: 1, route: "ask" } satisfies Triaged
     const a = yield* decide({
       state: `A product's specified step:\n${stepText(step)}\nA tester reported (${finding.kind}, ${finding.severity}): ${finding.notes.join(" / ")}`,
@@ -24,7 +24,7 @@ export const triage = (decide: Decide, finding: Finding, step: StepView | undefi
         route: {
           type: "choice",
           instructions: "What would resolving it take?",
-          criteria: { fix: "a small local change to this step's cards", decide: "a product decision the owner must make", removes: "removing or reshaping something that already exists", noise: "nothing; the report is wrong or trivial" },
+          criteria: { fix: "a small local change to this step's scenarios", decide: "a product decision the owner must make", removes: "removing or reshaping something that already exists", noise: "nothing; the report is wrong or trivial" },
         },
       },
     }).pipe(Effect.orElseSucceed(() => ({}) as Record<string, never>))

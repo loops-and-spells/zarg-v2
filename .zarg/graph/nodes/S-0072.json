@@ -26,5 +26,5 @@
     "title": "Operator sees zarg working",
     "when": "the Driver Agent prepares a reply"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

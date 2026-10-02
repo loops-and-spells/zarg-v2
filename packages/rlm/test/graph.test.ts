@@ -17,7 +17,7 @@ const withGraph = <A>(scope: Scope, body: (k: Kernel.Kernel) => Effect.Effect<A>
     const store = yield* GraphStore
     yield* host.call("gherkin/add-state", { text: "the home page is shown", entry: true })
     yield* host.call("gherkin/add-persona", { name: "User", kind: "human", text: "Someone using the product." })
-    yield* host.call("gherkin/add-card", { title: "Open pricing", when: "the user opens pricing", by: [{ name: "User" }], arrives: { id: "ST-0001" }, then: [{ text: "the plan picker is shown", terminal: true }] })
+    yield* host.call("gherkin/add-scenario", { title: "Open pricing", when: "the user opens pricing", by: [{ name: "User" }], arrives: { id: "ST-0001" }, then: [{ text: "the plan picker is shown", terminal: true }] })
     yield* host.call("gherkin/add-state", { text: "an unrelated screen", entry: true, terminal: true })
     const ctx = { host, snapshot: store.snapshot.pipe(Effect.mapError((e) => ({ _tag: e._tag, message: e.message }))), scope }
     const services = [graph(ctx), pluginService(gherkin.manifest, ctx)!]
@@ -47,7 +47,7 @@ describe("Graph service", () => {
 })
 
 describe("plugin tools as services", () => {
-  test("Gherkin.addCard runs through the write pipeline and lints", async () => {
+  test("Gherkin.addScenario runs through the write pipeline and lints", async () => {
     const out = await withGraph({}, (k) =>
       Effect.all([
         k.run('return (yield* Gherkin.addState({ text: "a settings page is shown", entry: true, terminal: true })).added'),
@@ -61,7 +61,7 @@ describe("plugin tools as services", () => {
 
   test("text that merely looks like an id is not treated as one", async () => {
     const out = await withGraph({ graph: { focus: ["S-0001"], k: 1 } }, (k) =>
-      k.run('return (yield* Gherkin.editCard({ id: "S-0001", title: "Dates use ISO-8601" })).changed'),
+      k.run('return (yield* Gherkin.editScenario({ id: "S-0001", title: "Dates use ISO-8601" })).changed'),
     )
     expect(out.output).toContain("S-0001")
     expect(out.output).not.toContain("OutOfScope")
@@ -91,7 +91,7 @@ describe("Inquire, Agenda and Verify", () => {
     expect(asked).toEqual(["Which?"])
   })
 
-  // @card S-0071
+  // @scenario S-0071
   test("Inquire.choose accepts an option of a question under discussion for the developer", async () => {
     const chosen: Array<unknown> = []
     const svc = inquire({
@@ -144,7 +144,7 @@ describe("Inquire, Agenda and Verify", () => {
 describe("the manifest explains the fields a model gets wrong", () => {
   const text = manifest([InquireDef, DecisionsDef, GraphDef, AgendaDef, pluginService(gherkin.manifest, { host: undefined as never, snapshot: undefined as never, scope: {} })!.def])
   test("Inquire: `about` belongs to the question, `id` is what the answer returns", () => {
-    expect(text).toMatch(/\/\*\* Card or state ids the whole question is about[^\n]*\*\/\n\s+about\?: ReadonlyArray<string>\n\s+\}\): Eff/)
+    expect(text).toMatch(/\/\*\* Scenario or state ids the whole question is about[^\n]*\*\/\n\s+about\?: ReadonlyArray<string>\n\s+\}\): Eff/)
     expect(text).toMatch(/\/\*\* Returned as the answer's `choice`[^\n]*\*\/\n\s+id: string/)
   })
   test("Decisions, Graph and Gherkin fields carry their meaning", () => {

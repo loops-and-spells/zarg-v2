@@ -1,60 +1,60 @@
 {
   "title": "Setup feedback: provider vs plugin",
   "journey": "Set up",
-  "cards": [
+  "scenarios": [
     {
-      "ref": "gherkin/card:S-0001@ed5a7457d05a"
+      "ref": "gherkin/scenario:S-0001@ed5a7457d05a"
     },
     {
-      "ref": "gherkin/card:S-0002@d5b43902654c"
+      "ref": "gherkin/scenario:S-0002@d5b43902654c"
     },
     {
-      "ref": "gherkin/card:S-0006@5e3c137ff891"
+      "ref": "gherkin/scenario:S-0006@5e3c137ff891"
     },
     {
-      "ref": "gherkin/card:S-0026@3e7d47e14ffb"
+      "ref": "gherkin/scenario:S-0026@3e7d47e14ffb"
     },
     {
-      "ref": "gherkin/card:S-0028@d5b59c7d6b30"
+      "ref": "gherkin/scenario:S-0028@d5b59c7d6b30"
     },
     {
-      "ref": "gherkin/card:S-0029@e23c5a1e083e"
+      "ref": "gherkin/scenario:S-0029@e23c5a1e083e"
     },
     {
-      "ref": "gherkin/card:S-0030@e46f72a59afa"
+      "ref": "gherkin/scenario:S-0030@e46f72a59afa"
     },
     {
-      "ref": "gherkin/card:S-0034@7de76c3a4d91"
+      "ref": "gherkin/scenario:S-0034@7de76c3a4d91"
     },
     {
-      "ref": "gherkin/card:S-0035@f1f488683d9c"
+      "ref": "gherkin/scenario:S-0035@f1f488683d9c"
     },
     {
-      "ref": "gherkin/card:S-0036@790786837c6e"
+      "ref": "gherkin/scenario:S-0036@790786837c6e"
     },
     {
-      "ref": "gherkin/card:S-0038@db50877db9d1"
+      "ref": "gherkin/scenario:S-0038@db50877db9d1"
     },
     {
-      "ref": "gherkin/card:S-0039@c49e8f413657"
+      "ref": "gherkin/scenario:S-0039@c49e8f413657"
     },
     {
-      "ref": "gherkin/card:S-0062@92f29b7400b1"
+      "ref": "gherkin/scenario:S-0062@92f29b7400b1"
     },
     {
-      "ref": "gherkin/card:S-0068@7b6324efa85d"
+      "ref": "gherkin/scenario:S-0068@7b6324efa85d"
     },
     {
-      "ref": "gherkin/card:S-0061@4f05d32ad097"
+      "ref": "gherkin/scenario:S-0061@4f05d32ad097"
     },
     {
-      "ref": "gherkin/card:S-0027@85ce51ab60bc"
+      "ref": "gherkin/scenario:S-0027@85ce51ab60bc"
     },
     {
-      "ref": "gherkin/card:S-0031@e860d84c441a"
+      "ref": "gherkin/scenario:S-0031@e860d84c441a"
     },
     {
-      "ref": "gherkin/card:S-0069@6c8d6ea60db0"
+      "ref": "gherkin/scenario:S-0069@6c8d6ea60db0"
     }
   ],
   "changes": [
@@ -75,7 +75,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0035",
+        "scenario": "S-0035",
         "edge": "given",
         "state": {
           "text": "the question previews locality, size, and cost of models"
@@ -85,7 +85,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0035",
+        "scenario": "S-0035",
         "edge": "then",
         "state": {
           "text": "a wrong model can be re-picked in one step"
@@ -196,7 +196,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0034",
+        "scenario": "S-0034",
         "edge": "then",
         "state": {
           "text": "the operator picks a model or declines"
@@ -232,7 +232,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0034",
+        "scenario": "S-0034",
         "edge": "then",
         "state": {
           "text": "no model is applied and zarg continues"
@@ -242,7 +242,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0034",
+        "scenario": "S-0034",
         "edge": "then",
         "state": {
           "text": "zarg asks why no model was chosen"
@@ -283,7 +283,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0026",
+        "scenario": "S-0026",
         "edge": "then",
         "state": {
           "text": "a setup failure retries from this masked view"
@@ -330,7 +330,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0062",
+        "scenario": "S-0062",
         "edge": "then",
         "state": {
           "text": "the operator approves or denies the named scope"
@@ -431,7 +431,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0036",
+        "scenario": "S-0036",
         "edge": "then",
         "state": {
           "text": "the refusal names the rule and the nearest eligible model"
@@ -448,7 +448,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0036",
+        "scenario": "S-0036",
         "edge": "then",
         "state": {
           "text": "a model question lists only tool-calling eligible models"
@@ -481,7 +481,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0038",
+        "scenario": "S-0038",
         "edge": "then",
         "state": {
           "text": "Then the question names the requirement it answers"
@@ -539,7 +539,7 @@
     {
       "tool": "unlink",
       "params": {
-        "card": "S-0028",
+        "scenario": "S-0028",
         "edge": "then",
         "state": "ST-0023"
       }
@@ -547,7 +547,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0028",
+        "scenario": "S-0028",
         "edge": "then",
         "state": {
           "text": "the rejected values stay in the setup fields"
@@ -557,7 +557,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0028",
+        "scenario": "S-0028",
         "edge": "then",
         "state": {
           "text": "the rejection reason names the blamed field and a suggested fix"
@@ -590,7 +590,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0028",
+        "scenario": "S-0028",
         "edge": "then",
         "state": {
           "text": "retry or abandon is chosen"
@@ -600,7 +600,7 @@
     {
       "tool": "unlink",
       "params": {
-        "card": "S-0029",
+        "scenario": "S-0029",
         "edge": "then",
         "state": "ST-0023"
       }
@@ -628,7 +628,7 @@
     {
       "tool": "unlink",
       "params": {
-        "card": "S-0068",
+        "scenario": "S-0068",
         "edge": "then",
         "state": "ST-0070"
       }
@@ -636,7 +636,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0068",
+        "scenario": "S-0068",
         "edge": "then",
         "state": {
           "text": "the watchdog disables the plugin"
@@ -713,7 +713,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0039",
+        "scenario": "S-0039",
         "edge": "then",
         "state": {
           "text": "a retry-limit node falls back or disables the role's model"

@@ -1,54 +1,54 @@
 {
   "title": "Watch agents accepted feedback fixes",
   "journey": "Watch agents",
-  "cards": [
+  "scenarios": [
     {
-      "ref": "gherkin/card:S-0001@ed5a7457d05a"
+      "ref": "gherkin/scenario:S-0001@ed5a7457d05a"
     },
     {
-      "ref": "gherkin/card:S-0002@d5b43902654c"
+      "ref": "gherkin/scenario:S-0002@d5b43902654c"
     },
     {
-      "ref": "gherkin/card:S-0003@9c08f72be1c9"
+      "ref": "gherkin/scenario:S-0003@9c08f72be1c9"
     },
     {
-      "ref": "gherkin/card:S-0004@1b79648f6965"
+      "ref": "gherkin/scenario:S-0004@1b79648f6965"
     },
     {
-      "ref": "gherkin/card:S-0005@5a031d2bd70c"
+      "ref": "gherkin/scenario:S-0005@5a031d2bd70c"
     },
     {
-      "ref": "gherkin/card:S-0007@56c0d9c97d24"
+      "ref": "gherkin/scenario:S-0007@56c0d9c97d24"
     },
     {
-      "ref": "gherkin/card:S-0041@85196d3ea738"
+      "ref": "gherkin/scenario:S-0041@85196d3ea738"
     },
     {
-      "ref": "gherkin/card:S-0046@d615b2a3f1f3"
+      "ref": "gherkin/scenario:S-0046@d615b2a3f1f3"
     },
     {
-      "ref": "gherkin/card:S-0048@ba9d9e139b95"
+      "ref": "gherkin/scenario:S-0048@ba9d9e139b95"
     },
     {
-      "ref": "gherkin/card:S-0079@e90b33022158"
+      "ref": "gherkin/scenario:S-0079@e90b33022158"
     },
     {
-      "ref": "gherkin/card:S-0080@e3ce01326aa9"
+      "ref": "gherkin/scenario:S-0080@e3ce01326aa9"
     },
     {
-      "ref": "gherkin/card:S-0084"
+      "ref": "gherkin/scenario:S-0084"
     },
     {
-      "ref": "gherkin/card:S-0085"
+      "ref": "gherkin/scenario:S-0085"
     },
     {
-      "ref": "gherkin/card:S-0086"
+      "ref": "gherkin/scenario:S-0086"
     },
     {
-      "ref": "gherkin/card:S-0087"
+      "ref": "gherkin/scenario:S-0087"
     },
     {
-      "ref": "gherkin/card:S-0088"
+      "ref": "gherkin/scenario:S-0088"
     }
   ],
   "changes": [
@@ -69,7 +69,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0041",
+        "scenario": "S-0041",
         "edge": "then",
         "state": {
           "text": "the parent run accepts the handoff and assigns the next work to that child"
@@ -199,7 +199,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0046",
+        "scenario": "S-0046",
         "edge": "then",
         "state": {
           "text": "the reason says widen scope or ask operator"

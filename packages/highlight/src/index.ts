@@ -35,10 +35,10 @@ const withComment = (t: string, body: (x: string) => ReadonlyArray<Span>): Reado
   return m === null ? body(t) : [...body(m[1]!), ...span(m[2]!), ...span(m[3]!, "comment")]
 }
 
-/** zarg's Gherkin, as its render and journey flows print it: cards, By / In / Given / When / Then lines, flow arrows. */
+/** zarg's Gherkin, as its render and journey flows print it: scenarios, By / In / Given / When / Then lines, flow arrows. */
 const gherkin = (line: string): Line => {
-  const card = /^(S-\d+)( +)(.*)$/.exec(line)
-  if (card !== null) return [...span(card[1]!, "id"), ...span(card[2]!), ...span(card[3]!, "title")]
+  const scenario = /^(S-\d+)( +)(.*)$/.exec(line)
+  if (scenario !== null) return [...span(scenario[1]!, "id"), ...span(scenario[2]!), ...span(scenario[3]!, "title")]
   const step = /^(\s*)(Given|And|When|Then|By|In)\b(.*)$/.exec(line)
   if (step !== null) {
     // By names personas, In journeys: each name its token, the commas and spaces plain.

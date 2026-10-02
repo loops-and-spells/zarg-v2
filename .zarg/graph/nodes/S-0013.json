@@ -22,5 +22,5 @@
     "title": "Driver Agent responds to the interjection",
     "when": "the Driver Agent weighs the message with the agenda"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

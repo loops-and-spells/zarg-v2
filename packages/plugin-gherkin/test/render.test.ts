@@ -7,7 +7,7 @@ test("render shows a missing state instead of crashing", () => {
     { id: "ST-0001", type: "gherkin/state", props: { text: "start" }, edges: [] },
     {
       id: "S-0001",
-      type: "gherkin/card",
+      type: "gherkin/scenario",
       props: { title: "Go", when: "the user goes" },
       edges: [
         { type: "gherkin/arrives", to: "ST-0001" },

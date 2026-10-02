@@ -17,23 +17,23 @@ export type FiledEntry = typeof FiledEntry.Type
 export const FeedbackState = Schema.Literals(["open", "stale", "planned", "closed"])
 export type FeedbackState = typeof FeedbackState.Type
 
-/** A plan: the cards it changes (refs with the version drafted on), the gherkin tool calls that change them, the feedback it closes. */
+/** A plan: the scenarios it changes (refs with the version drafted on), the gherkin tool calls that change them, the feedback it closes. */
 export const PlanParams = Schema.Struct({
   title: Schema.String,
   journey: Schema.String,
-  cards: Schema.Array(Schema.Struct({ ref: Schema.String, to: Schema.optionalKey(Schema.String) })),
+  scenarios: Schema.Array(Schema.Struct({ ref: Schema.String, to: Schema.optionalKey(Schema.String) })),
   changes: Schema.Array(Schema.Struct({ tool: Schema.String, params: Schema.Unknown })),
   feedback: Schema.Array(Schema.String),
   steps: Schema.Array(Schema.String),
   after: Schema.optionalKey(Schema.Array(Schema.String)),
   persona: Schema.optionalKey(Schema.String),
   severity: Schema.optionalKey(Severity),
-  /** A code plan changes the code, not the graph (a drift the operator settled for the card): the Planner never takes it. */
+  /** A code plan changes the code, not the graph (a drift the operator settled for the scenario): the Planner never takes it. */
   kind: Schema.optionalKey(Schema.Literals(["graph", "code"])),
 })
 export type PlanParams = typeof PlanParams.Type
 export const Lane = Schema.Literals(["backlog", "ready", "running", "review", "done"])
-export const Moved = Schema.Struct({ id: Schema.String, to: Lane, by: Schema.String, what: Schema.optionalKey(Schema.String), needs: Schema.optionalKey(Schema.String), cards: Schema.optionalKey(Schema.Array(Schema.String)) })
+export const Moved = Schema.Struct({ id: Schema.String, to: Lane, by: Schema.String, what: Schema.optionalKey(Schema.String), needs: Schema.optionalKey(Schema.String), scenarios: Schema.optionalKey(Schema.Array(Schema.String)) })
 export const ItemData = Schema.Struct({
   ...PlanParams.fields,
   id: Schema.String,
@@ -44,16 +44,16 @@ export const ItemData = Schema.Struct({
   events: Schema.Array(Schema.Struct({ what: Schema.String, by: Schema.String })),
 })
 const DraftCalls = Schema.Array(Schema.Struct({ tool: Schema.String, params: Schema.Unknown }))
-/** One ask of the model for a card. */
+/** One ask of the model for a scenario. */
 export const Try = Schema.Struct({ ms: Schema.Number, tokensIn: Schema.Number, tokensOut: Schema.Number, reasoning: Schema.Number, finish: Schema.optionalKey(Schema.String), problems: Schema.Array(Schema.String) })
 export const StageData = Schema.Struct({
   journey: Schema.String,
   stage: Schema.Literals(["triage", "refine", "rehearse", "plan", "planned"]),
-  proposals: Schema.Array(Schema.Struct({ card: Schema.String, title: Schema.optionalKey(Schema.String), tries: Schema.optionalKey(Schema.Array(Try)), rounds: Schema.optionalKey(Schema.Number), changes: DraftCalls, answers: Schema.Array(Schema.String), summary: Schema.String, status: Schema.Literals(["waiting", "proposed", "accepted", "skipped"]), problems: Schema.optionalKey(Schema.Array(Schema.String)), fromFresh: Schema.optionalKey(Schema.Boolean), leftOut: Schema.optionalKey(Schema.Boolean) })),
+  proposals: Schema.Array(Schema.Struct({ scenario: Schema.String, title: Schema.optionalKey(Schema.String), tries: Schema.optionalKey(Schema.Array(Try)), rounds: Schema.optionalKey(Schema.Number), changes: DraftCalls, answers: Schema.Array(Schema.String), summary: Schema.String, status: Schema.Literals(["waiting", "proposed", "accepted", "skipped"]), problems: Schema.optionalKey(Schema.Array(Schema.String)), fromFresh: Schema.optionalKey(Schema.Boolean), leftOut: Schema.optionalKey(Schema.Boolean) })),
   draft: DraftCalls,
-  cards: Schema.optionalKey(Schema.Array(Schema.String)),
+  scenarios: Schema.optionalKey(Schema.Array(Schema.String)),
   run: Schema.optionalKey(Schema.String),
-  results: Schema.optionalKey(Schema.Struct({ resolved: Schema.Array(Schema.String), fresh: Schema.Array(Schema.Struct({ card: Schema.String, kind: Schema.String, severity: Schema.String, note: Schema.String })) })),
+  results: Schema.optionalKey(Schema.Struct({ resolved: Schema.Array(Schema.String), fresh: Schema.Array(Schema.Struct({ scenario: Schema.String, kind: Schema.String, severity: Schema.String, note: Schema.String })) })),
   plan: Schema.optionalKey(Schema.Struct({ title: Schema.String, steps: Schema.Array(Schema.String) })),
   item: Schema.optionalKey(Schema.String),
   items: Schema.optionalKey(Schema.Array(Schema.String)),
@@ -63,23 +63,23 @@ export const StageData = Schema.Struct({
   queued: Schema.optionalKey(Schema.Number),
   dropRun: Schema.optionalKey(Schema.String),
   worker: Schema.optionalKey(Schema.String),
-  dismissed: Schema.optionalKey(Schema.Array(Schema.Struct({ card: Schema.String, kind: Schema.String }))),
+  dismissed: Schema.optionalKey(Schema.Array(Schema.Struct({ scenario: Schema.String, kind: Schema.String }))),
 })
-export const Propose = Schema.Struct({ journey: Schema.String, card: Schema.String, title: Schema.optionalKey(Schema.String), tries: Schema.optionalKey(Schema.Array(Try)), changes: DraftCalls, answers: Schema.Array(Schema.String), summary: Schema.String, problems: Schema.optionalKey(Schema.Array(Schema.String)) })
-export const Rehearsing = Schema.Struct({ journey: Schema.String, run: Schema.optionalKey(Schema.String), cards: Schema.optionalKey(Schema.Array(Schema.String)), note: Schema.optionalKey(Schema.String), clear: Schema.optionalKey(Schema.Boolean), dropped: Schema.optionalKey(Schema.Boolean) })
+export const Propose = Schema.Struct({ journey: Schema.String, scenario: Schema.String, title: Schema.optionalKey(Schema.String), tries: Schema.optionalKey(Schema.Array(Try)), changes: DraftCalls, answers: Schema.Array(Schema.String), summary: Schema.String, problems: Schema.optionalKey(Schema.Array(Schema.String)) })
+export const Rehearsing = Schema.Struct({ journey: Schema.String, run: Schema.optionalKey(Schema.String), scenarios: Schema.optionalKey(Schema.Array(Schema.String)), note: Schema.optionalKey(Schema.String), clear: Schema.optionalKey(Schema.Boolean), dropped: Schema.optionalKey(Schema.Boolean) })
 export const Redraft = Schema.Struct({ journey: Schema.String, problems: Schema.Array(Schema.String) })
 export const Rehearsed = Schema.Struct({
   journey: Schema.String,
   resolved: Schema.Array(Schema.String),
-  fresh: Schema.Array(Schema.Struct({ card: Schema.String, kind: Schema.String, severity: Schema.String, note: Schema.String })),
+  fresh: Schema.Array(Schema.Struct({ scenario: Schema.String, kind: Schema.String, severity: Schema.String, note: Schema.String })),
   next: Schema.Literals(["plan", "refine"]),
-  cards: Schema.optionalKey(Schema.Array(Schema.String)),
+  scenarios: Schema.optionalKey(Schema.Array(Schema.String)),
 })
 export const Drafted = Schema.Struct({ journey: Schema.String, title: Schema.String, steps: Schema.Array(Schema.String) })
-/** A folded round's plans, in order: each names its cards by id, the feedback it closes, and the plans it waits on by index. */
+/** A folded round's plans, in order: each names its scenarios by id, the feedback it closes, and the plans it waits on by index. */
 export const PlansParams = Schema.Struct({
   journey: Schema.String,
-  plans: Schema.Array(Schema.Struct({ title: Schema.String, steps: Schema.Array(Schema.String), changes: DraftCalls, cards: Schema.Array(Schema.String), feedback: Schema.Array(Schema.String), after: Schema.Array(Schema.Number) })),
+  plans: Schema.Array(Schema.Struct({ title: Schema.String, steps: Schema.Array(Schema.String), changes: DraftCalls, scenarios: Schema.Array(Schema.String), feedback: Schema.Array(Schema.String), after: Schema.Array(Schema.Number) })),
 })
 export const OnEntry = Schema.Struct({ id: Schema.String, ref: Schema.String, kind: Schema.String, severity: Schema.String, note: Schema.String, persona: Schema.String, on: Schema.Boolean, operatorNote: Schema.optionalKey(Schema.String) })
 /** The backlog's surface for other plugins: file feedback and ask where it stands; add a plan, take the next, record a move. */
@@ -99,5 +99,5 @@ export const Backlog = pluginContract("backlog", {
   redraft: { params: Redraft, success: Schema.Null },
   walking: { params: Schema.Struct({ run: Schema.String, journeys: Schema.Array(Schema.String) }), success: Schema.Null },
   assign: { params: Schema.Struct({ journey: Schema.String, worker: Schema.optionalKey(Schema.String) }), success: Schema.Null },
-  redo: { params: Schema.Struct({ journey: Schema.String, card: Schema.String }), success: Schema.Struct({ notice: Schema.String }) },
+  redo: { params: Schema.Struct({ journey: Schema.String, scenario: Schema.String }), success: Schema.Struct({ notice: Schema.String }) },
 })

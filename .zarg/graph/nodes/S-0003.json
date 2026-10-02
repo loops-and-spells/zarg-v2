@@ -22,5 +22,5 @@
     "title": "A conditional clause is refused",
     "when": "the CLI actor adds a conditional clause"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

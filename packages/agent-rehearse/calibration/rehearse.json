@@ -4,7 +4,7 @@
     "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
     "prior": [
       {
-        "card": "prev",
+        "scenario": "prev",
         "title": "before",
         "given": "the visitor is on the site",
         "when": "the visitor opens a product page",
@@ -16,7 +16,7 @@
       }
     ],
     "step": {
-      "card": "good-step",
+      "scenario": "good-step",
       "title": "good step",
       "given": "the product page is shown",
       "when": "the visitor clicks Add to cart",
@@ -34,7 +34,7 @@
     "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
     "prior": [
       {
-        "card": "prev",
+        "scenario": "prev",
         "title": "before",
         "given": "the visitor is on the site",
         "when": "the visitor opens the home page",
@@ -46,12 +46,12 @@
       }
     ],
     "step": {
-      "card": "broken-seam",
+      "scenario": "broken-seam",
       "title": "broken seam",
       "given": "the payment form is shown",
-      "when": "the visitor enters a card number",
+      "when": "the visitor enters a scenario number",
       "thens": [
-        "the card number is accepted"
+        "the scenario number is accepted"
       ],
       "fork": [],
       "hasFailure": false
@@ -65,7 +65,7 @@
     "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
     "prior": [
       {
-        "card": "prev",
+        "scenario": "prev",
         "title": "before",
         "given": "the visitor is on the site",
         "when": "the visitor logs out",
@@ -77,7 +77,7 @@
       }
     ],
     "step": {
-      "card": "broken-seam-2",
+      "scenario": "broken-seam-2",
       "title": "broken seam 2",
       "given": "the visitor's order history is shown",
       "when": "the visitor opens an order",
@@ -96,7 +96,7 @@
     "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
     "prior": [
       {
-        "card": "prev",
+        "scenario": "prev",
         "title": "before",
         "given": "the visitor is on the site",
         "when": "the visitor opens the cart",
@@ -108,7 +108,7 @@
       }
     ],
     "step": {
-      "card": "unclear-action",
+      "scenario": "unclear-action",
       "title": "unclear action",
       "given": "the cart is shown",
       "when": "the visitor does the usual thing",
@@ -127,7 +127,7 @@
     "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
     "prior": [
       {
-        "card": "prev",
+        "scenario": "prev",
         "title": "before",
         "given": "the visitor is on the site",
         "when": "the visitor opens the cart",
@@ -139,7 +139,7 @@
       }
     ],
     "step": {
-      "card": "unclear-action-2",
+      "scenario": "unclear-action-2",
       "title": "unclear action 2",
       "given": "the cart is shown",
       "when": "the visitor finalizes the gesture",
@@ -158,7 +158,7 @@
     "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
     "prior": [
       {
-        "card": "prev",
+        "scenario": "prev",
         "title": "before",
         "given": "the visitor is on the site",
         "when": "the visitor opens the cart",
@@ -170,7 +170,7 @@
       }
     ],
     "step": {
-      "card": "clear-action",
+      "scenario": "clear-action",
       "title": "clear action",
       "given": "the cart is shown",
       "when": "the visitor clicks Checkout",
@@ -187,7 +187,7 @@
     "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
     "prior": [
       {
-        "card": "prev",
+        "scenario": "prev",
         "title": "before",
         "given": "the visitor is on the site",
         "when": "the visitor opens settings",
@@ -199,7 +199,7 @@
       }
     ],
     "step": {
-      "card": "surprising-outcome",
+      "scenario": "surprising-outcome",
       "title": "surprising outcome",
       "given": "the settings page is shown",
       "when": "the visitor clicks Save",
@@ -218,7 +218,7 @@
     "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
     "prior": [
       {
-        "card": "prev",
+        "scenario": "prev",
         "title": "before",
         "given": "the visitor is on the site",
         "when": "the visitor opens a product page",
@@ -230,7 +230,7 @@
       }
     ],
     "step": {
-      "card": "surprising-outcome-2",
+      "scenario": "surprising-outcome-2",
       "title": "surprising outcome 2",
       "given": "the product page is shown",
       "when": "the visitor clicks Add to cart",
@@ -249,7 +249,7 @@
     "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
     "prior": [
       {
-        "card": "prev",
+        "scenario": "prev",
         "title": "before",
         "given": "the visitor is on the site",
         "when": "the visitor fills the checkout form",
@@ -261,10 +261,10 @@
       }
     ],
     "step": {
-      "card": "missing-failure-pay",
+      "scenario": "missing-failure-pay",
       "title": "missing failure pay",
       "given": "the payment form is shown",
-      "when": "the visitor pays with a card",
+      "when": "the visitor pays with a scenario",
       "thens": [
         "the order is placed"
       ],
@@ -280,7 +280,7 @@
     "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
     "prior": [
       {
-        "card": "prev",
+        "scenario": "prev",
         "title": "before",
         "given": "the visitor is on the site",
         "when": "the visitor opens the login page",
@@ -292,7 +292,7 @@
       }
     ],
     "step": {
-      "card": "missing-failure-login",
+      "scenario": "missing-failure-login",
       "title": "missing failure login",
       "given": "the login form is shown",
       "when": "the visitor submits email and password",
@@ -311,7 +311,7 @@
     "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
     "prior": [
       {
-        "card": "prev",
+        "scenario": "prev",
         "title": "before",
         "given": "the visitor is on the site",
         "when": "the visitor opens the home page",
@@ -323,7 +323,7 @@
       }
     ],
     "step": {
-      "card": "no-failure-scroll",
+      "scenario": "no-failure-scroll",
       "title": "no failure scroll",
       "given": "the home page is shown",
       "when": "the visitor scrolls down",
@@ -340,7 +340,7 @@
     "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside.",
     "prior": [
       {
-        "card": "prev",
+        "scenario": "prev",
         "title": "before",
         "given": "the visitor is on the site",
         "when": "the visitor opens a dialog",
@@ -352,7 +352,7 @@
       }
     ],
     "step": {
-      "card": "no-failure-close",
+      "scenario": "no-failure-close",
       "title": "no failure close",
       "given": "the dialog is shown",
       "when": "the visitor clicks Close",
@@ -369,7 +369,7 @@
     "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside. Right now you want to keep the new address.",
     "prior": [
       {
-        "card": "prev",
+        "scenario": "prev",
         "title": "before",
         "given": "the visitor is on the site",
         "when": "the visitor edits their address",
@@ -381,7 +381,7 @@
       }
     ],
     "step": {
-      "card": "clear-fork",
+      "scenario": "clear-fork",
       "title": "clear fork",
       "given": "the edited address is shown",
       "when": "the visitor decides",
@@ -390,11 +390,11 @@
       ],
       "fork": [
         {
-          "card": "f0",
+          "scenario": "f0",
           "when": "the visitor clicks Save changes"
         },
         {
-          "card": "f1",
+          "scenario": "f1",
           "when": "the visitor clicks Delete account"
         }
       ],
@@ -407,7 +407,7 @@
     "persona": "a first-time user of a web shop, trying to buy a gift quickly. You know nothing of how it works inside. Right now you want to finish buying.",
     "prior": [
       {
-        "card": "prev",
+        "scenario": "prev",
         "title": "before",
         "given": "the visitor is on the site",
         "when": "the visitor fills the checkout form",
@@ -419,7 +419,7 @@
       }
     ],
     "step": {
-      "card": "ambiguous-fork",
+      "scenario": "ambiguous-fork",
       "title": "ambiguous fork",
       "given": "the checkout form is complete",
       "when": "the visitor decides",
@@ -428,11 +428,11 @@
       ],
       "fork": [
         {
-          "card": "f0",
+          "scenario": "f0",
           "when": "the visitor clicks Continue"
         },
         {
-          "card": "f1",
+          "scenario": "f1",
           "when": "the visitor clicks Proceed"
         }
       ],

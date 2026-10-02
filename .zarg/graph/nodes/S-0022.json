@@ -22,5 +22,5 @@
     "title": "Verify passes",
     "when": "every check passes"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

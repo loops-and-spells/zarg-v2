@@ -4,18 +4,18 @@ import { join } from "node:path"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { Effect } from "effect"
-import { card, cleanup, repo, sh, state, write, writeNode } from "./repo"
+import { scenario, cleanup, repo, sh, state, write, writeNode } from "./repo"
 import { runPass, runPasses, stubSpec } from "./stub-spec"
 
 afterAll(cleanup)
 const db = () => join(mkdtempSync(join(tmpdir(), "zarg-db-")), "cluster.db")
-const graph = (r: string, cards: ReadonlyArray<string>) => {
+const graph = (r: string, scenarios: ReadonlyArray<string>) => {
   writeNode(r, state("ST-0001", "home"))
-  for (const c of cards) writeNode(r, card(c, "ST-0001", "ST-0001"))
+  for (const c of scenarios) writeNode(r, scenario(c, "ST-0001", "ST-0001"))
 }
 
 describe("reconcile pass", () => {
-  // @card S-0022 S-0056
+  // @scenario S-0022 S-0056
   test("lands one commit with the graph, plans, code and checkpoint; worktrees are removed", async () => {
     const r = repo()
     graph(r, ["S-0001", "S-0002"])
@@ -48,29 +48,29 @@ describe("reconcile pass", () => {
     expect(sh(r, "git rev-parse HEAD")).toBe(head)
   })
 
-  test("a changed card is re-planned and re-implemented; untouched cards are not", async () => {
+  test("a changed scenario is re-planned and re-implemented; untouched scenarios are not", async () => {
     const r = repo()
     graph(r, ["S-0001", "S-0002"])
     await runPass(stubSpec(r), db())
-    writeNode(r, card("S-0002", "ST-0001", "ST-0001", "the user taps twice"))
+    writeNode(r, scenario("S-0002", "ST-0001", "ST-0001", "the user taps twice"))
     const spec = stubSpec(r)
     expect(await runPass(spec, db())).toMatchObject({ status: "landed", landed: ["S-0002"] })
     expect(spec.calls.filter((c) => c !== "verify")).toEqual(["plan S-0002", "implement S-0002"])
   })
 
-  // @card S-0024
-  test("a blocked card becomes a finding; the other cards still land; the blocked card has no code", async () => {
+  // @scenario S-0024
+  test("a blocked scenario becomes a finding; the other scenarios still land; the blocked scenario has no code", async () => {
     const r = repo()
     graph(r, ["S-0001", "S-0002"])
     const spec = stubSpec(r, { blocked: ["S-0002"] })
     expect(await runPass(spec, db())).toMatchObject({ status: "landed", landed: ["S-0001"], failed: ["S-0002"] })
     expect(existsSync(join(r, "src/S-0002.ts"))).toBe(false)
     expect(existsSync(join(r, ".zarg/graph/nodes/S-0002.json"))).toBe(true)
-    expect(spec.findings.list().map((f) => [f.kind, f.about])).toEqual([["blocked-card", ["S-0002"]]])
+    expect(spec.findings.list().map((f) => [f.kind, f.about])).toEqual([["blocked-scenario", ["S-0002"]]])
   })
 
-  // @card S-0053 S-0054
-  test("cards that conflict: an obvious conflict is resolved, a major one becomes a finding", async () => {
+  // @scenario S-0053 S-0054
+  test("scenarios that conflict: an obvious conflict is resolved, a major one becomes a finding", async () => {
     const r = repo()
     graph(r, ["S-0001", "S-0002"])
     const code = { "S-0001": { file: "src/shared.ts", text: "a\n" }, "S-0002": { file: "src/shared.ts", text: "b\n" } }
@@ -85,7 +85,7 @@ describe("reconcile pass", () => {
     expect(readFileSync(join(r2, "src/shared.ts"), "utf8")).toBe("a\nb\n")
   })
 
-  // @card S-0023 S-0055
+  // @scenario S-0023 S-0055
   test("verify still failing after two fixes: a finding, nothing lands, the pass worktree is kept", async () => {
     const r = repo()
     graph(r, ["S-0001"])
@@ -104,7 +104,7 @@ describe("reconcile pass", () => {
     expect(readFileSync(join(r2, "src/x.ts"), "utf8")).toBe("fixed\n")
   })
 
-  // @card S-0050 S-0051
+  // @scenario S-0050 S-0051
   test("your uncommitted edits in a file it changes: landing waits, then gives up with a finding", async () => {
     const r = repo()
     graph(r, ["S-0001"])
@@ -115,7 +115,7 @@ describe("reconcile pass", () => {
     expect(readFileSync(join(r, "src/S-0001.ts"), "utf8")).toBe("mine\n")
   })
 
-  // @card S-0052
+  // @scenario S-0052
   test("your branch moved during the pass: the commit is rebased, verified again and lands on top", async () => {
     const r = repo()
     graph(r, ["S-0001"])
@@ -151,7 +151,7 @@ describe("reconcile pass", () => {
     expect(sh(r, "git log --format=%s")).toBe("feat: implement S-0001, S-0002\ninit")
   }, 30_000)
 
-  test("a card whose phase dies fails alone with a finding; the others land", async () => {
+  test("a scenario whose phase dies fails alone with a finding; the others land", async () => {
     const r = repo()
     graph(r, ["S-0001", "S-0002"])
     const spec = stubSpec(r, { implementDies: ["S-0002"] })
@@ -263,7 +263,7 @@ describe("reconcile pass", () => {
     expect(sh(r, "git log --format=%s")).toBe("init")
   }, 20_000)
 
-  test("a removed card's plan and code are deleted in the next pass", async () => {
+  test("a removed scenario's plan and code are deleted in the next pass", async () => {
     const r = repo()
     graph(r, ["S-0001", "S-0002"])
     await runPass(stubSpec(r), db())

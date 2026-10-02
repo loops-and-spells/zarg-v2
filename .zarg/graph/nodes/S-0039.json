@@ -27,5 +27,5 @@
     "title": "A model fails to warm up",
     "when": "the chosen model fails to start"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

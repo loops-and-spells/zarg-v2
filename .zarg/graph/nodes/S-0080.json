@@ -22,5 +22,5 @@
     "title": "CLI actor finds the graph in sync",
     "when": "the CLI actor asks for affected cards with nothing changed"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

@@ -22,5 +22,5 @@
     "title": "A duplicate link is refused",
     "when": "the CLI actor links a card to the same state twice"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

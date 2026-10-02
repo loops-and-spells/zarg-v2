@@ -22,5 +22,5 @@
     "title": "Commands run without secrets",
     "when": "an agent runs a shell command"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

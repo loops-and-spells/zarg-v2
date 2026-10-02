@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { join } from "node:path"
 import { Effect } from "effect"
 import { baseTree, ensureWorktree, land, makeFindings, mergeBranches, rebaseOnto, worktreeRoot } from "../src"
-import { card, cleanup, repo, sh, state, write, writeNode } from "./repo"
+import { scenario, cleanup, repo, sh, state, write, writeNode } from "./repo"
 
 afterAll(cleanup)
 const run = <A, E>(e: Effect.Effect<A, E>) => Effect.runPromise(e)
@@ -50,14 +50,14 @@ describe("review: rebasing and branches", () => {
   test("a rebase conflict in graph files takes your committed version", async () => {
     const r = repo()
     writeNode(r, state("ST-0001", "home"))
-    writeNode(r, card("S-0001", "ST-0001", "ST-0001", "v0"))
+    writeNode(r, scenario("S-0001", "ST-0001", "ST-0001", "v0"))
     sh(r, "git add -A && git commit -qm graph")
     const base = sh(r, "git rev-parse HEAD")
     const { wt } = await passOn(r, base, (wt) => {
-      writeNode(wt, card("S-0001", "ST-0001", "ST-0001", "v1"))
+      writeNode(wt, scenario("S-0001", "ST-0001", "ST-0001", "v1"))
       write(wt, "src/a.ts", "a\n")
     })
-    writeNode(r, card("S-0001", "ST-0001", "ST-0001", "v2"))
+    writeNode(r, scenario("S-0001", "ST-0001", "ST-0001", "v2"))
     sh(r, "git add -A && git commit -qm yours")
     const head = sh(r, "git rev-parse HEAD")
     expect(await run(rebaseOnto(wt, head, base, () => Effect.succeed(false)))).toEqual({ ok: true })
@@ -66,28 +66,28 @@ describe("review: rebasing and branches", () => {
   })
 })
 
-describe("review: landing never loses the driver's cards", () => {
-  test("a renamed file with your edits blocks landing; the driver's newer card is untouched", async () => {
+describe("review: landing never loses the driver's scenarios", () => {
+  test("a renamed file with your edits blocks landing; the driver's newer scenario is untouched", async () => {
     const r = repo()
     write(r, "src/old.ts", "old\n")
     sh(r, "git add -A && git commit -qm old")
     const base = sh(r, "git rev-parse HEAD")
     const { commit } = await passOn(r, base, (wt) => {
       sh(wt, "git mv src/old.ts src/new.ts")
-      writeNode(wt, card("S-0001", "ST-0001", "ST-0001", "v1"))
+      writeNode(wt, scenario("S-0001", "ST-0001", "ST-0001", "v1"))
     })
     write(r, "src/old.ts", "my edit\n")
-    writeNode(r, card("S-0001", "ST-0001", "ST-0001", "v2"))
+    writeNode(r, scenario("S-0001", "ST-0001", "ST-0001", "v2"))
     const out = await run(land(r, commit, base, "main"))
     expect(out).toEqual({ status: "waiting", paths: ["src/old.ts"] })
     expect(readFileSync(node(r, "S-0001"), "utf8")).toContain("v2")
   })
 
-  test("a landing that fails part-way puts the driver's cards back", async () => {
+  test("a landing that fails part-way puts the driver's scenarios back", async () => {
     const r = repo()
     const base = sh(r, "git rev-parse HEAD")
-    const { commit } = await passOn(r, base, (wt) => writeNode(wt, card("S-0001", "ST-0001", "ST-0001", "v1")))
-    writeNode(r, card("S-0001", "ST-0001", "ST-0001", "v2"))
+    const { commit } = await passOn(r, base, (wt) => writeNode(wt, scenario("S-0001", "ST-0001", "ST-0001", "v1")))
+    writeNode(r, scenario("S-0001", "ST-0001", "ST-0001", "v2"))
     writeFileSync(join(r, ".git/index.lock"), "")
     const out = await exit(land(r, commit, base, "main"))
     rmSync(join(r, ".git/index.lock"))
@@ -95,11 +95,11 @@ describe("review: landing never loses the driver's cards", () => {
     expect(readFileSync(node(r, "S-0001"), "utf8")).toContain("v2")
   })
 
-  test("a landing killed after the fast-forward restores the saved cards on its re-run", async () => {
+  test("a landing killed after the fast-forward restores the saved scenarios on its re-run", async () => {
     const r = repo()
     const base = sh(r, "git rev-parse HEAD")
-    const { commit } = await passOn(r, base, (wt) => writeNode(wt, card("S-0001", "ST-0001", "ST-0001", "v1")))
-    const saved = JSON.stringify(card("S-0001", "ST-0001", "ST-0001", "v2"))
+    const { commit } = await passOn(r, base, (wt) => writeNode(wt, scenario("S-0001", "ST-0001", "ST-0001", "v1")))
+    const saved = JSON.stringify(scenario("S-0001", "ST-0001", "ST-0001", "v2"))
     sh(r, `git merge -q --ff-only ${commit}`)
     const manifest = join(r, ".zarg/reconcile/landing", `${commit}.json`)
     mkdirSync(join(manifest, ".."), { recursive: true })

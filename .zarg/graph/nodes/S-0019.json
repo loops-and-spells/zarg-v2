@@ -23,5 +23,5 @@
     "title": "Operator picks a version",
     "when": "the operator picks a version"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

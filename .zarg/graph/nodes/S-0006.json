@@ -22,5 +22,5 @@
     "title": "CLI actor retries with the hint",
     "when": "the CLI actor retries using the hint"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

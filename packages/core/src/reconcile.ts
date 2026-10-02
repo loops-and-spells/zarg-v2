@@ -22,10 +22,10 @@ export interface ReconcileDeps {
   readonly affected: PhaseDeps["affected"]
   /** The workflow store. Under `.zarg/reconcile/`, which keeps itself out of git. */
   readonly dbFile?: string
-  /** A pass landed these cards (the Planner moves their plans to Review). */
-  readonly onLanded?: (cards: ReadonlyArray<string>) => void
-  /** A pass failed on these cards (their plans go back to Ready, for the operator). */
-  readonly onFailed?: (cards: ReadonlyArray<string>) => void
+  /** A pass landed these scenarios (the Planner moves their plans to Review). */
+  readonly onLanded?: (scenarios: ReadonlyArray<string>) => void
+  /** A pass failed on these scenarios (their plans go back to Ready, for the operator). */
+  readonly onFailed?: (scenarios: ReadonlyArray<string>) => void
   /** A pass's outcome is known (landed, failed, skipped, errored): the findings may have changed. */
   readonly onPassEnd?: () => void
 }
@@ -46,7 +46,7 @@ export const makeReconcile = (deps: ReconcileDeps) =>
     const activity = { plan: makeActivity(deps.log, "plan", undefined, threadViews(deps.log, "plan")), implement: makeActivity(deps.log, "implement", undefined, threadViews(deps.log, "implement")) }
     const emit = (thread: string, d: E.Draft) => Effect.runSync(deps.log.append(thread, d))
     let active: { readonly payload: typeof Pass.payloadSchema.Type; readonly runId: string } | undefined
-    // Stop: a flag the pass checks between steps, and a signal running cards race (reset for each pass).
+    // Stop: a flag the pass checks between steps, and a signal running scenarios race (reset for each pass).
     let stopRequested = false
     let release = () => {}
     let signal = new Promise<void>(() => {})
@@ -72,7 +72,7 @@ export const makeReconcile = (deps: ReconcileDeps) =>
     const runtime = ManagedRuntime.make(engine as Layer.Layer<Layer.Success<typeof engine>, Layer.Error<typeof engine>, never>)
     yield* Effect.addFinalizer(() => Effect.promise(() => runtime.dispose()))
 
-    // Each pass is one run on both threads: started, the RLM tree per card, a summary, finished.
+    // Each pass is one run on both threads: started, the RLM tree per scenario, a summary, finished.
     const execute = (payload: typeof Pass.payloadSchema.Type) =>
       Effect.gen(function* () {
         const runId = `pass-${crypto.randomUUID().slice(0, 8)}`
@@ -119,7 +119,7 @@ export const makeReconcile = (deps: ReconcileDeps) =>
     // A pass interrupted by the last shutdown (or changes made while zarg was off) are picked up now.
     reconciler.notify()
 
-    /** Stop the running pass: its cards are cut short, nothing lands, its worktrees stay; the next graph change starts a new pass. */
+    /** Stop the running pass: its scenarios are cut short, nothing lands, its worktrees stay; the next graph change starts a new pass. */
     const stop = Effect.sync(() => {
       if (active === undefined) return
       stopRequested = true
@@ -137,21 +137,21 @@ export const makeReconcile = (deps: ReconcileDeps) =>
     })
 
     /** Findings about the thread's focus (or all, without one), first on the driver's agenda. */
-    // @card S-0025
+    // @scenario S-0025
     const agenda = (focus: ReadonlySet<string> | undefined): ReadonlyArray<AgendaItem> =>
       findings
         .list()
         .filter((f) => focus === undefined || f.about.length === 0 || f.about.some((c) => focus.has(c)))
         .map((f) => ({ id: f.id, title: f.title, detail: `${f.kind}: ${f.detail}`, about: f.about, priority: 0 }))
 
-    /** Cards the next pass would take up (the working graph against the last checkpoint). */
+    /** Scenarios the next pass would take up (the working graph against the last checkpoint). */
     const pending = Effect.gen(function* () {
       const [before, after] = yield* Effect.all([
         Effect.flatMap(baseTree(deps.repo), (t) => snapshotAtTree(deps.repo, t)),
         Effect.flatMap(workingGraphTree(deps.repo), (t) => snapshotAtTree(deps.repo, t)),
       ])
       const a = yield* deps.affected(before, after)
-      return a.cards.length + a.removed.length
+      return a.scenarios.length + a.removed.length
     }).pipe(Effect.orElseSucceed(() => 0))
 
     return { threads: [view("plan"), view("implement")], agenda, notify: reconciler.notify, findings, pending }

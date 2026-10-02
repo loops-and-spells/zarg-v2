@@ -22,5 +22,5 @@
     "title": "CLI actor finds the affected cards",
     "when": "the CLI actor asks which cards changed since the last checkpoint"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

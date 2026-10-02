@@ -22,5 +22,5 @@
     "title": "Env files stay hidden from agents",
     "when": "an agent reads a local env file"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

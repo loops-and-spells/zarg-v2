@@ -22,5 +22,5 @@
     "title": "Driver Agent takes up a reconcile finding",
     "when": "the Driver Agent reads the agenda again"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

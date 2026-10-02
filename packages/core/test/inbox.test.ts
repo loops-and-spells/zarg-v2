@@ -27,7 +27,7 @@ describe("the inbox", () => {
     const id = await Effect.runPromise(inbox.post(from, { ...grant, answers: [{ id: "no", label: "No", reason: "required" }, { id: "yes", label: "Yes" }] }))
     expect((await Effect.runPromise(inbox.answer(id, { answer: "maybe" }))).ok).toBe(false)
     expect((await Effect.runPromise(inbox.answer(id, { answer: "no" }))).ok).toBe(false)
-    expect((await Effect.runPromise(inbox.answer(id, { answer: "no", text: "wrong card" }))).ok).toBe(true)
+    expect((await Effect.runPromise(inbox.answer(id, { answer: "no", text: "wrong scenario" }))).ok).toBe(true)
     expect(await Effect.runPromise(inbox.answer(id, { answer: "yes" }))).toEqual({ ok: false, notice: "that topic is answered" })
   })
   test("a posted topic's answer goes to the plugin's answered; the same key updates, not duplicates", async () => {
@@ -158,7 +158,7 @@ describe("the inbox", () => {
     const log = await Effect.runPromise(makeLog(d.log, (t) => t))
     const opts = { log, dir: d.dir, answered: (t: { id: string }, r: unknown) => Effect.sync(() => void seen.push(["answered", t.id, r])), replied: (t: { id: string }, text: string) => Effect.sync(() => void seen.push(["replied", t.id, text])) }
     const first = await Effect.runPromise(makeInbox(opts))
-    const id = await Effect.runPromise(first.raise({ plugin: "zarg", agent: "zarg" }, { kind: "question", title: "Which card first?", why: "zarg asks", answers: [{ id: "a", label: "Checkout" }] }, { blocking: true, durable: true }))
+    const id = await Effect.runPromise(first.raise({ plugin: "zarg", agent: "zarg" }, { kind: "question", title: "Which scenario first?", why: "zarg asks", answers: [{ id: "a", label: "Checkout" }] }, { blocking: true, durable: true }))
     const second = await Effect.runPromise(makeInbox(opts))
     expect(second.list().find((t) => t.id === id)).toMatchObject({ state: "open", blocking: true, durable: true })
     expect(await Effect.runPromise(second.reply(id, "why Checkout?"))).toEqual({ ok: true, notice: "sent" })

@@ -43,8 +43,8 @@ export interface Backend {
   readonly render: (ids: ReadonlySet<string>) => Effect.Effect<string, unknown>
   /** A caller's read and command patterns; undefined caller: everything. */
   readonly scopeOf: (caller: string) => { readonly read: ReadonlyArray<string>; readonly command: ReadonlyArray<string> }
-  /** A card's code (its `@card` tags and what follows them), when the host has a project. */
-  readonly code?: (card: string) => Effect.Effect<ReadonlyArray<{ readonly file: string; readonly line: number; readonly text: string }>, unknown>
+  /** A scenario's code (its `@scenario` tags and what follows them), when the host has a project. */
+  readonly code?: (scenario: string) => Effect.Effect<ReadonlyArray<{ readonly file: string; readonly line: number; readonly text: string }>, unknown>
 }
 
 const graphLabel = (props: Readonly<Record<string, unknown>>, id: string) => String(props.title ?? props.name ?? props.text ?? id)
@@ -143,11 +143,11 @@ export const makeEntities = (b: Backend) => {
       return yield* Effect.mapError(k.ownerGraph ? b.write(k.owner, method, params) : b.invoke(k.owner, method, params), (e) => err("ProviderFailed", `${k.type}.${name}: ${e.message}`))
     })
   const label = (ref: string, caller?: string) => Effect.map(get(ref, caller), (e) => e.label)
-  /** A card's code: read under the same scope as the card; none for anything but a gherkin card. */
+  /** A scenario's code: read under the same scope as the scenario; none for anything but a gherkin scenario. */
   const code = (ref: string, caller?: string) =>
     Effect.gen(function* () {
       const e = yield* get(ref, caller)
-      if (e.type !== "gherkin/card" || b.code === undefined) return []
+      if (e.type !== "gherkin/scenario" || b.code === undefined) return []
       return yield* Effect.mapError(b.code(e.id), () => err("ProviderFailed", `${ref}: its code could not be read`))
     })
   const types = () => [...b.kinds.values()].map((k) => ({ type: k.type, doc: k.doc, tone: k.tone, glyph: k.glyph, commands: Object.keys(k.commands), ...(k.open !== undefined ? { open: k.open } : {}), data: k.data }))

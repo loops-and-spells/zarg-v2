@@ -23,18 +23,18 @@ const write = (root: string, path: string, text: string) => {
 }
 const node = (root: string, n: { id: string; [k: string]: unknown }) => write(root, `.zarg/graph/nodes/${n.id}.json`, `${JSON.stringify(n)}\n`)
 
-/** A repo with ST-0001 and the given cards (uncommitted, as the driver leaves them). */
-const project = (cards: ReadonlyArray<string>) => {
+/** A repo with ST-0001 and the given scenarios (uncommitted, as the driver leaves them). */
+const project = (scenarios: ReadonlyArray<string>) => {
   const r = mkdtempSync(join(tmpdir(), "zarg-phases-"))
   roots.push(r)
   sh(r, "git init -q -b main && git config user.email t@t && git config user.name t && echo hi > README.md && git add -A && git commit -qm init")
   node(r, { id: "ST-0001", type: "gherkin/state", props: { text: "the home page is shown" }, edges: [] })
-  for (const c of cards) node(r, { id: c, type: "gherkin/card", props: { title: `Card ${c}`, when: `the user does ${c}` }, edges: [{ type: "gherkin/arrives", to: "ST-0001" }, { type: "gherkin/then", to: "ST-0001" }] })
+  for (const c of scenarios) node(r, { id: c, type: "gherkin/scenario", props: { title: `Scenario ${c}`, when: `the user does ${c}` }, edges: [{ type: "gherkin/arrives", to: "ST-0001" }, { type: "gherkin/then", to: "ST-0001" }] })
   return r
 }
 
-/** A model that answers by preset (from the system prompt) with the card id substituted into the cell. */
-const stub = (cells: Record<string, (card: string) => string>) =>
+/** A model that answers by preset (from the system prompt) with the scenario id substituted into the cell. */
+const stub = (cells: Record<string, (scenario: string) => string>) =>
   Layer.succeed(Model.Model, {
     client: () => Effect.die("unused"),
     list: () => Effect.succeed([]),
@@ -42,8 +42,8 @@ const stub = (cells: Record<string, (card: string) => string>) =>
     warm: () => Effect.void,
     stream: (req) => {
       const preset = /zarg (\S+) agent/.exec(String(req.messages[0]?.content))?.[1] ?? "?"
-      const card = /card (S-\d+)/.exec(String(req.messages[1]?.content))?.[1] ?? ""
-      const code = cells[preset]?.(card) ?? 'yield* Rlm.done({ value: "?" })'
+      const scenario = /scenario (S-\d+)/.exec(String(req.messages[1]?.content))?.[1] ?? ""
+      const code = cells[preset]?.(scenario) ?? 'yield* Rlm.done({ value: "?" })'
       const events: ReadonlyArray<StreamEvent> = [
         { type: "toolCall", call: { id: `c${Math.random()}`, type: "function", function: { name: "exec", arguments: JSON.stringify({ code }) } } },
         { type: "done", finishReason: "tool_calls" },
@@ -53,14 +53,14 @@ const stub = (cells: Record<string, (card: string) => string>) =>
   })
 
 const PLAN = "## Approach\\nAdd a module.\\n## Files\\n- src/x.ts — new\\n## Tests\\n- test — works\\n## Depends on\\nnone"
-const planner = (card: string) =>
-  card === "S-0002" ? 'yield* Rlm.done({ value: { blocked: "S-0002 contradicts S-0001" } })' : `yield* Rlm.done({ value: { plan: "${PLAN}" } })`
-const implementer = (card: string) =>
+const planner = (scenario: string) =>
+  scenario === "S-0002" ? 'yield* Rlm.done({ value: { blocked: "S-0002 contradicts S-0001" } })' : `yield* Rlm.done({ value: { plan: "${PLAN}" } })`
+const implementer = (scenario: string) =>
   [
-    `yield* Fs.write({ path: "src/${card}.ts", content: "// @card ${card}\\nexport const ok = true\\n" })`,
+    `yield* Fs.write({ path: "src/${scenario}.ts", content: "// @scenario ${scenario}\\nexport const ok = true\\n" })`,
     // Requirements are read-only downstream: this edit must not survive.
     `yield* Fs.write({ path: ".zarg/graph/nodes/ST-0001.json", content: "tampered" })`,
-    `yield* Rlm.done({ value: { files: ["src/${card}.ts"], summary: "added" } })`,
+    `yield* Rlm.done({ value: { files: ["src/${scenario}.ts"], summary: "added" } })`,
   ].join("\n")
 
 const pass = (repo: string, model: Layer.Layer<Model.Model>) =>
@@ -88,25 +88,25 @@ const pass = (repo: string, model: Layer.Layer<Model.Model>) =>
   )
 
 describe("plan and implement phases", () => {
-  test("a card gets a plan file and code in one landed commit; requirements stay untouched", async () => {
+  test("a scenario gets a plan file and code in one landed commit; requirements stay untouched", async () => {
     const r = project(["S-0001"])
     const before = readFileSync(join(r, ".zarg/graph/nodes/ST-0001.json"), "utf8")
-    const { out } = await pass(r, stub({ plan: planner, "implement-card": implementer }))
+    const { out } = await pass(r, stub({ plan: planner, "implement-scenario": implementer }))
     expect(out).toMatchObject({ status: "landed", landed: ["S-0001"] })
     const plan = readFileSync(join(r, ".zarg/plans/S-0001.md"), "utf8")
-    // The plan's data is frontmatter: its card, the card's hash when planned, its title.
+    // The plan's data is frontmatter: its scenario, the scenario's hash when planned, its title.
     const { data, body } = parse(plan)
-    expect(data).toEqual({ card: "S-0001", hash: expect.stringMatching(/^[0-9a-f]+$/), title: "Card S-0001" })
-    expect(body).toStartWith("# S-0001 Card S-0001\n")
+    expect(data).toEqual({ scenario: "S-0001", hash: expect.stringMatching(/^[0-9a-f]+$/), title: "Scenario S-0001" })
+    expect(body).toStartWith("# S-0001 Scenario S-0001\n")
     expect(plan).toContain("## Files\n- src/x.ts — new")
-    expect(readFileSync(join(r, "src/S-0001.ts"), "utf8")).toContain(`// ${"@" + "card"} S-0001`)
+    expect(readFileSync(join(r, "src/S-0001.ts"), "utf8")).toContain(`// ${"@" + "scenario"} S-0001`)
     expect(readFileSync(join(r, ".zarg/graph/nodes/ST-0001.json"), "utf8")).toBe(before)
     expect(sh(r, "git log -1 --format=%s")).toBe("feat: implement S-0001")
   }, 60_000)
 
-  test("a card the planner calls contradictory becomes an unplannable finding; the other card lands", async () => {
+  test("a scenario the planner calls contradictory becomes an unplannable finding; the other scenario lands", async () => {
     const r = project(["S-0001", "S-0002"])
-    const { out, findings } = await pass(r, stub({ plan: planner, "implement-card": implementer }))
+    const { out, findings } = await pass(r, stub({ plan: planner, "implement-scenario": implementer }))
     expect(out).toMatchObject({ status: "landed", landed: ["S-0001"], failed: ["S-0002"] })
     expect(findings.map((f) => [f.kind, f.about])).toEqual([["unplannable", ["S-0002"]]])
     expect(existsSync(join(r, ".zarg/plans/S-0002.md"))).toBe(false)

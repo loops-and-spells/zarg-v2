@@ -26,5 +26,5 @@
     "title": "Operator turns reconcile on",
     "when": "the operator types /reconcile"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

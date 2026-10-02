@@ -1,18 +1,18 @@
 {
   "title": "CLI actor missing file",
   "journey": "CLI actor",
-  "cards": [
+  "scenarios": [
     {
-      "ref": "gherkin/card:S-0003@26bc1ce49670"
+      "ref": "gherkin/scenario:S-0003@26bc1ce49670"
     },
     {
-      "ref": "gherkin/card:S-0004@689d06f016c0"
+      "ref": "gherkin/scenario:S-0004@689d06f016c0"
     },
     {
-      "ref": "gherkin/card:S-0006@5e3c137ff891"
+      "ref": "gherkin/scenario:S-0006@5e3c137ff891"
     },
     {
-      "ref": "gherkin/card:S-0079@5c9ae10a8131"
+      "ref": "gherkin/scenario:S-0079@5c9ae10a8131"
     }
   ],
   "changes": [
@@ -83,7 +83,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0006",
+        "scenario": "S-0006",
         "edge": "then",
         "state": {
           "text": "the saved node file carries a retry-id"

@@ -22,5 +22,5 @@
     "title": "CLI actor rewords a state",
     "when": "the CLI actor rewords a state"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

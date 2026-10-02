@@ -30,5 +30,5 @@
     "title": "Operator watches agents work",
     "when": "the operator opens the activity view"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

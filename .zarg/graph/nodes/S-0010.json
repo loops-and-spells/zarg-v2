@@ -22,5 +22,5 @@
     "title": "Driver Agent asks the next question",
     "when": "the Driver Agent reads the agenda again"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

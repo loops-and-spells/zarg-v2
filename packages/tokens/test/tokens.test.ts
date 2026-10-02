@@ -18,7 +18,7 @@ describe("tokens", () => {
   test("truecolor keeps today's values; aliases follow their base key", () => {
     const th = themeOn("terminal.truecolor")
     expect(th.value("ground").fg).toBe("#0f1115")
-    expect(th.value("card").fg).toBe(th.value("attention").fg)
+    expect(th.value("scenario").fg).toBe(th.value("attention").fg)
     expect(th.value("severity.high").fg).toBe("#f7768e")
     expect(th.value("journey").fg).toBe("#9ece6a")
   })

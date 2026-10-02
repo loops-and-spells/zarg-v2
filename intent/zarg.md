@@ -20,7 +20,7 @@ next:
   - name: Rehearse by persona
     why: testers roleplay each persona over the journeys that persona acts in
   - name: Code ownership
-    why: the operator sees which code each card owns
+    why: the operator sees which code each scenario owns
 ---
 # Intent: zarg, a harness where you only talk about intent
 
@@ -30,7 +30,7 @@ Building software with coding agents still means driving every step yourself: wr
 
 ## Personas
 
-Who meets zarg at its edges; listed in the frontmatter (`personas`), where rehearse and zarg's agent read them. The requirements graph names who acts in each card; zarg's agent asks about personas when a project starts and keeps them there.
+Who meets zarg at its edges; listed in the frontmatter (`personas`), where rehearse and zarg's agent read them. The requirements graph names who acts in each scenario; zarg's agent asks about personas when a project starts and keeps them there.
 
 ## Inputs
 
@@ -43,8 +43,8 @@ Who meets zarg at its edges; listed in the frontmatter (`personas`), where rehea
 
 - Intent documents (`intent/*.md`): what the product is for, in the operator's words.
 - The requirements graph (`.zarg/graph`): the product as atomic user actions, each traceable to an intent.
-- Feedback and plans (`.zarg/feedback`, `.zarg/triage`, `.zarg/backlog`): what testers found on each version of a card, how the operator triaged it, and the plans that change the requirements before anything is built.
-- Plans and code, verified and landed on the operator's branch as commits, each traceable to its cards.
+- Feedback and plans (`.zarg/feedback`, `.zarg/triage`, `.zarg/backlog`): what testers found on each version of a scenario, how the operator triaged it, and the plans that change the requirements before anything is built.
+- Plans and code, verified and landed on the operator's branch as commits, each traceable to its scenarios.
 - Questions and findings for the operator: one at a time, with options and a recommendation.
 - A live view of the work: what runs, what it decided, how far it got, what waits for the operator.
 
@@ -58,7 +58,7 @@ Who meets zarg at its edges; listed in the frontmatter (`personas`), where rehea
 - **Durable.** A restart resumes work instead of redoing it, and a pending question survives it.
 - **Safe.** Secrets never reach a model, a log or the wire. Plugins run only with what the operator granted. Requirements change only with the operator's say; code changes only to match the requirements.
 
-Success: the operator describes what they want, answers a few good questions, and working, verified, committed code follows, with every line traceable back through a card to an intent.
+Success: the operator describes what they want, answers a few good questions, and working, verified, committed code follows, with every line traceable back through a scenario to an intent.
 
 ## Constraints
 

@@ -47,7 +47,7 @@ const frame = async (v: ViewState, ui = initialViewUi, size = { width: 100, heig
 }
 
 describe("the terminal draws an agent's view", () => {
-  // @card S-0076
+  // @scenario S-0076
   test("text sections size themselves to rendered Markdown diagrams", async () => {
     const v: ViewState = {
       agent: "writer",
@@ -63,7 +63,7 @@ describe("the terminal draws an agent's view", () => {
     expect(f.split("\n").filter((line) => line.includes("└")).length).toBe(2)
   })
 
-  // @card S-0076
+  // @scenario S-0076
   test("agent conversation messages render Mermaid through the shared renderer", async () => {
     const v: ViewState = {
       agent: "writer",
@@ -204,7 +204,7 @@ test("a ref cell draws its label: glyph and text in its tone", async () => {
   const v: ViewState = {
     agent: "t",
     layout: layoutOf(defineView("t", { list: { kind: "table", role: "pinned", title: "F", columns: [{ id: "card", label: "card", ref: true }] } })),
-    data: { list: { rows: [{ id: "a", cells: { card: "gherkin/card:S-0001" } }], labels: { "gherkin/card:S-0001": { text: "S-0001 Plugin asks", tone: "card", glyph: "◇" } } } },
+    data: { list: { rows: [{ id: "a", cells: { card: "gherkin/scenario:S-0001" } }], labels: { "gherkin/scenario:S-0001": { text: "S-0001 Plugin asks", tone: "scenario", glyph: "◇" } } } },
   }
   const t = await testRender(<AgentView view={v} ui={initialViewUi} height={20} />, { width: 60, height: 20, exitOnCtrlC: false, exitSignals: [] })
   destroy = () => t.renderer.destroy()
@@ -213,7 +213,7 @@ test("a ref cell draws its label: glyph and text in its tone", async () => {
   await t.renderOnce()
   const f = t.captureCharFrame()
   expect(f).toContain("◇ S-0001 Plugin asks")
-  expect(f).not.toContain("gherkin/card:")
+  expect(f).not.toContain("gherkin/scenario:")
   const hex = (c: { r: number; g: number; b: number }) => `#${[c.r, c.g, c.b].map((x) => Math.round(x * 255).toString(16).padStart(2, "0")).join("")}`
   // The table row (the row card under it draws its first column in the accent).
   const span = t.captureSpans().lines.filter((l) => !l.spans.some((s) => s.text.includes("┃"))).flatMap((l) => l.spans).find((s) => s.text.includes("S-0001"))!

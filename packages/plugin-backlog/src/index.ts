@@ -29,7 +29,7 @@ const NO_JOURNEY = "—"
 const plural = (n: number, s: string) => `${n} ${n === 1 ? s : s.endsWith("y") ? `${s.slice(0, -1)}ies` : `${s}s`}`
 const fail = (e: unknown) => new PluginFailure({ tag: "BacklogError", message: String((e as { message?: unknown })?.message ?? e) })
 
-/** The backlog: feedback per card version (triaged in the Feedback view), later the plans built from it. */
+/** The backlog: feedback per scenario version (triaged in the Feedback view), later the plans built from it. */
 export default definePlugin({
   name: "backlog",
   service: "Backlog",
@@ -49,7 +49,7 @@ export default definePlugin({
   entities: {
     feedback: { doc: "A tester's report on one version of an entity, and its triage.", data: EntryData, tone: "attention", glyph: "◇", open: "feedback", ops: ["get", "label", "version", "query"] },
     item: {
-      doc: "A plan on the Backlog: the card changes it drafted, the feedback it closes, and its lane.",
+      doc: "A plan on the Backlog: the scenario changes it drafted, the feedback it closes, and its lane.",
       data: ItemData,
       tone: "accent",
       glyph: "▦",
@@ -59,8 +59,8 @@ export default definePlugin({
     },
   },
   methods: {
-    answered: { doc: "The operator answered one of the backlog's inbox topics (a plan that needs them, an ask, a card left out).", params: Schema.Struct({ id: Schema.String, key: Schema.optionalKey(Schema.String), answer: Schema.optionalKey(Schema.String), text: Schema.optionalKey(Schema.String) }), success: Notice },
-    file: { doc: "File feedback (the same report on the same version again counts it); with the cards a run walked, their feedback it no longer reports closes.", params: Schema.Struct({ entries: Schema.Array(FiledEntry), walked: Schema.optionalKey(Schema.Array(Schema.String)), run: Schema.optionalKey(Schema.String) }), success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
+    answered: { doc: "The operator answered one of the backlog's inbox topics (a plan that needs them, an ask, a scenario left out).", params: Schema.Struct({ id: Schema.String, key: Schema.optionalKey(Schema.String), answer: Schema.optionalKey(Schema.String), text: Schema.optionalKey(Schema.String) }), success: Notice },
+    file: { doc: "File feedback (the same report on the same version again counts it); with the scenarios a run walked, their feedback it no longer reports closes.", params: Schema.Struct({ entries: Schema.Array(FiledEntry), walked: Schema.optionalKey(Schema.Array(Schema.String)), run: Schema.optionalKey(Schema.String) }), success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
     status: { doc: "Where feedback stands.", params: Schema.Struct({ ids: Schema.Array(Schema.String) }), success: Schema.Array(Schema.Struct({ id: Schema.String, state: Schema.Literals(["open", "stale", "planned", "closed"]), on: Schema.Boolean })) },
     act: { doc: "The Feedback view: open it, show a journey, flip an entry.", params: Act, success: Notice },
     plan: { doc: "Add a plan (it lands in Ready; its feedback is planned).", params: PlanParams, success: Schema.Struct({ id: Schema.String }) },
@@ -75,8 +75,8 @@ export default definePlugin({
     redraft: { doc: "The accepted draft fails as a whole: back to Refine with the problems.", params: Redraft, success: Schema.Null },
     walking: { doc: "The journeys a rehearse run walks now (none: it ended): their feedback is locked meanwhile.", params: Schema.Struct({ run: Schema.String, journeys: Schema.Array(Schema.String) }), success: Schema.Null },
     assign: { doc: "The triage worker that took a journey (none: back in line).", params: Schema.Struct({ journey: Schema.String, worker: Schema.optionalKey(Schema.String) }), success: Schema.Null },
-    redo: { doc: "Draft one card of a journey's round again (the Triage Agent's view, d).", params: Schema.Struct({ journey: Schema.String, card: Schema.String }), success: Notice },
-    propose: { doc: "The Triage Agent's proposal for a card.", params: Propose, success: Schema.Null },
+    redo: { doc: "Draft one scenario of a journey's round again (the Triage Agent's view, d).", params: Schema.Struct({ journey: Schema.String, scenario: Schema.String }), success: Notice },
+    propose: { doc: "The Triage Agent's proposal for a scenario.", params: Propose, success: Schema.Null },
     rehearsing: { doc: "The Triage Agent started (or waits for) a re-rehearse.", params: Rehearsing, success: Schema.Null },
     rehearsed: { doc: "A re-rehearse's results: on to Plan, or back to Refine with fresh feedback.", params: Rehearsed, success: Schema.Null },
     drafted: { doc: "The Triage Agent's drafted plan.", params: Drafted, success: Schema.Null },
@@ -115,10 +115,10 @@ export default definePlugin({
     const writing = yield* Semaphore.make(1)
     const save = (e: Entry) => files.write(`${DIR}/${e.id}.json`, `${JSON.stringify(e, null, 2)}\n`)
     /** Each entry with its state now: open, or stale once its entity changed (or went). */
-    /** Each entry with its state now; `strict`: a failed lookup fails (never read as "every card changed"). */
+    /** Each entry with its state now; `strict`: a failed lookup fails (never read as "every scenario changed"). */
     const withStates = (es: ReadonlyArray<Entry>, strict = false) =>
       Effect.gen(function* () {
-        // One lookup for every distinct entity (many entries share a card), not a round trip per entry.
+        // One lookup for every distinct entity (many entries share a scenario), not a round trip per entry.
         const refs = [...new Set(es.filter((e) => e.state === undefined).map((e) => e.ref))]
         const lookup = entities.many(refs)
         const now = refs.length === 0 ? [] : (yield* (strict ? lookup : lookup.pipe(Effect.orElseSucceed(() => ({ entities: [], failed: [] }))))).entities
@@ -157,16 +157,16 @@ export default definePlugin({
     /** What the selected journey's stage asks for now. */
     const workOf = (st: Stage, on: number) => {
       const leftOut = st.proposals.filter((p) => p.status === "skipped" && (p.problems ?? []).length > 0)
-      const leftLines = leftOut.length > 0 ? ["", `Left out: ${leftOut.map((p) => `${p.card} (${p.problems!.join("; ")})`).join(", ")}`] : []
+      const leftLines = leftOut.length > 0 ? ["", `Left out: ${leftOut.map((p) => `${p.scenario} (${p.problems!.join("; ")})`).join(", ")}`] : []
       const noteLine = st.note !== undefined ? ["", st.note] : []
-      if (st.stage === "triage") return [on === 0 ? "Turn feedback on (space) to refine it; **n** adds your note." : `**r** Refine the ${plural(on, "entry")} that are on: a triage worker drafts the card changes, then the plan goes to the Backlog.`, ...noteLine].join("\n")
+      if (st.stage === "triage") return [on === 0 ? "Turn feedback on (space) to refine it; **n** adds your note." : `**r** Refine the ${plural(on, "entry")} that are on: a triage worker drafts the scenario changes, then the plan goes to the Backlog.`, ...noteLine].join("\n")
       if (st.stage === "refine") {
         const p = current(st)
         const done = st.proposals.filter((x) => x.status === "accepted" || x.status === "skipped").length
-        if (st.worker === undefined) return [`Queued for triage: ${plural(st.proposals.length, "card")}. A triage worker takes it when one is free; its feedback is read-only until its plan is on the Backlog.`, ...noteLine].join("\n")
-        return [p === undefined ? "Every card drafted." : `${st.worker} is drafting ${p.card} (${done + 1} of ${st.proposals.length}); the plan goes to the Backlog when the last is drafted.`, ...noteLine, ...leftLines].join("\n")
+        if (st.worker === undefined) return [`Queued for triage: ${plural(st.proposals.length, "scenario")}. A triage worker takes it when one is free; its feedback is read-only until its plan is on the Backlog.`, ...noteLine].join("\n")
+        return [p === undefined ? "Every scenario drafted." : `${st.worker} is drafting ${p.scenario} (${done + 1} of ${st.proposals.length}); the plan goes to the Backlog when the last is drafted.`, ...noteLine, ...leftLines].join("\n")
       }
-      if (st.stage === "rehearse" || st.stage === "plan") return [`Drafting the plan for ${plural(st.proposals.filter((p) => p.status === "accepted").length, "card")}; it goes to the Backlog.`, ...leftLines, ...noteLine].join("\n")
+      if (st.stage === "rehearse" || st.stage === "plan") return [`Drafting the plan for ${plural(st.proposals.filter((p) => p.status === "accepted").length, "scenario")}; it goes to the Backlog.`, ...leftLines, ...noteLine].join("\n")
       return [`On the Backlog as **${(st.items ?? (st.item !== undefined ? [st.item] : [])).join(", ") || "a plan"}**: move it to Ready (in Backlog) to apply it.`, ...leftLines, "", "**r** starts a new round."].join("\n")
     }
     // The journeys a rehearse run walks now: their feedback is locked until it ends (it reconciles them then).
@@ -175,7 +175,7 @@ export default definePlugin({
     let journey: string | undefined
     // Background changes redraw Feedback only once it has been opened (nobody looks otherwise).
     let feedbackOpened = false
-    // ponytail: grows by one per card version that had feedback shown; clear it when that gets large.
+    // ponytail: grows by one per scenario version that had feedback shown; clear it when that gets large.
     const contextOf = new Map<string, string>()
     const refresh = Effect.gen(function* () {
       const all = yield* withStates(yield* load)
@@ -197,7 +197,7 @@ export default definePlugin({
         if (st === undefined || !round.has(e.id)) return ""
         if (st.stage === "rehearse") return "re-rehearsing"
         if (st.stage === "plan") return "still reported"
-        const p = st.proposals.find((x) => x.card === (parseRef(e.ref)?.id ?? ""))
+        const p = st.proposals.find((x) => x.scenario === (parseRef(e.ref)?.id ?? ""))
         return p === undefined ? "" : p.status === "accepted" ? "drafted" : p.status === "skipped" ? "left out" : st.worker !== undefined ? "waiting" : "queued"
       }
       const locked = (e: Entry) => (st !== undefined && inTriage(st) && round.has(e.id)) || walkedBy(e.journeys) !== undefined
@@ -218,11 +218,11 @@ export default definePlugin({
           on: e.triage.on,
           ...(locked(e) ? { readonly: true, tone: "dim" as const } : {}),
           ...(e.operatorNote !== undefined ? { text: e.operatorNote } : {}),
-          cells: { card: target(e.ref), severity: e.severity, kind: e.kind, note: e.operatorNote !== undefined ? "✎" : "", status: statusOf(e) },
+          cells: { scenario: target(e.ref), severity: e.severity, kind: e.kind, note: e.operatorNote !== undefined ? "✎" : "", status: statusOf(e) },
           search: [e.id, e.ref, e.persona, e.kind, e.severity, e.note, ...e.journeys].join(" "),
         })),
       })
-      // Shown entries are open: their ref is the card as it is now, so its context is fixed for that ref.
+      // Shown entries are open: their ref is the scenario as it is now, so its context is fixed for that ref.
       yield* Effect.forEach([...new Set(sorted.map((e) => e.ref))].filter((r) => !contextOf.has(r)), (r) =>
         Effect.map(entities.context(target(r)).pipe(Effect.orElseSucceed(() => "")), (c) => { contextOf.set(r, c) }), { concurrency: 8, discard: true })
       const contexts = sorted.map((e) => [e.id, contextOf.get(e.ref) ?? ""] as const)
@@ -232,7 +232,7 @@ export default definePlugin({
           "",
           e.note,
           ...(e.operatorNote !== undefined ? ["", `**Your note:** ${e.operatorNote}`] : []),
-          ...(e.notReportedIn !== undefined ? ["", `Not reported by run ${e.notReportedIn}, which walked this card: yours to keep or turn off.`] : []),
+          ...(e.notReportedIn !== undefined ? ["", `Not reported by run ${e.notReportedIn}, which walked this scenario: yours to keep or turn off.`] : []),
           "",
           `by ${e.persona} · in ${e.journeys.join(", ") || NO_JOURNEY} · from ${e.from.agent} ${e.from.run}${e.count > 1 ? ` · reported ${e.count} times` : ""}`,
           ...(context.length > 0 ? ["", "```gherkin", context.trim(), "```"] : []),
@@ -267,8 +267,8 @@ export default definePlugin({
       })
     const changedRefs = (items: ReadonlyArray<Item>) =>
       Effect.gen(function* () {
-        // Only refs with the version the plan was drafted on (cards an apply added carry none: nothing to go stale); one lookup for all.
-        const refs = [...new Set(items.filter((i) => i.status === "backlog" || i.status === "ready").flatMap((i) => i.cards.map((c) => c.ref)).filter((ref) => parseRef(ref)?.version !== undefined))]
+        // Only refs with the version the plan was drafted on (scenarios an apply added carry none: nothing to go stale); one lookup for all.
+        const refs = [...new Set(items.filter((i) => i.status === "backlog" || i.status === "ready").flatMap((i) => i.scenarios.map((c) => c.ref)).filter((ref) => parseRef(ref)?.version !== undefined))]
         if (refs.length === 0) return new Set<string>()
         const got = yield* entities.many(refs).pipe(Effect.orElseSucceed(() => ({ entities: [] as ReadonlyArray<{ ref: string }> })))
         const now = new Set(got.entities.map((e) => e.ref))
@@ -289,16 +289,16 @@ export default definePlugin({
       const r = parseRef(ref)
       return r === undefined ? ref : `${r.id}${r.version !== undefined ? ` @${r.version.slice(0, 4)}` : ""}`
     }
-    /** The drawer: the plan's header, its title, each card (its version: ✓ current, ⚠ changed), feedback, the cards as they are, changes, steps, links, events. */
+    /** The drawer: the plan's header, its title, each scenario (its version: ✓ current, ⚠ changed), feedback, the scenarios as they are, changes, steps, links, events. */
     const itemMarkdown = (i: Item, feedback: ReadonlyArray<Entry>, changed: ReadonlySet<string>, contexts: ReadonlyArray<readonly [string, string]>) =>
       [
         `${i.id} · ${LANE_TITLES[i.status]}${i.agent !== undefined ? ` · ${i.agent}` : ""}`,
         `**${i.title}**`,
-        ...i.cards.map((c, k) => `${short(c.ref)} ${changed.has(c.ref) ? "⚠ changed" : "✓"}${k === 0 ? `${i.persona !== undefined ? ` · ${i.persona}` : ""} · ${i.journey}${i.severity !== undefined ? ` · ${i.severity}` : ""}` : ""}`),
+        ...i.scenarios.map((c, k) => `${short(c.ref)} ${changed.has(c.ref) ? "⚠ changed" : "✓"}${k === 0 ? `${i.persona !== undefined ? ` · ${i.persona}` : ""} · ${i.journey}${i.severity !== undefined ? ` · ${i.severity}` : ""}` : ""}`),
         ...(i.needs !== undefined ? ["", `**Needs you:** ${i.needs}`] : []),
-        ...(changed.size > 0 ? ["", "A card changed since this plan was drafted: **s** Resync (it takes the cards as they are now, or goes back to triage)."] : []),
+        ...(changed.size > 0 ? ["", "A scenario changed since this plan was drafted: **s** Resync (it takes the scenarios as they are now, or goes back to triage)."] : []),
         ...(feedback.length > 0 ? ["", `**Feedback ${feedback.length}**`, ...feedback.map((f) => `◇ ${f.kind}  ${f.note}`)] : []),
-        ...contexts.flatMap(([id, text]) => (text.length > 0 ? ["", `**Card** ${id}`, "```gherkin", text.trim(), "```"] : [])),
+        ...contexts.flatMap(([id, text]) => (text.length > 0 ? ["", `**Scenario** ${id}`, "```gherkin", text.trim(), "```"] : [])),
         ...(i.changes.length > 0 ? ["", `**Changes ${i.changes.length}**`, ...i.changes.map((c) => `- gherkin/${c.tool} ${JSON.stringify(c.params)}`)] : []),
         ...(i.steps.length > 0 ? ["", "**Steps**", ...i.steps.map((st, k) => `${k + 1}. ${st}`)] : []),
         ...((i.after ?? []).length > 0 ? ["", `**Links** after ${i.after!.join(", ")}`] : []),
@@ -311,9 +311,9 @@ export default definePlugin({
         if (i === undefined) return false
         const feedback = (yield* load).filter((e) => i.feedback.includes(e.id))
         const changed = stale(i, all, yield* changedRefs([i]))
-        // The whole picture in one call: each card it touches (new ones too), as it is, as the plan leaves it, as text.
-        const own = i.cards.map((c) => parseRef(c.ref)?.id ?? "").filter((c) => /^S-/.test(c))
-        const compared = (yield* gherkin.compare({ draft: i.changes, cards: own }).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: [] as ReadonlyArray<string>, cards: [] as ReadonlyArray<{ id: string; before: null; after: null; text: string }> })))).cards
+        // The whole picture in one call: each scenario it touches (new ones too), as it is, as the plan leaves it, as text.
+        const own = i.scenarios.map((c) => parseRef(c.ref)?.id ?? "").filter((c) => /^S-/.test(c))
+        const compared = (yield* gherkin.compare({ draft: i.changes, scenarios: own }).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: [] as ReadonlyArray<string>, scenarios: [] as ReadonlyArray<{ id: string; before: null; after: null; text: string }> })))).scenarios
         const lines = (x: { given: string; when: string; thens: ReadonlyArray<string> } | null) => (x === null ? [] : [`Given ${x.given}`, `When  ${x.when}`, ...x.thens.map((t, k) => `${k === 0 ? "Then" : "And "}  ${t}`)])
         const diffs = compared.map((c) => ({ id: c.id, title: c.after?.title ?? c.before?.title ?? c.id, before: lines(c.before), after: lines(c.after) }))
         const contexts = compared.filter((c) => own.includes(c.id)).map((c) => [c.id, c.text] as const)
@@ -323,17 +323,17 @@ export default definePlugin({
         return true
       })
     /** Move a plan by hand or by an agent: the move recorded; Done closes its feedback. */
-    const move = (id: string, to: Item["status"], by: string, what?: string, needs?: string, cards?: ReadonlyArray<string>) =>
+    const move = (id: string, to: Item["status"], by: string, what?: string, needs?: string, scenarios?: ReadonlyArray<string>) =>
       Effect.gen(function* () {
         const i = (yield* loadItems).find((x) => x.id === id)
         if (i === undefined) return `no plan ${id}`
         // The operator's move to the lane a plan is in does nothing, unless it clears what the plan needed of them; an agent's note is kept.
         if (i.status === to && needs === undefined && i.needs === undefined && by === "operator") return `${id} is already in ${LANE_TITLES[to]}`
         const next = moved(i, to, by, what)
-        // The cards an apply affected join the plan's (a new card, a reworded state's cards): a landed pass covers them.
-        const known = new Set(next.cards.map((c) => target(c.ref)))
-        const withCards = cards === undefined ? next : { ...next, cards: [...next.cards, ...cards.filter((c) => !known.has(`gherkin/card:${c}`)).map((c) => ({ ref: `gherkin/card:${c}` }))] }
-        yield* saveItem(needs !== undefined ? { ...withCards, needs } : withCards)
+        // The scenarios an apply affected join the plan's (a new scenario, a reworded state's scenarios): a landed pass covers them.
+        const known = new Set(next.scenarios.map((c) => target(c.ref)))
+        const withScenarios = scenarios === undefined ? next : { ...next, scenarios: [...next.scenarios, ...scenarios.filter((c) => !known.has(`gherkin/scenario:${c}`)).map((c) => ({ ref: `gherkin/scenario:${c}` }))] }
+        yield* saveItem(needs !== undefined ? { ...withScenarios, needs } : withScenarios)
         if (to === "done") yield* markFeedback(i.feedback, "closed")
         return `${id} → ${LANE_TITLES[to]}`
       }).pipe(writing.withPermits(1), Effect.tap(() => (to === "ready" ? ready : Effect.ignore(syncTopics))))
@@ -377,7 +377,7 @@ export default definePlugin({
       Effect.gen(function* () {
         const had = new Map((yield* load).map((e) => [e.id, e]))
         const ids: Array<string> = []
-        // The same report: the same words, or (worded anew) an open entry on the same card version of the same kind.
+        // The same report: the same words, or (worded anew) an open entry on the same scenario version of the same kind.
         const sameAs = (f: FiledEntry) => had.get(entryId(f)) ?? [...had.values()].find((e) => e.state === undefined && e.ref === f.ref && e.kind === f.kind)
         for (const f of entries) {
           if (parseRef(f.ref)?.version === undefined) {
@@ -389,15 +389,15 @@ export default definePlugin({
           if (saved) had.set(e.id, e)
           ids.push(saved ? e.id : "")
         }
-        // A run that walked cards reconciles their feedback: what it did not report again closes; what the operator
+        // A run that walked scenarios reconciles their feedback: what it did not report again closes; what the operator
         // touched (flipped, noted) or a triage round holds is only marked, the call is theirs.
         if (walked !== undefined) {
           const by = run ?? entries[0]?.from.run ?? "a run"
           const reported = new Set(ids)
           const inRound = new Set((yield* loadStages).filter(inTriage).flatMap((s) => s.inputs ?? []))
           for (const e of [...had.values()]) {
-            const card = parseRef(e.ref)?.id
-            if (e.state !== undefined || reported.has(e.id) || e.from.agent !== "rehearse" || card === undefined || !walked.includes(card)) continue
+            const scenario = parseRef(e.ref)?.id
+            if (e.state !== undefined || reported.has(e.id) || e.from.agent !== "rehearse" || scenario === undefined || !walked.includes(scenario)) continue
             const theirs = e.triage.by === "operator" || e.operatorNote !== undefined || inRound.has(e.id)
             yield* save(theirs ? { ...e, notReportedIn: by } : { ...e, state: "closed", notReportedIn: by })
           }
@@ -467,7 +467,7 @@ export default definePlugin({
       })
     // One Backlog plan at a time: a double press never backlogs the stage twice.
     const planning = yield* Semaphore.make(1)
-    /** The drafted plan to the Backlog (its Backlog lane, until the operator moves it to Ready): the draft, the cards it changes (at their versions now), the feedback it answers. */
+    /** The drafted plan to the Backlog (its Backlog lane, until the operator moves it to Ready): the draft, the scenarios it changes (at their versions now), the feedback it answers. */
     const toBacklog = (j: string) =>
       Effect.gen(function* () {
           const st = yield* stageOf(j)
@@ -479,19 +479,19 @@ export default definePlugin({
           }
           const entries = yield* openIn(j)
           const accepted = st.proposals.filter((p) => p.status === "accepted")
-          // What the plan answers: the entries it started from that an accepted proposal answers, or that are on its cards.
-          const answers = (e: Entry) => accepted.some((p) => p.answers.includes(e.id) || p.card === (parseRef(e.ref)?.id ?? ""))
+          // What the plan answers: the entries it started from that an accepted proposal answers, or that are on its scenarios.
+          const answers = (e: Entry) => accepted.some((p) => p.answers.includes(e.id) || p.scenario === (parseRef(e.ref)?.id ?? ""))
           const inputs = entries.filter((e) => (st.inputs ?? entries.filter((x) => x.triage.on).map((x) => x.id)).includes(e.id))
           const closes = inputs.filter(answers)
-          const cards = yield* Effect.forEach([...new Set([...(st.cards ?? []), ...accepted.map((p) => p.card)])].filter((c) => /^S-/.test(c)), (c) => Effect.map(entities.version(`gherkin/card:${c}`).pipe(Effect.orElseSucceed(() => null)), (v) => (v === null ? [] : [{ ref: `gherkin/card:${c}@${v}` }])))
+          const scenarios = yield* Effect.forEach([...new Set([...(st.scenarios ?? []), ...accepted.map((p) => p.scenario)])].filter((c) => /^S-/.test(c)), (c) => Effect.map(entities.version(`gherkin/scenario:${c}`).pipe(Effect.orElseSucceed(() => null)), (v) => (v === null ? [] : [{ ref: `gherkin/scenario:${c}@${v}` }])))
           const worst = closes.map((e) => e.severity).sort((a, b) => ["high", "medium", "low"].indexOf(a) - ["high", "medium", "low"].indexOf(b))[0]
-          const { id } = yield* plan({ title: st.plan.title, journey: j, cards: cards.flat(), changes: st.draft, feedback: closes.map((e) => e.id), steps: st.plan.steps, ...(closes[0] !== undefined ? { persona: closes[0].persona } : {}), ...(worst !== undefined ? { severity: worst } : {}) })
+          const { id } = yield* plan({ title: st.plan.title, journey: j, scenarios: scenarios.flat(), changes: st.draft, feedback: closes.map((e) => e.id), steps: st.plan.steps, ...(closes[0] !== undefined ? { persona: closes[0].persona } : {}), ...(worst !== undefined ? { severity: worst } : {}) })
           yield* updateStage(j, (x) => ({ ...x, stage: "planned", item: id }))
           // The round is over: what it left out no longer waits on the operator.
           yield* Effect.ignore(syncTopics)
           return `${j}: backlogged as ${id}`
       }).pipe(planning.withPermits(1))
-    /** A folded round's plans to the Backlog lane, in order: each with its cards at their versions now and the plans it waits on by id; the journey planned with all of them. */
+    /** A folded round's plans to the Backlog lane, in order: each with its scenarios at their versions now and the plans it waits on by id; the journey planned with all of them. */
     const plans = (p: typeof PlansParams.Type) =>
       Effect.gen(function* () {
         const entries = yield* load
@@ -500,9 +500,9 @@ export default definePlugin({
         for (const x of p.plans) {
           const closes = entries.filter((e) => x.feedback.includes(e.id))
           const worst = closes.map((e) => e.severity).sort((a, b) => rank(a) - rank(b))[0]
-          const cards = yield* Effect.forEach(x.cards.filter((c) => /^S-/.test(c)), (c) => Effect.map(entities.version(`gherkin/card:${c}`).pipe(Effect.orElseSucceed(() => null)), (v) => (v === null ? [] : [{ ref: `gherkin/card:${c}@${v}` }])))
+          const scenarios = yield* Effect.forEach(x.scenarios.filter((c) => /^S-/.test(c)), (c) => Effect.map(entities.version(`gherkin/scenario:${c}`).pipe(Effect.orElseSucceed(() => null)), (v) => (v === null ? [] : [{ ref: `gherkin/scenario:${c}@${v}` }])))
           const after = x.after.flatMap((k) => (ids[k] !== undefined ? [ids[k]!] : []))
-          const { id } = yield* plan({ title: x.title, journey: p.journey, cards: cards.flat(), changes: x.changes, feedback: x.feedback, steps: x.steps, ...(after.length > 0 ? { after } : {}), ...(closes[0] !== undefined ? { persona: closes[0].persona } : {}), ...(worst !== undefined ? { severity: worst } : {}) })
+          const { id } = yield* plan({ title: x.title, journey: p.journey, scenarios: scenarios.flat(), changes: x.changes, feedback: x.feedback, steps: x.steps, ...(after.length > 0 ? { after } : {}), ...(closes[0] !== undefined ? { persona: closes[0].persona } : {}), ...(worst !== undefined ? { severity: worst } : {}) })
           ids.push(id)
         }
         yield* updateStage(p.journey, (st) => {
@@ -523,7 +523,7 @@ export default definePlugin({
           if (st0.stage === "plan" || st0.stage === "rehearse") {
             const refused = yield* updateStage(j, (st) => refineAgain(st, entries), true)
             if (refused !== undefined) return refused
-            return `${j}: refining ${plural((yield* stageOf(j)).proposals.filter((p) => p.status === "waiting").length, "card")} again`
+            return `${j}: refining ${plural((yield* stageOf(j)).proposals.filter((p) => p.status === "waiting").length, "scenario")} again`
           }
           const seq = nextQueued(yield* loadStages)
           const refused = yield* updateStage(j, (st) => {
@@ -534,28 +534,28 @@ export default definePlugin({
             return { ...rest, queued: seq }
           }, true)
           if (refused !== undefined) return refused
-          return `${j}: ${stageLabel(yield* stageOf(j), yield* loadStages)} · ${plural(new Set(entries.filter((e) => e.triage.on).map((e) => target(e.ref))).size, "card")}`
+          return `${j}: ${stageLabel(yield* stageOf(j), yield* loadStages)} · ${plural(new Set(entries.filter((e) => e.triage.on).map((e) => target(e.ref))).size, "scenario")}`
         }
         return `nothing to ${action}`
       })
-    /** Resync a plan whose cards changed: its changes still fit → the cards' versions now; they do not → back to triage (its feedback moved to the cards as they are, the plan dropped, the journey queued). */
+    /** Resync a plan whose scenarios changed: its changes still fit → the scenarios' versions now; they do not → back to triage (its feedback moved to the scenarios as they are, the plan dropped, the journey queued). */
     const resync = (id: string) =>
       Effect.gen(function* () {
         const all = yield* loadItems
         const i = all.find((x) => x.id === id)
         if (i === undefined) return `no plan ${id}`
         const changed = stale(i, all, yield* changedRefs([i]))
-        if (changed.size === 0) return `${id}'s cards are as it was drafted on: nothing to resync`
+        if (changed.size === 0) return `${id}'s scenarios are as it was drafted on: nothing to resync`
         // Over the plans it waits on that have not landed (they apply first), in order.
         const pending = (x: Item): ReadonlyArray<Item> => all.filter((y) => (x.after ?? []).includes(y.id) && y.status !== "done" && y.dropped !== true).flatMap((y) => [...pending(y), y])
         const first = [...new Map(pending(i).map((y) => [y.id, y])).values()].sort((a, b) => (Number(a.id.slice(2)) || 0) - (Number(b.id.slice(2)) || 0))
         const dry = yield* gherkin.dryRun({ draft: [...first.flatMap((y) => y.changes), ...i.changes] }).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: ["the dry-run failed"] as ReadonlyArray<string> })))
         if (dry.ok) {
-          const cards = yield* Effect.forEach(i.cards, (c) => (changed.has(c.ref) ? Effect.map(entities.version(target(c.ref)).pipe(Effect.orElseSucceed(() => null)), (v) => ({ ...c, ref: v === null ? c.ref : `${target(c.ref)}@${v}` })) : Effect.succeed(c)))
-          yield* saveItem({ ...i, cards, events: [...i.events, { what: "resynced: its changes still fit the cards as they are now", by: "operator" }] })
-          return `${id} resynced: its changes still fit the cards as they are now`
+          const scenarios = yield* Effect.forEach(i.scenarios, (c) => (changed.has(c.ref) ? Effect.map(entities.version(target(c.ref)).pipe(Effect.orElseSucceed(() => null)), (v) => ({ ...c, ref: v === null ? c.ref : `${target(c.ref)}@${v}` })) : Effect.succeed(c)))
+          yield* saveItem({ ...i, scenarios, events: [...i.events, { what: "resynced: its changes still fit the scenarios as they are now", by: "operator" }] })
+          return `${id} resynced: its changes still fit the scenarios as they are now`
         }
-        // Its feedback moves to the cards as they are now (the old version's entries close); the rest opens again.
+        // Its feedback moves to the scenarios as they are now (the old version's entries close); the rest opens again.
         const moved_ = yield* Effect.gen(function* () {
           const out: Array<string> = []
           for (const e of (yield* load).filter((x) => i.feedback.includes(x.id))) {
@@ -571,7 +571,7 @@ export default definePlugin({
           yield* markFeedback(i.feedback.filter((f) => !out.includes(f)), undefined)
           return out
         }).pipe(writing.withPermits(1))
-        yield* saveItem({ ...i, dropped: true, events: [...i.events, { what: `no longer fits (${dry.problems.join("; ")}): back to triage with ${plural(moved_.length, "entry")} moved to the cards as they are`, by: "operator" }] })
+        yield* saveItem({ ...i, dropped: true, events: [...i.events, { what: `no longer fits (${dry.problems.join("; ")}): back to triage with ${plural(moved_.length, "entry")} moved to the scenarios as they are`, by: "operator" }] })
         const refused = yield* stageAct(i.journey, "refine")
         const label = stageLabel(yield* stageOf(i.journey), yield* loadStages)
         return `${id} no longer fits (${dry.problems.join("; ")}): back to triage, ${label.startsWith("queued") ? `${i.journey} ${label}` : refused}`
@@ -641,7 +641,7 @@ export default definePlugin({
         return [
           ...bad.map((n) => ({ id: `backlog:bad-file:${n}`, title: `Feedback file ${DIR}/${n} is not a feedback entry`, detail: "The backlog skips it. Fix or remove the file (an entry's id is its file name).", about: [], priority: 2 })),
           ...badItems.map((n) => ({ id: `backlog:bad-file:${n}`, title: `Backlog file ${ITEMS}/${n} is not a plan`, detail: "The backlog skips it. Fix or remove the file (a plan's id is its file name).", about: [], priority: 2 })),
-          ...items.filter((i) => i.needs !== undefined && i.dropped !== true).map((i) => ({ id: `backlog:needs:${i.id}`, title: `${i.id} ${i.title} needs you`, detail: i.needs!, about: i.cards.map((c) => target(c.ref).split(":")[1] ?? c.ref), priority: 1 })),
+          ...items.filter((i) => i.needs !== undefined && i.dropped !== true).map((i) => ({ id: `backlog:needs:${i.id}`, title: `${i.id} ${i.title} needs you`, detail: i.needs!, about: i.scenarios.map((c) => target(c.ref).split(":")[1] ?? c.ref), priority: 1 })),
         ]
       })
     const cmd = (f: Effect.Effect<string, unknown>) => Effect.andThen(f, (notice) => Effect.as(refreshBoard, { notice })).pipe(Effect.mapError(fail))
@@ -650,7 +650,7 @@ export default definePlugin({
     const moved_ = <E>(e: Effect.Effect<unknown, E>) => nul(Effect.andThen(e, Effect.ignore(Effect.suspend(() => (feedbackOpened ? refresh : Effect.void)))))
     /**
      * What waits on the operator, as inbox topics: a plan that needs them, feedback rehearse routed to "ask" (a
-     * product decision), a card a round left out. Posted by key (an unchanged post changes nothing); settled once
+     * product decision), a scenario a round left out. Posted by key (an unchanged post changes nothing); settled once
      * its cause is gone, including topics from before a restart.
      */
     /** The journey an entry's ask topic is under (its first; entries in several are asked once). */
@@ -663,7 +663,7 @@ export default definePlugin({
           .filter(({ e, state }) => state === "open" && e.kind !== "drift" && e.triage.by !== "operator" && e.triage.why.startsWith("ask") && !rounds.has(e.id) && walkedBy(e.journeys) === undefined && journeyOf(e) === j)
           .map(({ e }) => e)
       })
-    /** What zarg does now for a card (its tagged code), as a topic's evidence. */
+    /** What zarg does now for a scenario (its tagged code), as a topic's evidence. */
     const codeEvidence = (ref: string) =>
       Effect.map(entities.code(target(ref)).pipe(Effect.orElseSucceed(() => undefined)), (cs) =>
         cs === undefined ? undefined : cs.length === 0 ? "(no code tagged)" : ["What zarg does now:", ...cs.map((c) => `${c.file}:${c.line}\n\n\`\`\`\n${c.text}\n\`\`\``)].join("\n\n"),
@@ -673,7 +673,7 @@ export default definePlugin({
     const syncTopics = syncing.withPermits(1)(Effect.gen(function* () {
       const want = new Map<string, Parameters<typeof inbox.post>[0]>()
       for (const i of (yield* loadItems).filter((x) => x.needs !== undefined && x.dropped !== true))
-        want.set(`needs:${i.id}`, { kind: "plan", key: `needs:${i.id}`, title: `${i.id} ${i.title} can't apply: ${i.needs}`, why: "plan", about: i.cards.map((c) => target(c.ref).split(":")[1] ?? c.ref), answers: [{ id: "ready", label: "Back to Ready", recommended: true }, { id: "drop", label: "Drop" }], origin: { view: "backlog" } })
+        want.set(`needs:${i.id}`, { kind: "plan", key: `needs:${i.id}`, title: `${i.id} ${i.title} can't apply: ${i.needs}`, why: "plan", about: i.scenarios.map((c) => target(c.ref).split(":")[1] ?? c.ref), answers: [{ id: "ready", label: "Back to Ready", recommended: true }, { id: "drop", label: "Drop" }], origin: { view: "backlog" } })
       // An entry in a triage round, or a journey a run walks, is locked: asked again once the lock ends.
       const rounds = new Set((yield* loadStages).filter(inTriage).flatMap((x) => x.inputs ?? []))
       const keepOpen = new Set<string>()
@@ -688,7 +688,7 @@ export default definePlugin({
             continue
           }
           const code = read ?? "(its code could not be read)"
-          want.set(`drift:${e.id}`, { kind: "drift", key: `drift:${e.id}`, title: `${target(e.ref).split(":")[1] ?? e.ref}: the card and the code differ`, why: `rehearse (${e.severity})`, about: [target(e.ref).split(":")[1] ?? e.ref], severity: e.severity, evidence: `${e.note}\n\n${code}`, answers: [{ id: "card", label: "Reword the card", why: "the code is right" }, { id: "code", label: "Change the code", recommended: true, why: "the card is right" }], origin: { view: "feedback" } })
+          want.set(`drift:${e.id}`, { kind: "drift", key: `drift:${e.id}`, title: `${target(e.ref).split(":")[1] ?? e.ref}: the scenario and the code differ`, why: `rehearse (${e.severity})`, about: [target(e.ref).split(":")[1] ?? e.ref], severity: e.severity, evidence: `${e.note}\n\n${code}`, answers: [{ id: "scenario", label: "Reword the scenario", why: "the code is right" }, { id: "code", label: "Change the code", recommended: true, why: "the scenario is right" }], origin: { view: "feedback" } })
         } else if (state === "open" && e.triage.by !== "operator" && e.triage.why.startsWith("ask") && !rounds.has(e.id) && walkedBy(e.journeys) === undefined)
           asks.set(journeyOf(e), [...(asks.get(journeyOf(e)) ?? []), e])
       // Feedback rehearse wants a call on: one topic per journey (the entries are gone through in Feedback), never one each.
@@ -709,9 +709,9 @@ export default definePlugin({
       }
       for (const st of (yield* loadStages).filter((x) => inTriage(x)))
         for (const p of st.proposals.filter((x) => x.status === "skipped" && x.leftOut !== true))
-          want.set(`left:${st.journey}:${p.card}`, { kind: "plan", key: `left:${st.journey}:${p.card}`, title: `${p.card} left out of ${st.journey}'s round`, why: "triage", about: [p.card], ...((p.problems ?? []).length > 0 ? { evidence: p.problems!.map((x) => `- ${x}`).join("\n") } : {}), answers: [{ id: "draft", label: "Draft again", recommended: true }, { id: "leave", label: "Leave it out" }], origin: { view: "feedback" } })
+          want.set(`left:${st.journey}:${p.scenario}`, { kind: "plan", key: `left:${st.journey}:${p.scenario}`, title: `${p.scenario} left out of ${st.journey}'s round`, why: "triage", about: [p.scenario], ...((p.problems ?? []).length > 0 ? { evidence: p.problems!.map((x) => `- ${x}`).join("\n") } : {}), answers: [{ id: "draft", label: "Draft again", recommended: true }, { id: "leave", label: "Leave it out" }], origin: { view: "feedback" } })
       for (const i of (yield* loadItems).filter((x) => x.kind === "code" && x.dropped !== true && x.status !== "done"))
-        want.set(`code:${i.id}`, { kind: "plan", key: `code:${i.id}`, title: `${i.id} is a code change: ${i.title}`, why: "plan", about: i.cards.map((c) => target(c.ref).split(":")[1] ?? c.ref), evidence: i.steps.join("\n"), answers: [{ id: "done", label: "Done: the code does it", recommended: true }, { id: "drop", label: "Drop" }], origin: { view: "backlog" } })
+        want.set(`code:${i.id}`, { kind: "plan", key: `code:${i.id}`, title: `${i.id} is a code change: ${i.title}`, why: "plan", about: i.scenarios.map((c) => target(c.ref).split(":")[1] ?? c.ref), evidence: i.steps.join("\n"), answers: [{ id: "done", label: "Done: the code does it", recommended: true }, { id: "drop", label: "Drop" }], origin: { view: "backlog" } })
       for (const t of want.values()) yield* inbox.post(t)
       const isMine = (key: string | undefined) => key !== undefined && /^(needs|ask|left|drift|code):/.test(key)
       for (const t of yield* inbox.list()) if (isMine(t.key) && !want.has(t.key!) && !keepOpen.has(t.key!)) yield* inbox.settle(t.id, "it no longer waits on you")
@@ -752,18 +752,18 @@ export default definePlugin({
           if ((yield* loadStages).some((x) => inTriage(x) && (x.inputs ?? []).includes(id))) return { notice: "that feedback is in a triage round: read-only until Plan" }
           if (walkedBy(e.journeys) !== undefined) return { notice: "that feedback's journey is being rehearsed: read-only until the run ends" }
           if (answer === "code") {
-            const card = target(e.ref).split(":")[1] ?? e.ref
-            const { id: planId } = yield* plan({ title: `Change the code: ${card} ${e.note.length > 60 ? `${e.note.slice(0, 59)}…` : e.note}`, journey: e.journeys[0] ?? "", cards: [{ ref: e.ref }], changes: [], feedback: [e.id], steps: [`Change the code so ${card} does what it says: ${e.note}`], persona: e.persona, severity: e.severity, kind: "code" })
+            const scenario = target(e.ref).split(":")[1] ?? e.ref
+            const { id: planId } = yield* plan({ title: `Change the code: ${scenario} ${e.note.length > 60 ? `${e.note.slice(0, 59)}…` : e.note}`, journey: e.journeys[0] ?? "", scenarios: [{ ref: e.ref }], changes: [], feedback: [e.id], steps: [`Change the code so ${scenario} does what it says: ${e.note}`], persona: e.persona, severity: e.severity, kind: "code" })
             yield* refreshBoard
             return { notice: `${planId}: a code change on the Backlog` }
           }
           yield* Effect.gen(function* () {
             const cur = (yield* load).find((x) => x.id === id)
-            if (cur !== undefined) yield* save({ ...cur, triage: { on: true, why: cur.triage.why, by: "operator" }, operatorNote: "reword the card to match the code" })
+            if (cur !== undefined) yield* save({ ...cur, triage: { on: true, why: cur.triage.why, by: "operator" }, operatorNote: "reword the scenario to match the code" })
           }).pipe(writing.withPermits(1))
           yield* ready
           if (feedbackOpened) yield* Effect.ignore(refresh)
-          return { notice: "kept on: the next Refine rewords the card to match the code" }
+          return { notice: "kept on: the next Refine rewords the scenario to match the code" }
         }
         if (kind === "code" && rest[0] !== undefined) {
           const i = (yield* loadItems).find((x) => x.id === rest[0])
@@ -773,18 +773,18 @@ export default definePlugin({
           return { notice }
         }
         if (kind === "left" && rest.length >= 2) {
-          const card = rest.at(-1)!
+          const scenario = rest.at(-1)!
           const journey = rest.slice(0, -1).join(":")
           const stage = (yield* loadStages).find((x) => x.journey === journey)
-          if (stage === undefined || !inTriage(stage) || !stage.proposals.some((p) => p.card === card && p.status === "skipped")) return { notice: `${card} is no longer left out of ${journey}'s round` }
+          if (stage === undefined || !inTriage(stage) || !stage.proposals.some((p) => p.scenario === scenario && p.status === "skipped")) return { notice: `${scenario} is no longer left out of ${journey}'s round` }
           if (answer !== "draft") {
             // Kept left out: not raised again in this round.
-            yield* updateStage(journey, (st) => ({ ...st, proposals: st.proposals.map((p) => (p.card === card && p.status === "skipped" ? { ...p, leftOut: true } : p)) }))
-            return { notice: `${card} stays left out` }
+            yield* updateStage(journey, (st) => ({ ...st, proposals: st.proposals.map((p) => (p.scenario === scenario && p.status === "skipped" ? { ...p, leftOut: true } : p)) }))
+            return { notice: `${scenario} stays left out` }
           }
-          const refused = yield* updateStage(journey, (st) => redo(st, card), true)
+          const refused = yield* updateStage(journey, (st) => redo(st, scenario), true)
           if (feedbackOpened) yield* Effect.ignore(refresh)
-          return { notice: refused ?? `${journey}: drafting ${card} again` }
+          return { notice: refused ?? `${journey}: drafting ${scenario} again` }
         }
         return { notice: "not a backlog topic" }
       }).pipe(Effect.mapError(fail))
@@ -815,11 +815,11 @@ export default definePlugin({
           const { worker: _w, ...rest } = st
           return p.worker !== undefined ? { ...rest, worker: p.worker } : rest
         })),
-      redo: (p: { journey: string; card: string }) =>
+      redo: (p: { journey: string; scenario: string }) =>
         Effect.gen(function* () {
-          const refused = yield* updateStage(p.journey, (st) => redo(st, p.card), true)
+          const refused = yield* updateStage(p.journey, (st) => redo(st, p.scenario), true)
           yield* Effect.ignore(refresh)
-          return { notice: refused ?? `${p.journey}: drafting ${p.card} again` }
+          return { notice: refused ?? `${p.journey}: drafting ${p.scenario} again` }
         }).pipe(Effect.mapError(fail)),
       // Into the draft as it comes (or left out with its problems); the last one moves on, and the agent wakes for it.
       propose: (p: typeof Propose.Type) => moved_(updateStage(p.journey, (st) => settle(st, p), true)),
@@ -832,7 +832,7 @@ export default definePlugin({
               return kept
             }
             const { run: _r, ...rest } = st
-            return { ...(p.clear === true ? rest : st), ...(p.run !== undefined ? { run: p.run } : {}), ...(p.cards !== undefined ? { cards: p.cards } : {}), ...(p.note !== undefined ? { note: p.note } : {}) }
+            return { ...(p.clear === true ? rest : st), ...(p.run !== undefined ? { run: p.run } : {}), ...(p.scenarios !== undefined ? { scenarios: p.scenarios } : {}), ...(p.note !== undefined ? { note: p.note } : {}) }
           }),
         ),
       rehearsed: (p: typeof Rehearsed.Type) =>
@@ -842,7 +842,7 @@ export default definePlugin({
             const results = { resolved: p.resolved, fresh: p.fresh }
             // On to Plan, where new findings are shown (a later rehearse files them as feedback).
             if (st.stage !== "rehearse") return st
-            return { ...rest, stage: "plan" as const, results, ...(p.cards !== undefined ? { cards: p.cards } : {}) }
+            return { ...rest, stage: "plan" as const, results, ...(p.scenarios !== undefined ? { scenarios: p.scenarios } : {}) }
           }, true),
         ),
       // The drafted plan goes straight to the Backlog: it waits in its Backlog lane until the operator moves it to Ready.
@@ -850,7 +850,7 @@ export default definePlugin({
       drafted: (p: typeof Drafted.Type) => moved_(Effect.andThen(updateStage(p.journey, (st) => ({ ...st, plan: { title: p.title, steps: p.steps } })), toBacklog(p.journey))),
       plan,
       next,
-      moved: ({ id, to, by, what, needs, cards }: { id: string; to: Item["status"]; by: string; what?: string; needs?: string; cards?: ReadonlyArray<string> }) => Effect.as(move(id, to, by, what, needs, cards), null).pipe(Effect.mapError(fail)),
+      moved: ({ id, to, by, what, needs, scenarios }: { id: string; to: Item["status"]; by: string; what?: string; needs?: string; scenarios?: ReadonlyArray<string> }) => Effect.as(move(id, to, by, what, needs, scenarios), null).pipe(Effect.mapError(fail)),
       "move-item": ({ id, to }: { id: string; to: Item["status"] }) => cmd(move(id, to, "operator")),
       "park-item": ({ id }: { id: string }) => cmd(move(id, "backlog", "operator")),
       "accept-item": ({ id }: { id: string }) => cmd(move(id, "done", "operator")),

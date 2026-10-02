@@ -245,7 +245,7 @@ describe("folding into children", () => {
     const r = await run(
       {
         driver: [
-          { cell: 'return yield* Effect.catch(Rlm.exec({ task: "edit code", preset: "implement-card", scope: {} }), (e) => Effect.succeed(e.message))' },
+          { cell: 'return yield* Effect.catch(Rlm.exec({ task: "edit code", preset: "implement-scenario", scope: {} }), (e) => Effect.succeed(e.message))' },
           { cell: 'yield* Rlm.done({ value: "ok" })' },
         ],
       },
@@ -253,7 +253,7 @@ describe("folding into children", () => {
     )
     ok(r)
     const out = r.seen.filter((s) => s.preset === "driver")[1]!.messages.at(-1)?.content
-    expect(out).toContain('preset "driver" may not spawn "implement-card"')
+    expect(out).toContain('preset "driver" may not spawn "implement-scenario"')
   })
 
   test("an unknown preset at the root is a spawn error", async () => {
@@ -297,7 +297,7 @@ describe("prompting for folding", () => {
 
 describe("scoped core services", () => {
   const cellOut = (seen: ReadonlyArray<{ messages: ReadonlyArray<any> }>) => String(seen[1]!.messages.at(-1)?.content)
-  const once = (cell: string, preset = "implement-card") =>
+  const once = (cell: string, preset = "implement-scenario") =>
     run({ [preset]: [{ cell }, { cell: 'yield* Rlm.done({ value: { files: [], summary: "" } })' }] }, { task: "t", preset, scope })
 
   test("Fs refuses paths outside the scope and env files", async () => {

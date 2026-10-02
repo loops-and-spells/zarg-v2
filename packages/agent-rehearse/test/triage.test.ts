@@ -7,8 +7,8 @@ import { triage } from "../src/triage"
 import type { Finding } from "../src/types"
 
 const s = rehearseSettings({}, "rehearse")
-const f: Finding = { id: "R-00000001", kind: "gap", card: "S-1", severity: "high", notes: ["payment can fail silently"], count: 1, personas: ["developer"] }
-const step = { card: "S-1", title: "Pay", given: "the payment form is shown", when: "the visitor pays", thens: ["the order is placed"], fork: [], hasFailure: false }
+const f: Finding = { id: "R-00000001", kind: "gap", scenario: "S-1", severity: "high", notes: ["payment can fail silently"], count: 1, personas: ["developer"] }
+const step = { scenario: "S-1", title: "Pay", given: "the payment form is shown", when: "the visitor pays", thens: ["the order is placed"], fork: [], hasFailure: false }
 const answers = (real: number, route: string) => () =>
   Effect.succeed({ real: { type: "noul", answer: real >= 0.5, probability: real, confidence: 0 }, route: { type: "choice", choice: route, probabilities: { [route]: 1 }, confidence: 1 } } as Record<string, Answer>)
 
@@ -22,12 +22,12 @@ describe("rehearse triage", () => {
     expect(await t(0.9, "noise")).toBe("drop")
   })
 
-  test("removing or changing a card that has code is always asked; a card gone since the run is dropped", async () => {
+  test("removing or changing a scenario that has code is always asked; a scenario gone since the run is dropped", async () => {
     expect((await Effect.runPromise(triage(answers(0.9, "removes"), f, step, true, s))).route).toBe("ask")
     expect((await Effect.runPromise(triage(answers(0.9, "fix"), f, undefined, false, s))).route).toBe("drop")
   })
 
-  test("a drift is the operator's call: card or code (asked, never fixed by the agent)", async () => {
+  test("a drift is the operator's call: scenario or code (asked, never fixed by the agent)", async () => {
     expect((await Effect.runPromise(triage(answers(0.9, "fix"), { ...f, kind: "drift" }, step, false, s))).route).toBe("ask")
   })
   test("delights and features are never fixed", async () => {

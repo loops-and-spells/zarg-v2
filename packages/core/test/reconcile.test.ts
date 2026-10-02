@@ -66,9 +66,9 @@ const project = () => {
   sh(r, "git init -q -b main && git config user.email t@t && git config user.name t && printf '.zarg/threads/\\n' > .gitignore && git add -A && git commit -qm init")
   return r
 }
-const card = (r: string) => {
+const scenario = (r: string) => {
   write(r, ".zarg/graph/nodes/ST-0001.json", `${JSON.stringify({ id: "ST-0001", type: "gherkin/state", props: { text: "home" }, edges: [] })}\n`)
-  write(r, ".zarg/graph/nodes/S-0001.json", `${JSON.stringify({ id: "S-0001", type: "gherkin/card", props: { title: "Open", when: "the user opens it" }, edges: [{ type: "gherkin/arrives", to: "ST-0001" }, { type: "gherkin/then", to: "ST-0001" }] })}\n`)
+  write(r, ".zarg/graph/nodes/S-0001.json", `${JSON.stringify({ id: "S-0001", type: "gherkin/scenario", props: { title: "Open", when: "the user opens it" }, edges: [{ type: "gherkin/arrives", to: "ST-0001" }, { type: "gherkin/then", to: "ST-0001" }] })}\n`)
 }
 const until = async (cond: () => boolean, ms = 20_000) => {
   const end = Date.now() + ms
@@ -79,7 +79,7 @@ describe("reconcile in the core", () => {
   test("a pass shows on the plan and implement threads and ends with a summary", async () => {
     const r = project()
     const { reconcile, log } = await start(r, 0)
-    card(r)
+    scenario(r)
     await until(() => sh(r, "git log -1 --format=%s") === "feat: implement S-0001")
     await until(() => log.all().some((e) => e.threadId === "implement" && e.type === "RUN_FINISHED"))
     const impl = log.all().filter((e) => e.threadId === "implement")
@@ -88,7 +88,7 @@ describe("reconcile in the core", () => {
     expect(impl.some((e) => e.type === "ACTIVITY_DELTA" && JSON.stringify(e).includes("S-0001:rlm-1"))).toBe(true)
     expect(log.all().some((e) => e.threadId === "plan" && e.type === "ACTIVITY_DELTA")).toBe(true)
     expect(reconcile.threads.map((t) => [t.id, t.status()])).toEqual([["plan", "idle"], ["implement", "idle"]])
-    // The client sees each card's RLM tree (ids carry the card, and JSON Pointer paths stay one segment).
+    // The client sees each scenario's RLM tree (ids carry the scenario, and JSON Pointer paths stay one segment).
     const state = impl.reduce(reduce, initial("implement"))
     expect(Object.keys(state.rlms).some((id) => id.includes("S-0001"))).toBe(true)
   }, 30_000)
@@ -96,8 +96,8 @@ describe("reconcile in the core", () => {
   test("a core closed mid-pass leaves no finding; the next start resumes the pass and lands it", async () => {
     const r = project()
     const first = await start(r, 20_000)
-    card(r)
-    await until(() => first.reconcile.threads[1]!.status() === "running" && first.log.all().some((e) => e.threadId === "implement" && JSON.stringify(e).includes("implement-card")))
+    scenario(r)
+    await until(() => first.reconcile.threads[1]!.status() === "running" && first.log.all().some((e) => e.threadId === "implement" && JSON.stringify(e).includes("implement-scenario")))
     await Effect.runPromise(Scope.close(scopes.at(-1)!, Exit.void))
     expect(first.reconcile.findings.list()).toEqual([])
     const second = await start(r, 0)
@@ -109,8 +109,8 @@ describe("reconcile in the core", () => {
   test("stop on the implement thread interrupts the pass; nothing lands", async () => {
     const r = project()
     const { reconcile, log } = await start(r, 20_000)
-    card(r)
-    await until(() => reconcile.threads[1]!.status() === "running" && log.all().some((e) => e.threadId === "implement" && JSON.stringify(e).includes("implement-card")))
+    scenario(r)
+    await until(() => reconcile.threads[1]!.status() === "running" && log.all().some((e) => e.threadId === "implement" && JSON.stringify(e).includes("implement-scenario")))
     await Effect.runPromise(reconcile.threads[1]!.stop)
     await until(() => reconcile.threads[1]!.status() === "idle", 10_000)
     expect(reconcile.threads[1]!.status()).toBe("idle")

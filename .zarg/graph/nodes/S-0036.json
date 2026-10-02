@@ -27,5 +27,5 @@
     "title": "A model without tool calls is refused",
     "when": "the operator picks a model without tool calling"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

@@ -9,9 +9,9 @@ let destroy: (() => void) | undefined
 afterEach(async () => { await act(async () => destroy?.()) })
 const diagram = "```mermaid\nflowchart LR\n  A[Read] --> B[Render]\n```"
 
-// @card S-0075
-// @card S-0077
-// @card S-0078
+// @scenario S-0075
+// @scenario S-0077
+// @scenario S-0078
 test("embedded Markdown streams Mermaid, falls back for narrow views, and recovers on resize", async () => {
   let update!: (value: { content: string; width: number }) => void
   const View = () => {
@@ -36,7 +36,7 @@ test("embedded Markdown streams Mermaid, falls back for narrow views, and recove
   expect(await frame()).not.toContain("flowchart")
 })
 
-// @card S-0078
+// @scenario S-0078
 test("unsupported, invalid, and excessive Mermaid stays readable alongside prose", async () => {
   const content = "```mermaid\npie\n\"Work\" : 20\n```\n\n```mermaid\nnonsense\n```\n\nStill readable.\n\n```mermaid\nflowchart TD\nA[" + "x".repeat(10_000) + "]\n```"
   const t = await testRender(<Markdown content={content} width={80} syntaxStyle={style} />, { width: 80, height: 160, exitOnCtrlC: false, exitSignals: [] })
@@ -48,7 +48,7 @@ test("unsupported, invalid, and excessive Mermaid stays readable alongside prose
   expect(frame).toContain("Still readable.")
 })
 
-// @card S-0078
+// @scenario S-0078
 test.each([
   "flowchart TD\nA[Good] --> B[Broken",
   "flowchart TD\nA --> B; B --> C",
@@ -74,7 +74,7 @@ test.each([
   expect(performance.now() - start).toBeLessThan(1000)
 })
 
-// @card S-0077
+// @scenario S-0077
 test.each([
   ["stateDiagram-v2", "[*] --> Ready\nReady --> Done"],
   ["sequenceDiagram", "Alice->>Bob: Hello"],

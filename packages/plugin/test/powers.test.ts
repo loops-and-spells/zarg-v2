@@ -85,7 +85,7 @@ describe("files", () => {
 })
 
 describe("grants on demand", () => {
-  // @card S-0062 S-0063 S-0064
+  // @scenario S-0062 S-0063 S-0064
   test("an optional host asks once; once allows only that call; always persists", async () => {
     const f = (async () => new Response("ok")) as unknown as typeof fetch
     const s = await go(setup({ optional: { net: ["b.test"] }, answers: ["once", "always"], fetchImpl: f }))

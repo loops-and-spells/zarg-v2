@@ -21,7 +21,7 @@ export class Threads extends Context.Service<
 /** The event log every thread writes to. */
 export class Log extends Context.Service<Log, ThreadLog>()("@zarg/core/Log") {}
 
-/** What `/reconcile` did: on (with how many cards are pending), or why reconcile stays off. */
+/** What `/reconcile` did: on (with how many scenarios are pending), or why reconcile stays off. */
 export interface ReconcileAnswer {
   readonly on: boolean
   readonly reason?: string
@@ -273,7 +273,7 @@ const routes = HttpRouter.addAll(
           return HttpServerResponse.jsonUnsafe(yield* archive.apply(thread, change))
         }),
       ),
-      // @card S-0044
+      // @scenario S-0044
       HttpRouter.route(
         "POST",
         "/threads/:id/stop",

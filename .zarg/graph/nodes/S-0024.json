@@ -22,5 +22,5 @@
     "title": "A card cannot be implemented",
     "when": "a card contradicts another card"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

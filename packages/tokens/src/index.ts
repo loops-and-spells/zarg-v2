@@ -31,7 +31,7 @@ export const BASE = {
 export type BaseKey = keyof typeof BASE
 /** Every other key aliases a base key: identity, severity, status, syntax. */
 export const ALIASES = {
-  card: "attention",
+  scenario: "attention",
   state: "text",
   persona: "accent",
   journey: "ok",
@@ -51,7 +51,7 @@ export const ALIASES = {
 } as const satisfies Record<string, BaseKey>
 export type TokenKey = BaseKey | keyof typeof ALIASES
 /** What a plugin may name: intent, identity, severity, and dim. The shell alone names surfaces, text and status. */
-const PLUGIN_KEY_LIST = ["accent", "attention", "ok", "error", "dim", "card", "state", "persona", "journey", "agent", "zarg", "severity.high", "severity.medium", "severity.low"] as const
+const PLUGIN_KEY_LIST = ["accent", "attention", "ok", "error", "dim", "scenario", "state", "persona", "journey", "agent", "zarg", "severity.high", "severity.medium", "severity.low"] as const
 export const PLUGIN_KEYS: ReadonlySet<string> = new Set(PLUGIN_KEY_LIST)
 /** Every tone a plugin may name: its keys, then the old tone names not already keys. */
 export const PLUGIN_TONES = [...PLUGIN_KEY_LIST, "normal", "warn"] as const

@@ -22,5 +22,5 @@
     "title": "An obvious merge conflict",
     "when": "card worktrees conflict in an obvious way"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

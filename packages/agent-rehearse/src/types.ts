@@ -2,28 +2,28 @@
 import type { Effect } from "effect"
 
 export interface StepView {
-  readonly card: string
+  readonly scenario: string
   readonly title: string
   readonly given: string
   readonly when: string
   readonly thens: ReadonlyArray<string>
-  readonly via?: { readonly card: string; readonly when: string }
-  readonly fork: ReadonlyArray<{ readonly card: string; readonly when: string }>
+  readonly via?: { readonly scenario: string; readonly when: string }
+  readonly fork: ReadonlyArray<{ readonly scenario: string; readonly when: string }>
   readonly hasFailure: boolean
-  /** The card's journeys and personas, by name (absent from an older gherkin). */
+  /** The scenario's journeys and personas, by name (absent from an older gherkin). */
   readonly journeys?: ReadonlyArray<string>
   readonly by?: ReadonlyArray<string>
   /** Not built yet: not walked. */
   readonly planned?: boolean
 }
-export interface Persona { readonly name: string; readonly text: string; readonly cards?: ReadonlyArray<string> }
+export interface Persona { readonly name: string; readonly text: string; readonly scenarios?: ReadonlyArray<string> }
 export type Reason = "feel" | "fail" | "fork" | "seam"
 export interface Screened { readonly feel: number; readonly fail: number; readonly arrive: number; readonly fork?: number; readonly flags: ReadonlyArray<Reason> }
 export type Kind = "friction" | "gap" | "contradiction" | "transition" | "feature" | "delight" | "drift"
 export interface Finding {
   readonly id: string
   readonly kind: Kind
-  readonly card: string
+  readonly scenario: string
   readonly edge?: { readonly from: string; readonly to: string }
   readonly severity: "high" | "medium" | "low"
   readonly notes: ReadonlyArray<string>
@@ -31,7 +31,7 @@ export interface Finding {
   readonly count: number
   readonly personas: ReadonlyArray<string>
 }
-/** `hash`: the card's text as triaged (`stepHash`), so a fix can tell the card changed since. */
+/** `hash`: the scenario's text as triaged (`stepHash`), so a fix can tell the scenario changed since. */
 export type Triaged = Finding & { readonly real: number; readonly route: "fix" | "ask" | "drop"; readonly hash?: string }
 export type Decide = (req: DecisionRequest) => Effect.Effect<Readonly<Record<string, Answer>>, unknown>
 

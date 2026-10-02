@@ -11,7 +11,7 @@ import { buildPlugin } from "@zarg/plugin-sdk/tools"
 import { readClaim, startHeadless, stopCore } from "@zarg/client"
 import { baseTree, CHECKPOINT, git, LEGACY_CHECKPOINT, snapshotAtTree, workingGraphTree } from "@zarg/reconcile"
 import { audit as auditOf, summary as auditSummary, tags as auditTags } from "@zarg/audit"
-import { cardRefs, snapshotAt } from "./git"
+import { scenarioRefs, snapshotAt } from "./git"
 import { root } from "./root"
 
 const print = (value: unknown) => Console.log(typeof value === "string" ? value : JSON.stringify(value, null, 2))
@@ -71,7 +71,7 @@ const render = Command.make("render", { focus, k }, (o) =>
   Effect.flatMap(focusSet(o.focus, o.k), (f) => PluginHost.use((h) => Effect.flatMap(h.render(f), print))),
 )
 
-// @card S-0001
+// @scenario S-0001
 const agenda = Command.make("agenda", { focus, k }, (o) =>
   Effect.flatMap(focusSet(o.focus, o.k), (f) => PluginHost.use((h) => Effect.flatMap(h.agenda(f), print))),
 )
@@ -82,12 +82,12 @@ const neighbors = Command.make("neighbors", { id: Argument.String("id"), k }, (o
   Effect.flatMap(GraphStore.use((s) => s.snapshot), (snap) => print(Snapshot.neighbors(snap, o.id, o.k))),
 )
 
-// @card S-0081
-const code = Command.make("code", { id: Argument.String("id") }, ({ id }) => Effect.flatMap(cardRefs(root, id), print))
+// @scenario S-0081
+const code = Command.make("code", { id: Argument.String("id") }, ({ id }) => Effect.flatMap(scenarioRefs(root, id), print))
 
 const query = Command.make("query").pipe(Command.withSubcommands([neighbors, code]))
 
-// @card S-0005
+// @scenario S-0005
 const diffCmd = Command.make("diff", { since: Flag.String("since").pipe(Flag.withDescription("git ref")) }, ({ since }) =>
   Effect.gen(function* () {
     const before = yield* snapshotAt(root, since)
@@ -96,7 +96,7 @@ const diffCmd = Command.make("diff", { since: Flag.String("since").pipe(Flag.wit
   }),
 )
 
-// @card S-0079 S-0080
+// @scenario S-0079 S-0080
 const affected = Command.make("affected", {}, () =>
   Effect.gen(function* () {
     const base = yield* baseTree(root)
@@ -106,7 +106,7 @@ const affected = Command.make("affected", {}, () =>
   }),
 )
 
-// @card S-0083
+// @scenario S-0083
 const checkpoint = Command.make("checkpoint", {}, () =>
   Effect.gen(function* () {
     const graph = yield* workingGraphTree(root)
@@ -121,20 +121,20 @@ const checkpoint = Command.make("checkpoint", {}, () =>
   }),
 )
 
-/** Every card against its @card tags: JSON (or --summary), exit 1 on problems; --card for one card. */
+/** Every scenario against its @scenario tags: JSON (or --summary), exit 1 on problems; --scenario for one scenario. */
 const auditCmd = Command.make(
   "audit",
   {
     summary: Flag.Boolean("summary").pipe(Flag.withDefault(false), Flag.withDescription("a line per problem and the counts, for people and CI logs")),
-    card: Flag.String("card").pipe(Flag.optional, Flag.withDescription("one card's status and tags")),
+    scenario: Flag.String("scenario").pipe(Flag.optional, Flag.withDescription("one scenario's status and tags")),
   },
   (o) =>
     Effect.gen(function* () {
       const snap = yield* GraphStore.use((s) => s.snapshot)
       const report = auditOf(snap, yield* auditTags(root))
-      if (Option.isSome(o.card)) {
-        const id = o.card.value
-        const found = report.cards.find((c) => c.id === id)
+      if (Option.isSome(o.scenario)) {
+        const id = o.scenario.value
+        const found = report.scenarios.find((c) => c.id === id)
         yield* print(found ?? { id, missing: true })
         if (found === undefined)
           yield* Effect.sync(() => {
@@ -190,14 +190,14 @@ const confirm = (question: string) =>
     return false
   })
 
-// @card S-0060
+// @scenario S-0060
 const pluginAdd = Command.make("add", { source: Argument.String("source") }, ({ source }) =>
   Effect.flatMap(installPlugin(resolve(source), USER_DIR), (r) =>
     print({ installed: r.name, dir: r.dir, next: `list it in .zarg/config.toml as [plugins.${r.name}] source = ${JSON.stringify(source)}, then approve it with \`zarg plugin grant ${r.name}\`` }),
   ),
 )
 
-// @card S-0061
+// @scenario S-0061
 const pluginGrant = Command.make(
   "grant",
   {

@@ -26,5 +26,5 @@
     "title": "Operator installs a plugin",
     "when": "the operator runs zarg plugin add"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

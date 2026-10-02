@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test"
 import { canonical, diff, hash, Put, Remove, Snapshot } from "../src"
-import { card, state } from "./fixtures"
+import { scenario, state } from "./fixtures"
 
 const base = Snapshot.make([
   state("ST-0001", "home"),
   state("ST-0002", "picker"),
   state("ST-0003", "form"),
-  card("S-0001", "clicks pricing", "ST-0001", ["ST-0002"]),
-  card("S-0002", "picks free", "ST-0002", ["ST-0003"]),
+  scenario("S-0001", "clicks pricing", "ST-0001", ["ST-0002"]),
+  scenario("S-0002", "picks free", "ST-0002", ["ST-0003"]),
 ])
 
 describe("snapshot", () => {
@@ -18,18 +18,18 @@ describe("snapshot", () => {
     ])
   })
 
-  test("neighbors never walks back up a by edge: a persona every card names is a leaf, not a hub", () => {
-    const card = (id: string, state: string) => ({ id, type: "gherkin/card", props: {}, edges: [{ type: "gherkin/by", to: "P-0001" }, { type: "gherkin/arrives", to: state }] })
+  test("neighbors never walks back up a by edge: a persona every scenario names is a leaf, not a hub", () => {
+    const scenario = (id: string, state: string) => ({ id, type: "gherkin/scenario", props: {}, edges: [{ type: "gherkin/by", to: "P-0001" }, { type: "gherkin/arrives", to: state }] })
     const snap = Snapshot.make([
       { id: "P-0001", type: "gherkin/persona", props: {}, edges: [] },
       { id: "ST-0001", type: "gherkin/state", props: {}, edges: [] },
       { id: "ST-0009", type: "gherkin/state", props: {}, edges: [] },
-      card("S-0001", "ST-0001"),
-      card("S-0009", "ST-0009"),
+      scenario("S-0001", "ST-0001"),
+      scenario("S-0009", "ST-0009"),
     ] as never)
     // S-0001 sees its persona, but not the unrelated S-0009 that shares it.
     expect(Snapshot.neighbors(snap, "S-0001", 3)).toEqual(["P-0001", "S-0001", "ST-0001"])
-    // From the persona itself, its cards are still one hop away.
+    // From the persona itself, its scenarios are still one hop away.
     expect(Snapshot.neighbors(snap, "P-0001", 1)).toEqual(["P-0001", "S-0001", "S-0009"])
   })
 
@@ -74,7 +74,7 @@ describe("diff", () => {
   })
 
   test("reports edge changes on a changed node", () => {
-    const next = Snapshot.applyChanges(base, [Put(card("S-0002", "picks free", "ST-0002", ["ST-0001"]))])
+    const next = Snapshot.applyChanges(base, [Put(scenario("S-0002", "picks free", "ST-0002", ["ST-0001"]))])
     const edges = diff(base, next).changed[0]?.edges
     expect(edges?.added).toEqual([{ type: "t/then", to: "ST-0001" }])
     expect(edges?.removed).toEqual([{ type: "t/then", to: "ST-0003" }])

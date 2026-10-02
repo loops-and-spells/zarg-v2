@@ -20,8 +20,8 @@ const stub = Layer.succeed(Model.Model, {
     const toolResults = req.messages.filter((m: ChatMessage) => m.role === "tool").length
     const code =
       toolResults === 0
-        ? 'const a = yield* Inquire.ask({ question: "Which card first?", options: [{ id: "a", label: "Checkout", recommended: true, why: "most used" }, { id: "b", label: "Login" }] })\nreturn a'
-        : 'yield* Rlm.done({ value: "Working on the checkout card." })'
+        ? 'const a = yield* Inquire.ask({ question: "Which scenario first?", options: [{ id: "a", label: "Checkout", recommended: true, why: "most used" }, { id: "b", label: "Login" }] })\nreturn a'
+        : 'yield* Rlm.done({ value: "Working on the checkout scenario." })'
     const events: ReadonlyArray<StreamEvent> = [
       { type: "toolCall", call: { id: `c${toolResults}`, type: "function", function: { name: "exec", arguments: JSON.stringify({ code }) } } },
       { type: "done", finishReason: "tool_calls" },
@@ -104,10 +104,10 @@ describe("core HTTP API", () => {
     const finished = first.at(-1)
     expect(finished).toMatchObject({ type: "RUN_FINISHED", runId: "r1", outcome: { type: "interrupt" } })
     const interrupt = finished.outcome.interrupts[0]
-    expect(interrupt).toMatchObject({ reason: "inquiry", message: "Which card first?", metadata: { options: [{ id: "a", recommended: true }, { id: "b" }] } })
+    expect(interrupt).toMatchObject({ reason: "inquiry", message: "Which scenario first?", metadata: { options: [{ id: "a", recommended: true }, { id: "b" }] } })
     const second = await events(await post(h, "/runs", input("r2", { resume: [{ interruptId: interrupt.id, status: "resolved", payload: { choice: "a" } }] })), 12)
     const texts = second.filter((e) => e.type === "TEXT_MESSAGE_CONTENT").map((e) => e.delta)
-    expect(texts).toEqual(["Checkout", "Working on the checkout card."])
+    expect(texts).toEqual(["Checkout", "Working on the checkout scenario."])
   })
 
   test("a client that disconnects mid-run does not stop the thread; the next run gets the inquiry", async () => {

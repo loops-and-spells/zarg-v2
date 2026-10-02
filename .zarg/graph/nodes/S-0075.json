@@ -26,5 +26,5 @@
     "title": "Operator reads zarg's formatted reply",
     "when": "zarg replies with Markdown"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

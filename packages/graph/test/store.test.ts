@@ -2,7 +2,7 @@ import { BunServices } from "@effect/platform-bun"
 import { describe, expect, test } from "bun:test"
 import { Effect, FileSystem, Path } from "effect"
 import { GraphStore, hash, layer, Put, Remove, Snapshot } from "../src"
-import { card, state } from "./fixtures"
+import { scenario, state } from "./fixtures"
 
 /** Runs `body` against a GraphStore rooted in a fresh temp dir. */
 const withStore = <A, E>(body: (dir: string) => Effect.Effect<A, E, GraphStore | FileSystem.FileSystem | Path.Path>) =>
@@ -20,13 +20,13 @@ describe("GraphStore", () => {
     expect(size).toBe(0)
   })
 
-  // @card S-0002
+  // @scenario S-0002
   test("commit writes canonical files and snapshot reads them back", async () => {
     const result = await withStore((dir) =>
       Effect.gen(function* () {
         const store = yield* GraphStore
         const fs = yield* FileSystem.FileSystem
-        yield* store.commit([Put(state("ST-0001", "home")), Put(card("S-0001", "clicks", "ST-0001", ["ST-0001"]))])
+        yield* store.commit([Put(state("ST-0001", "home")), Put(scenario("S-0001", "clicks", "ST-0001", ["ST-0001"]))])
         const text = yield* fs.readFileString(`${dir}/nodes/ST-0001.json`)
         const snap = yield* store.snapshot
         return { text, ids: [...snap.nodes.keys()].sort() }
@@ -66,7 +66,7 @@ describe("GraphStore", () => {
     const out = await withStore((dir) =>
       Effect.gen(function* () {
         const store = yield* GraphStore
-        const err = yield* failure(store.commit([Put(card("S-0001", "clicks", "ST-0009", ["ST-0009"]))]))
+        const err = yield* failure(store.commit([Put(scenario("S-0001", "clicks", "ST-0009", ["ST-0009"]))]))
         const exists = yield* (yield* FileSystem.FileSystem).exists(`${dir}/nodes/S-0001.json`)
         return { tag: err._tag, exists }
       }),
@@ -166,10 +166,10 @@ describe("GraphStore", () => {
     const out = await withStore((dir) =>
       Effect.gen(function* () {
         const store = yield* GraphStore
-        yield* store.commit([Put(state("ST-0001", "a")), Put(card("S-0001", "go", "ST-0001", ["ST-0001"]))])
+        yield* store.commit([Put(state("ST-0001", "a")), Put(scenario("S-0001", "go", "ST-0001", ["ST-0001"]))])
         yield* (yield* FileSystem.FileSystem).writeFileString(`${dir}/nodes/ST-0001.json`, "<<<<<<< HEAD")
         const ok = yield* store.commit([Put(state("ST-0002", "b"))])
-        const pointing = yield* failure(store.commit([Put(card("S-0002", "go", "ST-0001", ["ST-0002"]))]))
+        const pointing = yield* failure(store.commit([Put(scenario("S-0002", "go", "ST-0001", ["ST-0002"]))]))
         return { added: ok.diff.added.map((n) => n.id), pointing: pointing._tag }
       }),
     )
@@ -180,7 +180,7 @@ describe("GraphStore", () => {
     const err = await withStore(() =>
       Effect.gen(function* () {
         const store = yield* GraphStore
-        yield* store.commit([Put(state("ST-0001", "a")), Put(card("S-0001", "go", "ST-0001", ["ST-0001"]))])
+        yield* store.commit([Put(state("ST-0001", "a")), Put(scenario("S-0001", "go", "ST-0001", ["ST-0001"]))])
         return yield* failure(store.commit([Remove("ST-0001")]))
       }),
     )

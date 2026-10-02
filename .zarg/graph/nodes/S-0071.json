@@ -26,5 +26,5 @@
     "title": "Driver Agent chooses for the operator",
     "when": "the conversation settles on one option"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

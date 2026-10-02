@@ -31,5 +31,5 @@
     "title": "Rejected values are not stored",
     "when": "the provider rejects the entered values"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

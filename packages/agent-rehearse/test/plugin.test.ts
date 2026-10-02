@@ -55,8 +55,8 @@ describe("rehearse as a loaded plugin", () => {
       return yield* Effect.gen(function* () {
         const h = yield* PluginHost
         yield* h.call("gherkin/add-persona", { name: "Visitor", kind: "human", text: "Someone buying from the shop." })
-        yield* h.call("gherkin/add-card", { title: "Visitor opens the cart", when: "the visitor opens the cart", by: [{ name: "Visitor" }], arrives: { text: "the shop is open" }, then: [{ text: "the cart is shown" }] })
-        yield* h.call("gherkin/add-card", { title: "Visitor pays", when: "the visitor pays", by: [{ name: "Visitor" }], arrives: { text: "the cart is shown" }, then: [{ text: "the receipt is shown" }] })
+        yield* h.call("gherkin/add-scenario", { title: "Visitor opens the cart", when: "the visitor opens the cart", by: [{ name: "Visitor" }], arrives: { text: "the shop is open" }, then: [{ text: "the cart is shown" }] })
+        yield* h.call("gherkin/add-scenario", { title: "Visitor pays", when: "the visitor pays", by: [{ name: "Visitor" }], arrives: { text: "the cart is shown" }, then: [{ text: "the receipt is shown" }] })
         const started = yield* h.invoke("rehearse", "command", { args: [] })
         for (let i = 0; i < 500 && !events.some((e) => e.event.id === "run" && e.event.event === "end"); i++) yield* Effect.sleep(20)
         return { started }
@@ -82,7 +82,7 @@ describe("rehearse as a loaded plugin", () => {
   })
 })
 
-test("rehearse declares one card, the run's, with no action; none of its tables joins the review queue or has actions", async () => {
+test("rehearse declares one scenario, the run's, with no action; none of its tables joins the review queue or has actions", async () => {
   const { manifestOf } = await import("@zarg/plugin-sdk/tools")
   const { default: rehearse } = await import("../src")
   const m = manifestOf(rehearse as never)

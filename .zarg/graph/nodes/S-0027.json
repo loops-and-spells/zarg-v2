@@ -27,5 +27,5 @@
     "title": "Valid values are stored",
     "when": "the provider accepts the entered values"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

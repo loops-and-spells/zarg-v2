@@ -15,7 +15,7 @@ const NodeView = Schema.Struct({
 })
 
 export const GraphDef = defineService("Graph", "The requirements graph, limited to your scope (read only).", {
-  render: { doc: "Gherkin text for the cards in scope (optionally narrowed to ids).", params: Schema.Struct({ focus: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Only these node ids and their cards; omit for everything in scope (large)." }) }), success: Schema.String },
+  render: { doc: "Gherkin text for the scenarios in scope (optionally narrowed to ids).", params: Schema.Struct({ focus: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Only these node ids and their scenarios; omit for everything in scope (large)." }) }), success: Schema.String },
   agenda: { doc: "Open items in scope, most urgent first.", params: Schema.Struct({}), success: Schema.Array(Item) },
   show: { doc: "One node with its hash (for expectations) and inbound edges.", params: Schema.Struct({ id: Schema.String }), success: NodeView },
   neighbors: { doc: "Node ids within k hops, both directions.", params: Schema.Struct({ id: Schema.String, k: Schema.Number.annotate({ description: "Hops; 1 or 2 is usually enough." }) }), success: Schema.Array(Schema.String) },
@@ -90,7 +90,7 @@ const RESERVED = new Set(["validate", "lint", "agenda", "suggest", "render", "af
 
 /**
  * A plugin's agent methods as a yieldable service, named by its manifest: plugin "gherkin" (service
- * "Gherkin") with method "add-card" becomes `Gherkin.addCard(params)`. Types come from the manifest's JSON
+ * "Gherkin") with method "add-scenario" becomes `Gherkin.addScenario(params)`. Types come from the manifest's JSON
  * Schema; the plugin validates params itself. Every call runs through the PluginHost write pipeline.
  * A write whose params name an existing node outside the RLM's graph scope is refused before it runs.
  */

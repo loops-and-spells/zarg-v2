@@ -26,5 +26,5 @@
     "title": "Operator sees a diagram",
     "when": "the text holds a Mermaid diagram that fits the window"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

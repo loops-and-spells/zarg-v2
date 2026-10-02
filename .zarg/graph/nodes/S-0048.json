@@ -26,5 +26,5 @@
     "title": "A service outside the preset is refused",
     "when": "an agent uses a service outside its preset"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

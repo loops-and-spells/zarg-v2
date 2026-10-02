@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 import { baseTree, EMPTY_TREE, snapshotAtTree, workingGraphTree } from "../src"
-import { card, cleanup, repo, sh, state, write, writeNode } from "./repo"
+import { scenario, cleanup, repo, sh, state, write, writeNode } from "./repo"
 
 afterAll(cleanup)
 const run = <A, E>(e: Effect.Effect<A, E>) => Effect.runPromise(e)
@@ -22,7 +22,7 @@ describe("checkpoint", () => {
   test("snapshotAtTree reads the nodes stored in a tree", async () => {
     const r = repo()
     writeNode(r, state("ST-0001", "home"))
-    writeNode(r, card("S-0001", "ST-0001", "ST-0001"))
+    writeNode(r, scenario("S-0001", "ST-0001", "ST-0001"))
     const snap = await run(Effect.flatMap(workingGraphTree(r), (t) => snapshotAtTree(r, t)))
     expect([...snap.nodes.keys()].sort()).toEqual(["S-0001", "ST-0001"])
   })

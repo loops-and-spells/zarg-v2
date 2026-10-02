@@ -4,7 +4,7 @@ import { PluginHost } from "@zarg/plugin/server"
 import { call, pricing, run } from "./harness"
 
 describe("pricing example", () => {
-  // @card S-0002
+  // @scenario S-0002
   test("renders as Gherkin with shared states", async () => {
     const text = await run(Effect.andThen(pricing, PluginHost.use((h) => h.render(new Set(["S-0003"])))))
     expect(text).toBe(
@@ -24,8 +24,8 @@ describe("pricing example", () => {
     expect(text).not.toContain("ST-0007")
   })
 
-  // @card S-0004
-  test("rewording a state changes every card that uses it", async () => {
+  // @scenario S-0004
+  test("rewording a state changes every scenario that uses it", async () => {
     const text = await run(
       Effect.gen(function* () {
         yield* pricing
@@ -60,10 +60,10 @@ describe("pricing example", () => {
     const out = await run(
       Effect.gen(function* () {
         yield* pricing
-        yield* call("add-card", { title: "Visitor submits the account form", when: "the visitor submits the form", by: [{ id: "P-0001" }], arrives: { id: "ST-0003" }, then: [{ text: "the account is created" }] })
+        yield* call("add-scenario", { title: "Visitor submits the account form", when: "the visitor submits the form", by: [{ id: "P-0001" }], arrives: { id: "ST-0003" }, then: [{ text: "the account is created" }] })
         const all = yield* PluginHost.use((h) => h.suggest())
         const focused = yield* PluginHost.use((h) => h.suggest(new Set(["ST-0001"])))
-        yield* call("add-card", { title: "Visitor opens docs", when: 'the visitor clicks "Docs"', by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ text: "the docs are shown" }] })
+        yield* call("add-scenario", { title: "Visitor opens docs", when: 'the visitor clicks "Docs"', by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ text: "the docs are shown" }] })
         const branched = yield* PluginHost.use((h) => h.suggest())
         return { all, focused, branched }
       }),
@@ -80,9 +80,9 @@ describe("pricing example", () => {
 })
 
 describe("rehearse", () => {
-  test("personas: each with the cards that name it", async () => {
+  test("personas: each with the scenarios that name it", async () => {
     const ps = await run(Effect.andThen(pricing, PluginHost.use((h) => h.invoke("gherkin", "personas", {}))))
-    expect(ps).toEqual([{ id: "P-0001", name: "Visitor", kind: "human", text: "Someone choosing a plan on the website.", cards: ["S-0001", "S-0002", "S-0003", "S-0004", "S-0005"] }])
+    expect(ps).toEqual([{ id: "P-0001", name: "Visitor", kind: "human", text: "Someone choosing a plan on the website.", scenarios: ["S-0001", "S-0002", "S-0003", "S-0004", "S-0005"] }])
   })
   test("stories and steps come from the graph plugin", async () => {
     const out = await run(
@@ -99,7 +99,7 @@ describe("rehearse", () => {
     expect(out.teleport.stories.length).toBeGreaterThan(0)
     expect(out.teleport.stories.every((s) => s.length === 1)).toBe(true)
     expect(out.edge.stories.length).toBeGreaterThan(0)
-    expect(out.step).toMatchObject({ card: out.teleport.stories[0]![0], when: expect.any(String), thens: expect.any(Array) })
+    expect(out.step).toMatchObject({ scenario: out.teleport.stories[0]![0], when: expect.any(String), thens: expect.any(Array) })
     expect(out.none).toBeUndefined()
   })
 })
@@ -117,9 +117,9 @@ describe("gherkin rules", () => {
     expect(ids.map((i) => i.id)).toEqual(["gherkin:no-personas", "gherkin:unreached:ST-0001"])
   })
 
-  test("a card needs at least one Then", async () => {
+  test("a scenario needs at least one Then", async () => {
     const err = await run(
-      Effect.andThen(call("add-persona", { name: "User", kind: "human", text: "Someone using the product." }), Effect.flip(call("add-card", { title: "t", when: "the user waits", by: [{ name: "User" }], arrives: { text: "a page is shown" }, then: [] }))),
+      Effect.andThen(call("add-persona", { name: "User", kind: "human", text: "Someone using the product." }), Effect.flip(call("add-scenario", { title: "t", when: "the user waits", by: [{ name: "User" }], arrives: { text: "a page is shown" }, then: [] }))),
     )
     expect(err._tag).toBe("LintFailed")
     expect(err._tag === "LintFailed" && err.findings[0]?.code).toBe("too-few-edges")
@@ -127,17 +127,17 @@ describe("gherkin rules", () => {
 
   test("more than five Thens is rejected", async () => {
     const then = [1, 2, 3, 4, 5, 6].map((i) => ({ text: `outcome number ${i} is shown` }))
-    const err = await run(Effect.andThen(call("add-persona", { name: "User", kind: "human", text: "Someone using the product." }), Effect.flip(call("add-card", { title: "t", when: "the user acts", by: [{ name: "User" }], arrives: { text: "start" }, then }))))
+    const err = await run(Effect.andThen(call("add-persona", { name: "User", kind: "human", text: "Someone using the product." }), Effect.flip(call("add-scenario", { title: "t", when: "the user acts", by: [{ name: "User" }], arrives: { text: "start" }, then }))))
     expect(err._tag === "LintFailed" && err.findings.map((f) => f.code)).toContain("too-many-edges")
   })
 
-  // @card S-0003
+  // @scenario S-0003
   test("a clause with 'if' is rejected", async () => {
     const err = await run(Effect.flip(call("add-state", { text: "the form is shown if the user is signed in" })))
     expect(err._tag === "LintFailed" && err.findings[0]?.code).toBe("conditional")
   })
 
-  // @card S-0006
+  // @scenario S-0006
   test("a refused change succeeds when retried using the hint", async () => {
     const out = await run(
       Effect.gen(function* () {
@@ -147,7 +147,7 @@ describe("gherkin rules", () => {
         return { hint, added: ok.added }
       }),
     )
-    expect(out.hint).toContain("make one card per case instead")
+    expect(out.hint).toContain("make one scenario per case instead")
     expect(out.added).toEqual(["ST-0001"])
   })
 
@@ -179,7 +179,7 @@ describe("gherkin rules", () => {
     expect(r.warnings.map((w) => w.code)).toEqual(["near-duplicate-state"])
   })
 
-  test("removing a used state is refused with the cards that use it", async () => {
+  test("removing a used state is refused with the scenarios that use it", async () => {
     const err = await run(Effect.andThen(pricing, Effect.flip(call("remove", { id: "ST-0004" }))))
     expect(err._tag === "ToolError" && err.message).toBe("ST-0004 is used by S-0003, S-0004, S-0005; relink or remove them first")
   })
@@ -188,7 +188,7 @@ describe("gherkin rules", () => {
     const text = await run(
       Effect.gen(function* () {
         yield* pricing
-        yield* call("link", { card: "S-0003", edge: "arrives", state: { id: "ST-0001" } })
+        yield* call("link", { scenario: "S-0003", edge: "arrives", state: { id: "ST-0001" } })
         return yield* PluginHost.use((h) => h.render(new Set(["S-0003"])))
       }),
     )
@@ -196,30 +196,30 @@ describe("gherkin rules", () => {
     expect(text).not.toContain("ST-0002")
   })
 
-  // @card S-0007
-  test("add-card with the same Then twice is refused", async () => {
+  // @scenario S-0007
+  test("add-scenario with the same Then twice is refused", async () => {
     const err = await run(
       Effect.andThen(
         pricing,
-        Effect.flip(call("add-card", { title: "t", when: "the user acts", by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ id: "ST-0002" }, { id: "ST-0002" }] })),
+        Effect.flip(call("add-scenario", { title: "t", when: "the user acts", by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ id: "ST-0002" }, { id: "ST-0002" }] })),
       ),
     )
     expect(err._tag === "LintFailed" && err.findings.map((f) => f.code)).toContain("duplicate-edge")
   })
 
   test("unlink removes a then edge", async () => {
-    const r = await run(Effect.andThen(pricing, call("unlink", { card: "S-0004", edge: "then", state: "ST-0005" })))
+    const r = await run(Effect.andThen(pricing, call("unlink", { scenario: "S-0004", edge: "then", state: "ST-0005" })))
     expect(r.changed).toEqual(["S-0004"])
   })
 })
 
-test("a planned card says so under its title; planned: false clears it", async () => {
+test("a planned scenario says so under its title; planned: false clears it", async () => {
   const [on, off] = await run(
     Effect.gen(function* () {
       yield* pricing
-      yield* call("edit-card", { id: "S-0003", planned: true })
+      yield* call("edit-scenario", { id: "S-0003", planned: true })
       const on = yield* PluginHost.use((h) => h.render(new Set(["S-0003"])))
-      yield* call("edit-card", { id: "S-0003", planned: false })
+      yield* call("edit-scenario", { id: "S-0003", planned: false })
       const off = yield* PluginHost.use((h) => h.render(new Set(["S-0003"])))
       return [on, off] as const
     }),

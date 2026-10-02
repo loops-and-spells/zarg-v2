@@ -26,5 +26,5 @@
     "title": "Plans are written",
     "when": "the Planner Agent finishes every changed card"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

@@ -23,5 +23,5 @@
     "title": "Operator removes a provider's key",
     "when": "the operator clears a provider plugin's secret"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

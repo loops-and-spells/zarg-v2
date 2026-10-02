@@ -22,5 +22,5 @@
     "title": "Operator turns off YOLO",
     "when": "the operator runs /yolo off"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

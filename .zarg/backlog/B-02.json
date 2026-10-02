@@ -1,90 +1,90 @@
 {
   "title": "Fix zarg journey feedback",
   "journey": "Talk with zarg",
-  "cards": [
+  "scenarios": [
     {
-      "ref": "gherkin/card:S-0001@3eedf92e1836"
+      "ref": "gherkin/scenario:S-0001@3eedf92e1836"
     },
     {
-      "ref": "gherkin/card:S-0002@3bf6c689296a"
+      "ref": "gherkin/scenario:S-0002@3bf6c689296a"
     },
     {
-      "ref": "gherkin/card:S-0003@26bc1ce49670"
+      "ref": "gherkin/scenario:S-0003@26bc1ce49670"
     },
     {
-      "ref": "gherkin/card:S-0004@689d06f016c0"
+      "ref": "gherkin/scenario:S-0004@689d06f016c0"
     },
     {
-      "ref": "gherkin/card:S-0005@12e7104c2bd5"
+      "ref": "gherkin/scenario:S-0005@12e7104c2bd5"
     },
     {
-      "ref": "gherkin/card:S-0006@5e3c137ff891"
+      "ref": "gherkin/scenario:S-0006@5e3c137ff891"
     },
     {
-      "ref": "gherkin/card:S-0007@7fac86f52546"
+      "ref": "gherkin/scenario:S-0007@7fac86f52546"
     },
     {
-      "ref": "gherkin/card:S-0009@246c8cf2e6d2"
+      "ref": "gherkin/scenario:S-0009@246c8cf2e6d2"
     },
     {
-      "ref": "gherkin/card:S-0010@85c3b867b47e"
+      "ref": "gherkin/scenario:S-0010@85c3b867b47e"
     },
     {
-      "ref": "gherkin/card:S-0011@237cec01b2dd"
+      "ref": "gherkin/scenario:S-0011@237cec01b2dd"
     },
     {
-      "ref": "gherkin/card:S-0012@c13f2e00d1bc"
+      "ref": "gherkin/scenario:S-0012@c13f2e00d1bc"
     },
     {
-      "ref": "gherkin/card:S-0013@4617ffc75389"
+      "ref": "gherkin/scenario:S-0013@4617ffc75389"
     },
     {
-      "ref": "gherkin/card:S-0015@7eb0af901a94"
+      "ref": "gherkin/scenario:S-0015@7eb0af901a94"
     },
     {
-      "ref": "gherkin/card:S-0016@0c7b8a7c6544"
+      "ref": "gherkin/scenario:S-0016@0c7b8a7c6544"
     },
     {
-      "ref": "gherkin/card:S-0017@a38f67b89edf"
+      "ref": "gherkin/scenario:S-0017@a38f67b89edf"
     },
     {
-      "ref": "gherkin/card:S-0019@308f09d2ffdc"
+      "ref": "gherkin/scenario:S-0019@308f09d2ffdc"
     },
     {
-      "ref": "gherkin/card:S-0071@da35ee920012"
+      "ref": "gherkin/scenario:S-0071@da35ee920012"
     },
     {
-      "ref": "gherkin/card:S-0075@efe355d54fa4"
+      "ref": "gherkin/scenario:S-0075@efe355d54fa4"
     },
     {
-      "ref": "gherkin/card:S-0076@0e5ff73275d7"
+      "ref": "gherkin/scenario:S-0076@0e5ff73275d7"
     },
     {
-      "ref": "gherkin/card:S-0077@3c740535ee4e"
+      "ref": "gherkin/scenario:S-0077@3c740535ee4e"
     },
     {
-      "ref": "gherkin/card:S-0079@5c9ae10a8131"
+      "ref": "gherkin/scenario:S-0079@5c9ae10a8131"
     },
     {
-      "ref": "gherkin/card:S-0080@00b52c92e87d"
+      "ref": "gherkin/scenario:S-0080@00b52c92e87d"
     },
     {
-      "ref": "gherkin/card:S-0084@093e1b9c9708"
+      "ref": "gherkin/scenario:S-0084@093e1b9c9708"
     },
     {
-      "ref": "gherkin/card:S-0085@402d03be2163"
+      "ref": "gherkin/scenario:S-0085@402d03be2163"
     },
     {
-      "ref": "gherkin/card:S-0086@c9f21e6eab4d"
+      "ref": "gherkin/scenario:S-0086@c9f21e6eab4d"
     },
     {
-      "ref": "gherkin/card:S-0088@cd720928e8f6"
+      "ref": "gherkin/scenario:S-0088@cd720928e8f6"
     },
     {
-      "ref": "gherkin/card:S-0018@b97686aa97e4"
+      "ref": "gherkin/scenario:S-0018@b97686aa97e4"
     },
     {
-      "ref": "gherkin/card:S-0008@9472b268b8cb"
+      "ref": "gherkin/scenario:S-0008@9472b268b8cb"
     }
   ],
   "changes": [
@@ -151,7 +151,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0015",
+        "scenario": "S-0015",
         "edge": "then",
         "state": {
           "text": "the operator's next choice is explicit"
@@ -190,7 +190,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0013",
+        "scenario": "S-0013",
         "edge": "then",
         "state": {
           "text": "the recommended option is marked"
@@ -200,7 +200,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0013",
+        "scenario": "S-0013",
         "edge": "then",
         "state": {
           "text": "the rationale shows the agenda rule and the message evidence"
@@ -210,7 +210,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0013",
+        "scenario": "S-0013",
         "edge": "then",
         "state": {
           "text": "the Operator picks the marked option or asks to clarify"
@@ -250,7 +250,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0076",
+        "scenario": "S-0076",
         "edge": "then",
         "state": {
           "text": "a collapse/expand toggle, copy, or open-full afford long reports, tables, code"
@@ -260,7 +260,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0076",
+        "scenario": "S-0076",
         "edge": "then",
         "state": {
           "text": "the Operator continues, collapses, expands, or acts"
@@ -297,7 +297,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0071",
+        "scenario": "S-0071",
         "edge": "then",
         "state": {
           "text": "the saved answer carries the option and its reason"
@@ -307,7 +307,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0071",
+        "scenario": "S-0071",
         "edge": "then",
         "state": {
           "text": "the operator can amend or reopen the saved choice"
@@ -317,7 +317,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0071",
+        "scenario": "S-0071",
         "edge": "then",
         "state": {
           "text": "the Driver Agent reads the agenda again and one question with options is shown"
@@ -575,7 +575,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0077",
+        "scenario": "S-0077",
         "edge": "then",
         "state": {
           "text": "the diagram mimics structure only, arrows and labels as characters"
@@ -705,7 +705,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0010",
+        "scenario": "S-0010",
         "edge": "then",
         "state": {
           "text": "only unanswered agenda items remain"
@@ -794,7 +794,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0009",
+        "scenario": "S-0009",
         "edge": "then",
         "state": {
           "text": "the save loop routes to the next question id when questions remain"
@@ -861,7 +861,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0016",
+        "scenario": "S-0016",
         "edge": "then",
         "state": {
           "text": "the save refusal leads to re-asking the current node"
@@ -930,7 +930,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0075",
+        "scenario": "S-0075",
         "edge": "then",
         "state": {
           "text": "the reply offers next-action choices to the operator"

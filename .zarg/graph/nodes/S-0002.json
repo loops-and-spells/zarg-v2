@@ -26,5 +26,5 @@
     "title": "CLI actor adds a card",
     "when": "the CLI actor adds a card through a tool call"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

@@ -7,20 +7,20 @@ import { makeTriage } from "./triage"
 import { rollupView, workerView } from "./view"
 import { RollupView, WorkerView } from "./views"
 
-/** The Triage Agent: proposes card changes for a journey's feedback, re-rehearses the drafted cards, drafts the plan. */
+/** The Triage Agent: proposes scenario changes for a journey's feedback, re-rehearses the drafted scenarios, drafts the plan. */
 /** Triage: a rollup agent and N workers (triage-1…N); each worker takes the next queued journey through Refine, Re-rehearse and Plan. */
 export default definePlugin({
   name: "triage",
   service: "Triage",
   archetype: "agent",
   // [plugins.triage] workers: how many journeys are worked at once (each asks the driver model).
-  // reasoning: let the model reason before answering (off: on cards it reasoned to its token limit and never answered).
+  // reasoning: let the model reason before answering (off: on scenarios it reasoned to its token limit and never answered).
   config: Schema.Struct({ workers: Schema.optionalKey(Schema.Number), reasoning: Schema.optionalKey(Schema.Boolean) }),
   pluginDependencies: [Gherkin, Backlog, Rehearse],
   scopes: { decisions: true, models: ["driver"], agents: true, code: true, entities: { read: ["gherkin/*"] } },
   views: [RollupView, WorkerView],
   methods: {
-    act: { doc: "Triage's views: p pauses or resumes (the rollup), d drafts a card again (a worker).", params: Schema.Struct({ agent: Schema.String, action: Schema.String, section: Schema.optionalKey(Schema.String), rows: Schema.Array(Schema.String) }), success: Schema.Struct({ notice: Schema.String }) },
+    act: { doc: "Triage's views: p pauses or resumes (the rollup), d drafts a scenario again (a worker).", params: Schema.Struct({ agent: Schema.String, action: Schema.String, section: Schema.optionalKey(Schema.String), rows: Schema.Array(Schema.String) }), success: Schema.Struct({ notice: Schema.String }) },
     tick: { doc: "Hand queued journeys to free workers; each works its journey in the background (the core wakes it).", params: Schema.Struct({}), success: Schema.Null, deadlineMs: 30 * 60_000 },
   },
   make: Effect.gen(function* () {
@@ -42,10 +42,10 @@ export default definePlugin({
       if (running) return
       running = true
       created = true
-      yield* Effect.ignore(agents.start({ id: "triage", title: "triage", view: "triage", task: `Refines queued journeys' feedback into card changes with ${workers} workers, re-rehearses them, drafts the plans.` }))
+      yield* Effect.ignore(agents.start({ id: "triage", title: "triage", view: "triage", task: `Refines queued journeys' feedback into scenario changes with ${workers} workers, re-rehearses them, drafts the plans.` }))
     })
     const status = (agent: string, text: string) => Effect.andThen(show, Effect.ignore(agents.status({ id: agent, text })))
-    // A worker's history: each card drafted, left out (and why), each run.
+    // A worker's history: each scenario drafted, left out (and why), each run.
     const log = (agent: string, text: string) => Effect.andThen(show, Effect.ignore(agents.step({ id: agent, text })))
     const worker = (id: string, journey: string | undefined) =>
       journey !== undefined ? Effect.andThen(show, Effect.ignore(agents.start({ id, parent: "triage", title: "triage", view: "worker", task: journey }))) : Effect.ignore(agents.end({ id, ok: true, message: "free" }))
@@ -54,12 +54,12 @@ export default definePlugin({
       running = false
       yield* Effect.ignore(agents.end({ id: "triage", ok: true, message: "idle" }))
     })
-    /** Each drafted card as a diff: the card now, and as its changes leave it. */
+    /** Each drafted scenario as a diff: the scenario now, and as its changes leave it. */
     const lines = (x: { given: string; when: string; thens: ReadonlyArray<string> } | null) => (x === null ? [] : [`Given ${x.given}`, `When  ${x.when}`, ...x.thens.map((t, i) => `${i === 0 ? "Then" : "And "}  ${t}`)])
-    const diffOf = (card: string, draft: ReadonlyArray<{ tool: string; params: unknown }>) =>
+    const diffOf = (scenario: string, draft: ReadonlyArray<{ tool: string; params: unknown }>) =>
       Effect.gen(function* () {
-        const before = lines((yield* gherkin.step({ card }).pipe(Effect.orElseSucceed(() => null))) as never)
-        const after = lines((yield* gherkin.step({ card, draft }).pipe(Effect.orElseSucceed(() => null))) as never)
+        const before = lines((yield* gherkin.step({ scenario }).pipe(Effect.orElseSucceed(() => null))) as never)
+        const after = lines((yield* gherkin.step({ scenario, draft }).pipe(Effect.orElseSucceed(() => null))) as never)
         const out = [...before.filter((l) => !after.includes(l)).map((l) => `- ${l}`), ...after.map((l) => `${before.includes(l) ? " " : "+"} ${l}`)]
         return ["```diff", ...out, "```"].join("\n")
       })
@@ -82,10 +82,10 @@ export default definePlugin({
         if (w.journey === undefined) continue
         const stage = stages.find((s) => s.journey === w.journey)
         const diffs: Record<string, string> = {}
-        for (const p of stage?.proposals ?? []) if (p.status === "accepted") diffs[p.card] = yield* diffOf(p.card, p.changes)
+        for (const p of stage?.proposals ?? []) if (p.status === "accepted") diffs[p.scenario] = yield* diffOf(p.scenario, p.changes)
         const v = workerView({ ...(stage !== undefined ? { stage } : {}), ...(w.working !== undefined ? { working: w.working } : {}), now, diffs })
         yield* views.set(w.id, WorkerView, "summary", { markdown: v.summary })
-        yield* views.set(w.id, WorkerView, "cards", { rows: v.cards })
+        yield* views.set(w.id, WorkerView, "scenarios", { rows: v.scenarios })
         yield* views.set(w.id, WorkerView, "detail", { markdown: "", rows: v.details })
       }
     }).pipe(Effect.ignore)
@@ -94,8 +94,8 @@ export default definePlugin({
         stages: () => backlog.stages({}),
         feedbackOf: (journey) => backlog.feedbackOf({ journey }),
         journeys: () => gherkin.journeys({}),
-        step: (card, draft) => gherkin.step({ card, draft }) as never,
-        code: (card) => entities.code(`gherkin/card:${card}`),
+        step: (scenario, draft) => gherkin.step({ scenario, draft }) as never,
+        code: (scenario) => entities.code(`gherkin/scenario:${scenario}`),
         dryRun: (draft) => gherkin.dryRun({ draft }),
         complete: (req) => models.complete({ role: "driver", ...req }),
         propose: (p) => backlog.propose(p as never),
@@ -123,13 +123,13 @@ export default definePlugin({
           if (action === "pause") {
             const now = t.pause()
             yield* render
-            return { notice: now ? "paused: workers stop after the cards in flight" : "resumed" }
+            return { notice: now ? "paused: workers stop after the scenarios in flight" : "resumed" }
           }
           if (action === "draft-again" && rows[0] !== undefined) {
             // The worker's own journey.
             const journey = t.state().workers.find((w) => w.id === agent)?.journey
             if (journey === undefined) return { notice: `${agent} has no journey` }
-            const r = yield* backlog.redo({ journey, card: rows[0] })
+            const r = yield* backlog.redo({ journey, scenario: rows[0] })
             yield* render
             return r
           }

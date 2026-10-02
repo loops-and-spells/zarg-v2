@@ -30,5 +30,5 @@
     "title": "Operator reads a diagram's source",
     "when": "the diagram is unfinished, unsupported, invalid or too wide"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

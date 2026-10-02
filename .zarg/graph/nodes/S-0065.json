@@ -22,5 +22,5 @@
     "title": "Operator denies it",
     "when": "the operator picks deny"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

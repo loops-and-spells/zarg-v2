@@ -26,5 +26,5 @@
     "title": "Operator reads an agent's formatted report",
     "when": "the agent's report or message holds Markdown"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

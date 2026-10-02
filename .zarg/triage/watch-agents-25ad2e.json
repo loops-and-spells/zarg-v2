@@ -3,7 +3,7 @@
   "stage": "planned",
   "proposals": [
     {
-      "card": "S-0041",
+      "scenario": "S-0041",
       "changes": [
         {
           "tool": "edit-card",
@@ -15,7 +15,7 @@
         {
           "tool": "link",
           "params": {
-            "card": "S-0041",
+            "scenario": "S-0041",
             "edge": "then",
             "state": {
               "text": "the child receives ownership of the handed-off work"
@@ -107,7 +107,7 @@
       ]
     },
     {
-      "card": "S-0048",
+      "scenario": "S-0048",
       "changes": [
         {
           "tool": "edit-state",
@@ -141,7 +141,7 @@
         {
           "tool": "link",
           "params": {
-            "card": "S-0048",
+            "scenario": "S-0048",
             "edge": "then",
             "state": {
               "text": "the agent surfaces the refusal to the operator, extends the grant, and retries"
@@ -171,7 +171,7 @@
       ]
     },
     {
-      "card": "S-0046",
+      "scenario": "S-0046",
       "changes": [
         {
           "tool": "add-card",
@@ -249,7 +249,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0041",
+        "scenario": "S-0041",
         "edge": "then",
         "state": {
           "text": "the child receives ownership of the handed-off work"
@@ -340,7 +340,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "S-0048",
+        "scenario": "S-0048",
         "edge": "then",
         "state": {
           "text": "the agent surfaces the refusal to the operator, extends the grant, and retries"

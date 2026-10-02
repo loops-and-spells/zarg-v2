@@ -23,5 +23,5 @@
     "title": "Driver Agent starts after warm-up",
     "when": "the Driver Agent reads the agenda"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

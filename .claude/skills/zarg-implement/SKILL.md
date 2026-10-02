@@ -1,6 +1,6 @@
 ---
 name: zarg-implement
-description: Act as zarg's planner and implementer - make the code match the requirements graph (.zarg/graph) the way a reconcile pass does - plan each changed card, implement it, verify, and commit cards, plans, code and checkpoint together. Use when the user asks to implement, reconcile or sync the graph into code without a running zarg core.
+description: Act as zarg's planner and implementer - make the code match the requirements graph (.zarg/graph) the way a reconcile pass does - plan each changed scenario, implement it, verify, and commit scenarios, plans, code and checkpoint together. Use when the user asks to implement, reconcile or sync the graph into code without a running zarg core.
 ---
 
 # zarg-implement
@@ -11,21 +11,21 @@ Run the CLI from the repo root as `mise run -q zarg -- <command>`.
 
 ## Steps
 
-<!-- @card S-0080 -->
-1. Find the work: `mise run -q zarg -- affected`. It prints `cards` (added, changed, or using a reworded state) and `removed`. If both are empty, report "in sync" and stop.
-2. For each removed card, delete `.zarg/plans/<id>.md`.
-3. Plan each card in `cards`:
+<!-- @scenario S-0080 -->
+1. Find the work: `mise run -q zarg -- affected`. It prints `scenarios` (added, changed, or using a reworded state) and `removed`. If both are empty, report "in sync" and stop.
+2. For each removed scenario, delete `.zarg/plans/<id>.md`.
+3. Plan each scenario in `scenarios`:
    - Read it: `render --focus <id> --k 1`, and `show <id>` for its `hash`.
-   - Read the code it touches (`query code <id>` finds existing `// @card` tags).
+   - Read the code it touches (`query code <id>` finds existing `// @scenario` tags).
    - Write `.zarg/plans/<id>.md`:
 
      ```md
      ---
-     card: <id>
+     scenario: <id>
      hash: <hash from show>
-     title: <card title>
+     title: <scenario title>
      ---
-     # <id> <card title>
+     # <id> <scenario title>
 
      ## Approach
      ## Files
@@ -33,11 +33,11 @@ Run the CLI from the repo root as `mise run -q zarg -- <command>`.
      ## Tests
      - test name — what it proves
      ## Depends on
-     - <card ids, or none>
+     - <scenario ids, or none>
      ```
-   - If the card contradicts another card or cannot be implemented as written, do not guess and do not edit the graph: stop and tell the user which card and why, and suggest running `zarg-drive` on it.
-4. Implement each plan test-first. Tag the implementation and its tests with `// @card <id>`. Never edit `.zarg/graph` or another card's plan; the one graph change this skill makes is the next step's.
-5. Run `mise run -q zarg -- audit --card <id>`. When it shows the card's tags and `status: planned`, the card is built now: clear the flag with `mise run -q zarg -- tool call gherkin/edit-card '{"id":"<id>","planned":false}'`.
+   - If the scenario contradicts another scenario or cannot be implemented as written, do not guess and do not edit the graph: stop and tell the user which scenario and why, and suggest running `zarg-drive` on it.
+4. Implement each plan test-first. Tag the implementation and its tests with `// @scenario <id>`. Never edit `.zarg/graph` or another scenario's plan; the one graph change this skill makes is the next step's.
+5. Run `mise run -q zarg -- audit --scenario <id>`. When it shows the scenario's tags and `status: planned`, the scenario is built now: clear the flag with `mise run -q zarg -- tool call gherkin/edit-scenario '{"id":"<id>","planned":false}'`.
 6. Run `mise run verify`. It must pass; fix what fails (at most two attempts before you stop and report).
 7. Record the checkpoint: `mise run -q zarg -- checkpoint`. It writes `.zarg/reconciled.json` with the graph you implemented and stages it with `.zarg/graph` (and the removal of a legacy `.zarg/sync.json`).
-8. Stage the plans and code, then commit everything together: `git add -A -- .zarg/plans <code paths> && git commit -m "feat: implement <card ids>"`.
+8. Stage the plans and code, then commit everything together: `git add -A -- .zarg/plans <code paths> && git commit -m "feat: implement <scenario ids>"`.

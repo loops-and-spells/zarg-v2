@@ -22,5 +22,5 @@
     "title": "Operator inspects an agent",
     "when": "the operator highlights an agent"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }

@@ -172,17 +172,17 @@ describe("folding", () => {
 
   test("a child whose gate fails reaches the parent as an explicit verify failure", async () => {
     gatePasses = false
-    const plan: Plan = { children: [child("i1", [], "implement-card"), child("r1")] }
+    const plan: Plan = { children: [child("i1", [], "implement-scenario"), child("r1")] }
     const r = await run(
       {
         plan: [planText(plan)],
-        "implement-card": [{ cell: 'yield* Rlm.done({ value: { files: ["src/a.ts"], summary: "edited" } })' }],
+        "implement-scenario": [{ cell: 'yield* Rlm.done({ value: { files: ["src/a.ts"], summary: "edited" } })' }],
         research: [researchDone("fine")],
         lead: [{ cell: "yield* Rlm.done({ value: JSON.stringify(children.map((c: any) => [c.id, c.ok, c.kind ?? null])) })" }],
       },
       { task: "big", preset: "lead", scope: { paths: ["src/**"] } },
       decisions(false),
-      { presets: { lead: { layer: ["Graph", "Fs", "Sh", "Verify", "Decisions", "Rlm"], spawns: ["implement-card", "research"], role: "implement", result: "text", verify: "gate" } } },
+      { presets: { lead: { layer: ["Graph", "Fs", "Sh", "Verify", "Decisions", "Rlm"], spawns: ["implement-scenario", "research"], role: "implement", result: "text", verify: "gate" } } },
     )
     gatePasses = true
     expect(JSON.parse(value(r))).toEqual([["i1", false, "verify"], ["r1", true, null]])

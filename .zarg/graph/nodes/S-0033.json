@@ -23,5 +23,5 @@
     "title": "Operator picks another model",
     "when": "the operator picks another model"
   },
-  "type": "gherkin/card"
+  "type": "gherkin/scenario"
 }
