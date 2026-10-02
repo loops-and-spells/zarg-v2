@@ -28,14 +28,14 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0048",
         "when": "an agent attempts to invoke a service outside the operator-granted scopes"
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0046",
         "when": "an agent reads an env file local to its declared workspace"
@@ -49,7 +49,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Run continues after refused read",
         "when": "the refusal reason is recorded in run state",

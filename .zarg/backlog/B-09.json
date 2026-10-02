@@ -8,7 +8,7 @@
   ],
   "changes": [
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Run records the blocking reason",
         "when": "the refusal happens",
@@ -31,7 +31,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0046",
         "when": "an agent reads an env file inside its declared workspace"
@@ -45,7 +45,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0046",
         "title": "Env files stay hidden; refusal reason names file and gate"

@@ -51,7 +51,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0053",
         "title": "Overlapping edits halt the cards",
@@ -87,7 +87,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "The Implementer resolves overlap",
         "when": "two card worktrees merge",
@@ -107,7 +107,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Implementer raises a beyond-fix worktree conflict",
         "when": "a trivial-fix lane clears a worktree-local conflict",
@@ -147,7 +147,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0052",
         "title": "The gate decides the commit during the pass",
@@ -192,14 +192,14 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0022",
         "when": "the verify gate runs on the card commits"
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Land commits",
         "when": "the landing plan is emitted",
@@ -225,7 +225,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Repair failing cards",
         "when": "a check fails",
@@ -252,7 +252,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0020",
         "title": "Reconcile waits for writes to settle",
@@ -277,7 +277,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0023",
         "title": "Repair failing check",
@@ -285,7 +285,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Repair to re-verify",
         "when": "repair failing check",
@@ -356,7 +356,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Repo readiness shows what can run",
         "when": "the operator starts zarg in a repo",
@@ -376,7 +376,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0059",
         "title": "Reconcile cannot turn on",
@@ -391,7 +391,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Operator approves each presented plan",
         "when": "reconcile presents a plan",
@@ -417,14 +417,14 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0058",
         "when": "operator starts reconcile in a session"
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Operator confirms reconcile scope",
         "when": "operator starts reconcile",
@@ -460,7 +460,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Reconcile ends at apply or store",
         "when": "reconcile finishes writing plans",
@@ -486,7 +486,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0021",
         "when": "the Implementer Agent codes each plan in its own worktree, one verdict per plan"
@@ -513,7 +513,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0021",
         "title": "Implementer Agent codes and verdicts each plan"
@@ -534,7 +534,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0025",
         "title": "zarg asks the reconcile question",
@@ -542,7 +542,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Planner Agent detects contradictions after plan files",
         "when": "every changed card has a plan file",
@@ -567,7 +567,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0024",
         "title": "Implementer Agent only edits reconciled cards",
@@ -603,7 +603,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0055",
         "when": "the second fix attempt still fails"

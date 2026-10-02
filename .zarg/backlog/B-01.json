@@ -60,7 +60,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0041",
         "when": "an agent hands work to a child agent as an explicit handoff"
@@ -84,7 +84,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "A rejected handoff ends cleanly",
         "when": "the child agent refuses the handed work",
@@ -104,7 +104,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "A child already parented stays linked",
         "when": "an agent hands work to a child already parented",
@@ -124,7 +124,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "A run ending aborts its dangling child",
         "when": "the parent run ends while handing work to a child",
@@ -144,7 +144,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0048",
         "title": "A service outside the operator-granted scopes is refused",
@@ -152,7 +152,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Agent surfaces a refused service to extend the grant",
         "when": "the agent surfaces the refusal to the operator",
@@ -182,7 +182,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0046",
         "title": "Env files beyond served scopes are refused",
@@ -207,7 +207,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Env files within served scopes are served",
         "when": "an agent reads an env file within its served powers",

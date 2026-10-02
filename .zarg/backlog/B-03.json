@@ -17,7 +17,7 @@
   ],
   "changes": [
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Missing file reported absent",
         "when": "the CLI actor requests it",
@@ -51,14 +51,14 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0006",
         "when": "the CLI actor applies the dedup hint precondition"
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "CLI actor aborts after a stale hint",
         "when": "the corrected dedup attempt is refused again",

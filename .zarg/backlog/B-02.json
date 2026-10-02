@@ -89,7 +89,7 @@
   ],
   "changes": [
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Operator types a custom answer",
         "when": "the operator chooses to type free text instead of selecting an option",
@@ -115,7 +115,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0011",
         "title": "Operator selects offered option",
@@ -123,7 +123,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Show the picked topic's options",
         "when": "the picked topic's node is queried for its options",
@@ -159,7 +159,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0015",
         "title": "Operator picks a topic",
@@ -181,7 +181,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0013",
         "when": "the Driver Agent applies the agenda rule to the options"
@@ -218,7 +218,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Driver Agent handles an unusable message",
         "when": "the message conflicts with the agenda",
@@ -268,7 +268,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Operator handles a report exceeding its share",
         "when": "the Markdown exceeds its pixel share",
@@ -288,7 +288,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0071",
         "when": "the operator confirms one option after discussion"
@@ -325,7 +325,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Driver Agent re-asks when no option settles",
         "when": "no option settles after discussion",
@@ -348,7 +348,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0019",
         "title": "Operator resolves a conflict-resolution pick",
@@ -370,7 +370,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Operator saves resolved conflict",
         "when": "the operator saves the resolved conflict",
@@ -396,7 +396,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Operator handles no fitting version",
         "when": "the operator defers a no-fit merge",
@@ -419,7 +419,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Operator rechecks stale save",
         "when": "the operator rechecks a refused stale save",
@@ -442,7 +442,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Operator reviews chosen version",
         "when": "the operator reviews the chosen version writes",
@@ -465,7 +465,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Operator previews merge diff",
         "when": "the operator previews the incoming diff",
@@ -492,7 +492,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0012",
         "title": "Operator chats and signals Continue or Return",
@@ -514,7 +514,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Operator continues or aborts chat",
         "when": "operator signals Continue or Return after chat",
@@ -543,7 +543,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Renderer recognises a Mermaid fenced block",
         "when": "the reply holds a fenced code block",
@@ -583,7 +583,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Overflow or absent support fallback",
         "when": "the diagram does not fit or Mermaid support is absent",
@@ -612,7 +612,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Streaming reply renders candidate progressively",
         "when": "the candidate arrives during streaming",
@@ -639,7 +639,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0017",
         "title": "Driver Agent merges compatible edits after version drift resolves",
@@ -647,7 +647,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Merge provands into a named record",
         "when": "the Driver Agent saves the merged answer",
@@ -673,14 +673,14 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0010",
         "when": "the Driver Agent reads the agenda for the saved answer"
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Driver Agent asks the next question",
         "when": "a question has no saved answer",
@@ -734,7 +734,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Operator's choice lands",
         "when": "the operator picks an option",
@@ -766,7 +766,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "An invalid or absent pick recovers",
         "when": "the operator picks nothing or an invalid option",
@@ -802,7 +802,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0009",
         "title": "Operator picks one answer in a repeated series",
@@ -810,7 +810,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Reveal the stale node",
         "when": "the shown question reaches a revision",
@@ -833,7 +833,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Refusal names cause and recovery",
         "when": "the save is refused as stale",
@@ -876,14 +876,14 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0075",
         "when": "zarg replies with streaming Markdown"
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Streaming renderer recovers at boundaries",
         "when": "a table or code block boundary breaks mid-stream",
@@ -907,7 +907,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Operator chooses next action on reply",
         "when": "the formatted Markdown reply streams",

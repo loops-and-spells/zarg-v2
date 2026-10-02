@@ -6,7 +6,7 @@
       "scenario": "S-0041",
       "changes": [
         {
-          "tool": "edit-card",
+          "tool": "edit-scenario",
           "params": {
             "id": "S-0041",
             "when": "the parent run transfers next work to a child agent"
@@ -23,7 +23,7 @@
           }
         },
         {
-          "tool": "add-card",
+          "tool": "add-scenario",
           "params": {
             "title": "Parent run confirms handoff",
             "when": "the child accepts the transferred work",
@@ -49,7 +49,7 @@
           }
         },
         {
-          "tool": "add-card",
+          "tool": "add-scenario",
           "params": {
             "title": "Parent run aborts dangling handoff",
             "when": "the child rejects the transferred work",
@@ -131,7 +131,7 @@
           }
         },
         {
-          "tool": "edit-card",
+          "tool": "edit-scenario",
           "params": {
             "id": "S-0048",
             "title": "A service outside the operator-granted scopes is refused",
@@ -174,7 +174,7 @@
       "scenario": "S-0046",
       "changes": [
         {
-          "tool": "add-card",
+          "tool": "add-scenario",
           "params": {
             "title": "Run records the blocking reason",
             "when": "the refusal happens",
@@ -197,7 +197,7 @@
           }
         },
         {
-          "tool": "edit-card",
+          "tool": "edit-scenario",
           "params": {
             "id": "S-0046",
             "when": "an agent reads an env file inside its declared workspace"
@@ -211,7 +211,7 @@
           }
         },
         {
-          "tool": "edit-card",
+          "tool": "edit-scenario",
           "params": {
             "id": "S-0046",
             "title": "Env files stay hidden; refusal reason names file and gate"
@@ -240,7 +240,7 @@
   ],
   "draft": [
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0041",
         "when": "the parent run transfers next work to a child agent"
@@ -257,7 +257,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Parent run confirms handoff",
         "when": "the child accepts the transferred work",
@@ -283,7 +283,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Parent run aborts dangling handoff",
         "when": "the child rejects the transferred work",
@@ -330,7 +330,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0048",
         "title": "A service outside the operator-granted scopes is refused",
@@ -348,7 +348,7 @@
       }
     },
     {
-      "tool": "add-card",
+      "tool": "add-scenario",
       "params": {
         "title": "Run records the blocking reason",
         "when": "the refusal happens",
@@ -371,7 +371,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0046",
         "when": "an agent reads an env file inside its declared workspace"
@@ -385,7 +385,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0046",
         "title": "Env files stay hidden; refusal reason names file and gate"

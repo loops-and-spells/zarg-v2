@@ -53,7 +53,7 @@
       }
     },
     {
-      "tool": "edit-card",
+      "tool": "edit-scenario",
       "params": {
         "id": "S-0048",
         "title": "A service outside the operator-granted scopes is refused",
