@@ -15,7 +15,7 @@
         "hasFailure": false
       }
     ],
-    "step": {
+    "scene": {
       "scenario": "good-step",
       "title": "good step",
       "given": "the product page is shown",
@@ -45,7 +45,7 @@
         "hasFailure": false
       }
     ],
-    "step": {
+    "scene": {
       "scenario": "broken-seam",
       "title": "broken seam",
       "given": "the payment form is shown",
@@ -76,7 +76,7 @@
         "hasFailure": false
       }
     ],
-    "step": {
+    "scene": {
       "scenario": "broken-seam-2",
       "title": "broken seam 2",
       "given": "the visitor's order history is shown",
@@ -107,7 +107,7 @@
         "hasFailure": false
       }
     ],
-    "step": {
+    "scene": {
       "scenario": "unclear-action",
       "title": "unclear action",
       "given": "the cart is shown",
@@ -138,7 +138,7 @@
         "hasFailure": false
       }
     ],
-    "step": {
+    "scene": {
       "scenario": "unclear-action-2",
       "title": "unclear action 2",
       "given": "the cart is shown",
@@ -169,7 +169,7 @@
         "hasFailure": false
       }
     ],
-    "step": {
+    "scene": {
       "scenario": "clear-action",
       "title": "clear action",
       "given": "the cart is shown",
@@ -198,7 +198,7 @@
         "hasFailure": false
       }
     ],
-    "step": {
+    "scene": {
       "scenario": "surprising-outcome",
       "title": "surprising outcome",
       "given": "the settings page is shown",
@@ -229,7 +229,7 @@
         "hasFailure": false
       }
     ],
-    "step": {
+    "scene": {
       "scenario": "surprising-outcome-2",
       "title": "surprising outcome 2",
       "given": "the product page is shown",
@@ -260,7 +260,7 @@
         "hasFailure": false
       }
     ],
-    "step": {
+    "scene": {
       "scenario": "missing-failure-pay",
       "title": "missing failure pay",
       "given": "the payment form is shown",
@@ -291,7 +291,7 @@
         "hasFailure": false
       }
     ],
-    "step": {
+    "scene": {
       "scenario": "missing-failure-login",
       "title": "missing failure login",
       "given": "the login form is shown",
@@ -322,7 +322,7 @@
         "hasFailure": false
       }
     ],
-    "step": {
+    "scene": {
       "scenario": "no-failure-scroll",
       "title": "no failure scroll",
       "given": "the home page is shown",
@@ -351,7 +351,7 @@
         "hasFailure": false
       }
     ],
-    "step": {
+    "scene": {
       "scenario": "no-failure-close",
       "title": "no failure close",
       "given": "the dialog is shown",
@@ -380,7 +380,7 @@
         "hasFailure": false
       }
     ],
-    "step": {
+    "scene": {
       "scenario": "clear-fork",
       "title": "clear fork",
       "given": "the edited address is shown",
@@ -418,7 +418,7 @@
         "hasFailure": false
       }
     ],
-    "step": {
+    "scene": {
       "scenario": "ambiguous-fork",
       "title": "ambiguous fork",
       "given": "the checkout form is complete",

@@ -46,8 +46,8 @@ describe("rehearse findings", () => {
   })
 
   test("the report is the model's text; a failed report says so", async () => {
-    expect(await Effect.runPromise(report(replying("Testers stalled at payment."), [], { steps: 3, flagged: 1, unscreened: 0 }))).toBe("Testers stalled at payment.")
-    expect(await Effect.runPromise(report(replying(new Error("down")), [], { steps: 3, flagged: 1, unscreened: 0 }))).toContain("report unavailable")
+    expect(await Effect.runPromise(report(replying("Testers stalled at payment."), [], { scenes: 3, flagged: 1, unscreened: 0 }))).toBe("Testers stalled at payment.")
+    expect(await Effect.runPromise(report(replying(new Error("down")), [], { scenes: 3, flagged: 1, unscreened: 0 }))).toContain("report unavailable")
   })
 })
 

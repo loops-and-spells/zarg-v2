@@ -1,7 +1,7 @@
 // packages/core/src/rehearse/types.ts
 import type { Effect } from "effect"
 
-export interface StepView {
+export interface SceneView {
   readonly scenario: string
   readonly title: string
   readonly given: string
@@ -31,7 +31,7 @@ export interface Finding {
   readonly count: number
   readonly personas: ReadonlyArray<string>
 }
-/** `hash`: the scenario's text as triaged (`stepHash`), so a fix can tell the scenario changed since. */
+/** `hash`: the scenario's text as triaged (`sceneHash`), so a fix can tell the scenario changed since. */
 export type Triaged = Finding & { readonly real: number; readonly route: "fix" | "ask" | "drop"; readonly hash?: string }
 export type Decide = (req: DecisionRequest) => Effect.Effect<Readonly<Record<string, Answer>>, unknown>
 

@@ -16,7 +16,7 @@ const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string
     stages: () => Effect.succeed(o.stages as never),
     feedbackOf: () => Effect.succeed([entry, offEntry]),
     journeys: () => Effect.succeed((o.journeys ?? [{ id: "J-0001", name: "Set up", scenarios: ["S-0001", "S-0002", "S-0003"] }]) as never),
-    step: (scenario) => Effect.succeed({ scenario, title: `scenario ${scenario}`, given: "the plugin runs", when: "it needs a scope", thens: ["the operator is asked"], fork: [], hasFailure: false, ids: { given: "ST-0001", context: [], thens: ["ST-0002"] } }),
+    scene: (scenario) => Effect.succeed({ scenario, title: `scenario ${scenario}`, given: "the plugin runs", when: "it needs a scope", thens: ["the operator is asked"], fork: [], hasFailure: false, ids: { given: "ST-0001", context: [], thens: ["ST-0002"] } }),
     dryRun: (draft) => Effect.succeed({ scenarios: draft.length > 0 ? ["S-0001", "S-0003"] : [], ...(o.dry?.(dries++, draft) ?? { ok: true, problems: [], touched: draft.length > 0 ? ["ST-0002", "S-0001"] : [] }) }),
     complete: (req) => (o.down === true ? Effect.fail("model down") : Effect.sync(() => (calls.push(["complete", req.messages.at(-1)?.content]), calls.push(["maxTokens", req.maxTokens]), calls.push(["reasoning", req.reasoning]), o.spent === true ? { text: "", completionTokens: 16384, reasoningTokens: 16384, finishReason: "length" } : { text: answers.shift() ?? "{}" }))),
     propose: (p) => Effect.sync(() => void calls.push(["propose", p])),

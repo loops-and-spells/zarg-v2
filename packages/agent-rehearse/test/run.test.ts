@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 import { type FiledEntry, makeRehearse, ownScenario, type RunDeps } from "../src/run"
 import { rehearseSettings } from "../src/settings"
-import type { Answer, DecisionRequest, StepView } from "../src/types"
+import type { Answer, DecisionRequest, SceneView } from "../src/types"
 import { FEEDBACK_COLUMNS, RunView, TesterView } from "../src/views"
 
 const noul = (p: number): Answer => ({ type: "noul", answer: p >= 0.5, probability: p, confidence: 0 })
@@ -25,11 +25,11 @@ const setup = (o: Opts = {}) =>
     const overlap = { max: 0 }
     const pushes: Array<{ agent: string; path: string; data?: unknown; lines?: unknown; view?: string }> = []
     let ids = 0
-    const view = (scenario: string): StepView => ({ scenario, title: `scenario ${scenario}`, given: `before ${scenario}`, when: o.scenarioText?.(scenario) ?? `do ${scenario}`, thens: [`after ${scenario}`], fork: [], hasFailure: false, journeys: ["Checkout"], by: ["Operator"] })
+    const view = (scenario: string): SceneView => ({ scenario, title: `scenario ${scenario}`, given: `before ${scenario}`, when: o.scenarioText?.(scenario) ?? `do ${scenario}`, thens: [`after ${scenario}`], fork: [], hasFailure: false, journeys: ["Checkout"], by: ["Operator"] })
     const deps: RunDeps = {
       personas: () => Effect.succeed(o.personas ?? [{ name: "Operator", text: "The operator, through the zarg TUI.", scenarios: ["A", "B", "C", "D"] }]),
       stories: (strategy, _f, draft) => Effect.sync(() => (drafts.push(["stories", draft]), strategies.push(strategy), { stories: [["A", "B", "C"], ["A", "B", "D"]], unreachable: o.unreachable ?? 0 })),
-      step: (scenario, _via, draft) => Effect.sync(() => (drafts.push(["step", draft]), draft !== undefined && scenario === "B" ? { ...view(scenario), thens: ["after B, drafted"] } : { ...view(scenario), ...(o.built?.[scenario] === "planned" ? { planned: true } : {}) })),
+      scene: (scenario, _via, draft) => Effect.sync(() => (drafts.push(["step", draft]), draft !== undefined && scenario === "B" ? { ...view(scenario), thens: ["after B, drafted"] } : { ...view(scenario), ...(o.built?.[scenario] === "planned" ? { planned: true } : {}) })),
       ...(o.built !== undefined ? { code: (scenario: string) => o.codeDown === true ? Effect.fail("no git") : Effect.succeed(o.built![scenario] !== undefined ? [] : [{ file: `src/${scenario}.ts`, line: 1, text: `export const do${scenario} = () => "${scenario} code"` }]) } : {}),
       agendaChanged: Effect.sync(() => void agendaChanges.n++),
       decide: (req) =>
@@ -108,10 +108,10 @@ describe("rehearse runs in the plugin", () => {
     expect(open).toBeLessThan(t.events.findIndex((e) => e.event === "start" && e.id === "tester-1"))
     const line = t.pushes.filter((p) => p.agent === "run" && p.view === "status" && p.path === "line").at(-1)?.data as { items: ReadonlyArray<{ label: string; value: string }> }
     expect(line.items.map((i) => i.label)).toEqual(["rehearse", "testers"])
-    expect(line.items[0]!.value).toMatch(/^\d+\/\d+ steps$/)
+    expect(line.items[0]!.value).toMatch(/^\d+\/\d+ scenes$/)
   })
 
-  test("a run screens shared prefixes once, diagnoses only flagged steps, and files what it found", async () => {
+  test("a run screens shared prefixes once, diagnoses only flagged scenes, and files what it found", async () => {
     const t = await finish()
     expect(t.decisions.filter((d) => d.questions.feel).length).toBe(4)
     expect(t.llm.n).toBe(2)
@@ -209,14 +209,14 @@ describe("rehearse runs in the plugin", () => {
     expect(out.none).toMatchObject({ refused: expect.stringContaining("no personas yet") })
   })
 
-  test("a decision-model outage leaves steps unscreened and counted; only the report reaches the model", async () => {
+  test("a decision-model outage leaves scenes unscreened and counted; only the report reaches the model", async () => {
     const t = await finish({ down: true })
     expect(Object.values(t.r.record(t.run)!.screened).every((v) => v === null)).toBe(true)
     expect(t.r.record(t.run)!.findings).toEqual([])
     expect(t.llm.n).toBe(1)
   })
 
-  test("a run left running resumes from its record without screening finished steps again", async () => {
+  test("a run left running resumes from its record without screening finished scenes again", async () => {
     const files = new Map<string, string>()
     const run = "r-resume"
     files.set(".zarg/rehearse/index.json", JSON.stringify([run]))
@@ -290,12 +290,12 @@ describe("rehearse runs in the plugin", () => {
     expect(t.r.record(t.run)!.status).toBe("stopped")
   })
 
-  test("a tester's progress only goes up, to distinct steps checked out of those to check", async () => {
+  test("a tester's progress only goes up, to distinct scenes checked out of those to check", async () => {
     const t = await finish({ slowDecide: 3, unreachable: 2 })
     const rows = t.events.filter((e) => e.id === "tester-1" && e.event === "status").map((e) => e.progress!)
     expect(rows.map((r) => r.done)).toEqual([...rows.map((r) => r.done)].sort((a, b) => a - b))
     expect(rows.at(-1)).toEqual({ done: 4, total: 4 })
-    expect(t.pushes.filter((p) => p.agent === "tester-1" && p.path === "steps").flatMap((p) => p.lines as ReadonlyArray<{ text: string }>).map((l) => l.text)).toContain("B: feel 1.00, fail 0.30 → flagged feel → 1 finding")
+    expect(t.pushes.filter((p) => p.agent === "tester-1" && p.path === "scenes").flatMap((p) => p.lines as ReadonlyArray<{ text: string }>).map((l) => l.text)).toContain("B: feel 1.00, fail 0.30 → flagged feel → 1 finding")
     expect(t.events.filter((e) => e.id === "run" && e.event === "status").at(-1)?.text).toBe("1 feedback entry filed · triage in Feedback · 2 unreachable")
   })
 
@@ -304,14 +304,14 @@ describe("rehearse runs in the plugin", () => {
     expect(t.overlap.max).toBe(1)
   })
 
-  test("the tester's view: workers follow the walk, steps are logged, its findings fill the review table", async () => {
+  test("the tester's view: workers follow the walk, scenes are logged, its findings fill the review table", async () => {
     const t = await finish({ slowDecide: 3 })
     const workers = t.pushes.filter((p) => p.agent === "tester-1" && p.path === "workers").map((p) => p.data as { items: ReadonlyArray<{ state?: string; detail?: string }> })
     expect(workers.some((w) => w.items.some((i) => i.state === "busy"))).toBe(true)
-    // Both stories start with A, B: one screens the shared step, the other waits for it.
+    // Both stories start with A, B: one screens the shared scene, the other waits for it.
     expect(workers.some((w) => w.items.some((i) => i.state === "waiting"))).toBe(true)
     expect(workers.at(-1)!.items).toEqual([])
-    expect(t.pushes.filter((p) => p.agent === "tester-1" && p.path === "steps").flatMap((p) => p.lines as ReadonlyArray<{ text: string }>).map((l) => l.text)).toContain("B: feel 1.00, fail 0.30 → flagged feel → 1 finding")
+    expect(t.pushes.filter((p) => p.agent === "tester-1" && p.path === "scenes").flatMap((p) => p.lines as ReadonlyArray<{ text: string }>).map((l) => l.text)).toContain("B: feel 1.00, fail 0.30 → flagged feel → 1 finding")
     const id = t.r.record(t.run)!.findings[0]!.id
     const review = t.pushes.filter((p) => p.agent === "tester-1" && p.path === "review.feedback").at(-1)!.data as { rows: ReadonlyArray<{ id: string }> }
     expect(review.rows.map((r) => r.id)).toEqual([id])
@@ -352,7 +352,7 @@ test("the run's view lists its testers: each with its progress and findings", as
   const list = t.pushes.filter((p) => p.agent === "run" && p.path === "testers").at(-1)?.data as { items: ReadonlyArray<{ id: string; text: string; detail?: string; state?: string }> }
   expect(list.items.map((i) => i.id)).toEqual(t.r.record(t.run)!.personas.map((_, i) => `tester-${i + 1}`))
   expect(list.items.every((i) => i.state === "done")).toBe(true)
-  expect(list.items[0]!.detail).toMatch(/\d+\/\d+ steps · \d+ found/)
+  expect(list.items[0]!.detail).toMatch(/\d+\/\d+ scenes · \d+ found/)
 })
 
 describe("testers from the graph's personas", () => {
@@ -363,7 +363,7 @@ describe("testers from the graph's personas", () => {
     expect(idle).toEqual({ refused: "no persona acts in any scenario" })
   })
 
-  test("a tester walks only stories with its scenarios; others' steps are context", async () => {
+  test("a tester walks only stories with its scenarios; others' scenes are context", async () => {
     const t = await finish({ personas: [{ name: "Operator", text: "The operator.", scenarios: ["A", "C"] }, { name: "Driver Agent", text: "The agent.", scenarios: ["B", "D"] }] })
     const screenedBy = (who: string) => t.decisions.filter((d) => d.questions.feel !== undefined && d.state.startsWith(`You are ${who}`)).map((d) => /The next step[\s\S]*When do (\w)/.exec(d.state)![1])
     // The operator judges A and C, never B or D; it sees B as what happened before C.
@@ -388,7 +388,7 @@ test("the findings columns colour by meaning: scenario, journey, severity keys",
   ])
 })
 
-test("stories stop before a planned or untagged scenario (the run notes why); testers see the step's code", async () => {
+test("stories stop before a planned or untagged scenario (the run notes why); testers see the scene's code", async () => {
   const prompts: Array<string> = []
   const out = await finish({ built: { C: "planned", D: "untagged" }, prompts })
   // The same story twice after the cut is one story.

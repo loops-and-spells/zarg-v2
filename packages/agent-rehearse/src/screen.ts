@@ -1,35 +1,35 @@
 // packages/core/src/rehearse/screen.ts
 import { hash } from "./hash"
 import { Effect } from "effect"
-import type { Decide, Persona, Reason, Screened, StepView } from "./types"
+import type { Decide, Persona, Reason, Screened, SceneView } from "./types"
 import type { RehearseSettings } from "./settings"
 
-/** The last steps of the story so far: how the tester got here. */
+/** The last scenes of the story so far: how the tester got here. */
 const STORY_STEPS = 3
 
-export const storyText = (prior: ReadonlyArray<StepView>) =>
+export const storyText = (prior: ReadonlyArray<SceneView>) =>
   prior.slice(-STORY_STEPS).map((p) => `${p.when}; then ${p.thens.join(", and ")}`).join(". ")
 
-export const stepText = (step: StepView) => `Given ${step.given}\nWhen ${step.when}\nThen ${step.thens.join("; and ")}`
+export const sceneText = (scene: SceneView) => `Given ${scene.given}\nWhen ${scene.when}\nThen ${scene.thens.join("; and ")}`
 
 /** The scenario as the testers saw it: a fix is stale once this changes. */
-export const stepHash = (step: StepView) => hash(stepText(step)).slice(0, 12)
+export const sceneHash = (scene: SceneView) => hash(sceneText(scene)).slice(0, 12)
 
 /**
- * One decision-model request per step (calibrated 2026-09-27: feel, fail, choose and arrive separate good
- * steps from bad; act and expect do not, so the large model diagnoses those on flagged steps).
+ * One decision-model request per scene (calibrated 2026-09-27: feel, fail, choose and arrive separate good
+ * scenes from bad; act and expect do not, so the large model diagnoses those on flagged scenes).
  */
-export const screenStep = (decide: Decide, persona: Persona, prior: ReadonlyArray<StepView>, step: StepView, s: RehearseSettings) =>
+export const screenScene = (decide: Decide, persona: Persona, prior: ReadonlyArray<SceneView>, scene: SceneView, s: RehearseSettings) =>
   Effect.gen(function* () {
-    const state = `You are ${persona.text}\nWhat happened so far: ${storyText(prior) || "you just started"}.\nThe next step in the product, as specified:\n${stepText(step)}`
-    const forked = step.fork.length > 1
+    const state = `You are ${persona.text}\nWhat happened so far: ${storyText(prior) || "you just started"}.\nThe next step in the product, as specified:\n${sceneText(scene)}`
+    const forked = scene.fork.length > 1
     const answers = yield* decide({
       state,
       questions: {
         feel: { type: "score", instructions: "How does this step feel to you?", levels: ["blocked", "confusing", "fine", "pleasing"] },
         fail: { type: "noul", instructions: "Could this step go wrong in a way you would need to see and handle (an error, a refusal)?" },
         arrive: { type: "noul", instructions: "Is what the Given says true, given what happened so far?" },
-        ...(forked ? { choose: { type: "choice" as const, instructions: "Which would you do next?", criteria: Object.fromEntries(step.fork.slice(0, 16).map((f, i) => [`f${i}`, f.when])) } } : {}),
+        ...(forked ? { choose: { type: "choice" as const, instructions: "Which would you do next?", criteria: Object.fromEntries(scene.fork.slice(0, 16).map((f, i) => [`f${i}`, f.when])) } } : {}),
       },
     })
     const feel = answers.feel?.type === "score" ? answers.feel.score : 2
@@ -38,9 +38,9 @@ export const screenStep = (decide: Decide, persona: Persona, prior: ReadonlyArra
     const fork = answers.choose?.type === "choice" ? Math.max(...Object.values(answers.choose.probabilities)) : undefined
     const flags: Array<Reason> = []
     if (feel < s.feelBelow) flags.push("feel")
-    if (fail >= s.failAt && !step.hasFailure) flags.push("fail")
+    if (fail >= s.failAt && !scene.hasFailure) flags.push("fail")
     if (fork !== undefined && fork < s.forkBelow) flags.push("fork")
-    // The first step has no story yet: a seam needs a step before it.
+    // The first scene has no story yet: a seam needs a scene before it.
     if (prior.length > 0 && arrive < s.seamBelow) flags.push("seam")
     return { feel, fail, arrive, ...(fork !== undefined ? { fork } : {}), flags } satisfies Screened
   }).pipe(Effect.orElseSucceed(() => undefined))

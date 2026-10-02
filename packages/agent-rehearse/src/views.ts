@@ -17,11 +17,11 @@ const review = {
   },
 } as const
 
-/** One tester: its walk (workers), what it checked (steps), what it filed (read-only: triage happens in Feedback). */
+/** One tester: its walk (workers), what it checked (scenes), what it filed (read-only: triage happens in Feedback). */
 export const TesterView = defineView("tester", {
   progress: { kind: "stats", role: "summary" },
   workers: { kind: "list", role: "primary", title: "Workers" },
-  steps: { kind: "log", role: "log", title: "Steps" },
+  scenes: { kind: "log", role: "log", title: "Scenes" },
   review,
   // The highlighted entry in full, beside the list.
   detail: { kind: "text", role: "pinned", title: "", follows: "review", beside: "review" },

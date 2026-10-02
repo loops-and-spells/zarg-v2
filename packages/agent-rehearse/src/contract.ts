@@ -3,7 +3,7 @@ import { pluginContract } from "@zarg/plugin-sdk"
 
 const Draft = Schema.Array(Schema.Struct({ tool: Schema.String, params: Schema.Unknown }))
 export const RunParams = Schema.Struct({
-  strategy: Schema.optionalKey(Schema.Literals(["journey", "edge-pair", "teleport"])).annotate({ description: "journey (default): every step and step pair inside each journey, plus the handoffs between journeys; edge-pair: the same over the whole graph; teleport: each scenario once, alone (quick)." }),
+  strategy: Schema.optionalKey(Schema.Literals(["journey", "edge-pair", "teleport"])).annotate({ description: "journey (default): every two and three scenarios in a row inside each journey, plus the handoffs between journeys; edge-pair: the same over the whole graph; teleport: each scenario once, alone (quick)." }),
   focus: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Scenario or state ids: only stories through them." }),
   personas: Schema.optionalKey(Schema.Array(Schema.String)),
   draft: Schema.optionalKey(Draft).annotate({ description: "Gherkin tool calls to walk over instead of the graph as it is (never written)." }),

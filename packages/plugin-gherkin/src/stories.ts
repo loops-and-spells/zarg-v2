@@ -2,7 +2,7 @@
 import { Snapshot } from "@zarg/graph/pure"
 import { ARRIVES, BY, scenarios, IN, journeyName, personaName, text, THEN, GIVEN } from "./model"
 
-export interface StepView {
+export interface SceneView {
   readonly scenario: string
   readonly title: string
   readonly given: string
@@ -27,7 +27,7 @@ const nextOf = (snap: Snapshot.Snapshot, scenario: string) => [...new Set(thensO
 
 /**
  * Edge-pair (Ammann and Offutt) over some scenarios (all of them when `members` is undefined): root-to-leaf stories
- * that together cover every scenario, every step (scenario to next scenario, both members) and every consecutive pair, by
+ * that together cover every scenario, every two scenarios in a row (both members) and every three in a row, by
  * greedy set cover; loopbacks are left out. Roots: members whose Given is an entry state, or that no member leads to.
  */
 const edgePair = (snap: Snapshot.Snapshot, members?: ReadonlySet<string>) => {
@@ -53,7 +53,7 @@ const edgePair = (snap: Snapshot.Snapshot, members?: ReadonlySet<string>) => {
     state.set(c, "done")
   }
   for (const r of roots) if (!state.has(r)) visit(r)
-  // Requirements: every scenario a root reaches (so a lone scenario is walked too), every step, every step pair.
+  // Requirements: every scenario a root reaches (so a lone scenario is walked too), every two in a row, every three in a row.
   const need = new Set<string>([...next.keys()])
   for (const [c, ns] of next) for (const n of ns) {
     need.add(`${c}>${n}`)
@@ -93,7 +93,7 @@ const edgePair = (snap: Snapshot.Snapshot, members?: ReadonlySet<string>) => {
 }
 
 /**
- * Stories to walk. journey (the default): edge-pair inside each journey, one two-scenario story for each step from a
+ * Stories to walk. journey (the default): edge-pair inside each journey, one two-scenario story for each handoff from a
  * journey into another (a seam), and each scenario in no journey alone. edge-pair: the same over the whole graph.
  * teleport: each scenario alone. With focus, only stories through a focused scenario (or, for teleport, focused scenarios).
  */
@@ -115,7 +115,7 @@ export const planStories = (snap: Snapshot.Snapshot, strategy: "journey" | "edge
     stories.push(...r.stories)
     unreachable += r.unreachable
   }
-  // Seams: a step from one journey's scenario to a scenario of another journey (not also in the first): its handoff alone.
+  // Seams: a handoff from one journey's scenario to a scenario of another journey (not also in the first): its handoff alone.
   const seams = new Set<string>()
   for (const j of journeys)
     for (const c of j.scenarios)
@@ -127,8 +127,8 @@ export const planStories = (snap: Snapshot.Snapshot, strategy: "journey" | "edge
   return { stories: through(stories), unreachable }
 }
 
-/** What a tester sees at one step: the scenario, how they got here, and what they can do next. */
-export const stepView = (snap: Snapshot.Snapshot, scenario: string, via?: string): StepView | undefined => {
+/** What a tester sees at one scene: the scenario, how they got here, and what they can do next. */
+export const sceneView = (snap: Snapshot.Snapshot, scenario: string, via?: string): SceneView | undefined => {
   const node = snap.nodes.get(scenario)
   const from = arrivesOf(snap, scenario)
   if (node === undefined || from === undefined) return undefined

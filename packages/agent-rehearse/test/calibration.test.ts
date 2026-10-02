@@ -12,8 +12,8 @@ test("the calibration set has good and bad steps for every flag", () => {
 
 test("scoring: a threshold passes with at most one miss; a good step flagged is a miss too", () => {
   const set: ReadonlyArray<CalibrationCase> = [
-    { name: "bad", persona: "p", prior: [], step: {} as never, expect: ["fail"] },
-    { name: "good", persona: "p", prior: [], step: {} as never, expect: [] },
+    { name: "bad", persona: "p", prior: [], scene: {} as never, expect: ["fail"] },
+    { name: "good", persona: "p", prior: [], scene: {} as never, expect: [] },
   ]
   expect(scoreCalibration(set, [{ feel: 2, fail: 0.9, arrive: 1, flags: ["fail"] }, { feel: 2, fail: 0.1, arrive: 1, flags: [] }]).pass).toBe(true)
   const bad = scoreCalibration([...set, { ...set[0]!, name: "bad2" }], [{ feel: 2, fail: 0.1, arrive: 1, flags: [] }, { feel: 1, fail: 0.1, arrive: 1, flags: ["feel"] }, { feel: 2, fail: 0.1, arrive: 1, flags: [] }])

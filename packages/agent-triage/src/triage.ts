@@ -24,14 +24,14 @@ export interface StageView {
   readonly dismissed?: ReadonlyArray<{ readonly scenario: string; readonly kind: string }>
 }
 type OnEntry = { readonly id: string; readonly ref: string; readonly kind: string; readonly severity: string; readonly note: string; readonly persona: string; readonly on: boolean; readonly operatorNote?: string }
-type Step = { readonly scenario: string; readonly title: string; readonly given: string; readonly when: string; readonly thens: ReadonlyArray<string>; readonly by?: ReadonlyArray<string>; readonly ids?: { readonly given: string; readonly context: ReadonlyArray<string>; readonly thens: ReadonlyArray<string> } } | null
+type Scene = { readonly scenario: string; readonly title: string; readonly given: string; readonly when: string; readonly thens: ReadonlyArray<string>; readonly by?: ReadonlyArray<string>; readonly ids?: { readonly given: string; readonly context: ReadonlyArray<string>; readonly thens: ReadonlyArray<string> } } | null
 
 /** The Triage Agent's powers, as plain functions (the plugin wires them to its contracts; tests stub them). */
 export interface TriageDeps {
   readonly stages: () => Effect.Effect<ReadonlyArray<StageView>, unknown>
   readonly feedbackOf: (journey: string) => Effect.Effect<ReadonlyArray<OnEntry>, unknown>
   readonly journeys: () => Effect.Effect<ReadonlyArray<{ readonly id: string; readonly name: string; readonly scenarios: ReadonlyArray<string> }>, unknown>
-  readonly step: (scenario: string, draft: Draft) => Effect.Effect<Step, unknown>
+  readonly scene: (scenario: string, draft: Draft) => Effect.Effect<Scene, unknown>
   readonly dryRun: (draft: Draft) => Effect.Effect<{ readonly ok: boolean; readonly problems: ReadonlyArray<string>; readonly touched: ReadonlyArray<string>; readonly scenarios: ReadonlyArray<string> }, unknown>
   readonly complete: (req: { readonly messages: ReadonlyArray<{ readonly role: "system" | "user"; readonly content: string }>; readonly maxTokens?: number; readonly reasoning?: { readonly enabled: boolean } }) => Effect.Effect<{ readonly text: string; readonly promptTokens?: number; readonly completionTokens?: number; readonly reasoningTokens?: number; readonly finishReason?: string }, unknown>
   readonly propose: (p: { readonly journey: string; readonly scenario: string; readonly title?: string; readonly tries?: ReadonlyArray<Try>; readonly changes: Draft; readonly answers: ReadonlyArray<string>; readonly summary: string; readonly problems?: ReadonlyArray<string> }) => Effect.Effect<void, unknown>
@@ -98,7 +98,7 @@ export const SYSTEM = [
 ].join("\n\n")
 // Each state with its id, so the model reuses and unlinks by id rather than guessing.
 const idOf = (id: string | undefined) => (id !== undefined ? `  # ${id}` : "")
-const stepText = (s: Step) =>
+const sceneText = (s: Scene) =>
   s === null ? "(this scenario is not in the graph)"
   : [`${s.scenario} ${s.title}`, ...(s.by !== undefined && s.by.length > 0 ? [`By    ${s.by.join(", ")}`] : []), `Given ${s.given}${idOf(s.ids?.given)}`, ...(s.ids?.context ?? []).map((id) => `And   (context)${idOf(id)}`), `When  ${s.when}`, ...s.thens.map((t, i) => `${i === 0 ? "Then" : "And "}  ${t}${idOf(s.ids?.thens[i])}`)].join("\n")
 const scenarioOf = (ref: string) => parseRef(ref)?.id ?? ref
@@ -137,7 +137,7 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
       const allowed = new Set([scenario, ...st.proposals.map((p) => p.scenario), ...(journey?.scenarios ?? [])])
       const outside: Array<string> = []
       for (const c of scenarios)
-        if (!before.has(c) && !allowed.has(c) && (yield* d.step(c, []).pipe(Effect.orElseSucceed(() => null))) !== null) outside.push(c)
+        if (!before.has(c) && !allowed.has(c) && (yield* d.scene(c, []).pipe(Effect.orElseSucceed(() => null))) !== null) outside.push(c)
       return outside.length === 0
         ? { ok: true, problems: [] as ReadonlyArray<string> }
         : { ok: false, problems: [`the change reaches ${outside.join(", ")}, outside ${st.journey} (a state it shares): link a new state for ${scenario} instead of rewording a shared one`] }
@@ -150,14 +150,14 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
       const say = (text: string) => quiet(d.log(who, `${st.journey}: ${text}`))
       yield* say(`drafting ${scenario} (${entries.length} feedback)`)
       const fresh = (st.results?.fresh ?? []).filter((f) => f.scenario === scenario)
-      const step = yield* d.step(scenario, st.draft).pipe(Effect.orElseSucceed(() => null))
+      const scene = yield* d.scene(scenario, st.draft).pipe(Effect.orElseSucceed(() => null))
       const code = d.code === undefined ? [] : yield* d.code(scenario).pipe(Effect.orElseSucceed(() => []))
       const codeLines = code.map((c) => `${c.file}:${c.line}\n${c.text}`).join("\n\n").split("\n").slice(0, 60)
       const base = [
         `Journey: ${st.journey}`,
         "The scenario, as drafted so far:",
         "```gherkin",
-        stepText(step),
+        sceneText(scene),
         "```",
         ...(codeLines.length > 0 && codeLines.join("").length > 0 ? ["What zarg does now (the scenario's code):", "```", ...codeLines, "```"] : []),
         "Feedback on it:",
@@ -200,7 +200,7 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
       }
       const p = last.proposal
       yield* say(last.problems.length > 0 ? `${scenario} left out: ${last.problems.join("; ")}` : `${scenario} into the draft: ${p?.summary ?? ""}`)
-      yield* d.propose({ journey: st.journey, scenario, ...(step !== null ? { title: step.title } : {}), tries, changes: p?.changes ?? [], answers: p?.answers ?? [], summary: p?.summary ?? "", ...(last.problems.length > 0 ? { problems: last.problems } : {}) })
+      yield* d.propose({ journey: st.journey, scenario, ...(scene !== null ? { title: scene.title } : {}), tries, changes: p?.changes ?? [], answers: p?.answers ?? [], summary: p?.summary ?? "", ...(last.problems.length > 0 ? { problems: last.problems } : {}) })
     })
 
   /** A group is atomic unless the decision model says a confident no to one of the ROMA criteria (unavailable: atomic, as the RLM's atomize). */

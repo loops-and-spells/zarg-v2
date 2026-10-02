@@ -42,18 +42,18 @@ describe("drafts", () => {
     expect(out.lint.problems.join(" ")).toMatch(/if/)
     expect(out.tool.problems).toEqual(["nope is not a gherkin tool"])
   })
-  test("steps and stories over a draft show the drafted scenarios; journeys list their scenarios", async () => {
+  test("scenes and stories over a draft show the drafted scenarios; journeys list their scenarios", async () => {
     const out = await run(
       Effect.gen(function* () {
         yield* pricing
         const h = yield* PluginHost
-        const step = (yield* h.invoke("gherkin", "step", { scenario: "S-0001", draft })) as { thens: string[] }
-        const plain = (yield* h.invoke("gherkin", "step", { scenario: "S-0001" })) as { thens: string[] }
+        const scene = (yield* h.invoke("gherkin", "scene", { scenario: "S-0001", draft })) as { thens: string[] }
+        const plain = (yield* h.invoke("gherkin", "scene", { scenario: "S-0001" })) as { thens: string[] }
         const stories = (yield* h.invoke("gherkin", "stories", { strategy: "teleport", draft })) as { stories: string[][] }
-        return { step, plain, stories, journeys: yield* h.invoke("gherkin", "journeys", {}) }
+        return { scene, plain, stories, journeys: yield* h.invoke("gherkin", "journeys", {}) }
       }),
     )
-    expect(out.step.thens).toEqual(["the plan picker is shown with prices"])
+    expect(out.scene.thens).toEqual(["the plan picker is shown with prices"])
     expect(out.plain.thens).toEqual(["the plan picker is shown"])
     expect(out.stories.stories.flat()).toContain("S-0006")
     expect(out.journeys).toEqual([])

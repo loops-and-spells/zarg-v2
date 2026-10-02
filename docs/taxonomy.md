@@ -72,6 +72,7 @@ zarg's graph is Gherkin, stored as a graph. Gherkin's words map onto it like thi
 |---|---|
 | **Flow** | which scenario can follow which: through the states they share |
 | **Story** | an ordered path of scenarios picked for rehearsal (journey, edge-pair, teleport) |
+| **Scene** | a scenario as a tester meets it in a story: how they got there (`via`) and what they can do next |
 | **Coverage** | for an outcome: the journeys that serve it; "uncovered" when none |
 | **Agenda** | questions the graph raises about itself: dead ends, scenarios without `by`, uncovered outcomes, journeys serving nothing, open questions |
 | **Draft** | proposed tool calls evaluated over a snapshot without changing the graph |
@@ -122,6 +123,6 @@ zarg's graph is Gherkin, stored as a graph. Gherkin's words map onto it like thi
 - **"Card"** for a scenario (its old name). A card is an agent's tile in the grid, or a plan on the Backlog's kanban.
 - **"Goal"** for an outcome (its old name).
 - **"Outcome"** for a scenario's Then: an outcome is the intent's.
-- **"Step"** for a scenario: a step is one Given, When or Then line.
+- **"Step"** for a scenario, or for a scenario in a story (a scene): a step is one Given, When or Then line. A plan's steps are its instructions.
 - **"Thread"** for an inbox item: a thread is a core run thread (`main`, `plan`, `implement`); the inbox holds topics.
 - **"Developer"** for the person using zarg: they are the operator.

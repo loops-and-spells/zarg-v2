@@ -5,7 +5,7 @@ import { diff, type Node, Snapshot } from "@zarg/graph/pure"
 import { definePlugin, Graph, PluginFailure, Views } from "@zarg/plugin-sdk"
 import { affectedScenarios } from "./affected"
 import { agenda, suggest } from "./agenda"
-import { CompareParams, CompareResult, DryRunParams, DryRunResult, Gherkin, JourneyView, PersonaView, StepParams, StepView, StoriesParams, StoriesResult } from "./contract"
+import { CompareParams, CompareResult, DryRunParams, DryRunResult, Gherkin, JourneyView, PersonaView, SceneParams, SceneView, StoriesParams, StoriesResult } from "./contract"
 import { applyDraft, type Draft, dryRun } from "./draft"
 import type { Finding } from "./kit"
 import { clauseShape, journeyShape, personaShape, stateText } from "./lints"
@@ -13,7 +13,7 @@ import { BY, SCENARIO, ScenarioProps, JOURNEY, JourneyProps, PERSONA, PersonaPro
 import { journeyList, journeysView } from "./journeys"
 import { JourneysView } from "./views"
 import { render } from "./render"
-import { planStories, stepView } from "./stories"
+import { planStories, sceneView } from "./stories"
 import { tools } from "./tools"
 
 const SnapshotJson = Schema.Struct({ nodes: Schema.Array(Schema.Unknown) })
@@ -78,7 +78,7 @@ export default definePlugin({
     suggest: { doc: "What next when the agenda is empty.", params: Schema.Struct({}), success: Items },
     render: { doc: "Gherkin text.", params: Schema.Struct({ focus: Schema.optionalKey(Schema.Array(Schema.String)) }), success: Schema.String },
     stories: { doc: "Stories for testers to walk.", params: StoriesParams, success: StoriesResult },
-    step: { doc: "What a tester sees at a step.", params: StepParams, success: StepView },
+    scene: { doc: "What a tester sees at a scene: a scenario in a story.", params: SceneParams, success: SceneView },
     personas: { doc: "Personas, each with the scenarios that name it.", params: Schema.Struct({}), success: Schema.Array(PersonaView) },
     act: {
       doc: "The Journeys view: open (or refresh) it, or show a journey's flow.",
@@ -133,7 +133,7 @@ export default definePlugin({
       render: ({ focus }: { focus?: ReadonlyArray<string> }) => Effect.map(snap, (s) => render(s, focus === undefined ? undefined : new Set(focus))),
       stories: ({ strategy, focus, draft }: { strategy: "journey" | "edge-pair" | "teleport"; focus?: ReadonlyArray<string>; draft?: Draft }) =>
         Effect.map(drafted(draft), (s) => planStories(s, strategy, focus === undefined || focus.length === 0 ? undefined : new Set(focus))),
-      step: ({ scenario, via, draft }: { scenario: string; via?: string; draft?: Draft }) => Effect.map(drafted(draft), (s) => stepView(s, scenario, via) ?? null),
+      scene: ({ scenario, via, draft }: { scenario: string; via?: string; draft?: Draft }) => Effect.map(drafted(draft), (s) => sceneView(s, scenario, via) ?? null),
       dryRun: ({ draft }: { draft: Draft }) => Effect.flatMap(snap, (s) => dryRun(s, draft, tools, (c) => validateProps(c), [clauseShape, stateText, personaShape, journeyShape], EDGES)),
       // The graph read once, the draft applied once: a plan's whole picture in one call.
       compare: ({ draft, scenarios }: { draft: Draft; scenarios?: ReadonlyArray<string> }) =>
@@ -142,7 +142,7 @@ export default definePlugin({
           const checked = yield* dryRun(s, draft, tools, (c) => validateProps(c), [clauseShape, stateText, personaShape, journeyShape], EDGES)
           const after = yield* applyDraft(s, draft, tools, EDGES).pipe(Effect.map((a) => a.snapshot), Effect.orElseSucceed(() => s))
           const ids = [...new Set([...(scenarios ?? []), ...checked.scenarios])].filter((id) => s.nodes.get(id)?.type === "gherkin/scenario" || after.nodes.get(id)?.type === "gherkin/scenario")
-          return { ok: checked.ok, problems: checked.problems, scenarios: ids.map((id) => ({ id, before: stepView(s, id) ?? null, after: stepView(after, id) ?? null, text: s.nodes.has(id) ? render(s, new Set([id])) : "" })) }
+          return { ok: checked.ok, problems: checked.problems, scenarios: ids.map((id) => ({ id, before: sceneView(s, id) ?? null, after: sceneView(after, id) ?? null, text: s.nodes.has(id) ? render(s, new Set([id])) : "" })) }
         }),
       journeys: () => Effect.map(snap, journeyList),
       // The nav item opens the view (Refresh reloads it): every journey, with every journey's flow for the one highlighted.

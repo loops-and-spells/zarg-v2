@@ -65,7 +65,7 @@ export default definePlugin({
     const r = yield* makeRehearse({
       personas: () => gherkin.personas({}),
       stories: (strategy, focus, draft) => gherkin.stories({ strategy, ...(focus !== undefined ? { focus } : {}), ...(draft !== undefined ? { draft } : {}) }),
-      step: (scenario, via, draft) => gherkin.step({ scenario, ...(via !== undefined ? { via } : {}), ...(draft !== undefined ? { draft } : {}) }),
+      scene: (scenario, via, draft) => gherkin.scene({ scenario, ...(via !== undefined ? { via } : {}), ...(draft !== undefined ? { draft } : {}) }),
       code: (scenario) => entities.code(`gherkin/scenario:${scenario}`),
       agendaChanged: agendaPower.changed,
       decide: (req) => decisions.decide(req),
@@ -99,7 +99,7 @@ export default definePlugin({
           (s) =>
             "refused" in s
               ? { notice: `Rehearse did not start: ${s.refused}` }
-              : { notice: `Rehearse run ${s.run} started: ${s.stories} stories, ${s.steps} steps, testers: ${s.personas.join(", ")}.${(s.notes ?? []).length > 0 ? ` Not walked: ${s.notes!.join("; ")}.` : ""} Watch it in the agents pane (Tab).` },
+              : { notice: `Rehearse run ${s.run} started: ${s.stories} stories, ${s.scenes} scenes, testers: ${s.personas.join(", ")}.${(s.notes ?? []).length > 0 ? ` Not walked: ${s.notes!.join("; ")}.` : ""} Watch it in the agents pane (Tab).` },
         ),
       act: () => Effect.as(r.refresh, { notice: "refreshed" }),
       result: ({ run: id }: { run: string }) => Effect.succeed(r.result(id)),

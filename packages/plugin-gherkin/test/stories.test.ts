@@ -2,7 +2,7 @@
 import { describe, expect, test } from "bun:test"
 import { Snapshot } from "@zarg/graph/pure"
 import { ARRIVES, SCENARIO, IN, JOURNEY, STATE, THEN } from "../src/model"
-import { planStories, stepView } from "../src/stories"
+import { planStories, sceneView } from "../src/stories"
 
 const st = (id: string, text: string, props: Record<string, unknown> = {}) => ({ id, type: STATE, props: { text, ...props }, edges: [] })
 const cd = (id: string, when: string, from: string, to: ReadonlyArray<string>) => ({
@@ -55,7 +55,7 @@ describe("stories", () => {
   })
 
   test("a step shows its Given, When, Thens, how it was reached, the fork after it, and whether it has a failure case", () => {
-    expect(stepView(graph, "B", "A")).toEqual({
+    expect(sceneView(graph, "B", "A")).toEqual({
       scenario: "B",
       title: "scenario B",
       given: "the cart is shown",
@@ -69,16 +69,16 @@ describe("stories", () => {
       // The states' ids, so an agent proposing changes names them (reuse, unlink) rather than guessing.
       ids: { given: expect.any(String), context: [], thens: [expect.any(String)] },
     })
-    expect(stepView(graph, "D")?.hasFailure).toBe(false)
+    expect(sceneView(graph, "D")?.hasFailure).toBe(false)
     // Its journeys and personas, by name (none here).
-    expect(stepView(graph, "B")).toMatchObject({ journeys: [], by: [] })
+    expect(sceneView(graph, "B")).toMatchObject({ journeys: [], by: [] })
     const tagged = Snapshot.make([
       ...graph.nodes.values(),
       { id: "J-0001", type: "gherkin/journey", props: { name: "Checkout" }, edges: [] },
       { id: "P-0001", type: "gherkin/persona", props: { name: "Visitor", kind: "human", text: "x" }, edges: [] },
     ].map((n) => (n.id === "B" ? { ...n, edges: [...n.edges, { type: "gherkin/in", to: "J-0001" }, { type: "gherkin/by", to: "P-0001" }] } : n)) as never)
-    expect(stepView(tagged, "B")).toMatchObject({ journeys: ["Checkout"], by: ["Visitor"] })
-    expect(stepView(graph, "nope")).toBeUndefined()
+    expect(sceneView(tagged, "B")).toMatchObject({ journeys: ["Checkout"], by: ["Visitor"] })
+    expect(sceneView(graph, "nope")).toBeUndefined()
   })
 })
 
@@ -120,5 +120,5 @@ test("a step says whether its scenario is planned (not built yet)", () => {
     { id: "S-1", type: "gherkin/scenario", props: { title: "t", when: "w", planned: true }, edges: [{ type: "gherkin/arrives", to: "ST-1" }] },
     { id: "S-2", type: "gherkin/scenario", props: { title: "t", when: "w" }, edges: [{ type: "gherkin/arrives", to: "ST-1" }] },
   ] as never)
-  expect([stepView(snap, "S-1")?.planned, stepView(snap, "S-2")?.planned]).toEqual([true, undefined])
+  expect([sceneView(snap, "S-1")?.planned, sceneView(snap, "S-2")?.planned]).toEqual([true, undefined])
 })

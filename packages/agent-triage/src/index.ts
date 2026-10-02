@@ -58,8 +58,8 @@ export default definePlugin({
     const lines = (x: { given: string; when: string; thens: ReadonlyArray<string> } | null) => (x === null ? [] : [`Given ${x.given}`, `When  ${x.when}`, ...x.thens.map((t, i) => `${i === 0 ? "Then" : "And "}  ${t}`)])
     const diffOf = (scenario: string, draft: ReadonlyArray<{ tool: string; params: unknown }>) =>
       Effect.gen(function* () {
-        const before = lines((yield* gherkin.step({ scenario }).pipe(Effect.orElseSucceed(() => null))) as never)
-        const after = lines((yield* gherkin.step({ scenario, draft }).pipe(Effect.orElseSucceed(() => null))) as never)
+        const before = lines((yield* gherkin.scene({ scenario }).pipe(Effect.orElseSucceed(() => null))) as never)
+        const after = lines((yield* gherkin.scene({ scenario, draft }).pipe(Effect.orElseSucceed(() => null))) as never)
         const out = [...before.filter((l) => !after.includes(l)).map((l) => `- ${l}`), ...after.map((l) => `${before.includes(l) ? " " : "+"} ${l}`)]
         return ["```diff", ...out, "```"].join("\n")
       })
@@ -94,7 +94,7 @@ export default definePlugin({
         stages: () => backlog.stages({}),
         feedbackOf: (journey) => backlog.feedbackOf({ journey }),
         journeys: () => gherkin.journeys({}),
-        step: (scenario, draft) => gherkin.step({ scenario, draft }) as never,
+        scene: (scenario, draft) => gherkin.scene({ scenario, draft }) as never,
         code: (scenario) => entities.code(`gherkin/scenario:${scenario}`),
         dryRun: (draft) => gherkin.dryRun({ draft }),
         complete: (req) => models.complete({ role: "driver", ...req }),

@@ -91,8 +91,8 @@ describe("rehearse", () => {
         const teleport = yield* PluginHost.use((h) => h.stories("teleport"))
         const edge = yield* PluginHost.use((h) => h.stories("edge-pair"))
         const first = teleport.stories[0]![0]!
-        const step = yield* PluginHost.use((h) => h.step(first))
-        const none = yield* PluginHost.use((h) => h.step("S-9999"))
+        const step = yield* PluginHost.use((h) => h.scene(first))
+        const none = yield* PluginHost.use((h) => h.scene("S-9999"))
         return { teleport, edge, step, none }
       }),
     )

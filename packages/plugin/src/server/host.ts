@@ -61,7 +61,7 @@ export class PluginHost extends Context.Service<
     /** Stories for testers over every graph plugin that plans them (rehearse). */
     readonly stories: (strategy: "edge-pair" | "teleport", focus?: ReadonlySet<string>) => Effect.Effect<{ readonly stories: ReadonlyArray<ReadonlyArray<string>>; readonly unreachable: number }, IoError>
     /** What a tester sees at a scenario, from the plugin that owns it; undefined for an unknown scenario. */
-    readonly step: (scenario: string, via?: string) => Effect.Effect<Record<string, unknown> | undefined, IoError>
+    readonly scene: (scenario: string, via?: string) => Effect.Effect<Record<string, unknown> | undefined, IoError>
     /** Slash commands the loaded plugins add. */
     readonly commands: () => ReadonlyArray<{ readonly plugin: string; readonly cmd: string; readonly desc: string; readonly method: string; readonly arg: unknown }>
     /** Call any method of a loaded plugin (the core's reserved calls: act, finding, resolved, stop). */
@@ -197,7 +197,7 @@ const scrub = (value: unknown, secrets: ReadonlySet<string>): unknown => {
 }
 
 /** Methods the host calls on graph plugins; never offered as tools. */
-const RESERVED = new Set(["validate", "lint", "agenda", "suggest", "render", "affected", "stories", "step", "personas", "journeys", "act", "finding", "resolved", "stop"])
+const RESERVED = new Set(["validate", "lint", "agenda", "suggest", "render", "affected", "stories", "scene", "personas", "journeys", "act", "finding", "resolved", "stop"])
 const IDLE_MS = 10 * 60_000
 const RESTART_WINDOW_MS = 10 * 60_000
 const MAX_RESTARTS = 3
@@ -667,8 +667,8 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           stories: defined(parts).flatMap((p) => p.stories),
           unreachable: defined(parts).reduce((n, p) => n + p.unreachable, 0),
         }))
-      const step = (scenario: string, via?: string) =>
-        Effect.map(each<Record<string, unknown> | null>("step", { scenario, ...(via !== undefined ? { via } : {}) }), (parts) => defined(parts).find((p) => p !== null) ?? undefined)
+      const scene = (scenario: string, via?: string) =>
+        Effect.map(each<Record<string, unknown> | null>("scene", { scenario, ...(via !== undefined ? { via } : {}) }), (parts) => defined(parts).find((p) => p !== null) ?? undefined)
 
       const toolsOf = (m: Manifest): ReadonlyArray<ToolInfo> =>
         Object.entries(m.methods)
@@ -733,7 +733,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         render,
         affected,
         stories,
-        step,
+        scene,
         commands: () =>
           [...running.values()]
             .filter((r) => !r.disabled)

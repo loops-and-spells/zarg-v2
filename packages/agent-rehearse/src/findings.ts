@@ -1,8 +1,8 @@
 // packages/core/src/rehearse/findings.ts
 import { hash } from "./hash"
 import { Effect } from "effect"
-import { stepText, storyText } from "./screen"
-import type { Complete, Finding, Kind, Persona, Reason, StepView } from "./types"
+import { sceneText, storyText } from "./screen"
+import type { Complete, Finding, Kind, Persona, Reason, SceneView } from "./types"
 
 const KINDS: ReadonlyArray<Kind> = ["friction", "gap", "contradiction", "transition", "feature", "delight", "drift"]
 const SEVERITIES = ["high", "medium", "low"] as const
@@ -44,12 +44,12 @@ const textOf = (complete: Complete, system: string, user: string, outputSchema?:
 
 type Raw = { readonly kind: Kind; readonly scenario: string; readonly edge?: { from: string; to: string }; readonly severity: "high" | "medium" | "low"; readonly note: string; readonly op?: unknown }
 
-/** A flagged step, looked at by a large-model tester in the persona's shoes. */
-export const diagnose = (complete: Complete, persona: Persona, prior: ReadonlyArray<StepView>, step: StepView, flags: ReadonlyArray<Reason>, code = "") =>
+/** A flagged scene, looked at by a large-model tester in the persona's shoes. */
+export const diagnose = (complete: Complete, persona: Persona, prior: ReadonlyArray<SceneView>, scene: SceneView, flags: ReadonlyArray<Reason>, code = "") =>
   textOf(
     complete,
     `You ARE ${persona.text}. You are walking a product's specified journey, one step at a time, and report what is wrong with this step for you: friction (unclear), gap (something missing, like a failure you must handle), contradiction, transition (the step does not follow from the one before), feature (something you would want), delight, drift (the step as written and what zarg does now differ: only when its code is shown). Judge the step against what zarg does now when its code is shown; never report as missing what the code already does. At most ${MAX_PER_STEP}; notes of two sentences at most. Suggest a graph change in op when you can. Most steps are fine: report nothing then.`,
-    `So far: ${storyText(prior) || "you just started"}.\nThis step:\n${stepText(step)}\nIt was flagged because ${flags.map((f) => WHY[f]).join(" and ")}.${code.length > 0 ? `\n\nWhat zarg does now (the step's code):\n${code}` : ""}`,
+    `So far: ${storyText(prior) || "you just started"}.\nThis scene:\n${sceneText(scene)}\nIt was flagged because ${flags.map((f) => WHY[f]).join(" and ")}.${code.length > 0 ? `\n\nWhat zarg does now (the scene's code):\n${code}` : ""}`,
     FINDINGS_SCHEMA,
   ).pipe(
     Effect.map((text) => {
@@ -62,18 +62,18 @@ export const diagnose = (complete: Complete, persona: Persona, prior: ReadonlyAr
         const j = JSON.parse(json) as { findings?: ReadonlyArray<Partial<Raw>> }
         const findings = (j.findings ?? []).slice(0, MAX_PER_STEP).flatMap((f) =>
           KINDS.includes(f.kind as Kind) && SEVERITIES.includes(f.severity as never) && typeof f.note === "string"
-            ? [{ kind: f.kind as Kind, scenario: step.scenario, ...(f.edge ? { edge: f.edge } : {}), severity: f.severity as Raw["severity"], note: f.note!.replace(/\s+/g, " ").trim(), ...(f.op !== undefined ? { op: f.op } : {}) }]
+            ? [{ kind: f.kind as Kind, scenario: scene.scenario, ...(f.edge ? { edge: f.edge } : {}), severity: f.severity as Raw["severity"], note: f.note!.replace(/\s+/g, " ").trim(), ...(f.op !== undefined ? { op: f.op } : {}) }]
             : [],
         )
         return { findings }
       } catch {
         // Never a finding made of broken JSON: noted for the run instead.
-        if (from >= 0) return { infra: `${step.scenario}: the tester's answer was cut short` }
-        return { findings: [{ kind: "friction" as const, scenario: step.scenario, severity: "low" as const, note: `the tester answered in prose: ${text.slice(0, 300)}` }] }
+        if (from >= 0) return { infra: `${scene.scenario}: the tester's answer was cut short` }
+        return { findings: [{ kind: "friction" as const, scenario: scene.scenario, severity: "low" as const, note: `the tester answered in prose: ${text.slice(0, 300)}` }] }
       }
     }),
     // Never a finding: a model or transport failure is noted for the run, so no one fixes a ghost.
-    Effect.catch((e: { readonly message?: string }) => Effect.succeed({ infra: `${step.scenario}: ${e.message ?? String(e)}` })),
+    Effect.catch((e: { readonly message?: string }) => Effect.succeed({ infra: `${scene.scenario}: ${e.message ?? String(e)}` })),
   )
 
 export const findingId = (kind: Kind, scenario: string, edge?: { from: string; to: string }) =>
@@ -105,9 +105,9 @@ export const consolidate = (raw: ReadonlyArray<Raw & { readonly persona: string 
 }
 
 /** A few sentences for the driver: what the testers met. */
-export const report = (complete: Complete, findings: ReadonlyArray<Finding>, stats: { steps: number; flagged: number; unscreened: number }) =>
+export const report = (complete: Complete, findings: ReadonlyArray<Finding>, stats: { scenes: number; flagged: number; unscreened: number }) =>
   textOf(
     complete,
     "Summarise a rehearsal of a product's journeys for the product's driver in three to five sentences: where testers stalled, what is missing, what they liked. No lists.",
-    `${stats.steps} steps walked, ${stats.flagged} flagged, ${stats.unscreened} unscreened.\nFindings:\n${findings.map((f) => `- ${f.kind} (${f.severity}) on ${f.scenario}: ${f.notes.join(" / ")}`).join("\n") || "none"}`,
+    `${stats.scenes} steps walked, ${stats.flagged} flagged, ${stats.unscreened} unscreened.\nFindings:\n${findings.map((f) => `- ${f.kind} (${f.severity}) on ${f.scenario}: ${f.notes.join(" / ")}`).join("\n") || "none"}`,
   ).pipe(Effect.catch((e: { readonly message?: string }) => Effect.succeed(`(report unavailable: ${e.message ?? String(e)})`)))

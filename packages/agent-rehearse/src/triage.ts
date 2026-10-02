@@ -1,24 +1,24 @@
 // packages/core/src/rehearse/triage.ts
 import { Effect } from "effect"
 import type { RehearseSettings } from "./settings"
-import { stepText } from "./screen"
-import type { Decide, Finding, StepView, Triaged } from "./types"
+import { sceneText } from "./screen"
+import type { Decide, Finding, SceneView, Triaged } from "./types"
 
 /**
  * Is the finding real, and what is it: a local fix the driver applies, a product decision, a removal of
  * something built, or noise? One decision-model request, on the scenario as it is now.
  */
-export const triage = (decide: Decide, finding: Finding, step: StepView | undefined, built: boolean, s: RehearseSettings) =>
+export const triage = (decide: Decide, finding: Finding, scene: SceneView | undefined, built: boolean, s: RehearseSettings) =>
   Effect.gen(function* () {
     // The scenario is gone: nothing to fix.
-    if (step === undefined) return { ...finding, real: 0, route: "drop" } satisfies Triaged
-    // A liked step is kept, not changed; a wanted feature is the operator's call.
+    if (scene === undefined) return { ...finding, real: 0, route: "drop" } satisfies Triaged
+    // A liked scene is kept, not changed; a wanted feature is the operator's call.
     if (finding.kind === "delight") return { ...finding, real: 1, route: "drop" } satisfies Triaged
     if (finding.kind === "feature") return { ...finding, real: 1, route: "ask" } satisfies Triaged
     // The scenario and the code differ: which one gives way is the operator's call.
     if (finding.kind === "drift") return { ...finding, real: 1, route: "ask" } satisfies Triaged
     const a = yield* decide({
-      state: `A product's specified step:\n${stepText(step)}\nA tester reported (${finding.kind}, ${finding.severity}): ${finding.notes.join(" / ")}`,
+      state: `A product's specified step:\n${sceneText(scene)}\nA tester reported (${finding.kind}, ${finding.severity}): ${finding.notes.join(" / ")}`,
       questions: {
         real: { type: "noul", instructions: "Does the step as written really have this problem?" },
         route: {
