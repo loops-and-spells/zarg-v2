@@ -3,79 +3,79 @@
   "journey": "Set up",
   "cards": [
     {
-      "ref": "gherkin/card:C-0001@c0b0cf241e6f"
+      "ref": "gherkin/card:S-0001@ed5a7457d05a"
     },
     {
-      "ref": "gherkin/card:C-0002@448d699ea76a"
+      "ref": "gherkin/card:S-0002@d5b43902654c"
     },
     {
-      "ref": "gherkin/card:C-0006@d2ea9a633ed7"
+      "ref": "gherkin/card:S-0006@5e3c137ff891"
     },
     {
-      "ref": "gherkin/card:C-0026@97885cca4507"
+      "ref": "gherkin/card:S-0026@3e7d47e14ffb"
     },
     {
-      "ref": "gherkin/card:C-0028@403037518013"
+      "ref": "gherkin/card:S-0028@d5b59c7d6b30"
     },
     {
-      "ref": "gherkin/card:C-0029@8a6d5f9e1bd6"
+      "ref": "gherkin/card:S-0029@e23c5a1e083e"
     },
     {
-      "ref": "gherkin/card:C-0030@eae5a0e8c51c"
+      "ref": "gherkin/card:S-0030@e46f72a59afa"
     },
     {
-      "ref": "gherkin/card:C-0034@1715a46c036d"
+      "ref": "gherkin/card:S-0034@7de76c3a4d91"
     },
     {
-      "ref": "gherkin/card:C-0035@f8114a7f2b09"
+      "ref": "gherkin/card:S-0035@f1f488683d9c"
     },
     {
-      "ref": "gherkin/card:C-0036@9f0b0953a097"
+      "ref": "gherkin/card:S-0036@790786837c6e"
     },
     {
-      "ref": "gherkin/card:C-0038@630329866e1e"
+      "ref": "gherkin/card:S-0038@db50877db9d1"
     },
     {
-      "ref": "gherkin/card:C-0039@c9708e26a8c5"
+      "ref": "gherkin/card:S-0039@c49e8f413657"
     },
     {
-      "ref": "gherkin/card:C-0062@dd9dd9bcb386"
+      "ref": "gherkin/card:S-0062@92f29b7400b1"
     },
     {
-      "ref": "gherkin/card:C-0068@62c466508aa8"
+      "ref": "gherkin/card:S-0068@7b6324efa85d"
     },
     {
-      "ref": "gherkin/card:C-0061@1d4be1d84643"
+      "ref": "gherkin/card:S-0061@4f05d32ad097"
     },
     {
-      "ref": "gherkin/card:C-0027@a4d9d81f0618"
+      "ref": "gherkin/card:S-0027@85ce51ab60bc"
     },
     {
-      "ref": "gherkin/card:C-0031@f5fbcfd9f553"
+      "ref": "gherkin/card:S-0031@e860d84c441a"
     },
     {
-      "ref": "gherkin/card:C-0069@99fccfb13a77"
+      "ref": "gherkin/card:S-0069@6c8d6ea60db0"
     }
   ],
   "changes": [
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0035",
+        "id": "S-0035",
         "when": "the operator picks a listed model by name, index, or the suggested default"
       }
     },
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0002",
+        "id": "ST-0002",
         "text": "the picked model is echoed before and after it is saved to config"
       }
     },
     {
       "tool": "link",
       "params": {
-        "card": "C-0035",
+        "card": "S-0035",
         "edge": "given",
         "state": {
           "text": "the question previews locality, size, and cost of models"
@@ -85,7 +85,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0035",
+        "card": "S-0035",
         "edge": "then",
         "state": {
           "text": "a wrong model can be re-picked in one step"
@@ -103,7 +103,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0001"
+          "id": "ST-0001"
         },
         "then": [
           {
@@ -123,7 +123,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0001"
+          "id": "ST-0001"
         },
         "then": [
           {
@@ -143,7 +143,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0001"
+          "id": "ST-0001"
         },
         "then": [
           {
@@ -181,14 +181,14 @@
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0002",
+        "id": "ST-0002",
         "text": "no model is set for the role"
       }
     },
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0034",
+        "id": "S-0034",
         "title": "Driver Agent chooses a role model",
         "when": "the role lacks a model"
       }
@@ -196,7 +196,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0034",
+        "card": "S-0034",
         "edge": "then",
         "state": {
           "text": "the operator picks a model or declines"
@@ -214,7 +214,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0002"
+          "id": "ST-0002"
         },
         "then": [
           {
@@ -232,7 +232,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0034",
+        "card": "S-0034",
         "edge": "then",
         "state": {
           "text": "no model is applied and zarg continues"
@@ -242,7 +242,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0034",
+        "card": "S-0034",
         "edge": "then",
         "state": {
           "text": "zarg asks why no model was chosen"
@@ -252,7 +252,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0034",
+        "id": "S-0034",
         "title": "Driver Agent resolves a role's model",
         "when": "a role lacks a model set"
       }
@@ -268,7 +268,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0027"
+          "id": "ST-0027"
         },
         "then": [
           {
@@ -283,7 +283,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0026",
+        "card": "S-0026",
         "edge": "then",
         "state": {
           "text": "a setup failure retries from this masked view"
@@ -293,14 +293,14 @@
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0002",
+        "id": "ST-0002",
         "text": "the grant prompt names the precise target resource beside the scope"
       }
     },
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0062",
+        "id": "S-0062",
         "when": "the plugin agent asks for an optional scope"
       }
     },
@@ -315,7 +315,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0001"
+          "id": "ST-0001"
         },
         "then": [
           {
@@ -330,7 +330,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0062",
+        "card": "S-0062",
         "edge": "then",
         "state": {
           "text": "the operator approves or denies the named scope"
@@ -409,21 +409,21 @@
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0002",
+        "id": "ST-0002",
         "text": "the accepting provider owns and stores secrets in its own namespace"
       }
     },
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0002",
+        "id": "ST-0002",
         "text": "a model question lists available models and tool-calling eligibility"
       }
     },
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0036",
+        "id": "S-0036",
         "title": "A model without tool calling is refused and guidance follows",
         "when": "the operator picks a model without tool-calling from an eligibility-marked question"
       }
@@ -431,7 +431,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0036",
+        "card": "S-0036",
         "edge": "then",
         "state": {
           "text": "the refusal names the rule and the nearest eligible model"
@@ -441,14 +441,14 @@
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0003",
+        "id": "ST-0003",
         "text": "a model question lists only tool-calling eligible models"
       }
     },
     {
       "tool": "link",
       "params": {
-        "card": "C-0036",
+        "card": "S-0036",
         "edge": "then",
         "state": {
           "text": "a model question lists only tool-calling eligible models"
@@ -466,7 +466,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0001"
+          "id": "ST-0001"
         },
         "then": [
           {
@@ -481,7 +481,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0038",
+        "card": "S-0038",
         "edge": "then",
         "state": {
           "text": "Then the question names the requirement it answers"
@@ -531,7 +531,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0028",
+        "id": "S-0028",
         "title": "Rejected values stay, and retry or abandon is chosen",
         "when": "the provider rejects the entered values"
       }
@@ -539,15 +539,15 @@
     {
       "tool": "unlink",
       "params": {
-        "card": "C-0028",
+        "card": "S-0028",
         "edge": "then",
-        "state": "S-0023"
+        "state": "ST-0023"
       }
     },
     {
       "tool": "link",
       "params": {
-        "card": "C-0028",
+        "card": "S-0028",
         "edge": "then",
         "state": {
           "text": "the rejected values stay in the setup fields"
@@ -557,7 +557,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0028",
+        "card": "S-0028",
         "edge": "then",
         "state": {
           "text": "the rejection reason names the blamed field and a suggested fix"
@@ -575,7 +575,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0028"
+          "id": "ST-0028"
         },
         "then": [
           {
@@ -590,7 +590,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0028",
+        "card": "S-0028",
         "edge": "then",
         "state": {
           "text": "retry or abandon is chosen"
@@ -600,9 +600,9 @@
     {
       "tool": "unlink",
       "params": {
-        "card": "C-0029",
+        "card": "S-0029",
         "edge": "then",
-        "state": "S-0023"
+        "state": "ST-0023"
       }
     },
     {
@@ -616,7 +616,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0029"
+          "id": "ST-0029"
         },
         "then": [
           {
@@ -628,15 +628,15 @@
     {
       "tool": "unlink",
       "params": {
-        "card": "C-0068",
+        "card": "S-0068",
         "edge": "then",
-        "state": "S-0070"
+        "state": "ST-0070"
       }
     },
     {
       "tool": "link",
       "params": {
-        "card": "C-0068",
+        "card": "S-0068",
         "edge": "then",
         "state": {
           "text": "the watchdog disables the plugin"
@@ -654,7 +654,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0062"
+          "id": "ST-0062"
         },
         "then": [
           {
@@ -669,21 +669,21 @@
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0069",
+        "id": "ST-0069",
         "text": "the operator watches the plugin's failure count"
       }
     },
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0039",
+        "id": "S-0039",
         "when": "the role's start attempt fails to start"
       }
     },
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0039",
+        "id": "ST-0039",
         "text": "the start failure reason is shown with retryability"
       }
     },
@@ -698,7 +698,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0033"
+          "id": "ST-0033"
         },
         "then": [
           {
@@ -713,7 +713,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0039",
+        "card": "S-0039",
         "edge": "then",
         "state": {
           "text": "a retry-limit node falls back or disables the role's model"
@@ -723,7 +723,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0030",
+        "id": "S-0030",
         "title": "Operator assigns provider and key to role",
         "when": "the operator assigns a provider and key to a role"
       }
@@ -739,7 +739,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0030"
+          "id": "ST-0030"
         },
         "then": [
           {
@@ -815,8 +815,8 @@
   ],
   "steps": [
     "Reword the setup completion Given to a provider-not-plugin wording",
-    "Add submit-and-abandon clarity to C-0031's completion state",
-    "Rearrange C-0031 so its completion question names submit or abandon"
+    "Add submit-and-abandon clarity to S-0031's completion state",
+    "Rearrange S-0031 so its completion question names submit or abandon"
   ],
   "persona": "Operator",
   "severity": "high",

@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0049",
+  "props": {
+    "terminal": true,
+    "text": "a named placeholder replaces the value"
+  },
+  "type": "gherkin/state"
+}

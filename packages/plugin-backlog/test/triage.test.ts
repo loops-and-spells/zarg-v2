@@ -9,9 +9,9 @@ const setUp = (on = true) =>
   Effect.gen(function* () {
     yield* gherkin("add-persona", { name: "Operator", kind: "human", text: "The person using zarg." })
     yield* gherkin("add-state", { text: "the plugin runs", entry: true })
-    yield* gherkin("add-card", { title: "Plugin asks for a scope", when: "the plugin needs a scope", by: [{ id: "P-0001" }], arrives: { id: "S-0001" }, then: [{ text: "the operator is asked" }] })
+    yield* gherkin("add-card", { title: "Plugin asks for a scope", when: "the plugin needs a scope", by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ text: "the operator is asked" }] })
     const h = yield* PluginHost
-    const card = yield* h.entities.get("gherkin/card:C-0001")
+    const card = yield* h.entities.get("gherkin/card:S-0001")
     const { ids } = (yield* h.invoke("backlog", "file", { entries: [{ ref: card.ref, journeys: ["Set up"], persona: "Operator", kind: "gap", severity: "high", note: "No deny path.", from: { agent: "rehearse", run: "r-1" }, triage: { on, why: "fix" } }] })) as { ids: string[] }
     yield* h.invoke("backlog", "act", { agent: "feedback", action: "open", rows: [] })
     return { card, ids }
@@ -39,7 +39,7 @@ describe("the triage hub's stages", () => {
       const h = yield* PluginHost
       const refine = (yield* press("refine")).notice
       const refining = { work: work(seen), buttons: buttons(seen) }
-      yield* h.invoke("backlog", "propose", { journey: "Set up", card: "C-0001", changes: [{ tool: "edit-state", params: { id: "S-0002", text: "the operator is asked: once, always, deny" } }], answers: ids, summary: "Name the choices." })
+      yield* h.invoke("backlog", "propose", { journey: "Set up", card: "S-0001", changes: [{ tool: "edit-state", params: { id: "ST-0002", text: "the operator is asked: once, always, deny" } }], answers: ids, summary: "Name the choices." })
       const planning = { stage: stage(seen), buttons: buttons(seen), stages: (yield* h.invoke("backlog", "stages", {})) as Array<{ stage: string; draft: unknown[] }> }
       yield* h.invoke("backlog", "drafted", { journey: "Set up", title: "Grant prompt names its choices", steps: ["Name the choices"] })
       const done = ((yield* h.invoke("backlog", "stages", {})) as Array<{ stage: string; item?: string }>)[0]!
@@ -54,7 +54,7 @@ describe("the triage hub's stages", () => {
     // Its feedback is planned: the journey leaves Feedback until new feedback comes.
     expect([out.done.stage, out.done.item]).toEqual(["planned", "B-01"])
     expect(out.item.status).toBe("backlog")
-    expect(out.item.cards.map((c) => c.ref.split("@")[0])).toEqual(["gherkin/card:C-0001"])
+    expect(out.item.cards.map((c) => c.ref.split("@")[0])).toEqual(["gherkin/card:S-0001"])
     expect(out.item.feedback).toEqual(out.ids)
     expect(out.file).toBe(true)
     expect((out.status as Array<{ state: string }>)[0]!.state).toBe("planned")
@@ -65,11 +65,11 @@ describe("the triage hub's stages", () => {
       const h = yield* PluginHost
       yield* press("refine")
       // Three rounds that fail: then it is left out.
-      for (let i = 0; i < 3; i++) yield* h.invoke("backlog", "propose", { journey: "Set up", card: "C-0001", changes: [], answers: ids, summary: "", problems: ["the Triage Agent could not draft a proposal"] })
+      for (let i = 0; i < 3; i++) yield* h.invoke("backlog", "propose", { journey: "Set up", card: "S-0001", changes: [], answers: ids, summary: "", problems: ["the Triage Agent could not draft a proposal"] })
       yield* press("open")
       const back = { stage: stage(seen), work: work(seen) }
       yield* press("refine")
-      yield* h.invoke("backlog", "propose", { journey: "Set up", card: "C-0001", changes: [{ tool: "edit-state", params: { id: "S-0002", text: "asked: once, always, deny" } }], answers: ids, summary: "s" })
+      yield* h.invoke("backlog", "propose", { journey: "Set up", card: "S-0001", changes: [{ tool: "edit-state", params: { id: "ST-0002", text: "asked: once, always, deny" } }], answers: ids, summary: "s" })
       yield* Effect.all([h.invoke("backlog", "drafted", { journey: "Set up", title: "T", steps: [] }), h.invoke("backlog", "drafted", { journey: "Set up", title: "T", steps: [] })], { concurrency: "unbounded" })
       const items = yield* h.entities.query({ type: "backlog/item" })
       return { back, items: items.length }
@@ -104,14 +104,14 @@ describe("the triage hub's stages", () => {
       const { ids } = yield* setUp()
       const h = yield* PluginHost
       yield* press("refine")
-      yield* h.invoke("backlog", "propose", { journey: "Set up", card: "C-0001", title: "Plugin asks for a scope", changes: [{ tool: "edit-state", params: { id: "S-0002", text: "asked: once, always, deny" } }], answers: ids, summary: "s", tries: [{ ms: 900, tokensIn: 100, tokensOut: 50, reasoning: 20, finish: "stop", problems: [] }] })
+      yield* h.invoke("backlog", "propose", { journey: "Set up", card: "S-0001", title: "Plugin asks for a scope", changes: [{ tool: "edit-state", params: { id: "ST-0002", text: "asked: once, always, deny" } }], answers: ids, summary: "s", tries: [{ ms: 900, tokensIn: 100, tokensOut: 50, reasoning: 20, finish: "stop", problems: [] }] })
       const before = ((yield* h.invoke("backlog", "stages", {})) as Array<{ stage: string; proposals: Array<{ tries?: unknown[]; title?: string }> }>)[0]!
-      const again = (yield* h.invoke("backlog", "redo", { journey: "Set up", card: "C-0001" })) as { notice: string }
+      const again = (yield* h.invoke("backlog", "redo", { journey: "Set up", card: "S-0001" })) as { notice: string }
       const after = ((yield* h.invoke("backlog", "stages", {})) as Array<{ stage: string; draft: unknown[]; proposals: Array<{ status: string }> }>)[0]!
       return { before: [before.stage, before.proposals[0]!.tries?.length, before.proposals[0]!.title], again: again.notice, after: [after.stage, after.draft.length, after.proposals[0]!.status] }
     }))
     expect(out.before).toEqual(["plan", 1, "Plugin asks for a scope"])
-    expect(out.again).toBe("Set up: drafting C-0001 again")
+    expect(out.again).toBe("Set up: drafting S-0001 again")
     expect(out.after).toEqual(["refine", 0, "waiting"])
   })
   test("queued journeys wait in line; a worker's journey says so; their feedback is read-only until Plan", async () => {

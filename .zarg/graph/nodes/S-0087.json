@@ -1,9 +1,0 @@
-{
-  "edges": [],
-  "id": "S-0087",
-  "props": {
-    "terminal": true,
-    "text": "the text around it stays formatted"
-  },
-  "type": "gherkin/state"
-}

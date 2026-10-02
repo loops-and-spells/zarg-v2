@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0043",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0076",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0003",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0073",
   "props": {
-    "terminal": true,
-    "text": "the chosen option is shown with its reason"
+    "title": "Operator inspects an agent",
+    "when": "the operator highlights an agent"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

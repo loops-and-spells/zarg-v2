@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0045",
+  "props": {
+    "terminal": true,
+    "text": "its final report is shown"
+  },
+  "type": "gherkin/state"
+}

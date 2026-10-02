@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0028",
+  "props": {
+    "terminal": true,
+    "text": "nothing is stored"
+  },
+  "type": "gherkin/state"
+}

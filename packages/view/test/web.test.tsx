@@ -19,7 +19,7 @@ const WebView = (props: { view: ViewState }) => {
 }
 
 test("a view renders to HTML with react-dom from the contract alone", () => {
-  const view: ViewState = { agent: "a", layout: layoutOf(defineView("demo", { steps: { kind: "log", role: "log", title: "Steps" }, top: { kind: "stats", role: "summary" } })), data: { steps: { lines: [{ text: "C-1 ok" }] } } }
+  const view: ViewState = { agent: "a", layout: layoutOf(defineView("demo", { steps: { kind: "log", role: "log", title: "Steps" }, top: { kind: "stats", role: "summary" } })), data: { steps: { lines: [{ text: "S-1 ok" }] } } }
   const html = renderToStaticMarkup(<WebView view={view} />)
-  expect(html).toBe('<main><section data-role="summary" data-focused="true"><h2>top</h2></section><section data-role="log" data-focused="false"><h2>Steps</h2><p>C-1 ok</p></section></main>')
+  expect(html).toBe('<main><section data-role="summary" data-focused="true"><h2>top</h2></section><section data-role="log" data-focused="false"><h2>Steps</h2><p>S-1 ok</p></section></main>')
 })

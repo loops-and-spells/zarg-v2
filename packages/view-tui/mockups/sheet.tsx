@@ -44,10 +44,10 @@ const View = (p: { focused?: boolean }) => (
   <box style={{ flexGrow: 1, flexDirection: "column", border: true, borderColor: p.focused ? C.accent : C.dim, paddingLeft: 1 }}>
     <Title name="rehearse r-3f2a" hot="v" focused={p.focused} />
     <text fg={C.fg} wrapMode="none">journeys  [findings]  testers</text>
-    <text fg={C.dim} wrapMode="none">  ☐ C-0012  checkout: no way back from payment</text>
-    <text fg={C.dim} wrapMode="none">  ☐ C-0019  empty cart shows a spinner forever</text>
-    <text fg={C.dim} wrapMode="none">  ☐ C-0023  login error names the wrong field</text>
-    <text fg={C.dim} wrapMode="none">  ☐ C-0031  search ignores the category filter</text>
+    <text fg={C.dim} wrapMode="none">  ☐ S-0012  checkout: no way back from payment</text>
+    <text fg={C.dim} wrapMode="none">  ☐ S-0019  empty cart shows a spinner forever</text>
+    <text fg={C.dim} wrapMode="none">  ☐ S-0023  login error names the wrong field</text>
+    <text fg={C.dim} wrapMode="none">  ☐ S-0031  search ignores the category filter</text>
     <box style={{ flexGrow: 1 }} />
     <text fg={C.dim} wrapMode="none">Tab sections · Space select · a apply · Esc close</text>
   </box>
@@ -59,7 +59,7 @@ const ChatBar = (p: { mode: Bar; focused?: boolean }) => (
     {p.mode === "question" ? (
       <text wrapMode="none">
         <span fg={C.attn}>? </span>
-        <span fg={C.fg}>zarg: Split C-0012 into two cards?</span>
+        <span fg={C.fg}>zarg: Split S-0012 into two cards?</span>
         <span fg={C.dim}>   alt+m or / to answer</span>
       </text>
     ) : p.mode === "typing" ? (
@@ -82,9 +82,9 @@ const Sheet = () => (
   <box style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 3, flexDirection: "column", border: true, borderStyle: "rounded", borderColor: C.accent, backgroundColor: C.sheet, paddingLeft: 1 }}>
     <text fg={C.dim} wrapMode="none">───────── zarg ─────────  Esc collapse</text>
     <text fg={C.dim} wrapMode="none">you: rehearse the checkout journey</text>
-    <text fg={C.fg} wrapMode="none">zarg: tester-1 found 4 gaps. C-0012 mixes two</text>
+    <text fg={C.fg} wrapMode="none">zarg: tester-1 found 4 gaps. S-0012 mixes two</text>
     <text fg={C.fg} wrapMode="none">      outcomes (paid, declined).</text>
-    <text fg={C.attn} wrapMode="none">? Split C-0012 into two cards?</text>
+    <text fg={C.attn} wrapMode="none">? Split S-0012 into two cards?</text>
     <text fg={C.fg} wrapMode="none" bg={C.select}>› Yes, one card per outcome   (recommended)</text>
     <text fg={C.fg} wrapMode="none">  Keep as is</text>
     <text fg={C.fg} wrapMode="none">  Something else…</text>

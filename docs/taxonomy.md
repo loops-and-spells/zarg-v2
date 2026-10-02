@@ -22,13 +22,13 @@ operator   Topic (in the inbox) · Decision · Report                   (what ne
 | Kind | Id | One | Rules |
 |---|---|---|---|
 | **Intent** | `I-0001` | what one product (or one area of it) is for: a title, the **problem** (prose, context only), a status (draft, accepted) | the problem is not traced; its statements are |
-| **Goal** | `G-0001` | one result the intent wants for its users ("the agent asks one question at a time, with options") | a statement |
+| **Goal** | `O-0001` | one result the intent wants for its users ("the agent asks one question at a time, with options") | a statement |
 | **Constraint** | `K-0001` | one rule that must hold wherever it applies ("secrets never reach a model, a log or the wire") | a statement |
 | **Question** | `Q-0001` | one thing the intent has not decided yet; open until answered | a statement |
 | **Persona** | `P-0001` | an actor role and how it reaches the product (human, cli, agent) | a name and a roleplay text |
 | **Journey** | `J-0001` | a named set of cards for one recognizable activity; membership, not order | a name |
-| **Card** | `C-0001` | one user action in one case: arrives from a state, When, Then states | the card rules below |
-| **State** | `S-0001` | one observable fact, stored once, shared by the cards that use it | one sentence |
+| **Card** | `S-0001` | one user action in one case: arrives from a state, When, Then states | the card rules below |
+| **State** | `ST-0001` | one observable fact, stored once, shared by the cards that use it | one sentence |
 
 **Statements** are the intent's pieces: goals, constraints and questions.
 

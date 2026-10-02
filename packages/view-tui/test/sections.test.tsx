@@ -27,7 +27,7 @@ const view = (findings: number): ViewState => ({
   layout: tester,
   data: {
     progress: { items: [{ label: "steps", value: "14/22" }, { label: "flagged", value: "3" }], progress: { done: 14, total: 22 } },
-    workers: { items: [{ id: "s3", text: "story 3  C-0001 ▸ [C-0012]", detail: "screening", state: "busy" }, { id: "s5", text: "story 5", detail: "waits for story 3 at C-0012", state: "waiting" }] },
+    workers: { items: [{ id: "s3", text: "story 3  S-0001 ▸ [S-0012]", detail: "screening", state: "busy" }, { id: "s5", text: "story 5", detail: "waits for story 3 at S-0012", state: "waiting" }] },
     steps: { lines: Array.from({ length: 40 }, (_, i) => ({ text: `step ${i}` })) },
     "review.findings": { rows: Array.from({ length: findings }, (_, i) => ({ id: `R-${i}`, cells: { id: `R-${i}`, note: `note ${i}` } })) },
     "review.likes": { rows: [] },
@@ -47,7 +47,7 @@ const frame = async (v: ViewState, ui = initialViewUi, size = { width: 100, heig
 }
 
 describe("the terminal draws an agent's view", () => {
-  // @card C-0076
+  // @card S-0076
   test("text sections size themselves to rendered Markdown diagrams", async () => {
     const v: ViewState = {
       agent: "writer",
@@ -63,7 +63,7 @@ describe("the terminal draws an agent's view", () => {
     expect(f.split("\n").filter((line) => line.includes("└")).length).toBe(2)
   })
 
-  // @card C-0076
+  // @card S-0076
   test("agent conversation messages render Mermaid through the shared renderer", async () => {
     const v: ViewState = {
       agent: "writer",
@@ -156,10 +156,10 @@ describe("the terminal draws an agent's view", () => {
     const rlm: ViewState = {
       agent: "rlm-1",
       layout: { name: "rlm", sections: [{ id: "task", kind: "text", role: "primary", title: "Task" }, { id: "history", kind: "log", role: "log", title: "History" }] },
-      data: { task: { markdown: ["Fix S-1", "", "```ts", "yield* Graph.show({ id: \"S-1\" })", "```"].join("\n") } },
+      data: { task: { markdown: ["Fix ST-1", "", "```ts", "yield* Graph.show({ id: \"ST-1\" })", "```"].join("\n") } },
     }
     const f = await frame(rlm)
-    expect(f).toContain('yield* Graph.show({ id: "S-1" })')
+    expect(f).toContain('yield* Graph.show({ id: "ST-1" })')
   })
 
   test("a cell with line breaks stays on its row", async () => {
@@ -185,7 +185,7 @@ test("a column's tone colours its cells, its tones by value (a severity's high, 
   const v: ViewState = {
     agent: "t",
     layout: layoutOf(defineView("t", { list: { kind: "table", role: "pinned", title: "F", columns: [{ id: "card", label: "card", tone: "warn" }, { id: "sev", label: "severity", tones: { high: "error", low: "dim" } }] } })),
-    data: { list: { rows: [{ id: "a", cells: { card: "C-0001", sev: "high" } }, { id: "b", cells: { card: "C-0002", sev: "low" } }, { id: "c", cells: { card: "C-0003", sev: "high" }, tone: "ok" }] } },
+    data: { list: { rows: [{ id: "a", cells: { card: "S-0001", sev: "high" } }, { id: "b", cells: { card: "S-0002", sev: "low" } }, { id: "c", cells: { card: "S-0003", sev: "high" }, tone: "ok" }] } },
   }
   const t = await testRender(<AgentView view={v} ui={{ ...initialViewUi, rows: { list: 1 } }} height={30} />, { width: 60, height: 30, exitOnCtrlC: false, exitSignals: [] })
   destroy = () => t.renderer.destroy()
@@ -194,17 +194,17 @@ test("a column's tone colours its cells, its tones by value (a severity's high, 
   await t.renderOnce()
   const hex = (c: { r: number; g: number; b: number }) => `#${[c.r, c.g, c.b].map((x) => Math.round(x * 255).toString(16).padStart(2, "0")).join("")}`
   const fgOf = (text: string, nth = 0) => hex(t.captureSpans().lines.flatMap((l) => l.spans).filter((s) => s.text.includes(text))[nth]!.fg)
-  expect(fgOf("C-0001")).toBe(THEME.attention)
+  expect(fgOf("S-0001")).toBe(THEME.attention)
   expect(fgOf("high")).toBe(THEME.error)
   expect(fgOf("low")).toBe(THEME.dim)
-  expect(fgOf("C-0003")).toBe(THEME.ok)
+  expect(fgOf("S-0003")).toBe(THEME.ok)
 })
 
 test("a ref cell draws its label: glyph and text in its tone", async () => {
   const v: ViewState = {
     agent: "t",
     layout: layoutOf(defineView("t", { list: { kind: "table", role: "pinned", title: "F", columns: [{ id: "card", label: "card", ref: true }] } })),
-    data: { list: { rows: [{ id: "a", cells: { card: "gherkin/card:C-0001" } }], labels: { "gherkin/card:C-0001": { text: "C-0001 Plugin asks", tone: "card", glyph: "◇" } } } },
+    data: { list: { rows: [{ id: "a", cells: { card: "gherkin/card:S-0001" } }], labels: { "gherkin/card:S-0001": { text: "S-0001 Plugin asks", tone: "card", glyph: "◇" } } } },
   }
   const t = await testRender(<AgentView view={v} ui={initialViewUi} height={20} />, { width: 60, height: 20, exitOnCtrlC: false, exitSignals: [] })
   destroy = () => t.renderer.destroy()
@@ -212,11 +212,11 @@ test("a ref cell draws its label: glyph and text in its tone", async () => {
   await Bun.sleep(5)
   await t.renderOnce()
   const f = t.captureCharFrame()
-  expect(f).toContain("◇ C-0001 Plugin asks")
+  expect(f).toContain("◇ S-0001 Plugin asks")
   expect(f).not.toContain("gherkin/card:")
   const hex = (c: { r: number; g: number; b: number }) => `#${[c.r, c.g, c.b].map((x) => Math.round(x * 255).toString(16).padStart(2, "0")).join("")}`
   // The table row (the row card under it draws its first column in the accent).
-  const span = t.captureSpans().lines.filter((l) => !l.spans.some((s) => s.text.includes("┃"))).flatMap((l) => l.spans).find((s) => s.text.includes("C-0001"))!
+  const span = t.captureSpans().lines.filter((l) => !l.spans.some((s) => s.text.includes("┃"))).flatMap((l) => l.spans).find((s) => s.text.includes("S-0001"))!
   expect(hex(span.fg)).toBe(THEME.attention)
 })
 
@@ -283,7 +283,7 @@ describe("a busy row", () => {
   const spinning = (now: number) => ({
     agent: "triage:triage",
     layout: layoutOf(defineView("t", { cards: { kind: "table", role: "primary", title: "", columns: [{ id: "g", label: "" }, { id: "card", label: "card" }] } })),
-    data: { cards: { rows: [{ id: "a", cells: { g: "✓", card: "C-0001" } }, { id: "b", cells: { g: "⠋", card: "C-0002" }, busy: true }] } },
+    data: { cards: { rows: [{ id: "a", cells: { g: "✓", card: "S-0001" } }, { id: "b", cells: { g: "⠋", card: "S-0002" }, busy: true }] } },
   }) satisfies ViewState
   const draw = async (now: number) => {
     const t = await testRender(<NowContext.Provider value={now}><AgentView view={spinning(now)} ui={initialViewUi} height={20} /></NowContext.Provider>, { width: 60, height: 20, exitOnCtrlC: false, exitSignals: [] })
@@ -296,9 +296,9 @@ describe("a busy row", () => {
   }
   test("its first cell spins with the shell's clock; other rows keep their text", async () => {
     const [a, b] = [await draw(0), await draw(200)]
-    expect(a).toMatch(/⠋\s+C-0002/)
-    expect(b).toMatch(/⠹\s+C-0002/)
-    expect(b).toMatch(/✓\s+C-0001/)
+    expect(a).toMatch(/⠋\s+S-0002/)
+    expect(b).toMatch(/⠹\s+S-0002/)
+    expect(b).toMatch(/✓\s+S-0001/)
   })
 })
 

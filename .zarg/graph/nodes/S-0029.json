@@ -1,9 +1,31 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0023",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0029",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0023",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0029",
   "props": {
-    "terminal": true,
-    "text": "the field shows the schema's error"
+    "planned": true,
+    "title": "A value fails its schema type",
+    "when": "an entered value fails its schema type"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

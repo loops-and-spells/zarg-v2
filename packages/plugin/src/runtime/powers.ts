@@ -137,23 +137,23 @@ export const makePowers = (opts: {
   // One open question per plugin: a plugin cannot queue up questions ahead of the driver's.
   let open: { readonly key: string; readonly answer: Promise<Answer> } | undefined
 
-  // @card C-0064
+  // @card S-0064
   const remember = async (kind: Kind, target: string, a: Answer, folder?: string) => {
     if (a === "always") await Effect.runPromise(opts.grants.add(opts.plugin, (kind === "net" ? { kind, host: target } : kind === "secret" ? { kind, name: target } : { kind, glob: target }) as Grant))
     if (a === "folder" && folder !== undefined) await Effect.runPromise(opts.grants.add(opts.plugin, { kind: kind as "fs-read" | "fs-write", glob: folder }))
   }
 
   /** Allowed when granted; else ask (optional scopes), pass (YOLO) or refuse. */
-  // @card C-0062 C-0063 C-0064 C-0065
+  // @card S-0062 S-0063 S-0064 S-0065
   const allow = async (kind: Kind, target: string, what: string, folder?: string) => {
     const granted = await Effect.runPromise(opts.grants.of(opts.plugin, opts.digest))
     // A plugin YOLO loaded has no saved grant: under YOLO what it declares is allowed all the same.
     if ((granted.loaded || opts.yolo()) && declared(opts.manifest.scopes, kind, target, opts.projectRoot) === true) return
     if (granted.extra.some((g) => grantMatches(g, kind, target))) return
     const optional = declared(opts.manifest.optional, kind, target, opts.projectRoot)
-    // @card C-0066
+    // @card S-0066
     if (optional === false) throw notGranted(`${opts.plugin}: ${printable(what)} is not declared in its manifest`)
-    // @card C-0067 C-0070
+    // @card S-0067 S-0070
     if (opts.yolo()) return void opts.log(`yolo: ${opts.plugin} ${kind} ${printable(target)}`)
     const key = `${kind}\u0000${target}`
     if (open !== undefined && open.key !== key) throw notGranted(`${opts.plugin}: another question from this plugin is waiting for the developer`)

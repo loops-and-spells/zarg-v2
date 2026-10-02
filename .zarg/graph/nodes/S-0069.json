@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0062",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0069",
   "props": {
-    "terminal": true,
-    "text": "the plugin is disabled"
+    "title": "zarg's own plugins start approved",
+    "when": "zarg loads the plugins it ships with"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

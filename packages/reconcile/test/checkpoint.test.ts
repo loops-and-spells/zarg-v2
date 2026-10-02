@@ -10,7 +10,7 @@ describe("checkpoint", () => {
   test("the working graph tree includes uncommitted files and leaves the real index alone", async () => {
     const r = repo()
     expect(await run(workingGraphTree(r))).toBe(EMPTY_TREE)
-    writeNode(r, state("S-0001", "home"))
+    writeNode(r, state("ST-0001", "home"))
     const before = sh(r, "git status --porcelain")
     const tree = await run(workingGraphTree(r))
     expect(tree).not.toBe(EMPTY_TREE)
@@ -21,16 +21,16 @@ describe("checkpoint", () => {
 
   test("snapshotAtTree reads the nodes stored in a tree", async () => {
     const r = repo()
-    writeNode(r, state("S-0001", "home"))
-    writeNode(r, card("C-0001", "S-0001", "S-0001"))
+    writeNode(r, state("ST-0001", "home"))
+    writeNode(r, card("S-0001", "ST-0001", "ST-0001"))
     const snap = await run(Effect.flatMap(workingGraphTree(r), (t) => snapshotAtTree(r, t)))
-    expect([...snap.nodes.keys()].sort()).toEqual(["C-0001", "S-0001"])
+    expect([...snap.nodes.keys()].sort()).toEqual(["S-0001", "ST-0001"])
   })
 
   test("the base is the committed checkpoint, else the legacy sync.json commit, else empty", async () => {
     const r = repo()
     expect(await run(baseTree(r))).toBe(EMPTY_TREE)
-    writeNode(r, state("S-0001", "home"))
+    writeNode(r, state("ST-0001", "home"))
     sh(r, "git add -A && git commit -qm graph")
     const graphCommit = sh(r, "git rev-parse HEAD")
     const graphTree = sh(r, "git rev-parse HEAD:.zarg/graph")

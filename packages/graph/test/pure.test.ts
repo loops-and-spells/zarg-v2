@@ -10,8 +10,8 @@ describe("@zarg/graph/pure", () => {
   })
   test("exports what plugins use", async () => {
     const pure = await import("../src/pure")
-    const snap = pure.Snapshot.make([{ id: "S-0001", type: "gherkin/state", props: { text: "a" }, edges: [] }])
-    expect(pure.Snapshot.get(snap, "S-0001")?.id).toBe("S-0001")
-    expect(pure.diff(pure.Snapshot.empty, snap).added.map((n) => n.id)).toEqual(["S-0001"])
+    const snap = pure.Snapshot.make([{ id: "ST-0001", type: "gherkin/state", props: { text: "a" }, edges: [] }])
+    expect(pure.Snapshot.get(snap, "ST-0001")?.id).toBe("ST-0001")
+    expect(pure.diff(pure.Snapshot.empty, snap).added.map((n) => n.id)).toEqual(["ST-0001"])
   })
 })

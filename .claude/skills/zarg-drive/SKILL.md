@@ -11,8 +11,8 @@ Run the CLI from the repo root as `mise run -q zarg -- <command>`. Output is JSO
 
 ## The model
 
-- A **state** (`S-NNNN`) is one Given/Then sentence, stored once.
-- A **card** (`C-NNNN`) is one user action: it arrives from exactly one state (Given), may need up to 3 extra context states (And), has exactly one When, and leads to 1-5 states (Then).
+- A **state** (`ST-NNNN`) is one Given/Then sentence, stored once.
+- A **card** (`S-NNNN`) is one user action: it arrives from exactly one state (Given), may need up to 3 extra context states (And), has exactly one When, and leads to 1-5 states (Then).
 - A choice ("option A, B or N") is several cards that share one arrival state.
 - An outcome branch (success, failure) is one card per outcome, each with its own When.
 - Mark a state `entry` when the user can start there, `terminal` when nothing needs to follow it.
@@ -32,8 +32,8 @@ Run the CLI from the repo root as `mise run -q zarg -- <command>`. Output is JSO
    - Never ask an empty question like "what do you want?". If you are unsure, still bring options.
 5. Apply the answer with `tool call`. Run `tool list` once to see every tool and its params. Common ones:
    - `gherkin/add-persona '{"name":"Operator","kind":"human","text":"..."}'`
-   - `gherkin/add-card '{"title":"...","when":"...","by":[{"name":"Operator"}],"arrives":{"id":"S-0002"},"then":[{"text":"..."}]}'` (a state is `{"id":...}` to reuse or `{"text":...}` to create; existing text is reused automatically)
-   - `gherkin/edit-state '{"id":"S-0002","text":"...","terminal":true}'`
+   - `gherkin/add-card '{"title":"...","when":"...","by":[{"name":"Operator"}],"arrives":{"id":"ST-0002"},"then":[{"text":"..."}]}'` (a state is `{"id":...}` to reuse or `{"text":...}` to create; existing text is reused automatically)
+   - `gherkin/edit-state '{"id":"ST-0002","text":"...","terminal":true}'`
    - `gherkin/link`, `gherkin/unlink`, `gherkin/edit-card`, `gherkin/remove`
    - When you change a node you looked at earlier, pass `--expect <id>@<hash>` with the hash from `show`.
 6. Handle failures by their `error` field:

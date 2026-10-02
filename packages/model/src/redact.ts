@@ -6,7 +6,7 @@ export interface SensitiveValue {
 }
 
 /** Replace every sensitive value found in `text` with `<redacted:NAME>`. Longest values first. */
-// @card C-0045
+// @card S-0045
 export const redact = (text: string, sensitive: ReadonlyArray<SensitiveValue>): string => {
   let out = text
   const byLength = [...sensitive].sort((a, b) => Redacted.value(b.value).length - Redacted.value(a.value).length)
@@ -18,7 +18,7 @@ export const redact = (text: string, sensitive: ReadonlyArray<SensitiveValue>): 
 }
 
 /** A copy of `env` without any variable whose name is sensitive. */
-// @card C-0047
+// @card S-0047
 export const scrubEnv = (
   env: Readonly<Record<string, string | undefined>>,
   sensitive: ReadonlyArray<SensitiveValue>,

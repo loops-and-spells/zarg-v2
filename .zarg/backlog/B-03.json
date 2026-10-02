@@ -3,16 +3,16 @@
   "journey": "CLI actor",
   "cards": [
     {
-      "ref": "gherkin/card:C-0003@26bc1ce49670"
+      "ref": "gherkin/card:S-0003@26bc1ce49670"
     },
     {
-      "ref": "gherkin/card:C-0004@689d06f016c0"
+      "ref": "gherkin/card:S-0004@689d06f016c0"
     },
     {
-      "ref": "gherkin/card:C-0006@d2ea9a633ed7"
+      "ref": "gherkin/card:S-0006@5e3c137ff891"
     },
     {
-      "ref": "gherkin/card:C-0079@5c9ae10a8131"
+      "ref": "gherkin/card:S-0079@5c9ae10a8131"
     }
   ],
   "changes": [
@@ -27,7 +27,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0001"
+          "id": "ST-0001"
         },
         "then": [
           {
@@ -39,21 +39,21 @@
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0001",
+        "id": "ST-0001",
         "text": "CLI actor requests an env file in its declared workspace"
       }
     },
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0005",
+        "id": "ST-0005",
         "text": "the duplicate-link attempt is refused with a dedup hint"
       }
     },
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0006",
+        "id": "S-0006",
         "when": "the CLI actor applies the dedup hint precondition"
       }
     },
@@ -68,7 +68,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0001"
+          "id": "ST-0001"
         },
         "then": [
           {
@@ -83,7 +83,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0006",
+        "card": "S-0006",
         "edge": "then",
         "state": {
           "text": "the saved node file carries a retry-id"
@@ -93,7 +93,7 @@
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0003",
+        "id": "ST-0003",
         "text": "the card is saved as one dedup node file"
       }
     }
@@ -109,7 +109,7 @@
     "Rewrite Given: CLI actor requests env file",
     "Hint retries: dedup precondition, second hint or abort",
     "Save node file with auditable retry-id",
-    "Keep C-0079 unchanged"
+    "Keep S-0079 unchanged"
   ],
   "persona": "CLI actor",
   "severity": "high",

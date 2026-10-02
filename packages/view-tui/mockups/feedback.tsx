@@ -21,16 +21,16 @@ const wrap = (t: string, w: number, max = 99) => {
 const sevTone = (s: string) => (s === "high" ? T.err : s === "medium" ? T.attn : T.dim)
 
 const FEEDBACK = [
-  { id: "F-3c77", card: "C-0030", hash: "a41e", persona: "Driver Agent", journey: "Set up", kind: "gap", sev: "high", from: "tester-3", age: "2h", status: "open", note: "When the key is missing the driver offers setup, but never says which role needs it; with three roles I can't tell which to fix." },
-  { id: "F-1601", card: "C-0056", hash: "77c0", persona: "CLI actor", journey: "Reconcile", kind: "friction", sev: "medium", from: "tester-2", age: "2h", status: "open", note: "The tester answered in prose: 'works on my machine' is not a result the planner can use; ask for a pass or fail." },
-  { id: "F-1b0b", card: "C-0062", hash: "3f9a", persona: "Operator", journey: "Set up", kind: "friction", sev: "medium", from: "tester-1", age: "3h", status: "open", note: "The grant question names scope and target but not the choice set: approve, deny or defer. I don't know what 'later' means." },
-  { id: "F-09a2", card: "C-0062", hash: "3f9a", persona: "Operator", journey: "Set up", kind: "gap", sev: "medium", from: "tester-1", age: "3h", status: "open", note: "No failure path when the operator denies, ignores, or defers the grant. The plugin just waits." },
-  { id: "F-126f", card: "C-0059", hash: "c802", persona: "Operator", journey: "Reconcile", kind: "feature", sev: "medium", from: "tester-1", age: "1d", status: "open", note: "A guided setup prompt would be wanted here. Offer inline creation commands or auto-scaffold missing plan/implement models." },
-  { id: "F-1e10", card: "C-0035", hash: "5d13", persona: "Operator", journey: "Set up", kind: "transition", sev: "low", from: "tester-1", age: "1d", status: "open", note: "The prior step promised local-first ordering, but this step doesn't say the chosen model is local." },
+  { id: "F-3c77", card: "S-0030", hash: "a41e", persona: "Driver Agent", journey: "Set up", kind: "gap", sev: "high", from: "tester-3", age: "2h", status: "open", note: "When the key is missing the driver offers setup, but never says which role needs it; with three roles I can't tell which to fix." },
+  { id: "F-1601", card: "S-0056", hash: "77c0", persona: "CLI actor", journey: "Reconcile", kind: "friction", sev: "medium", from: "tester-2", age: "2h", status: "open", note: "The tester answered in prose: 'works on my machine' is not a result the planner can use; ask for a pass or fail." },
+  { id: "F-1b0b", card: "S-0062", hash: "3f9a", persona: "Operator", journey: "Set up", kind: "friction", sev: "medium", from: "tester-1", age: "3h", status: "open", note: "The grant question names scope and target but not the choice set: approve, deny or defer. I don't know what 'later' means." },
+  { id: "F-09a2", card: "S-0062", hash: "3f9a", persona: "Operator", journey: "Set up", kind: "gap", sev: "medium", from: "tester-1", age: "3h", status: "open", note: "No failure path when the operator denies, ignores, or defers the grant. The plugin just waits." },
+  { id: "F-126f", card: "S-0059", hash: "c802", persona: "Operator", journey: "Reconcile", kind: "feature", sev: "medium", from: "tester-1", age: "1d", status: "open", note: "A guided setup prompt would be wanted here. Offer inline creation commands or auto-scaffold missing plan/implement models." },
+  { id: "F-1e10", card: "S-0035", hash: "5d13", persona: "Operator", journey: "Set up", kind: "transition", sev: "low", from: "tester-1", age: "1d", status: "open", note: "The prior step promised local-first ordering, but this step doesn't say the chosen model is local." },
 ]
 const STALE = [
-  { id: "F-44d0", card: "C-0041", was: "9e2b", now: "d017", persona: "Operator", journey: "Review", kind: "gap", sev: "high", from: "tester-2", age: "2d", note: "Rejecting a plan gives no way to say why; the planner will redo the same plan." },
-  { id: "F-2a19", card: "C-0041", was: "9e2b", now: "d017", persona: "Operator", journey: "Review", kind: "friction", sev: "low", from: "tester-1", age: "2d", note: "'Reject' and 'Revise' read the same; which one keeps my notes?" },
+  { id: "F-44d0", card: "S-0041", was: "9e2b", now: "d017", persona: "Operator", journey: "Review", kind: "gap", sev: "high", from: "tester-2", age: "2d", note: "Rejecting a plan gives no way to say why; the planner will redo the same plan." },
+  { id: "F-2a19", card: "S-0041", was: "9e2b", now: "d017", persona: "Operator", journey: "Review", kind: "friction", sev: "low", from: "tester-1", age: "2d", note: "'Reject' and 'Revise' read the same; which one keeps my notes?" },
 ]
 
 // ── Shell ────────────────────────────────────────────────────────────────
@@ -216,7 +216,7 @@ const FeedbackStale = () => {
         </box>
       </box>
       <text> </text>
-      <text wrapMode="none"><Btn label="Rehearse C-0041" k="r" primary /><Btn label="Still applies" k="k" /><Btn label="Drop" k="x" /></text>
+      <text wrapMode="none"><Btn label="Rehearse S-0041" k="r" primary /><Btn label="Still applies" k="k" /><Btn label="Drop" k="x" /></text>
     </>
   )
 }
@@ -267,7 +267,7 @@ const TesterView = () => (
   <>
     <Title name="tester-1" sub="rehearse · Operator · Set up, Reconcile" line2="done · 41/41 steps · 4 feedback · 2 likes" />
     <text wrapMode="none"><span fg={T.accent}><b>Steps</b></span><span fg={T.faint}>{` ${"─".repeat(200)}`}</span></text>
-    {[["C-0030", "Operator sets the driver key", "✓"], ["C-0035", "Operator picks a local model", "⚑ transition"], ["C-0059", "Operator starts a reconcile pass", "⚑ feature"], ["C-0062", "Plugin asks for an optional scope", "⚑ friction, gap"], ["C-0063", "Operator approves the scope once", "✓"]].map((r) => (
+    {[["S-0030", "Operator sets the driver key", "✓"], ["S-0035", "Operator picks a local model", "⚑ transition"], ["S-0059", "Operator starts a reconcile pass", "⚑ feature"], ["S-0062", "Plugin asks for an optional scope", "⚑ friction, gap"], ["S-0063", "Operator approves the scope once", "✓"]].map((r) => (
       <text key={r[0]} wrapMode="none"><span fg={T.attn}>{`  ${pad(r[0]!, 9)}`}</span><span fg={T.text}>{pad(r[1]!, 38)}</span><span fg={r[2]!.startsWith("⚑") ? T.attn : T.ok}>{r[2]}</span></text>
     ))}
     <text> </text>
@@ -295,19 +295,19 @@ const TesterView = () => (
 type Item = { id: string; title: string; card: string; persona: string; sev: string; fb: number; who?: string; stale?: boolean; blocked?: string; age: string; picked?: boolean }
 const COLS: ReadonlyArray<[string, ReadonlyArray<Item>]> = [
   ["Backlog", [
-    { id: "B-12", title: "Grant prompt names its choices and a deny path", card: "C-0062", persona: "Operator", sev: "medium", fb: 2, age: "1m" },
-    { id: "B-11", title: "Say which role lacks a key", card: "C-0030", persona: "Driver Agent", sev: "high", fb: 1, age: "2h" },
-    { id: "B-09", title: "Ask why a plan is rejected", card: "C-0041", persona: "Operator", sev: "high", fb: 1, stale: true, age: "2d" },
+    { id: "B-12", title: "Grant prompt names its choices and a deny path", card: "S-0062", persona: "Operator", sev: "medium", fb: 2, age: "1m" },
+    { id: "B-11", title: "Say which role lacks a key", card: "S-0030", persona: "Driver Agent", sev: "high", fb: 1, age: "2h" },
+    { id: "B-09", title: "Ask why a plan is rejected", card: "S-0041", persona: "Operator", sev: "high", fb: 1, stale: true, age: "2d" },
   ]],
   ["Ready", [
-    { id: "B-08", title: "Pass or fail from the tester, not prose", card: "C-0056", persona: "CLI actor", sev: "medium", fb: 1, age: "5h" },
-    { id: "B-10", title: "Show the model is local", card: "C-0035", persona: "Operator", sev: "low", fb: 1, blocked: "B-08", age: "1d" },
+    { id: "B-08", title: "Pass or fail from the tester, not prose", card: "S-0056", persona: "CLI actor", sev: "medium", fb: 1, age: "5h" },
+    { id: "B-10", title: "Show the model is local", card: "S-0035", persona: "Operator", sev: "low", fb: 1, blocked: "B-08", age: "1d" },
   ]],
-  ["Running", [{ id: "B-07", title: "Scaffold missing plan and implement models", card: "C-0059", persona: "Operator", sev: "medium", fb: 1, who: "Implementer", age: "20m" }]],
-  ["Review", [{ id: "B-05", title: "Archive finished agents after a day", card: "C-0071", persona: "Operator", sev: "low", fb: 2, who: "Implementer", age: "1h" }]],
+  ["Running", [{ id: "B-07", title: "Scaffold missing plan and implement models", card: "S-0059", persona: "Operator", sev: "medium", fb: 1, who: "Implementer", age: "20m" }]],
+  ["Review", [{ id: "B-05", title: "Archive finished agents after a day", card: "S-0071", persona: "Operator", sev: "low", fb: 2, who: "Implementer", age: "1h" }]],
   ["Done", [
-    { id: "B-04", title: "Search findings", card: "C-0080", persona: "Operator", sev: "low", fb: 1, age: "1d" },
-    { id: "B-02", title: "Buttons in views", card: "C-0077", persona: "Operator", sev: "medium", fb: 3, age: "2d" },
+    { id: "B-04", title: "Search findings", card: "S-0080", persona: "Operator", sev: "low", fb: 1, age: "1d" },
+    { id: "B-02", title: "Buttons in views", card: "S-0077", persona: "Operator", sev: "medium", fb: 3, age: "2d" },
   ]],
 ]
 const CW = 17
@@ -350,7 +350,7 @@ const Drawer = () => (
   <box style={{ position: "absolute", right: 0, top: 0, width: 50, height: "100%", flexDirection: "column", backgroundColor: T.shade, border: ["left"], borderColor: T.accent, paddingLeft: 2, paddingRight: 1, paddingTop: 1 }}>
     <text wrapMode="none"><span fg={T.faint}>{"B-12  "}</span><span fg={T.dim}>{"Backlog"}</span><span fg={T.faint}>{" ".repeat(33) + "×"}</span></text>
     <text fg={T.text}><b>Grant prompt names its choices and a deny path</b></text>
-    <text wrapMode="none"><span fg={T.attn}>{"C-0062"}</span><span fg={T.dim}>{" @3f9a "}</span><span fg={T.ok}>{"✓"}</span><span fg={T.dim}>{" · "}</span><span fg={T.accent}>{"Operator"}</span><span fg={T.dim}>{" · "}</span><span fg={T.ok}>{"Set up"}</span><span fg={T.dim}>{" · "}</span><span fg={T.attn}>{"medium"}</span></text>
+    <text wrapMode="none"><span fg={T.attn}>{"S-0062"}</span><span fg={T.dim}>{" @3f9a "}</span><span fg={T.ok}>{"✓"}</span><span fg={T.dim}>{" · "}</span><span fg={T.accent}>{"Operator"}</span><span fg={T.dim}>{" · "}</span><span fg={T.ok}>{"Set up"}</span><span fg={T.dim}>{" · "}</span><span fg={T.attn}>{"medium"}</span></text>
     <text> </text>
     <text wrapMode="none"><Btn label="→ Ready" k="⏎" primary /><Btn label="Assign" k="a" /><Btn label="Drop" k="x" /></text>
     <text> </text>
@@ -445,9 +445,9 @@ const BoardV = (p: { card: "A" | "C"; cols?: number; w: number }) => {
 
 // ── D: lanes scroll on their own and fold to a vertical strip ─────────────
 const MORE: ReadonlyArray<Item> = [
-  { id: "B-13", title: "Explain what 'defer' means in a grant", card: "C-0062", persona: "Operator", sev: "low", fb: 1 },
-  { id: "B-14", title: "Tester answers pass or fail per step", card: "C-0056", persona: "CLI actor", sev: "medium", fb: 1 },
-  { id: "B-15", title: "Show which journeys a card is in", card: "C-0044", persona: "Operator", sev: "low", fb: 1 },
+  { id: "B-13", title: "Explain what 'defer' means in a grant", card: "S-0062", persona: "Operator", sev: "low", fb: 1 },
+  { id: "B-14", title: "Tester answers pass or fail per step", card: "S-0056", persona: "CLI actor", sev: "medium", fb: 1 },
+  { id: "B-15", title: "Show which journeys a card is in", card: "S-0044", persona: "Operator", sev: "low", fb: 1 },
 ] as never
 const LANE_H = 21
 const Scrollbar = (p: { h: number; top: number; size: number }) => (
@@ -563,11 +563,11 @@ const H = (p: { t: string; right?: string }) => <text wrapMode="none"><span fg={
 
 /** 0. Triage: each feedback entry on or off; the Triage Agent sets them first, with a reason; you flip any. */
 const TRI = [
-  { card: "C-0030", kind: "gap", sev: "high", note: "which role needs the key?", on: true, why: "three roles, one prompt", you: false },
-  { card: "C-0062", kind: "friction", sev: "medium", note: "no choice set named", on: true, why: "'later' is undefined", you: false },
-  { card: "C-0062", kind: "gap", sev: "medium", note: "no path when denied or deferred", on: true, why: "the card has no deny case", you: false },
-  { card: "C-0035", kind: "transition", sev: "low", note: "doesn't say the model is local", on: false, why: "already said on C-0034", you: false },
-  { card: "C-0031", kind: "feature", sev: "low", note: "a key strength meter", on: true, why: "out of scope", you: true },
+  { card: "S-0030", kind: "gap", sev: "high", note: "which role needs the key?", on: true, why: "three roles, one prompt", you: false },
+  { card: "S-0062", kind: "friction", sev: "medium", note: "no choice set named", on: true, why: "'later' is undefined", you: false },
+  { card: "S-0062", kind: "gap", sev: "medium", note: "no path when denied or deferred", on: true, why: "the card has no deny case", you: false },
+  { card: "S-0035", kind: "transition", sev: "low", note: "doesn't say the model is local", on: false, why: "already said on S-0034", you: false },
+  { card: "S-0031", kind: "feature", sev: "low", note: "a key strength meter", on: true, why: "out of scope", you: true },
 ]
 const Toggle = (p: { on: boolean }) => (p.on ? <span fg={T.ok}>{"[●] "}</span> : <span fg={T.faint}>{"[ ] "}</span>)
 const HubTriage = () => (
@@ -592,7 +592,7 @@ const HubTriage = () => (
 const HubFeedback = () => (
   <Hub stage={0} buttons={<><Btn label="Triage Set up" k="t" primary /><Btn label="Dismiss" k="d" /><span fg={T.dim}>{" 4 open · 0 stale"}</span></>}>
     <H t="Set up" right="4 open on 3 cards" />
-    {[["C-0030", "@a41e", "Operator sets the driver key", [["gap", "high", "which role needs the key?"]]], ["C-0062", "@3f9a", "Plugin asks for an optional scope", [["friction", "medium", "no choice set named"], ["gap", "medium", "no path when denied or deferred"]]], ["C-0035", "@5d13", "Operator picks a local model", [["transition", "low", "doesn't say the model is local"]]]].map(([card, h, title, fb], ci) => (
+    {[["S-0030", "@a41e", "Operator sets the driver key", [["gap", "high", "which role needs the key?"]]], ["S-0062", "@3f9a", "Plugin asks for an optional scope", [["friction", "medium", "no choice set named"], ["gap", "medium", "no path when denied or deferred"]]], ["S-0035", "@5d13", "Operator picks a local model", [["transition", "low", "doesn't say the model is local"]]]].map(([card, h, title, fb], ci) => (
       <box key={card as string} style={{ flexDirection: "column", flexShrink: 0 }}>
         <text wrapMode="none"><span fg={T.attn}>{card as string}</span><span fg={T.faint}>{` ${h}  `}</span><span fg={T.text}>{title as string}</span></text>
         {(fb as Array<Array<string>>).map((f, i) => (
@@ -606,7 +606,7 @@ const HubFeedback = () => (
 /** 2. Refine: the Triage Agent proposes a card change for the feedback; the operator accepts, revises or skips. */
 const HubRefine = () => (
   <Hub stage={1} buttons={<><Btn label="Accept" k="a" primary /><Btn label="Revise…" k="e" /><Btn label="Skip card" k="s" /><span fg={T.dim}>{" 2 of 3 cards"}</span></>}>
-    <H t="C-0062" right="Plugin asks for an optional scope" />
+    <H t="S-0062" right="Plugin asks for an optional scope" />
     <text fg={T.dim} wrapMode="none">{"Triage Agent proposes:"}</text>
     <text><span fg={T.accent}>{"  When  "}</span><span fg={T.text}>{"the plugin needs a scope it may ask for"}</span></text>
     <text><span fg={T.err}>{"- Then  "}</span><span fg={T.dim}>{"the operator is asked: once, always, deny"}</span></text>
@@ -626,7 +626,7 @@ const HubRehearse = () => (
     <H t="Set up" right="re-rehearsing the journey" />
     <text wrapMode="none"><Gauge done={9} total={14} w={40} /><span fg={T.dim}>{"  9/14"}</span></text>
     <text> </text>
-    {[["C-0030", "Operator sets the driver key", "✓ resolved", T.ok], ["C-0035", "Operator picks a local model", "✓ resolved", T.ok], ["C-0062", "Plugin asks for an optional scope", "✓ resolved ×2", T.ok], ["C-0090", "Operator denies the scope", "◇ new · low", T.attn], ["C-0063", "Operator approves the scope once", "⠼ testing", T.accent], ["C-0064", "Operator approves the scope always", "○", T.faint]].map((r) => (
+    {[["S-0030", "Operator sets the driver key", "✓ resolved", T.ok], ["S-0035", "Operator picks a local model", "✓ resolved", T.ok], ["S-0062", "Plugin asks for an optional scope", "✓ resolved ×2", T.ok], ["S-0090", "Operator denies the scope", "◇ new · low", T.attn], ["S-0063", "Operator approves the scope once", "⠼ testing", T.accent], ["S-0064", "Operator approves the scope always", "○", T.faint]].map((r) => (
       <text key={r[0]} wrapMode="none"><span fg={T.attn}>{pad(r[0]!, 9)}</span><span fg={T.text}>{pad(r[1]!, 34)}</span><span fg={r[3]}>{r[2]}</span></text>
     ))}
   </Hub>
@@ -636,10 +636,10 @@ const HubPlan = () => (
   <Hub stage={3} buttons={<><Btn label="Backlog plan" k="b" primary /><Btn label="Refine more" k="r" /><span fg={T.dim}>{" or leave it: the Triage Agent backlogs it"}</span></>}>
     <H t="Plan" right="Set up · drafted by the Triage Agent" />
     <text fg={T.text}><b>Grant prompt names its choices and a deny path</b></text>
-    <text wrapMode="none"><span fg={T.dim}>{"cards  "}</span><span fg={T.attn}>{"C-0030  C-0035  C-0062  "}</span><span fg={T.ok}>{"+C-0090"}</span></text>
+    <text wrapMode="none"><span fg={T.dim}>{"cards  "}</span><span fg={T.attn}>{"S-0030  S-0035  S-0062  "}</span><span fg={T.ok}>{"+S-0090"}</span></text>
     <text wrapMode="none"><span fg={T.dim}>{"closes "}</span><span fg={T.text}>{"◇ 4 feedback · journey re-rehearsed clean"}</span></text>
     <text> </text>
-    {["1. Name the missing role in the key prompt (C-0030).", "2. Say 'local' beside a local model (C-0035).", "3. Grant popover: once, always, deny (C-0062).", "4. Deny path: the plugin goes on and says so (C-0090)."].map((l, i) => <text key={i} fg={T.text}>{l}</text>)}
+    {["1. Name the missing role in the key prompt (S-0030).", "2. Say 'local' beside a local model (S-0035).", "3. Grant popover: once, always, deny (S-0062).", "4. Deny path: the plugin goes on and says so (S-0090)."].map((l, i) => <text key={i} fg={T.text}>{l}</text>)}
     <text> </text>
     <text wrapMode="none"><span fg={T.dim}>{"goes to  "}</span><span fg={T.text}>{"Backlog · Ready"}</span><span fg={T.dim}>{" → the Planner Agent picks it up"}</span></text>
   </Hub>

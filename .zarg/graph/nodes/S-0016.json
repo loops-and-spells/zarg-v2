@@ -1,8 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0009",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0016",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0001",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0016",
   "props": {
-    "text": "the save is refused as stale"
+    "title": "Answer meets a newer edit",
+    "when": "another thread changed the node being answered"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

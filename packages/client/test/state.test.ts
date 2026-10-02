@@ -13,7 +13,7 @@ const inquiry = {
   id: "inq-1",
   reason: "inquiry",
   message: "Which card first?",
-  metadata: { options: [{ id: "a", label: "Checkout", recommended: true, why: "most used" }, { id: "b", label: "Login" }], allowOther: true, about: ["C-0001"] },
+  metadata: { options: [{ id: "a", label: "Checkout", recommended: true, why: "most used" }, { id: "b", label: "Login" }], allowOther: true, about: ["S-0001"] },
 }
 
 describe("reduce", () => {
@@ -22,7 +22,7 @@ describe("reduce", () => {
     expect(running.status).toBe("running")
     const s = fold([ev("RUN_FINISHED", { runId: "r1", outcome: { type: "interrupt", interrupts: [inquiry] } })], running)
     expect(s.status).toBe("waiting")
-    expect(s.pendingInquiry).toEqual({ id: "inq-1", question: "Which card first?", options: inquiry.metadata.options, allowOther: true, about: ["C-0001"] })
+    expect(s.pendingInquiry).toEqual({ id: "inq-1", question: "Which card first?", options: inquiry.metadata.options, allowOther: true, about: ["S-0001"] })
   })
 
   test("messages build from START, CONTENT, END; the next run clears the inquiry", () => {

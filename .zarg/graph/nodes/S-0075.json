@@ -1,9 +1,30 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0079",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0082",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "J-0001",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0075",
   "props": {
-    "terminal": true,
-    "text": "a working line shows the elapsed time with the turn"
+    "title": "Operator reads zarg's formatted reply",
+    "when": "zarg replies with Markdown"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

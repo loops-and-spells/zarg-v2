@@ -20,7 +20,7 @@ export default definePlugin({ name: "${name}", service: "S${name.replace(/-/g, "
 const grantsFile = () => join(mkdtempSync(join(tmpdir(), "zt-wait-")), "grants.json")
 
 describe("plugins waiting on a load grant", () => {
-  // @card C-0067
+  // @card S-0067
   test("with YOLO on they load without a question, and nothing is saved", async () => {
     const file = grantsFile()
     const asked: Array<string> = []
@@ -42,7 +42,7 @@ describe("plugins waiting on a load grant", () => {
     expect(Effect.runSync(g.of("base", scopesDigest({ fs: { read: ["docs/**"] } }, {}))).loaded).toBe(false)
   })
 
-  // @card C-0061
+  // @card S-0061
   test("without YOLO the developer is asked: Allow saves the grant and loads it now; its dependent follows", async () => {
     const file = grantsFile()
     const asked: Array<string> = []

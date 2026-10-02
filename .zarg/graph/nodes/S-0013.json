@@ -1,8 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0013",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0009",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0001",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0013",
   "props": {
-    "text": "the message shapes the next question"
+    "title": "Driver Agent responds to the interjection",
+    "when": "the Driver Agent weighs the message with the agenda"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

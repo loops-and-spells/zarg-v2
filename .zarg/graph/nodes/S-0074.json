@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0043",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0077",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0003",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0074",
   "props": {
-    "terminal": true,
-    "text": "the options come from gaps found in the graph"
+    "title": "Operator folds an agent's children",
+    "when": "the operator collapses an agent"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

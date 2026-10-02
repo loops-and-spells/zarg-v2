@@ -1,9 +1,31 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0033",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0034",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0034",
   "props": {
-    "terminal": true,
-    "text": "local models are listed first"
+    "planned": true,
+    "title": "Driver Agent asks for a role's model",
+    "when": "a role has no model set"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

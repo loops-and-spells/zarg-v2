@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0077",
+  "props": {
+    "terminal": true,
+    "text": "its children fold into a count"
+  },
+  "type": "gherkin/state"
+}

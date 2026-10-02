@@ -3,8 +3,8 @@ import { Effect } from "effect"
 import { makePlanner } from "../src/planner"
 
 const item = (over: Record<string, unknown> = {}) => ({
-  id: "B-01", title: "Grant prompt", journey: "Set up", cards: [{ ref: "gherkin/card:C-0001@abc" }],
-  changes: [{ tool: "edit-state", params: { id: "S-0002", text: "x" } }, { tool: "add-card", params: { title: "y" } }],
+  id: "B-01", title: "Grant prompt", journey: "Set up", cards: [{ ref: "gherkin/card:S-0001@abc" }],
+  changes: [{ tool: "edit-state", params: { id: "ST-0002", text: "x" } }, { tool: "add-card", params: { title: "y" } }],
   feedback: [], steps: [], status: "ready", events: [], ...over,
 })
 const setup = (o: { planned?: ReadonlyArray<string>; next?: unknown; fail?: string; reconcile?: boolean; running?: ReadonlyArray<unknown>; movedFails?: boolean; dirty?: ReadonlyArray<string>; gone?: ReadonlyArray<string> } = {}) => {
@@ -28,18 +28,18 @@ const setup = (o: { planned?: ReadonlyArray<string>; next?: unknown; fail?: stri
             yield* Effect.ignore(hooks.failure(b, touched))
             return yield* Effect.fail({ touched, error: { _tag: "LintFailed", message: `${c.name}: ${o.fail}` } })
           }
-          if (c.name === "gherkin/edit-card" && (c.params as { id: string }).id === "C-GONE") {
+          if (c.name === "gherkin/edit-card" && (c.params as { id: string }).id === "S-GONE") {
             yield* Effect.ignore(hooks.failure(b, touched))
-            return yield* Effect.fail({ touched, error: { _tag: "ToolError", message: "no card C-GONE" } })
+            return yield* Effect.fail({ touched, error: { _tag: "ToolError", message: "no card S-GONE" } })
           }
           log.push(["call", c.name, c.params])
           if (c.name === "gherkin/edit-card" && (o.planned ?? []).includes((c.params as { id: string }).id)) touched.push((c.params as { id: string }).id)
-          touched.push(...(c.name.endsWith("add-card") ? ["C-0009"] : c.name.endsWith("edit-state") ? ["S-0002"] : []))
+          touched.push(...(c.name.endsWith("add-card") ? ["S-0009"] : c.name.endsWith("edit-state") ? ["ST-0002"] : []))
         }
         return { touched, before: b, after: yield* hooks.after(b, touched) }
       }),
     snapshot: Effect.succeed("graph"),
-    affected: () => Effect.succeed({ cards: ["C-0001", "C-0009"] }),
+    affected: () => Effect.succeed({ cards: ["S-0001", "S-0009"] }),
     files: () => Effect.succeed({ restore: (ids: ReadonlyArray<string>) => Effect.sync(() => void log.push(["restore", ids])), dirty: (ids: ReadonlyArray<string>) => Effect.succeed(ids.filter((id) => (o.dirty ?? []).includes(id))) }),
     exists: (card) => Effect.succeed(!(o.gone ?? []).includes(card)),
     commit: (ids, message) => Effect.sync(() => (log.push(["commit", ids, message]), "abcdef0123")),
@@ -57,10 +57,10 @@ describe("the Planner", () => {
     expect(log).toEqual([
       ["backlog", "next", {}],
       ["backlog", "moved", { id: "B-01", to: "running", by: "Planner", what: "applying 2 changes" }],
-      ["call", "gherkin/edit-state", { id: "S-0002", text: "x" }],
+      ["call", "gherkin/edit-state", { id: "ST-0002", text: "x" }],
       ["call", "gherkin/add-card", { title: "y" }],
-      ["commit", ["S-0002", "C-0009"], "req: Grant prompt (B-01)"],
-      ["backlog", "moved", { id: "B-01", to: "running", by: "Planner", what: "applied in abcdef0", cards: ["C-0001", "C-0009"] }],
+      ["commit", ["ST-0002", "S-0009"], "req: Grant prompt (B-01)"],
+      ["backlog", "moved", { id: "B-01", to: "running", by: "Planner", what: "applied in abcdef0", cards: ["S-0001", "S-0009"] }],
       ["notify"],
     ])
   })
@@ -68,13 +68,13 @@ describe("the Planner", () => {
     const { p, log } = setup({ fail: "a card needs a Then" })
     await Effect.runPromise(p.tick)
     expect(log.filter((l) => (l as Array<unknown>)[0] === "commit")).toEqual([])
-    expect(log).toContainEqual(["restore", ["S-0002"]])
+    expect(log).toContainEqual(["restore", ["ST-0002"]])
     expect(log.at(-1)).toEqual(["backlog", "moved", { id: "B-01", to: "ready", by: "Planner", what: "apply failed", needs: "gherkin/add-card: a card needs a Then" }])
   })
   test("with reconcile off the plan goes to Review, to be implemented by hand", async () => {
     const { p, log } = setup({ reconcile: false })
     await Effect.runPromise(p.tick)
-    expect(log.at(-1)).toEqual(["backlog", "moved", { id: "B-01", to: "review", by: "Planner", what: "applied in abcdef0; reconcile is off: implement by hand", cards: ["C-0001", "C-0009"] }])
+    expect(log.at(-1)).toEqual(["backlog", "moved", { id: "B-01", to: "review", by: "Planner", what: "applied in abcdef0; reconcile is off: implement by hand", cards: ["S-0001", "S-0009"] }])
   })
   test("nothing Ready: nothing happens", async () => {
     const { p, log } = setup({ next: null })
@@ -82,9 +82,9 @@ describe("the Planner", () => {
     expect(log).toEqual([["backlog", "next", {}]])
   })
   test("a landed pass moves Running plans whose cards all landed to Review", async () => {
-    const { p, log } = setup({ running: [{ id: "B-01", data: item({ status: "running", cards: [{ ref: "gherkin/card:C-0001@abc" }, { ref: "gherkin/card:C-0002@def" }] }) }, { id: "B-02", data: item({ id: "B-02", status: "running" }) }] })
-    await Effect.runPromise(p.landed(["C-0001"]))
-    expect(log).toEqual([["call", "gherkin/edit-card", { id: "C-0001", planned: false }], ["backlog", "moved", { id: "B-02", to: "review", by: "reconcile", what: "landed" }]])
+    const { p, log } = setup({ running: [{ id: "B-01", data: item({ status: "running", cards: [{ ref: "gherkin/card:S-0001@abc" }, { ref: "gherkin/card:S-0002@def" }] }) }, { id: "B-02", data: item({ id: "B-02", status: "running" }) }] })
+    await Effect.runPromise(p.landed(["S-0001"]))
+    expect(log).toEqual([["call", "gherkin/edit-card", { id: "S-0001", planned: false }], ["backlog", "moved", { id: "B-02", to: "review", by: "reconcile", what: "landed" }]])
   })
   test("the Running move fails: nothing is applied", async () => {
     const { p, log } = setup({ movedFails: true })
@@ -92,35 +92,35 @@ describe("the Planner", () => {
     expect(log).toEqual([["backlog", "next", {}]])
   })
   test("a node the operator changed and has not committed: the apply is undone and the plan waits for them", async () => {
-    const { p, log } = setup({ dirty: ["S-0002"] })
+    const { p, log } = setup({ dirty: ["ST-0002"] })
     await Effect.runPromise(p.tick)
     expect(log.filter((l) => (l as Array<unknown>)[0] === "commit")).toEqual([])
-    expect(log).toContainEqual(["restore", ["S-0002", "C-0009"]])
-    expect(log.at(-1)).toEqual(["backlog", "moved", { id: "B-01", to: "ready", by: "Planner", what: "waits for your graph edits", needs: "commit your uncommitted changes to S-0002 first (the plan changes them too)" }])
+    expect(log).toContainEqual(["restore", ["ST-0002", "S-0009"]])
+    expect(log.at(-1)).toEqual(["backlog", "moved", { id: "B-01", to: "ready", by: "Planner", what: "waits for your graph edits", needs: "commit your uncommitted changes to ST-0002 first (the plan changes them too)" }])
   })
   test("a failed pass on a plan's card puts it back in Ready for the operator; a card the plan removed counts as landed", async () => {
-    const { p, log } = setup({ gone: ["C-0002"], running: [{ id: "B-01", data: item({ status: "running", cards: [{ ref: "gherkin/card:C-0001@abc" }, { ref: "gherkin/card:C-0002@def" }] }) }, { id: "B-03", data: item({ id: "B-03", status: "running", cards: [{ ref: "gherkin/card:C-0007@abc" }] }) }] })
-    await Effect.runPromise(p.landed(["C-0001"]))
-    await Effect.runPromise(p.failed(["C-0007"]))
+    const { p, log } = setup({ gone: ["S-0002"], running: [{ id: "B-01", data: item({ status: "running", cards: [{ ref: "gherkin/card:S-0001@abc" }, { ref: "gherkin/card:S-0002@def" }] }) }, { id: "B-03", data: item({ id: "B-03", status: "running", cards: [{ ref: "gherkin/card:S-0007@abc" }] }) }] })
+    await Effect.runPromise(p.landed(["S-0001"]))
+    await Effect.runPromise(p.failed(["S-0007"]))
     expect(log).toEqual([
-      ["call", "gherkin/edit-card", { id: "C-0001", planned: false }],
+      ["call", "gherkin/edit-card", { id: "S-0001", planned: false }],
       ["backlog", "moved", { id: "B-01", to: "review", by: "reconcile", what: "landed" }],
-      ["backlog", "moved", { id: "B-03", to: "ready", by: "reconcile", what: "the pass failed on C-0007", needs: "the reconcile pass failed on C-0007: see the driver's agenda, then move it to Ready" }],
+      ["backlog", "moved", { id: "B-03", to: "ready", by: "reconcile", what: "the pass failed on S-0007", needs: "the reconcile pass failed on S-0007: see the driver's agenda, then move it to Ready" }],
     ])
   })
   test("a landed pass clears planned on its cards and commits it; a card that fails does not stop the rest", async () => {
-    const { p, log } = setup({ running: [], planned: ["C-0026"] })
-    await Effect.runPromise(p.landed(["C-GONE", "C-0026", "C-0031"]))
+    const { p, log } = setup({ running: [], planned: ["S-0026"] })
+    await Effect.runPromise(p.landed(["S-GONE", "S-0026", "S-0031"]))
     expect(log).toEqual([
-      ["call", "gherkin/edit-card", { id: "C-0026", planned: false }],
-      ["commit", ["C-0026"], "req: C-0026 is built (landed)"],
-      ["call", "gherkin/edit-card", { id: "C-0031", planned: false }],
+      ["call", "gherkin/edit-card", { id: "S-0026", planned: false }],
+      ["commit", ["S-0026"], "req: S-0026 is built (landed)"],
+      ["call", "gherkin/edit-card", { id: "S-0031", planned: false }],
     ])
   })
   test("a code plan the operator moved to Running is theirs: a landed or failed pass leaves it", async () => {
     const { p, log } = setup({ running: [{ id: "B-05", data: item({ id: "B-05", status: "running", kind: "code" }) }] })
-    await Effect.runPromise(p.landed(["C-0001"]))
-    await Effect.runPromise(p.failed(["C-0001"]))
+    await Effect.runPromise(p.landed(["S-0001"]))
+    await Effect.runPromise(p.failed(["S-0001"]))
     expect(log.filter((l) => (l as Array<unknown>)[1] === "moved")).toEqual([])
   })
 })

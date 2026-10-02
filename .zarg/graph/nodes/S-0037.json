@@ -1,9 +1,31 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0035",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0037",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0038",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0037",
   "props": {
-    "terminal": true,
-    "text": "warm-up progress is shown"
+    "planned": true,
+    "title": "A cold model warms up",
+    "when": "the chosen model is cold"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0005",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0003",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0005",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0002",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0006",
   "props": {
-    "terminal": true,
-    "text": "every card using it shows the new text"
+    "title": "CLI actor retries with the hint",
+    "when": "the CLI actor retries using the hint"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

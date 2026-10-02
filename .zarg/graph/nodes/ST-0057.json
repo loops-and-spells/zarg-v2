@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0057",
+  "props": {
+    "terminal": true,
+    "text": "each changed card has a plan file"
+  },
+  "type": "gherkin/state"
+}

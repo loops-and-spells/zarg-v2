@@ -13,7 +13,7 @@ const ASK_FIRST: ServiceFailure = {
  * item: graph writes open when the operator adds a change shown with Inquire.confirm (or the driver adds a
  * discussed one for them), and close at the next question.
  */
-// @card C-0009
+// @card S-0009
 export const askFirst = (asker: Asker) => {
   let open = false
   const touched = new Set<string>()

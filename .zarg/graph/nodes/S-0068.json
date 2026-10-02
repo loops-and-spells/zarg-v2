@@ -1,8 +1,30 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0062",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0069",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0070",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0006",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0068",
   "props": {
-    "text": "YOLO shows on the status line"
+    "title": "A failing plugin is disabled",
+    "when": "the plugin fails three times in ten minutes"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

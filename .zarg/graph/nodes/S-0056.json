@@ -1,8 +1,30 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0056",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0057",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0019",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0004",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0004",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0056",
   "props": {
-    "text": "the Planner Agent writes a plan for each changed card"
+    "title": "Plans are written",
+    "when": "the Planner Agent finishes every changed card"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

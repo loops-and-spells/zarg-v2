@@ -38,7 +38,7 @@ describe("structure", () => {
     const n2: Node = { id: "N-0002", type: "notes/note", props: { text: "b" }, edges: [{ type: "notes/about", to: "N-0001" }] }
     expect(findings([topic, n1, n2])).toEqual(["edge-target"])
   })
-  // @card C-0007
+  // @card S-0007
   test("the same edge twice is refused with a fix hint", () => {
     const note: Node = { id: "N-0001", type: "notes/note", props: { text: "a" }, edges: [{ type: "notes/about", to: "T-0001" }, { type: "notes/about", to: "T-0001" }] }
     const found = check([topic, note])

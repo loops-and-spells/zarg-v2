@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0093",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0094",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0005",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0002",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0082",
   "props": {
-    "terminal": true,
-    "text": "a reply stays readable while it streams in"
+    "title": "CLI actor tags new code",
+    "when": "the CLI actor tags new code with the card's id"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

@@ -116,9 +116,9 @@ describe("journey stories", () => {
 
 test("a step says whether its card is planned (not built yet)", () => {
   const snap = Snapshot.make([
-    { id: "S-1", type: "gherkin/state", props: { text: "a" }, edges: [] },
-    { id: "C-1", type: "gherkin/card", props: { title: "t", when: "w", planned: true }, edges: [{ type: "gherkin/arrives", to: "S-1" }] },
-    { id: "C-2", type: "gherkin/card", props: { title: "t", when: "w" }, edges: [{ type: "gherkin/arrives", to: "S-1" }] },
+    { id: "ST-1", type: "gherkin/state", props: { text: "a" }, edges: [] },
+    { id: "S-1", type: "gherkin/card", props: { title: "t", when: "w", planned: true }, edges: [{ type: "gherkin/arrives", to: "ST-1" }] },
+    { id: "S-2", type: "gherkin/card", props: { title: "t", when: "w" }, edges: [{ type: "gherkin/arrives", to: "ST-1" }] },
   ] as never)
-  expect([stepView(snap, "C-1")?.planned, stepView(snap, "C-2")?.planned]).toEqual([true, undefined])
+  expect([stepView(snap, "S-1")?.planned, stepView(snap, "S-2")?.planned]).toEqual([true, undefined])
 })

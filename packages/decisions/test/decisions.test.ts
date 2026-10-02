@@ -41,7 +41,7 @@ const run = <A, E>(fake: Fake, eff: Effect.Effect<A, E, Decisions>) => {
 }
 
 const req: DecisionRequest = {
-  state: "two threads edited S-0004",
+  state: "two threads edited ST-0004",
   questions: {
     merge: { type: "choice", instructions: "Can both edits apply?", criteria: { compatible: "yes", conflicting: "no" } },
     ready: { type: "noul", instructions: "Enough evidence?" },

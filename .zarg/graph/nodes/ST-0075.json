@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0075",
+  "props": {
+    "terminal": true,
+    "text": "a working line shows the elapsed time with the turn"
+  },
+  "type": "gherkin/state"
+}

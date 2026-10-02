@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0086",
+  "props": {
+    "terminal": true,
+    "text": "the diagram is drawn in box-drawing characters"
+  },
+  "type": "gherkin/state"
+}

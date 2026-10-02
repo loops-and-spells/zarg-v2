@@ -1,9 +1,30 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0014",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0015",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0009",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0001",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0015",
   "props": {
-    "terminal": true,
-    "text": "the topic becomes the Driver Agent's focus"
+    "title": "Operator picks a topic",
+    "when": "the operator picks a topic"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

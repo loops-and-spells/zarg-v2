@@ -1,9 +1,30 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0009",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0010",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0001",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0008",
   "props": {
-    "entry": true,
-    "text": "the operator starts zarg in a repo"
+    "title": "Driver Agent opens with a question",
+    "when": "the Driver Agent reads the agenda"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

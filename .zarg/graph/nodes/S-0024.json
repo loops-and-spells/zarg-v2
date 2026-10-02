@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0019",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0022",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0004",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0005",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0024",
   "props": {
-    "terminal": true,
-    "text": "sensitive fields hide the typed characters"
+    "title": "A card cannot be implemented",
+    "when": "a card contradicts another card"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

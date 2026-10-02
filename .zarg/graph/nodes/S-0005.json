@@ -1,8 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0001",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0007",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0005",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0002",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0005",
   "props": {
-    "text": "the change is refused with a fix hint"
+    "title": "CLI actor lists changes since a sync",
+    "when": "the CLI actor asks for changes since a git ref"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

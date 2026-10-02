@@ -1,8 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0009",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0011",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0001",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0009",
   "props": {
-    "text": "one question with options is shown"
+    "title": "Operator picks an option",
+    "when": "the operator picks an option"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0055",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0022",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0004",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0005",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0051",
   "props": {
-    "terminal": true,
-    "text": "sensitive variables are absent from its environment"
+    "title": "Landing stops waiting",
+    "when": "ten minutes pass with the files still edited"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

@@ -7,9 +7,9 @@ const setUp = (why = "fix · real 0.90") =>
   Effect.gen(function* () {
     yield* gherkin("add-persona", { name: "Operator", kind: "human", text: "The person using zarg." })
     yield* gherkin("add-state", { text: "the plugin runs", entry: true })
-    yield* gherkin("add-card", { title: "Plugin asks for a scope", when: "the plugin needs a scope", by: [{ id: "P-0001" }], arrives: { id: "S-0001" }, then: [{ text: "the operator is asked" }] })
+    yield* gherkin("add-card", { title: "Plugin asks for a scope", when: "the plugin needs a scope", by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ text: "the operator is asked" }] })
     const h = yield* PluginHost
-    const card = yield* h.entities.get("gherkin/card:C-0001")
+    const card = yield* h.entities.get("gherkin/card:S-0001")
     const { ids } = (yield* h.invoke("backlog", "file", { entries: [{ ref: card.ref, journeys: ["Set up"], persona: "Operator", kind: "gap", severity: "high", note: "No deny path.", from: { agent: "rehearse", run: "r-1" }, triage: { on: true, why } }] })) as { ids: string[] }
     return { card, ids, h }
   })
@@ -21,14 +21,14 @@ describe("the backlog's topics in the inbox", () => {
       Effect.gen(function* () {
         const { card, ids, h } = yield* setUp()
         yield* h.invoke("backlog", "plan", { title: "T", journey: "Set up", cards: [{ ref: card.ref }], changes: [], feedback: ids, steps: [] })
-        yield* h.invoke("backlog", "moved", { id: "B-01", to: "ready", by: "Planner", needs: "commit your uncommitted changes to S-0002 first" })
+        yield* h.invoke("backlog", "moved", { id: "B-01", to: "ready", by: "Planner", needs: "commit your uncommitted changes to ST-0002 first" })
         const t = { ...topic(seen, "needs:B-01")! }
         yield* h.invoke("backlog", "answered", { id: t.id, key: "needs:B-01", answer: "ready" })
         const item = (yield* h.entities.get("backlog/item:B-01")).data as { status: string; needs?: string }
         return { t, item, after: topic(seen, "needs:B-01") }
       }),
     )
-    expect(out.t).toMatchObject({ kind: "plan", title: "B-01 T can't apply: commit your uncommitted changes to S-0002 first", answers: [{ id: "ready" }, { id: "drop" }] })
+    expect(out.t).toMatchObject({ kind: "plan", title: "B-01 T can't apply: commit your uncommitted changes to ST-0002 first", answers: [{ id: "ready" }, { id: "drop" }] })
     expect([out.item.status, out.item.needs]).toEqual(["ready", undefined])
     expect(out.after).toMatchObject({ state: "moot" })
   })
@@ -54,31 +54,31 @@ describe("the backlog's topics in the inbox", () => {
     const out = await run((seen) =>
       Effect.gen(function* () {
         const { ids, h } = yield* setUp()
-        // A second card whose change goes in: the round moves on to Plan with C-0001 left out.
-        yield* gherkin("add-card", { title: "Plugin loads", when: "the plugin starts", by: [{ id: "P-0001" }], arrives: { id: "S-0001" }, then: [{ text: "the plugin is loaded" }] })
-        const two = yield* h.entities.get("gherkin/card:C-0002")
+        // A second card whose change goes in: the round moves on to Plan with S-0001 left out.
+        yield* gherkin("add-card", { title: "Plugin loads", when: "the plugin starts", by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ text: "the plugin is loaded" }] })
+        const two = yield* h.entities.get("gherkin/card:S-0002")
         yield* h.invoke("backlog", "file", { entries: [{ ref: two.ref, journeys: ["Set up"], persona: "Operator", kind: "gap", severity: "low", note: "Say when.", from: { agent: "rehearse", run: "r-1" }, triage: { on: true, why: "fix · real 0.90" } }] })
         yield* h.invoke("backlog", "act", { agent: "feedback", action: "open", rows: [] })
         yield* h.invoke("backlog", "act", { agent: "feedback", action: "refine", rows: [] })
         // A card is left out once its rounds of tries are spent.
-        for (let i = 0; i < 3; i++) yield* h.invoke("backlog", "propose", { journey: "Set up", card: "C-0001", changes: [], answers: [], summary: "", problems: ["a clause has if"] })
-        yield* h.invoke("backlog", "propose", { journey: "Set up", card: "C-0002", changes: [{ tool: "edit-card", params: { id: "C-0002", when: "the plugin starts up" } }], answers: [], summary: "s" })
-        const t = { ...topic(seen, "left:Set up:C-0001")! }
-        yield* h.invoke("backlog", "answered", { id: t.id, key: "left:Set up:C-0001", answer: "draft" })
+        for (let i = 0; i < 3; i++) yield* h.invoke("backlog", "propose", { journey: "Set up", card: "S-0001", changes: [], answers: [], summary: "", problems: ["a clause has if"] })
+        yield* h.invoke("backlog", "propose", { journey: "Set up", card: "S-0002", changes: [{ tool: "edit-card", params: { id: "S-0002", when: "the plugin starts up" } }], answers: [], summary: "s" })
+        const t = { ...topic(seen, "left:Set up:S-0001")! }
+        yield* h.invoke("backlog", "answered", { id: t.id, key: "left:Set up:S-0001", answer: "draft" })
         const stage = ((yield* h.invoke("backlog", "stages", {})) as Array<{ proposals: Array<{ card: string; status: string }> }>)[0]!
         void ids
-        return { t, status: stage.proposals.find((p) => p.card === "C-0001")?.status }
+        return { t, status: stage.proposals.find((p) => p.card === "S-0001")?.status }
       }),
     )
-    expect(out.t).toMatchObject({ kind: "plan", title: "C-0001 left out of Set up's round", answers: [{ id: "draft" }, { id: "leave" }] })
+    expect(out.t).toMatchObject({ kind: "plan", title: "S-0001 left out of Set up's round", answers: [{ id: "draft" }, { id: "leave" }] })
     expect(out.status).toBe("waiting")
   })
   test("a folded round's plans and a finished rehearse run are reports", async () => {
     const out = await run((seen) =>
       Effect.gen(function* () {
         const { card, ids, h } = yield* setUp()
-        yield* h.invoke("backlog", "plans", { journey: "Set up", plans: [{ title: "First", steps: [], changes: [], cards: ["C-0001"], feedback: ids, after: [] }] })
-        yield* h.invoke("backlog", "file", { entries: [{ ref: card.ref, journeys: ["Set up"], persona: "Operator", kind: "friction", severity: "low", note: "Wordy.", from: { agent: "rehearse", run: "r-2" }, triage: { on: false, why: "drop · real 0.10" } }], walked: ["C-0001"], run: "r-2" })
+        yield* h.invoke("backlog", "plans", { journey: "Set up", plans: [{ title: "First", steps: [], changes: [], cards: ["S-0001"], feedback: ids, after: [] }] })
+        yield* h.invoke("backlog", "file", { entries: [{ ref: card.ref, journeys: ["Set up"], persona: "Operator", kind: "friction", severity: "low", note: "Wordy.", from: { agent: "rehearse", run: "r-2" }, triage: { on: false, why: "drop · real 0.10" } }], walked: ["S-0001"], run: "r-2" })
         return (seen.inbox ?? []).filter((t) => t.kind === "report").map((t) => t.title)
       }),
     )
@@ -124,19 +124,19 @@ describe("the backlog's topics in the inbox", () => {
     const out = await run((seen) =>
       Effect.gen(function* () {
         const { h } = yield* setUp()
-        yield* gherkin("add-card", { title: "Plugin loads", when: "the plugin starts", by: [{ id: "P-0001" }], arrives: { id: "S-0001" }, then: [{ text: "the plugin is loaded" }] })
-        const two = yield* h.entities.get("gherkin/card:C-0002")
+        yield* gherkin("add-card", { title: "Plugin loads", when: "the plugin starts", by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ text: "the plugin is loaded" }] })
+        const two = yield* h.entities.get("gherkin/card:S-0002")
         yield* h.invoke("backlog", "file", { entries: [{ ref: two.ref, journeys: ["Set up"], persona: "Operator", kind: "gap", severity: "low", note: "Say when.", from: { agent: "rehearse", run: "r-1" }, triage: { on: true, why: "fix · real 0.90" } }] })
         yield* h.invoke("backlog", "act", { agent: "feedback", action: "open", rows: [] })
         yield* h.invoke("backlog", "act", { agent: "feedback", action: "refine", rows: [] })
-        for (let i = 0; i < 3; i++) yield* h.invoke("backlog", "propose", { journey: "Set up", card: "C-0001", changes: [], answers: [], summary: "", problems: ["a clause has if"] })
-        yield* h.invoke("backlog", "propose", { journey: "Set up", card: "C-0002", changes: [{ tool: "edit-card", params: { id: "C-0002", when: "the plugin starts up" } }], answers: [], summary: "s" })
-        const t = { ...topic(seen, "left:Set up:C-0001")! }
-        Object.assign(topic(seen, "left:Set up:C-0001")!, { state: "answered" })
-        yield* h.invoke("backlog", "answered", { id: t.id, key: "left:Set up:C-0001", answer: "leave" })
+        for (let i = 0; i < 3; i++) yield* h.invoke("backlog", "propose", { journey: "Set up", card: "S-0001", changes: [], answers: [], summary: "", problems: ["a clause has if"] })
+        yield* h.invoke("backlog", "propose", { journey: "Set up", card: "S-0002", changes: [{ tool: "edit-card", params: { id: "S-0002", when: "the plugin starts up" } }], answers: [], summary: "s" })
+        const t = { ...topic(seen, "left:Set up:S-0001")! }
+        Object.assign(topic(seen, "left:Set up:S-0001")!, { state: "answered" })
+        yield* h.invoke("backlog", "answered", { id: t.id, key: "left:Set up:S-0001", answer: "leave" })
         // Anything else changes (a new filing syncs the topics): the card is not raised again.
         yield* h.invoke("backlog", "file", { entries: [{ ref: two.ref, journeys: ["Set up"], persona: "Operator", kind: "friction", severity: "low", note: "Wordy.", from: { agent: "rehearse", run: "r-3" }, triage: { on: false, why: "drop · real 0.10" } }] })
-        return (seen.inbox ?? []).filter((x) => x.key === "left:Set up:C-0001" && x.state === "open").length
+        return (seen.inbox ?? []).filter((x) => x.key === "left:Set up:S-0001" && x.state === "open").length
       }),
     )
     expect(out).toBe(0)
@@ -201,9 +201,9 @@ describe("the backlog's topics in the inbox", () => {
     const out = await run(() =>
       Effect.gen(function* () {
         const { h } = yield* setUp()
-        return ((yield* h.invoke("backlog", "answered", { id: "T-00000009", key: "left:Set up:C-0001", answer: "leave" })) as { notice: string }).notice
+        return ((yield* h.invoke("backlog", "answered", { id: "T-00000009", key: "left:Set up:S-0001", answer: "leave" })) as { notice: string }).notice
       }),
     )
-    expect(out).toBe("C-0001 is no longer left out of Set up's round")
+    expect(out).toBe("S-0001 is no longer left out of Set up's round")
   })
 })

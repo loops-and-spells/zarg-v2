@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0001",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0005",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0005",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0002",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0003",
   "props": {
-    "terminal": true,
-    "text": "the card is saved as one node file"
+    "title": "A conditional clause is refused",
+    "when": "the CLI actor adds a conditional clause"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

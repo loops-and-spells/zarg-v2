@@ -1,9 +1,30 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0060",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0061",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0060",
   "props": {
-    "terminal": true,
-    "text": "the plugin is installed without running its scripts"
+    "title": "Operator installs a plugin",
+    "when": "the operator runs zarg plugin add"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

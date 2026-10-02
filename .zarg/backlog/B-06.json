@@ -3,48 +3,48 @@
   "journey": "Watch agents",
   "cards": [
     {
-      "ref": "gherkin/card:C-0041@3ea582a7789a"
+      "ref": "gherkin/card:S-0041@85196d3ea738"
     },
     {
-      "ref": "gherkin/card:C-0048@d814d2c2e755"
+      "ref": "gherkin/card:S-0048@ba9d9e139b95"
     },
     {
-      "ref": "gherkin/card:C-0046@cc3b24b9f8ef"
+      "ref": "gherkin/card:S-0046@d615b2a3f1f3"
     }
   ],
   "changes": [
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0040",
+        "id": "ST-0040",
         "text": "an agent run is in progress after loading preset at run start"
       }
     },
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0053",
+        "id": "ST-0053",
         "text": "the refusal names the service outside the operator-granted scopes and emits the grant request"
       }
     },
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0048",
+        "id": "S-0048",
         "when": "an agent attempts to invoke a service outside the operator-granted scopes"
       }
     },
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0046",
+        "id": "S-0046",
         "when": "an agent reads an env file local to its declared workspace"
       }
     },
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0050",
+        "id": "ST-0050",
         "text": "the read is refused, naming the file and the blocking gate"
       }
     },
@@ -59,7 +59,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0040"
+          "id": "ST-0040"
         },
         "then": [
           {
@@ -71,7 +71,7 @@
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0040",
+        "id": "ST-0040",
         "text": "an agent run is in progress after loading preset at run start"
       }
     }
@@ -92,12 +92,12 @@
     "F-ef320313"
   ],
   "steps": [
-    "Rewrite C-0048 with new When: attempt to invoke outside-granted service",
-    "Add C-0048 then naming missing name plus grant request",
-    "Keep C-0041 unchanged until run ownership and state labels set",
-    "Tie C-0046 env-file reads to declared workspace",
-    "Rewrite C-0046 refusal naming file and blocking gate",
-    "Add new C-0046 then card recording refusal to continue run"
+    "Rewrite S-0048 with new When: attempt to invoke outside-granted service",
+    "Add S-0048 then naming missing name plus grant request",
+    "Keep S-0041 unchanged until run ownership and state labels set",
+    "Tie S-0046 env-file reads to declared workspace",
+    "Rewrite S-0046 refusal naming file and blocking gate",
+    "Add new S-0046 then card recording refusal to continue run"
   ],
   "persona": "Driver Agent",
   "severity": "high",

@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "ST-0091",
+  "props": {
+    "text": "the affected cards are listed, removed ones apart"
+  },
+  "type": "gherkin/state"
+}

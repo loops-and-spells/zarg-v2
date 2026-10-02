@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0090",
+  "props": {
+    "terminal": true,
+    "text": "a wider window draws it once it fits"
+  },
+  "type": "gherkin/state"
+}

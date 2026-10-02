@@ -1,9 +1,30 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0086",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0087",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0079",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "J-0001",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0077",
   "props": {
-    "terminal": true,
-    "text": "its children fold into a count"
+    "title": "Operator sees a diagram",
+    "when": "the text holds a Mermaid diagram that fits the window"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

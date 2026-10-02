@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0004",
+  "props": {
+    "terminal": true,
+    "text": "the rendered card shows its states"
+  },
+  "type": "gherkin/state"
+}

@@ -6,7 +6,7 @@ import { initialUi } from "../src/view"
 const node = (p: Partial<RlmNode> & { id: string }): RlmNode => ({ parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running", decisions: [], ...p })
 const stateWith = (rlms: Record<string, RlmNode>): SessionState => ({ thread: { ...initial("main"), rlms }, core: "up" })
 const rlms = {
-  zarg: node({ id: "zarg", preset: "zarg", attention: { reason: "asks: Split C-0012?", since: 1 } }),
+  zarg: node({ id: "zarg", preset: "zarg", attention: { reason: "asks: Split S-0012?", since: 1 } }),
   "rlm-1": node({ id: "rlm-1", parent: "zarg", preset: "driver", turns: 3, budget: 25 }),
   "rehearse:run": node({ id: "rehearse:run", preset: "rehearse", row: { progress: { done: 12, total: 18 }, text: "12/18 steps" } }),
   "rehearse:tester-1": node({ id: "rehearse:tester-1", parent: "rehearse:run", status: "done", attention: { reason: "3 findings to review", since: 2 } }),

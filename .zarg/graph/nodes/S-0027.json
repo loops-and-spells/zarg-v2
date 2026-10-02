@@ -1,9 +1,31 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0023",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0025",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0026",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0027",
   "props": {
-    "terminal": true,
-    "text": "the rejection reason is shown"
+    "planned": true,
+    "title": "Valid values are stored",
+    "when": "the provider accepts the entered values"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

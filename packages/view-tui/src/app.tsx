@@ -353,7 +353,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         </text>
       </box>
       <scrollbox ref={talkRef} focusable={false} style={{ flexGrow: 1, flexShrink: 1, minHeight: 0, paddingLeft: 2, paddingRight: 2 }} stickyScroll stickyStart="bottom">
-        {/* @card C-0076 */}
+        {/* @card S-0076 */}
         {conversation(s).map((l, i) => l.kind === "zarg" ? (
           <box key={i} flexDirection="row" flexShrink={0}>
             <text width={6} fg={LABEL[l.kind].fg}>{LABEL[l.kind].text}</text>

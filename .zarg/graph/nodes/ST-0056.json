@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "ST-0056",
+  "props": {
+    "text": "the Planner Agent writes a plan for each changed card"
+  },
+  "type": "gherkin/state"
+}

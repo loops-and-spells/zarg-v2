@@ -2,7 +2,7 @@ import { useRenderer, type MarkdownProps } from "@opentui/react"
 import { useMemo } from "react"
 import { type Highlight, mermaidRenderer } from "./index"
 
-// @card C-0075
+// @card S-0075
 /** Markdown with Mermaid diagrams, using the host's styles and available width in terminal columns. */
 export const Markdown = ({ highlight, ...props }: Omit<MarkdownProps, "renderNode"> & { width: number; highlight?: Highlight }) => {
   const ctx = useRenderer()

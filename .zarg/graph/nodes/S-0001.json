@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0001",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0002",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0005",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0002",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0001",
   "props": {
-    "entry": true,
-    "text": "the CLI actor works in a repo with a zarg graph"
+    "title": "CLI actor reads the agenda",
+    "when": "the CLI actor asks zarg for the agenda"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

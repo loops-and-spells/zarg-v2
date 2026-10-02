@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "ST-0062",
+  "props": {
+    "text": "the plugin runs with only its approved scopes"
+  },
+  "type": "gherkin/state"
+}

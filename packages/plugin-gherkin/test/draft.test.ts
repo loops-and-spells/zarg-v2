@@ -7,7 +7,7 @@ import { pricing, run } from "./harness"
 const draft = [
   { tool: "add-state", params: { text: "the plan picker explains each plan" } },
   { tool: "add-card", params: { title: "Visitor reads a plan", when: "the visitor opens a plan's details", by: [{ id: "P-0001" }], arrives: { text: "the plan picker explains each plan" }, then: [{ text: "the plan's limits are listed" }] } },
-  { tool: "edit-state", params: { id: "S-0002", text: "the plan picker is shown with prices" } },
+  { tool: "edit-state", params: { id: "ST-0002", text: "the plan picker is shown with prices" } },
 ]
 
 describe("drafts", () => {
@@ -24,7 +24,7 @@ describe("drafts", () => {
     )
     expect(out.r.ok).toBe(true)
     expect(out.r.problems).toEqual([])
-    expect(out.r.touched).toEqual(expect.arrayContaining(["S-0002", "C-0006"]))
+    expect(out.r.touched).toEqual(expect.arrayContaining(["ST-0002", "S-0006"]))
     expect(out.after).toBe(out.before)
   })
   test("a draft that breaks a lint, or names no tool, comes back with its problems", async () => {
@@ -33,7 +33,7 @@ describe("drafts", () => {
         yield* pricing
         const h = yield* PluginHost
         return {
-          lint: (yield* h.invoke("gherkin", "dryRun", { draft: [{ tool: "edit-state", params: { id: "S-0002", text: "if the visitor wants, the picker is shown" } }] })) as { ok: boolean; problems: string[] },
+          lint: (yield* h.invoke("gherkin", "dryRun", { draft: [{ tool: "edit-state", params: { id: "ST-0002", text: "if the visitor wants, the picker is shown" } }] })) as { ok: boolean; problems: string[] },
           tool: (yield* h.invoke("gherkin", "dryRun", { draft: [{ tool: "nope", params: {} }] })) as { ok: boolean; problems: string[] },
         }
       }),
@@ -47,15 +47,15 @@ describe("drafts", () => {
       Effect.gen(function* () {
         yield* pricing
         const h = yield* PluginHost
-        const step = (yield* h.invoke("gherkin", "step", { card: "C-0001", draft })) as { thens: string[] }
-        const plain = (yield* h.invoke("gherkin", "step", { card: "C-0001" })) as { thens: string[] }
+        const step = (yield* h.invoke("gherkin", "step", { card: "S-0001", draft })) as { thens: string[] }
+        const plain = (yield* h.invoke("gherkin", "step", { card: "S-0001" })) as { thens: string[] }
         const stories = (yield* h.invoke("gherkin", "stories", { strategy: "teleport", draft })) as { stories: string[][] }
         return { step, plain, stories, journeys: yield* h.invoke("gherkin", "journeys", {}) }
       }),
     )
     expect(out.step.thens).toEqual(["the plan picker is shown with prices"])
     expect(out.plain.thens).toEqual(["the plan picker is shown"])
-    expect(out.stories.stories.flat()).toContain("C-0006")
+    expect(out.stories.stories.flat()).toContain("S-0006")
     expect(out.journeys).toEqual([])
   })
   test("the edge limits a write checks are checked after each call: a card's last then, a sixth then", async () => {
@@ -63,15 +63,15 @@ describe("drafts", () => {
       Effect.gen(function* () {
         yield* pricing
         const h = yield* PluginHost
-        const lastThen = (yield* h.invoke("gherkin", "dryRun", { draft: [{ tool: "unlink", params: { card: "C-0001", edge: "then", state: "S-0002" } }, { tool: "link", params: { card: "C-0001", edge: "then", state: { text: "a new then" } } }] })) as { ok: boolean; problems: string[] }
-        const six = (yield* h.invoke("gherkin", "dryRun", { draft: [1, 2, 3, 4, 5].map((i) => ({ tool: "link", params: { card: "C-0001", edge: "then", state: { text: `then number ${i}` } } })) })) as { ok: boolean; problems: string[] }
+        const lastThen = (yield* h.invoke("gherkin", "dryRun", { draft: [{ tool: "unlink", params: { card: "S-0001", edge: "then", state: "ST-0002" } }, { tool: "link", params: { card: "S-0001", edge: "then", state: { text: "a new then" } } }] })) as { ok: boolean; problems: string[] }
+        const six = (yield* h.invoke("gherkin", "dryRun", { draft: [1, 2, 3, 4, 5].map((i) => ({ tool: "link", params: { card: "S-0001", edge: "then", state: { text: `then number ${i}` } } })) })) as { ok: boolean; problems: string[] }
         return { lastThen, six }
       }),
     )
     expect(out.lastThen.ok).toBe(false)
-    expect(out.lastThen.problems.join(" ")).toMatch(/C-0001.*then/)
+    expect(out.lastThen.problems.join(" ")).toMatch(/S-0001.*then/)
     expect(out.six.ok).toBe(false)
-    expect(out.six.problems.join(" ")).toMatch(/C-0001.*then/)
+    expect(out.six.problems.join(" ")).toMatch(/S-0001.*then/)
   })
   test("a draft names the cards it affects: a reworded state's cards, a new card", async () => {
     const out = await run(
@@ -81,23 +81,23 @@ describe("drafts", () => {
         return (yield* h.invoke("gherkin", "dryRun", { draft })) as { cards: string[] }
       }),
     )
-    expect(out.cards).toEqual(["C-0001", "C-0002", "C-0003", "C-0006"])
+    expect(out.cards).toEqual(["S-0001", "S-0002", "S-0003", "S-0006"])
   })
   test("compare: every card a draft touches (new ones too), as it is, as the draft leaves it, and as text, in one call", async () => {
     const out = await run(
       Effect.gen(function* () {
         yield* pricing
         const h = yield* PluginHost
-        return (yield* h.invoke("gherkin", "compare", { draft, cards: ["C-0001"] })) as { ok: boolean; cards: Array<{ id: string; before: { thens: string[] } | null; after: { title: string; given: string } | null; text: string }> }
+        return (yield* h.invoke("gherkin", "compare", { draft, cards: ["S-0001"] })) as { ok: boolean; cards: Array<{ id: string; before: { thens: string[] } | null; after: { title: string; given: string } | null; text: string }> }
       }),
     )
     expect(out.ok).toBe(true)
     const byId = Object.fromEntries(out.cards.map((c) => [c.id, c]))
     // Asked for, and touched by the reworded state.
-    expect(byId["C-0001"]?.before).not.toBeNull()
+    expect(byId["S-0001"]?.before).not.toBeNull()
     // New: nothing before, the drafted card after.
-    expect(byId["C-0006"]?.before).toBeNull()
-    expect(byId["C-0006"]?.after?.title).toBe("Visitor reads a plan")
-    expect(byId["C-0001"]?.text).toContain("C-0001")
+    expect(byId["S-0006"]?.before).toBeNull()
+    expect(byId["S-0006"]?.after?.title).toBe("Visitor reads a plan")
+    expect(byId["S-0001"]?.text).toContain("S-0001")
   })
 })

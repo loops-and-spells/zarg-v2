@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0021",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0054",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0004",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0005",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0049",
   "props": {
-    "terminal": true,
-    "text": "a named placeholder replaces the value"
+    "title": "The commit lands",
+    "when": "no uncommitted edit touches its files"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

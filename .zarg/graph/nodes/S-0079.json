@@ -1,8 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0001",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0091",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0005",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0002",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0079",
   "props": {
-    "text": "the Markdown shows formatted: headings, lists, tables, code, links"
+    "title": "CLI actor finds the affected cards",
+    "when": "the CLI actor asks which cards changed since the last checkpoint"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

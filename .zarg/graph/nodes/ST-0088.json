@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0088",
+  "props": {
+    "terminal": true,
+    "text": "its Mermaid source shows as code"
+  },
+  "type": "gherkin/state"
+}

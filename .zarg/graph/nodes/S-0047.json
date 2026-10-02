@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0040",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0051",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0003",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0006",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0047",
   "props": {
-    "terminal": true,
-    "text": "the stop is noted in the thread"
+    "title": "Commands run without secrets",
+    "when": "an agent runs a shell command"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

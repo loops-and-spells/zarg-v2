@@ -1,9 +1,0 @@
-{
-  "edges": [],
-  "id": "S-0094",
-  "props": {
-    "terminal": true,
-    "text": "the card's code lists the new line"
-  },
-  "type": "gherkin/state"
-}

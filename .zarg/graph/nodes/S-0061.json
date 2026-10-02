@@ -1,8 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0061",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0062",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0061",
   "props": {
-    "text": "the plugin waits for the operator's approval"
+    "title": "Operator approves a plugin",
+    "when": "the operator approves its listed scopes"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

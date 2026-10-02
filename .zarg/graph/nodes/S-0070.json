@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0068",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0071",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0070",
   "props": {
-    "terminal": true,
-    "text": "the agenda explains why the plugin stopped"
+    "title": "Operator turns off YOLO",
+    "when": "the operator runs /yolo off"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

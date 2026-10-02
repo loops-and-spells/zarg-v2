@@ -51,7 +51,7 @@ describe("the host's entities", () => {
   })
   test("unparsable refs are refused with the reason, never routed", async () => {
     const p = await fixturePlugin(board())
-    const err = await Effect.runPromise(hostWith([p], (h) => Effect.flip(h.entities.get("C-0062"))))
+    const err = await Effect.runPromise(hostWith([p], (h) => Effect.flip(h.entities.get("S-0062"))))
     expect(err.tag).toBe("NotFound")
     expect(err.message).toMatch(/no type/)
   })

@@ -21,7 +21,7 @@ Reference: the AI-native SDLC playbook's "capture intent" (an intent is the orig
 | Node | Id | Props | Rules |
 |---|---|---|---|
 | intent | `I-0001` | `title`, `problem` (prose: context, not traced), `status`: draft or accepted | a title of at most 10 words |
-| goal | `G-0001` | `text` | one sentence, at most 20 words, no "if", one idea (the card lints). Not a card's outcome (its Then): see the taxonomy |
+| goal | `O-0001` | `text` | one sentence, at most 20 words, no "if", one idea (the card lints). Not a card's outcome (its Then): see the taxonomy |
 | constraint | `K-0001` | `text` | the same |
 | question | `Q-0001` | `text`, `answer?` | open until answered |
 
@@ -82,8 +82,8 @@ These are warnings, not errors, until the migration is done, so `verify` stays g
   2. Draft card and journey changes (driver model, no reasoning, as triage does). Each change is dry-run through `gherkin.dryRun`.
   3. Fold the changes into small plans with dependencies (triage's `fold`). Each plan says which statement it serves, and lands in the Backlog lane through `backlog.plans`.
   4. Send the inbox what it cannot decide:
-     - "G-0007 has no journey: add to Watch agents, or a new journey?"
-     - "K-0002 conflicts with C-0045: keep the constraint, or change the card?"
+     - "O-0007 has no journey: add to Watch agents, or a new journey?"
+     - "K-0002 conflicts with S-0045: keep the constraint, or change the card?"
 - **After a round:** the checkpoint moves forward. The agent works rounds one at a time, has workers like triage, and its view shows each round.
 - **Guards:**
   - Drafts never touch the graph: the Planner applies plans.
@@ -94,7 +94,7 @@ These are warnings, not errors, until the migration is done, so `verify` stays g
 
 - **`I-0001` from `intent/zarg.md`:**
   - its title and problem become the intent's props;
-  - its expected outcomes become goals `G-…`;
+  - its expected outcomes become goals `O-…`;
   - its safety and durability lines become `K-…`;
   - its personas are linked with `for`;
   - its `next` items become goals with no journey yet.

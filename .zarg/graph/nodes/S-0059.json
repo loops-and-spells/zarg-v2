@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0059",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0004",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0059",
   "props": {
-    "terminal": true,
-    "text": "the reason reconcile stays off is shown"
+    "title": "Reconcile cannot turn on",
+    "when": "the operator types /reconcile without plan or implement models"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

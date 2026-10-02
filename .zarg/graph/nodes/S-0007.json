@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0001",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0005",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0005",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0002",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0007",
   "props": {
-    "terminal": true,
-    "text": "each added, changed or removed node is listed"
+    "title": "A duplicate link is refused",
+    "when": "the CLI actor links a card to the same state twice"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

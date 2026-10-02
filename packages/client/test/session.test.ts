@@ -37,13 +37,13 @@ const inquiry = { id: "inq-1", reason: "inquiry", message: "Which?", metadata: {
 describe("session", () => {
   test("start follows the event stream from the beginning and posts a plain run", async () => {
     const f = fakeClient()
-    const s = makeSession({ client: f.client, threadId: "main", focus: ["S-0002"] })
+    const s = makeSession({ client: f.client, threadId: "main", focus: ["ST-0002"] })
     let changes = 0
     s.subscribe(() => changes++)
     s.start()
     await tick()
     expect(f.streams.map((x) => x.since)).toEqual([0])
-    expect(f.runs).toEqual([{ threadId: "main", focus: ["S-0002"] }])
+    expect(f.runs).toEqual([{ threadId: "main", focus: ["ST-0002"] }])
     // The plugin commands arrived: one change, so the TUI registers them.
     expect(changes).toBe(1)
     f.push({ type: "RUN_STARTED", threadId: "main", seq: 1, runId: "r" })
@@ -147,7 +147,7 @@ describe("session", () => {
 })
 
 describe("/yolo", () => {
-  // @card C-0067 C-0070
+  // @card S-0067 S-0070
   test("/yolo on, /yolo off plugin=tracker and a bare /yolo reach the core and say what happened", async () => {
     const f = fakeClient()
     const session = makeSession({ client: f.client, threadId: "main" })
@@ -169,9 +169,9 @@ test("a plugin's slash command runs through the core and shows its notice", asyn
   session.start()
   await tick()
   expect(session.pluginCommands().map((c) => c.cmd)).toEqual(["/rehearse"])
-  session.command("/rehearse teleport focus=C-1")
+  session.command("/rehearse teleport focus=S-1")
   await tick()
-  expect(f.pluginRuns).toEqual([["rehearse", "/rehearse", ["teleport", "focus=C-1"]]])
+  expect(f.pluginRuns).toEqual([["rehearse", "/rehearse", ["teleport", "focus=S-1"]]])
   expect(session.state().notice).toBe("/rehearse started")
   session.close()
 })

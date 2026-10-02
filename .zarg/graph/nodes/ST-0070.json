@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0070",
+  "props": {
+    "terminal": true,
+    "text": "the agenda explains why the plugin stopped"
+  },
+  "type": "gherkin/state"
+}

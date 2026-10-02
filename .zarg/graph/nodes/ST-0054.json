@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0054",
+  "props": {
+    "terminal": true,
+    "text": "the implementation commit lands on the operator's branch"
+  },
+  "type": "gherkin/state"
+}

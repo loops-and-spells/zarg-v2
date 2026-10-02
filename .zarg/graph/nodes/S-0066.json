@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0062",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0066",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0006",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0066",
   "props": {
-    "terminal": true,
-    "text": "the plugin call is refused"
+    "title": "An undeclared scope is refused",
+    "when": "the plugin reaches a scope it never declared"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

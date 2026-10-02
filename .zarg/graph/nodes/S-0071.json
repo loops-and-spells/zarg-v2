@@ -1,9 +1,30 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0012",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0073",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0011",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0001",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0071",
   "props": {
-    "terminal": true,
-    "text": "unapproved scopes are asked for again"
+    "title": "Driver Agent chooses for the operator",
+    "when": "the conversation settles on one option"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

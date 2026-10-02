@@ -1,0 +1,30 @@
+{
+  "edges": [
+    {
+      "to": "ST-0091",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0095",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0096",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0005",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0002",
+      "type": "gherkin/by"
+    }
+  ],
+  "id": "S-0083",
+  "props": {
+    "title": "CLI actor records a checkpoint",
+    "when": "the CLI actor records a checkpoint"
+  },
+  "type": "gherkin/card"
+}

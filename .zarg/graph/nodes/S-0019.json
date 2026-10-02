@@ -1,8 +1,27 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0018",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0011",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0001",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0019",
   "props": {
-    "text": "the Implementer Agent works on the changed cards"
+    "planned": true,
+    "title": "Operator picks a version",
+    "when": "the operator picks a version"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

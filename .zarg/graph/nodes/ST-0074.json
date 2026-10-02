@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0074",
+  "props": {
+    "terminal": true,
+    "text": "the options come from gaps found in the graph"
+  },
+  "type": "gherkin/state"
+}

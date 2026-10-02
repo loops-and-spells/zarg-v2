@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0066",
+  "props": {
+    "terminal": true,
+    "text": "the plugin call is refused"
+  },
+  "type": "gherkin/state"
+}

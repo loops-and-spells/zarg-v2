@@ -142,7 +142,7 @@ describe("rehearse runs in the plugin", () => {
   })
 
   test("a run over a draft walks the drafted cards, files nothing, and holds its findings for the caller; its end changes the agenda", async () => {
-    const draft = [{ tool: "edit-state", params: { id: "S-0002", text: "after B, drafted" } }]
+    const draft = [{ tool: "edit-state", params: { id: "ST-0002", text: "after B, drafted" } }]
     const t = await Effect.runPromise(
       Effect.gen(function* () {
         const t = yield* setup()

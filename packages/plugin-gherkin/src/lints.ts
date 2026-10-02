@@ -13,7 +13,7 @@ const touched: (ctx: Parameters<Lint>[0]) => ReadonlyArray<Node> = ({ diff }) =>
 ]
 
 /** One atomic fact per clause: short, no conditions, no "and" chaining. */
-// @card C-0003
+// @card S-0003
 export const clauseShape: Lint = (ctx) =>
   touched(ctx).flatMap((n) =>
     clauses(n).flatMap((c): ReadonlyArray<Finding> => {

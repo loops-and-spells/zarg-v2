@@ -71,9 +71,9 @@ describe("parse", () => {
 
 describe("stringify", () => {
   test("round-trips what parse reads; strings that would read as something else are quoted", () => {
-    const data = { card: "C-0075", hash: "82e586643ff1", n: "123", flag: "true", title: "Operator reads: a # b", list: [{ name: "A", text: "x" }], empty: [] }
+    const data = { card: "S-0075", hash: "82e586643ff1", n: "123", flag: "true", title: "Operator reads: a # b", list: [{ name: "A", text: "x" }], empty: [] }
     const md = stringify(data, "# Body\n")
-    expect(md.startsWith("---\ncard: C-0075\n")).toBe(true)
+    expect(md.startsWith("---\ncard: S-0075\n")).toBe(true)
     expect(parse(md)).toEqual({ data, body: "# Body\n" })
   })
 })

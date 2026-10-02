@@ -112,10 +112,10 @@ describe("folding", () => {
 
   test("atomize judges the head of a long task, not its pages of context (the decision model reads the state once per question)", async () => {
     const d = decisions(true)
-    const task = `Implement C-0051.\n${"context line\n".repeat(400)}`
+    const task = `Implement S-0051.\n${"context line\n".repeat(400)}`
     await run({ driver: [{ cell: 'yield* Rlm.done({ value: "direct" })' }] }, { task, preset: "driver", scope: {} }, d)
     const state = d.calls[0]!.state
-    expect(state).toStartWith("Task: Implement C-0051.\ncontext line")
+    expect(state).toStartWith("Task: Implement S-0051.\ncontext line")
     expect(state.length).toBeLessThan(800)
     expect(state).toContain("… (task cut for this judgment)")
     expect(state).toContain("\nScope: graph: whole graph")

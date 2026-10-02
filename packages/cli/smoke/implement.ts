@@ -31,7 +31,7 @@ const conn = await Effect.runPromise(connect({ root: scratch, command: coreComma
 console.log(`core ${conn.info.mode} (pid ${conn.info.pid}), driver model ${conn.info.driver ?? "?"}`)
 run(scratch, [process.execPath, cli, "tool", "call", "gherkin/add-persona", JSON.stringify({ name: "CLI actor", kind: "cli", text: "A coding agent at the command line." })], { ZARG_ROOT: scratch })
 const added = JSON.parse(
-  run(scratch, [process.execPath, cli, "tool", "call", "gherkin/add-card", JSON.stringify({ title: "CLI actor reads the zarg version", when: "the CLI actor runs zarg version", by: [{ name: "CLI actor" }], arrives: { id: "S-0001" }, then: [{ text: "the zarg version is printed" }] })], { ZARG_ROOT: scratch }),
+  run(scratch, [process.execPath, cli, "tool", "call", "gherkin/add-card", JSON.stringify({ title: "CLI actor reads the zarg version", when: "the CLI actor runs zarg version", by: [{ name: "CLI actor" }], arrives: { id: "ST-0001" }, then: [{ text: "the zarg version is printed" }] })], { ZARG_ROOT: scratch }),
 ) as { added: ReadonlyArray<string> }
 const card = added.added.find((id) => id.startsWith("C-"))!
 console.log(`added ${card}; waiting for plan and implement (up to ${TIMEOUT_MS / 60_000} min)`)

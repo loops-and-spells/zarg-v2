@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0082",
+  "props": {
+    "terminal": true,
+    "text": "a reply stays readable while it streams in"
+  },
+  "type": "gherkin/state"
+}

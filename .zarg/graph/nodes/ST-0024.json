@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0024",
+  "props": {
+    "terminal": true,
+    "text": "sensitive fields hide the typed characters"
+  },
+  "type": "gherkin/state"
+}

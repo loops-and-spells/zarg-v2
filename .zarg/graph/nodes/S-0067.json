@@ -1,9 +1,30 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0062",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0067",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0068",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0067",
   "props": {
-    "terminal": true,
-    "text": "declared scopes pass without a question"
+    "title": "Operator turns on YOLO",
+    "when": "the operator runs /yolo on"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

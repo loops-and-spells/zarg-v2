@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0063",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0066",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0065",
   "props": {
-    "terminal": true,
-    "text": "the grant is saved for next time"
+    "title": "Operator denies it",
+    "when": "the operator picks deny"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

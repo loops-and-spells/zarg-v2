@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0056",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0022",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0004",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0004",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0057",
   "props": {
-    "terminal": true,
-    "text": "each changed card has a plan file"
+    "title": "A card cannot be planned",
+    "when": "the Planner Agent finds the card contradicts another card"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

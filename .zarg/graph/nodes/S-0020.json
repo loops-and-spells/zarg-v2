@@ -1,8 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0011",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0056",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0004",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0004",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0020",
   "props": {
-    "text": "the verify gate runs"
+    "title": "Reconcile picks up a change",
+    "when": "the graph stays quiet for two seconds"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

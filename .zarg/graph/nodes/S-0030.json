@@ -1,8 +1,27 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0030",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0030",
   "props": {
-    "text": "the Driver Agent offers provider setup or another model"
+    "planned": true,
+    "title": "A role needs a missing key",
+    "when": "a role uses a provider without a key"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

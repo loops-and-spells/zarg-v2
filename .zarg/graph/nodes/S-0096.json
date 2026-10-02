@@ -1,9 +1,0 @@
-{
-  "edges": [],
-  "id": "S-0096",
-  "props": {
-    "terminal": true,
-    "text": "the checkpoint is staged with the graph"
-  },
-  "type": "gherkin/state"
-}

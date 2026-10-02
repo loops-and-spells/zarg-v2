@@ -1,9 +1,30 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0040",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0046",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0047",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0003",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0044",
   "props": {
-    "terminal": true,
-    "text": "the chosen option shows its confidence"
+    "title": "Operator stops an agent",
+    "when": "the operator stops an agent"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

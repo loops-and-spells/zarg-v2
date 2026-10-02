@@ -51,7 +51,7 @@ const resolver = (snap: Snapshot.Snapshot) => {
     }
     const existing = findStateByText(working, ref.text)
     if (existing !== undefined) return Effect.succeed(existing.id)
-    const node: Node = { id: Snapshot.nextId(working, "S"), type: STATE, props: { text: ref.text }, edges: [] }
+    const node: Node = { id: Snapshot.nextId(working, "ST"), type: STATE, props: { text: ref.text }, edges: [] }
     created.push(node)
     working = Snapshot.applyChanges(working, [Put(node)])
     return Effect.succeed(node.id)
@@ -79,12 +79,12 @@ export const addState = tool({
     Effect.gen(function* () {
       const existing = findStateByText(snap, p.text)
       if (existing !== undefined) return yield* new ToolError({ message: `${existing.id} already has this text; use it` })
-      const id = Snapshot.nextId(snap, "S")
+      const id = Snapshot.nextId(snap, "ST")
       return { changes: [Put({ id, type: STATE, props: { ...p }, edges: [] })], message: `created ${id}` }
     }),
 })
 
-// @card C-0004
+// @card S-0004
 export const editState = tool({
   name: "edit-state",
   description: "Reword a state or change its entry/terminal flags. Every card using it updates.",
@@ -141,7 +141,7 @@ export const editJourney = tool({
   run: ({ id, name }, snap) => Effect.map(getNode(snap, id, JOURNEY), (n) => ({ changes: [Put({ ...n, props: { ...n.props, name } })], message: `updated ${id}` })),
 })
 
-// @card C-0002
+// @card S-0002
 export const addCard = tool({
   name: "add-card",
   description: "Add a card: one arrival Given, up to 3 extra Givens, one When, 1-5 Thens. States by {id} or {text}.",
@@ -161,7 +161,7 @@ export const addCard = tool({
       const arrives = yield* r.resolve(p.arrives)
       const given = yield* Effect.forEach(p.given ?? [], r.resolve)
       const then = yield* Effect.forEach(p.then, r.resolve)
-      const id = r.next("C")
+      const id = r.next("S")
       const card: Node = {
         id,
         type: CARD,

@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0071",
+  "props": {
+    "terminal": true,
+    "text": "unapproved scopes are asked for again"
+  },
+  "type": "gherkin/state"
+}

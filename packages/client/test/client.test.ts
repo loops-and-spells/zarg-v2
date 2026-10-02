@@ -46,10 +46,10 @@ const collect = <A, E>(s: Stream.Stream<A, E>) => Effect.runPromise(Stream.runCo
 
 describe("client", () => {
   test("a run posts an AG-UI RunAgentInput and yields the parsed SSE events", async () => {
-    const events = await collect(client.run({ threadId: "main", focus: ["S-0002"], message: "hello" }))
+    const events = await collect(client.run({ threadId: "main", focus: ["ST-0002"], message: "hello" }))
     expect(events.map((e) => [e.type, e.seq])).toEqual([["RUN_STARTED", 1], ["RUN_FINISHED", 2]])
     const body = seen.at(-1)!.body
-    expect(body).toMatchObject({ threadId: "main", forwardedProps: { focus: ["S-0002"] }, messages: [{ role: "user", content: "hello" }] })
+    expect(body).toMatchObject({ threadId: "main", forwardedProps: { focus: ["ST-0002"] }, messages: [{ role: "user", content: "hello" }] })
     expect(typeof body.runId).toBe("string")
     expect(body.resume).toBeUndefined()
   })

@@ -3,7 +3,7 @@
   "journey": "Watch agents",
   "cards": [
     {
-      "ref": "gherkin/card:C-0046@cc3b24b9f8ef"
+      "ref": "gherkin/card:S-0046@d615b2a3f1f3"
     }
   ],
   "changes": [
@@ -18,7 +18,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0050"
+          "id": "ST-0050"
         },
         "then": [
           {
@@ -33,21 +33,21 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0046",
+        "id": "S-0046",
         "when": "an agent reads an env file inside its declared workspace"
       }
     },
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0050",
+        "id": "ST-0050",
         "text": "the read is refused: reason names the file and blocking gate"
       }
     },
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0046",
+        "id": "S-0046",
         "title": "Env files stay hidden; refusal reason names file and gate"
       }
     }

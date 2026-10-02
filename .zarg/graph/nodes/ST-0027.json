@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0027",
+  "props": {
+    "terminal": true,
+    "text": "the rejection reason is shown"
+  },
+  "type": "gherkin/state"
+}

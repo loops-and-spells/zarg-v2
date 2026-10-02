@@ -9,7 +9,7 @@ let destroy: (() => void) | undefined
 afterEach(() => destroy?.())
 const layout = layoutOf(defineView("backlog", { board: { kind: "board", role: "primary", title: "" } }))
 const cards = (lane: string, n: number) =>
-  Array.from({ length: n }, (_, i) => ({ id: `${lane}-${i}`, title: `Item ${lane} ${i} with a title long enough to wrap`, tone: "severity.high", top: `B-${i} C-000${i}`, badge: "◇2", lines: [{ text: "Operator", tone: "persona" }] }))
+  Array.from({ length: n }, (_, i) => ({ id: `${lane}-${i}`, title: `Item ${lane} ${i} with a title long enough to wrap`, tone: "severity.high", top: `B-${i} S-000${i}`, badge: "◇2", lines: [{ text: "Operator", tone: "persona" }] }))
 const view: ViewState = {
   agent: "backlog:backlog",
   layout,

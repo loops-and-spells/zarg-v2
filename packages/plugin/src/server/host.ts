@@ -245,7 +245,7 @@ export const describeScopes = (m: { readonly scopes: ManifestScopes; readonly op
 }
 
 /** A plugin with no network, secret or file scope can only touch the graph. */
-// @card C-0069
+// @card S-0069
 const graphOnly = (m: Manifest) => m.scopes.net === undefined && m.scopes.secrets === undefined && m.scopes.fs === undefined && m.scopes.code !== true
 
 interface Running {
@@ -380,7 +380,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           bundle: p.bundle,
           powers,
           paused: () => asking > 0,
-          // @card C-0068
+          // @card S-0068
           onExit: (why) => {
             if (why === "stop") return
             // Its questions to the operator die with it: nothing waits on them any more.
@@ -419,7 +419,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         if (problem !== undefined) return failed(m, problem)
         const digest = scopesDigest(m.scopes, m.optional, depsOf(m))
         const granted = (yield* opts.grants.of(m.name, digest)).loaded
-        // @card C-0069
+        // @card S-0069
         if (!granted && opts.firstParty(p) && graphOnly(m)) yield* opts.grants.approveLoad(m.name, digest)
         else if (!granted) {
           hostItems.push({
@@ -569,7 +569,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
           const d = diff(before, after)
           const findings = yield* check(before, after, result.changes)
           const errors = findings.filter((f) => f.severity === "error")
-          // @card C-0006
+          // @card S-0006
           if (errors.length > 0) return yield* new LintFailed({ findings: errors })
           // Guard against writes that land between our read and our commit.
           const touched: Record<string, string> = {}
@@ -614,7 +614,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         check(Snapshot.empty, after, [...after.nodes.values()].map((node) => ({ _tag: "Put", node }))),
       )
 
-      // @card C-0001
+      // @card S-0001
       const agenda = (focus?: ReadonlySet<string>) =>
         Effect.gen(function* () {
           const loadedGraph = yield* store.load
@@ -704,7 +704,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
             if (m.archetype === "graph") continue
             const digest = scopesDigest(m.scopes, m.optional, depsOf(m))
             const granted = (yield* opts.grants.of(m.name, digest).pipe(Effect.orElseSucceed(() => ({ loaded: false })))).loaded
-            // @card C-0061
+            // @card S-0061
             if (!granted && !opts.yolo.on(m.name)) {
               const what = [`load, to ${describeScopes(m)}`, ...warnings(m.scopes, m.optional, depsOf(m)).map((w) => `(it ${w})`)].join(" ")
               const a = yield* opts.ask({ plugin: m.name, what, options: [{ id: "always", label: "Allow" }, { id: "deny", label: "Not now" }] })

@@ -3,19 +3,19 @@
   "stage": "planned",
   "proposals": [
     {
-      "card": "C-0041",
+      "card": "S-0041",
       "changes": [
         {
           "tool": "edit-card",
           "params": {
-            "id": "C-0041",
+            "id": "S-0041",
             "when": "the parent run transfers next work to a child agent"
           }
         },
         {
           "tool": "link",
           "params": {
-            "card": "C-0041",
+            "card": "S-0041",
             "edge": "then",
             "state": {
               "text": "the child receives ownership of the handed-off work"
@@ -33,7 +33,7 @@
               }
             ],
             "arrives": {
-              "id": "S-0040"
+              "id": "ST-0040"
             },
             "then": [
               {
@@ -59,7 +59,7 @@
               }
             ],
             "arrives": {
-              "id": "S-0040"
+              "id": "ST-0040"
             },
             "then": [
               {
@@ -107,33 +107,33 @@
       ]
     },
     {
-      "card": "C-0048",
+      "card": "S-0048",
       "changes": [
         {
           "tool": "edit-state",
           "params": {
-            "id": "S-0052",
+            "id": "ST-0052",
             "text": "the invocation is refused before it runs"
           }
         },
         {
           "tool": "edit-state",
           "params": {
-            "id": "S-0053",
+            "id": "ST-0053",
             "text": "the refusal names the missing operator-granted scope and emits the grant request"
           }
         },
         {
           "tool": "edit-state",
           "params": {
-            "id": "S-0040",
+            "id": "ST-0040",
             "text": "the agent run starts and the operator-granted scopes are loaded"
           }
         },
         {
           "tool": "edit-card",
           "params": {
-            "id": "C-0048",
+            "id": "S-0048",
             "title": "A service outside the operator-granted scopes is refused",
             "when": "an agent attempts to invoke a service outside the operator-granted scopes"
           }
@@ -141,7 +141,7 @@
         {
           "tool": "link",
           "params": {
-            "card": "C-0048",
+            "card": "S-0048",
             "edge": "then",
             "state": {
               "text": "the agent surfaces the refusal to the operator, extends the grant, and retries"
@@ -171,7 +171,7 @@
       ]
     },
     {
-      "card": "C-0046",
+      "card": "S-0046",
       "changes": [
         {
           "tool": "add-card",
@@ -184,7 +184,7 @@
               }
             ],
             "arrives": {
-              "id": "S-0050"
+              "id": "ST-0050"
             },
             "then": [
               {
@@ -199,21 +199,21 @@
         {
           "tool": "edit-card",
           "params": {
-            "id": "C-0046",
+            "id": "S-0046",
             "when": "an agent reads an env file inside its declared workspace"
           }
         },
         {
           "tool": "edit-state",
           "params": {
-            "id": "S-0050",
+            "id": "ST-0050",
             "text": "the read is refused: reason names the file and blocking gate"
           }
         },
         {
           "tool": "edit-card",
           "params": {
-            "id": "C-0046",
+            "id": "S-0046",
             "title": "Env files stay hidden; refusal reason names file and gate"
           }
         }
@@ -242,14 +242,14 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0041",
+        "id": "S-0041",
         "when": "the parent run transfers next work to a child agent"
       }
     },
     {
       "tool": "link",
       "params": {
-        "card": "C-0041",
+        "card": "S-0041",
         "edge": "then",
         "state": {
           "text": "the child receives ownership of the handed-off work"
@@ -267,7 +267,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0040"
+          "id": "ST-0040"
         },
         "then": [
           {
@@ -293,7 +293,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0040"
+          "id": "ST-0040"
         },
         "then": [
           {
@@ -311,28 +311,28 @@
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0052",
+        "id": "ST-0052",
         "text": "the invocation is refused before it runs"
       }
     },
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0053",
+        "id": "ST-0053",
         "text": "the refusal names the missing operator-granted scope and emits the grant request"
       }
     },
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0040",
+        "id": "ST-0040",
         "text": "the agent run starts and the operator-granted scopes are loaded"
       }
     },
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0048",
+        "id": "S-0048",
         "title": "A service outside the operator-granted scopes is refused",
         "when": "an agent attempts to invoke a service outside the operator-granted scopes"
       }
@@ -340,7 +340,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0048",
+        "card": "S-0048",
         "edge": "then",
         "state": {
           "text": "the agent surfaces the refusal to the operator, extends the grant, and retries"
@@ -358,7 +358,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0050"
+          "id": "ST-0050"
         },
         "then": [
           {
@@ -373,21 +373,21 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0046",
+        "id": "S-0046",
         "when": "an agent reads an env file inside its declared workspace"
       }
     },
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0050",
+        "id": "ST-0050",
         "text": "the read is refused: reason names the file and blocking gate"
       }
     },
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0046",
+        "id": "S-0046",
         "title": "Env files stay hidden; refusal reason names file and gate"
       }
     }

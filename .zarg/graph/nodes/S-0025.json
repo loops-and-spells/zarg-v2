@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0022",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0009",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0004",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0025",
   "props": {
-    "terminal": true,
-    "text": "secrets are stored in the plugin's own namespace"
+    "title": "Driver Agent takes up a reconcile finding",
+    "when": "the Driver Agent reads the agenda again"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

@@ -1,9 +1,31 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0033",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0036",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0033",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0036",
   "props": {
-    "terminal": true,
-    "text": "the pick is refused with a reason"
+    "planned": true,
+    "title": "A model without tool calls is refused",
+    "when": "the operator picks a model without tool calling"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

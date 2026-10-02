@@ -1,8 +1,27 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0016",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0018",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0001",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0018",
   "props": {
-    "text": "a merge question is shown"
+    "planned": true,
+    "title": "Driver Agent asks about conflicting edits",
+    "when": "the Driver Agent finds the edits conflicting"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

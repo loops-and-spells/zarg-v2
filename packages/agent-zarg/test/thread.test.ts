@@ -35,15 +35,15 @@ describe("thread runs", () => {
         return (yield* asker.ask(question)) as never
       }) as never
     const items: ReadonlyArray<AgendaItem> = [
-      { id: "dead-end:S-0059", title: "What follows S-0059?", detail: "No card continues from S-0059.", about: ["S-0059"], priority: 1 },
-      { id: "lint:C-0002", title: "C-0002 has an if", detail: "Split it.", about: ["C-0002"], priority: 2 },
+      { id: "dead-end:ST-0059", title: "What follows ST-0059?", detail: "No card continues from ST-0059.", about: ["ST-0059"], priority: 1 },
+      { id: "lint:S-0002", title: "S-0002 has an if", detail: "Split it.", about: ["S-0002"], priority: 2 },
     ]
     const rendered: Array<ReadonlyArray<string>> = []
     const render = (focus: ReadonlyArray<string>) => Effect.sync(() => (rendered.push(focus), `RENDER OF ${focus.join(",")}`))
     await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setup(driver, () => items, render); return yield* collect(thread.run({ runId: "r1" })) }))
-    expect(rendered).toEqual([["S-0059"]])
-    expect(tasks[0]).toContain("Open agenda (2):\n- What follows S-0059? [S-0059]\n- C-0002 has an if [C-0002]")
-    expect(tasks[0]).toContain("The cards around it (Graph.render of S-0059):\nRENDER OF S-0059")
+    expect(rendered).toEqual([["ST-0059"]])
+    expect(tasks[0]).toContain("Open agenda (2):\n- What follows ST-0059? [ST-0059]\n- S-0002 has an if [S-0002]")
+    expect(tasks[0]).toContain("The cards around it (Graph.render of ST-0059):\nRENDER OF ST-0059")
   })
 
   test("the seeded render is asked within the thread's scope, and a huge render is cut", async () => {
@@ -53,16 +53,16 @@ describe("thread runs", () => {
         tasks.push(spec.task)
         return (yield* asker.ask(question)) as never
       }) as never
-    const items: ReadonlyArray<AgendaItem> = [{ id: "x", title: "T", detail: "D", about: ["C-0001", "C-0099"], priority: 1 }]
+    const items: ReadonlyArray<AgendaItem> = [{ id: "x", title: "T", detail: "D", about: ["S-0001", "S-0099"], priority: 1 }]
     const scopes: Array<unknown> = []
     const render: ThreadDeps["render"] = (_ids, scope) => Effect.sync(() => (scopes.push(scope), "y".repeat(10_000)))
-    await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setup(driver, () => items, render, ["C-0001"]); return yield* collect(thread.run({ runId: "r1" })) }))
-    expect(scopes).toEqual([{ graph: { focus: ["C-0001"], k: 2 } }])
+    await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setup(driver, () => items, render, ["S-0001"]); return yield* collect(thread.run({ runId: "r1" })) }))
+    expect(scopes).toEqual([{ graph: { focus: ["S-0001"], k: 2 } }])
     expect(tasks[0]).toContain("y".repeat(4_000) + "\n… (cut; Graph.render({ focus }) shows the rest)")
     expect(tasks[0]).not.toContain("y".repeat(4_001))
   })
 
-  // @card C-0014
+  // @card S-0014
   test("an empty agenda with gaps found in code: the driver asks from them at once, without reading the whole graph", async () => {
     const tasks: Array<string> = []
     const driver: Driver = (spec, asker) =>
@@ -71,16 +71,16 @@ describe("thread runs", () => {
         return (yield* asker.ask(question)) as never
       }) as never
     const gaps: ReadonlyArray<AgendaItem> = [
-      { id: "g1", title: "Only one thing happens from S-3", detail: "Add a failure case?", about: ["S-3", "C-6"], priority: 1 },
-      { id: "g2", title: "Only one thing happens from S-1", detail: "Add a failure case?", about: ["S-1", "C-1"], priority: 2 },
+      { id: "g1", title: "Only one thing happens from ST-3", detail: "Add a failure case?", about: ["ST-3", "S-6"], priority: 1 },
+      { id: "g2", title: "Only one thing happens from ST-1", detail: "Add a failure case?", about: ["ST-1", "S-1"], priority: 2 },
     ]
     const focuses: Array<unknown> = []
     const suggest: ThreadDeps["suggest"] = (focus) => Effect.sync(() => (focuses.push(focus), gaps))
-    await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setup(driver, () => [], undefined, ["S-1"], suggest); return yield* collect(thread.run({ runId: "r1" })) }))
-    expect(focuses).toEqual([new Set(["S-1"])])
+    await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setup(driver, () => [], undefined, ["ST-1"], suggest); return yield* collect(thread.run({ runId: "r1" })) }))
+    expect(focuses).toEqual([new Set(["ST-1"])])
     expect(tasks[0]).toStartWith(WHAT_NEXT_GAPS)
     expect(WHAT_NEXT_GAPS).toContain("Do not render the whole graph")
-    expect(tasks[0]).toContain("Gaps zarg found:\n- Only one thing happens from S-3 [S-3, C-6]: Add a failure case?\n- Only one thing happens from S-1 [S-1, C-1]: Add a failure case?")
+    expect(tasks[0]).toContain("Gaps zarg found:\n- Only one thing happens from ST-3 [ST-3, S-6]: Add a failure case?\n- Only one thing happens from ST-1 [ST-1, S-1]: Add a failure case?")
   })
 
   test("after a what-next item, the driver waits for the developer instead of asking what next again", async () => {
@@ -107,7 +107,7 @@ describe("thread runs", () => {
     expect(WHAT_NEXT).not.toContain("the next journey")
   })
 
-  // @card C-0014 C-0015
+  // @card S-0014 S-0015
   test("nothing open and no gaps: zarg asks what to work on itself, from the intent's next goals, and the answer goes to the driver", async () => {
     const tasks: Array<string> = []
     const driver: Driver = (spec) => Effect.sync(() => (tasks.push(spec.task), outcome("ok")))
@@ -175,7 +175,7 @@ describe("thread runs", () => {
         tasks.push(spec.task)
         return (yield* asker.ask(question)) as never
       }) as never
-    const items: ReadonlyArray<AgendaItem> = [{ id: "x", title: "T", detail: "D", about: ["S-1"], priority: 1 }]
+    const items: ReadonlyArray<AgendaItem> = [{ id: "x", title: "T", detail: "D", about: ["ST-1"], priority: 1 }]
     await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setup(driver, () => items, () => Effect.die("plugin bug")); return yield* collect(thread.run({ runId: "r1" })) }))
     expect(tasks[0]).toContain("T\nD")
   })
@@ -187,7 +187,7 @@ describe("thread runs", () => {
         tasks.push(spec.task)
         return (yield* asker.ask(question)) as never
       }) as never
-    const items: ReadonlyArray<AgendaItem> = [{ id: "x", title: "T", detail: "D", about: ["S-1"], priority: 1 }]
+    const items: ReadonlyArray<AgendaItem> = [{ id: "x", title: "T", detail: "D", about: ["ST-1"], priority: 1 }]
     await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setup(driver, () => items, () => Effect.fail("boom")); return yield* collect(thread.run({ runId: "r1" })) }))
     expect(tasks[0]).toContain("T\nD")
     expect(tasks[0]).not.toContain("The cards around it")
@@ -221,7 +221,7 @@ describe("thread runs", () => {
     expect(tasks[0]).toStartWith(WHAT_NEXT)
   })
 
-  // @card C-0012
+  // @card S-0012
   test("a message while a question is pending opens a discussion of it; the question stays open for the driver", async () => {
     const answers: Array<unknown> = []
     let calls = 0
@@ -242,7 +242,7 @@ describe("thread runs", () => {
     expect(texts(second)).toEqual(["actually, do payments first", "(discussing: Which?)", "adapted"])
   })
 
-  // @card C-0071
+  // @card S-0071
   test("the driver can choose an option of the question under discussion for the developer, once", async () => {
     const out: Record<string, unknown> = {}
     let calls = 0
@@ -371,7 +371,7 @@ describe("thread runs", () => {
         if (calls++ === 0) return outcome("Hello! Let's look at the agenda.")
         return (yield* asker.ask(question)) as never
       }) as never
-    const item: AgendaItem = { id: "gherkin:dead-end:S-0004", title: "What happens after payment?", detail: "No card continues from S-0004.", about: ["S-0004"], priority: 2 }
+    const item: AgendaItem = { id: "gherkin:dead-end:ST-0004", title: "What happens after payment?", detail: "No card continues from ST-0004.", about: ["ST-0004"], priority: 2 }
     await Effect.runPromise(
       Effect.gen(function* () {
         const { thread } = yield* setup(driver, () => [item])
@@ -379,7 +379,7 @@ describe("thread runs", () => {
       }),
     )
     expect(tasks[0]).toStartWith('The developer said: "hello"')
-    expect(tasks[1]).toContain("What happens after payment?\nNo card continues from S-0004.")
+    expect(tasks[1]).toContain("What happens after payment?\nNo card continues from ST-0004.")
     expect(tasks[1]).toContain("show the exact change with Inquire.confirm before writing it")
     expect(tasks[1]).toContain("Recent conversation:\ndeveloper: hello\ndriver: Hello! Let's look at the agenda.")
   })
@@ -425,7 +425,7 @@ describe("thread runs", () => {
     expect(last(out.second)).toMatchObject({ type: "RUN_FINISHED", runId: "r2", outcome: { type: "interrupt" } })
   })
 
-  // @card C-0044
+  // @card S-0044
   test("stop interrupts the running driver and records it", async () => {
     let interrupted = false
     const driver: Driver = () => Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => void (interrupted = true)))) as never
@@ -458,7 +458,7 @@ describe("thread runs", () => {
     expect(events.some((e) => e.type === "ACTIVITY_SNAPSHOT")).toBe(true)
   })
 
-  // @card C-0045
+  // @card S-0045
   test("secrets are redacted before events are stored or sent", async () => {
     const driver: Driver = (_spec, asker) => Effect.gen(function* () { return (yield* asker.ask({ ...question, question: "use zt-secret?" })) as never }) as never
     const events = await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setup(driver); return yield* collect(thread.run({ runId: "r1" })) }))
@@ -497,7 +497,7 @@ describe("zarg's questions as inbox topics", () => {
     return (_spec, asker) =>
       Effect.gen(function* () {
         if (calls++ > 0) return yield* Effect.never
-        answers.push(yield* asker.ask({ ...question, about: ["C-0001"] }))
+        answers.push(yield* asker.ask({ ...question, about: ["S-0001"] }))
         return outcome("done")
       }) as never
   }
@@ -505,7 +505,7 @@ describe("zarg's questions as inbox topics", () => {
   test("a question is raised as a topic: its options are the answers, its own answer the text, its cards the about", async () => {
     const { inbox, calls } = fakeInbox()
     await Effect.runPromise(Effect.gen(function* () { const { thread } = yield* setupWith(askOnce([]), inbox); yield* collect(thread.run({ runId: "r1" })) }))
-    expect(calls[0]).toEqual(["post", { kind: "question", title: "Which?", why: "zarg asks", about: ["C-0001"], answers: [{ id: "a", label: "Option A", recommended: true, why: "simpler" }, { id: "b", label: "Option B" }], text: { placeholder: "your own answer" }, key: expect.stringMatching(/^main\|inq-/) }])
+    expect(calls[0]).toEqual(["post", { kind: "question", title: "Which?", why: "zarg asks", about: ["S-0001"], answers: [{ id: "a", label: "Option A", recommended: true, why: "simpler" }, { id: "b", label: "Option B" }], text: { placeholder: "your own answer" }, key: expect.stringMatching(/^main\|inq-/) }])
   })
   test("answered in the inbox: the driver goes on as if answered in the bar; answered in the bar: the topic is answered too", async () => {
     const viaInbox: Array<unknown> = []

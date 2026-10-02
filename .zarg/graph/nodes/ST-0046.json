@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0046",
+  "props": {
+    "terminal": true,
+    "text": "the agent stops with all its children"
+  },
+  "type": "gherkin/state"
+}

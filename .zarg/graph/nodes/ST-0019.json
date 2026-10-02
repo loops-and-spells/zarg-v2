@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "ST-0019",
+  "props": {
+    "text": "the Implementer Agent works on the changed cards"
+  },
+  "type": "gherkin/state"
+}

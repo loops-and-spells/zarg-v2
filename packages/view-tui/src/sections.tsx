@@ -255,7 +255,7 @@ const KeyValue: Leaf = ({ view, path, width }) => {
     </>
   )
 }
-// @card C-0076
+// @card S-0076
 // A text that follows a table shows the text for its highlighted row.
 const Text: Leaf = ({ view, ui, path, width, onHeight }) => {
   const loading = (view.data[path] as { loading?: string } | undefined)?.loading

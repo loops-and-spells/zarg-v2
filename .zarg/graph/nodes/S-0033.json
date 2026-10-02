@@ -1,8 +1,27 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0030",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0032",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0033",
   "props": {
-    "text": "a model question lists available models"
+    "planned": true,
+    "title": "Operator picks another model",
+    "when": "the operator picks another model"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

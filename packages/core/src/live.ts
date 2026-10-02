@@ -254,7 +254,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // Then the agents pick up where a restart left them: a Ready plan, a journey's stage halfway.
     yield* Effect.forkDetach(Effect.andThen(loadPlugins, Effect.andThen(syncPlugins, Effect.andThen(planner.tick, triageTick))))
 
-    // @card C-0058 @card C-0059
+    // @card S-0058 @card S-0059
     /** `/reconcile`: turn plan and implement on for this session (the config's section and `enabled` are overridden). */
     // One at a time, and never cut short halfway: two presses must not start two reconcilers.
     const turnOnLock = yield* Semaphore.make(1)

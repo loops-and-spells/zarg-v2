@@ -242,8 +242,8 @@ const Card = (p: { id: string; title: string; given: [string, string]; when: str
 )
 const Flow = () => (
   <box style={{ flexDirection: "column" }}>
-    <Card id="C-0020" title="Reconcile picks up a change" given={["the operator changes the graph", "S-0018"]} when="the graph stays quiet for two seconds" then={["the Planner Agent plans the changed cards", "S-0019"]} next="C-0056" />
-    <Card id="C-0056" title="Plans are written" given={["the Planner Agent plans the changed cards", "S-0019"]} when="the Planner Agent finishes every changed card" then={["the Implementer Agent works on the cards", "S-0020"]} next="C-0021 or C-0057 (branches)" />
+    <Card id="S-0020" title="Reconcile picks up a change" given={["the operator changes the graph", "ST-0018"]} when="the graph stays quiet for two seconds" then={["the Planner Agent plans the changed cards", "ST-0019"]} next="S-0056" />
+    <Card id="S-0056" title="Plans are written" given={["the Planner Agent plans the changed cards", "ST-0019"]} when="the Planner Agent finishes every changed card" then={["the Implementer Agent works on the cards", "ST-0020"]} next="S-0021 or S-0057 (branches)" />
   </box>
 )
 const JourneysView = (p: { top: Top }) => (

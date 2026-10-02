@@ -77,7 +77,7 @@ const Bottom = (p: { bar: ReactNode; keys: string; status?: string }) => (
 const Ask = () => (
   <text wrapMode="none">
     <span fg={T.attn}>◆ zarg asks </span>
-    <span fg={T.text}>Split C-0012 into two cards?</span>
+    <span fg={T.text}>Split S-0012 into two cards?</span>
     <span fg={T.dim}>{"   ⏎ answer   / chat"}</span>
   </text>
 )
@@ -96,9 +96,9 @@ const Conversation = () => (
     <text> </text>
     <text wrapMode="word"><span fg={T.dim}>you   </span><span fg={T.text}>rehearse the checkout journey</span></text>
     <text> </text>
-    <text wrapMode="word"><span fg={T.accent}>zarg  </span><span fg={T.text}>tester-1 walked 18 steps and found 3 gaps. C-0012 mixes two outcomes (paid, declined) in one card.</span></text>
+    <text wrapMode="word"><span fg={T.accent}>zarg  </span><span fg={T.text}>tester-1 walked 18 steps and found 3 gaps. S-0012 mixes two outcomes (paid, declined) in one card.</span></text>
     <box style={{ flexGrow: 1 }} />
-    <text fg={T.attn}><b>Split C-0012 into two cards?</b></text>
+    <text fg={T.attn}><b>Split S-0012 into two cards?</b></text>
     <text> </text>
     <text wrapMode="none" bg={T.sel}><span fg={T.accent}>› </span><span fg={T.text}>Yes, one card per outcome</span><span fg={T.dim}>   each outcome gets its own Then</span></text>
     <text wrapMode="none"><span fg={T.text}>  Keep as is</span></text>
@@ -119,14 +119,14 @@ const AgentFocus = () => (
     </box>
     <text> </text>
     <Rule title="findings 3" focused />
-    <text wrapMode="none" bg={T.sel}><span fg={T.accent}>▍</span><span fg={T.text}>{" ☐ C-0012  "}</span><span fg={T.err}>high  </span><span fg={T.text}>no way back from payment</span></text>
-    <text wrapMode="none"><span fg={T.text}>{"  ☐ C-0019  "}</span><span fg={T.attn}>med   </span><span fg={T.text}>empty cart shows a spinner forever</span></text>
-    <text wrapMode="none"><span fg={T.text}>{"  ☐ C-0023  "}</span><span fg={T.dim}>low   </span><span fg={T.text}>login error names the wrong field</span></text>
+    <text wrapMode="none" bg={T.sel}><span fg={T.accent}>▍</span><span fg={T.text}>{" ☐ S-0012  "}</span><span fg={T.err}>high  </span><span fg={T.text}>no way back from payment</span></text>
+    <text wrapMode="none"><span fg={T.text}>{"  ☐ S-0019  "}</span><span fg={T.attn}>med   </span><span fg={T.text}>empty cart shows a spinner forever</span></text>
+    <text wrapMode="none"><span fg={T.text}>{"  ☐ S-0023  "}</span><span fg={T.dim}>low   </span><span fg={T.text}>login error names the wrong field</span></text>
     <text> </text>
     <Rule title="steps" />
-    <text wrapMode="none"><span fg={T.ok}>✓ </span><span fg={T.dim}>C-0010  </span><span fg={T.text}>cart → checkout</span><span fg={T.dim}>   feel 1.9</span></text>
-    <text wrapMode="none"><span fg={T.ok}>✓ </span><span fg={T.dim}>C-0011  </span><span fg={T.text}>checkout → address</span><span fg={T.dim}>   feel 1.7</span></text>
-    <text wrapMode="none"><span fg={T.attn}>⚑ </span><span fg={T.dim}>C-0012  </span><span fg={T.text}>address → payment</span><span fg={T.dim}>   feel 0.8  flagged</span></text>
+    <text wrapMode="none"><span fg={T.ok}>✓ </span><span fg={T.dim}>S-0010  </span><span fg={T.text}>cart → checkout</span><span fg={T.dim}>   feel 1.9</span></text>
+    <text wrapMode="none"><span fg={T.ok}>✓ </span><span fg={T.dim}>S-0011  </span><span fg={T.text}>checkout → address</span><span fg={T.dim}>   feel 1.7</span></text>
+    <text wrapMode="none"><span fg={T.attn}>⚑ </span><span fg={T.dim}>S-0012  </span><span fg={T.text}>address → payment</span><span fg={T.dim}>   feel 0.8  flagged</span></text>
     <box style={{ flexGrow: 1 }} />
   </box>
 )
@@ -134,10 +134,10 @@ const AgentFocus = () => (
 // The grid: agent views as cards, paginated. Each card: name, gauge, the one line that matters, ◆ if it asks.
 type Card = { name: string; sub: string; done: number; total: number; line: string; attn?: string; state: "run" | "done" | "attn"; recent: ReadonlyArray<string> }
 const CARDS: ReadonlyArray<Card> = [
-  { name: "tester-1", sub: "impatient shopper", done: 18, total: 18, line: "3 findings to review", attn: "3 findings", state: "attn", recent: ["high  C-0012 no way back from payment", "med   C-0019 spinner forever", "low   C-0023 wrong field named"] },
-  { name: "tester-2", sub: "careful first-timer", done: 18, total: 18, line: "no findings · 1.9 avg feel", state: "done", recent: ["✓ C-0031 search → results  1.9", "✓ C-0032 results → item  2.0"] },
-  { name: "tester-3", sub: "returning customer", done: 8, total: 18, line: "walking C-0019", state: "run", recent: ["✓ C-0010 cart → checkout  1.8", "✓ C-0011 checkout → address  1.7", "⠼ C-0019 empty cart…"] },
-  { name: "driver", sub: "zarg · rlm-1", done: 3, total: 25, line: "turn 3 of 25", state: "run", recent: ["Graph.render C-0012", "Inquire.ask Split C-0012?"] },
+  { name: "tester-1", sub: "impatient shopper", done: 18, total: 18, line: "3 findings to review", attn: "3 findings", state: "attn", recent: ["high  S-0012 no way back from payment", "med   S-0019 spinner forever", "low   S-0023 wrong field named"] },
+  { name: "tester-2", sub: "careful first-timer", done: 18, total: 18, line: "no findings · 1.9 avg feel", state: "done", recent: ["✓ S-0031 search → results  1.9", "✓ S-0032 results → item  2.0"] },
+  { name: "tester-3", sub: "returning customer", done: 8, total: 18, line: "walking S-0019", state: "run", recent: ["✓ S-0010 cart → checkout  1.8", "✓ S-0011 checkout → address  1.7", "⠼ S-0019 empty cart…"] },
+  { name: "driver", sub: "zarg · rlm-1", done: 3, total: 25, line: "turn 3 of 25", state: "run", recent: ["Graph.render S-0012", "Inquire.ask Split S-0012?"] },
 ]
 const CardView = (p: { c: Card; sel?: boolean; tick: number }) => {
   const tone = p.c.state === "attn" ? T.attn : p.c.state === "done" ? T.ok : T.accent
@@ -180,9 +180,9 @@ const Sheet = () => (
   <box style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 13, flexDirection: "column", paddingLeft: 2, paddingRight: 2, backgroundColor: T.raised, border: ["top"], borderColor: T.accent }}>
     <text wrapMode="none"><span fg={T.accent}><b>zarg</b></span><span fg={T.dim}>{"   esc closes · the grid stays behind"}</span></text>
     <text> </text>
-    <text wrapMode="word"><span fg={T.accent}>zarg  </span><span fg={T.text}>tester-1 found 3 gaps. C-0012 mixes two outcomes.</span></text>
+    <text wrapMode="word"><span fg={T.accent}>zarg  </span><span fg={T.text}>tester-1 found 3 gaps. S-0012 mixes two outcomes.</span></text>
     <text> </text>
-    <text fg={T.attn}><b>Split C-0012 into two cards?</b></text>
+    <text fg={T.attn}><b>Split S-0012 into two cards?</b></text>
     <text wrapMode="none" bg={T.sel}><span fg={T.accent}>› </span><span fg={T.text}>Yes, one card per outcome</span><span fg={T.dim}>   recommended</span></text>
     <text wrapMode="none"><span fg={T.text}>  Keep as is</span></text>
     <text wrapMode="none"><span fg={T.dim}>  Something else…   Chat about this</span></text>
@@ -195,13 +195,13 @@ const Review = () => (
     <text wrapMode="none"><span fg={T.accent}><b>review</b></span><span fg={T.dim}>{"   5 open · 2 agents"}</span></text>
     <text> </text>
     <Rule title="tester-1" />
-    <text wrapMode="none" bg={T.sel}><span fg={T.accent}>▍</span><span fg={T.text}>{" ☐ C-0012  "}</span><span fg={T.err}>high  </span><span fg={T.text}>no way back from payment</span></text>
-    <text wrapMode="none"><span fg={T.text}>{"  ☐ C-0019  "}</span><span fg={T.attn}>med   </span><span fg={T.text}>empty cart shows a spinner forever</span></text>
-    <text wrapMode="none"><span fg={T.text}>{"  ☐ C-0023  "}</span><span fg={T.dim}>low   </span><span fg={T.text}>login error names the wrong field</span></text>
+    <text wrapMode="none" bg={T.sel}><span fg={T.accent}>▍</span><span fg={T.text}>{" ☐ S-0012  "}</span><span fg={T.err}>high  </span><span fg={T.text}>no way back from payment</span></text>
+    <text wrapMode="none"><span fg={T.text}>{"  ☐ S-0019  "}</span><span fg={T.attn}>med   </span><span fg={T.text}>empty cart shows a spinner forever</span></text>
+    <text wrapMode="none"><span fg={T.text}>{"  ☐ S-0023  "}</span><span fg={T.dim}>low   </span><span fg={T.text}>login error names the wrong field</span></text>
     <text> </text>
     <Rule title="tester-3" />
-    <text wrapMode="none"><span fg={T.text}>{"  ☐ C-0031  "}</span><span fg={T.attn}>med   </span><span fg={T.text}>search ignores the category filter</span></text>
-    <text wrapMode="none"><span fg={T.text}>{"  ☐ C-0033  "}</span><span fg={T.dim}>low   </span><span fg={T.text}>sort order resets on back</span></text>
+    <text wrapMode="none"><span fg={T.text}>{"  ☐ S-0031  "}</span><span fg={T.attn}>med   </span><span fg={T.text}>search ignores the category filter</span></text>
+    <text wrapMode="none"><span fg={T.text}>{"  ☐ S-0033  "}</span><span fg={T.dim}>low   </span><span fg={T.text}>sort order resets on back</span></text>
     <box style={{ flexGrow: 1 }} />
   </box>
 )

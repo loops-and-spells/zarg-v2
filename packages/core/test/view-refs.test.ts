@@ -13,8 +13,8 @@ const many = (refs: ReadonlyArray<string>) => Effect.succeed({ entities: refs.fi
 
 describe("labels for refs in view data", () => {
   test("ref columns get labels; other columns and unknown refs do not", async () => {
-    const out = (await Effect.runPromise(withLabels(layout, "list", { rows: [{ id: "a", cells: { card: "gherkin/card:C-0001", note: "gherkin/card:C-0002" } }, { id: "b", cells: { card: "nope/x:1", note: "" } }] }, many))) as { labels: Record<string, unknown> }
-    expect(Object.keys(out.labels)).toEqual(["gherkin/card:C-0001"])
+    const out = (await Effect.runPromise(withLabels(layout, "list", { rows: [{ id: "a", cells: { card: "gherkin/card:S-0001", note: "gherkin/card:S-0002" } }, { id: "b", cells: { card: "nope/x:1", note: "" } }] }, many))) as { labels: Record<string, unknown> }
+    expect(Object.keys(out.labels)).toEqual(["gherkin/card:S-0001"])
   })
   test("data without ref columns passes through untouched", async () => {
     const data = { rows: [] }

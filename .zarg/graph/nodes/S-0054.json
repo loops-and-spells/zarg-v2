@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0019",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0022",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0004",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0005",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0054",
   "props": {
-    "terminal": true,
-    "text": "the implementation commit lands on the operator's branch"
+    "title": "A major merge conflict",
+    "when": "card worktrees conflict beyond an obvious fix"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

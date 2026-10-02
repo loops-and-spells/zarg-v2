@@ -146,21 +146,21 @@ const Journeys = (p: { at: number; stageOf?: (i: number) => number; bar?: string
 type Entry = { id: string; sev: string; kind: string; persona: string; note: string; on: boolean; mine?: string }
 type CardGroup = { id: string; title: string; status?: "waiting" | "drafting" | "drafted" | "left" | "resolved" | "still"; entries: ReadonlyArray<Entry> }
 const CARDS: ReadonlyArray<CardGroup> = [
-  { id: "C-0071", title: "Driver Agent chooses for the operator", status: "drafted", entries: [
+  { id: "S-0071", title: "Driver Agent chooses for the operator", status: "drafted", entries: [
     { id: "F-6a10", sev: "high", kind: "gap", persona: "Driver Agent", note: "Settles on an option with no confirmation from the operator; it chose for them.", on: true, mine: "Ask before saving; the operator must confirm." },
     { id: "F-7c2e", sev: "medium", kind: "transition", persona: "Driver Agent", note: "After saving, nothing says the next question comes.", on: true },
   ] },
-  { id: "C-0008", title: "Driver Agent opens with a question", status: "drafting", entries: [
+  { id: "S-0008", title: "Driver Agent opens with a question", status: "drafting", entries: [
     { id: "F-3d8e", sev: "high", kind: "transition", persona: "Driver Agent", note: "Ends at marking the recommended option; never says the operator answers it.", on: true },
     { id: "F-cdcb", sev: "high", kind: "gap", persona: "Driver Agent", note: "No branch when the operator picks another option or asks why.", on: true },
     { id: "F-cc4c", sev: "medium", kind: "friction", persona: "Driver Agent", note: "Marked: preselected, or only annotated?", on: true },
     { id: "F-6e6c", sev: "low", kind: "feature", persona: "Driver Agent", note: "Show why the option is recommended.", on: false },
   ] },
-  { id: "C-0009", title: "Operator picks an option", status: "waiting", entries: [
+  { id: "S-0009", title: "Operator picks an option", status: "waiting", entries: [
     { id: "F-b40a", sev: "high", kind: "transition", persona: "Operator", note: "The save ends the step with no cue for what comes next.", on: true },
     { id: "F-fc5a", sev: "medium", kind: "contradiction", persona: "Operator", note: "'One question' yet the flag implies a choice after it.", on: true },
   ] },
-  { id: "C-0018", title: "Driver Agent asks about conflicting edits", status: "left", entries: [
+  { id: "S-0018", title: "Driver Agent asks about conflicting edits", status: "left", entries: [
     { id: "F-11e0", sev: "medium", kind: "gap", persona: "Driver Agent", note: "No path when the operator keeps neither version.", on: true },
   ] },
 ]
@@ -261,7 +261,7 @@ const Noting = () => (
         <Head t="BY CARD" right="⌕ search" w={LW} />
         <CardList cards={CARDS.slice(0, 2)} cursor="F-cdcb" showStatus={false} />
         <text> </text>
-        <text wrapMode="none" bg={T.sel}><span fg={T.attn}>{" ✎ "}</span><span fg={T.text}>{"Offer 'why?' as an option; a different pick goes to C-0009"}</span><span fg={T.accent}>{"▎"}</span></text>
+        <text wrapMode="none" bg={T.sel}><span fg={T.attn}>{" ✎ "}</span><span fg={T.text}>{"Offer 'why?' as an option; a different pick goes to S-0009"}</span><span fg={T.accent}>{"▎"}</span></text>
         <text wrapMode="none" fg={T.dim}>{"   ⏎ save · esc cancel · empty ⏎ clears"}</text>
       </box>
       <Right>
@@ -289,7 +289,7 @@ const Refine = () => (
         <CardList cards={CARDS} cursor="F-6a10" showStatus rows={14} />
       </box>
       <Right>
-        <Head t="C-0071" right="drafted · 4 changes" w={RWD} />
+        <Head t="S-0071" right="drafted · 4 changes" w={RWD} />
         <Gwt k="Given" t="the question stays open for discussion" />
         <Gwt k="When" t="the conversation settles on one option" mark="-" tone={T.del} />
         <Gwt k="When" t="the operator confirms one option" mark="+" tone={T.add} />
@@ -301,14 +301,14 @@ const Refine = () => (
         <Wrapped t="Answers F-6a10 and your note: the operator now confirms before anything is saved." tone={T.dim} />
       </Right>
     </box>
-    <Strip head="drafting C-0008 · 38 s · 4 feedback" lines={[["✓", "C-0019", "into the draft: conflict resolution shows both versions with their origins"], ["✓", "C-0071", "into the draft: the operator confirms; the saved answer carries option and reason"], ["✗", "C-0018", "left out: the model gave no answer (token limit, 4096 of them reasoning)"]]} />
+    <Strip head="drafting S-0008 · 38 s · 4 feedback" lines={[["✓", "S-0019", "into the draft: conflict resolution shows both versions with their origins"], ["✓", "S-0071", "into the draft: the operator confirms; the saved answer carries option and reason"], ["✗", "S-0018", "left out: the model gave no answer (token limit, 4096 of them reasoning)"]]} />
   </>
 )
 /** 3. Re-rehearse: testers walk the journey on the drafted cards; each persona's progress. */
 const TESTERS = [
-  { p: "Operator", done: 14, total: 22, now: "C-0009 Operator picks an option", found: 1 },
+  { p: "Operator", done: 14, total: 22, now: "S-0009 Operator picks an option", found: 1 },
   { p: "Driver Agent", done: 22, total: 22, now: "done", found: 0 },
-  { p: "CLI actor", done: 3, total: 6, now: "C-0001 CLI actor reads the agenda", found: 0 },
+  { p: "CLI actor", done: 3, total: 6, now: "S-0001 CLI actor reads the agenda", found: 0 },
 ]
 const Rehearse = () => (
   <>
@@ -328,7 +328,7 @@ const Rehearse = () => (
         ))}
         <Head t="SO FAR" w={FW - 4} />
         <text wrapMode="none"><span fg={T.ok}>{"✓ 41 resolved   "}</span><span fg={T.attn}>{"! 1 still reported   "}</span><span fg={T.dim}>{"◇ 0 new   · 25 not walked yet"}</span></text>
-        <text wrapMode="none"><span fg={T.attn}>{"! C-0009 "}</span><span fg={T.text}>{"transition · the save still ends with no cue for what comes next"}</span></text>
+        <text wrapMode="none"><span fg={T.attn}>{"! S-0009 "}</span><span fg={T.text}>{"transition · the save still ends with no cue for what comes next"}</span></text>
       </box>
     </box>
     <text wrapMode="none"><Btn label="Refine again" k="r" /><span fg={T.dim}>{"  stops the run and refines what is still on · Plan comes when every tester is done"}</span></text>
@@ -345,21 +345,21 @@ const Plan = () => (
     <box style={{ flexDirection: "row", flexGrow: 1 }}>
       <box style={{ flexDirection: "column", width: LW }}>
         <Head t="STILL REPORTED" right="2" w={LW} />
-        <CardList cards={[{ id: "C-0009", title: "Operator picks an option", status: "still", entries: [{ id: "F-b40a", sev: "high", kind: "transition", persona: "Operator", note: "The save ends the step with no cue for what comes next.", on: true }] }, { id: "C-0018", title: "Driver Agent asks about conflicting edits", status: "left", entries: [{ id: "F-11e0", sev: "medium", kind: "gap", persona: "Driver Agent", note: "No path when the operator keeps neither version.", on: true }] }]} cursor="F-b40a" showStatus />
+        <CardList cards={[{ id: "S-0009", title: "Operator picks an option", status: "still", entries: [{ id: "F-b40a", sev: "high", kind: "transition", persona: "Operator", note: "The save ends the step with no cue for what comes next.", on: true }] }, { id: "S-0018", title: "Driver Agent asks about conflicting edits", status: "left", entries: [{ id: "F-11e0", sev: "medium", kind: "gap", persona: "Driver Agent", note: "No path when the operator keeps neither version.", on: true }] }]} cursor="F-b40a" showStatus />
         <text> </text>
         <Head t="RESOLVED" right="41 · on the draft" w={LW} />
-        <text wrapMode="none" fg={T.dim}>{"✓ C-0071 ·2  ✓ C-0008 ·4  ✓ C-0010 ·4  ✓ C-0019 ·3"}</text>
-        <text wrapMode="none" fg={T.dim}>{"✓ C-0012 ·5  ✓ C-0013 ·3  … 7 more cards"}</text>
+        <text wrapMode="none" fg={T.dim}>{"✓ S-0071 ·2  ✓ S-0008 ·4  ✓ S-0010 ·4  ✓ S-0019 ·3"}</text>
+        <text wrapMode="none" fg={T.dim}>{"✓ S-0012 ·5  ✓ S-0013 ·3  … 7 more cards"}</text>
       </box>
       <Right>
         <Head t="THE PLAN" right="B-03 when accepted" w={RWD} />
         <Wrapped t="The operator confirms each answer; every save says what comes next" max={2} />
         <text> </text>
-        {["1. Confirm before saving (C-0071, C-0009)", "2. A branch for another pick (C-0008)", "3. Stop when the agenda is empty (C-0010)", "4. Conflicts show both versions (C-0019)"].map((l) => <text key={l} wrapMode="none" fg={T.text}>{pad(l, RWD)}</text>)}
+        {["1. Confirm before saving (S-0071, S-0009)", "2. A branch for another pick (S-0008)", "3. Stop when the agenda is empty (S-0010)", "4. Conflicts show both versions (S-0019)"].map((l) => <text key={l} wrapMode="none" fg={T.text}>{pad(l, RWD)}</text>)}
         <text> </text>
         <text wrapMode="none"><span fg={T.dim}>{"changes  "}</span><span fg={T.card}>{"13 cards"}</span><span fg={T.dim}>{" · "}</span><span fg={T.add}>{"+2 new"}</span><span fg={T.dim}>{" · 31 calls"}</span></text>
         <text wrapMode="none"><span fg={T.dim}>{"closes   "}</span><span fg={T.text}>{"41 feedback"}</span></text>
-        <text wrapMode="none"><span fg={T.dim}>{"left out "}</span><span fg={T.err}>{"C-0018"}</span><span fg={T.dim}>{" no answer"}</span></text>
+        <text wrapMode="none"><span fg={T.dim}>{"left out "}</span><span fg={T.err}>{"S-0018"}</span><span fg={T.dim}>{" no answer"}</span></text>
         <text wrapMode="none"><span fg={T.dim}>{"goes to  "}</span><span fg={T.text}>{"Backlog · Ready"}</span></text>
       </Right>
     </box>
@@ -370,14 +370,14 @@ const Plan = () => (
 // ── The Triage Agent: its view, and its panel ─────────────────────────────────
 type Row = { g: string; card: string; title: string; what: string; t: string; tin: string; tout: string; think: number; why: string }
 const ROWS: ReadonlyArray<Row> = [
-  { g: "✓", card: "C-0071", title: "Driver Agent chooses for the operator", what: "drafted", t: "41 s", tin: "5.2k", tout: "1.8k", think: 0.62, why: "the operator confirms; the saved answer carries option and reason" },
-  { g: "✓", card: "C-0019", title: "Operator picks a version", what: "drafted", t: "38 s", tin: "6.0k", tout: "2.1k", think: 0.55, why: "conflict resolution shows both versions with their origins" },
-  { g: "✗", card: "C-0012", title: "Operator chats about the question", what: "left out", t: "4 m 12 s", tin: "5.8k", tout: "16.4k", think: 1, why: "1st: no answer, 16384 tokens all reasoning · 2nd: 6 thens (1-5)" },
-  { g: "↻", card: "C-0077", title: "Operator sees a diagram", what: "drafted", t: "1 m 20 s", tin: "4.9k", tout: "3.3k", think: 0.7, why: "2nd try: the 1st had a clause with 'if'" },
-  { g: "⠹", card: "C-0017", title: "Driver Agent merges compatible edits", what: "drafting", t: "38 s", tin: "", tout: "", think: 0, why: "4 feedback on" },
-  { g: "·", card: "C-0010", title: "Driver Agent asks the next question", what: "waiting", t: "", tin: "", tout: "", think: 0, why: "4 feedback" },
-  { g: "·", card: "C-0008", title: "Driver Agent opens with a question", what: "waiting", t: "", tin: "", tout: "", think: 0, why: "4 feedback · 1 note" },
-  { g: "·", card: "C-0009", title: "Operator picks an option", what: "waiting", t: "", tin: "", tout: "", think: 0, why: "5 feedback" },
+  { g: "✓", card: "S-0071", title: "Driver Agent chooses for the operator", what: "drafted", t: "41 s", tin: "5.2k", tout: "1.8k", think: 0.62, why: "the operator confirms; the saved answer carries option and reason" },
+  { g: "✓", card: "S-0019", title: "Operator picks a version", what: "drafted", t: "38 s", tin: "6.0k", tout: "2.1k", think: 0.55, why: "conflict resolution shows both versions with their origins" },
+  { g: "✗", card: "S-0012", title: "Operator chats about the question", what: "left out", t: "4 m 12 s", tin: "5.8k", tout: "16.4k", think: 1, why: "1st: no answer, 16384 tokens all reasoning · 2nd: 6 thens (1-5)" },
+  { g: "↻", card: "S-0077", title: "Operator sees a diagram", what: "drafted", t: "1 m 20 s", tin: "4.9k", tout: "3.3k", think: 0.7, why: "2nd try: the 1st had a clause with 'if'" },
+  { g: "⠹", card: "S-0017", title: "Driver Agent merges compatible edits", what: "drafting", t: "38 s", tin: "", tout: "", think: 0, why: "4 feedback on" },
+  { g: "·", card: "S-0010", title: "Driver Agent asks the next question", what: "waiting", t: "", tin: "", tout: "", think: 0, why: "4 feedback" },
+  { g: "·", card: "S-0008", title: "Driver Agent opens with a question", what: "waiting", t: "", tin: "", tout: "", think: 0, why: "4 feedback · 1 note" },
+  { g: "·", card: "S-0009", title: "Operator picks an option", what: "waiting", t: "", tin: "", tout: "", think: 0, why: "5 feedback" },
 ]
 const gTone = (g: string) => (g === "✓" ? T.ok : g === "✗" ? T.err : g === "↻" ? T.attn : g === "⠹" ? T.accent : T.faint)
 /** How much of the answer went on reasoning: a bar that fills red at the limit. */
@@ -432,10 +432,10 @@ const AgentWorking = () => (
     <text wrapMode="none"><span>{" "}</span><Gauge done={8} total={15} w={30} /><span>{"   "}</span><Stat v="8/15" k="cards" /><Stat v="3" k="drafted" tone={T.ok} /><Stat v="1" k="retried" tone={T.attn} /><Stat v="6" k="left out" tone={T.err} /><Stat v="~9 min" k="left" /></text>
     <text> </text>
     <Head t="NOW" w={FW - 4} />
-    <text wrapMode="none"><span fg={T.accent}>{" ⠹ "}</span><span fg={T.card}>{"C-0017 "}</span><span fg={T.text}>{"Driver Agent merges compatible edits"}</span><span fg={T.dim}>{"  · drafting · 38 s · 4 feedback on"}</span></text>
+    <text wrapMode="none"><span fg={T.accent}>{" ⠹ "}</span><span fg={T.card}>{"S-0017 "}</span><span fg={T.text}>{"Driver Agent merges compatible edits"}</span><span fg={T.dim}>{"  · drafting · 38 s · 4 feedback on"}</span></text>
     <text> </text>
     <Head t="TALK WITH ZARG" right="15 cards · drafted first" w={FW - 4} />
-    <CardTable cursor="C-0017" w={FW - 4} rows={8} />
+    <CardTable cursor="S-0017" w={FW - 4} rows={8} />
     <text wrapMode="none" fg={T.dim}>{"     … 7 more waiting · 5 left out in an earlier round"}</text>
     <text> </text>
     <Head t="JOURNEYS" w={FW - 4} />
@@ -453,7 +453,7 @@ const AgentCard = () => (
       <box style={{ flexDirection: "column", width: 40, flexShrink: 0 }}>
         <Head t="CARDS" right="8/15" w={40} />
         {ROWS.map((r) => {
-          const here = r.card === "C-0012"
+          const here = r.card === "S-0012"
           return (
             <text key={r.card} wrapMode="none" {...(here ? { bg: T.sel } : {})}>
               <span fg={T.accent}>{here ? "▍" : " "}</span>
@@ -467,7 +467,7 @@ const AgentCard = () => (
         })}
       </box>
       <box style={{ flexDirection: "column", marginLeft: 3, flexGrow: 1 }}>
-        <Head t="C-0012" right="left out" w={FW - 4 - 43} />
+        <Head t="S-0012" right="left out" w={FW - 4 - 43} />
         <text wrapMode="none" fg={T.text}>{"Operator chats about the question"}</text>
         <text wrapMode="none" fg={T.dim}>{"5 feedback on · no note · 4 m 12 s over 2 tries"}</text>
         <text> </text>
@@ -475,7 +475,7 @@ const AgentCard = () => (
         <text wrapMode="none" fg={T.text}>{"   no answer: it stopped at the 16384-token"}</text>
         <text wrapMode="none" fg={T.text}>{"   limit, all of it reasoning"}</text>
         <text wrapMode="none"><span fg={T.err}>{"✗ try 2  "}</span><span fg={T.dim}>{"1 m 10 s · 6.1k → 4.9k  "}</span><Think f={0.7} /></text>
-        <text wrapMode="none" fg={T.text}>{"   failed its checks: C-0012 would have"}</text>
+        <text wrapMode="none" fg={T.text}>{"   failed its checks: S-0012 would have"}</text>
         <text wrapMode="none" fg={T.text}>{"   6 thens; it needs 1-5"}</text>
         <text> </text>
         <Head t="WHAT IT PROPOSED" right="try 2 · not in the draft" w={FW - 4 - 43} />
@@ -529,7 +529,7 @@ const AgentIdle = () => (
     <text wrapMode="none"><span>{" "}</span><Stat v="46 s" k="per card" /><Stat v="1.2M" k="tokens" /><Stat v="71%" k="of them reasoning" /></text>
     <text> </text>
     <Head t="WHY CARDS WERE LEFT OUT" w={FW - 4} />
-    {[["3", "no answer: the token limit went on reasoning", "C-0018 C-0011 C-0012"], ["1", "failed its checks: too many thens", "C-0015"], ["1", "no JSON in the answer", "C-0076"]].map(([n, w, c]) => (
+    {[["3", "no answer: the token limit went on reasoning", "S-0018 S-0011 S-0012"], ["1", "failed its checks: too many thens", "S-0015"], ["1", "no JSON in the answer", "S-0076"]].map(([n, w, c]) => (
       <text key={w} wrapMode="none"><span fg={T.err}>{` ${n}× `}</span><span fg={T.text}>{pad(w, 48)}</span><span fg={T.card}>{c}</span></text>
     ))}
     <text> </text>
@@ -544,7 +544,7 @@ const Panel = () => (
     <text wrapMode="none" fg={T.dim}>{"Talk with zarg · Refine"}</text>
     <text wrapMode="none"><Gauge done={8} total={15} w={20} /><span fg={T.dim}>{" 8/15"}</span></text>
     <text> </text>
-    <text wrapMode="none"><span fg={T.accent}>{"⠹ "}</span><span fg={T.card}>{"C-0017 "}</span><span fg={T.dim}>{"38 s"}</span></text>
+    <text wrapMode="none"><span fg={T.accent}>{"⠹ "}</span><span fg={T.card}>{"S-0017 "}</span><span fg={T.dim}>{"38 s"}</span></text>
     <text wrapMode="none"><span>{"  "}</span><Think f={0.4} /><span fg={T.dim}>{" 2.3k reasoning"}</span></text>
     <text> </text>
     {ROWS.filter((r) => r.g !== "·" && r.g !== "⠹").map((r) => (
@@ -564,7 +564,7 @@ const Backlog = () => (
     <text> </text>
     <text wrapMode="none"><span fg={T.dim}>{"Backlog 0 ◂   "}</span><span fg={T.text}><b>{"Ready 1"}</b></span><span fg={T.dim}>{" ◂   Running 0 ◂   Review 1 ◂"}</span></text>
     <text wrapMode="none" fg={T.accent}>{"              ▔▔▔▔▔▔▔"}</text>
-    <text wrapMode="none"><span fg={T.faint}>{"               "}</span><span fg={T.err}>{"▌"}</span><span fg={T.text}>{" B-02 C-0030"}</span></text>
+    <text wrapMode="none"><span fg={T.faint}>{"               "}</span><span fg={T.err}>{"▌"}</span><span fg={T.text}>{" B-02 S-0030"}</span></text>
     <text wrapMode="none"><span fg={T.faint}>{"               "}</span><span fg={T.err}>{"▌"}</span><span fg={T.text}>{" Grant prompt names"}</span></text>
     <text wrapMode="none"><span fg={T.faint}>{"               "}</span><span fg={T.err}>{"▌"}</span><span fg={T.text}>{" its choices"}</span></text>
   </box>

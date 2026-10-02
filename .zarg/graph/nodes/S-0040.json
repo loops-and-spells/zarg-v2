@@ -1,9 +1,34 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0040",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0041",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0042",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0048",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0003",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0040",
   "props": {
-    "entry": true,
-    "text": "an agent run is in progress"
+    "title": "Operator watches agents work",
+    "when": "the operator opens the activity view"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

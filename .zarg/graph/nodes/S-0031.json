@@ -1,9 +1,27 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0030",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0023",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0031",
   "props": {
-    "terminal": true,
-    "text": "the stored key is deleted"
+    "planned": true,
+    "title": "Operator chooses to set up the provider",
+    "when": "the operator chooses provider setup"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0012",
+  "props": {
+    "terminal": true,
+    "text": "the question stays open for discussion"
+  },
+  "type": "gherkin/state"
+}

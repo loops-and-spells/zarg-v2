@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0002",
+  "props": {
+    "terminal": true,
+    "text": "open items are listed by priority"
+  },
+  "type": "gherkin/state"
+}

@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0008",
+  "props": {
+    "entry": true,
+    "text": "the operator starts zarg in a repo"
+  },
+  "type": "gherkin/state"
+}

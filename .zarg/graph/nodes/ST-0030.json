@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "ST-0030",
+  "props": {
+    "text": "the Driver Agent offers provider setup or another model"
+  },
+  "type": "gherkin/state"
+}

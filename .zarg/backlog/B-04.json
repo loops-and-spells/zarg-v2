@@ -3,57 +3,57 @@
   "journey": "Reconcile",
   "cards": [
     {
-      "ref": "gherkin/card:C-0053@64be7ac0c12c"
+      "ref": "gherkin/card:S-0053@0932a455338a"
     },
     {
-      "ref": "gherkin/card:C-0021@5ba5c48f5031"
+      "ref": "gherkin/card:S-0021@be3e2dad47a4"
     },
     {
-      "ref": "gherkin/card:C-0025@156d906063ce"
+      "ref": "gherkin/card:S-0025@6d66db3e8f9e"
     },
     {
-      "ref": "gherkin/card:C-0054@51246b0a64ec"
+      "ref": "gherkin/card:S-0054@c6154f6a71a4"
     },
     {
-      "ref": "gherkin/card:C-0052@9a3a9b84c172"
+      "ref": "gherkin/card:S-0052@c958d0905237"
     },
     {
-      "ref": "gherkin/card:C-0024@10ec1fd12b68"
+      "ref": "gherkin/card:S-0024@d78041d61722"
     },
     {
-      "ref": "gherkin/card:C-0022@8d74094e727b"
+      "ref": "gherkin/card:S-0022@2d22615daf6e"
     },
     {
-      "ref": "gherkin/card:C-0056@bde75653b7f8"
+      "ref": "gherkin/card:S-0056@0cd52e941271"
     },
     {
-      "ref": "gherkin/card:C-0055@1162ab41ff27"
+      "ref": "gherkin/card:S-0055@29ab5caee369"
     },
     {
-      "ref": "gherkin/card:C-0020@bdf4b3c511b4"
+      "ref": "gherkin/card:S-0020@6ebad7b3d410"
     },
     {
-      "ref": "gherkin/card:C-0023@26fb7df4fd9d"
+      "ref": "gherkin/card:S-0023@5cc13aef0197"
     },
     {
-      "ref": "gherkin/card:C-0059@76562076f960"
+      "ref": "gherkin/card:S-0059@db67e9d3a989"
     },
     {
-      "ref": "gherkin/card:C-0058@692a1609717f"
+      "ref": "gherkin/card:S-0058@d2abbb7f2f1e"
     }
   ],
   "changes": [
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0019",
+        "id": "ST-0019",
         "text": "conflicts surface only once card worktrees merge"
       }
     },
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0053",
+        "id": "S-0053",
         "title": "Overlapping edits halt the cards",
         "when": "two cards edit the same file"
       }
@@ -61,7 +61,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0053",
+        "card": "S-0053",
         "edge": "then",
         "state": {
           "text": "the conflict-resolution node routes the overlap"
@@ -71,15 +71,15 @@
     {
       "tool": "unlink",
       "params": {
-        "card": "C-0053",
+        "card": "S-0053",
         "edge": "then",
-        "state": "S-0020"
+        "state": "ST-0020"
       }
     },
     {
       "tool": "link",
       "params": {
-        "card": "C-0053",
+        "card": "S-0053",
         "edge": "then",
         "state": {
           "text": "the verify gate runs after resolution"
@@ -97,7 +97,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0019"
+          "id": "ST-0019"
         },
         "then": [
           {
@@ -117,13 +117,13 @@
           }
         ],
         "arrives": {
-          "id": "S-0019"
+          "id": "ST-0019"
         },
         "then": [
           {
             "text": "the Driver Agent's agenda shows the reconcile finding",
             "state": {
-              "id": "S-0022"
+              "id": "ST-0022"
             }
           }
         ]
@@ -132,7 +132,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0054",
+        "card": "S-0054",
         "edge": "then",
         "state": {
           "text": "the stalled card joins the reconcile finding"
@@ -142,14 +142,14 @@
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0021",
+        "id": "ST-0021",
         "text": "the operator has committed only a probe"
       }
     },
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0052",
+        "id": "S-0052",
         "title": "The gate decides the commit during the pass",
         "when": "the verify gate checks the probe commit"
       }
@@ -157,7 +157,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0052",
+        "card": "S-0052",
         "edge": "then",
         "state": {
           "text": "the gate accepts: the commit lands"
@@ -167,7 +167,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0052",
+        "card": "S-0052",
         "edge": "then",
         "state": {
           "text": "the gate rejects: the commit is reverted"
@@ -177,7 +177,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0052",
+        "card": "S-0052",
         "edge": "then",
         "state": {
           "text": "a failed gate triggers repair before re-land"
@@ -187,14 +187,14 @@
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0021",
+        "id": "ST-0021",
         "text": "the operator chooses auto-land, holds, or selects commit order"
       }
     },
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0022",
+        "id": "S-0022",
         "when": "the verify gate runs on the card commits"
       }
     },
@@ -209,7 +209,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0020"
+          "id": "ST-0020"
         },
         "then": [
           {
@@ -235,7 +235,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0020"
+          "id": "ST-0020"
         },
         "then": [
           {
@@ -247,14 +247,14 @@
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0011",
+        "id": "ST-0011",
         "text": "the changed card set is derived from one saved answer"
       }
     },
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0020",
+        "id": "S-0020",
         "title": "Reconcile waits for writes to settle",
         "when": "the last non-planner graph write settles, debounce two seconds"
       }
@@ -262,7 +262,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0020",
+        "card": "S-0020",
         "edge": "then",
         "state": {
           "text": "the plan-ready choice is execute, approval, or re-plan"
@@ -272,14 +272,14 @@
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0020",
+        "id": "ST-0020",
         "text": "after the commit landed, a failure detector flags a regression"
       }
     },
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0023",
+        "id": "S-0023",
         "title": "Repair failing check",
         "when": "a check fails"
       }
@@ -295,7 +295,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0020"
+          "id": "ST-0020"
         },
         "then": [
           {
@@ -313,7 +313,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0023",
+        "card": "S-0023",
         "edge": "then",
         "state": {
           "text": "attempt bound with escalation/abort after N failed repairs"
@@ -323,7 +323,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0023",
+        "card": "S-0023",
         "edge": "then",
         "state": {
           "text": "failure detector reopens the landed commit"
@@ -333,7 +333,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0023",
+        "card": "S-0023",
         "edge": "then",
         "state": {
           "text": "fix -> gate runs -> re-commit"
@@ -343,15 +343,15 @@
     {
       "tool": "unlink",
       "params": {
-        "card": "C-0023",
+        "card": "S-0023",
         "edge": "then",
-        "state": "S-0019"
+        "state": "ST-0019"
       }
     },
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0008",
+        "id": "ST-0008",
         "text": "the operator starts zarg in a repo and zarg surfaces available commands with their prerequisites"
       }
     },
@@ -366,7 +366,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0008"
+          "id": "ST-0008"
         },
         "then": [
           {
@@ -378,7 +378,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0059",
+        "id": "S-0059",
         "title": "Reconcile cannot turn on",
         "when": "the operator types /reconcile without plan or implement models"
       }
@@ -386,7 +386,7 @@
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0059",
+        "id": "ST-0059",
         "text": "the reason and a one-step fix create or import the models are shown"
       }
     },
@@ -401,7 +401,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0008"
+          "id": "ST-0008"
         },
         "then": [
           {
@@ -419,7 +419,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0058",
+        "id": "S-0058",
         "when": "operator starts reconcile in a session"
       }
     },
@@ -434,7 +434,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0008"
+          "id": "ST-0008"
         },
         "then": [
           {
@@ -452,7 +452,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0058",
+        "card": "S-0058",
         "edge": "then",
         "state": {
           "text": "operator decides each presented plan before apply"
@@ -470,7 +470,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0058"
+          "id": "ST-0058"
         },
         "then": [
           {
@@ -488,14 +488,14 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0021",
+        "id": "S-0021",
         "when": "the Implementer Agent codes each plan in its own worktree, one verdict per plan"
       }
     },
     {
       "tool": "link",
       "params": {
-        "card": "C-0021",
+        "card": "S-0021",
         "edge": "then",
         "state": {
           "text": "a failed plan verdict loops the Implementer fix loop"
@@ -505,7 +505,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0021",
+        "card": "S-0021",
         "edge": "then",
         "state": {
           "text": "a passed plan verdict routes to deliver and merge"
@@ -515,28 +515,28 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0021",
+        "id": "S-0021",
         "title": "Implementer Agent codes and verdicts each plan"
       }
     },
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0022",
+        "id": "ST-0022",
         "text": "the Driver Agent's agenda shows the reconcile finding with its options"
       }
     },
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0009",
+        "id": "ST-0009",
         "text": "zarg asks the operator one reconcile question"
       }
     },
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0025",
+        "id": "S-0025",
         "title": "zarg asks the reconcile question",
         "when": "zarg reads the reconcile finding from the agenda"
       }
@@ -552,16 +552,16 @@
           }
         ],
         "arrives": {
-          "id": "S-0018"
+          "id": "ST-0018"
         },
         "then": [
           {
             "text": "the reconcile finding names contradictory cards and owner/action",
-            "id": "S-0023"
+            "id": "ST-0023"
           },
           {
             "text": "the Driver Agent holds conflicting cards before Implementer starts",
-            "id": "S-0024"
+            "id": "ST-0024"
           }
         ]
       }
@@ -569,7 +569,7 @@
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0024",
+        "id": "S-0024",
         "title": "Implementer Agent only edits reconciled cards",
         "when": "a card is already reconciled"
       }
@@ -577,42 +577,42 @@
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0022",
+        "id": "ST-0022",
         "text": "the agenda shows the reconcile finding with its resolution shape"
       }
     },
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0056",
+        "id": "ST-0056",
         "text": "Planner writes a plan for every changed card"
       }
     },
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0057",
+        "id": "ST-0057",
         "text": "the changed card has a plan file"
       }
     },
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0020",
+        "id": "ST-0020",
         "text": "verify gate fails and first fix attempt fails"
       }
     },
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0055",
+        "id": "S-0055",
         "when": "the second fix attempt still fails"
       }
     },
     {
       "tool": "link",
       "params": {
-        "card": "C-0055",
+        "card": "S-0055",
         "edge": "then",
         "state": {
           "text": "a stop or escalate rule applies after the second failure"
@@ -622,7 +622,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0055",
+        "card": "S-0055",
         "edge": "then",
         "state": {
           "text": "the Driver agenda shows the reconcile finding and its resolution shape"
@@ -690,23 +690,23 @@
     "F-ffce9bf8"
   ],
   "steps": [
-    "edit Given S-0002 to failure gate halt",
-    "edit C-0053 title and When to failure resolve",
-    "link C-0053 then halt-overlap resolution",
-    "edit C-0021 When per-plan verdict routes",
-    "edit C-0025 When to zarg labeled options",
-    "unlink C-0054 early finding link",
+    "edit Given ST-0002 to failure gate halt",
+    "edit S-0053 title and When to failure resolve",
+    "link S-0053 then halt-overlap resolution",
+    "edit S-0021 When per-plan verdict routes",
+    "edit S-0025 When to zarg labeled options",
+    "unlink S-0054 early finding link",
     "add-card escalation stalled block",
-    "edit C-0052 When probe gate branches",
-    "edit C-0024 When contradictions after plan",
-    "edit C-0022 When land targets owners",
-    "edit C-0056 Then to one-plan per-card",
-    "rewrite C-0055 Given gate fail plus fix",
-    "split C-0055 Then stop then finding",
-    "edit C-0020 When saving settle ready",
-    "split C-0023 fail from verify gate",
-    "edit C-0059 readiness prerequisites start",
-    "edit C-0058 session scope approval end"
+    "edit S-0052 When probe gate branches",
+    "edit S-0024 When contradictions after plan",
+    "edit S-0022 When land targets owners",
+    "edit S-0056 Then to one-plan per-card",
+    "rewrite S-0055 Given gate fail plus fix",
+    "split S-0055 Then stop then finding",
+    "edit S-0020 When saving settle ready",
+    "split S-0023 fail from verify gate",
+    "edit S-0059 readiness prerequisites start",
+    "edit S-0058 session scope approval end"
   ],
   "persona": "Implementer Agent",
   "severity": "high",

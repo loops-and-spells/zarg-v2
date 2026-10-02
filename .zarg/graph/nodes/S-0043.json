@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0040",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0045",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0003",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0043",
   "props": {
-    "terminal": true,
-    "text": "the child appears under its parent"
+    "title": "An agent runs out of budget",
+    "when": "an agent exhausts its budget"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

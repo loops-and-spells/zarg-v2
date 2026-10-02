@@ -1,9 +1,30 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0058",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0056",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0004",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0058",
   "props": {
-    "terminal": true,
-    "text": "reconcile runs for this session"
+    "title": "Operator turns reconcile on",
+    "when": "the operator types /reconcile"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

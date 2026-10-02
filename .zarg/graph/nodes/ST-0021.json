@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0021",
+  "props": {
+    "terminal": false,
+    "text": "the implementation commit is ready to land"
+  },
+  "type": "gherkin/state"
+}

@@ -7,7 +7,7 @@ import { makeLog } from "../src/log"
 import { forDriver, makeYolo, yoloState } from "../src/plugins"
 
 describe("YOLO control", () => {
-  // @card C-0067 C-0070
+  // @card S-0067 S-0070
   test("turning YOLO on or off tells every client on main, and answers whether any plugin is in YOLO", async () => {
     const out = await Effect.runPromise(Effect.gen(function* () {
       const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zt-yolo-")), (t) => t)
@@ -47,7 +47,7 @@ describe("YOLO control", () => {
 
   test("the driver never gets the host's plugin items: only the developer can act on them", () => {
     const item = (id: string) => ({ id, title: id, detail: "", about: [], priority: 1 })
-    expect(forDriver([item("plugin-grant:rehearse"), item("gherkin:dead-end:S-1"), item("plugin-failed:x"), item("plugin-disabled:y"), item("plugin-needs:a:b")]).map((i) => i.id)).toEqual(["gherkin:dead-end:S-1"])
+    expect(forDriver([item("plugin-grant:rehearse"), item("gherkin:dead-end:ST-1"), item("plugin-failed:x"), item("plugin-disabled:y"), item("plugin-needs:a:b")]).map((i) => i.id)).toEqual(["gherkin:dead-end:ST-1"])
   })
 
   test("a starting core says its own YOLO state, so a replayed 'on' from an earlier core is not what clients show", async () => {

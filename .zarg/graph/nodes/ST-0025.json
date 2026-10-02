@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0025",
+  "props": {
+    "terminal": true,
+    "text": "secrets are stored in the plugin's own namespace"
+  },
+  "type": "gherkin/state"
+}

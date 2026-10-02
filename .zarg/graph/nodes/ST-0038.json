@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "ST-0038",
+  "props": {
+    "text": "the first turn starts once warm"
+  },
+  "type": "gherkin/state"
+}

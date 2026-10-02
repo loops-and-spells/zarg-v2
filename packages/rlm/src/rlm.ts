@@ -196,7 +196,7 @@ export const make = (deps: RlmDeps) =>
           if (resultSchema === undefined) return yield* new RlmError({ kind: "config", message: `unknown result "${preset.result}"` })
           const budget = budgetOf(preset, spec.budget)
           const id = `rlm-${++counter}`
-          // @card C-0044
+          // @card S-0044
           yield* Effect.addFinalizer((exit) =>
             Effect.sync(() => {
               if (exit._tag === "Success") return
@@ -441,7 +441,7 @@ export const make = (deps: RlmDeps) =>
             }
           }
           // Budget spent: one final turn to report what it has.
-          // @card C-0043
+          // @card S-0043
           messages.push({ role: "user", content: "Your budget is exhausted. In your next cell call `yield* Rlm.done({ value })` with your best result now." })
           yield* turn
           const last = yield* Ref.get(finished)

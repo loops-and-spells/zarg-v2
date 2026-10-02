@@ -3,21 +3,21 @@
   "journey": "Watch agents",
   "cards": [
     {
-      "ref": "gherkin/card:C-0041@3ea582a7789a"
+      "ref": "gherkin/card:S-0041@85196d3ea738"
     }
   ],
   "changes": [
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0041",
+        "id": "S-0041",
         "when": "the parent run transfers next work to a child agent"
       }
     },
     {
       "tool": "link",
       "params": {
-        "card": "C-0041",
+        "card": "S-0041",
         "edge": "then",
         "state": {
           "text": "the child receives ownership of the handed-off work"
@@ -35,7 +35,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0040"
+          "id": "ST-0040"
         },
         "then": [
           {
@@ -61,7 +61,7 @@
           }
         ],
         "arrives": {
-          "id": "S-0040"
+          "id": "ST-0040"
         },
         "then": [
           {

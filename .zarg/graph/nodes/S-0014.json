@@ -1,8 +1,30 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0011",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0014",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0074",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0001",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0014",
   "props": {
-    "text": "a what-next question is shown"
+    "title": "Driver Agent asks what next",
+    "when": "the Driver Agent finds the agenda empty"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

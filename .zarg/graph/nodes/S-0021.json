@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0019",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0020",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0004",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0005",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0021",
   "props": {
-    "terminal": false,
-    "text": "the implementation commit is ready to land"
+    "title": "Implementer Agent updates the code",
+    "when": "the Implementer Agent codes each plan in its own worktree"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

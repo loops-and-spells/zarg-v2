@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0041",
+  "props": {
+    "terminal": true,
+    "text": "each agent shows its preset"
+  },
+  "type": "gherkin/state"
+}

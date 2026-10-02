@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0029",
+  "props": {
+    "terminal": true,
+    "text": "the field shows the schema's error"
+  },
+  "type": "gherkin/state"
+}

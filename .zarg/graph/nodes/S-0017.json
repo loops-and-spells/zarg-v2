@@ -1,9 +1,31 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0016",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0011",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0017",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0001",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0017",
   "props": {
-    "terminal": true,
-    "text": "the merge is noted in the thread"
+    "planned": true,
+    "title": "Driver Agent merges compatible edits",
+    "when": "the Driver Agent finds both edits compatible"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

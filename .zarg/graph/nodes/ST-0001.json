@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0001",
+  "props": {
+    "entry": true,
+    "text": "the CLI actor works in a repo with a zarg graph"
+  },
+  "type": "gherkin/state"
+}

@@ -1,8 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0020",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0021",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0004",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0005",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0022",
   "props": {
-    "text": "the Driver Agent's agenda shows the reconcile finding"
+    "title": "Verify passes",
+    "when": "every check passes"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

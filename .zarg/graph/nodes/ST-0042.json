@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0042",
+  "props": {
+    "terminal": true,
+    "text": "each agent shows its budget use"
+  },
+  "type": "gherkin/state"
+}

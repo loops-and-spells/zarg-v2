@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0069",
+  "props": {
+    "terminal": true,
+    "text": "the plugin is disabled"
+  },
+  "type": "gherkin/state"
+}

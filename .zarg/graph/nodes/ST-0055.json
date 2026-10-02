@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "ST-0055",
+  "props": {
+    "text": "landing retries every minute"
+  },
+  "type": "gherkin/state"
+}

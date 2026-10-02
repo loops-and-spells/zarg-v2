@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "ST-0063",
+  "props": {
+    "text": "a grant question names the scope and target"
+  },
+  "type": "gherkin/state"
+}

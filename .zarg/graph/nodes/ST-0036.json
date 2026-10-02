@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0036",
+  "props": {
+    "terminal": true,
+    "text": "the pick is refused with a reason"
+  },
+  "type": "gherkin/state"
+}

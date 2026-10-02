@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0050",
+  "props": {
+    "terminal": true,
+    "text": "the read is refused with a reason"
+  },
+  "type": "gherkin/state"
+}

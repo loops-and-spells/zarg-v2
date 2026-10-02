@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0040",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0044",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0003",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0042",
   "props": {
-    "terminal": true,
-    "text": "each agent shows its budget use"
+    "title": "A decision is shown",
+    "when": "an agent makes a decision"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

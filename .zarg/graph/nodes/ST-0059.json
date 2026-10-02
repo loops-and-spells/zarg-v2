@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0059",
+  "props": {
+    "terminal": true,
+    "text": "the reason reconcile stays off is shown"
+  },
+  "type": "gherkin/state"
+}

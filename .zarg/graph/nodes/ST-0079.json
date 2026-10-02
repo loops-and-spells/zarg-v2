@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "ST-0079",
+  "props": {
+    "text": "the Markdown shows formatted: headings, lists, tables, code, links"
+  },
+  "type": "gherkin/state"
+}

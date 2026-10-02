@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "ST-0013",
+  "props": {
+    "text": "the message shapes the next question"
+  },
+  "type": "gherkin/state"
+}

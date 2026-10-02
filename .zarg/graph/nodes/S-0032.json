@@ -1,9 +1,27 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0031",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0032",
   "props": {
-    "terminal": true,
-    "text": "the role uses the chosen model"
+    "planned": true,
+    "title": "Operator removes a provider's key",
+    "when": "the operator clears a provider plugin's secret"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

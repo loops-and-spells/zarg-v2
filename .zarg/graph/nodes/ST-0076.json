@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0076",
+  "props": {
+    "terminal": true,
+    "text": "the agent's task, turns, decisions are shown"
+  },
+  "type": "gherkin/state"
+}

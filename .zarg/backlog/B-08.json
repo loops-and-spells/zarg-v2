@@ -3,59 +3,59 @@
   "journey": "Watch agents",
   "cards": [
     {
-      "ref": "gherkin/card:C-0048@d814d2c2e755"
+      "ref": "gherkin/card:S-0048@ba9d9e139b95"
     },
     {
-      "ref": "gherkin/card:C-0040@6c07e8f7bc98"
+      "ref": "gherkin/card:S-0040@6f02dbbcaac5"
     },
     {
-      "ref": "gherkin/card:C-0041@3ea582a7789a"
+      "ref": "gherkin/card:S-0041@85196d3ea738"
     },
     {
-      "ref": "gherkin/card:C-0042@a7cfb9357c2b"
+      "ref": "gherkin/card:S-0042@6e4de5e64d09"
     },
     {
-      "ref": "gherkin/card:C-0043@48a0d1e2bb35"
+      "ref": "gherkin/card:S-0043@2ad79332dc83"
     },
     {
-      "ref": "gherkin/card:C-0044@87b512b1586c"
+      "ref": "gherkin/card:S-0044@7100a8f67dba"
     },
     {
-      "ref": "gherkin/card:C-0045@e16b9771bc17"
+      "ref": "gherkin/card:S-0045@7e212bf04ef4"
     },
     {
-      "ref": "gherkin/card:C-0046@cc3b24b9f8ef"
+      "ref": "gherkin/card:S-0046@d615b2a3f1f3"
     },
     {
-      "ref": "gherkin/card:C-0047@0cf0f58be66d"
+      "ref": "gherkin/card:S-0047@aeb1ef26988f"
     }
   ],
   "changes": [
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0052",
+        "id": "ST-0052",
         "text": "the invocation is refused before it runs"
       }
     },
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0053",
+        "id": "ST-0053",
         "text": "the refusal names the missing operator-granted scope and emits the grant request"
       }
     },
     {
       "tool": "edit-state",
       "params": {
-        "id": "S-0040",
+        "id": "ST-0040",
         "text": "the agent run starts and the operator-granted scopes are loaded"
       }
     },
     {
       "tool": "edit-card",
       "params": {
-        "id": "C-0048",
+        "id": "S-0048",
         "title": "A service outside the operator-granted scopes is refused",
         "when": "an agent attempts to invoke a service outside the operator-granted scopes"
       }
@@ -63,7 +63,7 @@
     {
       "tool": "link",
       "params": {
-        "card": "C-0048",
+        "card": "S-0048",
         "edge": "then",
         "state": {
           "text": "the agent surfaces the refusal to the operator, extends the grant, and retries"

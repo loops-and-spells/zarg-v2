@@ -1,9 +1,35 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0023",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0027",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0028",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0023",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0028",
   "props": {
-    "terminal": true,
-    "text": "nothing is stored"
+    "planned": true,
+    "title": "Rejected values are not stored",
+    "when": "the provider rejects the entered values"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

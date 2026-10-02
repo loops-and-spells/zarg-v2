@@ -1,8 +1,27 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0033",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0035",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0035",
   "props": {
-    "text": "the role's model is saved to config"
+    "planned": true,
+    "title": "Operator picks a model",
+    "when": "the operator picks a model for the role"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

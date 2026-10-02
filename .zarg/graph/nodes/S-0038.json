@@ -1,8 +1,27 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0038",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0009",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0038",
   "props": {
-    "text": "the first turn starts once warm"
+    "planned": true,
+    "title": "Driver Agent starts after warm-up",
+    "when": "the Driver Agent reads the agenda"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

@@ -17,13 +17,13 @@ describe("what-next gaps", () => {
         const yes = p[key]! >= 0.5
         return Object.fromEntries(Object.keys(req.questions).map((q) => [q, { type: "noul", answer: yes, probability: p[key]!, confidence: 0.1 } satisfies Answer]))
       })
-    const kept = await Effect.runPromise(judgeGaps(decide, [item("S-1", "The developer pays"), item("S-2", "The page scrolls"), item("S-3", "The plugin loads")]))
-    expect(kept.map((g) => g.id)).toEqual(["S-1"])
+    const kept = await Effect.runPromise(judgeGaps(decide, [item("ST-1", "The developer pays"), item("ST-2", "The page scrolls"), item("ST-3", "The plugin loads")]))
+    expect(kept.map((g) => g.id)).toEqual(["ST-1"])
     expect(calls.length).toBe(3)
   })
 
   test("without a decision model, no failure candidates are offered", async () => {
     const decide = () => Effect.fail({ _tag: "DecisionError" as const, kind: "unavailable" as const, message: "down" })
-    expect(await Effect.runPromise(judgeGaps(decide, [item("S-1", "x")]))).toEqual([])
+    expect(await Effect.runPromise(judgeGaps(decide, [item("ST-1", "x")]))).toEqual([])
   })
 })

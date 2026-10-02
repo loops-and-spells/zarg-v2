@@ -1,9 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0021",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0020",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0004",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0052",
   "props": {
-    "terminal": true,
-    "text": "the code is refused before it runs"
+    "title": "The branch moved during the pass",
+    "when": "the operator commits during the pass"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }

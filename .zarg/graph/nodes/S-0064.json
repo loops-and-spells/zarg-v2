@@ -1,9 +1,30 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "ST-0063",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0064",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0065",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    }
+  ],
   "id": "S-0064",
   "props": {
-    "terminal": true,
-    "text": "the plugin call goes ahead"
+    "title": "Operator always allows it",
+    "when": "the operator picks always allow"
   },
-  "type": "gherkin/state"
+  "type": "gherkin/card"
 }
