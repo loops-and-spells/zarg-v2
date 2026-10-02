@@ -3,7 +3,7 @@
   "id": "ST-0057",
   "props": {
     "terminal": true,
-    "text": "each changed card has a plan file"
+    "text": "each changed scenario has a plan file"
   },
   "type": "gherkin/state"
 }

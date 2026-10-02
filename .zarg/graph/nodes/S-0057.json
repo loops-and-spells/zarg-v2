@@ -19,8 +19,8 @@
   ],
   "id": "S-0057",
   "props": {
-    "title": "A card cannot be planned",
-    "when": "the Planner Agent finds the card contradicts another card"
+    "title": "A scenario cannot be planned",
+    "when": "the Planner Agent finds the scenario contradicts another scenario"
   },
   "type": "gherkin/scenario"
 }

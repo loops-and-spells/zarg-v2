@@ -1,5 +1,5 @@
 {
-  "ref": "gherkin/scenario:S-0004@1b79648f6965",
+  "ref": "gherkin/scenario:S-0004@12a496e62ed4",
   "journeys": [
     "CLI actor"
   ],

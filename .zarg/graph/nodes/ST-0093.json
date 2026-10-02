@@ -2,7 +2,7 @@
   "edges": [],
   "id": "ST-0093",
   "props": {
-    "text": "each file line tagged with the card is listed"
+    "text": "each file line tagged with the scenario is listed"
   },
   "type": "gherkin/state"
 }

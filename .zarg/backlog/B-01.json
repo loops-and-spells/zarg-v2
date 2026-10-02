@@ -6,19 +6,19 @@
       "ref": "gherkin/scenario:S-0001@ed5a7457d05a"
     },
     {
-      "ref": "gherkin/scenario:S-0002@d5b43902654c"
+      "ref": "gherkin/scenario:S-0002@e7a780fe3f4b"
     },
     {
       "ref": "gherkin/scenario:S-0003@9c08f72be1c9"
     },
     {
-      "ref": "gherkin/scenario:S-0004@1b79648f6965"
+      "ref": "gherkin/scenario:S-0004@12a496e62ed4"
     },
     {
       "ref": "gherkin/scenario:S-0005@5a031d2bd70c"
     },
     {
-      "ref": "gherkin/scenario:S-0007@56c0d9c97d24"
+      "ref": "gherkin/scenario:S-0007@2c53b280a8a8"
     },
     {
       "ref": "gherkin/scenario:S-0041@85196d3ea738"
@@ -30,10 +30,10 @@
       "ref": "gherkin/scenario:S-0048@ba9d9e139b95"
     },
     {
-      "ref": "gherkin/scenario:S-0079@e90b33022158"
+      "ref": "gherkin/scenario:S-0079@4dce063f315a"
     },
     {
-      "ref": "gherkin/scenario:S-0080@e3ce01326aa9"
+      "ref": "gherkin/scenario:S-0080@83924b526abc"
     },
     {
       "ref": "gherkin/scenario:S-0084"

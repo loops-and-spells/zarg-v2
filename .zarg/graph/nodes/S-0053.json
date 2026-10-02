@@ -20,7 +20,7 @@
   "id": "S-0053",
   "props": {
     "title": "An obvious merge conflict",
-    "when": "card worktrees conflict in an obvious way"
+    "when": "scenario worktrees conflict in an obvious way"
   },
   "type": "gherkin/scenario"
 }

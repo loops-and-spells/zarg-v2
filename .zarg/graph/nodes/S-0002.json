@@ -23,8 +23,8 @@
   ],
   "id": "S-0002",
   "props": {
-    "title": "CLI actor adds a card",
-    "when": "the CLI actor adds a card through a tool call"
+    "title": "CLI actor adds a scenario",
+    "when": "the CLI actor adds a scenario through a tool call"
   },
   "type": "gherkin/scenario"
 }

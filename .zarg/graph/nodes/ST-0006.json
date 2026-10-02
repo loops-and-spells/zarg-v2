@@ -3,7 +3,7 @@
   "id": "ST-0006",
   "props": {
     "terminal": true,
-    "text": "every card using it shows the new text"
+    "text": "every scenario using it shows the new text"
   },
   "type": "gherkin/state"
 }

@@ -20,7 +20,7 @@
   "id": "S-0007",
   "props": {
     "title": "A duplicate link is refused",
-    "when": "the CLI actor links a card to the same state twice"
+    "when": "the CLI actor links a scenario to the same state twice"
   },
   "type": "gherkin/scenario"
 }

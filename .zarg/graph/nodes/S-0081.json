@@ -19,8 +19,8 @@
   ],
   "id": "S-0081",
   "props": {
-    "title": "CLI actor finds a card's code",
-    "when": "the CLI actor asks for a card's code"
+    "title": "CLI actor finds a scenario's code",
+    "when": "the CLI actor asks for a scenario's code"
   },
   "type": "gherkin/scenario"
 }

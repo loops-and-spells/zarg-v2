@@ -4,7 +4,7 @@
   "props": {
     "kind": "agent",
     "name": "Implementer Agent",
-    "text": "codes each plan in its own worktree, runs the checks and fixes what fails. It sees the plan, its cards and the code; it never edits requirements."
+    "text": "codes each plan in its own worktree, runs the checks and fixes what fails. It sees the plan, its scenarios and the code; it never edits requirements."
   },
   "type": "gherkin/persona"
 }

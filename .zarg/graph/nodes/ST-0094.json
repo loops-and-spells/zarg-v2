@@ -3,7 +3,7 @@
   "id": "ST-0094",
   "props": {
     "terminal": true,
-    "text": "the card's code lists the new line"
+    "text": "the scenario's code lists the new line"
   },
   "type": "gherkin/state"
 }

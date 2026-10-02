@@ -3,7 +3,7 @@
   "id": "ST-0003",
   "props": {
     "terminal": true,
-    "text": "the card is saved as one node file"
+    "text": "the scenario is saved as one node file"
   },
   "type": "gherkin/state"
 }

@@ -19,8 +19,8 @@
   ],
   "id": "S-0079",
   "props": {
-    "title": "CLI actor finds the affected cards",
-    "when": "the CLI actor asks which cards changed since the last checkpoint"
+    "title": "CLI actor finds the affected scenarios",
+    "when": "the CLI actor asks which scenarios changed since the last checkpoint"
   },
   "type": "gherkin/scenario"
 }

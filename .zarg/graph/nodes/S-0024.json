@@ -19,8 +19,8 @@
   ],
   "id": "S-0024",
   "props": {
-    "title": "A card cannot be implemented",
-    "when": "a card contradicts another card"
+    "title": "A scenario cannot be implemented",
+    "when": "a scenario contradicts another scenario"
   },
   "type": "gherkin/scenario"
 }

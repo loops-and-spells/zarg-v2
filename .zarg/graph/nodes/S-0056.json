@@ -24,7 +24,7 @@
   "id": "S-0056",
   "props": {
     "title": "Plans are written",
-    "when": "the Planner Agent finishes every changed card"
+    "when": "the Planner Agent finishes every changed scenario"
   },
   "type": "gherkin/scenario"
 }

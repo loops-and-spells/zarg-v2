@@ -4,7 +4,7 @@
   "props": {
     "kind": "agent",
     "name": "Planner Agent",
-    "text": "turns changed cards into implementation plans. It reads the cards and the code and writes plans; it never edits code or requirements."
+    "text": "turns changed scenarios into implementation plans. It reads the scenarios and the code and writes plans; it never edits code or requirements."
   },
   "type": "gherkin/persona"
 }

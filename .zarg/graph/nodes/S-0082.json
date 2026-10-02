@@ -20,7 +20,7 @@
   "id": "S-0082",
   "props": {
     "title": "CLI actor tags new code",
-    "when": "the CLI actor tags new code with the card's id"
+    "when": "the CLI actor tags new code with the scenario's id"
   },
   "type": "gherkin/scenario"
 }
