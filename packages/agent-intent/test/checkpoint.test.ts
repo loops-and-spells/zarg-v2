@@ -1,0 +1,24 @@
+import { expect, test } from "bun:test"
+import { due, EMPTY, type JourneyInfo, type Statement } from "../src/checkpoint"
+
+const intent = { id: "I-0001", title: "Plans" }
+const o = (id: string, version: string, journeys: ReadonlyArray<string> = []): Statement => ({ id, kind: "outcome", text: `text ${id}`, version, intent, journeys })
+const j = (id: string, version: string, serves: ReadonlyArray<string> = []): JourneyInfo => ({ id, name: `journey ${id}`, version, scenarios: [], serves })
+
+test("new, changed and answered statements are due; the same version planned or asked is not", () => {
+  const cp = { statements: { "O-0002": { version: "v2", state: "planned" as const }, "O-0003": { version: "old", state: "planned" as const }, "O-0004": { version: "v4", state: "asked" as const, topic: "T-1" }, "O-0005": { version: "v5", state: "asked" as const, decision: "Add to Checkout" } }, journeys: {} }
+  const ids = due([o("O-0001", "v1"), o("O-0002", "v2"), o("O-0003", "new"), o("O-0004", "v4"), o("O-0005", "v5")], [], cp, true).map((d) => (d.kind === "statement" ? d.statement.id : d.kind))
+  expect(ids).toEqual(["O-0001", "O-0003", "O-0005"])
+})
+test("a statement in the checkpoint but no longer in the graph is removed", () => {
+  expect(due([], [], { statements: { "O-0009": { version: "v", state: "planned" } }, journeys: {} }, false)).toEqual([{ kind: "removed", id: "O-0009" }])
+})
+test("an unserving journey is due once per version, and only while outcomes exist", () => {
+  expect(due([], [j("J-0001", "v1"), j("J-0002", "v1", ["O-0001"])], EMPTY, true).map((d) => (d.kind === "journey" ? d.journey.id : d.kind))).toEqual(["J-0001"])
+  expect(due([], [j("J-0001", "v1")], { statements: {}, journeys: { "J-0001": { version: "v1", state: "nothing" } } }, true)).toEqual([])
+  expect(due([], [j("J-0001", "v1")], EMPTY, false)).toEqual([])
+})
+test("statements come before journeys; removed ones first of all", () => {
+  const kinds = due([o("O-0001", "v1")], [j("J-0001", "v1")], { statements: { "O-0009": { version: "v", state: "planned" } }, journeys: {} }, true).map((d) => d.kind)
+  expect(kinds).toEqual(["removed", "statement", "journey"])
+})

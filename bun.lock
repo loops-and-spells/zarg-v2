@@ -17,6 +17,22 @@
         "effect": "^4.0.0-rc.117",
       },
     },
+    "packages/agent-intent": {
+      "name": "@zarg/agent-intent",
+      "dependencies": {
+        "@zarg/entities": "workspace:*",
+        "@zarg/fold": "workspace:*",
+        "@zarg/plugin-backlog": "workspace:*",
+        "@zarg/plugin-gherkin": "workspace:*",
+        "@zarg/plugin-sdk": "workspace:*",
+        "effect": "^4.0.0-rc.117",
+      },
+      "devDependencies": {
+        "@effect/platform-bun": "^4.0.0-rc.117",
+        "@zarg/graph": "workspace:*",
+        "@zarg/plugin": "workspace:*",
+      },
+    },
     "packages/agent-rehearse": {
       "name": "@zarg/agent-rehearse",
       "dependencies": {
@@ -426,6 +442,8 @@
     "@varlock/native-helper-win32-x64": ["@varlock/native-helper-win32-x64@1.20.0", "", { "os": [ "linux", "win32", ] }, "sha512-mDH00lx2h+dWmbARTnfmRu321SuZigKslUdX7dAn0/7+psShiFCx6QEWLjjyZgDPSCGVNbIM3JArC40vCTXJjw=="],
 
     "@zarg/agent-host": ["@zarg/agent-host@workspace:packages/agent-host"],
+
+    "@zarg/agent-intent": ["@zarg/agent-intent@workspace:packages/agent-intent"],
 
     "@zarg/agent-rehearse": ["@zarg/agent-rehearse@workspace:packages/agent-rehearse"],
 
