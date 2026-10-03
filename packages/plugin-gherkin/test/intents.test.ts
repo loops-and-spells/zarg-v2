@@ -3,6 +3,8 @@ import { Effect } from "effect"
 import { GraphStore } from "@zarg/graph"
 import { diff, Snapshot } from "@zarg/graph/pure"
 import { statementOwner } from "../src/lints"
+import { agenda } from "../src/agenda"
+import { render } from "../src/render"
 import { PluginHost } from "@zarg/plugin/server"
 import { call, run } from "./harness"
 
@@ -130,5 +132,60 @@ describe("intent lints", () => {
     expect(lint(Snapshot.make([intent("I-1", ["O-1"]), intent("I-2", ["O-1"]), outcome("O-1")] as never))).toEqual(["O-1 belongs to I-1, I-2; a statement belongs to exactly one intent"])
     expect(lint(Snapshot.make([intent("I-1", []), intent("I-2", []), outcome("O-1")] as never))).toEqual(["O-1 belongs to no intent"])
     expect(lint(before)).toEqual([])
+  })
+})
+
+const graph = (...nodes: ReadonlyArray<unknown>) => Snapshot.make(nodes as never)
+const n = (id: string, type: string, props: Record<string, unknown>, edges: ReadonlyArray<[string, string]> = []) => ({ id, type: `gherkin/${type}`, props, edges: edges.map(([t, to]) => ({ type: `gherkin/${t}`, to })) })
+
+describe("intent agenda", () => {
+  const base = [
+    n("I-0001", "intent", { title: "Plans", status: "draft" }, [["has", "O-0001"], ["has", "O-0002"], ["has", "Q-0001"]]),
+    n("O-0001", "outcome", { text: "A visitor picks a plan" }),
+    n("O-0002", "outcome", { text: "A receipt arrives" }),
+    n("Q-0001", "question", { text: "Is there a yearly plan?" }),
+    n("I-0002", "intent", { title: "Empty", status: "draft" }),
+    n("J-0001", "journey", { name: "Checkout" }, [["serves", "O-0001"]]),
+    n("J-0002", "journey", { name: "Browse" }),
+    n("J-0003", "journey", { name: "Help" }),
+  ]
+  const ids = (s: Snapshot.Snapshot) => agenda(s).filter((i) => /uncovered|unserving|question|no-outcome/.test(i.id))
+  test("uncovered outcomes and unserving journeys are one item each; each open question and each intent without outcomes has its own", () => {
+    const items = ids(graph(...base))
+    expect(items.map((i) => [i.id, i.about])).toEqual([
+      ["gherkin:uncovered", ["O-0002"]],
+      ["gherkin:unserving", ["J-0002", "J-0003"]],
+      ["gherkin:question:Q-0001", ["Q-0001"]],
+      ["gherkin:no-outcome:I-0002", ["I-0002"]],
+    ])
+    expect(items[0]!.title).toBe("Which journey delivers 1 outcome?")
+  })
+  test("an answered question is no item; without any outcome no journey is unserving", () => {
+    const answered = base.map((x) => (x.id === "Q-0001" ? { ...x, props: { ...x.props, answer: "No" } } : x))
+    expect(ids(graph(...answered)).map((i) => i.id)).not.toContain("gherkin:question:Q-0001")
+    expect(ids(graph(n("J-0001", "journey", { name: "Checkout" }))).map((i) => i.id)).toEqual([])
+  })
+})
+
+describe("render with intents", () => {
+  test("an intent in focus renders its status, personas and statements with what serves or bounds them", () => {
+    const s = graph(
+      n("I-0001", "intent", { title: "Plans", status: "accepted", problem: "Visitors leave." }, [["has", "O-0001"], ["has", "K-0001"], ["has", "Q-0001"], ["for", "P-0001"]]),
+      n("O-0001", "outcome", { text: "A visitor picks a plan" }),
+      n("K-0001", "constraint", { text: "Prices never hide fees" }, [["bounds", "J-0001"]]),
+      n("Q-0001", "question", { text: "Is there a yearly plan?" }),
+      n("P-0001", "persona", { name: "Visitor", kind: "human", text: "x" }),
+      n("J-0001", "journey", { name: "Checkout" }, [["serves", "O-0001"]]),
+    )
+    expect(render(s, new Set(["O-0001"]))).toBe(
+      [
+        "I-0001 Plans",
+        "  Status     accepted",
+        "  For        Visitor  # P-0001",
+        "  Outcome    A visitor picks a plan  # O-0001 ← J-0001",
+        "  Constraint Prices never hide fees  # K-0001 → J-0001",
+        "  Question   Is there a yearly plan?  # Q-0001 (open)",
+      ].join("\n"),
+    )
   })
 })
