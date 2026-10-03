@@ -6,6 +6,7 @@ import { Cause, Effect, Layer, Schema, Scope as EffectScope, Semaphore, Stream }
 import { LayoutSchema, Surface } from "@zarg/view"
 import { Decisions, layer as decisionsLayer } from "@zarg/decisions"
 import { GraphStore, layer as graphLayer } from "@zarg/graph"
+import { watchGraph } from "./graph-watch"
 import { type Bound } from "@zarg/kernel"
 import { Config, Env, layer as envLayer, Model, redact, type SensitiveValue } from "@zarg/model"
 import { makeGrants } from "@zarg/plugin/runtime"
@@ -206,6 +207,10 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // The backlog's agenda changing (a plan is Ready) wakes the Planner too.
     // The Triage Agent's pass over every journey's stage (when it is loaded).
     const triageTick = Effect.suspend(() => (host.manifests.some((m) => m.name === "triage") ? Effect.ignore(host.invoke("triage", "tick", {})) : Effect.void))
+    // The Intent Agent: when the graph changes (a statement, a journey), when the backlog's agenda changes (a plan dropped), and once plugins load.
+    const intentTick = Effect.suspend(() => (host.manifests.some((m) => m.name === "intent") ? Effect.ignore(host.invoke("intent", "tick", {})) : Effect.void))
+    const graphWatch = watchGraph(join(root, ".zarg", "graph"), () => void Effect.runFork(intentTick))
+    yield* Effect.addFinalizer(() => Effect.sync(() => graphWatch.close()))
     // The backlog's or rehearse's agenda changing wakes the Triage Agent (a stage's turn, a re-rehearse done).
     // The host's plugin problems in the operator's inbox, whenever an agenda changes (and once plugins load, below).
     const syncPlugins = Effect.ignore(Effect.flatMap(host.agenda(), (items) => syncPluginTopics(inbox, items)))
@@ -214,6 +219,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       Effect.runFork(main.wake)
       if (plugin === "backlog") Effect.runFork(planner.tick)
       if (plugin === "backlog" || plugin === "rehearse") Effect.runFork(triageTick)
+      if (plugin === "backlog") Effect.runFork(intentTick)
     })
     // Plugins' agents show in main's agents pane, each plugin in its own stream.
     // A plugin agent's view is one its manifest declares; a malformed one fails that agent's start.
@@ -252,7 +258,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     )
     // Plugins that lack only their load grant: asked about now that main can ask (YOLO loads them without asking).
     // Then the agents pick up where a restart left them: a Ready plan, a journey's stage halfway.
-    yield* Effect.forkDetach(Effect.andThen(loadPlugins, Effect.andThen(syncPlugins, Effect.andThen(planner.tick, triageTick))))
+    yield* Effect.forkDetach(Effect.andThen(loadPlugins, Effect.andThen(syncPlugins, Effect.andThen(planner.tick, Effect.andThen(triageTick, intentTick)))))
 
     // @scenario S-0058 @scenario S-0059
     /** `/reconcile`: turn plan and implement on for this session (the config's section and `enabled` are overridden). */
