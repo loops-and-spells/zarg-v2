@@ -77,3 +77,38 @@ export const findJourney = (snap: Snapshot.Snapshot, ref: { readonly id: string 
   }
   return journeys(snap).find((j) => normalize(journeyName(j)) === normalize(ref.name))
 }
+
+export const INTENT = "gherkin/intent"
+export const OUTCOME = "gherkin/outcome"
+export const CONSTRAINT = "gherkin/constraint"
+export const QUESTION = "gherkin/question"
+/** intent → outcome, constraint or question: the statement is this intent's (exactly one). */
+export const HAS = "gherkin/has"
+/** intent → persona: the users this intent is for. */
+export const FOR = "gherkin/for"
+/** journey → outcome: the journey delivers the outcome. */
+export const SERVES = "gherkin/serves"
+/** constraint → journey or scenario: the rule applies there. */
+export const BOUNDS = "gherkin/bounds"
+export const STATEMENT_TYPES: ReadonlyArray<string> = [OUTCOME, CONSTRAINT, QUESTION]
+
+/** What one product (or one area of it) is for. The problem is context, not traced; its statements are. */
+export const IntentProps = Schema.Struct({
+  title: Schema.NonEmptyString,
+  problem: Schema.optionalKey(Schema.String),
+  status: Schema.Literals(["draft", "accepted"]),
+})
+/** An outcome or a constraint: one sentence. */
+export const StatementProps = Schema.Struct({ text: Schema.NonEmptyString })
+/** A question is open until it has an answer. */
+export const QuestionProps = Schema.Struct({ text: Schema.NonEmptyString, answer: Schema.optionalKey(Schema.NonEmptyString) })
+
+export const isStatement = (n: Node): boolean => STATEMENT_TYPES.includes(n.type)
+export const intents = (snap: Snapshot.Snapshot) => Snapshot.byType(snap, INTENT)
+export const statementsOf = (snap: Snapshot.Snapshot, intent: string): ReadonlyArray<Node> =>
+  Snapshot.out(snap, intent, HAS).flatMap((e) => {
+    const n = snap.nodes.get(e.to)
+    return n === undefined ? [] : [n]
+  })
+export const intentOf = (snap: Snapshot.Snapshot, statement: string): string | undefined => Snapshot.inbound(snap, statement, HAS)[0]?.from
+export const servedBy = (snap: Snapshot.Snapshot, outcome: string): ReadonlyArray<string> => Snapshot.inbound(snap, outcome, SERVES).map((e) => e.from).sort()

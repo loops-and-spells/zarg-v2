@@ -9,7 +9,7 @@ import { CompareParams, CompareResult, DryRunParams, DryRunResult, Gherkin, Jour
 import { applyDraft, type Draft, dryRun } from "./draft"
 import type { Finding } from "./kit"
 import { clauseShape, journeyShape, personaShape, stateText } from "./lints"
-import { BY, SCENARIO, ScenarioProps, JOURNEY, JourneyProps, PERSONA, PersonaProps, personaName, personas, STATE, StateProps } from "./model"
+import { BY, CONSTRAINT, INTENT, IntentProps, JOURNEY, JourneyProps, OUTCOME, PERSONA, PersonaProps, personaName, personas, QUESTION, QuestionProps, SCENARIO, ScenarioProps, STATE, StatementProps, StateProps } from "./model"
 import { journeyList, journeysView } from "./journeys"
 import { JourneysView } from "./views"
 import { render } from "./render"
@@ -22,7 +22,7 @@ const Findings = Schema.Struct({ findings: Schema.Array(Schema.Unknown) })
 const Items = Schema.Array(Schema.Unknown)
 const snapshotOf = (j: { readonly nodes: ReadonlyArray<unknown> }) => Snapshot.make(j.nodes as ReadonlyArray<Node>)
 
-const PROPS: Record<string, Schema.Codec<any, any>> = { [STATE]: StateProps, [SCENARIO]: ScenarioProps, [PERSONA]: PersonaProps, [JOURNEY]: JourneyProps }
+const PROPS: Record<string, Schema.Codec<any, any>> = { [STATE]: StateProps, [SCENARIO]: ScenarioProps, [PERSONA]: PersonaProps, [JOURNEY]: JourneyProps, [INTENT]: IntentProps, [OUTCOME]: StatementProps, [CONSTRAINT]: StatementProps, [QUESTION]: QuestionProps }
 
 /** Node props, as the host's structural check used to do in-process. */
 const validateProps = (changes: ReadonlyArray<unknown>): ReadonlyArray<Finding> =>
@@ -46,6 +46,14 @@ const EDGES = {
   by: { from: "scenario", to: "persona" },
   // The journeys a scenario belongs to (any number; none is fine).
   in: { from: "scenario", to: "journey" },
+  // An intent's statements: each statement is exactly one intent's (the statement-owner lint).
+  has: { from: "intent", to: ["outcome", "constraint", "question"] },
+  // The users an intent is for.
+  for: { from: "intent", to: "persona" },
+  // A journey delivers an outcome (many to many).
+  serves: { from: "journey", to: "outcome" },
+  // A constraint applies to a journey or a scenario.
+  bounds: { from: "constraint", to: ["journey", "scenario"] },
 }
 
 /** The atomic Gherkin user action graph (states and scenarios), running in its own locked process. */
@@ -65,9 +73,13 @@ export default definePlugin({
     state: { doc: "A Given or Then sentence.", data: StateProps, tone: "state", glyph: "○", ops: ["label"] },
     persona: { doc: "Someone who acts in scenarios.", data: PersonaProps, tone: "persona", glyph: "◎", ops: ["label"] },
     journey: { doc: "A named group of scenarios.", data: JourneyProps, tone: "journey", glyph: "↝", ops: ["label"], open: "journeys" },
+    intent: { doc: "What one product (or one area of it) is for: a title, the problem, its outcomes, constraints and questions.", data: IntentProps, tone: "accent", glyph: "◈", ops: ["label"] },
+    outcome: { doc: "One result an intent wants for its users; journeys serve it.", data: StatementProps, tone: "ok", glyph: "▸", ops: ["label"] },
+    constraint: { doc: "One rule that must hold where it bounds.", data: StatementProps, tone: "attention", glyph: "▪", ops: ["label"] },
+    question: { doc: "One thing an intent has not decided yet; open until answered.", data: QuestionProps, tone: "dim", glyph: "?", ops: ["label"] },
   },
   graph: {
-    nodes: { state: StateProps, scenario: ScenarioProps, persona: PersonaProps, journey: JourneyProps },
+    nodes: { state: StateProps, scenario: ScenarioProps, persona: PersonaProps, journey: JourneyProps, intent: IntentProps, outcome: StatementProps, constraint: StatementProps, question: QuestionProps },
     edges: EDGES,
   },
   methods: {
@@ -118,6 +130,10 @@ export default definePlugin({
       state: { get: nodes, label: (e: E) => String(e.data.props.text ?? e.id) },
       persona: { get: nodes, label: (e: E) => String(e.data.props.name ?? e.id) },
       journey: { get: nodes, label: (e: E) => String(e.data.props.name ?? e.id) },
+      intent: { get: nodes, label: (e: E) => String(e.data.props.title ?? e.id) },
+      outcome: { get: nodes, label: (e: E) => String(e.data.props.text ?? e.id) },
+      constraint: { get: nodes, label: (e: E) => String(e.data.props.text ?? e.id) },
+      question: { get: nodes, label: (e: E) => String(e.data.props.text ?? e.id) },
     }
     return {
       entities,
