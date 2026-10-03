@@ -121,7 +121,7 @@ const checkpoint = Command.make("checkpoint", {}, () =>
   }),
 )
 
-/** Every scenario against its @scenario tags: JSON (or --summary), exit 1 on problems; --scenario for one scenario. */
+/** Every scenario against its @scenario tags, and intent coverage: JSON (or --summary), exit 1 on problems (warnings never fail it); --scenario for one scenario. */
 const auditCmd = Command.make(
   "audit",
   {

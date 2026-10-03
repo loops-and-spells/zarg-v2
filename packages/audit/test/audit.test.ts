@@ -67,3 +67,18 @@ describe("the scenario audit", () => {
     expect(found.map((t) => `${t.id} ${t.file}:${t.line}`).sort()).toEqual(["S-0001 src/tracked.ts:1", "S-0002 src/new.ts:1", "S-0005 src/tab.ts:1"])
   })
 })
+
+describe("intent coverage", () => {
+  const o = (id: string) => ({ id, type: "gherkin/outcome", props: { text: `outcome ${id}` }, edges: [] })
+  const j = (id: string, serves: ReadonlyArray<string> = []) => ({ id, type: "gherkin/journey", props: { name: `journey ${id}` }, edges: serves.map((to) => ({ type: "gherkin/serves", to })) })
+  test("an outcome no journey serves is uncovered, a journey serving none is unserving: warnings, not problems", () => {
+    const r = audit(Snapshot.make([o("O-0001"), o("O-0002"), j("J-0001", ["O-0001"]), j("J-0002")] as never), [])
+    expect(r.warnings).toEqual([{ kind: "uncovered", outcome: "O-0002", text: "outcome O-0002" }, { kind: "unserving", journey: "J-0002", name: "journey J-0002" }])
+    expect(r.problems).toEqual([])
+    expect(summary(r)).toContain("uncovered           O-0002 outcome O-0002")
+    expect(summary(r).split("\n").at(-1)).toBe("0 built · 0 planned · 0 untagged · 0 planned-but-tagged · 0 orphan · 1 uncovered · 1 unserving")
+  })
+  test("without outcomes no journey is unserving", () => {
+    expect(audit(Snapshot.make([j("J-0001")] as never), []).warnings).toEqual([])
+  })
+})
