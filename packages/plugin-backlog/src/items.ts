@@ -21,6 +21,8 @@ export interface Item {
   readonly after?: ReadonlyArray<string>
   readonly persona?: string
   readonly severity?: "high" | "medium" | "low"
+  /** The intent statement it serves (the Intent Agent's plans): a ref with the version drafted on. */
+  readonly serves?: string
   readonly events: ReadonlyArray<{ readonly what: string; readonly by: string }>
   /** Dropped: off the board, its feedback open again. */
   readonly dropped?: boolean

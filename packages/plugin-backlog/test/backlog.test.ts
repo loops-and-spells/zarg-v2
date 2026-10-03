@@ -314,3 +314,28 @@ describe("the backlog's plans", () => {
     expect(out.dropped).toBeUndefined()
   })
 })
+
+describe("plans serving an intent statement", () => {
+  test("a plan can serve a statement: the Intent Agent planned it; dropServing drops only its Backlog-lane plans", async () => {
+    const out = await run(() =>
+      Effect.gen(function* () {
+        const { scenario } = yield* setUp
+        const h = yield* PluginHost
+        const base = planOf(scenario.ref, [])
+        const a = (yield* h.invoke("backlog", "plan", { ...base, title: "A", serves: "gherkin/outcome:O-0001@aaaaaaaaaaaa" })) as { id: string }
+        const b = (yield* h.invoke("backlog", "plan", { ...base, title: "B", serves: "gherkin/outcome:O-0001@bbbbbbbbbbbb" })) as { id: string }
+        const c = (yield* h.invoke("backlog", "plan", { ...base, title: "C", serves: "gherkin/outcome:O-0002@cccccccccccc" })) as { id: string }
+        // The operator chose B already: it is Ready, so it stays.
+        yield* h.invoke("backlog", "moved", { id: b.id, to: "ready", by: "operator" })
+        const dropped = yield* h.invoke("backlog", "dropServing", { statement: "O-0001" })
+        const item = (id: string) => Effect.map(h.entities.get(`backlog/item:${id}`), (e) => e.data as { dropped?: boolean; events: ReadonlyArray<{ by: string }> })
+        return { dropped, a: yield* item(a.id), b: yield* item(b.id), c: yield* item(c.id) }
+      }),
+    )
+    expect(out.dropped).toEqual({ ids: ["B-01"] })
+    expect(out.a.dropped).toBe(true)
+    expect(out.a.events[0]!.by).toBe("Intent Agent")
+    expect(out.b.dropped).toBeUndefined()
+    expect(out.c.dropped).toBeUndefined()
+  })
+})

@@ -30,6 +30,8 @@ export const PlanParams = Schema.Struct({
   severity: Schema.optionalKey(Severity),
   /** A code plan changes the code, not the graph (a drift the operator settled for the scenario): the Planner never takes it. */
   kind: Schema.optionalKey(Schema.Literals(["graph", "code"])),
+  /** The intent statement this plan serves (the Intent Agent's plans): its ref with the version drafted on. */
+  serves: Schema.optionalKey(Schema.String),
 })
 export type PlanParams = typeof PlanParams.Type
 export const Lane = Schema.Literals(["backlog", "ready", "running", "review", "done"])
@@ -96,6 +98,7 @@ export const Backlog = pluginContract("backlog", {
   rehearsed: { params: Rehearsed, success: Schema.Null },
   drafted: { params: Drafted, success: Schema.Null },
   plans: { params: PlansParams, success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
+  dropServing: { params: Schema.Struct({ statement: Schema.String }), success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
   redraft: { params: Redraft, success: Schema.Null },
   walking: { params: Schema.Struct({ run: Schema.String, journeys: Schema.Array(Schema.String) }), success: Schema.Null },
   assign: { params: Schema.Struct({ journey: Schema.String, worker: Schema.optionalKey(Schema.String) }), success: Schema.Null },

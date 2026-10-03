@@ -80,6 +80,7 @@ export default definePlugin({
     rehearsing: { doc: "The Triage Agent started (or waits for) a re-rehearse.", params: Rehearsing, success: Schema.Null },
     rehearsed: { doc: "A re-rehearse's results: on to Plan, or back to Refine with fresh feedback.", params: Rehearsed, success: Schema.Null },
     drafted: { doc: "The Triage Agent's drafted plan.", params: Drafted, success: Schema.Null },
+    dropServing: { doc: "Drop the Backlog-lane plans serving a statement (it was removed): the Intent Agent's call.", params: Schema.Struct({ statement: Schema.String }), success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
     plans: { doc: "A folded triage round's plans, in order, to the Backlog lane: each waits on the plans it names by index; the journey is planned until the last is dropped.", params: PlansParams, success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
     agenda: { doc: "Feedback files the backlog could not read, and plans that need the operator.", params: Schema.Struct({}), success: Schema.Array(Schema.Struct({ id: Schema.String, title: Schema.String, detail: Schema.String, about: Schema.Array(Schema.String), priority: Schema.Number })) },
   },
@@ -351,11 +352,18 @@ export default definePlugin({
         if (st !== undefined && (st.items ?? [id]).every((x) => x === id || all.find((y) => y.id === x)?.dropped === true)) yield* saveStage(fresh(st.journey))
         return `${id} dropped; its feedback is open again`
       }).pipe(writing.withPermits(1), Effect.tap(() => ready))
+    /** A removed statement's plans still in Backlog are dropped; one the operator moved on stays theirs. */
+    const dropServing = ({ statement }: { statement: string }) =>
+      Effect.gen(function* () {
+        const mine = (yield* loadItems).filter((i) => i.status === "backlog" && i.dropped !== true && i.serves !== undefined && parseRef(i.serves)?.id === statement)
+        for (const i of mine) yield* drop(i.id)
+        return { ids: mine.map((i) => i.id) }
+      }).pipe(Effect.mapError(fail))
     const plan = (p: PlanParams) =>
       Effect.gen(function* () {
         const id = nextId(yield* loadItems)
         // A new plan waits in Backlog until the operator moves it to Ready (the Planner takes only Ready plans).
-        yield* saveItem({ ...p, id, status: "backlog", events: [{ what: "planned", by: p.kind === "code" ? "operator" : "Triage Agent" }] })
+        yield* saveItem({ ...p, id, status: "backlog", events: [{ what: "planned", by: p.kind === "code" ? "operator" : p.serves !== undefined ? "Intent Agent" : "Triage Agent" }] })
         yield* markFeedback(p.feedback, "planned")
         return { id }
       }).pipe(writing.withPermits(1), Effect.tap(() => ready), Effect.mapError(fail))
@@ -847,6 +855,7 @@ export default definePlugin({
         ),
       // The drafted plan goes straight to the Backlog: it waits in its Backlog lane until the operator moves it to Ready.
       plans,
+      dropServing,
       drafted: (p: typeof Drafted.Type) => moved_(Effect.andThen(updateStage(p.journey, (st) => ({ ...st, plan: { title: p.title, steps: p.steps } })), toBacklog(p.journey))),
       plan,
       next,

@@ -19,7 +19,7 @@ const groups = (scenarios: ReadonlyArray<ScenarioDiff>, diff: (c: ScenarioDiff) 
 const plural = (n: number, s: string) => `${n} ${s}${n === 1 ? "" : "s"}`
 
 /** A plan for reading: what it is, what it changes scenario by scenario (only the lines that change), what feedback it closes. */
-export const planText = (i: Pick<Item, "id" | "title" | "journey" | "persona" | "severity" | "status" | "scenarios" | "changes" | "steps">, feedback: ReadonlyArray<Fb>, scenarios: ReadonlyArray<ScenarioDiff>, changed: ReadonlySet<string>, links: { readonly after: ReadonlyArray<string>; readonly before: ReadonlyArray<string> } = { after: [], before: [] }): string => {
+export const planText = (i: Pick<Item, "id" | "title" | "journey" | "persona" | "severity" | "status" | "scenarios" | "changes" | "steps" | "serves">, feedback: ReadonlyArray<Fb>, scenarios: ReadonlyArray<ScenarioDiff>, changed: ReadonlySet<string>, links: { readonly after: ReadonlyArray<string>; readonly before: ReadonlyArray<string> } = { after: [], before: [] }): string => {
   const added = scenarios.filter((c) => c.before.length === 0)
   const edited = scenarios.filter((c) => c.before.length > 0)
   const high = feedback.filter((f) => f.severity === "high")
@@ -29,6 +29,7 @@ export const planText = (i: Pick<Item, "id" | "title" | "journey" | "persona" | 
   return [
     `${i.id} · ${LANE_TITLES[i.status]}`,
     `**${i.title}**`,
+    ...(i.serves !== undefined ? [`Serves ${parseRef(i.serves)?.id ?? i.serves}`] : []),
     [i.journey, i.persona, i.severity].filter((x) => x !== undefined).join(" · "),
     `${plural(scenarios.length, "scenario")}: ${edited.length} changed, ${added.length} new · ${plural(i.changes.length, "change")} · closes ${feedback.length} feedback${high.length > 0 ? ` (${high.length} high)` : ""}`,
     ...(links.after.length > 0 || links.before.length > 0 ? [[...(links.after.length > 0 ? [`Waits on ${links.after.join(", ")}`] : []), ...(links.before.length > 0 ? [`${links.before.join(", ")} ${links.before.length === 1 ? "waits" : "wait"} on this`] : [])].join(" · ")] : []),
