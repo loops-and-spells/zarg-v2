@@ -65,7 +65,8 @@ export default definePlugin({
   implements: Gherkin,
   config: Schema.Struct({}),
   // agents: its Journeys view (the nav item's), which no agent row carries.
-  scopes: { graph: "write", agents: true },
+  // entities: the Backlog's plans, shown beside the statements they serve.
+  scopes: { graph: "write", agents: true, entities: { read: ["backlog/item"] } },
   views: [JourneysView, IntentsView],
   surfaces: [{ kind: "nav", name: "journeys", view: "journeys", label: "Journeys" }, { kind: "nav", name: "intents", view: "intents", label: "Intents" }],
   // As entities: the host serves get and query from the graph; gherkin labels them, and versions a scenario by what a tester reads.
@@ -138,7 +139,13 @@ export default definePlugin({
       question: { get: nodes, label: (e: E) => String(e.data.props.text ?? e.id) },
     }
     const showIntents = Effect.gen(function* () {
-      const v = intentsView(yield* snap)
+      // The plans serving each statement (none without the backlog).
+      const items = yield* entities_.query({ type: "backlog/item" }).pipe(Effect.orElseSucceed(() => []))
+      const plans = items.flatMap((e) => {
+        const d = e.data as { title?: string; status?: string; serves?: string; dropped?: boolean }
+        return d.serves !== undefined && d.dropped !== true ? [{ id: e.id, title: String(d.title ?? e.id), status: String(d.status ?? ""), serves: d.serves }] : []
+      })
+      const v = intentsView(yield* snap, plans)
       yield* views.set("intents", IntentsView, "summary", v.summary)
       yield* views.set("intents", IntentsView, "list", { rows: v.rows })
       yield* views.set("intents", IntentsView, "detail", { markdown: "No intents yet. Tell zarg what the product is for, or add one with gherkin/add-intent.", rows: v.details })

@@ -26,8 +26,11 @@ const detailOf = (snap: Snapshot.Snapshot, s: Node, served: ReadonlyArray<string
   return [head, "", `**${s.type === OUTCOME ? "Served by" : "Bounds"}** ${targets.map((t) => `${nameOf(snap, t)} (${t})`).join(", ")}`, "", ...blocks].join("\n")
 }
 
-/** The Intents view's data: every intent and its statements as rows, with coverage; a detail per row. */
-export const intentsView = (snap: Snapshot.Snapshot) => {
+/** A plan on the Backlog serving a statement (its ref with a version). */
+export type ServingPlan = { readonly id: string; readonly title: string; readonly status: string; readonly serves: string }
+
+/** The Intents view's data: every intent and its statements as rows, with coverage; a detail per row, with the plans serving it. */
+export const intentsView = (snap: Snapshot.Snapshot, plans: ReadonlyArray<ServingPlan> = []) => {
   const all = [...intents(snap)].sort((a, b) => a.id.localeCompare(b.id))
   const rows: Array<{ id: string; cells: { item: string; cover: string }; text: string }> = []
   const details: Record<string, string> = {}
@@ -44,6 +47,8 @@ export const intentsView = (snap: Snapshot.Snapshot) => {
         : s.props.answer !== undefined ? "answered" : "open"
       rows.push({ id: s.id, cells: { item: `  ${GLYPH[s.type] ?? "·"} ${text(s)}`, cover }, text: text(s) })
       details[s.id] = detailOf(snap, s, servedBy(s.id))
+      const mine = plans.filter((p) => p.serves.split("@")[0] === `${s.type}:${s.id}`)
+      if (mine.length > 0) details[s.id] += `\n\n**Plans**\n${mine.map((p) => `- ${p.id} ${p.status}: ${p.title}`).join("\n")}`
     }
   }
   const outcomes = all.flatMap((i) => statementsOf(snap, i.id)).filter((s) => s.type === OUTCOME)

@@ -215,6 +215,11 @@ describe("the Intents view", () => {
     expect(v.details["O-0001"]).toContain("**Served by** Checkout (J-0001)")
     expect(v.details["I-0001"]).toContain("Visitors leave.")
   })
+  test("a statement's detail lists the plans serving it, by lane", () => {
+    const v = intentsView(s, [{ id: "B-12", title: "Shorten pricing", status: "backlog", serves: "gherkin/outcome:O-0002@abcdefabcdef" }, { id: "B-13", title: "Other", status: "ready", serves: "gherkin/outcome:O-0009@abcdefabcdef" }])
+    expect(v.details["O-0002"]).toContain("**Plans**\n- B-12 backlog: Shorten pricing")
+    expect(v.details["O-0001"]).not.toContain("B-13")
+  })
 })
 
 describe("the Intents view, through the host", () => {
