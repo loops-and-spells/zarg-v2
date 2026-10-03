@@ -2,16 +2,17 @@ import { versionOf } from "@zarg/entities"
 import { scenarioLabel, scenarioVersion } from "./entities"
 import { Effect, Schema } from "effect"
 import { diff, type Node, Snapshot } from "@zarg/graph/pure"
-import { definePlugin, Graph, PluginFailure, Views } from "@zarg/plugin-sdk"
+import { definePlugin, Entities, Graph, PluginFailure, Views } from "@zarg/plugin-sdk"
 import { affectedScenarios } from "./affected"
 import { agenda, suggest } from "./agenda"
 import { CompareParams, CompareResult, DryRunParams, DryRunResult, Gherkin, JourneyView, PersonaView, SceneParams, SceneView, StoriesParams, StoriesResult } from "./contract"
 import { applyDraft, type Draft, dryRun } from "./draft"
 import type { Finding } from "./kit"
 import { LINTS } from "./lints"
-import { BY, CONSTRAINT, INTENT, IntentProps, JOURNEY, JourneyProps, OUTCOME, PERSONA, PersonaProps, personaName, personas, QUESTION, QuestionProps, SCENARIO, ScenarioProps, STATE, StatementProps, StateProps } from "./model"
+import { BY, CONSTRAINT, INTENT, intentOf, IntentProps, JOURNEY, JourneyProps, OUTCOME, PERSONA, PersonaProps, personaName, personas, QUESTION, QuestionProps, SCENARIO, ScenarioProps, STATE, StatementProps, StateProps } from "./model"
 import { journeyList, journeysView } from "./journeys"
-import { JourneysView } from "./views"
+import { IntentsView, JourneysView } from "./views"
+import { intentsView } from "./intents"
 import { render } from "./render"
 import { planStories, sceneView } from "./stories"
 import { tools } from "./tools"
@@ -65,18 +66,18 @@ export default definePlugin({
   config: Schema.Struct({}),
   // agents: its Journeys view (the nav item's), which no agent row carries.
   scopes: { graph: "write", agents: true },
-  views: [JourneysView],
-  surfaces: [{ kind: "nav", name: "journeys", view: "journeys", label: "Journeys" }],
+  views: [JourneysView, IntentsView],
+  surfaces: [{ kind: "nav", name: "journeys", view: "journeys", label: "Journeys" }, { kind: "nav", name: "intents", view: "intents", label: "Intents" }],
   // As entities: the host serves get and query from the graph; gherkin labels them, and versions a scenario by what a tester reads.
   entities: {
     scenario: { doc: "A user action: Given, When, Then, and who acts in it.", data: ScenarioProps, tone: "scenario", glyph: "◇", ops: ["label", "version", "context"] },
     state: { doc: "A Given or Then sentence.", data: StateProps, tone: "state", glyph: "○", ops: ["label"] },
     persona: { doc: "Someone who acts in scenarios.", data: PersonaProps, tone: "persona", glyph: "◎", ops: ["label"] },
     journey: { doc: "A named group of scenarios.", data: JourneyProps, tone: "journey", glyph: "↝", ops: ["label"], open: "journeys" },
-    intent: { doc: "What one product (or one area of it) is for: a title, the problem, its outcomes, constraints and questions.", data: IntentProps, tone: "accent", glyph: "◈", ops: ["label"] },
-    outcome: { doc: "One result an intent wants for its users; journeys serve it.", data: StatementProps, tone: "ok", glyph: "▸", ops: ["label"] },
-    constraint: { doc: "One rule that must hold where it bounds.", data: StatementProps, tone: "attention", glyph: "▪", ops: ["label"] },
-    question: { doc: "One thing an intent has not decided yet; open until answered.", data: QuestionProps, tone: "dim", glyph: "?", ops: ["label"] },
+    intent: { doc: "What one product (or one area of it) is for: a title, the problem, its outcomes, constraints and questions.", data: IntentProps, tone: "accent", glyph: "◈", ops: ["label"], open: "intents", commands: { "add-outcome": "add-outcome", "add-constraint": "add-constraint", "ask-question": "ask-question", edit: "edit-intent", remove: "remove" } },
+    outcome: { doc: "One result an intent wants for its users; journeys serve it.", data: StatementProps, tone: "ok", glyph: "▸", ops: ["label"], open: "intents", commands: { edit: "edit-outcome", remove: "remove" } },
+    constraint: { doc: "One rule that must hold where it bounds.", data: StatementProps, tone: "attention", glyph: "▪", ops: ["label"], open: "intents", commands: { edit: "edit-constraint", remove: "remove" } },
+    question: { doc: "One thing an intent has not decided yet; open until answered.", data: QuestionProps, tone: "dim", glyph: "?", ops: ["label"], open: "intents", commands: { edit: "edit-question", answer: "answer-question", remove: "remove" } },
   },
   graph: {
     nodes: { state: StateProps, scenario: ScenarioProps, persona: PersonaProps, journey: JourneyProps, intent: IntentProps, outcome: StatementProps, constraint: StatementProps, question: QuestionProps },
@@ -93,8 +94,8 @@ export default definePlugin({
     scene: { doc: "What a tester sees at a scene: a scenario in a story.", params: SceneParams, success: SceneView },
     personas: { doc: "Personas, each with the scenarios that name it.", params: Schema.Struct({}), success: Schema.Array(PersonaView) },
     act: {
-      doc: "The Journeys view: open (or refresh) it, or show a journey's flow.",
-      params: Schema.Struct({ agent: Schema.String, action: Schema.String, section: Schema.optionalKey(Schema.String), rows: Schema.Array(Schema.String) }),
+      doc: "The Journeys and Intents views: open (or refresh) one; on Intents, add, edit, answer or remove a row.",
+      params: Schema.Struct({ agent: Schema.String, action: Schema.String, section: Schema.optionalKey(Schema.String), rows: Schema.Array(Schema.String), text: Schema.optionalKey(Schema.String) }),
       success: Schema.Struct({ notice: Schema.String }),
     },
     journeys: { doc: "Journeys, each with its scenarios.", params: Schema.Struct({}), success: Schema.Array(JourneyView) },
@@ -110,6 +111,7 @@ export default definePlugin({
     const graph = yield* Graph
     const snap = graph.snapshot.pipe(Effect.orDie)
     const views = yield* Views
+    const entities_ = yield* Entities
     // The graph as a draft would leave it (the graph itself when there is none).
     const drafted = (draft: Draft | undefined) => (draft === undefined || draft.length === 0 ? snap : Effect.flatMap(snap, (s) => Effect.map(applyDraft(s, draft, tools, EDGES), (a) => a.snapshot)))
     const runTool = (t: (typeof tools)[number]) => (p: unknown) =>
@@ -135,6 +137,37 @@ export default definePlugin({
       constraint: { get: nodes, label: (e: E) => String(e.data.props.text ?? e.id) },
       question: { get: nodes, label: (e: E) => String(e.data.props.text ?? e.id) },
     }
+    const showIntents = Effect.gen(function* () {
+      const v = intentsView(yield* snap)
+      yield* views.set("intents", IntentsView, "summary", v.summary)
+      yield* views.set("intents", IntentsView, "list", { rows: v.rows })
+      yield* views.set("intents", IntentsView, "detail", { markdown: "No intents yet. Tell zarg what the product is for, or add one with gherkin/add-intent.", rows: v.details })
+      const [i, o, u] = v.summary.items
+      return `${i!.value} ${i!.label}: ${o!.value} ${o!.label}, ${u!.value} uncovered`
+    })
+    const KIND: Readonly<Record<string, string>> = { [INTENT]: "intent", [OUTCOME]: "outcome", [CONSTRAINT]: "constraint", [QUESTION]: "question" }
+    /** An Intents row's action: a command on the row's own kind (the host's write pipeline: tools, lints, commit), then the view again. */
+    const intentsAct = (action: string, row: string | undefined, text: string | undefined) =>
+      Effect.gen(function* () {
+        if (action === "open") return { notice: yield* showIntents }
+        const s = yield* snap
+        const node = row === undefined ? undefined : s.nodes.get(row)
+        const kind = node === undefined ? undefined : KIND[node.type]
+        if (node === undefined || kind === undefined) return { notice: `${row ?? "nothing"} is not an intent or a statement` }
+        const ref = `gherkin/${kind}:${node.id}`
+        const intent = node.type === INTENT ? node.id : intentOf(s, node.id)
+        const command = (r: string, name: string, args: Record<string, unknown>) => Effect.map(entities_.command(r, name, args), (res) => String((res as { message?: unknown }).message ?? "done"))
+        const notice: string = yield* (() => {
+          if (action === "add-outcome" || action === "add-constraint" || action === "ask-question")
+            return intent === undefined || text === undefined ? Effect.succeed("nothing to add") : command(`gherkin/intent:${intent}`, action, { intent, text })
+          if (action === "edit") return text === undefined ? Effect.succeed("nothing to change") : command(ref, "edit", node.type === INTENT ? { title: text } : { text })
+          if (action === "answer") return node.type !== QUESTION ? Effect.succeed(`${node.id} is not a question`) : text === undefined ? Effect.succeed("no answer given") : command(ref, "answer", { answer: text })
+          if (action === "remove") return text !== "yes" ? Effect.succeed(`kept ${node.id}`) : command(ref, "remove", {})
+          return Effect.succeed(`no action ${action}`)
+        })()
+        yield* showIntents
+        return { notice }
+      }).pipe(Effect.catch((e: { readonly message?: string }) => Effect.succeed({ notice: e.message ?? String(e) })))
     return {
       entities,
       ...(Object.fromEntries(tools.map((t) => [t.name, runTool(t)])) as Record<string, (p: unknown) => Effect.Effect<any, PluginFailure>>),
@@ -162,8 +195,9 @@ export default definePlugin({
         }),
       journeys: () => Effect.map(snap, journeyList),
       // The nav item opens the view (Refresh reloads it): every journey, with every journey's flow for the one highlighted.
-      act: ({ agent }: { agent: string; action: string; rows: ReadonlyArray<string> }) =>
+      act: ({ agent, action, rows, text }: { agent: string; action: string; rows: ReadonlyArray<string>; text?: string }) =>
         Effect.gen(function* () {
+          if (agent === "intents") return yield* intentsAct(action, rows[0], text)
           if (agent !== "journeys") return { notice: `gherkin has no agent ${agent}` }
           const v = journeysView(yield* snap)
           yield* views.set("journeys", JourneysView, "summary", v.summary)

@@ -56,10 +56,10 @@ These are warnings, not errors, until the migration is done, so `verify` stays g
 
 - **In conversation.** The operator talks to zarg. The driver proposes statements ("I'd record this as an outcome: …") through its confirm-before-write, as it does for scenarios. It also asks the open questions.
 - **In the Intent view:**
-  - `a` adds a statement under the highlighted intent;
-  - `e` edits the highlighted statement;
+  - `a` adds an outcome under the highlighted row's intent, `k` a constraint, `q` a question;
+  - `e` rewords the highlighted row;
   - `⏎` on a question answers it;
-  - `x` removes a statement, with a confirm.
+  - `d` removes it after a Remove/Keep choice (`x` is the terminal's own key).
 
 ## The Intent view (`plugin-gherkin`, a nav item like Journeys)
 
@@ -118,7 +118,7 @@ These are warnings, not errors, until the migration is done, so `verify` stays g
 - **audit:** `uncovered`, `unserving`.
 - **The view:**
   - coverage marks;
-  - `a`, `e`, `⏎` and `x`.
+  - `a`, `k`, `q`, `e`, `⏎` and `d`.
 - **agent-intent,** with the model stubbed:
   - a changed outcome starts a round;
   - drafts are dry-run;

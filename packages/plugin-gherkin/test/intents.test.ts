@@ -5,6 +5,7 @@ import { diff, Snapshot } from "@zarg/graph/pure"
 import { statementOwner } from "../src/lints"
 import { agenda } from "../src/agenda"
 import { render } from "../src/render"
+import { intentsView } from "../src/intents"
 import { PluginHost } from "@zarg/plugin/server"
 import { call, run } from "./harness"
 
@@ -187,5 +188,57 @@ describe("render with intents", () => {
         "  Question   Is there a yearly plan?  # Q-0001 (open)",
       ].join("\n"),
     )
+  })
+})
+
+describe("the Intents view", () => {
+  const s = graph(
+    n("I-0001", "intent", { title: "Plans", status: "draft", problem: "Visitors leave." }, [["has", "O-0001"], ["has", "O-0002"], ["has", "K-0001"], ["has", "Q-0001"]]),
+    n("O-0001", "outcome", { text: "A visitor picks a plan" }),
+    n("O-0002", "outcome", { text: "A receipt arrives" }),
+    n("K-0001", "constraint", { text: "Prices never hide fees" }, [["bounds", "J-0001"]]),
+    n("Q-0001", "question", { text: "Is there a yearly plan?" }),
+    n("J-0001", "journey", { name: "Checkout" }, [["serves", "O-0001"]]),
+  )
+  test("rows: the intent, then its statements with their coverage; the summary counts outcomes and uncovered ones", () => {
+    const v = intentsView(s)
+    expect(v.rows.map((r) => [r.id, r.cells.item, r.cells.cover])).toEqual([
+      ["I-0001", "◈ I-0001 Plans", "draft"],
+      ["O-0001", "  ▸ A visitor picks a plan", "Checkout"],
+      ["O-0002", "  ▸ A receipt arrives", "◇ no journey"],
+      ["K-0001", "  ▪ Prices never hide fees", "bounds Checkout"],
+      ["Q-0001", "  ? Is there a yearly plan?", "open"],
+    ])
+    // A row's text prefills e (edit): the title or the statement.
+    expect(v.rows[1]!.text).toBe("A visitor picks a plan")
+    expect(v.summary.items).toEqual([{ label: "intent", value: "1" }, { label: "outcomes", value: "2" }, { label: "uncovered", value: "1", tone: "attention" }])
+    expect(v.details["O-0001"]).toContain("**Served by** Checkout (J-0001)")
+    expect(v.details["I-0001"]).toContain("Visitors leave.")
+  })
+})
+
+describe("the Intents view, through the host", () => {
+  test("open fills it; a adds an outcome, e rewords it, ⏎ answers a question, d removes after yes", async () => {
+    const got = await run(
+      Effect.gen(function* () {
+        yield* call("add-intent", { title: "Plans" })
+        yield* call("ask-question", { intent: "I-0001", text: "Is there a yearly plan?" })
+        const act = (action: string, rows: ReadonlyArray<string> = [], text?: string) => PluginHost.use((h) => h.invoke("gherkin", "act", { agent: "intents", action, rows, ...(text !== undefined ? { text } : {}) }))
+        const notices = [
+          yield* act("open"),
+          yield* act("add-outcome", ["I-0001"], "A visitor picks a plan"),
+          yield* act("edit", ["O-0001"], "A visitor picks a plan quickly"),
+          yield* act("answer", ["Q-0001"], "No yearly plan"),
+          yield* act("remove", ["O-0001"], "no"),
+          yield* act("remove", ["O-0001"], "yes"),
+          yield* act("answer", ["I-0001"], "x"),
+        ]
+        const snap = yield* GraphStore.use((g) => g.snapshot)
+        return { notices: notices.map((x) => (x as { notice: string }).notice), o: snap.nodes.has("O-0001"), q: snap.nodes.get("Q-0001")?.props }
+      }),
+    )
+    expect(got.notices).toEqual(["1 intent: 0 outcomes, 0 uncovered", "created O-0001 in I-0001", "updated O-0001", "answered Q-0001", "kept O-0001", "removed O-0001", "I-0001 is not a question"])
+    expect(got.o).toBe(false)
+    expect(got.q).toEqual({ text: "Is there a yearly plan?", answer: "No yearly plan" })
   })
 })
