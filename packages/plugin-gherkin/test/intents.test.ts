@@ -29,3 +29,74 @@ describe("intent nodes", () => {
     expect(got.every((x) => /^[0-9a-f]{12}$/.test(x.version))).toBe(true)
   })
 })
+
+describe("intent tools", () => {
+  const visitor = call("add-persona", { name: "Visitor", kind: "human", text: "Someone choosing a plan on the website." })
+  test("add an intent and its statements; each statement is in its intent; a question is answered into an outcome", async () => {
+    const got = await run(
+      Effect.gen(function* () {
+        yield* visitor
+        const m = (r: { message: string }) => r.message
+        const out = [
+          m(yield* call("add-intent", { title: "Plans for visitors", problem: "Visitors leave the pricing page." })),
+          m(yield* call("add-outcome", { intent: "I-0001", text: "A visitor picks a plan in one minute" })),
+          m(yield* call("add-constraint", { intent: "I-0001", text: "Prices never hide fees" })),
+          m(yield* call("ask-question", { intent: "I-0001", text: "Is there a yearly plan?" })),
+          m(yield* call("answer-question", { id: "Q-0001", answer: "Yearly plans cost ten months", as: "outcome" })),
+          m(yield* call("link", { intent: "I-0001", edge: "for", persona: { name: "Visitor" } })),
+        ]
+        const snap = yield* GraphStore.use((g) => g.snapshot)
+        return { out, intent: snap.nodes.get("I-0001"), q: snap.nodes.get("Q-0001")?.props }
+      }),
+    )
+    expect(got.out).toEqual(["created I-0001", "created O-0001 in I-0001", "created K-0001 in I-0001", "created Q-0001 in I-0001", "answered Q-0001; created O-0002 in I-0001", "linked I-0001 for P-0001"])
+    expect(got.intent?.props).toEqual({ title: "Plans for visitors", problem: "Visitors leave the pricing page.", status: "draft" })
+    expect(got.intent?.edges).toEqual([
+      { type: "gherkin/has", to: "O-0001" }, { type: "gherkin/has", to: "K-0001" }, { type: "gherkin/has", to: "Q-0001" }, { type: "gherkin/has", to: "O-0002" }, { type: "gherkin/for", to: "P-0001" },
+    ])
+    expect(got.q).toEqual({ text: "Is there a yearly plan?", answer: "Yearly plans cost ten months" })
+  })
+
+  test("serves and bounds: a journey serves an outcome, a constraint bounds a journey and a scenario; unlink takes them back", async () => {
+    const got = await run(
+      Effect.gen(function* () {
+        yield* visitor
+        yield* call("add-state", { text: "the visitor is on the home page", entry: true })
+        yield* call("add-scenario", { title: "Visitor opens pricing", when: "the visitor opens pricing", by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ text: "the plan picker is shown" }] })
+        yield* call("add-journey", { name: "Checkout" })
+        yield* call("add-intent", { title: "Plans for visitors" })
+        yield* call("add-outcome", { intent: "I-0001", text: "A visitor picks a plan in one minute" })
+        yield* call("add-constraint", { intent: "I-0001", text: "Prices never hide fees" })
+        const linked = [
+          (yield* call("link", { edge: "serves", journey: { name: "Checkout" }, outcome: "O-0001" })).message,
+          (yield* call("link", { edge: "bounds", constraint: "K-0001", journey: { id: "J-0001" } })).message,
+          (yield* call("link", { edge: "bounds", constraint: "K-0001", scenario: "S-0001" })).message,
+        ]
+        const wrong = said(yield* Effect.flip(call("link", { edge: "serves", journey: { id: "J-0001" }, outcome: "K-0001" })))
+        yield* call("unlink", { edge: "serves", journey: "J-0001", outcome: "O-0001" })
+        const snap = yield* GraphStore.use((g) => g.snapshot)
+        return { linked, wrong, journey: snap.nodes.get("J-0001")?.edges, k: snap.nodes.get("K-0001")?.edges }
+      }),
+    )
+    expect(got.linked).toEqual(["linked J-0001 serves O-0001", "linked K-0001 bounds J-0001", "linked K-0001 bounds S-0001"])
+    expect(got.wrong).toContain("K-0001 is not a gherkin/outcome")
+    expect(got.journey).toEqual([])
+    expect(got.k).toEqual([{ type: "gherkin/bounds", to: "J-0001" }, { type: "gherkin/bounds", to: "S-0001" }])
+  })
+
+  test("removing a served outcome drops its has and serves edges; an intent with statements is not removed", async () => {
+    const got = await run(
+      Effect.gen(function* () {
+        yield* call("add-journey", { name: "Checkout" })
+        yield* call("add-intent", { title: "Plans for visitors" })
+        yield* call("add-outcome", { intent: "I-0001", text: "A visitor picks a plan in one minute" })
+        yield* call("link", { edge: "serves", journey: { id: "J-0001" }, outcome: "O-0001" })
+        const refused = said(yield* Effect.flip(call("remove", { id: "I-0001" })))
+        const removed = (yield* call("remove", { id: "O-0001" })).message
+        const snap = yield* GraphStore.use((g) => g.snapshot)
+        return { refused, removed, gone: !snap.nodes.has("O-0001"), intent: snap.nodes.get("I-0001")?.edges, journey: snap.nodes.get("J-0001")?.edges, last: (yield* call("remove", { id: "I-0001" })).message }
+      }),
+    )
+    expect(got).toEqual({ refused: "I-0001 has statements O-0001; remove them first", removed: "removed O-0001", gone: true, intent: [], journey: [], last: "removed I-0001" })
+  })
+})

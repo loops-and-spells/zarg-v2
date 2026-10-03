@@ -1,7 +1,8 @@
 import { Effect, Schema } from "effect"
 import { type Change, type Node, Put, Remove, Snapshot } from "@zarg/graph/pure"
 import { tool, ToolError } from "./kit"
-import { ARRIVES, BY, SCENARIO, findJourney, findPersona, findStateByText, GIVEN, IN, JOURNEY, journeyName, journeys, PERSONA, personaName, personas, STATE, THEN } from "./model"
+import { intentTools } from "./intent-tools"
+import { ARRIVES, BOUNDS, BY, CONSTRAINT, findJourney, findPersona, findStateByText, FOR, GIVEN, HAS, IN, INTENT, isStatement, JOURNEY, journeyName, journeys, OUTCOME, PERSONA, personaName, personas, SCENARIO, SERVES, STATE, THEN } from "./model"
 
 /** Point at an existing state by id, or describe one by text (reused if the text already exists). */
 const StateRef = Schema.Union([Schema.Struct({ id: Schema.String }), Schema.Struct({ text: Schema.NonEmptyString })]).annotate({
@@ -9,8 +10,8 @@ const StateRef = Schema.Union([Schema.Struct({ id: Schema.String }), Schema.Stru
 })
 type StateRef = typeof StateRef.Type
 
-const EdgeName = Schema.Literals(["arrives", "given", "then", "by", "in"])
-const edgeType = { arrives: ARRIVES, given: GIVEN, then: THEN, by: BY, in: IN } as const
+const EdgeName = Schema.Literals(["arrives", "given", "then", "by", "in", "serves", "bounds", "for"])
+const edgeType = { arrives: ARRIVES, given: GIVEN, then: THEN, by: BY, in: IN, serves: SERVES, bounds: BOUNDS, for: FOR } as const
 
 /** A journey by {id} or by {name} (case does not matter). */
 const JourneyRef = Schema.Union([Schema.Struct({ id: Schema.String }), Schema.Struct({ name: Schema.NonEmptyString })]).annotate({
@@ -197,49 +198,108 @@ export const editScenario = tool({
 
 export const link = tool({
   name: "link",
-  description: "Connect a scenario to a state as arrives (replaces the current one), given or then; to a persona as by; or to a journey as in.",
-  params: Schema.Struct({ scenario: Schema.String, edge: EdgeName, state: Schema.optionalKey(StateRef), persona: Schema.optionalKey(PersonaRef), journey: Schema.optionalKey(JourneyRef) }),
+  description:
+    'Connect a scenario to a state as arrives (replaces the current one), given or then; to a persona as by; or to a journey as in. Also: a journey serves an outcome {edge: "serves", journey, outcome}; a constraint bounds a journey or a scenario {edge: "bounds", constraint, journey or scenario}; an intent is for a persona {edge: "for", intent, persona}.',
+  params: Schema.Struct({
+    scenario: Schema.optionalKey(Schema.String),
+    edge: EdgeName,
+    state: Schema.optionalKey(StateRef),
+    persona: Schema.optionalKey(PersonaRef),
+    journey: Schema.optionalKey(JourneyRef),
+    outcome: Schema.optionalKey(Schema.String),
+    constraint: Schema.optionalKey(Schema.String),
+    intent: Schema.optionalKey(Schema.String),
+  }),
   run: (p, snap) =>
     Effect.gen(function* () {
+      const type = edgeType[p.edge]
+      // The source owns the edge: the journey (serves), the constraint (bounds), the intent (for), else the scenario.
+      const linkFrom = (source: Node, to: string, created: ReadonlyArray<Node> = []) =>
+        source.edges.some((e) => e.type === type && e.to === to)
+          ? Effect.fail(new ToolError({ message: `${source.id} already has ${p.edge} ${to}` }))
+          : Effect.succeed({
+              changes: [...created.map(Put), Put({ ...source, edges: [...(p.edge === "arrives" ? source.edges.filter((e) => e.type !== ARRIVES) : source.edges), { type, to }] })] as Array<Change>,
+              message: `linked ${source.id} ${p.edge} ${to}${createdNote(created)}`,
+            })
+      if (p.edge === "serves") {
+        if (p.journey === undefined || p.outcome === undefined) return yield* new ToolError({ message: "serves takes {journey: {id} or {name}, outcome: id}" })
+        const journey = yield* getNode(snap, yield* journeyOf(snap, p.journey), JOURNEY)
+        yield* getNode(snap, p.outcome, OUTCOME)
+        return yield* linkFrom(journey, p.outcome)
+      }
+      if (p.edge === "bounds") {
+        if (p.constraint === undefined || (p.journey === undefined) === (p.scenario === undefined)) return yield* new ToolError({ message: "bounds takes {constraint: id} and one of {journey: {id} or {name}} or {scenario: id}" })
+        const constraint = yield* getNode(snap, p.constraint, CONSTRAINT)
+        const to = p.journey !== undefined ? yield* journeyOf(snap, p.journey) : (yield* getNode(snap, p.scenario!, SCENARIO)).id
+        return yield* linkFrom(constraint, to)
+      }
+      if (p.edge === "for") {
+        if (p.intent === undefined || p.persona === undefined) return yield* new ToolError({ message: "for takes {intent: id, persona: {id} or {name}}" })
+        return yield* linkFrom(yield* getNode(snap, p.intent, INTENT), yield* personaOf(snap, p.persona))
+      }
+      if (p.scenario === undefined) return yield* new ToolError({ message: `${p.edge} takes {scenario: id}` })
       const scenario = yield* getNode(snap, p.scenario, SCENARIO)
       if (p.edge === "by" && p.persona === undefined) return yield* new ToolError({ message: "by takes a persona: {persona: {id} or {name}}" })
       if (p.edge === "in" && p.journey === undefined) return yield* new ToolError({ message: "in takes a journey: {journey: {id} or {name}}" })
       if (p.edge !== "by" && p.edge !== "in" && p.state === undefined) return yield* new ToolError({ message: `${p.edge} takes a state: {state: {id} or {text}}` })
       const r = resolver(snap)
       const to = p.edge === "by" ? yield* personaOf(snap, p.persona!) : p.edge === "in" ? yield* journeyOf(snap, p.journey!) : yield* r.resolve(p.state!)
-      const type = edgeType[p.edge]
-      if (scenario.edges.some((e) => e.type === type && e.to === to)) return yield* new ToolError({ message: `${p.scenario} already has ${p.edge} ${to}` })
-      const kept = p.edge === "arrives" ? scenario.edges.filter((e) => e.type !== ARRIVES) : scenario.edges
-      const changes: Array<Change> = [...r.created.map(Put), Put({ ...scenario, edges: [...kept, { type, to }] })]
-      return { changes, message: `linked ${p.scenario} ${p.edge} ${to}${createdNote(r.created)}` }
+      return yield* linkFrom(scenario, to, r.created)
     }),
 })
 
 export const unlink = tool({
   name: "unlink",
-  description: "Remove a given or then edge (state id), a by edge (persona id) or an in edge (journey id) from a scenario.",
-  params: Schema.Struct({ scenario: Schema.String, edge: EdgeName, state: Schema.optionalKey(Schema.String), persona: Schema.optionalKey(Schema.String), journey: Schema.optionalKey(Schema.String) }),
+  description:
+    "Remove a given or then edge (state id), a by edge (persona id) or an in edge (journey id) from a scenario; or serves {journey: id, outcome}, bounds {constraint, journey or scenario: id}, for {intent, persona: id}.",
+  params: Schema.Struct({
+    scenario: Schema.optionalKey(Schema.String),
+    edge: EdgeName,
+    state: Schema.optionalKey(Schema.String),
+    persona: Schema.optionalKey(Schema.String),
+    journey: Schema.optionalKey(Schema.String),
+    outcome: Schema.optionalKey(Schema.String),
+    constraint: Schema.optionalKey(Schema.String),
+    intent: Schema.optionalKey(Schema.String),
+  }),
   run: (p, snap) =>
     Effect.gen(function* () {
-      const scenario = yield* getNode(snap, p.scenario, SCENARIO)
-      const target = p.edge === "by" ? p.persona : p.edge === "in" ? p.journey : p.state
-      if (target === undefined) return yield* new ToolError({ message: p.edge === "by" ? "by takes a persona id" : p.edge === "in" ? "in takes a journey id" : `${p.edge} takes a state id` })
       const type = edgeType[p.edge]
-      const edges = scenario.edges.filter((e) => !(e.type === type && e.to === target))
-      if (edges.length === scenario.edges.length) return yield* new ToolError({ message: `${p.scenario} has no ${p.edge} ${target}` })
-      if (type === BY && !edges.some((e) => e.type === BY)) return yield* new ToolError({ message: `${target} is its last persona on ${p.scenario}; link another first` })
-      return { changes: [Put({ ...scenario, edges })], message: `unlinked ${p.scenario} ${p.edge} ${target}` }
+      const [sourceId, target, sourceType] =
+        p.edge === "serves" ? [p.journey, p.outcome, JOURNEY]
+        : p.edge === "bounds" ? [p.constraint, p.journey ?? p.scenario, CONSTRAINT]
+        : p.edge === "for" ? [p.intent, p.persona, INTENT]
+        : [p.scenario, p.edge === "by" ? p.persona : p.edge === "in" ? p.journey : p.state, SCENARIO]
+      if (sourceId === undefined || target === undefined)
+        return yield* new ToolError({ message: p.edge === "by" ? "by takes a persona id" : p.edge === "in" ? "in takes a journey id" : `${p.edge} takes its source and target ids` })
+      const source = yield* getNode(snap, sourceId, sourceType)
+      const edges = source.edges.filter((e) => !(e.type === type && e.to === target))
+      if (edges.length === source.edges.length) return yield* new ToolError({ message: `${sourceId} has no ${p.edge} ${target}` })
+      if (type === BY && !edges.some((e) => e.type === BY)) return yield* new ToolError({ message: `${target} is its last persona on ${sourceId}; link another first` })
+      return { changes: [Put({ ...source, edges })], message: `unlinked ${sourceId} ${p.edge} ${target}` }
     }),
 })
 
 export const remove = tool({
   name: "remove",
-  description: "Remove a scenario, or a state, persona or journey that no scenario uses.",
+  description: "Remove a scenario; a state, persona or journey that nothing uses; an outcome, constraint or question (with the edges to it); or an intent without statements.",
   params: Schema.Struct({ id: Schema.String }),
   run: ({ id }, snap) =>
     Effect.gen(function* () {
       const n = snap.nodes.get(id)
       if (n === undefined) return yield* new ToolError({ message: `no node ${id}` })
+      // A statement goes with the edges that point at it (its intent's has, the journeys' serves).
+      if (isStatement(n)) {
+        const sources = [...new Set(Snapshot.inbound(snap, id).map((e) => e.from))].flatMap((s) => {
+          const src = snap.nodes.get(s)
+          return src === undefined ? [] : [src]
+        })
+        return { changes: [...sources.map((s) => Put({ ...s, edges: s.edges.filter((e) => e.to !== id) })), Remove(id)], message: `removed ${id}` }
+      }
+      if (n.type === INTENT) {
+        const own = n.edges.filter((e) => e.type === HAS).map((e) => e.to)
+        if (own.length > 0) return yield* new ToolError({ message: `${id} has statements ${own.join(", ")}; remove them first` })
+      }
       const users = Snapshot.inbound(snap, id).map((e) => e.from)
       if (users.length > 0) {
         return yield* new ToolError({ message: `${id} is used by ${[...new Set(users)].join(", ")}; relink or remove them first` })
@@ -248,4 +308,4 @@ export const remove = tool({
     }),
 })
 
-export const tools = [addState, editState, addPersona, editPersona, addJourney, editJourney, addScenario, editScenario, link, unlink, remove]
+export const tools = [addState, editState, addPersona, editPersona, addJourney, editJourney, addScenario, editScenario, link, unlink, remove, ...intentTools]
