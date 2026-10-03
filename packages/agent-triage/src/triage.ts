@@ -1,6 +1,6 @@
 import { Effect, Fiber, Semaphore } from "effect"
 import { parseRef } from "@zarg/entities"
-import { ATOMIC, CAP, dependencies, fold, type Folded, type Group, merge, type Unit } from "./fold"
+import { ATOMIC, CAP, dependencies, fold, type Folded, type Group, jsonIn, merge, type Unit } from "@zarg/fold"
 import type { Working } from "./view"
 
 type Draft = ReadonlyArray<{ readonly tool: string; readonly params: unknown }>
@@ -60,18 +60,6 @@ export interface TriageDeps {
   readonly now: Effect.Effect<number, unknown>
   /** Draw the agent's view again (a scenario started or ended, a run started). */
   readonly render: Effect.Effect<void, unknown>
-}
-
-/** The first JSON object in a model's answer (in a fence, or with words around it); undefined when there is none. */
-export const jsonIn = (text: string): unknown => {
-  const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(text)?.[1]
-  for (const candidate of [fenced, text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)]) {
-    if (candidate === undefined || candidate.trim().length === 0) continue
-    try {
-      return JSON.parse(candidate)
-    } catch {}
-  }
-  return undefined
 }
 
 const TOOLS = [

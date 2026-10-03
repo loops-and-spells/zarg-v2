@@ -150,3 +150,15 @@ export const merge = (plans: ReadonlyArray<Folded>, k: number): Array<Folded> =>
     return [{ ...joined, after }]
   })
 }
+
+/** The first JSON object in a model's answer (in a fence, or with words around it); undefined when there is none. */
+export const jsonIn = (text: string): unknown => {
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(text)?.[1]
+  for (const candidate of [fenced, text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)]) {
+    if (candidate === undefined || candidate.trim().length === 0) continue
+    try {
+      return JSON.parse(candidate)
+    } catch {}
+  }
+  return undefined
+}

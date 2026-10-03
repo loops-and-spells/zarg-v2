@@ -8,6 +8,7 @@
   "dependencies": {
     "@zarg/agent-rehearse": "workspace:*",
     "@zarg/entities": "workspace:*",
+    "@zarg/fold": "workspace:*",
     "@zarg/plugin-backlog": "workspace:*",
     "@zarg/plugin-gherkin": "workspace:*",
     "@zarg/plugin-sdk": "workspace:*",

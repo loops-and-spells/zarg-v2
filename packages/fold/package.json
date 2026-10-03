@@ -1,0 +1,8 @@
+{
+  "name": "@zarg/fold",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

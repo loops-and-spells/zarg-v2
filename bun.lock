@@ -38,6 +38,7 @@
       "dependencies": {
         "@zarg/agent-rehearse": "workspace:*",
         "@zarg/entities": "workspace:*",
+        "@zarg/fold": "workspace:*",
         "@zarg/plugin-backlog": "workspace:*",
         "@zarg/plugin-gherkin": "workspace:*",
         "@zarg/plugin-sdk": "workspace:*",
@@ -147,6 +148,9 @@
       "dependencies": {
         "effect": "^4.0.0-rc.117",
       },
+    },
+    "packages/fold": {
+      "name": "@zarg/fold",
     },
     "packages/frontmatter": {
       "name": "@zarg/frontmatter",
@@ -442,6 +446,8 @@
     "@zarg/decisions": ["@zarg/decisions@workspace:packages/decisions"],
 
     "@zarg/entities": ["@zarg/entities@workspace:packages/entities"],
+
+    "@zarg/fold": ["@zarg/fold@workspace:packages/fold"],
 
     "@zarg/frontmatter": ["@zarg/frontmatter@workspace:packages/frontmatter"],
 

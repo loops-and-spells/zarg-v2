@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { dependencies, fold, merge, type Unit } from "../src/fold"
+import { dependencies, fold, jsonIn, merge, type Unit } from "../src/index"
 
 const u = (scenario: string, changes: Unit["changes"]): Unit => ({ scenario, title: scenario, summary: `fix ${scenario}`, changes, answers: [] })
 const units = [
@@ -71,4 +71,10 @@ describe("folding a round", () => {
     expect(merged.map((p) => [p.units, p.after])).toEqual([[[0], []], [[1, 2], [0]]])
     expect(merged.every((p, k) => p.after.every((j) => j < k))).toBe(true)
   })
+})
+
+test("jsonIn: the first JSON object, fenced or among words; undefined without one", () => {
+  expect(jsonIn('Here:\n```json\n{"a":1}\n```')).toEqual({ a: 1 })
+  expect(jsonIn('ok {"b":2} done')).toEqual({ b: 2 })
+  expect(jsonIn("no json")).toBeUndefined()
 })
