@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "O-0011",
+  "props": {
+    "text": "Working, verified, committed code traces back through a scenario to an intent."
+  },
+  "type": "gherkin/outcome"
+}

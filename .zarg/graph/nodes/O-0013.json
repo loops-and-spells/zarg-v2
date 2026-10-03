@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "O-0013",
+  "props": {
+    "text": "The agent keeps the intents from the conversation; the operator never edits them by hand."
+  },
+  "type": "gherkin/outcome"
+}

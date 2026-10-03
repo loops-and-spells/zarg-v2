@@ -17,8 +17,9 @@ Run the CLI from the repo root as `mise run -q zarg -- <command>`. Output is JSO
 - An outcome branch (success, failure) is one scenario per outcome, each with its own When.
 - Mark a state `entry` when the user can start there, `terminal` when nothing needs to follow it.
 - A **persona** (`P-NNNN`) is someone who acts in scenarios: a name (the scenarios' title prefix), a kind (human, cli, agent) and a roleplay text. Every scenario names its actors with `by` (one or more). The agenda asks who uses the product when there are none, and who does scenarios without `by`.
+- An **intent** (`I-NNNN`) says what the product is for: its **outcomes** (`O-`), **constraints** (`K-`) and open **questions** (`Q-`), one sentence each. A journey **serves** outcomes (`link {edge: "serves", journey, outcome}`); a constraint **bounds** a journey or a scenario. The agenda asks which journey delivers an uncovered outcome.
 - Clauses have at most 15 words, never contain "if" (make one scenario per case), and avoid "and".
-- Personas (listed in `intent/zarg.md`): **the operator**, the person using zarg (titles "Operator …"; never "the developer", which also means zarg's contributors); **a CLI actor**, a coding agent working through the zarg CLI and its skills ("CLI actor …"); and zarg's internal agents, each "the X Agent": the Driver Agent, the Planner Agent, the Implementer Agent, the Triage Agent, a Plugin Agent. Say what the persona sees and does, never how zarg is built (no packages, renderers or libraries).
+- Personas (the intent's `for` personas: `render --focus I-0001`): **the operator**, the person using zarg (titles "Operator …"; never "the developer", which also means zarg's contributors); **a CLI actor**, a coding agent working through the zarg CLI and its skills ("CLI actor …"); and zarg's internal agents, each "the X Agent": the Driver Agent, the Planner Agent, the Implementer Agent, the Triage Agent, a Plugin Agent. Say what the persona sees and does, never how zarg is built (no packages, renderers or libraries).
 
 ## Loop
 

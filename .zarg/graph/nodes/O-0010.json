@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "O-0010",
+  "props": {
+    "text": "A pending question survives a restart."
+  },
+  "type": "gherkin/outcome"
+}

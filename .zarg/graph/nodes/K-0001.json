@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "K-0001",
+  "props": {
+    "text": "Secrets never reach a model, a log or the wire."
+  },
+  "type": "gherkin/constraint"
+}

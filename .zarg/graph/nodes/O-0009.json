@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "O-0009",
+  "props": {
+    "text": "A restart resumes work instead of redoing it."
+  },
+  "type": "gherkin/outcome"
+}

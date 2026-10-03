@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "K-0006",
+  "props": {
+    "text": "Only conflicts zarg cannot settle reach the operator."
+  },
+  "type": "gherkin/constraint"
+}

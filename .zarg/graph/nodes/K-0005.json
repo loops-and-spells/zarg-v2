@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "K-0005",
+  "props": {
+    "text": "Git is required; work lands on the operator's branch."
+  },
+  "type": "gherkin/constraint"
+}

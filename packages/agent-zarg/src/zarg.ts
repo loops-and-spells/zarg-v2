@@ -1,5 +1,3 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs"
-import { join } from "node:path"
 import { Effect } from "effect"
 import type { AgentHost } from "@zarg/agent-host"
 import type { ThreadLog } from "@zarg/core"
@@ -11,7 +9,7 @@ import type { PluginHost } from "@zarg/plugin/server"
 import { type Asker, decisionsService, entitiesService, fsRead, graph, inquire, pluginService, Rlm, type RlmSettings, type Scope } from "@zarg/rlm"
 import { askFirst } from "./driver"
 import { judgeGaps } from "./gaps"
-import { nextGoals, type NextOption } from "./intent"
+import { nextOutcomes, type NextOption } from "./intent"
 import { makeThread } from "./thread"
 
 /**
@@ -57,14 +55,12 @@ export const makeZarg = (host: AgentHost) =>
     const render = (ids: ReadonlyArray<string>, scope: Scope) => Effect.map(graph({ host: plugins, snapshot, scope }).handlers.render!({ focus: ids }), String)
     // What next: failure candidates a decision model judges real.
     const suggest = (focus: ReadonlySet<string> | undefined) => Effect.flatMap(plugins.suggest(focus), (c) => judgeGaps(decisions.decide, c))
-    // What zarg offers when nothing is open: the intent's next goals; without an intent, where journeys start.
+    // What zarg offers when nothing is open: the outcomes no journey serves; with none, where journeys start.
     const whatNext = (focus: ReadonlySet<string> | undefined) =>
       Effect.gen(function* () {
-        const dir = join(root, "intent")
-        const files = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".md")).sort() : []
-        const goals = files.flatMap((f) => nextGoals(readFileSync(join(dir, f), "utf8"), `intent/${f}`))
-        if (goals.length > 0) return goals
         const snap = yield* store.snapshot
+        const outcomes = nextOutcomes(snap)
+        if (outcomes.length > 0) return outcomes
         return [...snap.nodes.values()]
           .filter((n) => n.type === "gherkin/state" && n.props.entry === true && (focus === undefined || focus.has(n.id)))
           .map((n): NextOption => ({ id: n.id, label: String(n.props.text ?? n.id), task: `Work on the journey that starts at "${String(n.props.text ?? n.id)}" (${n.id}).` }))

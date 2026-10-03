@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "O-0016",
+  "props": {
+    "text": "The operator sees which code each scenario owns."
+  },
+  "type": "gherkin/outcome"
+}

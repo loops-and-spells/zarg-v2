@@ -33,7 +33,7 @@ export default definePlugin({
     // One scenario per run: its progress and its testers.
     { kind: "card", name: "run", view: "run", headline: "progress", recent: "testers" },
   ],
-  scopes: { decisions: true, models: ["rehearse"], agents: true, code: true, entities: { read: ["gherkin/*"] }, fs: { read: [".zarg/rehearse/**", "intent/**"], write: [".zarg/rehearse/**"] } },
+  scopes: { decisions: true, models: ["rehearse"], agents: true, code: true, entities: { read: ["gherkin/*"] }, fs: { read: [".zarg/rehearse/**"], write: [".zarg/rehearse/**"] } },
   commands: [
     {
       cmd: "/rehearse",

@@ -83,7 +83,7 @@ zarg's graph is Gherkin, stored as a graph. Gherkin's words map onto it like thi
 |---|---|
 | **Tag** | a `// @scenario <id>` comment on the code that implements a scenario (and its test) |
 | **Built** / **planned** | a scenario is built when its code is tagged; `planned` (a scenario field) when it is not built yet |
-| **Audit** | `zarg audit`: every scenario tagged or planned, no tag naming a missing scenario (`untagged`, `planned-but-tagged`, `orphan`); every outcome served, every journey serving one (`uncovered`, `unserving`) |
+| **Audit** | `zarg audit`: every scenario tagged or planned, no tag naming a missing scenario (`untagged`, `planned-but-tagged`, `orphan`); every outcome served, every journey serving one (`uncovered`, `unserving`: warnings until every journey serves an outcome) |
 
 ## Work (files under `.zarg/`, the work on the graph)
 

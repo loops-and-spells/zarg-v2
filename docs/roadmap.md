@@ -1,6 +1,6 @@
 # zarg roadmap and internals
 
-How zarg is built and where it is going. The product intent (personas, inputs, outputs, outcomes) is `intent/zarg.md`; this file holds what the intent deliberately leaves out.
+How zarg is built and where it is going. The product intent (its outcomes, constraints and questions) is intent I-0001 in the graph (`zarg render --focus I-0001`); this file holds what the intent deliberately leaves out.
 
 ## Phases
 

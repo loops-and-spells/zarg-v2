@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "O-0004",
+  "props": {
+    "text": "With nothing open, the agent asks what is next, with options from what is missing."
+  },
+  "type": "gherkin/outcome"
+}

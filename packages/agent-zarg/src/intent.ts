@@ -1,4 +1,4 @@
-import { parse } from "@zarg/frontmatter"
+import type { Snapshot } from "@zarg/graph/pure"
 
 /** One way to go on, offered when nothing is open: what the operator picks becomes their word to the driver. */
 export interface NextOption {
@@ -8,19 +8,17 @@ export interface NextOption {
   readonly task: string
 }
 
-/** The goals in an intent's frontmatter (`next: [{ name, why? }]`), in order; the prose is never read. */
-export const nextGoals = (markdown: string, file: string): ReadonlyArray<NextOption> => {
-  let data: { readonly [key: string]: unknown }
-  try {
-    data = parse(markdown).data
-  } catch {
-    return []
-  }
-  const next = Array.isArray(data.next) ? (data.next as ReadonlyArray<unknown>) : []
-  return next.flatMap((g, i) => {
-    const o = (g ?? {}) as { readonly name?: unknown; readonly why?: unknown }
-    if (typeof o.name !== "string" || o.name === "") return []
-    const why = typeof o.why === "string" && o.why !== "" ? o.why.replace(/\.$/, "") : undefined
-    return [{ id: `${file}#${i + 1}`, label: o.name, ...(why !== undefined ? { why } : {}), task: `Work on the next goal in ${file}: ${o.name}${why !== undefined ? `: ${why}` : ""}.` }]
-  })
+/** What next: every outcome no journey serves, in id order, with the intent it belongs to. */
+export const nextOutcomes = (snap: Snapshot.Snapshot): ReadonlyArray<NextOption> => {
+  const nodes = [...snap.nodes.values()]
+  const served = new Set(nodes.flatMap((n) => (n.type === "gherkin/journey" ? n.edges.filter((e) => e.type === "gherkin/serves").map((e) => e.to) : [])))
+  const intentOf = (id: string) => nodes.find((n) => n.type === "gherkin/intent" && n.edges.some((e) => e.type === "gherkin/has" && e.to === id))
+  return nodes
+    .filter((n) => n.type === "gherkin/outcome" && !served.has(n.id))
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((o) => {
+      const text = String(o.props.text ?? o.id)
+      const intent = intentOf(o.id)
+      return { id: o.id, label: text, ...(intent !== undefined ? { why: String(intent.props.title ?? intent.id) } : {}), task: `Find or shape the journey that delivers ${o.id} (${text}), then link it with link {edge: "serves", journey, outcome: "${o.id}"}.` }
+    })
 }

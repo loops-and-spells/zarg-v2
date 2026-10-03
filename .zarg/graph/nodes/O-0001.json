@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "O-0001",
+  "props": {
+    "text": "The operator talks to one agent about intent; it resumes where they left off."
+  },
+  "type": "gherkin/outcome"
+}

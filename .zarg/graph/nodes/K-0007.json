@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "K-0007",
+  "props": {
+    "text": "The operator's uncommitted edits are never overwritten."
+  },
+  "type": "gherkin/constraint"
+}

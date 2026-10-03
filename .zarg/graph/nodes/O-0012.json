@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "O-0012",
+  "props": {
+    "text": "The operator sets up model providers and plugins in the terminal app, without editing files."
+  },
+  "type": "gherkin/outcome"
+}

@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "Q-0003",
+  "props": {
+    "text": "Several conversations with different focuses: one agent with many threads, or one per focus?"
+  },
+  "type": "gherkin/question"
+}

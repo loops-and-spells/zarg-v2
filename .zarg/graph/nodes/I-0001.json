@@ -1,0 +1,123 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/for"
+    },
+    {
+      "to": "P-0002",
+      "type": "gherkin/for"
+    },
+    {
+      "to": "O-0001",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "O-0002",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "O-0003",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "O-0004",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "O-0005",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "O-0006",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "O-0007",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "O-0008",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "O-0009",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "O-0010",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "O-0011",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "O-0012",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "O-0013",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "O-0014",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "O-0015",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "O-0016",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "K-0001",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "K-0002",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "K-0003",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "K-0004",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "K-0005",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "K-0006",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "K-0007",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "Q-0001",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "Q-0002",
+      "type": "gherkin/has"
+    },
+    {
+      "to": "Q-0003",
+      "type": "gherkin/has"
+    }
+  ],
+  "id": "I-0001",
+  "props": {
+    "problem": "Building software with coding agents still means driving every step yourself: writing requirements, splitting work, prompting implementation, reviewing code, re-explaining context that got lost. The agent's memory is a stream of chat that grows until it is truncated, so decisions drift and work is redone. What the operator actually owns is the intent: what the product should do and why. Everything after that is mechanical enough to automate, but no harness separates the two.",
+    "status": "accepted",
+    "title": "zarg, a harness where you only talk about intent"
+  },
+  "type": "gherkin/intent"
+}

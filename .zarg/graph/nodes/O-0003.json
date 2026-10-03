@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "O-0003",
+  "props": {
+    "text": "The agent asks one question at a time, with options, recommending one."
+  },
+  "type": "gherkin/outcome"
+}

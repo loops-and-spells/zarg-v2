@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "K-0002",
+  "props": {
+    "text": "Plugins run only with what the operator granted."
+  },
+  "type": "gherkin/constraint"
+}

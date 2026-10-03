@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "K-0004",
+  "props": {
+    "text": "Code changes only to match the requirements."
+  },
+  "type": "gherkin/constraint"
+}

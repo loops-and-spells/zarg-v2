@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "Q-0002",
+  "props": {
+    "text": "How many testers rehearse, how often, and which findings reach the operator?"
+  },
+  "type": "gherkin/question"
+}
