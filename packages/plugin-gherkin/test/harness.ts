@@ -45,6 +45,6 @@ export const pricing = Effect.gen(function* () {
   yield* call("add-scenario", { title: "Visitor opens pricing", when: 'the visitor clicks "Pricing"', by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ text: "the plan picker is shown" }] })
   yield* call("add-scenario", { title: "Visitor picks Free", when: "the visitor picks Free", by: [{ id: "P-0001" }], arrives: { text: "the plan picker is shown" }, then: [{ text: "the account form is shown" }] })
   yield* call("add-scenario", { title: "Visitor picks Pro", when: "the visitor picks Pro", by: [{ id: "P-0001" }], arrives: { id: "ST-0002" }, then: [{ text: "the payment form is shown" }] })
-  yield* call("add-scenario", { title: "Payment succeeds", when: "the visitor pays with a valid scenario", by: [{ id: "P-0001" }], arrives: { id: "ST-0004" }, then: [{ id: "ST-0003" }, { text: "a receipt is emailed" }] })
-  yield* call("add-scenario", { title: "Payment is declined", when: "the scenario is declined", by: [{ id: "P-0001" }], arrives: { id: "ST-0004" }, then: [{ id: "ST-0004" }, { text: "a decline message is shown" }] })
+  yield* call("add-scenario", { title: "Payment succeeds", when: "the visitor pays with a valid card", by: [{ id: "P-0001" }], arrives: { id: "ST-0004" }, then: [{ id: "ST-0003" }, { text: "a receipt is emailed" }] })
+  yield* call("add-scenario", { title: "Payment is declined", when: "the card is declined", by: [{ id: "P-0001" }], arrives: { id: "ST-0004" }, then: [{ id: "ST-0004" }, { text: "a decline message is shown" }] })
 })

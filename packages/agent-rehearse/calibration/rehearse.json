@@ -49,9 +49,9 @@
       "scenario": "broken-seam",
       "title": "broken seam",
       "given": "the payment form is shown",
-      "when": "the visitor enters a scenario number",
+      "when": "the visitor enters a card number",
       "thens": [
-        "the scenario number is accepted"
+        "the card number is accepted"
       ],
       "fork": [],
       "hasFailure": false
@@ -264,7 +264,7 @@
       "scenario": "missing-failure-pay",
       "title": "missing failure pay",
       "given": "the payment form is shown",
-      "when": "the visitor pays with a scenario",
+      "when": "the visitor pays with a card",
       "thens": [
         "the order is placed"
       ],
