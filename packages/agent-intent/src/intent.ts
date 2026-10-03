@@ -1,4 +1,4 @@
-import { Effect } from "effect"
+import { Effect, Semaphore } from "effect"
 import { dependencies, fold, type Folded, jsonIn, merge, type Unit } from "@zarg/fold"
 import { type Checkpoint, due, type Entry, type JourneyInfo, type Statement } from "./checkpoint"
 
@@ -19,6 +19,8 @@ export interface IntentDeps {
   readonly version: (ref: string) => Effect.Effect<string | null, unknown>
   readonly plan: (p: { readonly title: string; readonly journey: string; readonly scenarios: ReadonlyArray<{ readonly ref: string }>; readonly changes: Draft; readonly feedback: ReadonlyArray<string>; readonly steps: ReadonlyArray<string>; readonly after?: ReadonlyArray<string>; readonly serves: string }) => Effect.Effect<{ readonly id: string }, unknown>
   readonly dropServing: (statement: string) => Effect.Effect<{ readonly ids: ReadonlyArray<string> }, unknown>
+  /** Of these plan ids, the ones dropped (or gone) from the Backlog. */
+  readonly dropped: (ids: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<string>, unknown>
   readonly post: (t: Topic) => Effect.Effect<string, unknown>
   readonly settle: (topic: string, why: string) => Effect.Effect<void, unknown>
   readonly load: Effect.Effect<Checkpoint, unknown>
@@ -150,7 +152,8 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
         const r = parse(yield* ask(SYSTEM, user))
         if (r === undefined) {
           yield* quiet(d.log(OUTAGE(s.id)))
-          return yield* show({ id: s.id, title: s.text, state: "waiting", detail: "the driver model did not answer", plans: [] })
+          yield* show({ id: s.id, title: s.text, state: "waiting", detail: "the driver model did not answer", plans: [] })
+          return "outage" as const
         }
         if (r.ask !== undefined && r.units.length === 0) {
           const options = [...r.ask.options, LEAVE]
@@ -205,13 +208,14 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
       const v = text === undefined ? undefined : (jsonIn(text) as { serves?: unknown; ask?: unknown } | undefined)
       if (v === undefined) {
         yield* quiet(d.log(OUTAGE(j.id)))
-        return yield* show({ id: j.id, title: j.name, state: "waiting", detail: "the driver model did not answer", plans: [] })
+        yield* show({ id: j.id, title: j.name, state: "waiting", detail: "the driver model did not answer", plans: [] })
+        return "outage" as const
       }
       const serves = Array.isArray(v.serves) ? v.serves.filter((x): x is string => typeof x === "string" && outcomes.some((o) => o.id === x)) : []
       if (serves.length === 0) {
-        const a = askOf(v.ask)
-        const q = a?.question ?? `${j.name} serves no outcome: which does it deliver?`
-        const options = [...(a?.options ?? []), LEAVE]
+        // The answers are the outcomes themselves: an answer names one, and the plan links it (the model's ids could be anything).
+        const q = askOf(v.ask)?.question ?? `${j.name} serves no outcome: which does it deliver?`
+        const options = [...outcomes.slice(0, 9).map((o) => ({ id: o.id, label: `${o.id}: ${o.text}` })), LEAVE]
         const topic = yield* d.post({ kind: "ask", key: `serve:${j.id}`, title: q, why: "a journey serving no outcome", about: [j.id], answers: options })
         yield* setJourney(j.id, { version: j.version, state: "asked", topic, options })
         return yield* show({ id: j.id, title: j.name, state: "asked", detail: q, plans: [] })
@@ -230,12 +234,20 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
       return yield* show({ id: j.id, title: j.name, state: "planned", detail: `serves ${serves.join(", ")}`, plans: [id] })
     })
 
-  /** Everything due, one round at a time. */
-  const tick = Effect.gen(function* () {
+  // One tick at a time (the core wakes it on every graph write and backlog change); a wake while one runs queues one more pass.
+  const lock = Effect.runSync(Semaphore.make(1))
+  let queued = false
+  const exclusive = <A, E>(e: Effect.Effect<A, E>) => lock.withPermits(1)(e)
+
+  /** Everything due, one round at a time; the first outage ends the pass (the next wake tries again). */
+  const pass = Effect.gen(function* () {
+    const cp = yield* Effect.match(d.load, { onFailure: (e) => ({ ok: false as const, e }), onSuccess: (c) => ({ ok: true as const, c }) })
+    if (!cp.ok) return yield* quiet(d.log(`the checkpoint could not be read (${String(cp.e)}): the Intent Agent waits until it is fixed`))
     const statements = yield* d.statements().pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<Statement>))
     const journeys = yield* d.journeys().pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<JourneyInfo>))
-    const cp = yield* d.load
-    for (const x of due(statements, journeys, cp, statements.some((s) => s.kind === "outcome"))) {
+    const filed = [...Object.values(cp.c.statements), ...Object.values(cp.c.journeys)].flatMap((e) => (e.state === "planned" ? (e.plans ?? []) : []))
+    const gone = new Set(filed.length === 0 ? [] : yield* d.dropped(filed).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>)))
+    for (const x of due(statements, journeys, cp.c, statements.some((s) => s.kind === "outcome"), gone)) {
       // A topic still open about something that changed or went no longer matters: settle it.
       const prev = x.kind === "journey" ? undefined : (yield* d.load).statements[x.kind === "removed" ? x.id : x.statement.id]
       if (prev?.topic !== undefined && prev.decision === undefined) yield* quiet(d.settle(prev.topic, x.kind === "removed" ? "its statement was removed" : "its statement changed: a new round"))
@@ -244,20 +256,38 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
         yield* setStatement(x.id, undefined)
         yield* quiet(d.log(`${x.id} was removed${ids.length > 0 ? `: dropped ${ids.join(", ")}` : ""}`))
         views.delete(x.id)
-      } else if (x.kind === "statement") yield* statementRound(x.statement, journeys, prev?.decision)
-      else yield* journeyRound(x.journey, statements)
+        continue
+      }
+      const r = x.kind === "statement" ? yield* statementRound(x.statement, journeys, prev?.decision) : yield* journeyRound(x.journey, statements)
+      if (r === "outage") break
     }
     yield* quiet(d.render)
+  })
+  const tick = Effect.suspend(() => {
+    if (queued) return Effect.void
+    queued = true
+    return exclusive(Effect.andThen(Effect.sync(() => void (queued = false)), pass))
   })
 
   /** The operator answered a topic: the statement is due again with the decision (or left as it is). */
   const answered = (key: string, answer: string | undefined, text: string | undefined) =>
-    Effect.gen(function* () {
+    exclusive(Effect.gen(function* () {
       const [kind, id] = key.split(":") as [string, string | undefined]
       if (id === undefined) return `no topic ${key}`
       const cp = yield* d.load
       if (kind === "serve") {
         if (answer === undefined || answer === LEAVE.id) return `${id}: left as it is`
+        // The journey as it is now: gone or changed since it asked, nothing is filed and its next round starts fresh.
+        const j = (yield* d.journeys()).find((x) => x.id === id)
+        if (j === undefined) return `${id} is gone`
+        if (j.version !== cp.journeys[id]?.version) {
+          yield* update((c) => {
+            const journeys = { ...c.journeys }
+            delete journeys[id]
+            return { ...c, journeys }
+          })
+          return `${id} changed since it asked: its next round starts fresh`
+        }
         // The answer is an outcome id: one plan linking it.
         const s = (yield* d.statements()).find((x) => x.id === answer)
         if (s === undefined) return `${answer} is not an outcome`
@@ -279,7 +309,7 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
       // An entry with a decision is due (checkpoint.ts): the next tick drafts it again.
       yield* setStatement(id, { ...e, state: "asked", decision })
       return `${id}: drafting again with your answer`
-    })
+    }))
 
   return { tick, answered, rounds: () => [...views.values()] }
 }

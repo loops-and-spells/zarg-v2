@@ -18,7 +18,7 @@ export default definePlugin({
   // reasoning: let the model reason before answering (off by default, as triage).
   config: Schema.Struct({ reasoning: Schema.optionalKey(Schema.Boolean) }),
   pluginDependencies: [Gherkin, Backlog],
-  scopes: { models: ["driver"], agents: true, inbox: true, code: true, entities: { read: ["gherkin/*"] }, fs: { read: [".zarg/intent/**"], write: [".zarg/intent/**"] } },
+  scopes: { models: ["driver"], agents: true, inbox: true, code: true, entities: { read: ["gherkin/*", "backlog/item"] }, fs: { read: [".zarg/intent/**"], write: [".zarg/intent/**"] } },
   views: [IntentView],
   methods: {
     tick: { doc: "Reconcile what is due: changed, new or uncovered statements and journeys serving nothing, one round at a time (the core wakes it when the graph changes).", params: Schema.Struct({}), success: Schema.Null, deadlineMs: 30 * 60_000 },
@@ -72,10 +72,14 @@ export default definePlugin({
         const id = (v: string | undefined) => (v !== undefined ? `  # ${v}` : "")
         return [`${scenario} ${x.title}`, `Given ${x.given}${id(x.ids?.given)}`, `When  ${x.when}`, ...x.thens.map((t, i) => `${i === 0 ? "Then" : "And "}  ${t}${id(x.ids?.thens[i])}`)].join("\n")
       })
-    const load = files.read(FILE).pipe(
-      Effect.map((t) => JSON.parse(t) as Checkpoint),
-      Effect.orElseSucceed(() => EMPTY),
-    )
+    // No checkpoint yet: nothing reconciled. One it cannot read or parse fails the load (the tick waits), never "empty":
+    // empty would draft every statement again.
+    const load = Effect.gen(function* () {
+      const names = yield* files.list(".zarg/intent").pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>))
+      if (!names.includes("checkpoint.json")) return EMPTY
+      const text = yield* files.read(FILE)
+      return yield* Effect.try({ try: () => JSON.parse(text) as Checkpoint, catch: (e) => `${FILE} is not JSON: ${String(e)}` })
+    })
     const render: Effect.Effect<void> = Effect.suspend(() =>
       Effect.gen(function* () {
         if (!started) {
@@ -99,6 +103,12 @@ export default definePlugin({
         version: (ref) => entities.version(ref),
         plan: (p) => backlog.plan(p as never),
         dropServing: (statement) => backlog.dropServing({ statement }),
+        // A plan the backlog cannot show stays "on its way": a read failure must not draft everything again.
+        dropped: (ids) =>
+          Effect.map(
+            Effect.forEach(ids, (id) => Effect.match(entities.get(`backlog/item:${id}`), { onFailure: () => [], onSuccess: (e) => ((e.data as { dropped?: boolean }).dropped === true ? [id] : []) })),
+            (x) => x.flat(),
+          ),
         post: (t) => inbox.post(t as never),
         settle: (id, why) => inbox.settle(id, why),
         load,

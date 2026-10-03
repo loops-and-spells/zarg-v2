@@ -247,3 +247,22 @@ describe("the Intents view, through the host", () => {
     expect(got.q).toEqual({ text: "Is there a yearly plan?", answer: "No yearly plan" })
   })
 })
+
+describe("removing what a constraint bounds", () => {
+  test("a scenario a constraint bounds is removed with the bounds edge to it", async () => {
+    const got = await run(
+      Effect.gen(function* () {
+        yield* call("add-persona", { name: "Visitor", kind: "human", text: "Someone choosing a plan." })
+        yield* call("add-state", { text: "the visitor is on the home page", entry: true })
+        yield* call("add-scenario", { title: "Visitor opens pricing", when: "the visitor opens pricing", by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ text: "the plan picker is shown" }] })
+        yield* call("add-intent", { title: "Plans" })
+        yield* call("add-constraint", { intent: "I-0001", text: "Prices never hide fees" })
+        yield* call("link", { edge: "bounds", constraint: "K-0001", scenario: "S-0001" })
+        const removed = (yield* call("remove", { id: "S-0001" })).message
+        const snap = yield* GraphStore.use((g) => g.snapshot)
+        return { removed, gone: !snap.nodes.has("S-0001"), k: snap.nodes.get("K-0001")?.edges }
+      }),
+    )
+    expect(got).toEqual({ removed: "removed S-0001", gone: true, k: [] })
+  })
+})

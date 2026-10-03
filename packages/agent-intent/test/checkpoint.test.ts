@@ -18,7 +18,13 @@ test("an unserving journey is due once per version, and only while outcomes exis
   expect(due([], [j("J-0001", "v1")], { statements: {}, journeys: { "J-0001": { version: "v1", state: "nothing" } } }, true)).toEqual([])
   expect(due([], [j("J-0001", "v1")], EMPTY, false)).toEqual([])
 })
-test("statements come before journeys; removed ones first of all", () => {
-  const kinds = due([o("O-0001", "v1")], [j("J-0001", "v1")], { statements: { "O-0009": { version: "v", state: "planned" } }, journeys: {} }, true).map((d) => d.kind)
-  expect(kinds).toEqual(["removed", "statement", "journey"])
+test("removed statements come first; journeys wait while any statement is due or has a plan on its way", () => {
+  const kinds = (cp: Parameters<typeof due>[2], gone: ReadonlySet<string> = new Set()) => due([o("O-0001", "v1")], [j("J-0001", "v1")], cp, true, gone).map((d) => d.kind)
+  expect(kinds({ statements: { "O-0009": { version: "v", state: "planned" } }, journeys: {} })).toEqual(["removed", "statement"])
+  // O-0001 planned, its plan still on its way: the journey waits (the plan may link it).
+  expect(kinds({ statements: { "O-0001": { version: "v1", state: "planned", plans: ["B-1"] } }, journeys: {} })).toEqual([])
+  // Its plan was dropped: O-0001 is due again; the journey still waits.
+  expect(kinds({ statements: { "O-0001": { version: "v1", state: "planned", plans: ["B-1"] } }, journeys: {} }, new Set(["B-1"]))).toEqual(["statement"])
+  // Settled (nothing to change): the journey's turn.
+  expect(kinds({ statements: { "O-0001": { version: "v1", state: "nothing" } }, journeys: {} })).toEqual(["journey"])
 })

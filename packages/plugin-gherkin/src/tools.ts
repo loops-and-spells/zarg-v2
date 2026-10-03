@@ -282,7 +282,7 @@ export const unlink = tool({
 
 export const remove = tool({
   name: "remove",
-  description: "Remove a scenario; a state, persona or journey that nothing uses; an outcome, constraint or question (with the edges to it); or an intent without statements.",
+  description: "Remove a scenario (and the constraints' bounds edges to it); a state, persona or journey that nothing else uses; an outcome, constraint or question (with the edges to it); or an intent without statements.",
   params: Schema.Struct({ id: Schema.String }),
   run: ({ id }, snap) =>
     Effect.gen(function* () {
@@ -300,11 +300,16 @@ export const remove = tool({
         const own = n.edges.filter((e) => e.type === HAS).map((e) => e.to)
         if (own.length > 0) return yield* new ToolError({ message: `${id} has statements ${own.join(", ")}; remove them first` })
       }
-      const users = Snapshot.inbound(snap, id).map((e) => e.from)
+      // A constraint's bounds edge goes with what it bounds (a scenario, a journey): the rule simply applies to less.
+      const bounding = [...new Set(Snapshot.inbound(snap, id, BOUNDS).map((e) => e.from))].flatMap((c) => {
+        const src = snap.nodes.get(c)
+        return src === undefined ? [] : [Put({ ...src, edges: src.edges.filter((e) => !(e.type === BOUNDS && e.to === id)) })]
+      })
+      const users = Snapshot.inbound(snap, id).filter((e) => e.edge.type !== BOUNDS).map((e) => e.from)
       if (users.length > 0) {
         return yield* new ToolError({ message: `${id} is used by ${[...new Set(users)].join(", ")}; relink or remove them first` })
       }
-      return { changes: [Remove(id)], message: `removed ${id}` }
+      return { changes: [...bounding, Remove(id)], message: `removed ${id}` }
     }),
 })
 

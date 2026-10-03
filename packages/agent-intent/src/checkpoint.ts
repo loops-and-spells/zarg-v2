@@ -25,20 +25,35 @@ export type Statement = {
 export type JourneyInfo = { readonly id: string; readonly name: string; readonly version: string; readonly scenarios: ReadonlyArray<string>; readonly serves: ReadonlyArray<string> }
 export type Due = { readonly kind: "statement"; readonly statement: Statement } | { readonly kind: "journey"; readonly journey: JourneyInfo } | { readonly kind: "removed"; readonly id: string }
 
+/** Planned, but every plan it filed was dropped: nothing will land, so it needs a round again. */
+const abandoned = (e: Entry, gone: ReadonlySet<string>) => e.state === "planned" && (e.plans ?? []).length > 0 && e.plans!.every((p) => gone.has(p))
+/** Planned, with a plan still on its way (not dropped). */
+const pending = (e: Entry, gone: ReadonlySet<string>) => e.state === "planned" && (e.plans ?? []).some((p) => !gone.has(p))
+
 /**
- * What needs a round: a removed statement (its plans go), a statement that is new, changed or answered, and a journey serving
- * nothing (once per version, only while there are outcomes to serve). The same version planned, asked or settled is not due:
- * a tick with nothing due costs nothing.
+ * What needs a round: a removed statement (its plans go), a statement that is new, changed, answered or whose plans were all
+ * dropped, and a journey serving nothing (once per version, only while there are outcomes to serve). Journeys wait while any
+ * statement is due or has a plan on its way: a statement's round may link that journey itself, and two rounds proposing the same
+ * serves link would fail one at the Planner. The same version planned, asked or settled is not due: a tick with nothing due costs nothing.
  */
-export const due = (statements: ReadonlyArray<Statement>, journeys: ReadonlyArray<JourneyInfo>, cp: Checkpoint, outcomesExist: boolean): ReadonlyArray<Due> => {
+export const due = (statements: ReadonlyArray<Statement>, journeys: ReadonlyArray<JourneyInfo>, cp: Checkpoint, outcomesExist: boolean, gone: ReadonlySet<string> = new Set()): ReadonlyArray<Due> => {
   const present = new Set(statements.map((s) => s.id))
   const removed: Array<Due> = Object.keys(cp.statements).filter((id) => !present.has(id)).sort().map((id) => ({ kind: "removed", id }))
   const changed: Array<Due> = statements
     .filter((s) => {
       const e = cp.statements[s.id]
-      return e === undefined || e.version !== s.version || e.decision !== undefined
+      return e === undefined || e.version !== s.version || e.decision !== undefined || abandoned(e, gone)
     })
     .map((statement) => ({ kind: "statement", statement }))
-  const unserving: Array<Due> = !outcomesExist ? [] : journeys.filter((j) => j.serves.length === 0 && cp.journeys[j.id]?.version !== j.version).map((journey) => ({ kind: "journey", journey }))
+  const waiting = removed.length > 0 || changed.length > 0 || Object.values(cp.statements).some((e) => pending(e, gone))
+  const unserving: Array<Due> =
+    !outcomesExist || waiting
+      ? []
+      : journeys
+          .filter((j) => {
+            const e = cp.journeys[j.id]
+            return j.serves.length === 0 && (e === undefined || e.version !== j.version || abandoned(e, gone))
+          })
+          .map((journey) => ({ kind: "journey", journey }))
   return [...removed, ...changed, ...unserving]
 }
