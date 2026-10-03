@@ -86,7 +86,7 @@ describe("zarg cli", () => {
   test("agenda and focus", () => {
     const ids = json("agenda").map((i: { id: string }) => i.id)
     // First-party plugins that read files or code wait for their grant (triage reads the code tagged with scenarios).
-    expect(ids).toEqual(["plugin-grant:backlog", "plugin-grant:rehearse", "plugin-grant:triage", "gherkin:dead-end:ST-0002"])
+    expect(ids).toEqual(["plugin-grant:backlog", "plugin-grant:intent", "plugin-grant:rehearse", "plugin-grant:triage", "gherkin:dead-end:ST-0002"])
     expect(json("query", "neighbors", "ST-0001", "--k", "1")).toEqual(["S-0001", "ST-0001"])
   })
 

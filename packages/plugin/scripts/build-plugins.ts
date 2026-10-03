@@ -5,7 +5,7 @@ import { bundleHash } from "@zarg/plugin/server"
 import { buildPlugin } from "@zarg/plugin-sdk/tools"
 
 const root = join(import.meta.dir, "..", "..")
-const FIRST_PARTY = ["plugin-gherkin", "plugin-backlog", "agent-rehearse", "agent-triage"]
+const FIRST_PARTY = ["plugin-gherkin", "plugin-backlog", "agent-rehearse", "agent-triage", "agent-intent"]
 const only = process.argv[2]
 // Bundles name their sources relative to the working directory: build from one place so the hashes do not depend on who ran it.
 process.chdir(join(root, ".."))
