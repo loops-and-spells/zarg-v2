@@ -44,7 +44,7 @@ export interface PluginCommand {
     readonly params?: { readonly keys: ReadonlyArray<string>; readonly flags?: ReadonlyArray<string> }
   }
 }
-export interface EdgeSpec { readonly from: string; readonly to: string; readonly min?: number; readonly max?: number }
+export interface EdgeSpec { readonly from: string; readonly to: string | ReadonlyArray<string>; readonly min?: number; readonly max?: number }
 type Handlers<M extends Record<string, MethodSpec>> = {
   readonly [K in keyof M]: (p: Schema.Schema.Type<M[K]["params"]>) => Effect.Effect<Schema.Schema.Type<M[K]["success"]>, PluginFailure> | Stream.Stream<unknown, PluginFailure>
 }

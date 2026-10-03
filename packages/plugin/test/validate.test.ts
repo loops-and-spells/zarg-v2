@@ -46,3 +46,24 @@ describe("structure", () => {
     expect(found.find((f) => f.code === "duplicate-edge")?.message).toBe('N-0001: links T-0001 as "notes/about" twice; remove the duplicate')
   })
 })
+
+describe("an edge to several node types", () => {
+  const tags = { name: "tags", graph: { nodes: { tag: {}, note: {}, topic: {}, other: {} }, edges: { on: { from: "tag", to: ["note", "topic"] } } } }
+  const reg2 = manifestRegistry([tags])
+  const check2 = (nodes: ReadonlyArray<Node>) => {
+    const after = Snapshot.make(nodes)
+    return checkStructure(reg2, { before: Snapshot.empty, after, diff: diff(Snapshot.empty, after) })
+  }
+  const node = (id: string, type: string, edges: Node["edges"] = []): Node => ({ id, type: `tags/${type}`, props: {}, edges })
+  test("it may point at any of them", () => {
+    expect(check2([node("N-1", "note"), node("T-1", "topic"), node("G-1", "tag", [{ type: "tags/on", to: "N-1" }, { type: "tags/on", to: "T-1" }])])).toEqual([])
+  })
+  test("any other type is a wrong target, naming every allowed one", () => {
+    const found = check2([node("X-1", "other"), node("G-1", "tag", [{ type: "tags/on", to: "X-1" }])])
+    expect(found.map((f) => f.code)).toEqual(["edge-target"])
+    expect(found[0]!.message).toBe('G-1: "tags/on" must point to a tags/note or tags/topic, X-1 is a tags/other')
+  })
+  test("an unknown type in the list is refused at registration", () => {
+    expect(() => manifestRegistry([{ name: "x", graph: { nodes: { a: {} }, edges: { e: { from: "a", to: ["a", "b"] } } } }])).toThrow('unknown node type "x/b"')
+  })
+})

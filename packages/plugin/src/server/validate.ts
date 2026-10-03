@@ -24,8 +24,8 @@ const checkNode = (reg: ManifestRegistry, ctx: LintContext, node: Node): Readonl
       out.push(error("edge-source", `${node.id}: "${edge.type}" edges must start at a ${spec.from}`, [node.id]))
     }
     const target = ctx.after.nodes.get(edge.to)
-    if (target !== undefined && target.type !== spec.to) {
-      out.push(error("edge-target", `${node.id}: "${edge.type}" must point to a ${spec.to}, ${edge.to} is a ${target.type}`, [node.id, edge.to]))
+    if (target !== undefined && !spec.to.includes(target.type)) {
+      out.push(error("edge-target", `${node.id}: "${edge.type}" must point to a ${spec.to.join(" or ")}, ${edge.to} is a ${target.type}`, [node.id, edge.to]))
     }
   }
   // @scenario S-0007
@@ -51,10 +51,12 @@ const checkNode = (reg: ManifestRegistry, ctx: LintContext, node: Node): Readonl
 }
 
 /** Node types and edge specs from plugin manifests (props are checked by each plugin's own `validate`). */
+/** An edge spec with full type names; `to` is always a list. */
+export interface ResolvedEdge { readonly from: string; readonly to: ReadonlyArray<string>; readonly min?: number; readonly max?: number }
 export interface ManifestRegistry {
   /** Full node type ("notes/topic") → the plugin that owns it. */
   readonly nodes: ReadonlyMap<string, string>
-  readonly edges: ReadonlyMap<string, EdgeSpec>
+  readonly edges: ReadonlyMap<string, ResolvedEdge>
 }
 
 export const manifestRegistry = (
@@ -68,11 +70,12 @@ export const manifestRegistry = (
   const nodes = new Map<string, string>()
   for (const m of manifests) for (const local of Object.keys(m.graph?.nodes ?? {})) nodes.set(`${m.name}/${local}`, m.name)
   const full = (owner: string, type: string) => (type.includes("/") ? type : `${owner}/${type}`)
-  const edges = new Map<string, EdgeSpec>()
+  const edges = new Map<string, ResolvedEdge>()
   for (const m of manifests) {
     for (const [local, spec] of Object.entries(m.graph?.edges ?? {})) {
-      const resolved = { ...spec, from: full(m.name, spec.from), to: full(m.name, spec.to) }
-      for (const t of [resolved.from, resolved.to]) {
+      const to = (typeof spec.to === "string" ? [spec.to] : spec.to).map((t) => full(m.name, t))
+      const resolved: ResolvedEdge = { ...spec, from: full(m.name, spec.from), to }
+      for (const t of [resolved.from, ...to]) {
         if (!nodes.has(t)) throw new PluginConfigError(`edge "${m.name}/${local}" uses unknown node type "${t}"`)
       }
       edges.set(`${m.name}/${local}`, resolved)
