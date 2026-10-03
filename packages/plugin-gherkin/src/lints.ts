@@ -1,11 +1,13 @@
-import type { Node } from "@zarg/graph/pure"
+import { type Node, Snapshot } from "@zarg/graph/pure"
 import type { Finding, Lint } from "./kit"
-import { SCENARIO, JOURNEY, journeyName, journeys, normalize, PERSONA, personaName, personas, similarity, STATE, states, text } from "./model"
+import { HAS, INTENT, isStatement, JOURNEY, journeyName, journeys, normalize, PERSONA, personaName, personas, SCENARIO, similarity, STATE, states, text } from "./model"
 
 const MAX_WORDS = 15
+/** A statement (outcome, constraint, question) is one sentence of at most 20 words. */
+const MAX_STATEMENT_WORDS = 20
 
 const clauses = (n: Node): ReadonlyArray<string> =>
-  n.type === STATE ? [text(n)] : n.type === SCENARIO ? [String(n.props.when ?? "")] : []
+  n.type === STATE || isStatement(n) ? [text(n)] : n.type === SCENARIO ? [String(n.props.when ?? "")] : []
 
 const touched: (ctx: Parameters<Lint>[0]) => ReadonlyArray<Node> = ({ diff }) => [
   ...diff.added,
@@ -19,8 +21,9 @@ export const clauseShape: Lint = (ctx) =>
     clauses(n).flatMap((c): ReadonlyArray<Finding> => {
       const out: Array<Finding> = []
       const count = c.trim().split(/\s+/).length
-      if (count > MAX_WORDS) {
-        out.push({ severity: "error", code: "clause-too-long", message: `${n.id}: "${c}" has ${count} words; keep clauses to ${MAX_WORDS} or fewer`, about: [n.id] })
+      const max = isStatement(n) ? MAX_STATEMENT_WORDS : MAX_WORDS
+      if (count > max) {
+        out.push({ severity: "error", code: "clause-too-long", message: isStatement(n) ? `${n.id}: "${c}" has ${count} words; keep it to ${max} or fewer` : `${n.id}: "${c}" has ${count} words; keep clauses to ${max} or fewer`, about: [n.id] })
       }
       if (/\bif\b/i.test(c)) {
         out.push({ severity: "error", code: "conditional", message: `${n.id}: "${c}" contains "if"; make one scenario per case instead`, about: [n.id] })
@@ -76,3 +79,31 @@ export const journeyShape: Lint = (ctx) =>
         .filter((o) => o.id !== n.id && normalize(journeyName(o)) === normalize(journeyName(n)))
         .map((o) => ({ severity: "error" as const, code: "duplicate-journey", message: `${n.id} has the name of ${o.id} ("${journeyName(o)}"); use ${o.id}`, about: [n.id, o.id] })),
     )
+
+/** An intent's title: at most 10 words. */
+export const intentShape: Lint = (ctx) =>
+  touched(ctx)
+    .filter((n) => n.type === INTENT)
+    .flatMap((n): ReadonlyArray<Finding> => {
+      const count = words(String(n.props.title ?? ""))
+      return count > 10 ? [{ severity: "error", code: "intent-title-long", message: `${n.id}: its title has ${count} words; keep it to 10 or fewer`, about: [n.id] }] : []
+    })
+
+/** Every statement belongs to exactly one intent: the touched statements, and those a touched intent claims or let go. */
+export const statementOwner: Lint = (ctx) => {
+  const t = touched(ctx)
+  const hasTargets = (s: Snapshot.Snapshot, id: string) => (s.nodes.get(id)?.edges ?? []).filter((e) => e.type === HAS).map((e) => e.to)
+  const ids = new Set([
+    ...t.filter(isStatement).map((n) => n.id),
+    ...t.filter((n) => n.type === INTENT).flatMap((n) => [...hasTargets(ctx.before, n.id), ...hasTargets(ctx.after, n.id)]),
+  ])
+  return [...ids].flatMap((id): ReadonlyArray<Finding> => {
+    const n = ctx.after.nodes.get(id)
+    if (n === undefined || !isStatement(n)) return []
+    const owners = Snapshot.inbound(ctx.after, id, HAS).map((e) => e.from).sort()
+    if (owners.length === 1) return []
+    return [{ severity: "error", code: "statement-owner", message: owners.length === 0 ? `${id} belongs to no intent` : `${id} belongs to ${owners.join(", ")}; a statement belongs to exactly one intent`, about: [id, ...owners] }]
+  })
+}
+
+export const LINTS: ReadonlyArray<Lint> = [clauseShape, stateText, personaShape, journeyShape, intentShape, statementOwner]

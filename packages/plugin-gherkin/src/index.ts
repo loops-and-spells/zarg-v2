@@ -8,7 +8,7 @@ import { agenda, suggest } from "./agenda"
 import { CompareParams, CompareResult, DryRunParams, DryRunResult, Gherkin, JourneyView, PersonaView, SceneParams, SceneView, StoriesParams, StoriesResult } from "./contract"
 import { applyDraft, type Draft, dryRun } from "./draft"
 import type { Finding } from "./kit"
-import { clauseShape, journeyShape, personaShape, stateText } from "./lints"
+import { LINTS } from "./lints"
 import { BY, CONSTRAINT, INTENT, IntentProps, JOURNEY, JourneyProps, OUTCOME, PERSONA, PersonaProps, personaName, personas, QUESTION, QuestionProps, SCENARIO, ScenarioProps, STATE, StatementProps, StateProps } from "./model"
 import { journeyList, journeysView } from "./journeys"
 import { JourneysView } from "./views"
@@ -142,7 +142,7 @@ export default definePlugin({
       lint: ({ before, after }: { before: { nodes: ReadonlyArray<unknown> }; after: { nodes: ReadonlyArray<unknown> } }) =>
         Effect.sync(() => {
           const ctx = { before: snapshotOf(before), after: snapshotOf(after), diff: diff(snapshotOf(before), snapshotOf(after)) }
-          return { findings: [clauseShape, stateText, personaShape, journeyShape].flatMap((l) => l(ctx)) }
+          return { findings: LINTS.flatMap((l) => l(ctx)) }
         }),
       agenda: () => Effect.map(snap, agenda),
       suggest: () => Effect.map(snap, suggest),
@@ -150,12 +150,12 @@ export default definePlugin({
       stories: ({ strategy, focus, draft }: { strategy: "journey" | "edge-pair" | "teleport"; focus?: ReadonlyArray<string>; draft?: Draft }) =>
         Effect.map(drafted(draft), (s) => planStories(s, strategy, focus === undefined || focus.length === 0 ? undefined : new Set(focus))),
       scene: ({ scenario, via, draft }: { scenario: string; via?: string; draft?: Draft }) => Effect.map(drafted(draft), (s) => sceneView(s, scenario, via) ?? null),
-      dryRun: ({ draft }: { draft: Draft }) => Effect.flatMap(snap, (s) => dryRun(s, draft, tools, (c) => validateProps(c), [clauseShape, stateText, personaShape, journeyShape], EDGES)),
+      dryRun: ({ draft }: { draft: Draft }) => Effect.flatMap(snap, (s) => dryRun(s, draft, tools, (c) => validateProps(c), LINTS, EDGES)),
       // The graph read once, the draft applied once: a plan's whole picture in one call.
       compare: ({ draft, scenarios }: { draft: Draft; scenarios?: ReadonlyArray<string> }) =>
         Effect.gen(function* () {
           const s = yield* snap
-          const checked = yield* dryRun(s, draft, tools, (c) => validateProps(c), [clauseShape, stateText, personaShape, journeyShape], EDGES)
+          const checked = yield* dryRun(s, draft, tools, (c) => validateProps(c), LINTS, EDGES)
           const after = yield* applyDraft(s, draft, tools, EDGES).pipe(Effect.map((a) => a.snapshot), Effect.orElseSucceed(() => s))
           const ids = [...new Set([...(scenarios ?? []), ...checked.scenarios])].filter((id) => s.nodes.get(id)?.type === "gherkin/scenario" || after.nodes.get(id)?.type === "gherkin/scenario")
           return { ok: checked.ok, problems: checked.problems, scenarios: ids.map((id) => ({ id, before: sceneView(s, id) ?? null, after: sceneView(after, id) ?? null, text: s.nodes.has(id) ? render(s, new Set([id])) : "" })) }

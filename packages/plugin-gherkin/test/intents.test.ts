@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 import { GraphStore } from "@zarg/graph"
+import { diff, Snapshot } from "@zarg/graph/pure"
+import { statementOwner } from "../src/lints"
 import { PluginHost } from "@zarg/plugin/server"
 import { call, run } from "./harness"
 
@@ -98,5 +100,35 @@ describe("intent tools", () => {
       }),
     )
     expect(got).toEqual({ refused: "I-0001 has statements O-0001; remove them first", removed: "removed O-0001", gone: true, intent: [], journey: [], last: "removed I-0001" })
+  })
+})
+
+describe("intent lints", () => {
+  test("a statement of 21 words, or with if, is refused; 20 words pass; a long intent title is refused", async () => {
+    const got = await run(
+      Effect.gen(function* () {
+        yield* call("add-intent", { title: "Plans for visitors" })
+        const twenty = Array.from({ length: 20 }, (_, i) => `w${i}`).join(" ")
+        const ok = (yield* call("add-outcome", { intent: "I-0001", text: twenty })).message
+        const long = said(yield* Effect.flip(call("add-outcome", { intent: "I-0001", text: `${twenty} more` })))
+        const cond = said(yield* Effect.flip(call("add-constraint", { intent: "I-0001", text: "fees show if the visitor asks" })))
+        const title = said(yield* Effect.flip(call("add-intent", { title: "one two three four five six seven eight nine ten eleven" })))
+        return { ok, long, cond, title }
+      }),
+    )
+    expect(got.ok).toBe("created O-0001 in I-0001")
+    expect(got.long).toContain("has 21 words; keep it to 20 or fewer")
+    expect(got.cond).toContain('contains "if"')
+    expect(got.title).toContain("I-0002: its title has 11 words; keep it to 10 or fewer")
+  })
+
+  test("statementOwner: a statement two intents claim, or none, is an error", () => {
+    const intent = (id: string, has: ReadonlyArray<string>) => ({ id, type: "gherkin/intent", props: { title: id, status: "draft" }, edges: has.map((to) => ({ type: "gherkin/has", to })) })
+    const outcome = (id: string) => ({ id, type: "gherkin/outcome", props: { text: id }, edges: [] })
+    const before = Snapshot.make([intent("I-1", ["O-1"]), intent("I-2", []), outcome("O-1")] as never)
+    const lint = (after: Snapshot.Snapshot) => statementOwner({ before, after, diff: diff(before, after) }).map((f) => f.message)
+    expect(lint(Snapshot.make([intent("I-1", ["O-1"]), intent("I-2", ["O-1"]), outcome("O-1")] as never))).toEqual(["O-1 belongs to I-1, I-2; a statement belongs to exactly one intent"])
+    expect(lint(Snapshot.make([intent("I-1", []), intent("I-2", []), outcome("O-1")] as never))).toEqual(["O-1 belongs to no intent"])
+    expect(lint(before)).toEqual([])
   })
 })
