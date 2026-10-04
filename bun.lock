@@ -195,6 +195,15 @@
     "packages/evidence-capture": {
       "name": "@zarg/evidence-capture",
     },
+    "packages/evidence-capture-xterm": {
+      "name": "@zarg/evidence-capture-xterm",
+      "dependencies": {
+        "@zarg/evidence-capture": "workspace:*",
+      },
+      "devDependencies": {
+        "@xterm/headless": "^6",
+      },
+    },
     "packages/fold": {
       "name": "@zarg/fold",
     },
@@ -504,6 +513,8 @@
     "@zarg/entities": ["@zarg/entities@workspace:packages/entities"],
 
     "@zarg/evidence-capture": ["@zarg/evidence-capture@workspace:packages/evidence-capture"],
+
+    "@zarg/evidence-capture-xterm": ["@zarg/evidence-capture-xterm@workspace:packages/evidence-capture-xterm"],
 
     "@zarg/fold": ["@zarg/fold@workspace:packages/fold"],
 

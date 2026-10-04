@@ -1,0 +1,14 @@
+{
+  "name": "@zarg/evidence-capture-xterm",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@zarg/evidence-capture": "workspace:*"
+  },
+  "devDependencies": {
+    "@xterm/headless": "^6"
+  }
+}
