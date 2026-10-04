@@ -350,4 +350,24 @@ describe("zarg audit, the one CI check", () => {
     expect(readFileSync(junit, "utf8").startsWith("<?xml")).toBe(true)
     rmSync(r, { recursive: true, force: true })
   })
+
+  // @scenario S-0113
+  test("--strict: a built scenario with no proof fails the audit; a planned one never counts", () => {
+    const r = repo()
+    const call = (tool: string, params: unknown) => expect(zargIn(r, "tool", "call", `gherkin/${tool}`, JSON.stringify(params)).code).toBe(0)
+    call("add-persona", { name: "User", kind: "human", text: "Someone using the product." })
+    call("add-journey", { name: "Buy" })
+    call("add-scenario", { title: "User opens pricing", when: "the user clicks Pricing", by: [{ name: "User" }], arrives: { text: "the home page is shown" }, then: [{ text: "the plans are shown" }] })
+    call("add-scenario", { title: "User pays", when: "the user pays", by: [{ name: "User" }], arrives: { text: "the plans are shown" }, then: [{ text: "the receipt is shown" }] })
+    for (const id of ["S-0001", "S-0002"]) call("link", { scenario: id, edge: "in", journey: { name: "Buy" } })
+    call("edit-scenario", { id: "S-0002", planned: true })
+    require("node:fs").writeFileSync(join(r, "pricing.ts"), `export const open = () => 1 // ${"@" + "scenario"} S-0001\n`)
+    // Unproven is a warning by default, a problem under --strict.
+    expect(zargIn(r, "audit", "--summary").code).toBe(0)
+    const strict = zargIn(r, "audit", "--summary", "--strict")
+    expect(strict.code).toBe(1)
+    expect(strict.out).toContain("S-0001 unproven")
+    expect(strict.out).not.toContain("S-0002 unproven")
+    rmSync(r, { recursive: true, force: true })
+  }, 60_000)
 })

@@ -128,7 +128,7 @@ const checkpoint = Command.make("checkpoint", {}, () =>
 const gitOut = (...args: Array<string>) => Bun.spawnSync(["git", ...args], { cwd: root })
 
 /** The whole audit: what only the plugin host knows (lints, the agenda) with the graph, the tags and the evidence. */
-const fullReport = (loaded: { readonly snapshot: Snapshot.Snapshot; readonly problems: ReadonlyArray<{ readonly file: string; readonly message: string }> }, found: ReadonlyArray<Tag>) =>
+const fullReport = (loaded: { readonly snapshot: Snapshot.Snapshot; readonly problems: ReadonlyArray<{ readonly file: string; readonly message: string }> }, found: ReadonlyArray<Tag>, strict = false) =>
   Effect.gen(function* () {
     const findings = yield* PluginHost.use((h) => h.lint)
     const agenda = yield* PluginHost.use((h) => h.agenda())
@@ -143,6 +143,7 @@ const fullReport = (loaded: { readonly snapshot: Snapshot.Snapshot; readonly pro
       agenda,
       changedSince: (scenario, evidence) => codeChanged(root, found.filter((t) => t.id === scenario).map((t) => t.file), evidence),
       hasCommit: (sha) => gitOut("cat-file", "-e", `${sha}^{commit}`).exitCode === 0,
+      strict,
     })
   })
 
@@ -155,6 +156,7 @@ const auditCmd = Command.make(
     json: Flag.Boolean("json").pipe(Flag.withDefault(false), Flag.withDescription("the whole report as JSON (the default)")),
     junit: Flag.String("junit").pipe(Flag.optional, Flag.withDescription("also write one JUnit test case per scenario to this file")),
     scenario: Flag.String("scenario").pipe(Flag.optional, Flag.withDescription("one scenario's status and tags")),
+    strict: Flag.Boolean("strict").pipe(Flag.withDefault(false), Flag.withDescription("completeness, coverage and proof are problems too (planned scenarios never count)")),
   },
   (o) =>
     Effect.gen(function* () {
@@ -171,7 +173,7 @@ const auditCmd = Command.make(
           })
         return
       }
-      const report = yield* fullReport(loaded, found)
+      const report = yield* fullReport(loaded, found, o.strict)
       const junit = o.junit
       if (Option.isSome(junit)) yield* Effect.sync(() => writeFileSync(junit.value, toJunit(report)))
       yield* print(o.summary && !o.json ? fullSummary(report) : report)
