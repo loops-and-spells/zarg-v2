@@ -1,9 +1,11 @@
 import { afterAll, describe, test } from "bun:test"
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { EVIDENCE_DIR, type Evidence, type Media } from "@zarg/audit/evidence"
+import { tags, type Tag } from "@zarg/audit"
+import { codeOf, EVIDENCE_DIR, type Evidence, type Media } from "@zarg/audit/evidence"
 import { scenarioVersion } from "@zarg/audit/version"
 import { Snapshot } from "@zarg/graph/pure"
+import { Effect } from "effect"
 import { type Term, zarg } from "./term"
 import { cli, type Ran, REPO, type World, world } from "./world"
 
@@ -23,8 +25,8 @@ export type Proves = (scenario: string, fn: (s: Step) => Promise<void>, opts?: {
 export const evidenceRoot = () => process.env.E2E_EVIDENCE_ROOT ?? REPO
 /** Where evidence is written: E2E_EVIDENCE_OUT (a check that leaves the tree alone, like pre-push), else the repo. */
 export const evidenceOut = () => process.env.E2E_EVIDENCE_OUT ?? evidenceRoot()
-/** One id per run of the suite (one process). */
-const RUN = `e2e-${new Date().toISOString().replace(/:/g, "-")}`
+/** One id per run of the suite: E2E_RUN from the runner, which starts a process per journey; else this process's own. */
+export const RUN = process.env.E2E_RUN ?? `e2e-${new Date().toISOString().replace(/:/g, "-")}`
 
 const graphOf = (root: string) => {
   const dir = join(root, ".zarg", "graph", "nodes")
@@ -32,8 +34,9 @@ const graphOf = (root: string) => {
     ? readdirSync(dir).flatMap((f) => {
         try {
           return [JSON.parse(readFileSync(join(dir, f), "utf8"))]
-        } catch {
-          return []
+        } catch (e) {
+          // A journey walked over a damaged graph proves nothing: name the file.
+          throw new Error(`.zarg/graph/nodes/${f} could not be read: ${e instanceof Error ? e.message : String(e)}`)
         }
       })
     : []
@@ -55,11 +58,20 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
     let w: World | undefined
     let term: Term | undefined
     let failed = false
+    let disposed = false
+    // A failed journey keeps its world to look into, unless E2E_KEEP_FAILED=0 (the harness tests).
+    const dispose = (keep: boolean) => {
+      if (disposed || w === undefined) return
+      disposed = true
+      w.dispose(keep && process.env.E2E_KEEP_FAILED !== "0")
+    }
+    // A step that ends the process (a crash, an exit) has failed: its world goes the same way.
+    process.on("exit", () => dispose(true))
     afterAll(async () => {
       if (term !== undefined) await term.exit().catch(() => undefined)
-      // A failed journey keeps its world to look into, unless E2E_KEEP_FAILED=0 (the harness tests).
-      w?.dispose(failed && process.env.E2E_KEEP_FAILED !== "0")
+      dispose(failed)
     })
+    let tagged: Promise<ReadonlyArray<Tag>> | undefined
     const proves: Proves = (scenario, fn, o = {}) => {
       const node = graph.nodes.get(scenario)
       if (node?.type !== "gherkin/scenario" || !node.edges.some((e) => e.type === "gherkin/in" && e.to === id)) throw new Error(`${scenario} is not a scenario of ${id}`)
@@ -72,6 +84,9 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
           const mediaDir = join(evidenceDir, "media", scenario)
           const started = performance.now()
           const deadline = started + timeout
+          // Staging left by a run that was killed mid-step.
+          if (existsSync(join(evidenceDir, "media")))
+            for (const d of readdirSync(join(evidenceDir, "media"))) if (d.startsWith(`.${scenario}.`)) rmSync(join(evidenceDir, "media", d), { recursive: true, force: true })
           let media: Array<Media> = []
           let staging = ""
           let lastNote = ""
@@ -154,6 +169,7 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
             ms: Math.round(performance.now() - started),
             media,
             failure: passed ? null : { expected: error instanceof Error ? error.message : String(error), saw: term?.screen() ?? lastNote },
+            code: codeOf(root, (await (tagged ??= Effect.runPromise(tags(root)))).filter((t) => t.id === scenario).map((t) => t.file)),
           }
           writeAtomic(join(evidenceDir, `${scenario}.json`), `${JSON.stringify(evidence, null, 2)}\n`)
           if (!passed) throw error

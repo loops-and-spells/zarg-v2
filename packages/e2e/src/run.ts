@@ -15,10 +15,12 @@ export const run = async (opts: { readonly tier: "fast" | "full"; readonly only?
   for (const f of files) if (!existsSync(join(JOURNEYS, f))) throw new Error(`no journey ${f.replace(".test.ts", "")} (journeys/${f})`)
   // The fast tier has no model turns: it never needs the router.
   if (opts.tier === "full") await preflight(opts.url, MODELS)
+  // One run id for the whole suite, though each journey is its own process.
+  const runId = `e2e-${new Date().toISOString().replace(/:/g, "-")}`
   const results = files.map((f) => {
     const id = f.replace(".test.ts", "")
-    const p = Bun.spawnSync([process.execPath, "test", join(JOURNEYS, f)], { cwd: REPO, env: { ...process.env, E2E_TIER: opts.tier, E2E_ZARG_ROUTER_URL: opts.url }, stdout: "inherit", stderr: "inherit" })
-    const flaky = readEvidence(process.env.E2E_EVIDENCE_OUT ?? REPO).filter((e) => e.evidence?.journey === id && e.evidence.flaky).length
+    const p = Bun.spawnSync([process.execPath, "test", join(JOURNEYS, f)], { cwd: REPO, env: { ...process.env, E2E_TIER: opts.tier, E2E_ZARG_ROUTER_URL: opts.url, E2E_RUN: runId }, stdout: "inherit", stderr: "inherit" })
+    const flaky = readEvidence(process.env.E2E_EVIDENCE_OUT ?? REPO).filter((e) => e.evidence?.journey === id && e.evidence.run === runId && e.evidence.flaky).length
     return { id, passed: p.exitCode === 0, flaky }
   })
   for (const r of results) console.log(`${r.passed ? "✓" : "✗"} ${r.id}${r.flaky > 0 ? ` (${r.flaky} flaky)` : ""}`)

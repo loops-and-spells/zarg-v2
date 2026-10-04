@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -91,4 +91,30 @@ test("E2E_EVIDENCE_OUT: the graph is read from the root, the evidence goes elsew
   runJourney(root, `journey("J-0001", { tier: "fast" }, (proves) => { proves("S-0001", async () => {}) })`, { E2E_EVIDENCE_OUT: out })
   expect(() => evidence(root, "S-0001")).toThrow()
   expect(evidence(out, "S-0001")).toMatchObject({ passed: true })
+}, 60_000)
+
+test("evidence records the run it belongs to (E2E_RUN, one per suite run) and the content of the scenario's tagged code", () => {
+  const root = repo()
+  writeFileSync(join(root, "a.ts"), `export const a = 1 // ${"@" + "scenario"} S-0001\n`)
+  runJourney(root, `journey("J-0001", { tier: "fast" }, (proves) => { proves("S-0001", async () => {}) })`, { E2E_RUN: "e2e-suite-1" })
+  const e = evidence(root, "S-0001")
+  expect(e.run).toBe("e2e-suite-1")
+  expect(Object.keys(e.code)).toEqual(["a.ts"])
+}, 60_000)
+
+test("a broken node file is named, never passed off as a missing scenario", () => {
+  const root = repo()
+  writeFileSync(join(root, ".zarg", "graph", "nodes", "S-0009.json"), "{ not json")
+  const r = runJourney(root, `journey("J-0001", { tier: "fast" }, (proves) => { proves("S-0001", async () => {}) })`)
+  expect(r.stderr.toString()).toContain("S-0009.json could not be read")
+}, 60_000)
+
+test("a run killed mid-step leaves no staging media behind for the next run, and removes its world (E2E_KEEP_FAILED=0)", () => {
+  const root = repo()
+  runJourney(root, `journey("J-0001", { tier: "fast" }, (proves) => { proves("S-0001", async (s) => { console.error("world:" + s.w.project); s.note("log", "b", "from B"); process.exit(1) }) })`)
+  runJourney(root, `journey("J-0001", { tier: "fast" }, (proves) => { proves("S-0001", async () => {}) })`)
+  expect(readdirSync(join(root, ".zarg", "evidence", "media")).filter((d) => d.startsWith("."))).toEqual([])
+  const r = runJourney(root, `journey("J-0001", { tier: "fast" }, (proves) => { proves("S-0001", async (s) => { console.error("world:" + s.w.project); process.exit(1) }) })`)
+  const project = /world:(\S+)/.exec(r.stderr.toString())![1]!
+  expect(existsSync(project)).toBe(false)
 }, 60_000)

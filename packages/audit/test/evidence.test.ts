@@ -62,3 +62,31 @@ test("changedSince (real git): a committed change, a rename, an uncommitted edit
   expect(changedSince(root, ["b.ts"], c2)).toBe(true)
   expect(changedSince(root, ["a.ts"], "deadbee")).toBe(false)
 })
+
+import { codeChanged, codeOf } from "../src/evidence"
+test("code by content: the tagged files' hashes at the run; an edit, a new or a gone file changes it; no commit is needed (squash, rebase, shallow clones)", () => {
+  const root = mkdtempSync(join(tmpdir(), "zt-code-"))
+  Bun.spawnSync(["git", "init", "-q"], { cwd: root })
+  writeFileSync(join(root, "a.ts"), "x\n")
+  const code = codeOf(root, ["a.ts"])
+  expect(Object.keys(code)).toEqual(["a.ts"])
+  expect(code["a.ts"]).toMatch(/^[0-9a-f]{40}$/)
+  const e = ev({ commit: "gone123", code })
+  expect(codeChanged(root, ["a.ts"], e)).toBe(false)
+  writeFileSync(join(root, "b.ts"), "y\n")
+  expect(codeChanged(root, ["a.ts", "b.ts"], e)).toBe(true)
+  expect(codeChanged(root, [], e)).toBe(true)
+  writeFileSync(join(root, "a.ts"), "z\n")
+  expect(codeChanged(root, ["a.ts"], e)).toBe(true)
+  // With code recorded, a commit this clone lacks is no integrity problem.
+  mkdirSync(join(root, ".zarg", "evidence"), { recursive: true })
+  writeFileSync(join(root, ".zarg", "evidence", "S-0001.json"), JSON.stringify(e))
+  expect(integrity(root, readEvidence(root), new Set(["S-0001"]), () => false)).toEqual([])
+})
+
+test("an evidence file named for another scenario is bad evidence", () => {
+  const root = mkdtempSync(join(tmpdir(), "zt-ev-name-"))
+  mkdirSync(join(root, ".zarg", "evidence"), { recursive: true })
+  writeFileSync(join(root, ".zarg", "evidence", "S-0001.json"), JSON.stringify(ev({ scenario: "S-0002" })))
+  expect(integrity(root, readEvidence(root), new Set(["S-0001", "S-0002"]), () => true).map((f) => f.kind)).toEqual(["bad-evidence"])
+})

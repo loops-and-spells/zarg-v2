@@ -72,6 +72,7 @@ export const spawnPlugin = (opts: {
     const start = () =>
       new Promise<void>((resolve, reject) => {
         const gen = ++generation
+        let proc: ReturnType<typeof Bun.spawn> | undefined
         const loadTimer = setTimeout(() => {
           reject(new PluginLoadError({ name: opts.name, message: `${opts.name} did not load within ${opts.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS} ms` }))
           if (gen === generation) {
@@ -79,54 +80,67 @@ export const spawnPlugin = (opts: {
             child = undefined
             ready = undefined
           }
-          proc.kill()
+          proc?.kill()
         }, opts.loadTimeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS)
-        const proc = Bun.spawn([process.execPath, RUNNER], {
-          env: {},
-          cwd,
-          stdio: ["ignore", "ignore", "ignore"],
-          ipc: (m: FromPlugin) => {
-            if (m.type === "ready") sendTo(proc, { type: "load", bundle: opts.bundle })
-            else if (m.type === "loaded") {
-              clearTimeout(loadTimer)
-              identity = m.identity ?? {}
-              resolve()
-            } else if (m.type === "load-failed") {
-              clearTimeout(loadTimer)
-              reject(new PluginLoadError({ name: opts.name, message: m.message }))
-            } else if (m.type === "power") {
-              const reply = (r: ToPlugin) => void sendTo(proc, r)
-              if (!isPower(opts.powers, String(m.power))) {
-                reply({ type: "power-reply", id: m.id, ok: false, error: { tag: "NotGranted", message: `"${String(m.power).slice(0, 60)}" is not a power ${opts.name} was given` } })
-                return
-              }
-              opts.powers[m.power]!(m.args).then(
-                (value) => reply({ type: "power-reply", id: m.id, ok: true, value }),
-                (e) => reply({ type: "power-reply", id: m.id, ok: false, error: { tag: powerTag(e?.tag), message: String(e?.message ?? e) } }),
-              )
-            } else if (m.type === "chunk") waiters.get(m.id)?.onChunk?.(m.value)
-            else if (m.type === "end") {
-              waiters.get(m.id)?.done({ ok: true, value: undefined })
-              waiters.delete(m.id)
-            } else if (m.type === "reply") {
-              const w = waiters.get(m.id)
-              waiters.delete(m.id)
-              w?.done(m.ok ? { ok: true, value: m.value } : { ok: false, error: m.error })
-            }
-          },
-          onExit: () => {
-            clearTimeout(loadTimer)
-            reject(new PluginLoadError({ name: opts.name, message: "plugin process exited while loading" }))
-            // Killed on purpose: kill() already reset the state and reported why.
-            if (gen !== generation) return
-            child = undefined
-            ready = undefined
-            failAll("PluginCrashed", `${opts.name}: plugin process exited`)
-            opts.onExit?.("crash")
-          },
-        })
+        // A process that cannot start (its directory gone, no processes left) fails this load, timer and all.
+        try {
+          proc = spawn(gen, loadTimer, resolve, reject)
+        } catch (e) {
+          clearTimeout(loadTimer)
+          if (gen === generation) ready = undefined
+          reject(new PluginLoadError({ name: opts.name, message: `${opts.name} could not start: ${e instanceof Error ? e.message : String(e)}` }))
+          return
+        }
         child = proc
       })
+
+    const spawn = (gen: number, loadTimer: ReturnType<typeof setTimeout>, resolve: () => void, reject: (e: unknown) => void) => {
+      const proc: ReturnType<typeof Bun.spawn> = Bun.spawn([process.execPath, RUNNER], {
+        env: {},
+        cwd,
+        stdio: ["ignore", "ignore", "ignore"],
+        ipc: (m: FromPlugin) => {
+          if (m.type === "ready") sendTo(proc, { type: "load", bundle: opts.bundle })
+          else if (m.type === "loaded") {
+            clearTimeout(loadTimer)
+            identity = m.identity ?? {}
+            resolve()
+          } else if (m.type === "load-failed") {
+            clearTimeout(loadTimer)
+            reject(new PluginLoadError({ name: opts.name, message: m.message }))
+          } else if (m.type === "power") {
+            const reply = (r: ToPlugin) => void sendTo(proc, r)
+            if (!isPower(opts.powers, String(m.power))) {
+              reply({ type: "power-reply", id: m.id, ok: false, error: { tag: "NotGranted", message: `"${String(m.power).slice(0, 60)}" is not a power ${opts.name} was given` } })
+              return
+            }
+            opts.powers[m.power]!(m.args).then(
+              (value) => reply({ type: "power-reply", id: m.id, ok: true, value }),
+              (e) => reply({ type: "power-reply", id: m.id, ok: false, error: { tag: powerTag(e?.tag), message: String(e?.message ?? e) } }),
+            )
+          } else if (m.type === "chunk") waiters.get(m.id)?.onChunk?.(m.value)
+          else if (m.type === "end") {
+            waiters.get(m.id)?.done({ ok: true, value: undefined })
+            waiters.delete(m.id)
+          } else if (m.type === "reply") {
+            const w = waiters.get(m.id)
+            waiters.delete(m.id)
+            w?.done(m.ok ? { ok: true, value: m.value } : { ok: false, error: m.error })
+          }
+        },
+        onExit: () => {
+          clearTimeout(loadTimer)
+          reject(new PluginLoadError({ name: opts.name, message: "plugin process exited while loading" }))
+          // Killed on purpose: kill() already reset the state and reported why.
+          if (gen !== generation) return
+          child = undefined
+          ready = undefined
+          failAll("PluginCrashed", `${opts.name}: plugin process exited`)
+          opts.onExit?.("crash")
+        },
+      })
+      return proc
+    }
 
     const ensure = Effect.tryPromise({
       try: () => (ready ??= start()),
@@ -163,10 +177,12 @@ export const spawnPlugin = (opts: {
         return yield* Effect.fail(new PluginCallError({ _tag: "Deadline", message: `${opts.name}.${method}: no answer within ${deadlineMs} ms` }))
       })
 
+    // The deadline counts the call, not a restart before it: loading has its own timeout.
     const call = (method: string, params: unknown, deadlineMs = opts.deadlineMs ?? DEFAULT_DEADLINE_MS) =>
-      Effect.raceFirst(
+      Effect.andThen(
+        ensure.pipe(Effect.mapError((e) => crashed(e.message))),
+        Effect.raceFirst(
         Effect.gen(function* () {
-          yield* ensure.pipe(Effect.mapError((e) => crashed(e.message)))
           const id = ++nextId
           const done = yield* Deferred.make<unknown, PluginCallError>()
           waiters.set(id, { done: (r) => Deferred.doneUnsafe(done, r.ok ? Effect.succeed(r.value) : Effect.fail(toError(r.error))) })
@@ -177,6 +193,7 @@ export const spawnPlugin = (opts: {
           return yield* Deferred.await(done)
         }),
         deadline(method, deadlineMs),
+        ),
       )
 
     const stream = (method: string, params: unknown) =>

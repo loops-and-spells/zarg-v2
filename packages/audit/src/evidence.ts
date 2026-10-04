@@ -15,6 +15,8 @@ export type Evidence = {
   readonly ms: number
   readonly media: ReadonlyArray<Media>
   readonly failure: { readonly expected: string; readonly saw: string } | null
+  /** The scenario's tagged files at the run, by content (git blob hashes): staleness that survives squash, rebase and shallow clones. */
+  readonly code?: Readonly<Record<string, string>>
 }
 export type Proof = "proven" | "failing" | "stale" | "unproven"
 export const EVIDENCE_DIR = ".zarg/evidence"
@@ -56,12 +58,14 @@ export const integrity = (root: string, entries: ReadonlyArray<Entry>, scenarios
   entries.flatMap((x): ReadonlyArray<Integrity> => {
     if (x.evidence === undefined) return [{ kind: "bad-evidence", file: x.file, detail: x.error ?? "unreadable" }]
     const e = x.evidence
+    if (x.file !== `${e.scenario}.json`) return [{ kind: "bad-evidence", file: x.file, detail: `holds ${e.scenario}'s evidence` }]
     if (!scenarios.has(e.scenario)) return [{ kind: "orphan-evidence", file: x.file, detail: `${e.scenario} is not in the graph` }]
     return [
       ...e.media
         .filter((m) => (commitBinary || !BINARY.has(m.kind)) && !existsSync(join(root, EVIDENCE_DIR, m.path)))
         .map((m): Integrity => ({ kind: "missing-media", file: x.file, detail: `${m.kind} ${m.path}` })),
-      ...(hasCommit(e.commit) ? [] : [{ kind: "unknown-commit" as const, file: x.file, detail: `commit ${e.commit} is not in this repository` }]),
+      // Evidence with its code by content does not need its commit (a squash or a shallow clone loses it).
+      ...(e.code !== undefined || hasCommit(e.commit) ? [] : [{ kind: "unknown-commit" as const, file: x.file, detail: `commit ${e.commit} is not in this repository` }]),
     ]
   })
 
@@ -73,4 +77,20 @@ export const changedSince = (root: string, files: ReadonlyArray<string>, commit:
   const later = git("log", "-1", "--format=%H", `${commit}..HEAD`, "--", ...files)
   if (later.exitCode === 0 && later.stdout.toString().trim() !== "") return true
   return git("diff", "--quiet", "HEAD", "--", ...files).exitCode === 1
+}
+
+/** `files` by content (git blob hashes of the working tree). */
+export const codeOf = (root: string, files: ReadonlyArray<string>): Readonly<Record<string, string>> => {
+  const sorted = [...new Set(files)].sort()
+  if (sorted.length === 0) return {}
+  const hashes = Bun.spawnSync(["git", "hash-object", "--", ...sorted], { cwd: root }).stdout.toString().trim().split("\n")
+  return Object.fromEntries(sorted.map((f, i) => [f, hashes[i] ?? ""]))
+}
+
+/** The scenario's tagged code is not what the evidence ran: by content when the evidence recorded it, else by commits since. */
+export const codeChanged = (root: string, files: ReadonlyArray<string>, e: Evidence): boolean => {
+  if (e.code === undefined) return changedSince(root, files, e.commit)
+  const now = codeOf(root, files)
+  const then = e.code
+  return Object.keys(now).length !== Object.keys(then).length || Object.entries(now).some(([f, h]) => then[f] !== h)
 }

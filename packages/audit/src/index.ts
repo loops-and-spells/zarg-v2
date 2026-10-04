@@ -105,8 +105,8 @@ export type FullInput = {
   /** The whole graph's lint findings. */
   readonly findings: ReadonlyArray<{ readonly severity: string; readonly code: string; readonly message: string; readonly about: ReadonlyArray<string> }>
   readonly agenda: ReadonlyArray<{ readonly id: string; readonly title: string; readonly about: ReadonlyArray<string> }>
-  /** True when a scenario's tagged code has a commit after `commit`. */
-  readonly changedSince: (scenario: string, commit: string) => boolean
+  /** True when a scenario's tagged code is not what its evidence ran. */
+  readonly changedSince: (scenario: string, evidence: Evidence) => boolean
   readonly hasCommit: (sha: string) => boolean
   /** Binary media is committed (`[e2e] media = "commit"`). */
   readonly commitBinary?: boolean
@@ -127,7 +127,7 @@ export const fullAudit = (i: FullInput): Full => {
   const byScenario = new Map(entries.flatMap((e) => (e.evidence === undefined ? [] : [[e.evidence.scenario, e.evidence] as const])))
   const proofs = report.scenarios.map((s): ProofRow => {
     const evidence = byScenario.get(s.id)
-    const proof = s.status === "planned" ? "planned" : proofOf(evidence, scenarioVersion(i.snap, s.id)!, evidence !== undefined && i.changedSince(s.id, evidence.commit))
+    const proof = s.status === "planned" ? "planned" : proofOf(evidence, scenarioVersion(i.snap, s.id)!, evidence !== undefined && i.changedSince(s.id, evidence))
     return { scenario: s.id, title: s.title, proof, ...(evidence === undefined ? {} : { evidence }) }
   })
   const soft: Level = i.strict === true ? "problem" : "warning"

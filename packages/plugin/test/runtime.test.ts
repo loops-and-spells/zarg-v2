@@ -36,6 +36,31 @@ describe("plugin process", () => {
     expect(exits).toContain("deadline")
   })
 
+  test("a deadline counts the call, not the restart before it: a plugin slower to load than the deadline still answers", async () => {
+    const r = await run(Effect.gen(function* () {
+      // Loading does a few hundred ms of busy work (SES has no clock); a call's deadline is 100 ms.
+      const slow = `for (let i = 0; i < 5e8; i++) {}\n${looping}`
+      const p = yield* spawnPlugin({ name: "loop", bundle: slow, powers: {}, deadlineMs: 100 })
+      yield* Effect.flip(p.call("spin", {}))
+      // The restart (a new process, lockdown, the bundle) takes longer than 100 ms; the call itself does not.
+      return yield* p.call("ok", {})
+    }))
+    expect(r).toBe("ok")
+  })
+
+  test("a process that cannot start fails its call, and its load timer never fires afterwards", async () => {
+    // Closing the scope removes the plugin's working directory, so the next start cannot spawn.
+    const p = await run(Effect.gen(function* () {
+      const p = yield* spawnPlugin({ name: "echo", bundle: echo, powers: {}, loadTimeoutMs: 1_000 })
+      yield* p.stop
+      return p
+    }))
+    const e = await Effect.runPromise(Effect.flip(p.call("echo", {})))
+    expect(e._tag).toBe("PluginCrashed")
+    // Past the load timeout: a timer left behind would throw here.
+    await Bun.sleep(1_300)
+  })
+
   test("a thrown error comes back as PluginError with its message", async () => {
     const e = await run(Effect.gen(function* () {
       const p = yield* spawnPlugin({ name: "crash", bundle: crashing, powers: {} })
