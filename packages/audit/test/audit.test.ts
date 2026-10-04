@@ -50,7 +50,7 @@ describe("the scenario audit", () => {
       ].join("\n"),
     )
   })
-  test("tags: tracked and untracked files; never ignored ones or docs/; tags built from parts are not tags", async () => {
+  test("tags: tracked and untracked files; never ignored ones, docs/ or evidence; tags built from parts are not tags", async () => {
     const root = mkdtempSync(join(tmpdir(), "zarg-audit-"))
     Bun.spawnSync(["git", "init", "-q"], { cwd: root })
     mkdirSync(join(root, "src"))
@@ -61,6 +61,9 @@ describe("the scenario audit", () => {
     writeFileSync(join(root, ".gitignore"), "ignored.ts\n")
     writeFileSync(join(root, "ignored.ts"), `// ${TAG} S-0003\n`)
     writeFileSync(join(root, "docs/plan.md"), `// ${TAG} S-0004\n`)
+    // Evidence quotes tags in its transcripts.
+    mkdirSync(join(root, ".zarg/evidence/media/S-0081"), { recursive: true })
+    writeFileSync(join(root, ".zarg/evidence/media/S-0081/note-1.txt"), `src/a.ts:1:x // ${TAG} S-0006\n`)
     writeFileSync(join(root, "src/test.ts"), 'const TAG = "@" + "scenario"\n')
     writeFileSync(join(root, "src/tab.ts"), `//\t${TAG}\tS-0005\n`)
     const found = await Effect.runPromise(tags(root))

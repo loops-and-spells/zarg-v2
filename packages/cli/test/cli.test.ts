@@ -42,7 +42,11 @@ describe("zarg cli", () => {
     require("node:fs").writeFileSync(join(dir, "pricing.ts"), `export const open = () => 1 // ${TAG} S-0001\n`)
     const mine = (JSON.parse(zarg("audit").out).problems as Array<{ scenario?: string }>).filter((p) => p.scenario === "S-0001")
     expect(mine).toEqual([])
+    // Evidence quotes tags in its transcripts; it is never code.
+    require("node:fs").mkdirSync(join(dir, ".zarg", "evidence"), { recursive: true })
+    require("node:fs").writeFileSync(join(dir, ".zarg", "evidence", "note.txt"), `pricing.ts:1:x // ${TAG} S-0001\n`)
     expect(json("query", "code", "S-0001")).toEqual([`pricing.ts:1:export const open = () => 1 // ${TAG} S-0001`])
+    require("node:fs").rmSync(join(dir, ".zarg", "evidence"), { recursive: true })
     expect(json("audit", "--scenario", "S-0001")).toMatchObject({ id: "S-0001", status: "built", tags: [{ file: "pricing.ts", line: 1 }] })
     require("node:fs").rmSync(join(dir, "pricing.ts"))
     // An unknown scenario: exit 1.

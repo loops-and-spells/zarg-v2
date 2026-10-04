@@ -1,3 +1,4 @@
+import { IGNORED } from "@zarg/audit"
 import { Effect, Schema } from "effect"
 import { IoError, Node, Snapshot } from "@zarg/graph"
 
@@ -32,7 +33,7 @@ export const snapshotAt = (root: string, ref: string) =>
 // @scenario S-0081 S-0082
 export const scenarioRefs = (root: string, id: string) =>
   // The id anywhere in a tag's list: `@scenario S-0081 S-0082` is a tag for both.
-  sh(root, ["grep", "-n", "--untracked", "-E", "-e", `@scenario([[:space:]]+[A-Z]+-[0-9]+)*[[:space:]]+${id}([^0-9]|$)`]).pipe(
+  sh(root, ["grep", "-n", "--untracked", "-E", "-e", `@scenario([[:space:]]+[A-Z]+-[0-9]+)*[[:space:]]+${id}([^0-9]|$)`, "--", ".", ...IGNORED.map((d) => `:!${d}`)]).pipe(
     Effect.map((out) => out.split("\n").filter((l) => l.length > 0)),
     // git grep exits 1 when nothing matches.
     Effect.catch(() => Effect.succeed([] as ReadonlyArray<string>)),
