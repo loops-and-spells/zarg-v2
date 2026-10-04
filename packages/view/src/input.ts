@@ -35,4 +35,6 @@ export const hintsOf = <U, W, A>(layers: ReadonlyArray<InputLayer<U, W, A>>, ui:
 }
 
 /** A key a text input takes as text: one character, space or Backspace, without Ctrl or Alt. */
+/** The character a printable key types: a space for Space, a capital for a letter with Shift. */
+export const typed = (key: InputKey & { readonly shift?: boolean }) => (key.name === "space" ? " " : key.shift === true && /^[a-z]$/.test(key.name) ? key.name.toUpperCase() : key.name)
 export const printable = (key: InputKey) => key.ctrl !== true && key.meta !== true && (key.name.length === 1 || key.name === "space" || key.name === "backspace")

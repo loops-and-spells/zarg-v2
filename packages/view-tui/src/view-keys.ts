@@ -1,4 +1,4 @@
-import { actionFor, boardKey, chooseKey, inputKey, pressAction, viewActions, afterAction, applyMenu, closeMenu, menuAdjust, menuEntries, menuMove, menuQuery, printable, setSearch, moveColumn, openMenu, type ConversationQuestion, conversationKey, focused, focusNext, leafOf, moveRow, nextTab, toggleAct, toggleSelect, type ViewState, type ViewUi } from "@zarg/view"
+import { typed, actionFor, boardKey, chooseKey, inputKey, pressAction, viewActions, afterAction, applyMenu, closeMenu, menuAdjust, menuEntries, menuMove, menuQuery, printable, setSearch, moveColumn, openMenu, type ConversationQuestion, conversationKey, focused, focusNext, leafOf, moveRow, nextTab, toggleAct, toggleSelect, type ViewState, type ViewUi } from "@zarg/view"
 
 /** A key in an open agent's view: focus, scroll a table's cursor, switch tabs, select, act. */
 export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: string; readonly shift?: boolean; readonly ctrl?: boolean; readonly meta?: boolean }): {
@@ -25,7 +25,7 @@ export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: stri
     const { searching: _, ...off } = ui
     if (key.name === "escape") return { ui: setSearch(view, off, path, "") }
     if (key.name === "return" || key.name === "down" || key.name === "up") return { ui: off }
-    if (printable(key)) return { ui: setSearch(view, ui, path, key.name === "backspace" ? q.slice(0, -1) : `${q}${key.name === "space" ? " " : key.name}`) }
+    if (printable(key)) return { ui: setSearch(view, ui, path, key.name === "backspace" ? q.slice(0, -1) : `${q}${typed(key)}`) }
     return { ui }
   }
   {
@@ -43,7 +43,7 @@ export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: stri
     if (key.name === "return" || (key.name === "space" && !search)) return { ui: applyMenu(view, ui) }
     if (search && printable(key)) {
       const q = ui.menu.query ?? ""
-      return { ui: menuQuery(view, ui, key.name === "backspace" ? q.slice(0, -1) : `${q}${key.name === "space" ? " " : key.name}`) }
+      return { ui: menuQuery(view, ui, key.name === "backspace" ? q.slice(0, -1) : `${q}${typed(key)}`) }
     }
     return { ui }
   }

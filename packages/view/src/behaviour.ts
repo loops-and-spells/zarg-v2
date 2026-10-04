@@ -2,7 +2,7 @@ import { rank } from "@zarg/bm25"
 import { keyFor } from "./keys"
 import { leafAt } from "./layout"
 import type { Action as ActionSchema, LayoutLeaf, LayoutSection } from "./schema"
-import { printable } from "./input"
+import { printable, typed } from "./input"
 import type { ViewState } from "./reducer"
 
 /** What the operator has done in a view: the focused section, each tabs section's tab, each table's cursor and selection. */
@@ -397,13 +397,13 @@ export const pickChoice = (ui: ViewUi, index: number): { readonly ui: ViewUi; re
 export const pasteText = (ui: ViewUi, text: string): ViewUi | undefined =>
   ui.input === undefined ? undefined : { ...ui, input: { ...ui.input, text: `${ui.input.text}${text.replace(/[\r\n]+/g, "")}` } }
 /** A key while an input is open: typing edits it, Enter acts with the text, Esc closes it; undefined when none is open. */
-export const inputKey = (ui: ViewUi, key: { readonly name: string; readonly ctrl?: boolean; readonly meta?: boolean }): { readonly ui: ViewUi; readonly act?: Act } | undefined => {
+export const inputKey = (ui: ViewUi, key: { readonly name: string; readonly shift?: boolean; readonly ctrl?: boolean; readonly meta?: boolean }): { readonly ui: ViewUi; readonly act?: Act } | undefined => {
   if (ui.input === undefined) return undefined
   const { input: i, ...off } = ui
   if (key.name === "escape") return { ui: off }
   if (key.name === "return") return { ui: off, act: { section: i.section, action: i.action, rows: i.rows, text: i.text } }
   if (printable({ name: key.name, ...(key.ctrl !== undefined ? { ctrl: key.ctrl } : {}), ...(key.meta !== undefined ? { meta: key.meta } : {}) }))
-    return { ui: { ...ui, input: { ...i, text: key.name === "backspace" ? i.text.slice(0, -1) : `${i.text}${key.name === "space" ? " " : key.name}` } } }
+    return { ui: { ...ui, input: { ...i, text: key.name === "backspace" ? i.text.slice(0, -1) : `${i.text}${typed(key)}` } } }
   return { ui }
 }
 

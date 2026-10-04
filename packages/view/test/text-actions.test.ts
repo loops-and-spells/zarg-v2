@@ -35,6 +35,12 @@ describe("actions that ask for a line of text", () => {
     expect(sent.ui.input).toBeUndefined()
     expect(sent.act).toEqual({ section: "list", action: "note", rows: ["a"], text: "was ok" })
   })
+  test("a capital typed with Shift stays a capital", () => {
+    let ui = pressAction(view(), initialViewUi, "list", "note", ["a"]).ui
+    for (let i = 0; i < 8; i++) ui = inputKey(ui, { name: "backspace" })!.ui
+    for (const k of [{ name: "o", shift: true }, { name: "k" }, { name: "?", shift: true }]) ui = inputKey(ui, k)!.ui
+    expect(ui.input?.text).toBe("Ok?")
+  })
   test("Esc closes the input and sends nothing", () => {
     const r = inputKey(pressAction(view(), initialViewUi, "list", "note", ["b"]).ui, { name: "escape" })!
     expect(r.ui.input).toBeUndefined()

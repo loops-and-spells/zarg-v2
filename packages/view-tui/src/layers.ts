@@ -1,7 +1,7 @@
 import { openTopics } from "@zarg/client"
 import { inboxKey } from "./inbox-keys"
 import type { SessionState } from "@zarg/client"
-import { closeMenu, dispatch, focused, type InputKey, type InputLayer, keyFor, type KeyHint, leafOf, printable, startUi, type ViewState, type ViewUi } from "@zarg/view"
+import { closeMenu, dispatch, focused, type InputKey, type InputLayer, keyFor, type KeyHint, leafOf, printable, startUi, typed, type ViewState, type ViewUi } from "@zarg/view"
 import { gridCards, gridCursor } from "./grid"
 import { SLASH_COMMANDS } from "./commands"
 import { paletteEntries } from "./palette"
@@ -222,7 +222,7 @@ export const SHELL: ReadonlyArray<Layer> = [
       if (k.name === "down") return { ui: { ...ui, palette: { ...p, pick: Math.max(0, Math.min(Math.min(entries.length, 10) - 1, pick + 1)) } } }
       if (k.name === "up") return { ui: { ...ui, palette: { ...p, pick: Math.max(0, pick - 1) } } }
       if (k.name === "backspace") return { ui: { ...ui, palette: { query: p.query.slice(0, -1), pick: 0 } } }
-      if (printable(k)) return { ui: { ...ui, palette: { query: p.query + (k.name === "space" ? " " : k.name), pick: 0 } } }
+      if (printable(k)) return { ui: { ...ui, palette: { query: p.query + typed(k), pick: 0 } } }
       if (k.name === "return") {
         const e = entries[pick]
         if (e === undefined) return { ui }
