@@ -141,6 +141,19 @@ describe("first-run setup", () => {
     expect(events.find((e) => e.event === "close")).toMatchObject({ plugin: "core", surface: "setup", id: "setup" })
   })
 
+  // @scenario S-0027
+  test("check and save right after a set (the operator is quick): the check waits for the save, so it sees the new key", async () => {
+    const w = world({ values: { [KEY]: "wrong-one", [URL]: "http://fake.invalid" } })
+    // Saving a secret takes a while (varlock encrypts it).
+    const set = w.secrets.set
+    w.secrets.set = (name: string, v: Redacted.Redacted<string>) => Effect.andThen(Effect.sleep("200 millis"), set(name, v))
+    const { s } = await setupIn(w)
+    await run(s.open())
+    await run(s.act("login", ["fake"], undefined))
+    const [, done] = await Promise.all([run(s.act("set", [KEY], "good")), run(s.act("done", [], undefined))])
+    expect(done.notice).toBe("fake: reachable, 1 model")
+  })
+
   // @scenario S-0084
   test("openIfNeeded: a client joining later sees setup while it is needed, and nothing once it is done", async () => {
     const fresh = await setupIn(world())

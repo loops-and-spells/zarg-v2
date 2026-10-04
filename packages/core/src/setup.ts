@@ -1,4 +1,4 @@
-import { Cause, Effect, Redacted } from "effect"
+import { Cause, Effect, Redacted, Semaphore } from "effect"
 import { defineView, type Layout, layoutOf, type Surface } from "@zarg/view"
 import { type Config, type Env, type Model, ModelError, type Provider, type Secrets } from "@zarg/model"
 
@@ -122,6 +122,8 @@ export const makeSetup = (d: SetupDeps) => {
     const r = yield* Effect.result(Effect.flatMap(d.model.client(provider), (c) => c.verify))
     return r._tag === "Failure"
   })
+  // One action at a time: a check pressed right after a save waits for the save (encrypting a secret takes a while).
+  const lock = Effect.runSync(Semaphore.make(1))
   const act = (action: string, rows: ReadonlyArray<string>, text: string | undefined): Effect.Effect<{ readonly notice: string }> =>
     Effect.gen(function* () {
       if (action === "open") {
@@ -172,7 +174,7 @@ export const makeSetup = (d: SetupDeps) => {
         return { notice: `default model: ${ref}` }
       }
       return { notice: `setup has no action ${action}` }
-    }).pipe(Effect.catch((e: unknown) => Effect.succeed({ notice: e instanceof ModelError ? why(e) : String((e as { message?: unknown })?.message ?? e) })))
+    }).pipe(Semaphore.withPermits(lock, 1), Effect.catch((e: unknown) => Effect.succeed({ notice: e instanceof ModelError ? why(e) : String((e as { message?: unknown })?.message ?? e) })))
   // @scenario S-0084
   /** Open only while setup is needed (a client joining a core that started earlier). */
   const openIfNeeded = Effect.flatMap(needed, (n) => (n ? open("providers") : Effect.void))
