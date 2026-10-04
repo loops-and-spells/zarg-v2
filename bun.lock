@@ -91,6 +91,7 @@
       "name": "@zarg/audit",
       "dependencies": {
         "@zarg/entities": "workspace:*",
+        "@zarg/evidence-capture": "workspace:*",
         "@zarg/graph": "workspace:*",
         "effect": "^4.0.0-rc.117",
       },
@@ -188,6 +189,9 @@
       "dependencies": {
         "effect": "^4.0.0-rc.117",
       },
+    },
+    "packages/evidence-capture": {
+      "name": "@zarg/evidence-capture",
     },
     "packages/fold": {
       "name": "@zarg/fold",
@@ -503,6 +507,8 @@
     "@zarg/e2e": ["@zarg/e2e@workspace:packages/e2e"],
 
     "@zarg/entities": ["@zarg/entities@workspace:packages/entities"],
+
+    "@zarg/evidence-capture": ["@zarg/evidence-capture@workspace:packages/evidence-capture"],
 
     "@zarg/fold": ["@zarg/fold@workspace:packages/fold"],
 

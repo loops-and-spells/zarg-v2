@@ -1,0 +1,5 @@
+[tasks.typecheck]
+run = "mise x -- bunx tsc"
+
+[tasks.test]
+run = "mise x -- bun test ./test"

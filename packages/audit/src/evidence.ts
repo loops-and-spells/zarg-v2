@@ -1,25 +1,14 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
-export type MediaKind = "buffer" | "cast" | "log" | "image" | "gif" | "video"
-export type Media = { readonly kind: MediaKind; readonly path: string; readonly caption: string; readonly mime?: string }
-export type Evidence = {
-  readonly scenario: string
-  readonly version: string
-  readonly commit: string
-  readonly run: string
-  readonly journey: string
-  readonly passed: boolean
-  readonly flaky: boolean
-  readonly at: string
-  readonly ms: number
-  readonly media: ReadonlyArray<Media>
-  readonly failure: { readonly expected: string; readonly saw: string } | null
-  /** The scenario's tagged files at the run, by content (git blob hashes): staleness that survives squash, rebase and shallow clones. */
-  readonly code?: Readonly<Record<string, string>>
-}
+import type { Evidence } from "@zarg/evidence-capture"
+import { EVIDENCE_DIR } from "@zarg/evidence-capture"
+
+export type { Evidence, Media } from "@zarg/evidence-capture"
+export { EVIDENCE_DIR } from "@zarg/evidence-capture"
+/** Any kind: a `<plugin>/<kind>` ref or an old alias. */
+export type MediaKind = string
 export type Proof = "proven" | "failing" | "stale" | "unproven"
-export const EVIDENCE_DIR = ".zarg/evidence"
 const ID = /^S-\d+$/
 const VERSION = /^[0-9a-f]{12}$/
 const BINARY: ReadonlySet<MediaKind> = new Set(["image", "gif", "video"])
