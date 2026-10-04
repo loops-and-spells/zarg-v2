@@ -79,7 +79,8 @@ export const viewKeys = (view: ViewState, ui: ViewUi, key: { readonly name: stri
     const flip = toggleAct(view, ui)
     return flip !== undefined ? { ui, act: flip } : { ui: toggleSelect(view, ui) }
   }
-  const a = actionFor(view, ui, key.name)
+  // A capital arrives as its letter with Shift: the action keyed with the capital.
+  const a = actionFor(view, ui, typed(key))
   if (a === undefined) return { ui }
   // One that asks for text opens its input first; one with choices drops them down.
   const pressed = pressAction(view, ui, a.section, a.action, a.rows)

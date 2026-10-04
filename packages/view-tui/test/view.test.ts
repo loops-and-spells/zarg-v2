@@ -700,3 +700,15 @@ describe("space on tables", () => {
     expect(r.ui.selected.list).toEqual(["a"])
   })
 })
+
+describe("capital action keys", () => {
+  const view = {
+    agent: "backlog:board",
+    layout: toggleLayout(defineToggleView("t", { list: { kind: "table", role: "primary", columns: [{ id: "c", label: "c" }], actions: [{ id: "drop", label: "Drop", key: "D", on: "row" }, { id: "done", label: "Done", key: "d", on: "row" }] } })),
+    data: { list: { rows: [{ id: "a", cells: { c: "A" } }] } },
+  }
+  test("Shift+d (the terminal's D) runs the action keyed D; d alone runs the one keyed d", () => {
+    expect(viewKeys(view, toggleUi, { name: "d", shift: true }).act).toEqual({ section: "list", action: "drop", rows: ["a"] })
+    expect(viewKeys(view, toggleUi, { name: "d" }).act).toEqual({ section: "list", action: "done", rows: ["a"] })
+  })
+})
