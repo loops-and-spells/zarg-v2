@@ -1,13 +1,13 @@
 {
   "scenario": "S-0005",
   "version": "5a031d2bd70c",
-  "commit": "867c8ba",
-  "run": "e2e-2026-10-04T05-15-37.426Z",
+  "commit": "9858ad9",
+  "run": "e2e-2026-10-04T17-02-02.612Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T05:15:41.138Z",
-  "ms": 333,
+  "at": "2026-10-04T17:02:06.423Z",
+  "ms": 327,
   "media": [
     {
       "kind": "buffer",
@@ -15,5 +15,10 @@
       "caption": "zarg diff --since HEAD"
     }
   ],
-  "failure": null
+  "failure": null,
+  "code": {
+    "packages/cli/src/commands.ts": "1218c2d314d0f0c92192b498cf402842759817ad",
+    "packages/cli/src/git.ts": "1d8867144717d699cbce730cb99ce06c8c6d5a3f",
+    "packages/cli/test/cli.test.ts": "9c7f9222b8a24ce0438ee72ee1442edc3ff296b4"
+  }
 }

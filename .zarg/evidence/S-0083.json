@@ -1,13 +1,13 @@
 {
   "scenario": "S-0083",
   "version": "06d40334859b",
-  "commit": "867c8ba",
-  "run": "e2e-2026-10-04T05-15-37.426Z",
+  "commit": "9858ad9",
+  "run": "e2e-2026-10-04T17-02-02.612Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T05:15:42.797Z",
-  "ms": 670,
+  "at": "2026-10-04T17:02:08.128Z",
+  "ms": 676,
   "media": [
     {
       "kind": "buffer",
@@ -30,5 +30,8 @@
       "caption": "zarg affected"
     }
   ],
-  "failure": null
+  "failure": null,
+  "code": {
+    "packages/cli/src/commands.ts": "1218c2d314d0f0c92192b498cf402842759817ad"
+  }
 }

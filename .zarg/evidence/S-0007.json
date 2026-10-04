@@ -1,13 +1,13 @@
 {
   "scenario": "S-0007",
   "version": "2c53b280a8a8",
-  "commit": "867c8ba",
-  "run": "e2e-2026-10-04T05-15-37.426Z",
+  "commit": "9858ad9",
+  "run": "e2e-2026-10-04T17-02-02.612Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T05:15:40.805Z",
-  "ms": 659,
+  "at": "2026-10-04T17:02:06.095Z",
+  "ms": 654,
   "media": [
     {
       "kind": "buffer",
@@ -20,5 +20,10 @@
       "caption": "zarg tool call gherkin/link {\"scenario\":\"S-0001\",\"edge\":\"then\",\"state\":{\"id\":\"ST-0002\"}}"
     }
   ],
-  "failure": null
+  "failure": null,
+  "code": {
+    "packages/plugin-gherkin/test/gherkin.test.ts": "19d5b1a72bd76570c06ccd47346472c38833b952",
+    "packages/plugin/src/server/validate.ts": "22796bce6f856df52bd15092c3573b46000244d5",
+    "packages/plugin/test/validate.test.ts": "0a9eb591bd83328d4e1903a391c6ce30a2719c2e"
+  }
 }

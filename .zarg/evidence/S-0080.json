@@ -1,13 +1,13 @@
 {
   "scenario": "S-0080",
   "version": "83924b526abc",
-  "commit": "867c8ba",
-  "run": "e2e-2026-10-04T05-15-37.426Z",
+  "commit": "9858ad9",
+  "run": "e2e-2026-10-04T17-02-02.612Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T05:15:43.139Z",
-  "ms": 342,
+  "at": "2026-10-04T17:02:08.513Z",
+  "ms": 383,
   "media": [
     {
       "kind": "buffer",
@@ -15,5 +15,10 @@
       "caption": "zarg affected"
     }
   ],
-  "failure": null
+  "failure": null,
+  "code": {
+    ".claude/skills/zarg-implement/SKILL.md": "a92ddf4601b3cec0044a17fff75effc481d31ec0",
+    "packages/cli/src/commands.ts": "1218c2d314d0f0c92192b498cf402842759817ad",
+    "packages/cli/test/cli.test.ts": "9c7f9222b8a24ce0438ee72ee1442edc3ff296b4"
+  }
 }

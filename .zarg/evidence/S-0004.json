@@ -1,13 +1,13 @@
 {
   "scenario": "S-0004",
   "version": "12a496e62ed4",
-  "commit": "867c8ba",
-  "run": "e2e-2026-10-04T05-15-37.426Z",
+  "commit": "9858ad9",
+  "run": "e2e-2026-10-04T17-02-02.612Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T05:15:40.146Z",
-  "ms": 663,
+  "at": "2026-10-04T17:02:05.439Z",
+  "ms": 683,
   "media": [
     {
       "kind": "buffer",
@@ -20,5 +20,9 @@
       "caption": "zarg render"
     }
   ],
-  "failure": null
+  "failure": null,
+  "code": {
+    "packages/plugin-gherkin/src/tools.ts": "3af1f21c0b50322d471deb2915be3c610d676bbf",
+    "packages/plugin-gherkin/test/gherkin.test.ts": "19d5b1a72bd76570c06ccd47346472c38833b952"
+  }
 }
