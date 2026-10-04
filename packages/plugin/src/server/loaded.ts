@@ -47,6 +47,7 @@ export interface LoadedPlugin {
 export const MANIFEST_FILE = "zarg-plugin.json"
 export const BUNDLE_FILE = "zarg-plugin.js"
 export const ASSETS_DIR = "assets"
+export const ASSET_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 
 /** Read a built plugin from a directory holding `zarg-plugin.json` and `zarg-plugin.js`. */
 export const loadPluginDir = (dir: string): Effect.Effect<LoadedPlugin, PluginConfigError> =>
@@ -63,6 +64,8 @@ export const loadPluginDir = (dir: string): Effect.Effect<LoadedPlugin, PluginCo
       // Each asset is the file the plugin was built with: a changed or missing one stops the load.
       const assets: Record<string, string> = {}
       for (const [name, sha] of Object.entries(p.manifest.assets ?? {})) {
+        // A name is a file name: it becomes a path wherever the plugin is installed or its pages are written.
+        if (!ASSET_NAME.test(name)) return Effect.fail(new PluginConfigError(`${dir}: asset "${name}" is not a file name`))
         const path = join(dir, ASSETS_DIR, basename(name))
         const ok = existsSync(path) && createHash("sha256").update(readFileSync(path)).digest("hex") === sha
         if (!ok) return Effect.fail(new PluginConfigError(`${dir}: asset ${name} does not match its manifest`))

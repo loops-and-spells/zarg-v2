@@ -34,3 +34,16 @@ test("a built plugin ships its assets, hashed in its manifest; loading finds the
   const err = await Effect.runPromise(Effect.flip(loadPluginDir(join(dir, "dist"))))
   expect(err.message).toContain("asset notes.css does not match its manifest")
 })
+
+test("an asset named like a path is refused at load: nothing installs outside the plugin's own directory", async () => {
+  const dir = pkg()
+  const r = await buildPlugin(join(dir, "index.ts"))
+  if (!r.ok) throw new Error(r.errors.join("\n"))
+  writeDist(dir, r)
+  const manifestFile = join(dir, "dist", "zarg-plugin.json")
+  const m = JSON.parse(require("node:fs").readFileSync(manifestFile, "utf8"))
+  const sha = m.assets["notes.css"]
+  writeFileSync(manifestFile, JSON.stringify({ ...m, assets: { "../../../../grants.json": sha } }))
+  const err = await Effect.runPromise(Effect.flip(loadPluginDir(join(dir, "dist"))))
+  expect(err.message).toContain('asset "../../../../grants.json" is not a file name')
+})

@@ -134,7 +134,8 @@ export const catalogOf = (input: {
               failure: e.failure,
               media: e.media.map((m): MediaView => {
                 const kind = resolveKind(m.kind)
-                const others = (m.meta as { files?: ReadonlyArray<string> } | undefined)?.files ?? []
+                const listed = (m.meta as { files?: unknown } | undefined)?.files
+                const others = Array.isArray(listed) ? listed.filter((f): f is string => typeof f === "string") : []
                 const files = [m.path, ...others].map((path) => {
                   const content = input.readText(path)
                   return { name: path.split("/").at(-1)!, url: path, ...(content !== undefined && textKind(kind) ? { text: content } : {}), present: content !== undefined }

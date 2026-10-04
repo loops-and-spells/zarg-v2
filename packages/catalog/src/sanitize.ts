@@ -1,8 +1,9 @@
 /** Elements removed with everything in them: they run code, reach out, or take input. */
-const BLOCKED = new Set(["script", "iframe", "frame", "frameset", "object", "embed", "applet", "portal", "link", "meta", "base", "style", "form", "input", "textarea", "button", "select", "option", "noscript", "template"])
+// Raw-text elements too (xmp, noembed, noframes, plaintext, title): their content is never parsed, so unwrapping would make it markup.
+const BLOCKED = new Set(["xmp", "noembed", "noframes", "plaintext", "listing", "title", "script", "iframe", "frame", "frameset", "object", "embed", "applet", "portal", "link", "meta", "base", "style", "form", "input", "textarea", "button", "select", "option", "noscript", "template"])
 /** Elements kept; any other is unwrapped (its text stays). */
 const TAGS = new Set(
-  "div span p pre code figure figcaption img video source picture details summary a ul ol li table thead tbody tr td th h3 h4 h5 strong em b i u s small br hr time kbd samp abbr mark sup sub svg g rect circle line polyline polygon path text tspan title desc defs clippath".split(" "),
+  "div span p pre code figure figcaption img video source picture details summary a ul ol li table thead tbody tr td th h3 h4 h5 strong em b i u s small br hr time kbd samp abbr mark sup sub svg g rect circle line polyline polygon path text tspan desc defs clippath".split(" "),
 )
 const ATTRS = new Set(
   (
@@ -13,14 +14,21 @@ const ATTRS = new Set(
 const URL_ATTRS = new Set(["href", "src", "poster", "xlink:href"])
 const DATA_IMAGE = /^data:image\/(png|gif|jpeg|webp);base64,/
 
+/** A character reference's code point, or U+FFFD for one that is not a character (never a throw). */
+const codePoint = (n: number) => (Number.isInteger(n) && n >= 0 && n <= 0x10ffff ? String.fromCodePoint(n) : "\uFFFD")
+/** A presentation value may point inside the SVG (`url(#id)`), never elsewhere. */
+const safePaint = (v: string) => !/url\s*\(/i.test(v) || /^\s*url\s*\(\s*['"]?#/i.test(v)
+
 /** A URL in a page that reaches nothing outside the site: relative, a fragment, or an inline image. */
 const safeUrl = (raw: string): boolean => {
   const v = raw
-    .replace(/&#x([0-9a-f]+);?/gi, (_, h: string) => String.fromCodePoint(Number.parseInt(h, 16)))
-    .replace(/&#(\d+);?/g, (_, d: string) => String.fromCodePoint(Number(d)))
+    .replace(/&#x([0-9a-f]+);?/gi, (_, h: string) => codePoint(Number.parseInt(h, 16)))
+    .replace(/&#(\d+);?/g, (_, d: string) => codePoint(Number(d)))
     .replace(/&(colon|tab|newline);/gi, (_, n: string) => ({ colon: ":", tab: "\t", newline: "\n" })[n.toLowerCase()]!)
     .replace(/[\u0000- \u007f]/g, "")
     .toLowerCase()
+    // Browsers read a backslash as a slash in URLs: \\host is //host.
+    .replace(/\\/g, "/")
   if (DATA_IMAGE.test(v)) return true
   if (v.startsWith("//")) return false
   // A scheme is anything before the first ":" that comes before any "/", "?" or "#".
@@ -38,7 +46,7 @@ export const sanitize = async (html: string): Promise<string> => {
       const names = [...e.attributes].map(([n]) => n)
       for (const n of names) {
         const name = n.toLowerCase()
-        const keep = name.startsWith("data-") || name.startsWith("aria-") ? true : URL_ATTRS.has(name) ? name !== "xlink:href" && safeUrl(e.getAttribute(n) ?? "") : ATTRS.has(name)
+        const keep = name.startsWith("data-") || name.startsWith("aria-") ? true : URL_ATTRS.has(name) ? name !== "xlink:href" && safeUrl(e.getAttribute(n) ?? "") : ATTRS.has(name) && safePaint(e.getAttribute(n) ?? "")
         if (!keep) e.removeAttribute(n)
       }
     },

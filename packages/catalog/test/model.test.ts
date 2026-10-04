@@ -47,3 +47,14 @@ test("only committed media is present: a file on disk that git does not track is
   expect(read("media/S-1/step.cast")).toBeUndefined()
   expect(read("../../.env.local")).toBeUndefined()
 })
+
+test("a medium's other files are read only from a list of strings (hand-edited evidence never spreads or throws)", () => {
+  const root = repo()
+  const file = pj(root, ".zarg/evidence/S-1.json")
+  const e = JSON.parse(require("node:fs").readFileSync(file, "utf8"))
+  for (const bad of ["abc", { a: 1 }, [1, "media/S-1/x.png"]]) {
+    wf(file, JSON.stringify({ ...e, media: [{ ...e.media[0], meta: { files: bad } }] }))
+    const c = catalogOf({ snap, report: reportOf(root), readText: reader(root) })
+    expect(c.scenarios[0]!.proof!.media[0]!.files.map((f) => f.url)).toEqual(Array.isArray(bad) ? ["media/S-1/after.txt", "media/S-1/x.png"] : ["media/S-1/after.txt"])
+  }
+})

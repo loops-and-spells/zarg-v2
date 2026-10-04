@@ -53,3 +53,22 @@ test("a repo with no evidence yet still builds", () => {
   build({ rendered: new Map(), catalog: { ...c, scenarios: c.scenarios.map(({ proof: _, ...s }) => s) }, root, out })
   expect(existsSync(join(out, "index.html"))).toBe(true)
 })
+
+test("every file of a medium reaches the site (a trace's screenshots), through the same confinement", () => {
+  const root = repo()
+  writeFileSync(join(root, ".zarg/evidence/media/S-1/2-001.png"), "png")
+  writeFileSync(join(root, ".env.local"), "SECRET=x")
+  const c = catalog(root)
+  const traced = { ...c, scenarios: c.scenarios.map((s) => (s.id === "S-1" ? { ...s, proof: { ...s.proof!, media: [{ kind: "evidence-screen/trace", label: "trace", caption: "t", path: "media/S-1/after.txt", present: true, files: [{ name: "after.txt", url: "media/S-1/after.txt" }, { name: "2-001.png", url: "media/S-1/2-001.png" }, { name: "x", url: "media/../../../.env.local" }] }] } } : s)) }
+  const out = site()
+  expect(() => build({ catalog: traced, rendered: new Map(), root, out })).toThrow("media/../../../.env.local is outside .zarg/evidence/media")
+  build({ catalog: { ...traced, scenarios: traced.scenarios.map((s) => (s.id === "S-1" ? { ...s, proof: { ...s.proof!, media: [{ ...s.proof!.media[0]!, files: s.proof!.media[0]!.files.slice(0, 2) }] } } : s)) }, rendered: new Map(), root, out })
+  expect(readFileSync(join(out, "media/S-1/2-001.png"), "utf8")).toBe("png")
+})
+
+test("an asset named like a path never leaves plugins/<owner>/", () => {
+  const root = repo()
+  const out = site()
+  const bad = new Map([["media/S-1/after.txt", { html: "<p>x</p>", assets: [{ owner: "evidence-x", name: "../../escape.js", path: join(root, ".zarg/evidence/media/S-1/after.txt") }] }]])
+  expect(() => build({ catalog: catalog(root), rendered: bad, root, out })).toThrow('asset "../../escape.js" of evidence-x is not a file name')
+})

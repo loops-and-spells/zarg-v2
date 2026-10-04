@@ -24,3 +24,19 @@ test("what a plugin renders keeps its markup, never anything that runs or reache
     if (want !== undefined) expect(got).toBe(want)
   }
 })
+
+test("raw-text elements are removed whole: their text would become markup once unwrapped", async () => {
+  for (const tag of ["xmp", "noembed", "noframes", "listing", "title"]) {
+    const got = await sanitize(`<p>a</p><${tag}><img src=x onerror=alert(1)></${tag}>`)
+    expect(got).toBe("<p>a</p>")
+  }
+  expect(await sanitize("<p>a</p><plaintext><img src=x onerror=1>")).toBe("<p>a</p>")
+  expect(await sanitize("<svg><title><img src=x onerror=1></title><text>t</text></svg>")).toBe("<svg><text>t</text></svg>")
+})
+
+test("backslash URLs and url() in presentation attributes reach nothing outside; a bad character reference never throws", async () => {
+  expect(await sanitize('<img src="\\\\evil.com/x.png">')).toBe("<img>")
+  expect(await sanitize('<img src="/\\evil.com/x.png">')).toBe("<img>")
+  expect(await sanitize('<rect fill="url(http://evil/x)" stroke="url(#ok)"/>')).toBe('<rect stroke="url(#ok)" />')
+  expect(await sanitize('<a href="&#x110000;x">a</a><a href="&#99999999999;">b</a>')).toBe('<a href="&#x110000;x">a</a><a href="&#99999999999;">b</a>')
+})
