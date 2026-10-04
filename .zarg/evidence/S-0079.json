@@ -1,13 +1,13 @@
 {
   "scenario": "S-0079",
   "version": "4dce063f315a",
-  "commit": "9858ad9",
-  "run": "e2e-2026-10-04T17-02-02.612Z",
+  "commit": "c713ee1",
+  "run": "e2e-2026-10-04T17-18-12.389Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T17:02:06.758Z",
-  "ms": 334,
+  "at": "2026-10-04T17:18:16.498Z",
+  "ms": 342,
   "media": [
     {
       "kind": "buffer",
@@ -17,6 +17,6 @@
   ],
   "failure": null,
   "code": {
-    "packages/cli/src/commands.ts": "1218c2d314d0f0c92192b498cf402842759817ad"
+    "packages/cli/src/commands.ts": "ae27a51b0b0e6fc8c6405ab903968d7776c0f0cb"
   }
 }
