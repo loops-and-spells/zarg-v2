@@ -24,7 +24,8 @@ export interface ViewUi {
   /** An action's choices, dropped down (it acts on the one picked). */
   readonly choose?: { readonly section?: string; readonly action: string; readonly rows: ReadonlyArray<string>; readonly choices: ReadonlyArray<{ readonly id: string; readonly label: string }>; readonly pick: number }
   /** An action's line of text being typed (it acts on Enter). */
-  readonly input?: { readonly section: string; readonly action: string; readonly rows: ReadonlyArray<string>; readonly text: string; readonly placeholder: string }
+  /** `secret`: the row's value is a secret (a key): drawn masked, never prefilled. */
+  readonly input?: { readonly section: string; readonly action: string; readonly rows: ReadonlyArray<string>; readonly text: string; readonly placeholder: string; readonly secret?: boolean }
   /** Each board's cursor (a lane, a card in it) and its folded lanes (by id). */
   readonly board?: Readonly<Record<string, BoardUi>>
 }
@@ -374,8 +375,9 @@ export const pressAction = (view: ViewState, ui: ViewUi, section: string | undef
   const a = (section === undefined ? viewActions(view) : enabledActions(view, section)).find((x) => x.id === action)
   if (a?.choices !== undefined && a.choices.length > 0) return { ui: { ...ui, choose: { ...(section !== undefined ? { section } : {}), action, rows, choices: a.choices, pick: 0 } } }
   if (section === undefined || a?.input === undefined) return { ui, act: { section, action, rows } }
-  const row = (view.data[section] as { rows?: ReadonlyArray<{ id: string; text?: string }> } | undefined)?.rows?.find((r) => r.id === rows[0])
-  return { ui: { ...ui, input: { section, action, rows, text: row?.text ?? "", placeholder: a.input } } }
+  const row = (view.data[section] as { rows?: ReadonlyArray<{ id: string; text?: string; secret?: boolean }> } | undefined)?.rows?.find((r) => r.id === rows[0])
+  const secret = row?.secret === true
+  return { ui: { ...ui, input: { section, action, rows, text: secret ? "" : (row?.text ?? ""), placeholder: a.input, ...(secret ? { secret: true } : {}) } } }
 }
 /** A key while choices are dropped down: ↑↓ pick, Enter acts with the one picked, Esc closes; undefined when none are. */
 export const chooseKey = (ui: ViewUi, key: { readonly name: string }): { readonly ui: ViewUi; readonly act?: Act } | undefined => {

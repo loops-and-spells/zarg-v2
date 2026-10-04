@@ -377,3 +377,16 @@ test("a text that is loading shows its line in the middle, with a spinner, in pl
   expect(lines[y]!.indexOf("⠹")).toBeGreaterThan(10)
   expect(lines.join("\n")).not.toContain("old plan")
 })
+
+describe("a secret input", () => {
+  test("is drawn masked, one dot per character", async () => {
+    const v: ViewState = {
+      agent: "setup",
+      layout: layoutOf(defineView("setup", { fields: { kind: "table", role: "primary", title: "Fields", columns: [{ id: "name", label: "name" }], actions: [{ id: "set", label: "Set", on: "row", input: "the value" }] } })),
+      data: { fields: { rows: [{ id: "K", cells: { name: "KEY" }, secret: true }] } },
+    }
+    const f = await frame(v, { ...initialViewUi, input: { section: "fields", action: "set", rows: ["K"], text: "sk-or-abc", placeholder: "the value", secret: true } } as never)
+    expect(f).toContain("•••••••••")
+    expect(f).not.toContain("sk-or-abc")
+  })
+})

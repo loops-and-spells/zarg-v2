@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { actionFor, applyMenu, closeMenu, defineView, focusNext, initialViewUi, layoutOf, menuEntries, menuMove, moveColumn, moveRow, nextTab, cursorRow, filterOf, followedText, searchCount, setSearch, pickTab, menuAdjust, menuQuery, openMenu, ordered, pickHeader, pickMark, pickRow, shownRows, startUi, toggleSelect, type ViewState, type ViewUi } from "../src"
+import { actionFor, pressAction, applyMenu, closeMenu, defineView, focusNext, initialViewUi, layoutOf, menuEntries, menuMove, moveColumn, moveRow, nextTab, cursorRow, filterOf, followedText, searchCount, setSearch, pickTab, menuAdjust, menuQuery, openMenu, ordered, pickHeader, pickMark, pickRow, shownRows, startUi, toggleSelect, type ViewState, type ViewUi } from "../src"
 
 const layout = layoutOf(
   defineView("tester", {
@@ -317,5 +317,14 @@ describe("table search", () => {
     expect(ui.rows.list).toBe(0)
     expect(ui.selected.list).toEqual(["F3"])
     expect(actionFor({ ...t, layout: layoutOf(defineView("t", { list: { kind: "table", role: "primary", search: true, selectable: true, columns: [{ id: "card", label: "card" }], actions: [{ id: "a", label: "A", key: "a", on: "row" }] } })) }, ui, "a")?.rows).toEqual(["F1"])
+  })
+})
+
+describe("secret rows", () => {
+  test("an action on a secret row opens a secret input, never prefilled", () => {
+    const layout = layoutOf(defineView("t", { list: { kind: "table", role: "primary", columns: [{ id: "name", label: "name" }], actions: [{ id: "set", label: "Set", key: "s", on: "row", input: "the value" }] } }))
+    const view = { agent: "t", layout, data: { list: { rows: [{ id: "K", cells: { name: "K" }, text: "old", secret: true }] } } } as ViewState
+    const r = pressAction(view, initialViewUi, "list", "set", ["K"])
+    expect(r.ui.input).toEqual({ section: "list", action: "set", rows: ["K"], text: "", placeholder: "the value", secret: true })
   })
 })

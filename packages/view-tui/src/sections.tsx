@@ -154,7 +154,9 @@ const InputField = (p: { readonly input: NonNullable<ViewUi["input"]>; readonly 
   const C = useColors()
   const hint = "  ⏎ save  esc cancel"
   const room = Math.max(1, p.width - 4 - hint.length)
-  const shown = p.input.text.length > 0 ? p.input.text.slice(-room) : ""
+  // A secret (a key) shows as dots, one per character.
+  const typed = p.input.secret === true ? "•".repeat(p.input.text.length) : p.input.text
+  const shown = typed.length > 0 ? typed.slice(-room) : ""
   return (
     <text wrapMode="none" bg={C.selection} style={{ flexShrink: 0, marginTop: 1 }}>
       <span fg={C.accent}>{" ✎ "}</span>
