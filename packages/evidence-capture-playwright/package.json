@@ -1,0 +1,11 @@
+{
+  "name": "@zarg/evidence-capture-playwright",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@zarg/evidence-capture": "workspace:*"
+  }
+}

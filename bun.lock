@@ -195,6 +195,12 @@
     "packages/evidence-capture": {
       "name": "@zarg/evidence-capture",
     },
+    "packages/evidence-capture-playwright": {
+      "name": "@zarg/evidence-capture-playwright",
+      "dependencies": {
+        "@zarg/evidence-capture": "workspace:*",
+      },
+    },
     "packages/evidence-capture-xterm": {
       "name": "@zarg/evidence-capture-xterm",
       "dependencies": {
@@ -544,6 +550,8 @@
     "@zarg/entities": ["@zarg/entities@workspace:packages/entities"],
 
     "@zarg/evidence-capture": ["@zarg/evidence-capture@workspace:packages/evidence-capture"],
+
+    "@zarg/evidence-capture-playwright": ["@zarg/evidence-capture-playwright@workspace:packages/evidence-capture-playwright"],
 
     "@zarg/evidence-capture-xterm": ["@zarg/evidence-capture-xterm@workspace:packages/evidence-capture-xterm"],
 
