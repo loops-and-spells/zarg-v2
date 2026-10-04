@@ -4,6 +4,7 @@ import { Effect, Layer } from "effect"
 import { CliError, Command } from "effect/unstable/cli"
 import { layer as graphLayer } from "@zarg/graph"
 import { zarg } from "./commands"
+import { writeAll } from "./write"
 import { pluginHostLayer } from "@zarg/core/plugins"
 import { graphDir, root } from "./root"
 
@@ -20,11 +21,15 @@ const report = (e: unknown) => {
   const message = e instanceof Error && e.message !== "" ? { message: e.message } : {}
   return Effect.andThen(
     // Written as is: a runtime's console may colour what it prints (FORCE_COLOR), and JSON must stay JSON.
-    Effect.sync(() => void process.stderr.write(`${JSON.stringify({ error: _tag ?? "Error", ...fields, ...message }, null, 2)}\n`)),
+    Effect.sync(() => writeAll(2, `${JSON.stringify({ error: _tag ?? "Error", ...fields, ...message }, null, 2)}\n`)),
     Effect.sync(() => {
       process.exitCode = 1
     }),
   )
 }
 
-Command.run(zarg, { version: "0.0.0" }).pipe(Effect.catch(report), Effect.provide(services), BunRuntime.runMain)
+Command.run(zarg, { version: "0.0.0" }).pipe(
+  Effect.catch(report),
+  Effect.provide(services),
+  BunRuntime.runMain,
+)

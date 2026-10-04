@@ -289,6 +289,17 @@ describe("zarg catalog in any project", () => {
 })
 
 describe("machine-readable output", () => {
+  test("output larger than a pipe's buffer reaches a slow reader whole (zarg audit --json | jq in CI)", () => {
+    // This repository's own audit is well over 64 KiB; reading it changes nothing.
+    const repo = join(import.meta.dir, "..", "..", "..")
+    const cmd = `"${process.execPath}" "${main}" audit --json 2>/dev/null`
+    const full = Bun.spawnSync(["sh", "-c", `${cmd} | wc -c`], { cwd: repo, env: { ...process.env, ZARG_ROOT: repo } }).stdout.toString().trim()
+    const slow = Bun.spawnSync(["sh", "-c", `${cmd} | (sleep 1; wc -c)`], { cwd: repo, env: { ...process.env, ZARG_ROOT: repo } }).stdout.toString().trim()
+    const file = Bun.spawnSync(["sh", "-c", `${cmd} > "$T" && wc -c < "$T"`], { cwd: repo, env: { ...process.env, ZARG_ROOT: repo, T: join(mkdtempSync(join(tmpdir(), "zarg-cli-out-")), "a.json") } }).stdout.toString().trim()
+    expect(Number(file)).toBeGreaterThan(65536)
+    expect([Number(full), Number(slow)]).toEqual([Number(file), Number(file)])
+  }, 120_000)
+
   test("a failure is plain JSON on stderr even where colour is forced (FORCE_COLOR, as CI often sets)", () => {
     const r = mkdtempSync(join(tmpdir(), "zarg-cli-color-"))
     Bun.spawnSync(["git", "init", "-q"], { cwd: r })

@@ -1,8 +1,9 @@
-import { Cause, Console, Effect, Option } from "effect"
+import { Cause, Effect, Option } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
 import { diff, GraphStore, hash, Snapshot } from "@zarg/graph"
 import { PluginHost } from "@zarg/plugin/server"
 import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { writeAll } from "./write"
 import { basename, isAbsolute, join, relative, resolve } from "node:path"
 import { findPlugin, USER_DIR } from "@zarg/core/plugins"
 import { type Grant, makeGrants, scopesDigest, warnings } from "@zarg/plugin/runtime"
@@ -16,7 +17,8 @@ import { build as buildCatalog, catalogOf, githubRepo, renderAll, serve as serve
 import { scenarioRefs, snapshotAt } from "./git"
 import { root } from "./root"
 
-const print = (value: unknown) => Console.log(typeof value === "string" ? value : JSON.stringify(value, null, 2))
+/** Prints a result. Written straight to fd 1: the runtime exits right after a command, and a slow reader of a pipe must still get all of it. */
+const print = (value: unknown) => Effect.sync(() => writeAll(1, `${typeof value === "string" ? value : JSON.stringify(value, null, 2)}\n`))
 
 const k = Flag.Int("k").pipe(Flag.withDefault(3), Flag.withDescription("hops for --focus / neighbors"))
 const focus = Flag.String("focus").pipe(Flag.optional, Flag.withDescription("limit to nodes within --k hops of this id"))
