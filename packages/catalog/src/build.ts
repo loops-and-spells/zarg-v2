@@ -2,7 +2,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, realpathSync, rmSync,
 import { dirname, join, relative, resolve, sep } from "node:path"
 import { EVIDENCE_DIR } from "@zarg/audit/evidence"
 import type { Catalog } from "./model"
-import { css, pages, type Rendered } from "./pages"
+import { css, FONTS, pages, type Rendered } from "./pages"
 
 /** The file that says a directory is a catalog this build may empty. */
 export const MARKER = ".zarg-catalog"
@@ -48,6 +48,9 @@ export const build = (input: { readonly catalog: Catalog; readonly rendered: Ren
   // Inside the project's .zarg: a * .gitignore keeps the build out of the repository without touching the project's own.
   if (input.ignoreSelf === true) put(".gitignore", "*\n")
   put("catalog.css", css())
+  // The faces the design uses, self-hosted: nothing comes from a CDN.
+  mkdirSync(join(out, "fonts"), { recursive: true })
+  for (const f of FONTS) copyFileSync(require.resolve(`${f.pkg}/files/${f.file}`), join(out, "fonts", f.file))
   for (const [path, text] of pages(catalog, rendered)) put(path, text)
   // The assets rendered evidence uses: each plugin's own, under plugins/<plugin>/.
   for (const [to, { path: from }] of [...assets].sort(([a], [b]) => a.localeCompare(b))) {

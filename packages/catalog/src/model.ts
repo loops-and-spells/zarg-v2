@@ -88,7 +88,7 @@ export const trackedReader = (root: string): ((path: string) => string | undefin
 export const githubRepo = (remote: string): string | undefined => /^(?:git@github\.com:|https:\/\/github\.com\/)([^/\s]+\/[^/\s]+?)(?:\.git)?\s*$/.exec(remote)?.[1]
 
 /** Media a reader sees as a picture. */
-const VISUAL = new Set(["evidence-terminal/frame", "evidence-screen/screenshot", "evidence-screen/gif", "evidence-screen/trace"])
+export const VISUAL: ReadonlySet<string> = new Set(["evidence-terminal/frame", "evidence-screen/screenshot", "evidence-screen/gif", "evidence-screen/trace"])
 /** A scenario's first committed visual medium, "the screen after" first: what its journey card shows. */
 const thumbOf = (s: ScenarioPage): string | undefined => {
   const visual = (s.proof?.media ?? []).filter((m) => m.present && VISUAL.has(m.kind))

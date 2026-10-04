@@ -9,7 +9,8 @@ test("every page, relative links only, statuses as classes", () => {
   expect(p.get("scenarios/S-1.html")).toContain('<link rel="stylesheet" href="../catalog.css">')
   expect(p.get("index.html")).toContain('<link rel="stylesheet" href="catalog.css">')
   expect(p.get("journeys/J-1.html")).toContain('class="badge s-planned"')
-  expect(p.get("index.html")).toContain('<span class="s-proven" style="flex:1"')
+  // The tick strip: one cell per scenario, red first.
+  expect(p.get("index.html")).toContain('<div class="ticks big" role="img" aria-label="1 unproven, 1 proven, 1 planned"><span class="tick s-unproven"></span><span class="tick s-proven"></span><span class="tick s-planned"></span></div>')
   expect(p.get("journeys/J-1.html")).toContain('<a href="../scenarios/S-2.html">S-2</a>')
 })
 

@@ -15,7 +15,7 @@ test("the site: pages, css, the player, committed media; the same inputs give th
   build({ catalog: catalog(root), rendered: rendered(), root, out: a })
   build({ catalog: catalog(root), rendered: rendered(), root, out: b })
   expect(tree(a)).toEqual(tree(b))
-  for (const f of ["index.html", "catalog.css", MARKER, "plugins/evidence-terminal/terminal.css", "media/S-1/after.txt", "media/S-1/step.cast", "scenarios/S-1.html"]) expect(existsSync(join(a, f))).toBe(true)
+  for (const f of ["index.html", "catalog.css", MARKER, "plugins/evidence-terminal/terminal.css", "fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2", "fonts/jetbrains-mono-latin-wght-normal.woff2", "media/S-1/after.txt", "media/S-1/step.cast", "scenarios/S-1.html"]) expect(existsSync(join(a, f))).toBe(true)
   expect(existsSync(join(a, "media/S-1/shot.png"))).toBe(false)
 })
 
