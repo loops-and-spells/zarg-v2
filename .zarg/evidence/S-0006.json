@@ -1,18 +1,21 @@
 {
   "scenario": "S-0006",
   "version": "d8afac635bbe",
-  "commit": "af14501",
-  "run": "e2e-2026-10-04T17-23-40.182Z",
+  "commit": "904c7df",
+  "run": "e2e-2026-10-04T18-14-24.301Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T17:23:42.291Z",
-  "ms": 350,
+  "at": "2026-10-04T18:14:26.435Z",
+  "ms": 348,
   "media": [
     {
-      "kind": "buffer",
-      "path": "media/S-0006/note-1.txt",
-      "caption": "zarg tool call gherkin/add-scenario {\"title\":\"CLI actor buys a plan\",\"when\":\"the CLI actor buys with a valid card\",\"by\":[{\"name\":\"CLI actor\"}],\"arrives\":{\"id\":\"ST-0002\"},\"then\":[{\"text\":\"the receipt is shown\"}]}"
+      "kind": "evidence-terminal/text",
+      "caption": "zarg tool call gherkin/add-scenario {\"title\":\"CLI actor buys a plan\",\"when\":\"the CLI actor buys with a valid card\",\"by\":[{\"name\":\"CLI actor\"}],\"arrives\":{\"id\":\"ST-0002\"},\"then\":[{\"text\":\"the receipt is shown\"}]}",
+      "path": "media/S-0006/1-text.txt",
+      "meta": {
+        "fold": false
+      }
     }
   ],
   "failure": null,

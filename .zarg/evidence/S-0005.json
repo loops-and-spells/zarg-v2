@@ -1,18 +1,21 @@
 {
   "scenario": "S-0005",
   "version": "5a031d2bd70c",
-  "commit": "af14501",
-  "run": "e2e-2026-10-04T17-23-40.182Z",
+  "commit": "904c7df",
+  "run": "e2e-2026-10-04T18-14-24.301Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T17:23:43.945Z",
-  "ms": 329,
+  "at": "2026-10-04T18:14:28.172Z",
+  "ms": 340,
   "media": [
     {
-      "kind": "buffer",
-      "path": "media/S-0005/note-1.txt",
-      "caption": "zarg diff --since HEAD"
+      "kind": "evidence-terminal/text",
+      "caption": "zarg diff --since HEAD",
+      "path": "media/S-0005/1-text.txt",
+      "meta": {
+        "fold": false
+      }
     }
   ],
   "failure": null,

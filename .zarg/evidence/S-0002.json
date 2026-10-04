@@ -1,28 +1,37 @@
 {
   "scenario": "S-0002",
   "version": "e7a780fe3f4b",
-  "commit": "af14501",
-  "run": "e2e-2026-10-04T17-23-40.182Z",
+  "commit": "904c7df",
+  "run": "e2e-2026-10-04T18-14-24.301Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T17:23:41.603Z",
-  "ms": 1016,
+  "at": "2026-10-04T18:14:25.725Z",
+  "ms": 1013,
   "media": [
     {
-      "kind": "buffer",
-      "path": "media/S-0002/note-1.txt",
-      "caption": "zarg tool call gherkin/add-persona {\"name\":\"CLI actor\",\"kind\":\"cli\",\"text\":\"A coding agent working through the zarg CLI.\"}"
+      "kind": "evidence-terminal/text",
+      "caption": "zarg tool call gherkin/add-persona {\"name\":\"CLI actor\",\"kind\":\"cli\",\"text\":\"A coding agent working through the zarg CLI.\"}",
+      "path": "media/S-0002/1-text.txt",
+      "meta": {
+        "fold": false
+      }
     },
     {
-      "kind": "buffer",
-      "path": "media/S-0002/note-2.txt",
-      "caption": "zarg tool call gherkin/add-scenario {\"title\":\"CLI actor opens pricing\",\"when\":\"the CLI actor opens pricing\",\"by\":[{\"name\":\"CLI actor\"}],\"arrives\":{\"text\":\"the home page is shown\"},\"then\":[{\"text\":\"the plans are shown\"}]}"
+      "kind": "evidence-terminal/text",
+      "caption": "zarg tool call gherkin/add-scenario {\"title\":\"CLI actor opens pricing\",\"when\":\"the CLI actor opens pricing\",\"by\":[{\"name\":\"CLI actor\"}],\"arrives\":{\"text\":\"the home page is shown\"},\"then\":[{\"text\":\"the plans are shown\"}]}",
+      "path": "media/S-0002/2-text.txt",
+      "meta": {
+        "fold": false
+      }
     },
     {
-      "kind": "buffer",
-      "path": "media/S-0002/note-3.txt",
-      "caption": "zarg render --focus S-0001"
+      "kind": "evidence-terminal/text",
+      "caption": "zarg render --focus S-0001",
+      "path": "media/S-0002/3-text.txt",
+      "meta": {
+        "fold": false
+      }
     }
   ],
   "failure": null,

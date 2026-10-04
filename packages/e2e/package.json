@@ -7,6 +7,7 @@
   },
   "dependencies": {
     "@zarg/audit": "workspace:*",
+    "@zarg/evidence-capture": "workspace:*",
     "@zarg/graph": "workspace:*",
     "effect": "^4.0.0-rc.117"
   },

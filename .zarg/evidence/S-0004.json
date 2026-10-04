@@ -1,23 +1,29 @@
 {
   "scenario": "S-0004",
   "version": "12a496e62ed4",
-  "commit": "af14501",
-  "run": "e2e-2026-10-04T17-23-40.182Z",
+  "commit": "904c7df",
+  "run": "e2e-2026-10-04T18-14-24.301Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T17:23:42.960Z",
-  "ms": 667,
+  "at": "2026-10-04T18:14:27.132Z",
+  "ms": 696,
   "media": [
     {
-      "kind": "buffer",
-      "path": "media/S-0004/note-1.txt",
-      "caption": "zarg tool call gherkin/edit-state {\"id\":\"ST-0002\",\"text\":\"the plan picker is shown\"}"
+      "kind": "evidence-terminal/text",
+      "caption": "zarg tool call gherkin/edit-state {\"id\":\"ST-0002\",\"text\":\"the plan picker is shown\"}",
+      "path": "media/S-0004/1-text.txt",
+      "meta": {
+        "fold": false
+      }
     },
     {
-      "kind": "buffer",
-      "path": "media/S-0004/note-2.txt",
-      "caption": "zarg render"
+      "kind": "evidence-terminal/text",
+      "caption": "zarg render",
+      "path": "media/S-0004/2-text.txt",
+      "meta": {
+        "fold": false
+      }
     }
   ],
   "failure": null,

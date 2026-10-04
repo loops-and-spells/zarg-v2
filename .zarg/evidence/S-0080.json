@@ -1,18 +1,21 @@
 {
   "scenario": "S-0080",
   "version": "83924b526abc",
-  "commit": "af14501",
-  "run": "e2e-2026-10-04T17-23-40.182Z",
+  "commit": "904c7df",
+  "run": "e2e-2026-10-04T18-14-24.301Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T17:23:45.986Z",
-  "ms": 341,
+  "at": "2026-10-04T18:14:30.222Z",
+  "ms": 354,
   "media": [
     {
-      "kind": "buffer",
-      "path": "media/S-0080/note-1.txt",
-      "caption": "zarg affected"
+      "kind": "evidence-terminal/text",
+      "caption": "zarg affected",
+      "path": "media/S-0080/1-text.txt",
+      "meta": {
+        "fold": false
+      }
     }
   ],
   "failure": null,

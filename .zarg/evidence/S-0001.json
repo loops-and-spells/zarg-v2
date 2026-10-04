@@ -1,18 +1,21 @@
 {
   "scenario": "S-0001",
   "version": "ed5a7457d05a",
-  "commit": "af14501",
-  "run": "e2e-2026-10-04T17-23-40.182Z",
+  "commit": "904c7df",
+  "run": "e2e-2026-10-04T18-14-24.301Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T17:23:40.571Z",
-  "ms": 336,
+  "at": "2026-10-04T18:14:24.694Z",
+  "ms": 337,
   "media": [
     {
-      "kind": "buffer",
-      "path": "media/S-0001/note-1.txt",
-      "caption": "zarg agenda"
+      "kind": "evidence-terminal/text",
+      "caption": "zarg agenda",
+      "path": "media/S-0001/1-text.txt",
+      "meta": {
+        "fold": false
+      }
     }
   ],
   "failure": null,

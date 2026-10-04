@@ -1,8 +1,10 @@
 import { afterAll, describe, test } from "bun:test"
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs"
 import { join } from "node:path"
 import { tags, type Tag } from "@zarg/audit"
-import { codeOf, EVIDENCE_DIR, type Evidence, type Media } from "@zarg/audit/evidence"
+import { codeOf } from "@zarg/audit/evidence"
+import { type Capture, EVIDENCE_DIR, type Evidence, type Media, text } from "@zarg/evidence-capture"
+import { clearStale, commit as commitEvidence, type Staged, stage } from "@zarg/evidence-capture/writer"
 import { scenarioVersion } from "@zarg/audit/version"
 import { Snapshot } from "@zarg/graph/pure"
 import { Effect } from "effect"
@@ -17,7 +19,9 @@ export interface Step {
   readonly open: (args?: ReadonlyArray<string>) => Promise<Term>
   readonly cli: (args: ReadonlyArray<string>) => Promise<Ran>
   /** Attach a text medium now (a CLI transcript, a log excerpt). */
-  readonly note: (kind: "buffer" | "log", caption: string, text: string) => void
+  readonly note: (kind: "buffer" | "log", caption: string, text: string) => Media
+  /** Attach any capture (`@zarg/evidence-capture`'s builders, or a capture adapter's) as this step's evidence. */
+  readonly attach: (capture: Capture) => Media
 }
 export type Proves = (scenario: string, fn: (s: Step) => Promise<void>, opts?: { readonly model?: boolean; readonly timeoutMs?: number }) => void
 
@@ -43,11 +47,6 @@ const graphOf = (root: string) => {
   return Snapshot.make(nodes)
 }
 const commitOf = (root: string) => Bun.spawnSync(["git", "rev-parse", "--short", "HEAD"], { cwd: root }).stdout.toString().trim()
-const writeAtomic = (file: string, text: string) => {
-  const tmp = `${file}.${process.pid}.tmp`
-  writeFileSync(tmp, text)
-  renameSync(tmp, file)
-}
 
 /** A journey of the graph, walked in a fresh world: each `proves` step proves one of its scenarios and writes that scenario's evidence. */
 export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?: Readonly<Record<string, string>> }, body: (proves: Proves) => void) => {
@@ -81,31 +80,20 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
         `${scenario} ${String(node.props.title ?? "")}`,
         async () => {
           const evidenceDir = join(evidenceOut(), EVIDENCE_DIR)
-          const mediaDir = join(evidenceDir, "media", scenario)
           const started = performance.now()
           const deadline = started + timeout
-          // Staging left by a run that was killed mid-step.
-          if (existsSync(join(evidenceDir, "media")))
-            for (const d of readdirSync(join(evidenceDir, "media"))) if (d.startsWith(`.${scenario}.`)) rmSync(join(evidenceDir, "media", d), { recursive: true, force: true })
-          let media: Array<Media> = []
-          let staging = ""
+          clearStale(evidenceDir, scenario)
+          let staged: Staged | undefined
           let lastNote = ""
           const attempt = async () => {
             // Media is staged and swapped in with the evidence: a run killed mid-step leaves the last evidence whole.
-            const mine = join(evidenceDir, "media", `.${scenario}.${process.pid}.${++attempts}`)
-            staging = mine
-            mkdirSync(mine, { recursive: true })
-            const shot: Array<Media> = []
-            media = shot
-            const put = (kind: Media["kind"], name: string, caption: string, text: string) => {
-              writeFileSync(join(mine, name), text)
-              shot.push({ kind, path: `media/${scenario}/${name}`, caption })
-            }
+            const mine = stage(evidenceDir, scenario, String(++attempts))
+            if (staged !== undefined) rmSync(staged.dir, { recursive: true, force: true })
+            staged = mine
             // A world that cannot start fails the step, with its reason as evidence.
             w ??= world(opts.seed)
-            let notes = 0
             const castFrom = term?.cast().trimEnd().split("\n").length ?? 1
-            if (term !== undefined) put("buffer", "before.txt", "the screen before", term.screen())
+            if (term !== undefined) mine.attach(text("the screen before", term.screen()))
             const step: Step = {
               get w() {
                 return w!
@@ -118,18 +106,22 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
                 return term
               },
               cli: (args) => cli(w!, args),
-              note: (kind, caption, text) => {
-                lastNote = text
-                put(kind, `note-${++notes}.txt`, caption, text)
+              attach: (c) => {
+                if (c.kind === "evidence-terminal/text") lastNote = String(Object.values(c.files)[0] ?? "")
+                return mine.attach(c)
+              },
+              note: (kind, caption, body) => {
+                lastNote = body
+                return mine.attach(text(caption, body, { fold: kind === "log" }))
               },
             }
             try {
               await fn(step)
             } finally {
               if (term !== undefined) {
-                put("buffer", "after.txt", "the screen after", term.screen())
+                mine.attach(text("the screen after", term.screen()))
                 const [header, ...events] = term.cast().trimEnd().split("\n")
-                put("cast", "step.cast", "the step as it played", [header, ...events.slice(Math.max(0, castFrom - 1))].join("\n") + "\n")
+                mine.attach({ kind: "evidence-terminal/cast", caption: "the step as it played", files: { "step.cast": [header, ...events.slice(Math.max(0, castFrom - 1))].join("\n") + "\n" } })
               }
             }
           }
@@ -153,10 +145,6 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
             }
           }
           if (!passed) failed = true
-          mkdirSync(evidenceDir, { recursive: true })
-          // ponytail: rm then rename is not one step; a kill between them leaves the old JSON over new media.
-          rmSync(mediaDir, { recursive: true, force: true })
-          if (staging !== "") renameSync(staging, mediaDir)
           const evidence: Evidence = {
             scenario,
             version: scenarioVersion(graph, scenario)!,
@@ -167,11 +155,11 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
             flaky,
             at: new Date().toISOString(),
             ms: Math.round(performance.now() - started),
-            media,
+            media: staged?.media() ?? [],
             failure: passed ? null : { expected: error instanceof Error ? error.message : String(error), saw: term?.screen() ?? lastNote },
             code: codeOf(root, (await (tagged ??= Effect.runPromise(tags(root)))).filter((t) => t.id === scenario).map((t) => t.file)),
           }
-          writeAtomic(join(evidenceDir, `${scenario}.json`), `${JSON.stringify(evidence, null, 2)}\n`)
+          commitEvidence(evidenceDir, staged, evidence)
           if (!passed) throw error
         },
         // Bun's own timeout only backs up the step's deadline, which writes the evidence first.

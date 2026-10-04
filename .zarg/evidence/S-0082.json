@@ -1,18 +1,21 @@
 {
   "scenario": "S-0082",
   "version": "bdfe5b738fca",
-  "commit": "af14501",
-  "run": "e2e-2026-10-04T17-23-40.182Z",
+  "commit": "904c7df",
+  "run": "e2e-2026-10-04T18-14-24.301Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T17:23:44.962Z",
-  "ms": 335,
+  "at": "2026-10-04T18:14:29.190Z",
+  "ms": 331,
   "media": [
     {
-      "kind": "buffer",
-      "path": "media/S-0082/note-1.txt",
-      "caption": "zarg query code S-0001"
+      "kind": "evidence-terminal/text",
+      "caption": "zarg query code S-0001",
+      "path": "media/S-0082/1-text.txt",
+      "meta": {
+        "fold": false
+      }
     }
   ],
   "failure": null,

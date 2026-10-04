@@ -1,23 +1,29 @@
 {
   "scenario": "S-0007",
   "version": "2c53b280a8a8",
-  "commit": "af14501",
-  "run": "e2e-2026-10-04T17-23-40.182Z",
+  "commit": "904c7df",
+  "run": "e2e-2026-10-04T18-14-24.301Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T17:23:43.616Z",
-  "ms": 655,
+  "at": "2026-10-04T18:14:27.831Z",
+  "ms": 698,
   "media": [
     {
-      "kind": "buffer",
-      "path": "media/S-0007/note-1.txt",
-      "caption": "zarg tool call gherkin/add-scenario {\"title\":\"CLI actor closes pricing\",\"when\":\"the CLI actor closes pricing\",\"by\":[{\"name\":\"CLI actor\"}],\"arrives\":{\"id\":\"ST-0002\"},\"then\":[{\"id\":\"ST-0001\"},{\"id\":\"ST-0001\"}]}"
+      "kind": "evidence-terminal/text",
+      "caption": "zarg tool call gherkin/add-scenario {\"title\":\"CLI actor closes pricing\",\"when\":\"the CLI actor closes pricing\",\"by\":[{\"name\":\"CLI actor\"}],\"arrives\":{\"id\":\"ST-0002\"},\"then\":[{\"id\":\"ST-0001\"},{\"id\":\"ST-0001\"}]}",
+      "path": "media/S-0007/1-text.txt",
+      "meta": {
+        "fold": false
+      }
     },
     {
-      "kind": "buffer",
-      "path": "media/S-0007/note-2.txt",
-      "caption": "zarg tool call gherkin/link {\"scenario\":\"S-0001\",\"edge\":\"then\",\"state\":{\"id\":\"ST-0002\"}}"
+      "kind": "evidence-terminal/text",
+      "caption": "zarg tool call gherkin/link {\"scenario\":\"S-0001\",\"edge\":\"then\",\"state\":{\"id\":\"ST-0002\"}}",
+      "path": "media/S-0007/2-text.txt",
+      "meta": {
+        "fold": false
+      }
     }
   ],
   "failure": null,

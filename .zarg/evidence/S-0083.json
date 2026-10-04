@@ -1,33 +1,45 @@
 {
   "scenario": "S-0083",
   "version": "06d40334859b",
-  "commit": "af14501",
-  "run": "e2e-2026-10-04T17-23-40.182Z",
+  "commit": "904c7df",
+  "run": "e2e-2026-10-04T18-14-24.301Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T17:23:45.644Z",
-  "ms": 681,
+  "at": "2026-10-04T18:14:29.867Z",
+  "ms": 676,
   "media": [
     {
-      "kind": "buffer",
-      "path": "media/S-0083/note-1.txt",
-      "caption": "zarg checkpoint"
+      "kind": "evidence-terminal/text",
+      "caption": "zarg checkpoint",
+      "path": "media/S-0083/1-text.txt",
+      "meta": {
+        "fold": false
+      }
     },
     {
-      "kind": "log",
-      "path": "media/S-0083/note-2.txt",
-      "caption": "git diff --cached --name-only"
+      "kind": "evidence-terminal/text",
+      "caption": "git diff --cached --name-only",
+      "path": "media/S-0083/2-text.txt",
+      "meta": {
+        "fold": true
+      }
     },
     {
-      "kind": "log",
-      "path": "media/S-0083/note-3.txt",
-      "caption": "git commit -q -m req: pricing"
+      "kind": "evidence-terminal/text",
+      "caption": "git commit -q -m req: pricing",
+      "path": "media/S-0083/3-text.txt",
+      "meta": {
+        "fold": true
+      }
     },
     {
-      "kind": "buffer",
-      "path": "media/S-0083/note-4.txt",
-      "caption": "zarg affected"
+      "kind": "evidence-terminal/text",
+      "caption": "zarg affected",
+      "path": "media/S-0083/4-text.txt",
+      "meta": {
+        "fold": false
+      }
     }
   ],
   "failure": null,

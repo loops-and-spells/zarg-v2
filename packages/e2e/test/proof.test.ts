@@ -30,8 +30,8 @@ test("a passing CLI step writes evidence at the scenario's version with its note
   const e = evidence(root, "S-0001")
   expect(e).toMatchObject({ scenario: "S-0001", journey: "J-0001", passed: true, flaky: false, failure: null })
   expect(e.version).toMatch(/^[0-9a-f]{12}$/)
-  expect(e.media).toEqual([{ kind: "buffer", path: "media/S-0001/note-1.txt", caption: "zarg agenda" }])
-  expect(readFileSync(join(root, ".zarg", "evidence", "media", "S-0001", "note-1.txt"), "utf8")).toStartWith("[")
+  expect(e.media).toEqual([{ kind: "evidence-terminal/text", path: "media/S-0001/1-text.txt", caption: "zarg agenda", meta: { fold: false } }])
+  expect(readFileSync(join(root, ".zarg", "evidence", "media", "S-0001", "1-text.txt"), "utf8")).toStartWith("[")
 }, 60_000)
 
 test("a step that throws before anything still writes passed: false with the error", () => {
