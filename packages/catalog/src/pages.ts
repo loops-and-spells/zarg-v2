@@ -39,6 +39,9 @@ export const css = (): string =>
     `#q{width:100%;max-width:480px;padding:6px 8px;font:inherit;background:var(--raised);color:var(--text);border:1px solid var(--line)}`,
   ].join("\n") + "\n"
 
+/** Data for a script element: JSON that cannot close the element early. */
+const scriptData = (v: unknown) => JSON.stringify(v).replace(/</g, "\\u003c")
+
 const badge = (s: Status) => `<span class="badge s-${s}">${s}</span>`
 const bar = (c: Counts) => `<div class="bar">${STATUSES.filter((s) => c[s] > 0).map((s) => `<span class="s-${s}" style="flex:${c[s]}" title="${c[s]} ${s}"></span>`).join("")}</div>`
 const counts = (c: Counts) => STATUSES.filter((s) => c[s] > 0).map((s) => `${c[s]} ${s}`).join(" · ")
@@ -154,7 +157,7 @@ const medium = (m: NonNullable<ScenarioPage["proof"]>["media"][number]) => {
     case "log":
       return `<details><summary>${esc(m.caption)}</summary><pre>${esc(m.text ?? "")}</pre></details>`
     case "cast":
-      return `<figure><div class="cast" data-cast="${src}"><noscript><a href="${src}">${esc(m.caption)}</a></noscript></div>${cap}</figure>`
+      return `<figure><div class="cast" data-cast="${src}"><noscript><a href="${src}">${esc(m.caption)}</a></noscript></div><script type="application/json" class="cast-data">${scriptData(m.text ?? "")}</script>${cap}</figure>`
     case "image":
     case "gif":
       return `<figure><img src="${src}" alt="${esc(m.caption)}">${cap}</figure>`
@@ -167,7 +170,8 @@ const PLAYER = (up: string) =>
   [
     `<link rel="stylesheet" href="${up}player/asciinema-player.css">`,
     `<script src="${up}player/asciinema-player.min.js"></script>`,
-    `<script>document.querySelectorAll("[data-cast]").forEach((el) => AsciinemaPlayer.create(el.dataset.cast, el, { fit: "width" }))</script>`,
+    // The cast's data is in the page, so it plays opened from disk as well as served.
+    `<script>document.querySelectorAll("[data-cast]").forEach((el) => AsciinemaPlayer.create({ data: JSON.parse(el.nextElementSibling.textContent) }, el, { fit: "width" }))</script>`,
   ].join("\n")
 
 const scenarioPage = (c: Catalog, s: ScenarioPage) => {
@@ -198,7 +202,8 @@ const scenarioPage = (c: Catalog, s: ScenarioPage) => {
 }
 
 const SEARCH_SCRIPT = `<script>
-fetch("search.json").then((r) => r.json()).then((all) => {
+{
+  const all = JSON.parse(document.getElementById("search-data").textContent)
   const q = document.getElementById("q"), out = document.getElementById("hits")
   const show = () => {
     const t = q.value.trim().toLowerCase()
@@ -212,7 +217,7 @@ fetch("search.json").then((r) => r.json()).then((all) => {
   }
   q.addEventListener("input", show)
   show()
-})
+}
 </script>`
 
 /** Every page as path → content. */
@@ -220,7 +225,7 @@ export const pages = (c: Catalog): ReadonlyMap<string, string> => {
   const byId = new Map(c.scenarios.map((s) => [s.id, s]))
   return new Map([
     ["index.html", overview(c)],
-    ["search.html", layout(c, "", "Search", `<h1>Search</h1>\n<input id="q" type="search" placeholder="an id or words" autofocus>\n<ul id="hits"></ul>`, SEARCH_SCRIPT)],
+    ["search.html", layout(c, "", "Search", `<h1>Search</h1>\n<input id="q" type="search" placeholder="an id or words" autofocus>\n<ul id="hits"></ul>\n<script type="application/json" id="search-data">${scriptData(c.search)}</script>`, SEARCH_SCRIPT)],
     ["search.json", `${JSON.stringify(c.search)}\n`],
     ...c.intents.map((i) => [`intents/${i.id}.html`, intentPage(c, i)] as const),
     ...c.journeys.map((j) => [`journeys/${j.id}.html`, journeyPage(c, j, byId)] as const),

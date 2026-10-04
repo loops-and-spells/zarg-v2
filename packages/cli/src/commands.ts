@@ -2,7 +2,7 @@ import { Cause, Console, Effect, Option } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
 import { diff, GraphStore, hash, Snapshot } from "@zarg/graph"
 import { PluginHost } from "@zarg/plugin/server"
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { basename, join, resolve } from "node:path"
 import { findPlugin, USER_DIR } from "@zarg/core/plugins"
 import { type Grant, makeGrants, scopesDigest, warnings } from "@zarg/plugin/runtime"
@@ -11,7 +11,7 @@ import { buildPlugin } from "@zarg/plugin-sdk/tools"
 import { readClaim, startHeadless, stopCore } from "@zarg/client"
 import { baseTree, CHECKPOINT, git, LEGACY_CHECKPOINT, snapshotAtTree, workingGraphTree } from "@zarg/reconcile"
 import { audit as auditOf, codeChanged, exitCode as auditExit, fullAudit, fullSummary, type Tag, tags as auditTags, toJunit } from "@zarg/audit"
-import { build as buildCatalog, catalogOf, githubRepo } from "@zarg/catalog"
+import { build as buildCatalog, catalogOf, githubRepo, trackedReader } from "@zarg/catalog"
 import { scenarioRefs, snapshotAt } from "./git"
 import { root } from "./root"
 
@@ -193,18 +193,12 @@ const catalogBuild = Command.make(
       const report = yield* fullReport(loaded, yield* auditTags(root))
       const repo = githubRepo(gitOut("remote", "get-url", "origin").stdout.toString())
       const ref = gitOut("rev-parse", "HEAD").stdout.toString().trim()
-      const evidence = join(root, ".zarg", "evidence")
       const catalog = catalogOf({
         snap: loaded.snapshot,
         report,
         ...(repo === undefined || ref === "" ? {} : { github: { repo, ref } }),
-        readText: (path) => {
-          try {
-            return readFileSync(join(evidence, path), "utf8")
-          } catch {
-            return undefined
-          }
-        },
+        // Only committed media: what every clone has.
+        readText: trackedReader(root),
       })
       const out = resolve(root, o.out)
       yield* Effect.sync(() => buildCatalog({ catalog, root, out }))

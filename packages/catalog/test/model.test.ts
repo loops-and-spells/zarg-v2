@@ -13,7 +13,7 @@ test("the catalog of a small graph: statuses, lines, code links, media, overview
   expect(s1.code).toEqual([{ file: "src/a.ts", line: 3, url: "https://github.com/o/r/blob/abc1234/src/a.ts#L3" }, { file: "src/b.ts", line: 9, url: "https://github.com/o/r/blob/abc1234/src/b.ts#L9" }])
   expect(s1.proof!.media).toEqual([
     { kind: "buffer", caption: "after", path: "media/S-1/after.txt", present: true, text: "plans <b>" },
-    { kind: "cast", caption: "cast", path: "media/S-1/step.cast", present: true },
+    { kind: "cast", caption: "cast", path: "media/S-1/step.cast", present: true, text: `{"version":2,"width":120,"height":40}\n[0.1,"o","hi"]\n` },
     { kind: "image", caption: "shot", path: "media/S-1/shot.png", present: false },
   ])
   expect(c.scenarios.map((s) => [s.id, s.status])).toEqual([["S-1", "proven"], ["S-2", "planned"], ["S-3", "unproven"]])
@@ -30,4 +30,20 @@ test("githubRepo reads ssh and https remotes; others are not linked", () => {
   expect(githubRepo("https://github.com/o/r")).toBe("o/r")
   expect(githubRepo("https://github.com/o/r.git\n")).toBe("o/r")
   expect(githubRepo("https://gitlab.com/o/r.git")).toBeUndefined()
+})
+
+import { writeFileSync as wf } from "node:fs"
+import { join as pj } from "node:path"
+import { trackedReader } from "../src/model"
+test("only committed media is present: a file on disk that git does not track is not (a gitignored video, an untracked buffer)", () => {
+  const root = repo()
+  const git = (...a: Array<string>) => Bun.spawnSync(["git", "-c", "user.name=t", "-c", "user.email=t@t", ...a], { cwd: root })
+  git("init", "-q")
+  git("add", ".zarg/evidence/media/S-1/after.txt")
+  wf(pj(root, ".zarg/evidence/media/S-1/shot.png"), "png bytes")
+  const read = trackedReader(root)
+  expect(read("media/S-1/after.txt")).toBe("plans <b>")
+  expect(read("media/S-1/shot.png")).toBeUndefined()
+  expect(read("media/S-1/step.cast")).toBeUndefined()
+  expect(read("../../.env.local")).toBeUndefined()
 })

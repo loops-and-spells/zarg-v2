@@ -1,5 +1,7 @@
 import type { Full } from "@zarg/audit"
-import type { Evidence } from "@zarg/audit/evidence"
+import { EVIDENCE_DIR, type Evidence } from "@zarg/audit/evidence"
+import { readFileSync } from "node:fs"
+import { join, posix } from "node:path"
 import { type FlowStep, flowOf } from "@zarg/audit/flow"
 import { scenarioVersion } from "@zarg/audit/version"
 import { type Node, Snapshot } from "@zarg/graph/pure"
@@ -42,9 +44,28 @@ export type Overview = {
 export type SearchEntry = { readonly id: string; readonly kind: "intent" | "outcome" | "journey" | "scenario"; readonly text: string; readonly url: string }
 export type Catalog = { readonly overview: Overview; readonly intents: ReadonlyArray<IntentPage>; readonly journeys: ReadonlyArray<JourneyPage>; readonly scenarios: ReadonlyArray<ScenarioPage>; readonly search: ReadonlyArray<SearchEntry> }
 
-const TEXT_MEDIA = new Set(["buffer", "log"])
+/** Media whose content goes in the page: frames and logs to read, casts for the player (so the page works from disk). */
+const TEXT_MEDIA = new Set(["buffer", "log", "cast"])
 const byId = (a: { readonly id: string }, b: { readonly id: string }) => a.id.localeCompare(b.id)
 const str = (v: unknown) => (v === undefined ? "" : String(v))
+
+/**
+ * A reader of committed evidence media: a medium git does not track (a gitignored video, an untracked buffer) is not
+ * there, however it sits on this machine, so every clone builds the same catalog.
+ */
+export const trackedReader = (root: string): ((path: string) => string | undefined) => {
+  const dir = join(root, EVIDENCE_DIR)
+  const listed = Bun.spawnSync(["git", "ls-files", "-z", "--", EVIDENCE_DIR], { cwd: root }).stdout.toString().split("\0")
+  const tracked = new Set(listed.filter((f) => f !== "").map((f) => posix.relative(EVIDENCE_DIR, f)))
+  return (path) => {
+    if (!tracked.has(posix.normalize(path))) return undefined
+    try {
+      return readFileSync(join(dir, path), "utf8")
+    } catch {
+      return undefined
+    }
+  }
+}
 
 /** `git@github.com:o/r.git` or `https://github.com/o/r(.git)` → `o/r`; anything else → undefined. */
 export const githubRepo = (remote: string): string | undefined => /^(?:git@github\.com:|https:\/\/github\.com\/)([^/\s]+\/[^/\s]+?)(?:\.git)?\s*$/.exec(remote)?.[1]

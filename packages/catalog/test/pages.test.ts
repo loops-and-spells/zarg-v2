@@ -37,3 +37,14 @@ test("the colours are the design tokens, light and dark", () => {
   expect(c).toContain(':root[data-theme="dark"]')
   expect(c).toContain(".badge.s-failing")
 })
+
+test("opened from disk (no server): casts and search carry their data in the page, never a fetch", () => {
+  const p = pages(catalog())
+  const s1 = p.get("scenarios/S-1.html")!
+  expect(s1).toContain('<script type="application/json" class="cast-data">')
+  expect(s1).toContain("AsciinemaPlayer.create({ data: JSON.parse(")
+  expect(p.get("search.html")).toContain('<script type="application/json" id="search-data">')
+  expect(p.get("search.html")).not.toContain("fetch(")
+  // Data in a script element cannot end it early.
+  expect(s1.match(/<script type="application\/json" class="cast-data">([^<]*)<\/script>/)?.[1]).toBeDefined()
+})
