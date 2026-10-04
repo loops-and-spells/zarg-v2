@@ -73,3 +73,57 @@ test("the catalog carries the project's name", () => {
   const root = repo()
   expect(catalogOf({ snap, report: reportOf(root), readText: reader(root), project: "demo" }).project).toBe("demo")
 })
+
+import { Snapshot as Snap } from "@zarg/graph/pure"
+import { fullAudit as audit2 } from "@zarg/audit"
+import { scenarioVersion as version2 } from "@zarg/audit/version"
+import { mkdirSync as mk2, mkdtempSync as mkt2 } from "node:fs"
+import { tmpdir as tmp2 } from "node:os"
+
+test("intent summaries, uncovered work: the fixture", () => {
+  const root = repo()
+  const c = catalogOf({ snap, report: reportOf(root), readText: reader(root) })
+  expect(c.intents[0]).toMatchObject({ id: "I-1", journeys: ["J-1"], counts: { proven: 1, planned: 1, failing: 0, stale: 0, unproven: 0 } })
+  expect(c.overview.intents).toEqual([{ id: "I-1", title: "Pricing", status: "accepted", outcomes: 1, journeys: 1, counts: { failing: 0, stale: 0, unproven: 0, proven: 1, planned: 1 } }])
+  expect(c.overview.uncovered).toEqual({ journeys: [], scenarios: [{ id: "S-3", title: "Lone" }] })
+})
+
+/** n intents, each an outcome served by a journey of one scenario; I-3 and I-7 fail, I-5 has no journey. */
+const many = (n: number) => {
+  const nodes: Array<unknown> = []
+  const e = (t: string, to: string) => ({ type: `gherkin/${t}`, to })
+  nodes.push({ id: "ST-1", type: "gherkin/state", props: { text: "a" }, edges: [] })
+  for (let i = 1; i <= n; i++) {
+    nodes.push({ id: `I-${i}`, type: "gherkin/intent", props: { title: `Intent ${i} with a title long enough to wrap on a phone`, status: "draft" }, edges: [e("has", `O-${i}`)] })
+    nodes.push({ id: `O-${i}`, type: "gherkin/outcome", props: { text: `outcome ${i}` }, edges: [] })
+    if (i === 5) continue
+    nodes.push({ id: `J-${i}`, type: "gherkin/journey", props: { name: `journey ${i}` }, edges: [e("serves", `O-${i}`)] })
+    nodes.push({ id: `S-${i}`, type: "gherkin/scenario", props: { title: `scenario ${i}`, when: "w" }, edges: [e("arrives", "ST-1"), e("then", "ST-1"), e("in", `J-${i}`)] })
+  }
+  const g = Snap.make(nodes as never)
+  const root = mkt2(pj(tmp2(), "zt-many-"))
+  mk2(pj(root, ".zarg", "evidence"), { recursive: true })
+  for (const i of [3, 7]) wf(pj(root, ".zarg", "evidence", `S-${i}.json`), JSON.stringify({ scenario: `S-${i}`, version: version2(g, `S-${i}`), commit: "c", run: "r", journey: `J-${i}`, passed: false, flaky: false, at: "t", ms: 1, media: [], failure: { expected: "x", saw: "y" } }))
+  const report = audit2({ snap: g, tags: [], root, invalid: [], findings: [], agenda: [], changedSince: () => false, hasCommit: () => true })
+  return catalogOf({ snap: g, report, readText: reader(root) })
+}
+
+test("many intents: red first, then by id; one with no journey says so", () => {
+  const c = many(35)
+  expect(c.overview.intents.slice(0, 2).map((i) => i.id)).toEqual(["I-3", "I-7"])
+  expect(c.overview.intents).toHaveLength(35)
+  expect(c.overview.intents.find((i) => i.id === "I-5")).toMatchObject({ journeys: 0, counts: { failing: 0, stale: 0, unproven: 0, proven: 0, planned: 0 } })
+})
+
+test("a scenario's thumbnail is its first committed visual medium, the screen after first", () => {
+  const root = repo()
+  wf(pj(root, ".zarg/evidence/media/S-1/before.json"), "{}")
+  wf(pj(root, ".zarg/evidence/media/S-1/after.json"), "{}")
+  const file = pj(root, ".zarg/evidence/S-1.json")
+  const e = JSON.parse(require("node:fs").readFileSync(file, "utf8"))
+  const frame = (caption: string, path: string) => ({ kind: "evidence-terminal/frame", caption, path })
+  wf(file, JSON.stringify({ ...e, media: [...e.media, frame("the screen before", "media/S-1/before.json"), frame("the screen after", "media/S-1/after.json"), frame("the screen after", "media/S-1/gone.json")] }))
+  const c = catalogOf({ snap, report: reportOf(root), readText: reader(root) })
+  expect(c.scenarios.find((s) => s.id === "S-1")!.thumb).toBe("media/S-1/after.json")
+  expect(catalogOf({ snap, report: reportOf(repo()), readText: reader(repo()) }).scenarios.find((s) => s.id === "S-1")!.thumb).toBeUndefined()
+})

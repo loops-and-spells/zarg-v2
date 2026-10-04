@@ -32,10 +32,14 @@ export type ScenarioPage = {
   readonly journeys: ReadonlyArray<Named>
   readonly lines: ReadonlyArray<Line>
   readonly code: ReadonlyArray<{ readonly file: string; readonly line: number; readonly url?: string }>
+  /** Its first committed visual medium (the screen after first): a journey card's thumbnail. */
+  readonly thumb?: string
   readonly proof?: { readonly run: string; readonly commit: string; readonly at: string; readonly ms: number; readonly flaky: boolean; readonly failure: Evidence["failure"]; readonly media: ReadonlyArray<MediaView> }
 }
 export type JourneyPage = { readonly id: string; readonly name: string; readonly outcomes: ReadonlyArray<{ readonly id: string; readonly text: string }>; readonly steps: ReadonlyArray<FlowStep>; readonly apart: ReadonlyArray<string>; readonly counts: Counts }
 export type IntentPage = {
+  readonly counts: Counts
+  readonly journeys: ReadonlyArray<string>
   readonly id: string
   readonly title: string
   readonly status: string
@@ -44,7 +48,12 @@ export type IntentPage = {
   readonly constraints: ReadonlyArray<{ readonly id: string; readonly text: string; readonly bounds: ReadonlyArray<string> }>
   readonly questions: ReadonlyArray<{ readonly id: string; readonly text: string; readonly answer?: string }>
 }
+export type IntentRow = { readonly id: string; readonly title: string; readonly status: string; readonly outcomes: number; readonly journeys: number; readonly counts: Counts }
 export type Overview = {
+  /** Every intent, red first (failing, then stale, then unproven), then by id. */
+  readonly intents: ReadonlyArray<IntentRow>
+  /** What no outcome ties to the intent yet: journeys serving none, scenarios in no journey. */
+  readonly uncovered: { readonly journeys: ReadonlyArray<{ readonly id: string; readonly name: string }>; readonly scenarios: ReadonlyArray<{ readonly id: string; readonly title: string }> }
   readonly checks: ReadonlyArray<{ readonly name: string; readonly level: "problem" | "warning"; readonly count: number }>
   readonly journeys: ReadonlyArray<{ readonly id: string; readonly name: string; readonly counts: Counts }>
   readonly totals: Counts
@@ -78,6 +87,13 @@ export const trackedReader = (root: string): ((path: string) => string | undefin
 /** `git@github.com:o/r.git` or `https://github.com/o/r(.git)` → `o/r`; anything else → undefined. */
 export const githubRepo = (remote: string): string | undefined => /^(?:git@github\.com:|https:\/\/github\.com\/)([^/\s]+\/[^/\s]+?)(?:\.git)?\s*$/.exec(remote)?.[1]
 
+/** Media a reader sees as a picture. */
+const VISUAL = new Set(["evidence-terminal/frame", "evidence-screen/screenshot", "evidence-screen/gif", "evidence-screen/trace"])
+/** A scenario's first committed visual medium, "the screen after" first: what its journey card shows. */
+const thumbOf = (s: ScenarioPage): string | undefined => {
+  const visual = (s.proof?.media ?? []).filter((m) => m.present && VISUAL.has(m.kind))
+  return (visual.find((m) => m.caption === "the screen after") ?? visual[0])?.path
+}
 const countOf = (statuses: ReadonlyArray<Status>): Counts => Object.fromEntries(STATUSES.map((s) => [s, statuses.filter((x) => x === s).length])) as Counts
 
 /** The page data of a catalog: the graph from intent to scenario, each scenario's proof and its evidence. */
@@ -178,7 +194,11 @@ export const catalogOf = (input: {
       return n === undefined ? [] : [n]
     }).sort(byId)
     const typed = (type: string) => statements.filter((n) => n.type === type)
+    const serving = [...new Set(typed("gherkin/outcome").flatMap((o) => Snapshot.inbound(snap, o.id, "gherkin/serves").map((e) => e.from)))].sort()
+    const members = [...new Set(serving.flatMap((j) => Snapshot.inbound(snap, j, "gherkin/in").map((e) => e.from)))]
     return {
+      counts: countOf(members.map(status)),
+      journeys: serving,
       id: i.id,
       title: str(i.props.title),
       status: str(i.props.status),
@@ -188,6 +208,20 @@ export const catalogOf = (input: {
       questions: typed("gherkin/question").map((q) => ({ id: q.id, text: textOf(q.id), ...(q.props.answer === undefined ? {} : { answer: str(q.props.answer) }) })),
     }
   })
+
+  // Red first: failing, then stale, then unproven, most first; then by id.
+  const redness = (c: Counts) => [c.failing, c.stale, c.unproven]
+  const intentRows = intents
+    .map((i): IntentRow => ({ id: i.id, title: i.title, status: i.status, outcomes: i.outcomes.length, journeys: i.journeys.length, counts: i.counts }))
+    .sort((a, b) => {
+      const [ra, rb] = [redness(a.counts), redness(b.counts)]
+      for (let k = 0; k < ra.length; k++) if (ra[k] !== rb[k]) return rb[k]! - ra[k]!
+      return a.id.localeCompare(b.id)
+    })
+  const uncovered = {
+    journeys: of("gherkin/journey").filter((j) => out(j, "gherkin/serves").length === 0).map((j) => ({ id: j.id, name: str(j.props.name) })),
+    scenarios: of("gherkin/scenario").filter((sc) => out(sc, "gherkin/in").length === 0).map((sc) => ({ id: sc.id, title: str(sc.props.title) })),
+  }
 
   const evidence = report.proofs.flatMap((p) => (p.evidence === undefined ? [] : [p.evidence]))
   const distinct = (xs: ReadonlyArray<string>) => [...new Set(xs)].sort()
@@ -205,6 +239,8 @@ export const catalogOf = (input: {
   return {
     project: input.project ?? "",
     overview: {
+      intents: intentRows,
+      uncovered,
       // Problems first, each level in the report's order.
       checks: [...report.checks].sort((a, b) => (a.level === b.level ? 0 : a.level === "problem" ? -1 : 1)).map((c) => ({ name: c.name, level: c.level, count: c.items.length })),
       journeys: journeys.map((j) => ({ id: j.id, name: j.name, counts: j.counts })),
@@ -214,7 +250,10 @@ export const catalogOf = (input: {
     },
     intents,
     journeys,
-    scenarios,
+    scenarios: scenarios.map((sc) => {
+      const thumb = thumbOf(sc)
+      return thumb === undefined ? sc : { ...sc, thumb }
+    }),
     search,
   }
 }

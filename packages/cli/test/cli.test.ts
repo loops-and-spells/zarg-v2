@@ -52,7 +52,8 @@ describe("zarg cli", () => {
     // An unknown scenario: exit 1.
     const unknown = zarg("audit", "--scenario", "S-9999")
     expect([unknown.code, JSON.parse(unknown.out)]).toEqual([1, { id: "S-9999", missing: true }])
-  })
+    // Seven zarg runs: under a full verify that is more than bun's 5 s default.
+  }, 60_000)
 
   test("show returns the node, its hash and inbound edges", () => {
     const s = json("show", "ST-0002")
