@@ -83,6 +83,11 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   // The draft in a ref too: the keyboard handler reads it between renders (Tab completes it).
   const draftRef = useRef("")
   const inputRef = useRef<InputRenderable | null>(null)
+  // Set when a key opens the bar; cleared once it has rendered (its input then takes the typing itself).
+  const barOpening = useRef(false)
+  useEffect(() => {
+    barOpening.current = false
+  })
   const agentsRef = useRef<ScrollBoxRenderable | null>(null)
   const talkRef = useRef<ScrollBoxRenderable | null>(null)
   const reviewRef = useRef<ScrollBoxRenderable | null>(null)
@@ -139,8 +144,16 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   }
 
   useKeyboard((key) => {
+    // The bar opened earlier in this same burst (after /) and its input has not rendered yet: the typing is the bar's, never a panel's key.
+    const printable = key.sequence !== undefined && key.sequence.length === 1 && key.sequence >= " " && key.ctrl !== true && key.meta !== true && key.option !== true
+    if (barOpening.current && printable) {
+      setDraft(draftRef.current + key.sequence)
+      return
+    }
+    const before = latest().focus
     const r = onKey(latest(), props.session.state(), { name: key.name, ctrl: key.ctrl, shift: key.shift, meta: key.meta || key.option }, Date.now(), draftRef.current, gridRef.current)
     setUi(r.ui)
+    if (before !== "bar" && r.ui.focus === "bar" && r.draft !== undefined) barOpening.current = true
     if (r.draft !== undefined) {
       // Write into the input now, so a key typed right after Tab lands after the completion.
       if (inputRef.current !== null) inputRef.current.value = r.draft

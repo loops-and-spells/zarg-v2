@@ -494,6 +494,17 @@ describe("tui frames", () => {
     expect(t.calls).toEqual(["command /reconcile"])
   })
 
+  test("keys typed in the same burst as / (from the inbox, before the bar renders) land in the bar, never as the panel's hotkeys", async () => {
+    const t = await render({ thread: { ...initial("main"), status: "idle" }, core: "up" })
+    t.mockInput.pressKey("v", { meta: true })
+    await t.waitForVisualIdle()
+    expect(t.captureCharFrame()).toContain("⏎ open")
+    // One burst, as a terminal delivers fast typing or a paste: no render between the keys.
+    await t.mockInput.typeText("/re")
+    await settle(t)
+    expect(t.captureCharFrame().split("\n").find((l) => l.includes("› /")) ?? "").toContain("/re")
+  })
+
   test("a key typed right after Tab lands after the completion", async () => {
     const t = await render({ thread: { ...initial("main"), status: "idle" }, core: "up" })
     await t.mockInput.typeText("/re")
