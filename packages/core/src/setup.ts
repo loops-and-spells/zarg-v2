@@ -1,5 +1,5 @@
-import { Effect, Redacted } from "effect"
-import { defineView, type Layout, type Surface } from "@zarg/view"
+import { Cause, Effect, Redacted } from "effect"
+import { defineView, type Layout, layoutOf, type Surface } from "@zarg/view"
 import { type Config, type Env, type Model, ModelError, type Provider, type Secrets } from "@zarg/model"
 
 /** The Setup view (agent `core:setup`): providers, the login form, the default model. */
@@ -31,7 +31,7 @@ const SetupView = defineView("setup", {
     actions: [{ id: "default", label: "Use as default", on: "row", default: true }],
   },
 })
-export const SETUP_LAYOUT: Layout = SetupView as unknown as Layout
+export const SETUP_LAYOUT: Layout = layoutOf(SetupView)
 export const SETUP_SURFACE: Surface = { kind: "sheet", name: "setup", view: "setup" }
 
 export interface SetupDeps {
@@ -100,7 +100,7 @@ export const makeSetup = (d: SetupDeps) => {
       }
       yield* render
       d.agentEvents("core", { event: "open", surfaces: [{ surface: "setup", agent: AGENT, focus: true }], gesture: true })
-    }).pipe(Effect.ignore)
+    }).pipe(Effect.catchCause((c) => Effect.sync(() => console.error(`zarg-core: setup could not open: ${String(Cause.squash(c))}`))))
   /** Setup is needed while the driver has no model, or its provider does not answer. */
   const needed = Effect.gen(function* () {
     const ref = d.config.roles.driver

@@ -139,3 +139,25 @@ describe("first-run setup", () => {
     expect(await run(s.needed)).toBe(false)
   })
 })
+
+describe("the Setup view through the core's event path", () => {
+  test("its layout is a real Layout: the core's plugin-agent events start it, fill its sections and open its sheet", async () => {
+    const { mkdtempSync } = await import("node:fs")
+    const { makeLog } = await import("../src/log")
+    const { pluginAgents } = await import("../src/plugin-agents")
+    const { makeSurfaces } = await import("../src/surfaces")
+    const { makePrompts } = await import("../src/prompts")
+    const { SETUP_LAYOUT, SETUP_SURFACE } = await import("../src/setup")
+    const log = Effect.runSync(makeLog(mkdtempSync(join(tmpdir(), "zt-setup-log-")), (t) => t))
+    const ev = pluginAgents(log, "main", (p, v) => (p === "core" && v === "setup" ? SETUP_LAYOUT : undefined), (p, n) => (p === "core" && n === "setup" ? SETUP_SURFACE : undefined), makeSurfaces(log, "main"), makePrompts(log), (p) => (p === "core" ? [SETUP_SURFACE] : [])) as (p: string, e: unknown) => void
+    const w = world()
+    const config = await w.run(Config.load({ userDir: w.userDir, projectDir: w.projectDir }))
+    const s = makeSetup({ providers: [w.provider], env: w.env, secrets: w.secrets as never, config, reloadConfig: Effect.void, writeUserConfig: () => Effect.void, ensureUserSchema: Effect.void, model: { client: () => Effect.fail(new ModelError({ kind: "config", message: "none" })), list: () => Effect.succeed([]) } as never, agentEvents: ev, secretsChanged: Effect.void })
+    await run(s.open("providers"))
+    // View deltas are batched and flushed on a timer.
+    await Bun.sleep(300)
+    const text = JSON.stringify(log.all())
+    expect(text).toContain("◇ not set up")
+    expect(text).toContain('"kind":"sheet","view":"core:setup"')
+  })
+})
