@@ -1,13 +1,13 @@
 {
   "scenario": "S-0007",
   "version": "2c53b280a8a8",
-  "commit": "aa4674b",
-  "run": "e2e-2026-10-04T05-06-57.082Z",
+  "commit": "867c8ba",
+  "run": "e2e-2026-10-04T05-15-37.426Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T05:07:00.392Z",
-  "ms": 676,
+  "at": "2026-10-04T05:15:40.805Z",
+  "ms": 659,
   "media": [
     {
       "kind": "buffer",
