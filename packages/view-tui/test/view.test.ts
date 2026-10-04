@@ -556,6 +556,13 @@ describe("panels", () => {
     const s: SessionState = { ...idle, thread: { ...idle.thread, navigate: { seq: 3, kind: "sheet", view: "two:t1@status", at: 1000 } } }
     expect(syncUi(initialUi, s, 1001)).toMatchObject({ sheet: true, sheetOf: "two:t1@status", focus: "tile" })
   })
+  test("a close for the sheet shown closes it, whatever its age; a close for another sheet changes nothing", () => {
+    const open = { ...initialUi, sheet: true, sheetOf: "core:setup" }
+    const close = (view: string, seq: number): SessionState => ({ ...idle, thread: { ...idle.thread, navigate: { seq, kind: "close", view, at: 1 } } })
+    expect(syncUi(open, close("core:setup", 7), 999_999)).toMatchObject({ sheet: false, navigated: 7 })
+    expect(syncUi(open, close("core:setup", 7), 999_999).sheetOf).toBeUndefined()
+    expect(syncUi(open, close("two:t1", 8), 2)).toMatchObject({ sheet: true, sheetOf: "core:setup" })
+  })
 })
 
 describe("surface fixes", () => {

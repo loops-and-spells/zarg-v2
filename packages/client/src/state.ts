@@ -116,7 +116,7 @@ export interface ThreadState {
   /** The plugins' nav items, shown above the agents: each opens its plugin's view. */
   readonly nav?: ReadonlyArray<NavItem>
   /** The last tile or sheet a plugin opened for the operator, with the event's seq and time. */
-  readonly navigate?: { readonly seq: number; readonly kind: "tile" | "sheet"; readonly view: string; readonly at: number }
+  readonly navigate?: { readonly seq: number; readonly kind: "tile" | "sheet" | "close"; readonly view: string; readonly at: number }
   /** The operator's inbox, by topic id (every topic the core sent, open or not). */
   readonly inbox?: Readonly<Record<string, Topic>>
 }
@@ -165,7 +165,7 @@ export const reduce = (s: ThreadState, e: WireEvent): ThreadState => {
     return { ...s, seq: e.seq, panels: ((e.content as { panels?: ReadonlyArray<Panel> } | undefined)?.panels ?? []) }
   if (e.type === "CUSTOM" && e.name === "zarg.navigate" && e.seq > s.seq) {
     const v = e.value as { kind?: unknown; view?: unknown; at?: unknown }
-    if (v.kind !== "tile" && v.kind !== "sheet") return { ...s, seq: e.seq }
+    if (v.kind !== "tile" && v.kind !== "sheet" && v.kind !== "close") return { ...s, seq: e.seq }
     return { ...s, seq: e.seq, navigate: { seq: e.seq, kind: v.kind, view: String(v.view), at: Number(v.at ?? 0) } }
   }
   if (e.threadId !== s.threadId || e.seq <= s.seq) return s

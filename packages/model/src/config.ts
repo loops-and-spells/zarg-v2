@@ -170,15 +170,24 @@ export const roleModel = (config: ZargConfig, role: string) => {
 export const reload = (config: ZargConfig, opts: { readonly userDir: string; readonly projectDir: string }) =>
   Effect.flatMap(load(opts), (next) => Effect.sync(() => setters.get(config)?.(next)))
 
-/** Edit the user config: `roles.default`, and a provider section only when it is missing. Other lines stay as they are; the write is atomic. */
+/**
+ * Edit the user config: `roles.default`, and a provider section only when it is missing. Other lines stay as they are; an edit
+ * that would not parse is refused (the file untouched); the write is atomic. Answers what was there before (for `restoreUserConfig`).
+ */
 export const setUserConfig = (file: string, edit: { readonly default?: string; readonly provider?: { readonly name: string; readonly settings: Readonly<Record<string, string>> } }) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem
     const io = (e: { message: string }) => new ConfigError({ message: e.message, file })
     const exists = yield* fs.exists(file).pipe(Effect.orElseSucceed(() => false))
-    let lines = exists ? (yield* fs.readFileString(file).pipe(Effect.mapError(io))).replace(/\n$/, "").split("\n") : []
+    const before = exists ? yield* fs.readFileString(file).pipe(Effect.mapError(io)) : undefined
+    let lines = before !== undefined ? before.replace(/\n$/, "").split("\n") : []
     if (lines.length === 1 && lines[0] === "") lines = []
-    const header = (name: string) => lines.findIndex((l) => l.trim() === `[${name}]`)
+    // A table header as TOML allows it: spaces inside the brackets, quoted keys, a trailing comment.
+    const header = (name: string) => {
+      const parts = name.split(".").map((p) => `\\s*"?${p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"?\\s*`).join("\\.")
+      const re = new RegExp(`^\\s*\\[${parts}\\]\\s*(#.*)?$`)
+      return lines.findIndex((l) => re.test(l))
+    }
     const sectionEnd = (start: number) => {
       const next = lines.findIndex((l, i) => i > start && /^\s*\[/.test(l))
       return next < 0 ? lines.length : next
@@ -198,9 +207,22 @@ export const setUserConfig = (file: string, edit: { readonly default?: string; r
       while (lines.length > 0 && lines.at(-1)!.trim() === "") lines.pop()
       lines = [...lines, ...(lines.length > 0 ? [""] : []), `[providers.${edit.provider.name}]`, ...Object.entries(edit.provider.settings).map(([k, v]) => `${k} = ${JSON.stringify(v)}`)]
     }
-    const dir = file.slice(0, file.lastIndexOf("/"))
-    yield* fs.makeDirectory(dir, { recursive: true }).pipe(Effect.mapError(io))
+    const text = `${lines.join("\n")}\n`
+    yield* Effect.try({ try: () => Bun.TOML.parse(text), catch: (e) => new ConfigError({ message: `the edit would not parse (${e instanceof Error ? e.message : String(e)}); ${file} is unchanged`, file }) })
+    yield* writeAtomic(file, text)
+    return before
+  })
+
+const writeAtomic = (file: string, text: string) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem
+    const io = (e: { message: string }) => new ConfigError({ message: e.message, file })
+    yield* fs.makeDirectory(file.slice(0, file.lastIndexOf("/")), { recursive: true }).pipe(Effect.mapError(io))
     const tmp = `${file}.${process.pid}.tmp`
-    yield* fs.writeFileString(tmp, `${lines.join("\n")}\n`).pipe(Effect.mapError(io))
+    yield* fs.writeFileString(tmp, text).pipe(Effect.mapError(io))
     yield* fs.rename(tmp, file).pipe(Effect.mapError(io))
   })
+
+/** Put back what `setUserConfig` answered (undefined: there was no file). */
+export const restoreUserConfig = (file: string, before: string | undefined) =>
+  before === undefined ? Effect.flatMap(FileSystem.FileSystem, (fs) => fs.remove(file).pipe(Effect.ignore)) : writeAtomic(file, before)

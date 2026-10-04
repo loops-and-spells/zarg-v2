@@ -393,6 +393,9 @@ export const pickChoice = (ui: ViewUi, index: number): { readonly ui: ViewUi; re
   if (ui.choose === undefined || ui.choose.choices[index] === undefined) return { ui }
   return chooseKey({ ...ui, choose: { ...ui.choose, pick: index } }, { name: "return" })!
 }
+/** Pasted text into an open input, as one piece (line breaks dropped: an input is one line); undefined when none is open. */
+export const pasteText = (ui: ViewUi, text: string): ViewUi | undefined =>
+  ui.input === undefined ? undefined : { ...ui, input: { ...ui.input, text: `${ui.input.text}${text.replace(/[\r\n]+/g, "")}` } }
 /** A key while an input is open: typing edits it, Enter acts with the text, Esc closes it; undefined when none is open. */
 export const inputKey = (ui: ViewUi, key: { readonly name: string; readonly ctrl?: boolean; readonly meta?: boolean }): { readonly ui: ViewUi; readonly act?: Act } | undefined => {
   if (ui.input === undefined) return undefined

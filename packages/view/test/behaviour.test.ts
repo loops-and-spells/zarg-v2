@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { actionFor, pressAction, applyMenu, closeMenu, defineView, focusNext, initialViewUi, layoutOf, menuEntries, menuMove, moveColumn, moveRow, nextTab, cursorRow, filterOf, followedText, searchCount, setSearch, pickTab, menuAdjust, menuQuery, openMenu, ordered, pickHeader, pickMark, pickRow, shownRows, startUi, toggleSelect, type ViewState, type ViewUi } from "../src"
+import { actionFor, pasteText, pressAction, applyMenu, closeMenu, defineView, focusNext, initialViewUi, layoutOf, menuEntries, menuMove, moveColumn, moveRow, nextTab, cursorRow, filterOf, followedText, searchCount, setSearch, pickTab, menuAdjust, menuQuery, openMenu, ordered, pickHeader, pickMark, pickRow, shownRows, startUi, toggleSelect, type ViewState, type ViewUi } from "../src"
 
 const layout = layoutOf(
   defineView("tester", {
@@ -326,5 +326,13 @@ describe("secret rows", () => {
     const view = { agent: "t", layout, data: { list: { rows: [{ id: "K", cells: { name: "K" }, text: "old", secret: true }] } } } as ViewState
     const r = pressAction(view, initialViewUi, "list", "set", ["K"])
     expect(r.ui.input).toEqual({ section: "list", action: "set", rows: ["K"], text: "", placeholder: "the value", secret: true })
+  })
+})
+
+describe("pasting", () => {
+  test("a paste goes into an open input as one piece (line breaks dropped); with no input open nothing changes", () => {
+    const open = { ...initialViewUi, input: { section: "fields", action: "set", rows: ["K"], text: "sk-", placeholder: "the value", secret: true } }
+    expect(pasteText(open, "or-v1-abc\n")?.input?.text).toBe("sk-or-v1-abc")
+    expect(pasteText(initialViewUi, "x")).toBeUndefined()
   })
 })

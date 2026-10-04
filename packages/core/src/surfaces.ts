@@ -68,7 +68,8 @@ export const makeSurfaces = (log: ThreadLog, threadId: string) => {
       for (const p of gone) panels.delete(p.id)
       if (gone.length > 0) changed()
     },
-    navigate: (kind: "tile" | "sheet", view: string) => Effect.runSync(log.append(threadId, E.custom(NAVIGATE, { kind, view, at: Date.now() }))),
+    /** Show a tile or a sheet; \`close\`: clients showing that sheet close it. */
+    navigate: (kind: "tile" | "sheet" | "close", view: string) => Effect.runSync(log.append(threadId, E.custom(NAVIGATE, { kind, view, at: Date.now() }))),
     /** A new core starts from no panels: the last core's agents are over. */
     announce: Effect.suspend(send),
   }

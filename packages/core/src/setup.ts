@@ -41,7 +41,9 @@ export interface SetupDeps {
   /** The live config (reload updates it in place). */
   readonly config: Config.ZargConfig
   readonly reloadConfig: Effect.Effect<void, unknown>
-  readonly writeUserConfig: (edit: Parameters<typeof Config.setUserConfig>[1]) => Effect.Effect<void, unknown>
+  /** Answers the file as it was (for \`restoreUserConfig\`). */
+  readonly writeUserConfig: (edit: Parameters<typeof Config.setUserConfig>[1]) => Effect.Effect<string | undefined, unknown>
+  readonly restoreUserConfig: (before: string | undefined) => Effect.Effect<void, unknown>
   /** `~/.config/zarg/.env.schema`, so varlock reads the values login writes beside it. */
   readonly ensureUserSchema: Effect.Effect<void, unknown>
   readonly model: Model.Model["Service"]
@@ -75,8 +77,15 @@ export const makeSetup = (d: SetupDeps) => {
       return { ok: true as const, text: `✓ reachable · ${models.length} model${models.length === 1 ? "" : "s"}`, models }
     })
   const set = (section: string, data: unknown) => d.agentEvents("core", { event: "set", id: AGENT, section, data })
+  type State = Effect.Success<ReturnType<typeof status>>
+  /** Each provider's last check: a check can take seconds (a host that is down), so only open and done make one. */
+  const known = new Map<string, State>()
+  const check = (names: ReadonlyArray<string>) =>
+    Effect.forEach(d.providers.filter((p) => names.includes(p.name)), (p) => Effect.map(status(p), (s) => void known.set(p.name, s)), { concurrency: "unbounded", discard: true })
   const render = Effect.gen(function* () {
-    const states = yield* Effect.forEach(d.providers, (p) => Effect.map(status(p), (s) => ({ p, s })))
+    const unchecked = d.providers.filter((p) => !known.has(p.name)).map((p) => p.name)
+    if (unchecked.length > 0) yield* check(unchecked)
+    const states = d.providers.map((p) => ({ p, s: known.get(p.name)! }))
     const ready = states.filter((x) => x.s.ok)
     set("summary", { markdown: `${ready.length} provider${ready.length === 1 ? "" : "s"} ready · default: ${d.config.roles.default ?? "none"}${ready.length === 0 ? "\n\nLog in to a provider (⏎ on it), then pick the default model every agent uses." : ""}` })
     set("providers", { rows: states.map(({ p, s }) => ({ id: p.name, cells: { provider: p.name, state: s.text } })) })
@@ -94,6 +103,7 @@ export const makeSetup = (d: SetupDeps) => {
   })
   const open = (_at?: "providers" | "models") =>
     Effect.gen(function* () {
+      yield* check(d.providers.map((p) => p.name))
       if (!started) {
         started = true
         d.agentEvents("core", { event: "start", id: AGENT, title: "setup", task: "Set up a model provider and the default model", view: "setup" })
@@ -128,28 +138,35 @@ export const makeSetup = (d: SetupDeps) => {
         yield* field?.sensitive === true ? d.secrets.set(name, Redacted.make(text)) : d.secrets.setPlain(name, text)
         yield* d.secretsChanged
         yield* render
-        return { notice: `${name} saved` }
+        // A project whose own .env.schema sets this variable keeps its value: say so, never fail quietly.
+        const now = yield* d.env.lookup(name)
+        const inEffect = now === undefined ? undefined : Redacted.isRedacted(now) ? Redacted.value(now) : now
+        return { notice: inEffect !== undefined && inEffect !== text ? `${name} saved, but this project's own .env.schema sets it: its value wins here` : `${name} saved` }
       }
       if (action === "done") {
         const p = d.providers.find((x) => x.name === selected)
         if (p === undefined) return { notice: "pick a provider first" }
-        yield* d.writeUserConfig({ provider: { name: p.name, settings: p.settings } })
-        yield* d.reloadConfig
+        // A section the config cannot load would stop every project: it goes back, and the reason is the notice.
+        const before = yield* d.writeUserConfig({ provider: { name: p.name, settings: p.settings } })
+        yield* d.reloadConfig.pipe(Effect.catch((e) => Effect.andThen(Effect.andThen(d.restoreUserConfig(before), Effect.ignore(d.reloadConfig)), Effect.fail(e))))
         if (d.model.reconnect !== undefined) yield* d.model.reconnect
-        const s = yield* status(p)
+        yield* check([p.name])
+        const s = known.get(p.name)!
         yield* render
         return { notice: s.ok ? `${p.name}: reachable, ${s.models.length} model${s.models.length === 1 ? "" : "s"}` : `${p.name}: ${s.text.replace(/^[✗◇] /, "")}` }
       }
       if (action === "default") {
         const ref = rows[0]
         if (ref === undefined) return { notice: "pick a model" }
-        yield* d.writeUserConfig({ default: ref })
-        yield* d.reloadConfig
+        const before = yield* d.writeUserConfig({ default: ref })
+        yield* d.reloadConfig.pipe(Effect.catch((e) => Effect.andThen(Effect.andThen(d.restoreUserConfig(before), Effect.ignore(d.reloadConfig)), Effect.fail(e))))
         yield* render
         if (!(yield* needed)) d.agentEvents("core", { event: "close", surface: "setup", id: AGENT })
         return { notice: `default model: ${ref}` }
       }
       return { notice: `setup has no action ${action}` }
     }).pipe(Effect.catch((e: unknown) => Effect.succeed({ notice: e instanceof ModelError ? why(e) : String((e as { message?: unknown })?.message ?? e) })))
-  return { needed, open, act }
+  /** Open only while setup is needed (a client joining a core that started earlier). */
+  const openIfNeeded = Effect.flatMap(needed, (n) => (n ? open("providers") : Effect.void))
+  return { needed, open, openIfNeeded, act }
 }

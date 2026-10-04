@@ -134,3 +134,31 @@ describe("the user config writer", () => {
     expect(readFileSync(file, "utf8")).toBe('[roles]\ndefault = "zarg-router:big"\n')
   })
 })
+
+describe("the user config writer, careful", () => {
+  test("headers with a trailing comment or a quoted name are found, never duplicated", async () => {
+    const d = dirs()
+    const file = join(d.userDir, "config.toml")
+    writeFileSync(file, '[roles]  # mine\nplan = "zarg-router:p"\n[providers."zarg-router"]\nbase_url = "x"\n')
+    await run(Config.setUserConfig(file, { default: "zarg-router:big", provider: { name: "zarg-router", settings: { base_url: "${OTHER}" } } }))
+    const text = readFileSync(file, "utf8")
+    expect(text).toBe('[roles]  # mine\ndefault = "zarg-router:big"\nplan = "zarg-router:p"\n[providers."zarg-router"]\nbase_url = "x"\n')
+    expect(() => Bun.TOML.parse(text)).not.toThrow()
+  })
+  test("an edit that would not parse is refused, and the file stays as it was", async () => {
+    const d = dirs()
+    const file = join(d.userDir, "config.toml")
+    writeFileSync(file, 'roles.default = "zarg-router:old"\n')
+    const e = await run(Effect.flip(Config.setUserConfig(file, { default: "zarg-router:big" })))
+    expect(e.message).toContain("would not parse")
+    expect(readFileSync(file, "utf8")).toBe('roles.default = "zarg-router:old"\n')
+  })
+  test("restoreUserConfig puts back what was there (or removes a file that was not)", async () => {
+    const d = dirs()
+    const file = join(d.userDir, "config.toml")
+    writeFileSync(file, "# before\n")
+    const before = await run(Config.setUserConfig(file, { default: "zarg-router:big" }))
+    await run(Config.restoreUserConfig(file, before))
+    expect(readFileSync(file, "utf8")).toBe("# before\n")
+  })
+})

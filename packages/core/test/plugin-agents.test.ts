@@ -206,4 +206,8 @@ test("a plugin opens a sheet for its nav view's agent during the operator's call
   expect(() => on("backlog", { event: "open", surfaces: [{ surface: "item", agent: "backlog", focus: true }], gesture: true })).not.toThrow()
   const nav = log.all().filter((e) => (e as { name?: string }).name === "zarg.navigate").map((e) => (e as unknown as { value: { kind: string; view: string } }).value)
   expect(nav.at(-1)).toMatchObject({ kind: "sheet", view: "backlog:backlog@item" })
+  // Closing it asks clients showing that sheet to close it.
+  on("backlog", { event: "close", surface: "item", id: "backlog" })
+  const after = log.all().filter((e) => (e as { name?: string }).name === "zarg.navigate").map((e) => (e as unknown as { value: { kind: string; view: string } }).value)
+  expect(after.at(-1)).toMatchObject({ kind: "close", view: "backlog:backlog@item" })
 })

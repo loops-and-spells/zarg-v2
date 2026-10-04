@@ -274,6 +274,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       config,
       reloadConfig: Effect.provide(Config.reload(config, { userDir: USER_DIR, projectDir: root }), ctx),
       writeUserConfig: (edit) => Effect.provide(Config.setUserConfig(join(USER_DIR, "config.toml"), edit), ctx),
+      restoreUserConfig: (before) => Effect.provide(Config.restoreUserConfig(join(USER_DIR, "config.toml"), before), ctx),
       ensureUserSchema: Effect.sync(() => {
         const file = join(USER_DIR, ".env.schema")
         if (!existsSync(file)) {
@@ -285,7 +286,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       agentEvents,
       secretsChanged: Effect.map(env.sensitive, (s) => void (sensitive = s)),
     })
-    if (!opts.stub) yield* Effect.forkDetach(Effect.flatMap(setup.needed, (needed) => (needed ? setup.open("providers") : Effect.void)))
+    if (!opts.stub) yield* Effect.forkDetach(setup.openIfNeeded)
 
     // @scenario S-0058 @scenario S-0059
     /** `/reconcile`: turn plan and implement on for this session (the config's section and `enabled` are overridden). */

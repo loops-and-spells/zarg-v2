@@ -148,6 +148,7 @@ export const pluginAgents = (
     if (e.event === "close") {
       const s = surfaceOf(plugin, String(e.surface))
       if (s?.kind === "panel") surfaces?.closePanel(`${plugin}:${s.name}:${id}`)
+      if (s?.kind === "sheet") surfaces?.navigate("close", keyFor(plugin, id, s.view))
       if (s?.kind === "popover" && prompts !== undefined) {
         const shown = prompts.shownFor(id, viewKey(views, id, s.view))
         if (shown !== undefined) Effect.runSync(prompts.close(shown))

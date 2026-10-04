@@ -23,6 +23,8 @@ export interface Opened {
 export const openSession = (opts: { readonly root: string; readonly threadId: string; readonly focus: ReadonlyArray<string>; readonly command?: ReadonlyArray<string>; readonly attach?: boolean }) =>
   Effect.gen(function* () {
     const conn = yield* connect({ root: opts.root, command: opts.command ?? coreCommand(), ...(opts.attach === true ? { attach: true } : {}) })
+    // Joining a core that started earlier: setup shows if it is still needed (a new core opens it by itself).
+    if (!conn.owned) yield* Effect.ignore(makeClient(conn.info).setup("providers", { ifNeeded: true }))
     const session = makeSession({ client: makeClient(conn.info), threadId: opts.threadId, focus: opts.focus })
     const meta: Meta = { threadId: opts.threadId, repo: basename(opts.root), mode: conn.info.mode, ...(conn.info.driver !== undefined ? { driver: conn.info.driver } : {}) }
     return {

@@ -1,7 +1,7 @@
-import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
+import { useKeyboard, usePaste, useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import type { Panel, Session, Topic } from "@zarg/client"
-import { afterAction, applyMenu, closeMenu, highlightActs, pickCard, pickChoice, pressAction, hintsOf, keyFor, menuAdjust, pickHeader, pickMark, pickRow, pickTab, startUi } from "@zarg/view"
+import { afterAction, applyMenu, closeMenu, pasteText, highlightActs, pickCard, pickChoice, pressAction, hintsOf, keyFor, menuAdjust, pickHeader, pickMark, pickRow, pickTab, startUi } from "@zarg/view"
 import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { registerCommands, SLASH_COMMANDS } from "./commands"
 import { fit, gauge, keyGlyphs } from "./look"
@@ -147,6 +147,16 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       setDraft(r.draft)
     }
     act(r.action)
+  })
+  // A paste (a key, a URL) goes into whichever view's input is open; otherwise the focused text field takes it.
+  usePaste((e) => {
+    const text = new TextDecoder().decode(e.bytes)
+    const u = latest()
+    for (const k of ["sheetView", "panelView", "view"] as const) {
+      const v = u[k]
+      const next = v === undefined ? undefined : pasteText(v, text)
+      if (next !== undefined) return setUi({ ...u, [k]: next })
+    }
   })
 
   const dims = useTerminalDimensions()

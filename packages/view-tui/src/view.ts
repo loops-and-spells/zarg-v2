@@ -156,6 +156,12 @@ const withNavigate = (ui: Ui, s: SessionState, now: number): Ui => {
   const n = s.thread.navigate
   if (n === undefined || (ui.navigated !== undefined && n.seq <= ui.navigated)) return ui
   const at: Ui = { ...ui, navigated: n.seq }
+  // A close applies whatever its age: only the sheet it names, and only when it is the one shown.
+  if (n.kind === "close") {
+    if (at.sheetOf !== n.view) return at
+    const { sheetOf: _, sheetView: __, ...closed } = at
+    return { ...closed, sheet: false }
+  }
   if (now - n.at >= NAVIGATE_FRESH_MS) return at
   if (n.kind === "sheet") {
     const { sheetView: _, ...fresh } = at

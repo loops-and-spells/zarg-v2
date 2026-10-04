@@ -45,14 +45,17 @@ const world = (seed: { readonly userConfig?: string; readonly values?: Readonly<
   }
   const layer = Layer.merge(Layer.succeed(Env, env), BunServices.layer)
   const run = <A, E>(e: Effect.Effect<A, E, any>) => Effect.runPromise(e.pipe(Effect.provide(layer)) as Effect.Effect<A, E>)
-  return { root, userDir, projectDir, values, env, secrets, secretCalls, provider, layer, run }
+  const out = { root, userDir, projectDir, values, env, secrets, secretCalls, provider, layer, run }
+  return out as typeof out & { provider: Provider }
 }
 
 const setupIn = async (w: ReturnType<typeof world>) => {
   const config = await w.run(Config.load({ userDir: w.userDir, projectDir: w.projectDir }))
   const events: Array<Record<string, unknown>> = []
   let refreshed = 0
+  let verifies = 0
   const verifyFake = Effect.suspend(() => {
+    verifies++
     const key = w.values.get(KEY)
     if (config.providers.fake === undefined) return Effect.fail(new ModelError({ kind: "config", message: 'provider "fake" is not configured' }))
     return key === "good" || key === SECRET ? Effect.void : Effect.fail(new ModelError({ kind: "status", status: 401, message: "401 unauthorized" }))
@@ -73,12 +76,13 @@ const setupIn = async (w: ReturnType<typeof world>) => {
     config,
     reloadConfig: Config.reload(config, { userDir: w.userDir, projectDir: w.projectDir }).pipe(Effect.provide(w.layer)),
     writeUserConfig: (edit) => Config.setUserConfig(userConfig, edit).pipe(Effect.provide(w.layer)),
+    restoreUserConfig: (before) => Config.restoreUserConfig(userConfig, before).pipe(Effect.provide(w.layer)),
     ensureUserSchema: Effect.void,
     model,
     agentEvents: (plugin, event) => void events.push({ plugin, ...(event as object) }),
     secretsChanged: Effect.sync(() => void refreshed++),
   })
-  return { s, events, config, userConfig, refreshed: () => refreshed }
+  return { s, events, config, userConfig, refreshed: () => refreshed, verifies: () => verifies }
 }
 const run = <A>(e: Effect.Effect<A, unknown>) => Effect.runPromise(e as Effect.Effect<A>)
 const sectionData = (events: ReadonlyArray<Record<string, unknown>>, section: string) => events.filter((e) => e.event === "set" && e.section === section).at(-1)?.data as { rows?: ReadonlyArray<{ id: string; cells: Record<string, string>; secret?: boolean }>; markdown?: string } | undefined
@@ -133,10 +137,59 @@ describe("first-run setup", () => {
     expect(events.find((e) => e.event === "close")).toMatchObject({ plugin: "core", surface: "setup", id: "setup" })
   })
 
+  test("openIfNeeded: a client joining later sees setup while it is needed, and nothing once it is done", async () => {
+    const fresh = await setupIn(world())
+    await run(fresh.s.openIfNeeded)
+    expect(fresh.events.some((e) => e.event === "open")).toBe(true)
+    const done = await setupIn(world({ userConfig: '[providers.fake]\nbase_url = "x"\n[roles]\ndefault = "fake:big"\n', values: { [KEY]: "good" } }))
+    await run(done.s.openIfNeeded)
+    expect(done.events).toEqual([])
+  })
+
   test("already set up (a default whose provider verifies): not needed", async () => {
     const w = world({ userConfig: '[providers.fake]\nbase_url = "x"\n[roles]\ndefault = "fake:big"\n', values: { [KEY]: "good" } })
     const { s } = await setupIn(w)
     expect(await run(s.needed)).toBe(false)
+  })
+})
+
+describe("checking providers costs little", () => {
+  test("open checks each provider once; login and set reuse it; done checks only the provider being saved", async () => {
+    const w = world({ values: { [KEY]: "good", [URL]: "http://fake.invalid" }, userConfig: '[providers.fake]\nbase_url = "x"\n' })
+    const { s, verifies } = await setupIn(w)
+    await run(s.open())
+    const afterOpen = verifies()
+    await run(s.act("login", ["fake"], undefined))
+    await run(s.act("set", [URL], "http://fake2.invalid"))
+    expect(verifies()).toBe(afterOpen)
+    await run(s.act("done", [], undefined))
+    expect(verifies()).toBeGreaterThan(afterOpen)
+  })
+})
+
+describe("a value this project overrides", () => {
+  test("saved, but the project's own env still wins: the notice says so instead of failing quietly", async () => {
+    const w = world({ values: { [URL]: "http://project.invalid" } })
+    // The save lands in the user's .env.local, but this project's schema keeps its own value.
+    w.secrets.setPlain = (name: string) => Effect.sync(() => void w.secretCalls.push(`plain ${name}`))
+    const { s } = await setupIn(w)
+    await run(s.open())
+    await run(s.act("login", ["fake"], undefined))
+    expect((await run(s.act("set", [URL], "http://user.invalid"))).notice).toBe(`${URL} saved, but this project's own .env.schema sets it: its value wins here`)
+  })
+})
+
+describe("a save that would break the config", () => {
+  test("done with a section the config cannot load (a variable with no value): the user config goes back as it was, the core keeps working", async () => {
+    const w = world({ userConfig: "# mine\n" })
+    w.provider = { ...w.provider, settings: { base_url: "${ZT_SETUP_NOWHERE}" } } as never
+    const { s, userConfig, config } = await setupIn(w)
+    await run(s.open())
+    await run(s.act("login", ["fake"], undefined))
+    const notice = (await run(s.act("done", [], undefined))).notice
+    expect(notice).toContain("ZT_SETUP_NOWHERE")
+    expect(readFileSync(userConfig, "utf8")).toBe("# mine\n")
+    expect(config.providers.fake).toBeUndefined()
   })
 })
 
@@ -152,7 +205,7 @@ describe("the Setup view through the core's event path", () => {
     const ev = pluginAgents(log, "main", (p, v) => (p === "core" && v === "setup" ? SETUP_LAYOUT : undefined), (p, n) => (p === "core" && n === "setup" ? SETUP_SURFACE : undefined), makeSurfaces(log, "main"), makePrompts(log), (p) => (p === "core" ? [SETUP_SURFACE] : [])) as (p: string, e: unknown) => void
     const w = world()
     const config = await w.run(Config.load({ userDir: w.userDir, projectDir: w.projectDir }))
-    const s = makeSetup({ providers: [w.provider], env: w.env, secrets: w.secrets as never, config, reloadConfig: Effect.void, writeUserConfig: () => Effect.void, ensureUserSchema: Effect.void, model: { client: () => Effect.fail(new ModelError({ kind: "config", message: "none" })), list: () => Effect.succeed([]) } as never, agentEvents: ev, secretsChanged: Effect.void })
+    const s = makeSetup({ providers: [w.provider], env: w.env, secrets: w.secrets as never, config, reloadConfig: Effect.void, writeUserConfig: () => Effect.succeed(undefined), restoreUserConfig: () => Effect.void, ensureUserSchema: Effect.void, model: { client: () => Effect.fail(new ModelError({ kind: "config", message: "none" })), list: () => Effect.succeed([]) } as never, agentEvents: ev, secretsChanged: Effect.void })
     await run(s.open("providers"))
     // View deltas are batched and flushed on a timer.
     await Bun.sleep(300)

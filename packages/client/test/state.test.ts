@@ -182,6 +182,10 @@ describe("surfaces", () => {
     const e = ev("CUSTOM", { name: "zarg.navigate", value: { kind: "tile", view: "rehearse:t1", at: 123 } })
     expect(fold([e]).navigate).toEqual({ seq: e.seq, kind: "tile", view: "rehearse:t1", at: 123 })
   })
+  test("a close navigation is kept too", () => {
+    const e = ev("CUSTOM", { name: "zarg.navigate", value: { kind: "close", view: "core:setup", at: 9 } })
+    expect(fold([e]).navigate).toEqual({ seq: e.seq, kind: "close", view: "core:setup", at: 9 })
+  })
   test("a plugin's popover queues with its view and agent and no options", () => {
     const s = fold([ev("CUSTOM", { name: "zarg.prompt", value: { id: "p1", kind: "surface", question: "rehearse ask", options: [], view: "rehearse:t1", agent: "rehearse:t1" } })])
     expect(s.prompts).toEqual([{ id: "p1", kind: "surface", question: "rehearse ask", options: [], view: "rehearse:t1", agent: "rehearse:t1" }])

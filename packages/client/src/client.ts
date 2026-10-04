@@ -91,8 +91,8 @@ export const makeClient = (info: Pick<CoreInfo, "socket" | "token">) => {
         Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly on: boolean }>)),
       ),
     /** Open the Setup view (\`/login\`: at the providers; \`/models\`: at the default model). */
-    setup: (at: "providers" | "models") =>
-      request("/setup/open", { method: "POST", body: JSON.stringify({ at }) }).pipe(
+    setup: (at: "providers" | "models", opts: { readonly ifNeeded?: boolean } = {}) =>
+      request("/setup/open", { method: "POST", body: JSON.stringify({ at, ...(opts.ifNeeded === true ? { ifNeeded: true } : {}) }) }).pipe(
         Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly notice: string }>)),
       ),
     /** Slash commands the core's plugins add. */
