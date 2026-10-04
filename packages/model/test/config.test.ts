@@ -1,6 +1,6 @@
 import { BunServices } from "@effect/platform-bun"
 import { describe, expect, test } from "bun:test"
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Layer, Redacted } from "effect"
@@ -80,6 +80,57 @@ describe("config loader", () => {
 
   test("roleModel explains which key to set", async () => {
     const e = await Effect.runPromise(Effect.flip(Config.roleModel({ providers: {}, roles: {}, extra: {} }, "driver")))
-    expect(e.message).toBe('no model for role "driver"; set roles.driver in .zarg/config.toml')
+    expect(e.message).toBe('no model for role "driver" (set a default with /models)')
+  })
+})
+
+const dirs = () => setup(undefined, undefined)
+const run = <A, E>(e: Effect.Effect<A, E, any>) => Effect.runPromise(e.pipe(Effect.provide(Layer.merge(envLayer, BunServices.layer))) as Effect.Effect<A, E>)
+
+describe("the default model", () => {
+  test("a role without its own model uses roles.default; a project's own role wins; keys list only set roles", async () => {
+    const d = dirs()
+    writeFileSync(join(d.userDir, "config.toml"), '[roles]\ndefault = "zarg-router:big"\n')
+    writeFileSync(join(d.projectDir, ".zarg", "config.toml"), '[roles]\ndriver = "zarg-router:small"\n')
+    const c = await run(Config.load(d))
+    expect([c.roles.driver, c.roles.plan, c.roles.rehearse]).toEqual(["zarg-router:small", "zarg-router:big", "zarg-router:big"])
+    expect(Object.keys(c.roles).sort()).toEqual(["default", "driver"])
+  })
+  test("with no default, an unset role is undefined, and roleModel says to set a default with /models", async () => {
+    const c = await run(Config.load(dirs()))
+    expect(c.roles.driver).toBeUndefined()
+    expect((await Effect.runPromise(Effect.flip(Config.roleModel(c, "driver")))).message).toBe('no model for role "driver" (set a default with /models)')
+  })
+  test("[plugins] and [agents] load", async () => {
+    const d = dirs()
+    writeFileSync(join(d.projectDir, ".zarg", "config.toml"), '[agents]\nttl = "off"\n[plugins.triage]\nworkers = 3\n')
+    const c = await run(Config.load(d))
+    expect(c.extra.agents).toEqual({ ttl: "off" })
+  })
+  test("reload updates the same config object in place", async () => {
+    const d = dirs()
+    const c = await run(Config.load(d))
+    writeFileSync(join(d.userDir, "config.toml"), '[roles]\ndefault = "zarg-router:big"\n')
+    await run(Config.reload(c, d))
+    expect(c.roles.driver).toBe("zarg-router:big")
+  })
+})
+
+describe("the user config writer", () => {
+  test("sets roles.default and adds a missing provider section; comments and other content stay; an existing provider section is left alone", async () => {
+    const d = dirs()
+    const file = join(d.userDir, "config.toml")
+    writeFileSync(file, '# my zarg\n[providers.zarg-router]\nbase_url = "${ZARG_ROUTER_URL}"  # local\n\n[roles]\ndefault = "zarg-router:old"\nplan = "zarg-router:p"\n')
+    await run(Config.setUserConfig(file, { default: "openrouter:x", provider: { name: "openrouter", settings: { base_url: "${OPENROUTER_URL}", api_key: "${OPENROUTER_API_KEY}" } } }))
+    await run(Config.setUserConfig(file, { provider: { name: "zarg-router", settings: { base_url: "${OTHER}" } } }))
+    expect(readFileSync(file, "utf8")).toBe(
+      '# my zarg\n[providers.zarg-router]\nbase_url = "${ZARG_ROUTER_URL}"  # local\n\n[roles]\ndefault = "openrouter:x"\nplan = "zarg-router:p"\n\n[providers.openrouter]\nbase_url = "${OPENROUTER_URL}"\napi_key = "${OPENROUTER_API_KEY}"\n',
+    )
+  })
+  test("a missing file gets a [roles] section", async () => {
+    const d = dirs()
+    const file = join(d.userDir, "sub", "config.toml")
+    await run(Config.setUserConfig(file, { default: "zarg-router:big" }))
+    expect(readFileSync(file, "utf8")).toBe('[roles]\ndefault = "zarg-router:big"\n')
   })
 })

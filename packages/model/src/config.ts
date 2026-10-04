@@ -16,7 +16,7 @@ export interface ZargConfig {
 
 export class Config extends Context.Service<Config, ZargConfig>()("@zarg/model/Config") {}
 
-const KNOWN = new Set(["providers", "roles", "rlm", "reconcile"])
+const KNOWN = new Set(["providers", "roles", "rlm", "reconcile", "plugins", "agents"])
 const VAR = /\$\$\{|\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}/g
 
 /** Expand `${VAR}` / `${VAR:-default}` in one string; `$${` stays a literal `${`. */
@@ -77,6 +77,35 @@ const expandDeep = (value: unknown, key: string, env: Env["Service"]): Effect.Ef
   return Effect.succeed(value)
 }
 
+/** Roles as every reader sees them: a role's own model, else `roles.default`; updated in place by `reload`. */
+const liveRoles = (own: Record<string, string>) => {
+  let current = own
+  const view = new Proxy({} as Record<string, string>, {
+    get: (_t, k) => (typeof k === "string" ? (current[k] ?? current.default) : undefined),
+    has: (_t, k) => typeof k === "string" && k in current,
+    ownKeys: () => Reflect.ownKeys(current),
+    getOwnPropertyDescriptor: (_t, k) => (typeof k === "string" && k in current ? { value: current[k], enumerable: true, configurable: true, writable: false } : undefined),
+  })
+  return { view, set: (next: Record<string, string>) => void (current = next) }
+}
+/** Each loaded config's in-place updater (for `reload`). */
+const setters = new WeakMap<ZargConfig, (next: ZargConfig) => void>()
+/** A config whose providers, roles and extra sections `reload` updates in place: every holder sees the change. */
+const live = (providers: Record<string, Record<string, ConfigValue>>, roles: Record<string, string>, extra: Record<string, unknown>): ZargConfig => {
+  const r = liveRoles(roles)
+  const p = { ...providers }
+  const e = { ...extra }
+  const config: ZargConfig = { providers: p, roles: r.view, extra: e }
+  setters.set(config, (next) => {
+    for (const k of Object.keys(p)) delete p[k]
+    Object.assign(p, next.providers)
+    for (const k of Object.keys(e)) delete e[k]
+    Object.assign(e, next.extra)
+    r.set({ ...next.roles })
+  })
+  return config
+}
+
 const decode = (raw: Record<string, unknown>): Effect.Effect<ZargConfig, ConfigError> =>
   Effect.gen(function* () {
     for (const k of Object.keys(raw)) {
@@ -102,7 +131,7 @@ const decode = (raw: Record<string, unknown>): Effect.Effect<ZargConfig, ConfigE
       roles[role] = ref
     }
     const { providers: _p, roles: _r, ...extra } = raw
-    return { providers, roles, extra }
+    return live(providers, roles, extra)
   })
 
 /** Read `<userDir>/config.toml` then `<projectDir>/.zarg/config.toml` (project wins), expand, validate. */
@@ -131,8 +160,47 @@ export const load = (opts: { readonly userDir: string; readonly projectDir: stri
 export const layer = (opts: { readonly userDir: string; readonly projectDir: string }) =>
   Layer.effect(Config, load(opts))
 
-/** The model reference configured for a role, or a ConfigError naming the key to set. */
-export const roleModel = (config: ZargConfig, role: string) =>
-  config.roles[role] === undefined
-    ? Effect.fail(new ConfigError({ message: `no model for role "${role}"; set roles.${role} in .zarg/config.toml`, key: `roles.${role}` }))
-    : Effect.succeed(config.roles[role]!)
+/** The model for a role: its own, else the default; a ConfigError pointing at /models when there is neither. */
+export const roleModel = (config: ZargConfig, role: string) => {
+  const ref = config.roles[role] ?? config.roles.default
+  return ref === undefined ? Effect.fail(new ConfigError({ message: `no model for role "${role}" (set a default with /models)`, key: `roles.${role}` })) : Effect.succeed(ref)
+}
+
+/** Re-read both config files and update this config object in place (every holder sees the change). */
+export const reload = (config: ZargConfig, opts: { readonly userDir: string; readonly projectDir: string }) =>
+  Effect.flatMap(load(opts), (next) => Effect.sync(() => setters.get(config)?.(next)))
+
+/** Edit the user config: `roles.default`, and a provider section only when it is missing. Other lines stay as they are; the write is atomic. */
+export const setUserConfig = (file: string, edit: { readonly default?: string; readonly provider?: { readonly name: string; readonly settings: Readonly<Record<string, string>> } }) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem
+    const io = (e: { message: string }) => new ConfigError({ message: e.message, file })
+    const exists = yield* fs.exists(file).pipe(Effect.orElseSucceed(() => false))
+    let lines = exists ? (yield* fs.readFileString(file).pipe(Effect.mapError(io))).replace(/\n$/, "").split("\n") : []
+    if (lines.length === 1 && lines[0] === "") lines = []
+    const header = (name: string) => lines.findIndex((l) => l.trim() === `[${name}]`)
+    const sectionEnd = (start: number) => {
+      const next = lines.findIndex((l, i) => i > start && /^\s*\[/.test(l))
+      return next < 0 ? lines.length : next
+    }
+    if (edit.default !== undefined) {
+      const line = `default = ${JSON.stringify(edit.default)}`
+      const at = header("roles")
+      if (at < 0) lines = [...lines, ...(lines.length > 0 ? [""] : []), "[roles]", line]
+      else {
+        const end = sectionEnd(at)
+        const k = lines.findIndex((l, i) => i > at && i < end && /^\s*default\s*=/.test(l))
+        if (k >= 0) lines[k] = line
+        else lines.splice(at + 1, 0, line)
+      }
+    }
+    if (edit.provider !== undefined && header(`providers.${edit.provider.name}`) < 0) {
+      while (lines.length > 0 && lines.at(-1)!.trim() === "") lines.pop()
+      lines = [...lines, ...(lines.length > 0 ? [""] : []), `[providers.${edit.provider.name}]`, ...Object.entries(edit.provider.settings).map(([k, v]) => `${k} = ${JSON.stringify(v)}`)]
+    }
+    const dir = file.slice(0, file.lastIndexOf("/"))
+    yield* fs.makeDirectory(dir, { recursive: true }).pipe(Effect.mapError(io))
+    const tmp = `${file}.${process.pid}.tmp`
+    yield* fs.writeFileString(tmp, `${lines.join("\n")}\n`).pipe(Effect.mapError(io))
+    yield* fs.rename(tmp, file).pipe(Effect.mapError(io))
+  })
