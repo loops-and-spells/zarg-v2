@@ -1,0 +1,46 @@
+{
+  "scenario": "S-0101",
+  "version": "656e21ecf7e4",
+  "commit": "edba145",
+  "run": "e2e-2026-10-04T22-20-31.638Z",
+  "journey": "J-0007",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T22:20:39.336Z",
+  "ms": 1056,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0101/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "zarg render --focus I-0001",
+      "path": "media/S-0101/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0101/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0101/4-step.cast",
+      "meta": {
+        "startAt": 4.7
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/plugin-gherkin/src/index.ts": "07675c5e03df6a35ee34a97a1ae1d505c0bc0056",
+    "packages/plugin-gherkin/src/intent-tools.ts": "d92952d86ec2e39d4e7733abc70eab60c1d87887",
+    "packages/plugin-gherkin/src/views.ts": "e9910d656e0d6a811a4ebde62de7f8e291ddfe83",
+    "packages/plugin-gherkin/test/intents.test.ts": "a11bd449187e72b2c8e330c2010e3db18423c069"
+  }
+}
