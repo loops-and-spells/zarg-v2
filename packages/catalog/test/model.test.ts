@@ -58,3 +58,13 @@ test("a medium's other files are read only from a list of strings (hand-edited e
     expect(c.scenarios[0]!.proof!.media[0]!.files.map((f) => f.url)).toEqual(Array.isArray(bad) ? ["media/S-1/after.txt", "media/S-1/x.png"] : ["media/S-1/after.txt"])
   }
 })
+
+test("a binary kind's text files reach its renderer (a trace's trace.json)", () => {
+  const root = repo()
+  wf(pj(root, ".zarg/evidence/media/S-1/2-trace.json"), "[]")
+  const file = pj(root, ".zarg/evidence/S-1.json")
+  const e = JSON.parse(require("node:fs").readFileSync(file, "utf8"))
+  wf(file, JSON.stringify({ ...e, media: [{ kind: "evidence-screen/trace", caption: "t", path: "media/S-1/2-trace.json" }] }))
+  const c = catalogOf({ snap, report: reportOf(root), readText: reader(root) })
+  expect(c.scenarios[0]!.proof!.media[0]!.files).toEqual([{ name: "2-trace.json", url: "media/S-1/2-trace.json", text: "[]" }])
+})

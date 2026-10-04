@@ -204,6 +204,17 @@
         "@xterm/headless": "^6",
       },
     },
+    "packages/evidence-screen": {
+      "name": "@zarg/evidence-screen",
+      "dependencies": {
+        "@zarg/evidence-capture": "workspace:*",
+        "@zarg/plugin-sdk": "workspace:*",
+        "effect": "^4.0.0-rc.117",
+      },
+      "devDependencies": {
+        "@zarg/catalog": "workspace:*",
+      },
+    },
     "packages/evidence-terminal": {
       "name": "@zarg/evidence-terminal",
       "dependencies": {
@@ -535,6 +546,8 @@
     "@zarg/evidence-capture": ["@zarg/evidence-capture@workspace:packages/evidence-capture"],
 
     "@zarg/evidence-capture-xterm": ["@zarg/evidence-capture-xterm@workspace:packages/evidence-capture-xterm"],
+
+    "@zarg/evidence-screen": ["@zarg/evidence-screen@workspace:packages/evidence-screen"],
 
     "@zarg/evidence-terminal": ["@zarg/evidence-terminal@workspace:packages/evidence-terminal"],
 

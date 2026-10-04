@@ -138,7 +138,9 @@ export const catalogOf = (input: {
                 const others = Array.isArray(listed) ? listed.filter((f): f is string => typeof f === "string") : []
                 const files = [m.path, ...others].map((path) => {
                   const content = input.readText(path)
-                  return { name: path.split("/").at(-1)!, url: path, ...(content !== undefined && textKind(kind) ? { text: content } : {}), present: content !== undefined }
+                  // Text files of any kind go to its renderer too (a trace's trace.json).
+                  const text = content !== undefined && (textKind(kind) || /\.(json|txt|cast)$/.test(path))
+                  return { name: path.split("/").at(-1)!, url: path, ...(text ? { text: content } : {}), present: content !== undefined }
                 })
                 return {
                   kind,
