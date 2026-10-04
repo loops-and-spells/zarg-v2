@@ -1,0 +1,29 @@
+{
+  "scenario": "S-0002",
+  "version": "e7a780fe3f4b",
+  "commit": "aa4674b",
+  "run": "e2e-2026-10-04T05-06-57.082Z",
+  "journey": "J-0005",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T05:06:58.395Z",
+  "ms": 979,
+  "media": [
+    {
+      "kind": "buffer",
+      "path": "media/S-0002/note-1.txt",
+      "caption": "zarg tool call gherkin/add-persona {\"name\":\"CLI actor\",\"kind\":\"cli\",\"text\":\"A coding agent working through the zarg CLI.\"}"
+    },
+    {
+      "kind": "buffer",
+      "path": "media/S-0002/note-2.txt",
+      "caption": "zarg tool call gherkin/add-scenario {\"title\":\"CLI actor opens pricing\",\"when\":\"the CLI actor opens pricing\",\"by\":[{\"name\":\"CLI actor\"}],\"arrives\":{\"text\":\"the home page is shown\"},\"then\":[{\"text\":\"the plans are shown\"}]}"
+    },
+    {
+      "kind": "buffer",
+      "path": "media/S-0002/note-3.txt",
+      "caption": "zarg render --focus S-0001"
+    }
+  ],
+  "failure": null
+}

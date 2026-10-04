@@ -1,0 +1,24 @@
+{
+  "scenario": "S-0004",
+  "version": "12a496e62ed4",
+  "commit": "aa4674b",
+  "run": "e2e-2026-10-04T05-06-57.082Z",
+  "journey": "J-0005",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T05:06:59.716Z",
+  "ms": 659,
+  "media": [
+    {
+      "kind": "buffer",
+      "path": "media/S-0004/note-1.txt",
+      "caption": "zarg tool call gherkin/edit-state {\"id\":\"ST-0002\",\"text\":\"the plan picker is shown\"}"
+    },
+    {
+      "kind": "buffer",
+      "path": "media/S-0004/note-2.txt",
+      "caption": "zarg render"
+    }
+  ],
+  "failure": null
+}

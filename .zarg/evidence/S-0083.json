@@ -1,0 +1,34 @@
+{
+  "scenario": "S-0083",
+  "version": "06d40334859b",
+  "commit": "aa4674b",
+  "run": "e2e-2026-10-04T05-06-57.082Z",
+  "journey": "J-0005",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T05:07:02.359Z",
+  "ms": 675,
+  "media": [
+    {
+      "kind": "buffer",
+      "path": "media/S-0083/note-1.txt",
+      "caption": "zarg checkpoint"
+    },
+    {
+      "kind": "log",
+      "path": "media/S-0083/note-2.txt",
+      "caption": "git diff --cached --name-only"
+    },
+    {
+      "kind": "log",
+      "path": "media/S-0083/note-3.txt",
+      "caption": "git commit -q -m req: pricing"
+    },
+    {
+      "kind": "buffer",
+      "path": "media/S-0083/note-4.txt",
+      "caption": "zarg affected"
+    }
+  ],
+  "failure": null
+}

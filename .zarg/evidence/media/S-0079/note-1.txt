@@ -1,0 +1,10 @@
+$ zarg affected
+{
+  "base": "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+  "graph": "f39b28c052714a6a14723520409e91de5eb30a74",
+  "scenarios": [
+    "S-0001",
+    "S-0002"
+  ],
+  "removed": []
+}

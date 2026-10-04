@@ -1,0 +1,19 @@
+{
+  "scenario": "S-0001",
+  "version": "ed5a7457d05a",
+  "commit": "aa4674b",
+  "run": "e2e-2026-10-04T05-06-57.082Z",
+  "journey": "J-0005",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T05:06:57.416Z",
+  "ms": 329,
+  "media": [
+    {
+      "kind": "buffer",
+      "path": "media/S-0001/note-1.txt",
+      "caption": "zarg agenda"
+    }
+  ],
+  "failure": null
+}

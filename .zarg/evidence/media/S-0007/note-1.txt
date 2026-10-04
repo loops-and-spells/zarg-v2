@@ -1,0 +1,15 @@
+$ zarg tool call gherkin/add-scenario {"title":"CLI actor closes pricing","when":"the CLI actor closes pricing","by":[{"name":"CLI actor"}],"arrives":{"id":"ST-0002"},"then":[{"id":"ST-0001"},{"id":"ST-0001"}]}
+{
+  "error": "LintFailed",
+  "findings": [
+    {
+      "severity": "error",
+      "code": "duplicate-edge",
+      "message": "S-0003: links ST-0001 as \"gherkin/then\" twice; remove the duplicate",
+      "about": [
+        "S-0003",
+        "ST-0001"
+      ]
+    }
+  ]
+}

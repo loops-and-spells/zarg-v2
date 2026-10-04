@@ -1,0 +1,12 @@
+$ zarg tool call gherkin/add-scenario {"title":"CLI actor opens pricing","when":"the CLI actor opens pricing","by":[{"name":"CLI actor"}],"arrives":{"text":"the home page is shown"},"then":[{"text":"the plans are shown"}]}
+{
+  "message": "created S-0001; new states ST-0001, ST-0002",
+  "added": [
+    "S-0001",
+    "ST-0001",
+    "ST-0002"
+  ],
+  "changed": [],
+  "removed": [],
+  "warnings": []
+}

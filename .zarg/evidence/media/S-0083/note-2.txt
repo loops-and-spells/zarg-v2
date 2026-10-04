@@ -1,0 +1,8 @@
+$ git diff --cached --name-only
+.zarg/graph/nodes/P-0001.json
+.zarg/graph/nodes/S-0001.json
+.zarg/graph/nodes/S-0002.json
+.zarg/graph/nodes/ST-0001.json
+.zarg/graph/nodes/ST-0002.json
+.zarg/graph/nodes/ST-0003.json
+.zarg/reconciled.json

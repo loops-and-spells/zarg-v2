@@ -1,0 +1,4 @@
+$ zarg query code S-0001
+[
+  "src/pricing.ts:1:export const open = () => \"plans\" // @scenario S-0001"
+]

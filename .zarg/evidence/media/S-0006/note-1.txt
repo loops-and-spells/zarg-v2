@@ -1,0 +1,11 @@
+$ zarg tool call gherkin/add-scenario {"title":"CLI actor buys a plan","when":"the CLI actor buys with a valid card","by":[{"name":"CLI actor"}],"arrives":{"id":"ST-0002"},"then":[{"text":"the receipt is shown"}]}
+{
+  "message": "created S-0002; new states ST-0003",
+  "added": [
+    "S-0002",
+    "ST-0003"
+  ],
+  "changed": [],
+  "removed": [],
+  "warnings": []
+}

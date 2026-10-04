@@ -1,0 +1,4 @@
+$ zarg checkpoint
+{
+  "graph": "f39b28c052714a6a14723520409e91de5eb30a74"
+}

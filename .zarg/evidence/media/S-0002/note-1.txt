@@ -1,0 +1,10 @@
+$ zarg tool call gherkin/add-persona {"name":"CLI actor","kind":"cli","text":"A coding agent working through the zarg CLI."}
+{
+  "message": "created P-0001",
+  "added": [
+    "P-0001"
+  ],
+  "changed": [],
+  "removed": [],
+  "warnings": []
+}

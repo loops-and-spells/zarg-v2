@@ -1,0 +1,24 @@
+{
+  "scenario": "S-0007",
+  "version": "2c53b280a8a8",
+  "commit": "aa4674b",
+  "run": "e2e-2026-10-04T05-06-57.082Z",
+  "journey": "J-0005",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T05:07:00.392Z",
+  "ms": 676,
+  "media": [
+    {
+      "kind": "buffer",
+      "path": "media/S-0007/note-1.txt",
+      "caption": "zarg tool call gherkin/add-scenario {\"title\":\"CLI actor closes pricing\",\"when\":\"the CLI actor closes pricing\",\"by\":[{\"name\":\"CLI actor\"}],\"arrives\":{\"id\":\"ST-0002\"},\"then\":[{\"id\":\"ST-0001\"},{\"id\":\"ST-0001\"}]}"
+    },
+    {
+      "kind": "buffer",
+      "path": "media/S-0007/note-2.txt",
+      "caption": "zarg tool call gherkin/link {\"scenario\":\"S-0001\",\"edge\":\"then\",\"state\":{\"id\":\"ST-0002\"}}"
+    }
+  ],
+  "failure": null
+}

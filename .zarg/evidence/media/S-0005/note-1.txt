@@ -1,0 +1,86 @@
+$ zarg diff --since HEAD
+{
+  "added": [
+    {
+      "id": "P-0001",
+      "type": "gherkin/persona",
+      "props": {
+        "kind": "cli",
+        "name": "CLI actor",
+        "text": "A coding agent working through the zarg CLI."
+      },
+      "edges": []
+    },
+    {
+      "id": "S-0001",
+      "type": "gherkin/scenario",
+      "props": {
+        "title": "CLI actor opens pricing",
+        "when": "the CLI actor opens pricing"
+      },
+      "edges": [
+        {
+          "type": "gherkin/by",
+          "to": "P-0001"
+        },
+        {
+          "type": "gherkin/arrives",
+          "to": "ST-0001"
+        },
+        {
+          "type": "gherkin/then",
+          "to": "ST-0002"
+        }
+      ]
+    },
+    {
+      "id": "S-0002",
+      "type": "gherkin/scenario",
+      "props": {
+        "title": "CLI actor buys a plan",
+        "when": "the CLI actor buys with a valid card"
+      },
+      "edges": [
+        {
+          "type": "gherkin/by",
+          "to": "P-0001"
+        },
+        {
+          "type": "gherkin/arrives",
+          "to": "ST-0002"
+        },
+        {
+          "type": "gherkin/then",
+          "to": "ST-0003"
+        }
+      ]
+    },
+    {
+      "id": "ST-0001",
+      "type": "gherkin/state",
+      "props": {
+        "text": "the home page is shown"
+      },
+      "edges": []
+    },
+    {
+      "id": "ST-0002",
+      "type": "gherkin/state",
+      "props": {
+        "text": "the plan picker is shown"
+      },
+      "edges": []
+    },
+    {
+      "id": "ST-0003",
+      "type": "gherkin/state",
+      "props": {
+        "text": "the receipt is shown"
+      },
+      "edges": []
+    }
+  ],
+  "removed": [],
+  "changed": [],
+  "problems": []
+}

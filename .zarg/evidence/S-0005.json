@@ -1,0 +1,19 @@
+{
+  "scenario": "S-0005",
+  "version": "5a031d2bd70c",
+  "commit": "aa4674b",
+  "run": "e2e-2026-10-04T05-06-57.082Z",
+  "journey": "J-0005",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T05:07:00.706Z",
+  "ms": 314,
+  "media": [
+    {
+      "kind": "buffer",
+      "path": "media/S-0005/note-1.txt",
+      "caption": "zarg diff --since HEAD"
+    }
+  ],
+  "failure": null
+}

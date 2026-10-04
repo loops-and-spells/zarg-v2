@@ -1,0 +1,6 @@
+$ zarg render --focus S-0001
+S-0001 CLI actor opens pricing
+  By    CLI actor  # P-0001
+  Given the home page is shown  # ST-0001
+  When  the CLI actor opens pricing
+  Then  the plans are shown  # ST-0002

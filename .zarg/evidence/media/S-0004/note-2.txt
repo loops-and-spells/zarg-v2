@@ -1,0 +1,12 @@
+$ zarg render
+S-0001 CLI actor opens pricing
+  By    CLI actor  # P-0001
+  Given the home page is shown  # ST-0001
+  When  the CLI actor opens pricing
+  Then  the plan picker is shown  # ST-0002
+
+S-0002 CLI actor buys a plan
+  By    CLI actor  # P-0001
+  Given the plan picker is shown  # ST-0002
+  When  the CLI actor buys with a valid card
+  Then  the receipt is shown  # ST-0003

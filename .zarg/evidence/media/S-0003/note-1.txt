@@ -1,0 +1,14 @@
+$ zarg tool call gherkin/add-scenario {"title":"CLI actor buys a plan","when":"the CLI actor buys if the card is valid","by":[{"name":"CLI actor"}],"arrives":{"id":"ST-0002"},"then":[{"text":"the receipt is shown"}]}
+{
+  "error": "LintFailed",
+  "findings": [
+    {
+      "severity": "error",
+      "code": "conditional",
+      "message": "S-0002: \"the CLI actor buys if the card is valid\" contains \"if\"; make one scenario per case instead",
+      "about": [
+        "S-0002"
+      ]
+    }
+  ]
+}

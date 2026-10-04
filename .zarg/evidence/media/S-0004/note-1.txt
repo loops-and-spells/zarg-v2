@@ -1,0 +1,10 @@
+$ zarg tool call gherkin/edit-state {"id":"ST-0002","text":"the plan picker is shown"}
+{
+  "message": "updated ST-0002",
+  "added": [],
+  "changed": [
+    "ST-0002"
+  ],
+  "removed": [],
+  "warnings": []
+}

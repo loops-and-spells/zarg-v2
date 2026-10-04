@@ -1,0 +1,19 @@
+{
+  "scenario": "S-0003",
+  "version": "9c08f72be1c9",
+  "commit": "aa4674b",
+  "run": "e2e-2026-10-04T05-06-57.082Z",
+  "journey": "J-0005",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T05:06:58.720Z",
+  "ms": 325,
+  "media": [
+    {
+      "kind": "buffer",
+      "path": "media/S-0003/note-1.txt",
+      "caption": "zarg tool call gherkin/add-scenario {\"title\":\"CLI actor buys a plan\",\"when\":\"the CLI actor buys if the card is valid\",\"by\":[{\"name\":\"CLI actor\"}],\"arrives\":{\"id\":\"ST-0002\"},\"then\":[{\"text\":\"the receipt is shown\"}]}"
+    }
+  ],
+  "failure": null
+}

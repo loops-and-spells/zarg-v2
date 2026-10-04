@@ -1,0 +1,47 @@
+$ zarg agenda
+[
+  {
+    "id": "gherkin:empty",
+    "title": "No requirements yet",
+    "detail": "Describe where a user starts and their first action.",
+    "about": [],
+    "priority": 1,
+    "plugin": "gherkin"
+  },
+  {
+    "id": "gherkin:no-personas",
+    "title": "Who uses this product?",
+    "detail": "No personas yet. Draft them from the intents (who each is for) and the conversation (who meets the product, and the product's own agents that act in scenarios), show them with Inquire.confirm, then add each with add-persona.",
+    "about": [],
+    "priority": 1,
+    "plugin": "gherkin"
+  },
+  {
+    "id": "plugin-grant:backlog",
+    "title": "Plugin backlog asks for: read .zarg/feedback/**, read .zarg/backlog/**, read .zarg/triage/**, write .zarg/feedback/**, write .zarg/backlog/**, write .zarg/triage/**, show agents, read gherkin/*, read the code tagged with scenarios, use gherkin (and read what it serves)",
+    "detail": "zarg asks you to allow it (or /yolo on loads it).",
+    "about": [],
+    "priority": 1
+  },
+  {
+    "id": "plugin-grant:intent",
+    "title": "Plugin intent asks for: read .zarg/intent/**, write .zarg/intent/**, use the model roles driver, show agents, read gherkin/*, read backlog/item, read the code tagged with scenarios, use gherkin (and read what it serves), use backlog (and read what it serves)",
+    "detail": "zarg asks you to allow it (or /yolo on loads it).",
+    "about": [],
+    "priority": 1
+  },
+  {
+    "id": "plugin-grant:rehearse",
+    "title": "Plugin rehearse asks for: read .zarg/rehearse/**, write .zarg/rehearse/**, use the decision model, use the model roles rehearse, show agents, read gherkin/*, read the code tagged with scenarios, use gherkin (and read what it serves), use backlog (and read what it serves)",
+    "detail": "zarg asks you to allow it (or /yolo on loads it).",
+    "about": [],
+    "priority": 1
+  },
+  {
+    "id": "plugin-grant:triage",
+    "title": "Plugin triage asks for: use the decision model, use the model roles driver, show agents, read gherkin/*, read the code tagged with scenarios, use gherkin (and read what it serves), use backlog (and read what it serves), use rehearse (and read what it serves)",
+    "detail": "zarg asks you to allow it (or /yolo on loads it).",
+    "about": [],
+    "priority": 1
+  }
+]
