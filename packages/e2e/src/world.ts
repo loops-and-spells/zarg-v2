@@ -31,8 +31,13 @@ export const world = (seed: Readonly<Record<string, string>> = {}): World => {
   }
   git("init", "-q")
   for (const [path, text] of Object.entries(seed)) {
-    mkdirSync(dirname(join(project, path)), { recursive: true })
-    writeFileSync(join(project, path), text)
+    try {
+      mkdirSync(dirname(join(project, path)), { recursive: true })
+      writeFileSync(join(project, path), text)
+    } catch (e) {
+      rmSync(base, { recursive: true, force: true })
+      throw new Error(`the world's seed file ${path} could not be written: ${e instanceof Error ? e.message : String(e)}`)
+    }
   }
   git("add", "-A")
   git("commit", "-q", "--allow-empty", "-m", "init")

@@ -64,3 +64,13 @@ export const integrity = (root: string, entries: ReadonlyArray<Entry>, scenarios
       ...(hasCommit(e.commit) ? [] : [{ kind: "unknown-commit" as const, file: x.file, detail: `commit ${e.commit} is not in this repository` }]),
     ]
   })
+
+/** True when any of `files` changed after `commit`: a later commit (renames included) or an edit not yet committed. An unknown commit is integrity's to report. */
+export const changedSince = (root: string, files: ReadonlyArray<string>, commit: string): boolean => {
+  if (files.length === 0) return false
+  const git = (...args: Array<string>) => Bun.spawnSync(["git", ...args], { cwd: root })
+  if (git("cat-file", "-e", `${commit}^{commit}`).exitCode !== 0) return false
+  const later = git("log", "-1", "--format=%H", `${commit}..HEAD`, "--", ...files)
+  if (later.exitCode === 0 && later.stdout.toString().trim() !== "") return true
+  return git("diff", "--quiet", "HEAD", "--", ...files).exitCode === 1
+}

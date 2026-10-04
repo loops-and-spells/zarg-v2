@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, test } from "bun:test"
+import { afterAll, describe, test } from "bun:test"
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { EVIDENCE_DIR, type Evidence, type Media } from "@zarg/audit/evidence"
@@ -19,8 +19,10 @@ export interface Step {
 }
 export type Proves = (scenario: string, fn: (s: Step) => Promise<void>, opts?: { readonly model?: boolean; readonly timeoutMs?: number }) => void
 
-/** Where evidence goes: E2E_EVIDENCE_ROOT, else the zarg repo. */
+/** The repo whose graph the journeys walk: E2E_EVIDENCE_ROOT, else the zarg repo. */
 export const evidenceRoot = () => process.env.E2E_EVIDENCE_ROOT ?? REPO
+/** Where evidence is written: E2E_EVIDENCE_OUT (a check that leaves the tree alone, like pre-push), else the repo. */
+export const evidenceOut = () => process.env.E2E_EVIDENCE_OUT ?? evidenceRoot()
 /** One id per run of the suite (one process). */
 const RUN = `e2e-${new Date().toISOString().replace(/:/g, "-")}`
 
@@ -53,34 +55,39 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
     let w: World | undefined
     let term: Term | undefined
     let failed = false
-    beforeAll(() => {
-      w = world(opts.seed)
-    })
     afterAll(async () => {
       if (term !== undefined) await term.exit().catch(() => undefined)
-      w?.dispose(failed)
+      // A failed journey keeps its world to look into, unless E2E_KEEP_FAILED=0 (the harness tests).
+      w?.dispose(failed && process.env.E2E_KEEP_FAILED !== "0")
     })
     const proves: Proves = (scenario, fn, o = {}) => {
       const node = graph.nodes.get(scenario)
       if (node?.type !== "gherkin/scenario" || !node.edges.some((e) => e.type === "gherkin/in" && e.to === id)) throw new Error(`${scenario} is not a scenario of ${id}`)
       const timeout = o.timeoutMs ?? (o.model === true ? 300_000 : 120_000)
+      let attempts = 0
       test(
         `${scenario} ${String(node.props.title ?? "")}`,
         async () => {
-          const evidenceDir = join(root, EVIDENCE_DIR)
+          const evidenceDir = join(evidenceOut(), EVIDENCE_DIR)
           const mediaDir = join(evidenceDir, "media", scenario)
           const started = performance.now()
+          const deadline = started + timeout
           let media: Array<Media> = []
+          let staging = ""
           let lastNote = ""
           const attempt = async () => {
-            // Only the latest run is kept.
-            rmSync(mediaDir, { recursive: true, force: true })
-            mkdirSync(mediaDir, { recursive: true })
-            media = []
+            // Media is staged and swapped in with the evidence: a run killed mid-step leaves the last evidence whole.
+            const mine = join(evidenceDir, "media", `.${scenario}.${process.pid}.${++attempts}`)
+            staging = mine
+            mkdirSync(mine, { recursive: true })
+            const shot: Array<Media> = []
+            media = shot
             const put = (kind: Media["kind"], name: string, caption: string, text: string) => {
-              writeFileSync(join(mediaDir, name), text)
-              media.push({ kind, path: `media/${scenario}/${name}`, caption })
+              writeFileSync(join(mine, name), text)
+              shot.push({ kind, path: `media/${scenario}/${name}`, caption })
             }
+            // A world that cannot start fails the step, with its reason as evidence.
+            w ??= world(opts.seed)
             let notes = 0
             const castFrom = term?.cast().trimEnd().split("\n").length ?? 1
             if (term !== undefined) put("buffer", "before.txt", "the screen before", term.screen())
@@ -116,7 +123,14 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
           let error: unknown
           for (let i = 0; i < (o.model === true ? 2 : 1) && !passed; i++) {
             try {
-              await attempt()
+              const run = attempt()
+              // A body past its deadline keeps running: its late end changes nothing.
+              run.catch(() => undefined)
+              let timer: ReturnType<typeof setTimeout> | undefined
+              const late = new Promise<never>((_, reject) => {
+                timer = setTimeout(() => reject(new Error(`timed out after ${timeout} ms`)), Math.max(0, deadline - performance.now()))
+              })
+              await Promise.race([run, late]).finally(() => clearTimeout(timer))
               passed = true
               flaky = i > 0
             } catch (e) {
@@ -125,6 +139,9 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
           }
           if (!passed) failed = true
           mkdirSync(evidenceDir, { recursive: true })
+          // ponytail: rm then rename is not one step; a kill between them leaves the old JSON over new media.
+          rmSync(mediaDir, { recursive: true, force: true })
+          if (staging !== "") renameSync(staging, mediaDir)
           const evidence: Evidence = {
             scenario,
             version: scenarioVersion(graph, scenario)!,
@@ -141,7 +158,8 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
           writeAtomic(join(evidenceDir, `${scenario}.json`), `${JSON.stringify(evidence, null, 2)}\n`)
           if (!passed) throw error
         },
-        timeout,
+        // Bun's own timeout only backs up the step's deadline, which writes the evidence first.
+        timeout + 10_000,
       )
     }
     body(proves)

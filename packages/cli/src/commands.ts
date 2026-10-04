@@ -10,7 +10,7 @@ import { describeScopes, installPlugin } from "@zarg/plugin/server"
 import { buildPlugin } from "@zarg/plugin-sdk/tools"
 import { readClaim, startHeadless, stopCore } from "@zarg/client"
 import { baseTree, CHECKPOINT, git, LEGACY_CHECKPOINT, snapshotAtTree, workingGraphTree } from "@zarg/reconcile"
-import { audit as auditOf, exitCode as auditExit, fullAudit, fullSummary, tags as auditTags, toJunit } from "@zarg/audit"
+import { audit as auditOf, changedSince, exitCode as auditExit, fullAudit, fullSummary, tags as auditTags, toJunit } from "@zarg/audit"
 import { scenarioRefs, snapshotAt } from "./git"
 import { root } from "./root"
 
@@ -155,12 +155,7 @@ const auditCmd = Command.make(
         invalid: loaded.problems.map((p) => ({ id: basename(p.file, ".json"), detail: p.message })),
         findings,
         agenda,
-        changedSince: (scenario, commit) => {
-          const files = [...new Set(found.filter((t) => t.id === scenario).map((t) => t.file))]
-          if (files.length === 0) return false
-          const p = run("log", "-1", "--format=%H", `${commit}..HEAD`, "--", ...files)
-          return p.exitCode === 0 && p.stdout.toString().trim() !== ""
-        },
+        changedSince: (scenario, commit) => changedSince(root, [...new Set(found.filter((t) => t.id === scenario).map((t) => t.file))], commit),
         hasCommit: (sha) => run("cat-file", "-e", `${sha}^{commit}`).exitCode === 0,
       })
       const junit = o.junit

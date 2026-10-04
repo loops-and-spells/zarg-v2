@@ -20,7 +20,7 @@ const repo = () => {
 const runJourney = (root: string, body: string, env: Record<string, string> = {}) => {
   const file = join(root, "j.test.ts")
   writeFileSync(file, `import { journey } from "${join(import.meta.dir, "../src")}"\n${body}`)
-  return Bun.spawnSync([process.execPath, "test", file], { cwd: root, env: { ...process.env, E2E_EVIDENCE_ROOT: root, ...env } })
+  return Bun.spawnSync([process.execPath, "test", file], { cwd: root, env: { ...process.env, E2E_EVIDENCE_ROOT: root, E2E_KEEP_FAILED: "0", ...env } })
 }
 const evidence = (root: string, id: string) => JSON.parse(readFileSync(join(root, ".zarg", "evidence", `${id}.json`), "utf8"))
 
@@ -59,4 +59,36 @@ test("E2E_TIER=fast skips a full-tier journey (no evidence written)", () => {
   const root = repo()
   runJourney(root, `journey("J-0001", { tier: "full" }, (proves) => { proves("S-0001", async () => {}) })`, { E2E_TIER: "fast" })
   expect(() => evidence(root, "S-0001")).toThrow()
+}, 60_000)
+
+test("a world that fails to start: every step still records passed: false with the error", () => {
+  const root = repo()
+  // "a" is a file, so "a/b" cannot be written.
+  runJourney(root, `journey("J-0001", { tier: "fast", seed: { a: "x", "a/b": "y" } }, (proves) => { proves("S-0001", async () => {}) })`)
+  expect(evidence(root, "S-0001")).toMatchObject({ passed: false })
+  expect(evidence(root, "S-0001").failure.expected).toContain("a/b")
+}, 60_000)
+
+test("a step past its deadline records passed: false (timed out), never a late pass", async () => {
+  const root = repo()
+  runJourney(root, `journey("J-0001", { tier: "fast" }, (proves) => { proves("S-0001", async () => { await Bun.sleep(3000) }, { timeoutMs: 500 }) })`)
+  await Bun.sleep(3500)
+  expect(evidence(root, "S-0001")).toMatchObject({ passed: false, failure: { expected: "timed out after 500 ms" } })
+}, 60_000)
+
+test("a run killed mid-step leaves the last evidence and its media whole", () => {
+  const root = repo()
+  runJourney(root, `journey("J-0001", { tier: "fast" }, (proves) => { proves("S-0001", async (s) => { s.note("log", "a", "from A") }) })`)
+  runJourney(root, `journey("J-0001", { tier: "fast" }, (proves) => { proves("S-0001", async (s) => { s.note("log", "b", "from B"); process.exit(1) }) })`)
+  const e = evidence(root, "S-0001")
+  expect(e.media[0].caption).toBe("a")
+  expect(readFileSync(join(root, ".zarg", "evidence", e.media[0].path), "utf8")).toBe("from A")
+}, 60_000)
+
+test("E2E_EVIDENCE_OUT: the graph is read from the root, the evidence goes elsewhere (a pre-push check leaves the tree clean)", () => {
+  const root = repo()
+  const out = mkdtempSync(join(tmpdir(), "zt-out-"))
+  runJourney(root, `journey("J-0001", { tier: "fast" }, (proves) => { proves("S-0001", async () => {}) })`, { E2E_EVIDENCE_OUT: out })
+  expect(() => evidence(root, "S-0001")).toThrow()
+  expect(evidence(out, "S-0001")).toMatchObject({ passed: true })
 }, 60_000)
