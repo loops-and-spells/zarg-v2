@@ -1,13 +1,13 @@
 {
   "scenario": "S-0001",
   "version": "ed5a7457d05a",
-  "commit": "11bb35b",
-  "run": "e2e-2026-10-04T20-18-04.684Z",
+  "commit": "81b0755",
+  "run": "e2e-2026-10-04T20-35-16.311Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T20:18:09.851Z",
-  "ms": 426,
+  "at": "2026-10-04T20:35:21.454Z",
+  "ms": 459,
   "media": [
     {
       "kind": "evidence-terminal/text",
@@ -20,8 +20,8 @@
   ],
   "failure": null,
   "code": {
-    "packages/cli/src/commands.ts": "ea0557fb2a0621c41849c5ddd18fb681b8b4e33d",
-    "packages/cli/test/cli.test.ts": "6f7608d1f16dc97c5206296bed37aa636f4c5e75",
+    "packages/cli/src/commands.ts": "bf948cb529feed47af21fd7a462736a17209aadb",
+    "packages/cli/test/cli.test.ts": "1f97d48b054ca5f653bab15614e9af4d525ca19d",
     "packages/plugin/src/server/host.ts": "be619b3d6a4b92f47f1f1b11653a1bba33c13074",
     "packages/plugin/test/host.test.ts": "6f9202a574a2c8ad01fc1bc2016731c5dad703a8"
   }

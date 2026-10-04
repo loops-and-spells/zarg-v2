@@ -1,13 +1,13 @@
 {
   "scenario": "S-0067",
   "version": "88a7b53705d3",
-  "commit": "11bb35b",
-  "run": "e2e-2026-10-04T20-18-04.684Z",
+  "commit": "81b0755",
+  "run": "e2e-2026-10-04T20-35-16.311Z",
   "journey": "J-0002",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T20:18:09.326Z",
-  "ms": 108,
+  "at": "2026-10-04T20:35:20.885Z",
+  "ms": 109,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -30,8 +30,8 @@
   ],
   "failure": null,
   "code": {
-    "packages/client/src/session.ts": "ed0dfb03fc47b3f60e3869c0210131964e4e6faa",
-    "packages/client/test/session.test.ts": "3cdc7c504a6771430c22e9e3e6e97fb57169b1d8",
+    "packages/client/src/session.ts": "88faa1c0f22e57e24e825816df9a7f29556d9d59",
+    "packages/client/test/session.test.ts": "e9a1dcff712f0d041048f1ca3fd5bfbd75d86bb4",
     "packages/core/test/yolo.test.ts": "33987002434e4ead223f8cc2d71e256aa4a12a91",
     "packages/plugin/src/runtime/powers.ts": "5f2696731d331d8d311938c54ca555d921290289",
     "packages/plugin/test/load-waiting.test.ts": "eb8518bc9f80d05a43ead19cf34041fc566c6613",
