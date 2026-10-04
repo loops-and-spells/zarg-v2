@@ -10,7 +10,8 @@
     "@zarg/entities": "workspace:*",
     "@zarg/graph": "workspace:*",
     "@zarg/plugin-sdk": "workspace:*",
-    "effect": "^4.0.0-rc.117"
+    "effect": "^4.0.0-rc.117",
+    "@zarg/audit": "workspace:*"
   },
   "devDependencies": {
     "@effect/platform-bun": "^4.0.0-rc.117",

@@ -90,6 +90,7 @@
     "packages/audit": {
       "name": "@zarg/audit",
       "dependencies": {
+        "@zarg/entities": "workspace:*",
         "@zarg/graph": "workspace:*",
         "effect": "^4.0.0-rc.117",
       },
@@ -248,6 +249,7 @@
     "packages/plugin-gherkin": {
       "name": "@zarg/plugin-gherkin",
       "dependencies": {
+        "@zarg/audit": "workspace:*",
         "@zarg/entities": "workspace:*",
         "@zarg/graph": "workspace:*",
         "@zarg/plugin-sdk": "workspace:*",

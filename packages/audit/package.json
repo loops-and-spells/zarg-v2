@@ -3,10 +3,12 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./version": "./src/version.ts"
   },
   "dependencies": {
     "@zarg/graph": "workspace:*",
-    "effect": "^4.0.0-rc.117"
+    "effect": "^4.0.0-rc.117",
+    "@zarg/entities": "workspace:*"
   }
 }
