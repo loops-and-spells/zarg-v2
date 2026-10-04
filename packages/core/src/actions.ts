@@ -17,11 +17,15 @@ export const makeActions = (deps: {
   readonly opensOf?: (view: string, action: string) => ReadonlyArray<{ readonly surface: string; readonly agent?: string }> | undefined
   /** Open a plugin's surfaces for its agents (local ids), as the operator's own gesture. */
   readonly open?: (plugin: string, surfaces: ReadonlyArray<{ readonly surface: string; readonly agent: string }>) => void
+  /** Pseudo-plugins whose agents act in the core itself (\`core\`: setup). */
+  readonly local?: Readonly<Record<string, (agent: string, action: string, rows: ReadonlyArray<string>, text?: string) => Effect.Effect<{ readonly notice: string }>>>
 }) => ({
   /** `view`: the view store key the action came from (a panel, popover or sheet of the agent); the agent's start view when absent. */
   act: (_thread: string, agent: string, action: string, section: string | undefined, rows: ReadonlyArray<string>, view?: string, text?: string): Effect.Effect<{ readonly notice: string }> => {
     const o = owner(agent)
     if (o === undefined) return Effect.succeed({ notice: `${agent} has no actions` })
+    const local = deps.local?.[o.plugin]
+    if (local !== undefined) return local(o.id, action, rows, text)
     // An action that opens surfaces is the shell's to carry out: the plugin is not called.
     const opens = deps.opensOf?.(view ?? agent, action)
     if (opens !== undefined && deps.open !== undefined) {

@@ -10,7 +10,9 @@ const fakeClient = (opts: { readonly refuseRuns?: boolean; readonly streamFails?
   const reconciles: Array<number> = []
   const yolos: Array<{ on: boolean; plugin?: string }> = []
   const pluginRuns: Array<[string, string, ReadonlyArray<string>]> = []
+  const setups: Array<string> = []
   const client = {
+    setup: (at: string) => Effect.sync(() => (setups.push(at), { notice: "opened" })),
     commands: () => Effect.succeed((typeof opts.commands === "function" ? opts.commands() : opts.commands) ?? [{ plugin: "rehearse", cmd: "/rehearse", desc: "testers walk the journeys", method: "command", arg: { kind: "choice", choices: ["edge-pair", "teleport"] } }] as never),
     runCommand: (plugin: string, cmd: string, args: ReadonlyArray<string>) => Effect.sync(() => (pluginRuns.push([plugin, cmd, args]), { notice: `${cmd} started` })),
     run: (r: RunRequest) => {
@@ -29,7 +31,7 @@ const fakeClient = (opts: { readonly refuseRuns?: boolean; readonly streamFails?
     yolo: (on: boolean, plugin?: string) => Effect.sync(() => (yolos.push({ on, ...(plugin !== undefined ? { plugin } : {}) }), { on })),
   } as unknown as Client
   const push = (e: WireEvent) => Effect.runSync(Queue.offer(streams.at(-1)!.queue, e))
-  return { client, runs, streams, stops, reconciles, yolos, push, pluginRuns }
+  return { client, runs, streams, stops, reconciles, yolos, push, pluginRuns, setups }
 }
 const tick = (ms = 20) => new Promise((r) => setTimeout(r, ms))
 const inquiry = { id: "inq-1", reason: "inquiry", message: "Which?", metadata: { options: [{ id: "a", label: "A" }, { id: "b", label: "B" }], allowOther: true } }
@@ -123,7 +125,7 @@ describe("session", () => {
     expect(f.reconciles).toHaveLength(1)
     expect(s.state().notice).toBe("Reconcile is on for this session; a pass is starting (2 cards).")
     s.command("/nope")
-    expect(s.state().notice).toBe("unknown command: /nope (try /reconcile or /yolo)")
+    expect(s.state().notice).toBe("unknown command: /nope (try /reconcile, /yolo, /login or /models)")
     const off = fakeClient({ reconcileResult: { on: false, reason: "set roles.plan in .zarg/config.toml" } })
     const s2 = makeSession({ client: off.client, threadId: "main" })
     s2.command("/reconcile")
@@ -222,4 +224,15 @@ test("inbox: answer, batch, snooze and read reach the core; each shows its notic
   await session.readTopic("T-4")
   expect(calls).toEqual([["answer", "T-1", { answer: "deny", text: "wrong card" }], ["batch", { ids: ["T-1", "T-2"], answer: "once" }], ["snooze", "T-3"], ["read", "T-4"]])
   session.close()
+})
+
+describe("/login and /models", () => {
+  test("open the Setup view at the providers or at the default model", async () => {
+    const f = fakeClient()
+    const s = makeSession({ client: f.client, threadId: "main", focus: [] })
+    s.command("/login")
+    s.command("/models")
+    await tick()
+    expect(f.setups).toEqual(["providers", "models"])
+  })
 })

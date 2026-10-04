@@ -49,6 +49,8 @@ export const decodeCommands = (raw: ReadonlyArray<unknown>): ReadonlyArray<Slash
 // @scenario S-0058
 const table: Array<SlashCommand> = [...decodeCommands([
   { cmd: "/reconcile", desc: "turn plan and implement on for this session", arg: { kind: "none" } },
+  { cmd: "/login", desc: "set up or log in to a model provider", arg: { kind: "none" } },
+  { cmd: "/models", desc: "pick the default model", arg: { kind: "none" } },
   {
     cmd: "/yolo",
     desc: "plugins use every scope they declare without asking (kept for this project)",

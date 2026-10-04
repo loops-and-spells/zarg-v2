@@ -31,6 +31,9 @@ export interface ReconcileAnswer {
 /** Turn plan and implement on for this session (`POST /reconcile`), even when the config leaves them off. */
 export class ReconcileControl extends Context.Service<ReconcileControl, { readonly turnOn: Effect.Effect<ReconcileAnswer> }>()("@zarg/core/ReconcileControl") {}
 
+/** First-run setup: \`POST /setup/open\` opens the Setup view (absent in cores and tests without it). */
+export class SetupControl extends Context.Service<SetupControl, { readonly open: (at?: "providers" | "models") => Effect.Effect<void> }>()("@zarg/core/SetupControl") {}
+
 /** Slash commands plugins add (`GET /commands`, `POST /plugins/:name/commands/:cmd`). */
 export class PluginCommands extends Context.Service<
   PluginCommands,
@@ -151,6 +154,17 @@ const routes = HttpRouter.addAll(
         Effect.map(HttpServerRequest.HttpServerRequest, (req) => sse(log.stream(Number(searchParam(req, "since") ?? 0)), heartbeat)),
       ),
       HttpRouter.route("POST", "/reconcile", Effect.map(control.turnOn, (answer) => HttpServerResponse.jsonUnsafe(answer))),
+      HttpRouter.route(
+        "POST",
+        "/setup/open",
+        Effect.gen(function* () {
+          const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as { at?: unknown }
+          const setup = yield* Effect.serviceOption(SetupControl)
+          if (setup._tag === "None") return error(404, "this core has no setup")
+          yield* setup.value.open(body.at === "models" ? "models" : "providers")
+          return HttpServerResponse.jsonUnsafe({ notice: "opened" })
+        }),
+      ),
       HttpRouter.route(
         "POST",
         "/yolo",

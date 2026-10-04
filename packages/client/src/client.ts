@@ -90,6 +90,11 @@ export const makeClient = (info: Pick<CoreInfo, "socket" | "token">) => {
       request("/yolo", { method: "POST", body: JSON.stringify({ on, ...(plugin !== undefined ? { plugin } : {}) }) }).pipe(
         Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly on: boolean }>)),
       ),
+    /** Open the Setup view (\`/login\`: at the providers; \`/models\`: at the default model). */
+    setup: (at: "providers" | "models") =>
+      request("/setup/open", { method: "POST", body: JSON.stringify({ at }) }).pipe(
+        Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<{ readonly notice: string }>)),
+      ),
     /** Slash commands the core's plugins add. */
     commands: () => request("/commands").pipe(Effect.flatMap((res) => Effect.promise(() => res.json() as Promise<ReadonlyArray<PluginCommandInfo>>))),
     /** Run a plugin's slash command; answers a notice. */

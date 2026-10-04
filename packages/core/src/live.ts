@@ -1,6 +1,5 @@
 import { BunServices } from "@effect/platform-bun"
-import { existsSync, readdirSync, readFileSync } from "node:fs"
-import { homedir } from "node:os"
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { Cause, Effect, Layer, Schema, Scope as EffectScope, Semaphore, Stream } from "effect"
 import { LayoutSchema, Surface } from "@zarg/view"
@@ -8,7 +7,7 @@ import { Decisions, layer as decisionsLayer } from "@zarg/decisions"
 import { GraphStore, layer as graphLayer } from "@zarg/graph"
 import { watchGraph } from "./graph-watch"
 import { type Bound } from "@zarg/kernel"
-import { Config, Env, layer as envLayer, Model, ModelError, redact, type SensitiveValue } from "@zarg/model"
+import { Config, Env, layer as envLayer, Model, ModelError, redact, Secrets, type SensitiveValue } from "@zarg/model"
 import { makeGrants } from "@zarg/plugin/runtime"
 import { PluginHost } from "@zarg/plugin/server"
 import { openrouter } from "@zarg/provider-openrouter"
@@ -26,6 +25,7 @@ import { syncFindingTopics, syncPluginTopics } from "./plugin-topics"
 import { grantAsk, threadOfTopic } from "./grant"
 import { makeSurfaces, NAV, navItems } from "./surfaces"
 import { makeActions } from "./actions"
+import { makeSetup, SETUP_LAYOUT, SETUP_SURFACE } from "./setup"
 import { makeLog } from "./log"
 import { pluginAgents } from "./plugin-agents"
 import { forDriver, makeYolo, PluginControl, pluginHostLayer, trustedAgents, USER_DIR, vaultFrom, ZARG_ROOT } from "./plugins"
@@ -54,7 +54,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     const host = yield* PluginHost
     const store = yield* GraphStore
     const decisions = yield* Decisions
-    const sensitive = yield* env.sensitive
+    // Refreshed when setup saves a secret: the log's redactor reads it at each write.
+    let sensitive = yield* env.sensitive
     const rlmSettings = yield* settings(config.extra.rlm)
     const log = yield* makeLog(join(root, ".zarg", "threads"), (t) => redact(t, sensitive))
     // Agents the last core left running are over: clients replaying the log must not show them as live.
@@ -224,16 +225,20 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // Plugins' agents show in main's agents pane, each plugin in its own stream.
     // A plugin agent's view is one its manifest declares; a malformed one fails that agent's start.
     const layoutOf = (plugin: string, view: string) => {
+      // The core's own view (first-run setup) is served as the pseudo-plugin "core".
+      if (plugin === "core") return view === "setup" ? SETUP_LAYOUT : undefined
       const l = host.manifests.find((m) => m.name === plugin)?.views?.find((v) => v.name === view)
       return l === undefined ? undefined : Schema.decodeUnknownSync(LayoutSchema)(l)
     }
     // A plugin's surfaces are the ones its manifest declares (checked at load).
     const surfaceOf = (plugin: string, name: string) => {
+      if (plugin === "core") return name === "setup" ? SETUP_SURFACE : undefined
       const list = host.manifests.find((m) => m.name === plugin)?.surfaces
       const raw = Array.isArray(list) ? list.find((x: { name?: unknown } | null) => x?.name === name) : undefined
       return raw === undefined ? undefined : Schema.decodeUnknownSync(Surface)(raw)
     }
     const surfacesOf = (plugin: string) => {
+      if (plugin === "core") return [SETUP_SURFACE]
       const list = host.manifests.find((m) => m.name === plugin)?.surfaces
       return Array.isArray(list) ? list.map((x) => Schema.decodeUnknownSync(Surface)(x)) : []
     }
@@ -259,6 +264,28 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // Plugins that lack only their load grant: asked about now that main can ask (YOLO loads them without asking).
     // Then the agents pick up where a restart left them: a Ready plan, a journey's stage halfway.
     yield* Effect.forkDetach(Effect.andThen(loadPlugins, Effect.andThen(syncPlugins, Effect.andThen(planner.tick, Effect.andThen(triageTick, intentTick)))))
+    // First-run setup: providers, then the default model; it opens by itself while the driver has no working model.
+    const ctx = yield* Effect.context<Env | import("effect").FileSystem.FileSystem | import("effect").Path.Path>()
+    const secrets = yield* Effect.provide(Effect.gen(function* () { return yield* Secrets.Secrets }), Secrets.layer(USER_DIR).pipe(Layer.provide(Layer.succeedContext(ctx))))
+    const setup = makeSetup({
+      providers: [zargRouter, openrouter],
+      env,
+      secrets,
+      config,
+      reloadConfig: Effect.provide(Config.reload(config, { userDir: USER_DIR, projectDir: root }), ctx),
+      writeUserConfig: (edit) => Effect.provide(Config.setUserConfig(join(USER_DIR, "config.toml"), edit), ctx),
+      ensureUserSchema: Effect.sync(() => {
+        const file = join(USER_DIR, ".env.schema")
+        if (!existsSync(file)) {
+          mkdirSync(USER_DIR, { recursive: true })
+          writeFileSync(file, "# zarg: your own settings, for every project (values in .env.local beside it)\n# ---\n")
+        }
+      }),
+      model,
+      agentEvents,
+      secretsChanged: Effect.map(env.sensitive, (s) => void (sensitive = s)),
+    })
+    if (!opts.stub) yield* Effect.forkDetach(Effect.flatMap(setup.needed, (needed) => (needed ? setup.open("providers") : Effect.void)))
 
     // @scenario S-0058 @scenario S-0059
     /** `/reconcile`: turn plan and implement on for this session (the config's section and `enabled` are overridden). */
@@ -284,6 +311,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       Semaphore.withPermits(turnOnLock, 1),
     )
     const actions = makeActions({ invoke: (plugin, method, params) => host.invoke(plugin, method, params),
+      // The core's own agents (setup) act here, not in a plugin.
+      local: { core: (_agent, action, rows, text) => setup.act(action, rows, text) },
       // An action's `opens`, from the layout its view has now: the operator's own gesture opens them.
       opensOf: (view, action) => {
         const layout = threadViews(log, "main").layout(view)
@@ -325,7 +354,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
           return { notice: change.delete !== undefined ? `deleted ${n}` : change.restore !== undefined ? `restored ${n}` : `archived ${n}` }
         }),
     }
-    return { log, threads, driver: roles.driver, turnOn, yolo, actions, commands, prompts, archive, inbox }
+    return { log, threads, driver: roles.driver, turnOn, yolo, actions, commands, prompts, archive, inbox, setup }
   })
 
 /** The project's plugin host options from its environment and config (`[plugins.<name>]` tables). */
@@ -368,8 +397,8 @@ export const completeWith = (roles: Readonly<Record<string, string>>, model: Mod
 /** Layers for a project root: env, config, models, decisions, graph and plugins. `stubFile` swaps in the scripted models. */
 export const liveLayer = (root: string, stubFile?: string, opts: { readonly yolo?: boolean } = {}) => {
   // Env in any project: the providers' schemas, then the operator's own (~/.config/zarg), then the project's.
-  const base = Layer.merge(envLayer(root, { userDir: join(homedir(), ".config", "zarg"), schemas: [zargRouter.schemaFile, openrouter.schemaFile] }), BunServices.layer)
-  const config = Layer.provideMerge(Config.layer({ userDir: join(homedir(), ".config", "zarg"), projectDir: root }), base)
+  const base = Layer.merge(envLayer(root, { userDir: USER_DIR, schemas: [zargRouter.schemaFile, openrouter.schemaFile] }), BunServices.layer)
+  const config = Layer.provideMerge(Config.layer({ userDir: USER_DIR, projectDir: root }), base)
   const decisions =
     stubFile !== undefined
       ? Layer.provideMerge(stubLayer(stubFile), config)

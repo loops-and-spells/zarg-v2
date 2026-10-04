@@ -164,6 +164,16 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
         )
         return
       }
+      if (name === "/login" || name === "/models") {
+        fork(
+          opts.client.setup(name === "/login" ? "providers" : "models").pipe(
+            Effect.map(() => (name === "/login" ? "Setup: log in to a provider" : "Setup: pick the default model")),
+            Effect.catch((e) => Effect.succeed(e.message)),
+            Effect.flatMap((notice) => Effect.sync(() => set({ ...state, notice }))),
+          ),
+        )
+        return
+      }
       const plugin = pluginCommands.find((c) => c.cmd === name)
       if (plugin !== undefined) {
         fork(
@@ -176,7 +186,7 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
         return
       }
       if (name !== "/reconcile") {
-        set({ ...state, notice: `unknown command: ${name} (try /reconcile or /yolo)` })
+        set({ ...state, notice: `unknown command: ${name} (try /reconcile, /yolo, /login or /models)` })
         return
       }
       fork(
