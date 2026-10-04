@@ -1,0 +1,31 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0106",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0107",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "ST-0108",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0006",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0093",
+  "props": {
+    "planned": true,
+    "title": "Operator answers a topic",
+    "when": "the operator answers a topic by its number"
+  },
+  "type": "gherkin/scenario"
+}

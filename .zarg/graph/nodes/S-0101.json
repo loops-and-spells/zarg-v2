@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0115",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0117",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0007",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0101",
+  "props": {
+    "planned": true,
+    "title": "Operator answers an intent's question",
+    "when": "the operator answers an open question"
+  },
+  "type": "gherkin/scenario"
+}

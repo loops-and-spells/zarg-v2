@@ -1,0 +1,17 @@
+{
+  "edges": [
+    {
+      "to": "O-0011",
+      "type": "gherkin/serves"
+    },
+    {
+      "to": "O-0016",
+      "type": "gherkin/serves"
+    }
+  ],
+  "id": "J-0009",
+  "props": {
+    "name": "Prove"
+  },
+  "type": "gherkin/journey"
+}

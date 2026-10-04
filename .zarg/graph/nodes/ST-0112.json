@@ -1,9 +1,9 @@
 {
   "edges": [],
-  "id": "ST-0025",
+  "id": "ST-0112",
   "props": {
     "terminal": true,
-    "text": "secrets are stored encrypted, outside the project"
+    "text": "the blocking topic stays at the top"
   },
   "type": "gherkin/state"
 }

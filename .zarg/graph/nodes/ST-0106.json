@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "ST-0106",
+  "props": {
+    "text": "open topics are listed, blocking ones first"
+  },
+  "type": "gherkin/state"
+}

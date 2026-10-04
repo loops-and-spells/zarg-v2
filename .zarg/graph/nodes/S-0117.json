@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0002",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0133",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0135",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0009",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0117",
+  "props": {
+    "planned": true,
+    "title": "Changed code makes proof stale",
+    "when": "the scenario's tagged code changes"
+  },
+  "type": "gherkin/scenario"
+}

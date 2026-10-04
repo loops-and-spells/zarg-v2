@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0118",
+  "props": {
+    "entry": true,
+    "text": "the operator says what the product is for"
+  },
+  "type": "gherkin/state"
+}

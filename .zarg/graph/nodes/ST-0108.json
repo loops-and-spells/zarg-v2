@@ -1,9 +1,9 @@
 {
   "edges": [],
-  "id": "ST-0028",
+  "id": "ST-0108",
   "props": {
     "terminal": true,
-    "text": "nothing is stored"
+    "text": "whoever asked gets the answer"
   },
   "type": "gherkin/state"
 }

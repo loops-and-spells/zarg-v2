@@ -1,9 +1,9 @@
 {
   "edges": [],
-  "id": "ST-0025",
+  "id": "ST-0126",
   "props": {
     "terminal": true,
-    "text": "secrets are stored encrypted, outside the project"
+    "text": "the finding stays out of the next refinement"
   },
   "type": "gherkin/state"
 }

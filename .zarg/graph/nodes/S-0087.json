@@ -1,27 +1,27 @@
 {
   "edges": [
     {
-      "to": "ST-0030",
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0008",
       "type": "gherkin/arrives"
     },
     {
-      "to": "ST-0023",
+      "to": "ST-0033",
       "type": "gherkin/then"
     },
     {
       "to": "J-0002",
       "type": "gherkin/in"
-    },
-    {
-      "to": "P-0001",
-      "type": "gherkin/by"
     }
   ],
-  "id": "S-0031",
+  "id": "S-0087",
   "props": {
     "planned": true,
-    "title": "Operator chooses to set up the provider",
-    "when": "the operator chooses provider setup"
+    "title": "Operator reopens the models with /models",
+    "when": "the operator runs /models"
   },
   "type": "gherkin/scenario"
 }

@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0002",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0132",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0134",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0009",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0116",
+  "props": {
+    "planned": true,
+    "title": "A step fails",
+    "when": "a step fails"
+  },
+  "type": "gherkin/scenario"
+}

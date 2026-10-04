@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0035",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0098",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0002",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0085",
+  "props": {
+    "planned": true,
+    "title": "Setup closes once the driver answers",
+    "when": "the Driver Agent's default model answers"
+  },
+  "type": "gherkin/scenario"
+}

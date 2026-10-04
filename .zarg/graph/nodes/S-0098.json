@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0114",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0006",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "ST-0009",
+      "type": "gherkin/arrives"
+    }
+  ],
+  "id": "S-0098",
+  "props": {
+    "planned": true,
+    "title": "zarg's question survives a restart",
+    "when": "the core restarts"
+  },
+  "type": "gherkin/scenario"
+}

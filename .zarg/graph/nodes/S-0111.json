@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0120",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0128",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0008",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0111",
+  "props": {
+    "planned": true,
+    "title": "Operator moves a plan to Ready",
+    "when": "the operator moves the plan to Ready"
+  },
+  "type": "gherkin/scenario"
+}

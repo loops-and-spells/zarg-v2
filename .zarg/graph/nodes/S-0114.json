@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0002",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0001",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0132",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0009",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0114",
+  "props": {
+    "planned": true,
+    "title": "CLI actor proves a journey",
+    "when": "the CLI actor runs a journey's e2e steps"
+  },
+  "type": "gherkin/scenario"
+}

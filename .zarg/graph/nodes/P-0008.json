@@ -1,0 +1,10 @@
+{
+  "edges": [],
+  "id": "P-0008",
+  "props": {
+    "kind": "agent",
+    "name": "Tester Agent",
+    "text": "roleplays one persona over the journeys it acts in, walking only built scenarios with their code in view, and files what it finds."
+  },
+  "type": "gherkin/persona"
+}

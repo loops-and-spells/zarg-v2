@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "ST-0097",
+  "props": {
+    "text": "the Setup sheet lists each provider and whether it answers"
+  },
+  "type": "gherkin/state"
+}

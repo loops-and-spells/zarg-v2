@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0009",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0127",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0120",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0008",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0110",
+  "props": {
+    "planned": true,
+    "title": "Triage Agent drafts a journey's plans",
+    "when": "a Triage Agent drafts the journey's changes"
+  },
+  "type": "gherkin/scenario"
+}

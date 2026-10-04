@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "ST-0123",
+  "props": {
+    "text": "the finding is filed as feedback on that scenario's version"
+  },
+  "type": "gherkin/state"
+}

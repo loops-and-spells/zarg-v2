@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0125",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0126",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0008",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0108",
+  "props": {
+    "planned": true,
+    "title": "Operator turns a finding off",
+    "when": "the operator turns a finding off"
+  },
+  "type": "gherkin/scenario"
+}

@@ -2,7 +2,7 @@
   "edges": [],
   "id": "ST-0035",
   "props": {
-    "text": "the role's model is saved to config"
+    "text": "every role without its own model uses the default"
   },
   "type": "gherkin/state"
 }

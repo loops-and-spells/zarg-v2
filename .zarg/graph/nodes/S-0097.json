@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0106",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0112",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0006",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0097",
+  "props": {
+    "planned": true,
+    "title": "A blocking topic cannot be snoozed",
+    "when": "the operator snoozes a blocking topic"
+  },
+  "type": "gherkin/scenario"
+}

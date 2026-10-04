@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0003",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0118",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0116",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0007",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0102",
+  "props": {
+    "planned": true,
+    "title": "Driver Agent keeps an intent from the conversation",
+    "when": "the Driver Agent records what the operator said"
+  },
+  "type": "gherkin/scenario"
+}

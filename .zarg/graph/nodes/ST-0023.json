@@ -2,7 +2,7 @@
   "edges": [],
   "id": "ST-0023",
   "props": {
-    "text": "the plugin's setup fields are shown from its config schema"
+    "text": "the provider's settings are listed to fill in"
   },
   "type": "gherkin/state"
 }

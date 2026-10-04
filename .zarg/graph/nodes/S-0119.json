@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0136",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0137",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0009",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0119",
+  "props": {
+    "planned": true,
+    "title": "Operator replays a scenario's evidence",
+    "when": "the operator opens a scenario"
+  },
+  "type": "gherkin/scenario"
+}

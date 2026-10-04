@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0106",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0006",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0092",
+  "props": {
+    "planned": true,
+    "title": "Operator sees what needs them",
+    "when": "the operator opens the inbox"
+  },
+  "type": "gherkin/scenario"
+}

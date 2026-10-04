@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0101",
+  "props": {
+    "entry": true,
+    "text": "a core from a session that is gone still runs"
+  },
+  "type": "gherkin/state"
+}

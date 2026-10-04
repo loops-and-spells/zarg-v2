@@ -1,9 +1,9 @@
 {
   "edges": [],
-  "id": "ST-0025",
+  "id": "ST-0098",
   "props": {
     "terminal": true,
-    "text": "secrets are stored encrypted, outside the project"
+    "text": "the Setup sheet closes on its own"
   },
   "type": "gherkin/state"
 }

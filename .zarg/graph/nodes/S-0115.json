@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0002",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0132",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0133",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0009",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0115",
+  "props": {
+    "planned": true,
+    "title": "A step proves its scenario",
+    "when": "a step passes"
+  },
+  "type": "gherkin/scenario"
+}

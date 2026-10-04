@@ -1,27 +1,27 @@
 {
   "edges": [
     {
-      "to": "ST-0033",
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0008",
       "type": "gherkin/arrives"
     },
     {
-      "to": "ST-0035",
+      "to": "ST-0097",
       "type": "gherkin/then"
     },
     {
       "to": "J-0002",
       "type": "gherkin/in"
-    },
-    {
-      "to": "P-0001",
-      "type": "gherkin/by"
     }
   ],
-  "id": "S-0035",
+  "id": "S-0086",
   "props": {
     "planned": true,
-    "title": "Operator picks the default model",
-    "when": "the operator picks a model as the default"
+    "title": "Operator reopens setup with /login",
+    "when": "the operator runs /login"
   },
   "type": "gherkin/scenario"
 }

@@ -1,0 +1,17 @@
+{
+  "edges": [
+    {
+      "to": "O-0006",
+      "type": "gherkin/serves"
+    },
+    {
+      "to": "O-0010",
+      "type": "gherkin/serves"
+    }
+  ],
+  "id": "J-0006",
+  "props": {
+    "name": "Inbox"
+  },
+  "type": "gherkin/journey"
+}

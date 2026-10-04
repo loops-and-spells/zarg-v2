@@ -1,0 +1,10 @@
+{
+  "edges": [],
+  "id": "P-0009",
+  "props": {
+    "kind": "agent",
+    "name": "Triage Agent",
+    "text": "turns a journey's feedback into drafted scenario changes and small plans, following the operator's notes."
+  },
+  "type": "gherkin/persona"
+}

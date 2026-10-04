@@ -1,15 +1,7 @@
 {
   "edges": [
     {
-      "to": "ST-0008",
-      "type": "gherkin/arrives"
-    },
-    {
       "to": "ST-0033",
-      "type": "gherkin/then"
-    },
-    {
-      "to": "ST-0034",
       "type": "gherkin/then"
     },
     {
@@ -17,15 +9,19 @@
       "type": "gherkin/in"
     },
     {
-      "to": "P-0003",
+      "to": "P-0001",
       "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0026",
+      "type": "gherkin/arrives"
     }
   ],
   "id": "S-0034",
   "props": {
     "planned": true,
-    "title": "Driver Agent asks for a role's model",
-    "when": "a role has no model set"
+    "title": "Operator sees the models to choose from",
+    "when": "the operator opens the default model list"
   },
   "type": "gherkin/scenario"
 }

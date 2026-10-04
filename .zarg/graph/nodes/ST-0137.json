@@ -1,9 +1,9 @@
 {
   "edges": [],
-  "id": "ST-0025",
+  "id": "ST-0137",
   "props": {
     "terminal": true,
-    "text": "secrets are stored encrypted, outside the project"
+    "text": "its evidence plays as it was captured"
   },
   "type": "gherkin/state"
 }

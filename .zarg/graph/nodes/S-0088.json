@@ -1,31 +1,31 @@
 {
   "edges": [
     {
-      "to": "ST-0023",
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0008",
       "type": "gherkin/arrives"
     },
     {
-      "to": "ST-0027",
+      "to": "ST-0099",
       "type": "gherkin/then"
     },
     {
-      "to": "ST-0023",
+      "to": "ST-0100",
       "type": "gherkin/then"
     },
     {
       "to": "J-0002",
       "type": "gherkin/in"
-    },
-    {
-      "to": "P-0001",
-      "type": "gherkin/by"
     }
   ],
-  "id": "S-0028",
+  "id": "S-0088",
   "props": {
     "planned": true,
-    "title": "A provider refuses the settings",
-    "when": "the provider refuses the saved settings"
+    "title": "Operator starts a session",
+    "when": "the operator runs zarg"
   },
   "type": "gherkin/scenario"
 }

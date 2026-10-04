@@ -2,7 +2,7 @@
   "edges": [],
   "id": "ST-0033",
   "props": {
-    "text": "a model question lists available models"
+    "text": "the models of every answering provider are listed"
   },
   "type": "gherkin/state"
 }

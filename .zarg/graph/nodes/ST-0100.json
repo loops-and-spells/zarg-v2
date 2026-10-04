@@ -1,9 +1,9 @@
 {
   "edges": [],
-  "id": "ST-0025",
+  "id": "ST-0100",
   "props": {
     "terminal": true,
-    "text": "secrets are stored encrypted, outside the project"
+    "text": "quitting the session stops its core"
   },
   "type": "gherkin/state"
 }

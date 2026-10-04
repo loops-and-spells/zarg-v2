@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "ST-0125",
+  "props": {
+    "text": "the Feedback view lists a journey's open feedback"
+  },
+  "type": "gherkin/state"
+}

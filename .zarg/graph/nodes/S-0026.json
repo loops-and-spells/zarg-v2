@@ -1,10 +1,6 @@
 {
   "edges": [
     {
-      "to": "ST-0008",
-      "type": "gherkin/arrives"
-    },
-    {
       "to": "ST-0023",
       "type": "gherkin/then"
     },
@@ -19,13 +15,17 @@
     {
       "to": "P-0001",
       "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0097",
+      "type": "gherkin/arrives"
     }
   ],
   "id": "S-0026",
   "props": {
     "planned": true,
-    "title": "Operator sets up a provider plugin",
-    "when": "the operator opens a provider plugin's setup"
+    "title": "Operator logs in to a provider",
+    "when": "the operator logs in to a provider"
   },
   "type": "gherkin/scenario"
 }

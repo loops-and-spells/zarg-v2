@@ -1,9 +1,9 @@
 {
   "edges": [],
-  "id": "ST-0034",
+  "id": "ST-0111",
   "props": {
     "terminal": true,
-    "text": "local models are listed first"
+    "text": "the topic waits at the end of the list"
   },
   "type": "gherkin/state"
 }

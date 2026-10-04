@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0106",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0110",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0006",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0095",
+  "props": {
+    "planned": true,
+    "title": "Operator answers topics of one kind at once",
+    "when": "the operator marks topics of one kind, then answers once"
+  },
+  "type": "gherkin/scenario"
+}

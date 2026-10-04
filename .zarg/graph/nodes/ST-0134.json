@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0134",
+  "props": {
+    "terminal": true,
+    "text": "the evidence records what was expected, then what was seen"
+  },
+  "type": "gherkin/state"
+}

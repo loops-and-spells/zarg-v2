@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0136",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0138",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0009",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0120",
+  "props": {
+    "planned": true,
+    "title": "Evidence nobody here renders",
+    "when": "a scenario's evidence has no installed renderer"
+  },
+  "type": "gherkin/scenario"
+}

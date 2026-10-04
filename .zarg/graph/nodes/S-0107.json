@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0008",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0122",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0124",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0008",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0107",
+  "props": {
+    "planned": true,
+    "title": "Tester Agent reports a drift",
+    "when": "a tester sees the code differ from its scenario"
+  },
+  "type": "gherkin/scenario"
+}

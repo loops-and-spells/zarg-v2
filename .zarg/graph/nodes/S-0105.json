@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0122",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0008",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0105",
+  "props": {
+    "planned": true,
+    "title": "Operator starts a rehearsal",
+    "when": "the operator runs /rehearse"
+  },
+  "type": "gherkin/scenario"
+}

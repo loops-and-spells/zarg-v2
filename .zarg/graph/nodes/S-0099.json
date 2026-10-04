@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0115",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0007",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0099",
+  "props": {
+    "planned": true,
+    "title": "Operator reads the intents",
+    "when": "the operator opens the Intents view"
+  },
+  "type": "gherkin/scenario"
+}

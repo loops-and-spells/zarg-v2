@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0008",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0136",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0009",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0118",
+  "props": {
+    "planned": true,
+    "title": "Operator opens the catalog",
+    "when": "the operator runs zarg catalog"
+  },
+  "type": "gherkin/scenario"
+}

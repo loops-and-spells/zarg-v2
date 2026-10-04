@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0120",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0129",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0008",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0112",
+  "props": {
+    "planned": true,
+    "title": "Operator drops a plan",
+    "when": "the operator drops a plan"
+  },
+  "type": "gherkin/scenario"
+}

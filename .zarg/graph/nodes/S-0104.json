@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0007",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0121",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0007",
+      "type": "gherkin/in"
+    },
+    {
+      "to": "ST-0116",
+      "type": "gherkin/arrives"
+    }
+  ],
+  "id": "S-0104",
+  "props": {
+    "planned": true,
+    "title": "An outcome cannot be drafted",
+    "when": "the Intent Agent cannot draft scenarios for it"
+  },
+  "type": "gherkin/scenario"
+}

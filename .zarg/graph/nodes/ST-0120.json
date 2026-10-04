@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "ST-0120",
+  "props": {
+    "text": "a plan waits in Backlog for the operator"
+  },
+  "type": "gherkin/state"
+}

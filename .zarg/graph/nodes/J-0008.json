@@ -1,0 +1,21 @@
+{
+  "edges": [
+    {
+      "to": "O-0015",
+      "type": "gherkin/serves"
+    },
+    {
+      "to": "O-0005",
+      "type": "gherkin/serves"
+    },
+    {
+      "to": "O-0006",
+      "type": "gherkin/serves"
+    }
+  ],
+  "id": "J-0008",
+  "props": {
+    "name": "Rehearse and refine"
+  },
+  "type": "gherkin/journey"
+}

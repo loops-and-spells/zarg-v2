@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "ST-0133",
+  "props": {
+    "text": "the scenario's evidence is saved with its media"
+  },
+  "type": "gherkin/state"
+}

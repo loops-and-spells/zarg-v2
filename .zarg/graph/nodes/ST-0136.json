@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "ST-0136",
+  "props": {
+    "text": "the catalog opens with failing scenarios first"
+  },
+  "type": "gherkin/state"
+}

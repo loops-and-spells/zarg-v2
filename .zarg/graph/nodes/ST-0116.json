@@ -1,0 +1,8 @@
+{
+  "edges": [],
+  "id": "ST-0116",
+  "props": {
+    "text": "the intent lists the new outcome"
+  },
+  "type": "gherkin/state"
+}

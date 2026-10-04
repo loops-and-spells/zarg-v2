@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0128",
+  "props": {
+    "terminal": true,
+    "text": "the Planner Agent applies the plan's scenario changes"
+  },
+  "type": "gherkin/state"
+}

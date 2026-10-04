@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0103",
+  "props": {
+    "entry": true,
+    "text": "another live session's core runs here"
+  },
+  "type": "gherkin/state"
+}

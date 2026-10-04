@@ -1,0 +1,10 @@
+{
+  "edges": [],
+  "id": "P-0007",
+  "props": {
+    "kind": "agent",
+    "name": "Intent Agent",
+    "text": "drafts requirements from the intents: scenarios for each outcome without any, folded into plans that wait for the operator."
+  },
+  "type": "gherkin/persona"
+}

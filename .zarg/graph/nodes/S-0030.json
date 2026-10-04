@@ -5,23 +5,23 @@
       "type": "gherkin/arrives"
     },
     {
-      "to": "ST-0030",
-      "type": "gherkin/then"
-    },
-    {
       "to": "J-0002",
       "type": "gherkin/in"
     },
     {
       "to": "P-0001",
       "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0097",
+      "type": "gherkin/then"
     }
   ],
   "id": "S-0030",
   "props": {
     "planned": true,
-    "title": "A role needs a missing key",
-    "when": "a role uses a provider without a key"
+    "title": "Setup opens while the driver's provider is down",
+    "when": "the Driver Agent's provider does not answer"
   },
   "type": "gherkin/scenario"
 }

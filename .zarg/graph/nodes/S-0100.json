@@ -1,0 +1,27 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0115",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0116",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0007",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0100",
+  "props": {
+    "planned": true,
+    "title": "Operator adds an outcome",
+    "when": "the operator adds an outcome to an intent"
+  },
+  "type": "gherkin/scenario"
+}

@@ -1,9 +1,9 @@
 {
   "edges": [],
-  "id": "ST-0032",
+  "id": "ST-0114",
   "props": {
     "terminal": true,
-    "text": "the role uses the chosen model"
+    "text": "the question is still open in the inbox"
   },
   "type": "gherkin/state"
 }
