@@ -10,6 +10,7 @@ export interface Topic {
   readonly answer?: { readonly id?: string; readonly text?: string; readonly by: string; readonly at: number }
   readonly moot?: string; readonly snoozed?: { readonly until: "change" }; readonly created: number; readonly updated: number
 }
+// @scenario S-0092 S-0096
 const tier = (t: Topic) =>
   t.snoozed !== undefined ? 9 : t.blocking ? 0 : (t.answers ?? []).length > 0 ? 1 : t.severity === "high" ? 2 : t.severity === "medium" ? 3 : t.severity === "low" ? 4 : 5
 /** The one priority: lower is sooner. Blocking, then answers, then severity, then reports; older first; snoozed last. */

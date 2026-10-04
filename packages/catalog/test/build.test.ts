@@ -9,6 +9,7 @@ const tree = (dir: string): Record<string, string> =>
   Object.fromEntries((readdirSync(dir, { recursive: true }) as Array<string>).sort().filter((f) => !statSync(join(dir, f)).isDirectory()).map((f) => [f, readFileSync(join(dir, f), "base64")]))
 const site = () => join(mkdtempSync(join(tmpdir(), "zt-site-")), "site")
 
+// @scenario S-0119
 test("the site: pages, css, the player, committed media; the same inputs give the same bytes", () => {
   const root = repo()
   const [a, b] = [site(), site()]

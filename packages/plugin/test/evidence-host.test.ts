@@ -30,6 +30,7 @@ export default definePlugin({
   return Effect.runPromise(loadPluginDir(join(dir, "dist")))
 }
 
+// @scenario S-0120
 test("the host renders a medium through the plugin that owns its kind; anything else is a reason, never a failure", async () => {
   const good = await evidencePlugin("evidence-good", `Effect.succeed({ html: "<p class=n>" + input.files[0].text + "</p>", assets: ["n.css"] })`, ["assets/n.css"])
   const bad = await evidencePlugin("evidence-bad", `Effect.fail(new PluginFailure({ tag: "PluginError", message: "cannot draw" }))`)

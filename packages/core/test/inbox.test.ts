@@ -11,6 +11,7 @@ const grant = { kind: "grant", title: "backlog wants to write .zarg/triage", why
 const from = { plugin: "backlog" }
 
 describe("the inbox", () => {
+  // @scenario S-0093
   test("ask blocks until answered; the answer resolves it; the topic is saved and logged", async () => {
     const { inbox, events, d } = await setup()
     const f = Effect.runFork(inbox.ask(from, { ...grant, blocking: true }))
@@ -22,6 +23,7 @@ describe("the inbox", () => {
     expect(await Effect.runPromise(Fiber.join(f))).toEqual({ answer: "once" })
     expect(events().map((e) => e.state)).toEqual(["open", "answered"])
   })
+  // @scenario S-0094
   test("an answer to a topic that is not open, an answer it does not offer, or a missing required reason is refused", async () => {
     const { inbox } = await setup()
     const id = await Effect.runPromise(inbox.post(from, { ...grant, answers: [{ id: "no", label: "No", reason: "required" }, { id: "yes", label: "Yes" }] }))
@@ -41,6 +43,7 @@ describe("the inbox", () => {
     await Bun.sleep(5)
     expect(answered).toEqual([[a, { answer: "once" }]])
   })
+  // @scenario S-0095
   test("batch: same kind, all offering the answer; else nothing is applied", async () => {
     const { inbox } = await setup()
     const a = await Effect.runPromise(inbox.post(from, grant))
@@ -50,6 +53,7 @@ describe("the inbox", () => {
     expect(inbox.list().filter((t) => t.state === "answered")).toEqual([])
     expect(await Effect.runPromise(inbox.answerMany([a, b], { answer: "once" }))).toEqual({ ok: true, notice: "2 answered" })
   })
+  // @scenario S-0096 S-0097
   test("snooze: refused on a blocking topic; a snoozed topic wakes on update", async () => {
     const { inbox } = await setup()
     Effect.runFork(inbox.ask(from, { ...grant, blocking: true }))
@@ -152,6 +156,7 @@ describe("the inbox", () => {
     const { d } = await setup()
     expect(readFileSync(join(d.dir, ".gitignore"), "utf8")).toBe("*\n")
   })
+  // @scenario S-0098
   test("zarg's questions: raised (blocking, durable) survive a restart; answers and replies go to their owner, and a reply is kept as a message", async () => {
     const d = dirs()
     const seen: Array<unknown> = []

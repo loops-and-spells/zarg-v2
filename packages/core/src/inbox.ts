@@ -79,6 +79,7 @@ export const makeInbox = (opts: {
       if (typeof t?.id !== "string" || typeof t.state !== "string") { corrupt.push(name); continue }
       if (t.state !== "open" && now() - t.updated > WEEK) { rmSync(join(opts.dir, name), { force: true }); continue }
       topics.set(t.id, t)
+      // @scenario S-0098
       if (t.state === "open" && t.blocking && t.durable !== true) yield* save({ ...t, state: "moot", moot: "zarg restarted before it was answered", updated: now() })
       // Closed topics are in the log already; open ones are told again so clients that start fresh see them.
       else if (t.state === "open") yield* Effect.ignore(opts.log.append("main", E.custom(INBOX, { topic: t })))
@@ -104,6 +105,7 @@ export const makeInbox = (opts: {
       if (a.reason === "required" && (r.text ?? "").trim() === "") return `${a.label} needs a reason`
       return undefined
     }
+    // @scenario S-0093 S-0094
     const settleOne = (t0: Topic, r: Reply, by: string) =>
       Effect.gen(function* () {
         // Still open now (a batch runs one by one; another client may have answered meanwhile).
@@ -153,6 +155,7 @@ export const makeInbox = (opts: {
           return t.id
         }),
       /** A topic of the core or a trusted agent: blocking or not, durable or not; its answer goes to `answered` (the owner waits in its own way). */
+      // @scenario S-0098
       raise: (from: Topic["from"], input: TopicInput, o: { readonly blocking: boolean; readonly durable: boolean }) =>
         Effect.gen(function* () {
           const t = make(from, input, o.blocking)
@@ -194,6 +197,7 @@ export const makeInbox = (opts: {
           yield* save({ ...woken, ...fields(rest), messages: typeof message !== "string" ? t.messages : [...t.messages, { by: plugin, at: now(), text: message }], updated: now() })
           return { notice: "updated" }
         }),
+      // @scenario S-0093 S-0094
       answer: (id: string, r: Reply, by = "operator") =>
         Effect.gen(function* () {
           const t = topics.get(id)
@@ -202,6 +206,7 @@ export const makeInbox = (opts: {
           yield* settleOne(t!, r, by)
           return { ok: true, notice: "answered" }
         }),
+      // @scenario S-0095
       answerMany: (ids: ReadonlyArray<string>, r: Reply, by = "operator") =>
         Effect.gen(function* () {
           if (ids.length === 0) return { ok: false, notice: "nothing to answer" }
@@ -212,6 +217,7 @@ export const makeInbox = (opts: {
           for (const t of ts) yield* settleOne(t!, r, by)
           return { ok: true, notice: `${ts.length} answered` }
         }),
+      // @scenario S-0096 S-0097
       snooze: (id: string) =>
         Effect.gen(function* () {
           const t = topics.get(id)

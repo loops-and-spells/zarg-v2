@@ -19,7 +19,6 @@
   ],
   "id": "S-0100",
   "props": {
-    "planned": true,
     "title": "Operator adds an outcome",
     "when": "the operator adds an outcome to an intent"
   },

@@ -23,7 +23,6 @@
   ],
   "id": "S-0027",
   "props": {
-    "planned": true,
     "title": "A provider answers",
     "when": "the operator checks and saves the provider's settings"
   },

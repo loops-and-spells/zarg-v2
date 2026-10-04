@@ -27,6 +27,7 @@ describe("rehearse triage", () => {
     expect((await Effect.runPromise(triage(answers(0.9, "fix"), f, undefined, false, s))).route).toBe("drop")
   })
 
+  // @scenario S-0107
   test("a drift is the operator's call: scenario or code (asked, never fixed by the agent)", async () => {
     expect((await Effect.runPromise(triage(answers(0.9, "fix"), { ...f, kind: "drift" }, step, false, s))).route).toBe("ask")
   })

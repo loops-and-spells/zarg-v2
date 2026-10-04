@@ -17,6 +17,7 @@ const build = async (entry: string, origin: string): Promise<LoadedPlugin> => {
 const noul = (p: number) => ({ type: "noul", answer: p >= 0.5, probability: p, confidence: 0 })
 
 describe("rehearse as a loaded plugin", () => {
+  // @scenario S-0105 S-0106
   test("/rehearse walks gherkin's stories through the host and files what it found with the backlog", async () => {
     const root = mkdtempSync(join(tmpdir(), "zt-rehearse-"))
     mkdirSync(join(root, "intent"))

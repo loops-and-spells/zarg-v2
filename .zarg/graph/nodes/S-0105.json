@@ -19,7 +19,6 @@
   ],
   "id": "S-0105",
   "props": {
-    "planned": true,
     "title": "Operator starts a rehearsal",
     "when": "the operator runs /rehearse"
   },

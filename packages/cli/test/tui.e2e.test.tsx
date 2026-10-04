@@ -32,6 +32,7 @@ const frameUntil = async (t: Awaited<ReturnType<typeof testRender>>, match: (fra
 }
 
 describe("tui end to end", () => {
+  // @scenario S-0088 S-0091
   test("against a child core on the stub model: answer an inquiry by keys; exiting stops the core", async () => {
     const stub = join(root, "stub.json")
     writeFileSync(stub, JSON.stringify({ cells }))

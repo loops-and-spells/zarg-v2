@@ -6,6 +6,7 @@ import { type Evidence, integrity, proofOf, readEvidence } from "../src/evidence
 
 const ev = (over: Partial<Evidence> = {}): Evidence => ({ scenario: "S-0001", version: "aaaaaaaaaaaa", commit: "abc1234", run: "e2e-1", journey: "J-0005", passed: true, flaky: false, at: "2026-10-04T00:00:00Z", ms: 10, media: [], failure: null, ...over })
 
+// @scenario S-0117
 test("proofOf: passed at this version is proven; failed is failing; another version is unproven; code changed after is stale", () => {
   expect(proofOf(ev(), "aaaaaaaaaaaa", false)).toBe("proven")
   expect(proofOf(ev({ passed: false }), "aaaaaaaaaaaa", false)).toBe("failing")
@@ -42,6 +43,7 @@ test("binary media is gitignored by default: missing on this machine is not a pr
 })
 
 import { changedSince } from "../src/evidence"
+// @scenario S-0117
 test("changedSince (real git): a committed change, a rename, an uncommitted edit; nothing changed is not", () => {
   const root = mkdtempSync(join(tmpdir(), "zt-git-"))
   const git = (...a: Array<string>) => Bun.spawnSync(["git", "-c", "user.name=t", "-c", "user.email=t@t", ...a], { cwd: root }).stdout.toString().trim()

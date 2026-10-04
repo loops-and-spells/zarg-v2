@@ -51,6 +51,7 @@ const writeAtomic = (file: string, text: string) => {
 }
 
 /** Swaps the staged media in (or clears the scenario's old media) and writes the evidence, JSON last. */
+// @scenario S-0115
 export const commit = (evidenceDir: string, staged: Staged | undefined, evidence: Evidence): void => {
   const mediaDir = join(evidenceDir, "media", evidence.scenario)
   mkdirSync(evidenceDir, { recursive: true })

@@ -19,7 +19,6 @@
   ],
   "id": "S-0103",
   "props": {
-    "planned": true,
     "title": "Intent Agent drafts an outcome's requirements",
     "when": "the Intent Agent drafts scenarios for it"
   },

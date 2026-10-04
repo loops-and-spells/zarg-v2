@@ -42,6 +42,7 @@ const setup = (o: { stages: ReadonlyArray<Stage>; answers?: ReadonlyArray<string
 const proposalJson = JSON.stringify({ changes: [{ tool: "edit-state", params: { id: "ST-0002", text: "the operator sees: once, always, deny" } }], answers: ["F-00000001"], summary: "Name the choices." })
 
 describe("the Triage Agent", () => {
+  // @scenario S-0110
   test("Refine: a proposal per waiting scenario, from the model, dry-run over the draft so far", async () => {
     const { t, calls } = setup({ stages: [stage({ proposals: [{ scenario: "S-0001", changes: [], answers: [], summary: "", status: "waiting" }] })], answers: [`Here it is:\n\`\`\`json\n${proposalJson}\n\`\`\``] })
     await Effect.runPromise(t.tick)
@@ -63,6 +64,7 @@ describe("the Triage Agent", () => {
     await Effect.runPromise(t.tick)
     expect(calls.find(([k]) => k === "propose")?.[1]).toMatchObject({ scenario: "S-0001", changes: [], problems: ["the Triage Agent could not draft a proposal"] })
   })
+  // @scenario S-0110
   test("Plan: a round ends in folded plans: the model's concepts, ordered, each with the feedback its scenarios answer", async () => {
     const accepted = (scenario: string, changes: unknown[], answers: string[] = []) => ({ scenario, title: `scenario ${scenario}`, changes, answers, summary: `fix ${scenario}`, status: "accepted" })
     const a = [{ tool: "edit-state", params: { id: "ST-0002", text: "x" } }]

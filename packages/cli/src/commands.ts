@@ -145,6 +145,7 @@ const fullReport = (loaded: { readonly snapshot: Snapshot.Snapshot; readonly pro
   })
 
 /** The one CI check: graph structure and lints, completeness, intent coverage, code tags, proof by evidence, evidence integrity. JSON (or --summary, --junit <file>); exit 0 complete, 1 a problem, 2 the audit could not run; --scenario for one scenario. */
+// @scenario S-0113
 const auditCmd = Command.make(
   "audit",
   {
@@ -243,6 +244,7 @@ const couldNot = (what: string) =>
 const catalogBuild = Command.make("build", { out: outFlag }, (o) => buildCatalogAt(o.out).pipe(Effect.flatMap(print), couldNot("catalog build")))
 
 /** `zarg catalog`: build the catalog, then serve it (Ctrl+C stops it); `zarg catalog build` only builds. */
+// @scenario S-0118
 const catalogCmd = Command.make(
   "catalog",
   {

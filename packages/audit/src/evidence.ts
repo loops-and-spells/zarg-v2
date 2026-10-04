@@ -37,6 +37,7 @@ export const readEvidence = (root: string): ReadonlyArray<Entry> => {
 }
 
 /** A scenario's proof: a failure stays failing; a pass at another version is unproven; a pass whose code changed since is stale. */
+// @scenario S-0117
 export const proofOf = (e: Evidence | undefined, current: string, changedSince: boolean): Proof =>
   e === undefined || e.version !== current ? "unproven" : !e.passed ? "failing" : changedSince ? "stale" : "proven"
 
@@ -85,6 +86,7 @@ export const codeOf = (root: string, files: ReadonlyArray<string>): Readonly<Rec
 }
 
 /** The scenario's tagged code is not what the evidence ran: by content when the evidence recorded it, else by commits since. */
+// @scenario S-0117
 export const codeChanged = (root: string, files: ReadonlyArray<string>, e: Evidence): boolean => {
   if (e.code === undefined) return changedSince(root, files, e.commit)
   const now = codeOf(root, files)

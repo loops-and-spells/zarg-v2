@@ -18,6 +18,7 @@ const report = (ref: string, note = "No path when the operator denies.") => ({
 const rows = (seen: Map<string, unknown>, section: string) => ((seen.get(`feedback/${section}`) as { rows: Array<{ id: string; on?: boolean; cells: Record<string, string> }> } | undefined)?.rows ?? [])
 
 describe("the backlog's feedback", () => {
+  // @scenario S-0106 S-0121
   test("the same report twice is one file; the Feedback view lists its journey and the entry, on", async () => {
     const out = await run((seen, root) => Effect.gen(function* () {
       const scenario = yield* setUp
@@ -32,6 +33,7 @@ describe("the backlog's feedback", () => {
     expect(out.journeys.map((r) => [r.id, r.cells.open, Object.keys(r.cells)])).toEqual([["Set up", "1", ["journey", "open"]]])
     expect(out.feedback.map((r) => [r.id, r.on, r.cells.scenario])).toEqual([[out.a.ids[0], true, "gherkin/scenario:S-0001"]])
   })
+  // @scenario S-0108
   test("flipping an entry is the operator's call, kept", async () => {
     const out = await run((seen) => Effect.gen(function* () {
       const scenario = yield* setUp
@@ -130,6 +132,7 @@ describe("the backlog's feedback", () => {
     expect(out.row.on).toBe(false)
     expect(out.ms).toBeLessThan(500)
   }, 60000)
+  // @scenario S-0121
   test("a journey shows its own feedback; opening the view again starts on the first journey, where the cursor is", async () => {
     const out = await run((seen) => Effect.gen(function* () {
       const scenario = yield* setUp

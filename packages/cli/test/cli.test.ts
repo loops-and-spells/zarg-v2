@@ -250,6 +250,7 @@ describe("zarg plugin", () => {
 })
 
 describe("zarg catalog", () => {
+  // @scenario S-0118
   test("catalog build writes the site from the graph, with no evidence yet", () => {
     const r = mkdtempSync(join(tmpdir(), "zarg-cli-catalog-"))
     Bun.spawnSync(["git", "init", "-q"], { cwd: r })
@@ -265,6 +266,7 @@ describe("zarg catalog", () => {
 })
 
 describe("zarg catalog in any project", () => {
+  // @scenario S-0118
   test("catalog build writes .zarg/catalog by default, ignored by itself, named after the project; a rebuild keeps the ignore", () => {
     const r = mkdtempSync(join(tmpdir(), "zarg-cli-project-"))
     Bun.spawnSync(["git", "init", "-q"], { cwd: r })
@@ -322,6 +324,7 @@ describe("zarg audit, the one CI check", () => {
     Bun.spawnSync(["git", "init", "-q"], { cwd: r })
     return r
   }
+  // @scenario S-0113
   test("an empty graph: exit 0 with the seven checks; a damaged node file: structure, exit 1; --junit writes the report", () => {
     const r = repo()
     const ok = zargIn(r, "audit", "--json")

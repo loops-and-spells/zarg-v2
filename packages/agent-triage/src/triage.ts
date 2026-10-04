@@ -132,6 +132,7 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
     })
 
   /** One scenario's proposal: from the model, dry-run over the draft so far; one retry with what was wrong. */
+  // @scenario S-0110
   const proposeFor = (st: StageView, scenario: string, who: string) =>
     Effect.gen(function* () {
       const entries = (yield* d.feedbackOf(st.journey).pipe(Effect.orElseSucceed(() => []))).filter((e) => e.on && scenarioOf(e.ref) === scenario)
@@ -203,6 +204,7 @@ export const makeTriage = (d: TriageDeps, workers = 2, reasoning = false) => {
     })
 
   /** Plan: the round folded into small plans (the model's concepts, checked atomic, at most CAP scenarios, ordered), each dry-run over what it waits on; to the Backlog. */
+  // @scenario S-0110
   const foldRound = (st: StageView, who: string) =>
     Effect.gen(function* () {
       const accepted = st.proposals.filter((p) => p.status === "accepted")

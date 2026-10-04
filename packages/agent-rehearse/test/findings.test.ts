@@ -9,6 +9,7 @@ const step = { scenario: "S-1", title: "Pay", given: "the payment form is shown"
 const replying = (text: string | Error): Complete => () => (text instanceof Error ? Effect.fail({ message: text.message }) : Effect.succeed({ text }))
 
 describe("rehearse findings", () => {
+  // @scenario S-0106
   test("a flagged step yields typed findings, at most five", async () => {
     const six = Array.from({ length: 6 }, (_, i) => ({ kind: "gap", severity: "medium", note: `n${i}` }))
     const out = await Effect.runPromise(diagnose(replying(JSON.stringify({ findings: six })), persona, [], step, ["fail"]))

@@ -45,6 +45,7 @@ const textOf = (complete: Complete, system: string, user: string, outputSchema?:
 type Raw = { readonly kind: Kind; readonly scenario: string; readonly edge?: { from: string; to: string }; readonly severity: "high" | "medium" | "low"; readonly note: string; readonly op?: unknown }
 
 /** A flagged scene, looked at by a large-model tester in the persona's shoes. */
+// @scenario S-0106 S-0107
 export const diagnose = (complete: Complete, persona: Persona, prior: ReadonlyArray<SceneView>, scene: SceneView, flags: ReadonlyArray<Reason>, code = "") =>
   textOf(
     complete,

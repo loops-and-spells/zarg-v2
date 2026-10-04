@@ -168,6 +168,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       outsideReads: outsideReads({ grants: agentGrants, userDir: USER_DIR, ask: ((q: Question) => grantAsk(inbox)("agents", q)) as never, yolo: () => yoloControl.on("zarg:agents") }),
       panels: { open: (p) => surfaces.openPanel({ ...p, id: `zarg:${p.name}:zarg`, plugin: "zarg", agent: "zarg" }) },
       // zarg's questions: blocking topics that survive a restart (the answer reaches zarg whenever it comes).
+      // @scenario S-0098
       inbox: {
         post: (t) => inbox.raise({ plugin: "zarg", agent: "zarg" }, t, { blocking: true, durable: true }),
         answer: (id, reply, by) => inbox.answer(id, reply, by),

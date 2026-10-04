@@ -6,6 +6,7 @@ const off = (id: string, scenario: string) => ({ id, ref: `gherkin/scenario:${sc
 const proposed = (scenario: string, extra: Record<string, unknown> = {}) => ({ scenario, changes: [{ tool: "edit-scenario", params: { id: scenario } }], answers: [], summary: `fix ${scenario}`, status: "proposed" as const, ...extra })
 
 describe("a journey's stages", () => {
+  // @scenario S-0108 S-0109
   test("refine starts with a waiting proposal per scenario whose feedback is on; nothing on is refused", () => {
     const s = startRefine(fresh("Set up"), [on("F-1", "S-0001"), on("F-2", "S-0001"), off("F-3", "S-0002"), on("F-4", "S-0003")])
     expect(typeof s === "string" ? s : s.proposals.map((p) => [p.scenario, p.status])).toEqual([["S-0001", "waiting"], ["S-0003", "waiting"]])

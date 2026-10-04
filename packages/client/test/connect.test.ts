@@ -15,6 +15,7 @@ const fresh = () => {
 afterAll(() => roots.forEach((r) => rmSync(r, { recursive: true, force: true })))
 
 describe("connect", () => {
+  // @scenario S-0088
   test("with no core running, starts a child core and stops it on close", async () => {
     const root = fresh()
     const c = await Effect.runPromise(connect({ root, command }))
@@ -26,6 +27,7 @@ describe("connect", () => {
     expect(readInfo(root)).toBeUndefined()
   })
 
+  // @scenario S-0090
   test("one core per session: a core a live TUI owns is refused, naming --attach", async () => {
     const root = fresh()
     const first = await Effect.runPromise(connect({ root, command }))
@@ -34,6 +36,7 @@ describe("connect", () => {
     await first.close()
   })
 
+  // @scenario S-0091
   test("--attach joins a running core without owning it; with none it says so", async () => {
     const root = fresh()
     expect((await Effect.runPromise(Effect.flip(connect({ root, command, attach: true })))).message).toBe("no zarg core running here; start one with zarg")
@@ -46,6 +49,7 @@ describe("connect", () => {
     await first.close()
   })
 
+  // @scenario S-0090
   test("a headless core is refused by default, naming --attach and zarg core stop", async () => {
     const root = fresh()
     const info = await Effect.runPromise(startHeadless({ root, command }))
@@ -53,6 +57,7 @@ describe("connect", () => {
     await Effect.runPromise(stopCore(root))
   })
 
+  // @scenario S-0089
   test("an orphaned core (its TUI is gone) is stopped and replaced by this session's own", async () => {
     const root = fresh()
     const gone = Bun.spawn(["true"])
@@ -68,6 +73,7 @@ describe("connect", () => {
     await c.close()
   })
 
+  // @scenario S-0091
   test("a core that is still starting is waited for, then joined with --attach", async () => {
     const root = fresh()
     const socket = join(root, "core.sock")

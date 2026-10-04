@@ -19,7 +19,6 @@
   ],
   "id": "S-0095",
   "props": {
-    "planned": true,
     "title": "Operator answers topics of one kind at once",
     "when": "the operator marks topics of one kind, then answers once"
   },

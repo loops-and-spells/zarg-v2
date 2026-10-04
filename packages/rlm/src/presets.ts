@@ -48,6 +48,8 @@ export const DEFAULT_BUDGET: Budget = { turns: 25, tokens: 400_000, wallMs: 30 *
 /** The presets from the spec; `[rlm.presets.*]` in config overrides them by name. */
 export const DEFAULT_PRESETS: Readonly<Record<string, Preset>> = {
   // The driver asks the operator; it never splits its task, so atomize would only add a Decisions round trip.
+  // Its Gherkin tools keep the intents from the conversation.
+  // @scenario S-0102
   // Its turns are light (pick options, ask, reply), and thinking was ~80% of each turn's time.
   driver: { layer: ["Graph", "Entities:read", "Gherkin", "Inquire", "Fs:read", "Decisions", "Rehearse", "Rlm"], spawns: ["research"], atomize: false, reasoning: false, role: "driver", budget: { turns: 25 }, result: "text", verify: "none" },
   // Plan and implement phases (the reconcile loop): each runs per scenario in its own worktree.

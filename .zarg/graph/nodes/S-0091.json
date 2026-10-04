@@ -19,7 +19,6 @@
   ],
   "id": "S-0091",
   "props": {
-    "planned": true,
     "title": "Operator joins a running core",
     "when": "the operator runs zarg --attach"
   },

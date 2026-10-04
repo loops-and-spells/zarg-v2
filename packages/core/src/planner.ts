@@ -42,6 +42,7 @@ const scenarioIds = (p: Plan) => p.scenarios.map((c) => parseRef(c.ref)?.id ?? "
  * The Planner Agent: takes the next Ready plan off the Backlog, applies its drafted scenario changes through the graph's
  * write pipeline, commits exactly those nodes, and hands them to the reconcile loop; a landed pass moves it to Review.
  */
+// @scenario S-0111
 export const makePlanner = (d: PlannerDeps) => {
   const lock = Effect.runSync(Semaphore.make(1))
   const moved = (id: string, to: string, by: string, what: string, needs?: string, scenarios?: ReadonlyArray<string>) =>

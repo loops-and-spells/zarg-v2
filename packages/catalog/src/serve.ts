@@ -2,6 +2,7 @@ import { existsSync, statSync } from "node:fs"
 import { join, normalize, resolve, sep } from "node:path"
 
 /** The built catalog over HTTP, for reading it locally: files under `dir` only, `/` as the overview. */
+// @scenario S-0118
 export const serve = (dir: string, port: number) => {
   const base = resolve(dir)
   return Bun.serve({

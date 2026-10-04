@@ -216,6 +216,7 @@ export const catalogOf = (input: {
   })
 
   // Red first: failing, then stale, then unproven, most first; then by id.
+  // @scenario S-0118
   const redness = (c: Counts) => [c.failing, c.stale, c.unproven]
   const intentRows = intents
     .map((i): IntentRow => ({ id: i.id, title: i.title, status: i.status, outcomes: i.outcomes.length, journeys: i.journeys.length, counts: i.counts }))

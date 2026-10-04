@@ -19,7 +19,6 @@
   ],
   "id": "S-0085",
   "props": {
-    "planned": true,
     "title": "Setup closes once the driver answers",
     "when": "the Driver Agent's default model answers"
   },

@@ -19,7 +19,6 @@
   ],
   "id": "S-0030",
   "props": {
-    "planned": true,
     "title": "Setup opens while the driver's provider is down",
     "when": "the Driver Agent's provider does not answer"
   },

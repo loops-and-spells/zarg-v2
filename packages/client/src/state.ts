@@ -234,5 +234,6 @@ export const reduce = (s: ThreadState, e: WireEvent): ThreadState => {
   }
 }
 
+// @scenario S-0092
 /** The open topics, most urgent first. */
 export const openTopics = (s: ThreadState, now = Date.now()) => sortTopics(Object.values(s.inbox ?? {}).filter((t) => t.state === "open"), now)

@@ -19,7 +19,6 @@
   ],
   "id": "S-0107",
   "props": {
-    "planned": true,
     "title": "Tester Agent reports a drift",
     "when": "a tester sees the code differ from its scenario"
   },

@@ -19,7 +19,6 @@
   ],
   "id": "S-0114",
   "props": {
-    "planned": true,
     "title": "CLI actor proves a journey",
     "when": "the CLI actor runs a journey's e2e steps"
   },

@@ -23,7 +23,6 @@
   ],
   "id": "S-0113",
   "props": {
-    "planned": true,
     "title": "CLI actor audits the project",
     "when": "the CLI actor runs zarg audit"
   },

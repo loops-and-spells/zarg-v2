@@ -19,7 +19,6 @@
   ],
   "id": "S-0084",
   "props": {
-    "planned": true,
     "title": "Setup opens on first run",
     "when": "no model answers for the Driver Agent"
   },

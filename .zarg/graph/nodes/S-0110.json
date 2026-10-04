@@ -19,7 +19,6 @@
   ],
   "id": "S-0110",
   "props": {
-    "planned": true,
     "title": "Triage Agent drafts a journey's plans",
     "when": "a Triage Agent drafts the journey's changes"
   },

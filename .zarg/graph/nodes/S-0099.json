@@ -19,7 +19,6 @@
   ],
   "id": "S-0099",
   "props": {
-    "planned": true,
     "title": "Operator reads the intents",
     "when": "the operator opens the Intents view"
   },

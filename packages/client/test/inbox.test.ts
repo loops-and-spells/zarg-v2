@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 import { noticeOf, priorityOf, sortTopics, type Topic } from "../src/inbox"
 
 const t = (id: string, over: Partial<Topic> = {}): Topic => ({ id, kind: "question", from: { plugin: "p" }, title: id, why: "", about: [], blocking: false, messages: [], state: "open", created: 0, updated: 0, ...over })
+// @scenario S-0092 S-0096
 test("priority: blocking, then answers, then by severity, then reports; older first within a tier; snoozed last", () => {
   const list = [
     t("report", { kind: "report", created: 1 }),

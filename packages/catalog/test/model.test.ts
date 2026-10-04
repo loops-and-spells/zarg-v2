@@ -108,6 +108,7 @@ const many = (n: number) => {
   return catalogOf({ snap: g, report, readText: reader(root) })
 }
 
+// @scenario S-0118
 test("many intents: red first, then by id; one with no journey says so", () => {
   const c = many(35)
   expect(c.overview.intents.slice(0, 2).map((i) => i.id)).toEqual(["I-3", "I-7"])

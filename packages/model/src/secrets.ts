@@ -18,6 +18,7 @@ export class Secrets extends Context.Service<
 const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const varlockCli = join(dirname(Bun.resolveSync("varlock/package.json", import.meta.dir)), "bin", "cli.js")
 
+// @scenario S-0027
 /** `echo value | varlock encrypt` → `varlock("local:...")`. The value only travels over stdin. */
 const encrypt = (name: string, value: Redacted.Redacted<string>) =>
   Effect.tryPromise({

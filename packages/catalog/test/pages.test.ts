@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 import { css, esc, pages } from "../src/pages"
 import { catalog, rendered } from "./fixture"
 
+// @scenario S-0118
 test("every page, relative links only, statuses as classes", () => {
   const p = pages(catalog(), rendered())
   expect([...p.keys()].sort()).toEqual(["index.html", "intents/I-1.html", "journeys/J-1.html", "scenarios/S-1.html", "scenarios/S-2.html", "scenarios/S-3.html", "search.html", "search.json"])
@@ -19,6 +20,7 @@ test("graph text is text, never markup", () => {
   expect(esc(`</script>"'&`)).toBe("&lt;/script&gt;&quot;&#39;&amp;")
 })
 
+// @scenario S-0119 S-0120
 test("media: rendered by its plugin with the plugin's assets; a fallback card when it cannot be; uncommitted media says so; code links out", () => {
   const s1 = pages(catalog(), rendered()).get("scenarios/S-1.html")!
   expect(s1).toContain('<pre class="t">plans &lt;b&gt;</pre>')

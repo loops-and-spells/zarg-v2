@@ -19,7 +19,6 @@
   ],
   "id": "S-0097",
   "props": {
-    "planned": true,
     "title": "A blocking topic cannot be snoozed",
     "when": "the operator snoozes a blocking topic"
   },

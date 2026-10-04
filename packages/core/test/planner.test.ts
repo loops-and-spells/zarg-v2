@@ -51,6 +51,7 @@ const setup = (o: { planned?: ReadonlyArray<string>; next?: unknown; fail?: stri
 }
 
 describe("the Planner", () => {
+  // @scenario S-0111
   test("takes the next Ready plan: Running first, applies its changes in order, commits exactly those nodes, notifies reconcile", async () => {
     const { p, log } = setup()
     await Effect.runPromise(p.tick)

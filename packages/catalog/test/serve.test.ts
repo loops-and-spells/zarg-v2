@@ -6,6 +6,7 @@ import { build } from "../src/build"
 import { serve } from "../src/serve"
 import { catalog, rendered, repo } from "./fixture"
 
+// @scenario S-0118
 test("the local server: pages by path, / is the overview, nothing outside the site", async () => {
   const root = repo()
   const out = join(mkdtempSync(join(tmpdir(), "zt-serve-")), "site")

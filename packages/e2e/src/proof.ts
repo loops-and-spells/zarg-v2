@@ -50,6 +50,7 @@ const graphOf = (root: string) => {
 const commitOf = (root: string) => Bun.spawnSync(["git", "rev-parse", "--short", "HEAD"], { cwd: root }).stdout.toString().trim()
 
 /** A journey of the graph, walked in a fresh world: each `proves` step proves one of its scenarios and writes that scenario's evidence. */
+// @scenario S-0114
 export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?: Readonly<Record<string, string>> }, body: (proves: Proves) => void) => {
   const root = evidenceRoot()
   const graph = graphOf(root)
@@ -72,6 +73,7 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
       dispose(failed)
     })
     let tagged: Promise<ReadonlyArray<Tag>> | undefined
+    // @scenario S-0115
     const proves: Proves = (scenario, fn, o = {}) => {
       const node = graph.nodes.get(scenario)
       if (node?.type !== "gherkin/scenario" || !node.edges.some((e) => e.type === "gherkin/in" && e.to === id)) throw new Error(`${scenario} is not a scenario of ${id}`)
@@ -162,6 +164,7 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
             at: new Date().toISOString(),
             ms: Math.round(performance.now() - started),
             media: staged?.media() ?? [],
+            // @scenario S-0116
             failure: passed ? null : { expected: error instanceof Error ? error.message : String(error), saw: term?.screen() ?? lastNote },
             code: codeOf(root, (await (tagged ??= Effect.runPromise(tags(root)))).filter((t) => t.id === scenario).map((t) => t.file)),
           }

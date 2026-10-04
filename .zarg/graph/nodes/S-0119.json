@@ -19,7 +19,6 @@
   ],
   "id": "S-0119",
   "props": {
-    "planned": true,
     "title": "Operator replays a scenario's evidence",
     "when": "the operator opens a scenario"
   },

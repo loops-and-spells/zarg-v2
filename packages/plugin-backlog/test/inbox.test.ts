@@ -141,6 +141,7 @@ describe("the backlog's topics in the inbox", () => {
     )
     expect(out).toBe(0)
   })
+  // @scenario S-0107
   test("a drift is the operator's decision: Change the code files a code plan the Planner never takes; its topic's Done moves it to Done and closes the feedback", async () => {
     const out = await run((seen) =>
       Effect.gen(function* () {
@@ -166,6 +167,7 @@ describe("the backlog's topics in the inbox", () => {
     expect(out.c).toMatchObject({ kind: "plan", answers: [{ id: "done" }, { id: "drop" }] })
     expect([out.done, out.fb]).toEqual(["done", "closed"])
   })
+  // @scenario S-0107
   test("a drift answered Reword the scenario keeps the entry on with the operator's note, for the next Refine", async () => {
     const out = await run((seen) =>
       Effect.gen(function* () {

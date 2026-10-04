@@ -19,7 +19,6 @@
   ],
   "id": "S-0121",
   "props": {
-    "planned": true,
     "title": "Operator opens the Feedback view",
     "when": "the operator opens the Feedback view"
   },

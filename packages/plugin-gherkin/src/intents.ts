@@ -29,6 +29,7 @@ const detailOf = (snap: Snapshot.Snapshot, s: Node, served: ReadonlyArray<string
 /** A plan on the Backlog serving a statement (its ref with a version). */
 export type ServingPlan = { readonly id: string; readonly title: string; readonly status: string; readonly serves: string }
 
+// @scenario S-0099
 /** The Intents view's data: every intent and its statements as rows, with coverage; a detail per row, with the plans serving it. */
 export const intentsView = (snap: Snapshot.Snapshot, plans: ReadonlyArray<ServingPlan> = []) => {
   const all = [...intents(snap)].sort((a, b) => a.id.localeCompare(b.id))

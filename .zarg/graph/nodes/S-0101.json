@@ -19,7 +19,6 @@
   ],
   "id": "S-0101",
   "props": {
-    "planned": true,
     "title": "Operator answers an intent's question",
     "when": "the operator answers an open question"
   },

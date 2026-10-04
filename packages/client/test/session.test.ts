@@ -227,6 +227,7 @@ test("inbox: answer, batch, snooze and read reach the core; each shows its notic
 })
 
 describe("/login and /models", () => {
+  // @scenario S-0086 S-0087
   test("open the Setup view at the providers or at the default model", async () => {
     const f = fakeClient()
     const s = makeSession({ client: f.client, threadId: "main", focus: [] })

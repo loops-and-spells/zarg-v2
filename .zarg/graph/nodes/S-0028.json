@@ -23,7 +23,6 @@
   ],
   "id": "S-0028",
   "props": {
-    "planned": true,
     "title": "A provider refuses the settings",
     "when": "the provider refuses the saved settings"
   },

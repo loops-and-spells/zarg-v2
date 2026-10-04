@@ -19,7 +19,6 @@
   ],
   "id": "S-0109",
   "props": {
-    "planned": true,
     "title": "Operator refines a journey",
     "when": "the operator refines a journey"
   },

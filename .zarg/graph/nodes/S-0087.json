@@ -19,7 +19,6 @@
   ],
   "id": "S-0087",
   "props": {
-    "planned": true,
     "title": "Operator reopens the models with /models",
     "when": "the operator runs /models"
   },

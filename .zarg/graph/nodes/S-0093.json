@@ -23,7 +23,6 @@
   ],
   "id": "S-0093",
   "props": {
-    "planned": true,
     "title": "Operator answers a topic",
     "when": "the operator answers a topic by its number"
   },

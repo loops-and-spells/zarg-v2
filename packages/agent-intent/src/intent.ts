@@ -141,6 +141,7 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
       return plans.map((p) => ({ title: p.title, steps: p.steps, changes: changesOf(p), scenarios: p.units.map((u) => units[u]!.scenario).filter((c) => /^S-\d/.test(c)), after: p.after }))
     })
 
+  // @scenario S-0103 S-0104
   /** One statement's round: draft (up to TRIES), ask or file, checkpoint; nothing filed when it changed meanwhile. */
   const statementRound = (s: Statement, journeys: ReadonlyArray<JourneyInfo>, decision: string | undefined) =>
     Effect.gen(function* () {
@@ -155,6 +156,7 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
           yield* show({ id: s.id, title: s.text, state: "waiting", detail: "the driver model did not answer", plans: [] })
           return "outage" as const
         }
+        // @scenario S-0104
         if (r.ask !== undefined && r.units.length === 0) {
           const options = [...r.ask.options, LEAVE]
           const topic = yield* d.post({ kind: "ask", key: `decide:${s.id}`, title: r.ask.question, why: `intent ${s.intent.id}`, about: [s.id], answers: options })
@@ -180,6 +182,7 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
         const serves = `gherkin/${s.kind}:${s.id}@${s.version}`
         // The plan's journey: one serving (or bounded by) the statement, else the one holding a scenario it changes.
         const journey = (journeys.find((j) => s.journeys.includes(j.id)) ?? journeys.find((j) => r.units.some((u) => j.scenarios.includes(u.scenario))))?.name ?? ""
+        // @scenario S-0103
         const ids: Array<string> = []
         const plans = yield* plansOf(r.units)
         for (const p of plans) {
@@ -192,6 +195,7 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
         yield* quiet(d.log(`${s.id}: ${ids.length} plan${ids.length === 1 ? "" : "s"} to the Backlog: ${ids.join(", ")}`))
         return yield* show({ id: s.id, title: s.text, state: "planned", detail: r.steps.join("\n"), plans: ids })
       }
+      // @scenario S-0104
       const options = [{ id: "again", label: "Draft again", recommended: true }, LEAVE]
       const topic = yield* d.post({ kind: "ask", key: `left:${s.id}`, title: `${s.id} could not be drafted: ${s.text}`, why: `intent ${s.intent.id}`, about: [s.id], answers: options, evidence: problems.join("\n") })
       yield* setStatement(s.id, { version: s.version, state: "left", topic, options })

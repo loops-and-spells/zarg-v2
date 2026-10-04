@@ -19,7 +19,6 @@
   ],
   "id": "S-0102",
   "props": {
-    "planned": true,
     "title": "Driver Agent keeps an intent from the conversation",
     "when": "the Driver Agent records what the operator said"
   },

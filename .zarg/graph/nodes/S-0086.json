@@ -19,7 +19,6 @@
   ],
   "id": "S-0086",
   "props": {
-    "planned": true,
     "title": "Operator reopens setup with /login",
     "when": "the operator runs /login"
   },

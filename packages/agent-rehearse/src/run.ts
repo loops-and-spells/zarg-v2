@@ -370,6 +370,7 @@ export const makeRehearse = (deps: RunDeps) =>
         const toFile = rec.file === false ? [] : filing.filter((x) => x !== undefined)
         // Filed with the scenarios it walked (even with nothing to file): the backlog closes their feedback this run no longer reports.
         const walked = [...new Set(rec.stories.flat())]
+        // @scenario S-0106
         const filed = rec.file === false ? { ids: [] as ReadonlyArray<string> } : yield* deps.file(toFile.map((x) => x.entry), { walked, run: rec.run }).pipe(Effect.orElseSucceed(() => ({ ids: [] as ReadonlyArray<string> })))
         yield* update((r) => ({ ...r, status: "done", findings, report: text, filed: Object.fromEntries(toFile.flatMap((x, i) => (filed.ids[i] !== undefined && filed.ids[i] !== "" ? [[x.id, filed.ids[i]!]] : []))) }))
         const unreached = rec.unreachable > 0 ? ` · ${rec.unreachable} unreachable` : ""
@@ -399,6 +400,7 @@ export const makeRehearse = (deps: RunDeps) =>
         active = { run: rec.run, fiber }
       })
 
+    // @scenario S-0105
     const start = (opts: { readonly strategy?: "journey" | "edge-pair" | "teleport"; readonly focus?: ReadonlyArray<string>; readonly personas?: ReadonlyArray<string>; readonly draft?: Draft; readonly file?: boolean }) =>
       Semaphore.withPermits(lock, 1)(
         Effect.gen(function* () {

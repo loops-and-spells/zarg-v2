@@ -164,6 +164,7 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
         )
         return
       }
+      // @scenario S-0086 S-0087
       if (name === "/login" || name === "/models") {
         fork(
           opts.client.setup(name === "/login" ? "providers" : "models").pipe(

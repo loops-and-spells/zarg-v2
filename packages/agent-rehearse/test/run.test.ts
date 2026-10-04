@@ -159,6 +159,7 @@ describe("rehearse runs in the plugin", () => {
     expect(t.agendaChanges.n).toBe(1)
   })
 
+  // @scenario S-0106
   test("a finished run files each finding with the backlog: the scenario's version, its journeys, and the run's first call", async () => {
     const t = await finish()
     expect(t.filedCalls).toEqual([
@@ -363,6 +364,7 @@ describe("testers from the graph's personas", () => {
     expect(idle).toEqual({ refused: "no persona acts in any scenario" })
   })
 
+  // @scenario S-0105
   test("a tester walks only stories with its scenarios; others' scenes are context", async () => {
     const t = await finish({ personas: [{ name: "Operator", text: "The operator.", scenarios: ["A", "C"] }, { name: "Driver Agent", text: "The agent.", scenarios: ["B", "D"] }] })
     const screenedBy = (who: string) => t.decisions.filter((d) => d.questions.feel !== undefined && d.state.startsWith(`You are ${who}`)).map((d) => /The next step[\s\S]*When do (\w)/.exec(d.state)![1])

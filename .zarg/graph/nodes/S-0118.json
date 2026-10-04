@@ -19,7 +19,6 @@
   ],
   "id": "S-0118",
   "props": {
-    "planned": true,
     "title": "Operator opens the catalog",
     "when": "the operator runs zarg catalog"
   },

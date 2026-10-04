@@ -19,7 +19,6 @@
   ],
   "id": "S-0035",
   "props": {
-    "planned": true,
     "title": "Operator picks the default model",
     "when": "the operator picks a model as the default"
   },

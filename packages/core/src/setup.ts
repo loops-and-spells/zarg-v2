@@ -82,6 +82,7 @@ export const makeSetup = (d: SetupDeps) => {
   const known = new Map<string, State>()
   const check = (names: ReadonlyArray<string>) =>
     Effect.forEach(d.providers.filter((p) => names.includes(p.name)), (p) => Effect.map(status(p), (s) => void known.set(p.name, s)), { concurrency: "unbounded", discard: true })
+  // @scenario S-0026 S-0034
   const render = Effect.gen(function* () {
     const unchecked = d.providers.filter((p) => !known.has(p.name)).map((p) => p.name)
     if (unchecked.length > 0) yield* check(unchecked)
@@ -101,6 +102,7 @@ export const makeSetup = (d: SetupDeps) => {
     set("fields", { rows })
     set("models", { rows: ready.flatMap(({ p, s }) => (s.ok ? s.models.map((m) => ({ id: `${p.name}:${m.id}`, cells: { model: `${p.name}:${m.id}`, about: [m.contextLength > 0 ? k(m.contextLength) : "", ...m.capabilities].filter((x) => x !== "").join(" · ") } })) : [])) })
   })
+  // @scenario S-0084 S-0030 S-0086 S-0087
   const open = (_at?: "providers" | "models") =>
     Effect.gen(function* () {
       yield* check(d.providers.map((p) => p.name))
@@ -111,6 +113,7 @@ export const makeSetup = (d: SetupDeps) => {
       yield* render
       d.agentEvents("core", { event: "open", surfaces: [{ surface: "setup", agent: AGENT, focus: true }], gesture: true })
     }).pipe(Effect.catchCause((c) => Effect.sync(() => console.error(`zarg-core: setup could not open: ${String(Cause.squash(c))}`))))
+  // @scenario S-0084 S-0030 S-0085
   /** Setup is needed while the driver has no model, or its provider does not answer. */
   const needed = Effect.gen(function* () {
     const ref = d.config.roles.driver
@@ -125,11 +128,13 @@ export const makeSetup = (d: SetupDeps) => {
         yield* open()
         return { notice: "" }
       }
+      // @scenario S-0026
       if (action === "login") {
         selected = rows[0]
         yield* render
         return { notice: selected === undefined ? "pick a provider" : `${selected}: set its values, then c to check and save` }
       }
+      // @scenario S-0027
       if (action === "set") {
         const name = rows[0]
         if (name === undefined || text === undefined || text === "") return { notice: "nothing to save" }
@@ -143,6 +148,7 @@ export const makeSetup = (d: SetupDeps) => {
         const inEffect = now === undefined ? undefined : Redacted.isRedacted(now) ? Redacted.value(now) : now
         return { notice: inEffect !== undefined && inEffect !== text ? `${name} saved, but this project's own .env.schema sets it: its value wins here` : `${name} saved` }
       }
+      // @scenario S-0027 S-0028
       if (action === "done") {
         const p = d.providers.find((x) => x.name === selected)
         if (p === undefined) return { notice: "pick a provider first" }
@@ -155,6 +161,7 @@ export const makeSetup = (d: SetupDeps) => {
         yield* render
         return { notice: s.ok ? `${p.name}: reachable, ${s.models.length} model${s.models.length === 1 ? "" : "s"}` : `${p.name}: ${s.text.replace(/^[✗◇] /, "")}` }
       }
+      // @scenario S-0035 S-0085
       if (action === "default") {
         const ref = rows[0]
         if (ref === undefined) return { notice: "pick a model" }
@@ -166,6 +173,7 @@ export const makeSetup = (d: SetupDeps) => {
       }
       return { notice: `setup has no action ${action}` }
     }).pipe(Effect.catch((e: unknown) => Effect.succeed({ notice: e instanceof ModelError ? why(e) : String((e as { message?: unknown })?.message ?? e) })))
+  // @scenario S-0084
   /** Open only while setup is needed (a client joining a core that started earlier). */
   const openIfNeeded = Effect.flatMap(needed, (n) => (n ? open("providers") : Effect.void))
   return { needed, open, openIfNeeded, act }

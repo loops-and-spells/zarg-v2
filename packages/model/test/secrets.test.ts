@@ -33,6 +33,7 @@ const run = <A, E>(eff: Effect.Effect<A, E, Env | Secrets.Secrets>) => {
 }
 
 describe("Secrets", () => {
+  // @scenario S-0027
   test("set encrypts on this device; the file never holds the plaintext; Env reads it back", async () => {
     const value = await run(
       Effect.gen(function* () {

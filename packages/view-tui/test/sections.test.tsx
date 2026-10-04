@@ -379,6 +379,7 @@ test("a text that is loading shows its line in the middle, with a spinner, in pl
 })
 
 describe("a secret input", () => {
+  // @scenario S-0026
   test("is drawn masked, one dot per character", async () => {
     const v: ViewState = {
       agent: "setup",

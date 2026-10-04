@@ -155,6 +155,7 @@ const InputField = (p: { readonly input: NonNullable<ViewUi["input"]>; readonly 
   const hint = "  ⏎ save  esc cancel"
   const room = Math.max(1, p.width - 4 - hint.length)
   // A secret (a key) shows as dots, one per character.
+  // @scenario S-0026
   const typed = p.input.secret === true ? "•".repeat(p.input.text.length) : p.input.text
   const shown = typed.length > 0 ? typed.slice(-room) : ""
   return (

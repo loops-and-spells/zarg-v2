@@ -8,6 +8,7 @@ const s = (...ts: Array<ReturnType<typeof topic>>) => ({ core: "up", thread: { .
 const key = (name: string, extra: Record<string, unknown> = {}) => ({ name, ctrl: false, meta: false, shift: false, sequence: name.length === 1 ? name : "", ...extra }) as never
 const home: Ui = { ...initialUi, main: "inbox", focus: "tile" }
 
+// @scenario S-0092 S-0093 S-0094 S-0096
 test("rows: open topics, sorted; Enter opens one; a number answers it; t then text then Enter answers with a reason; z sends a snooze", () => {
   const st = s(topic("T-2"), topic("T-1", { blocking: true }))
   expect(inboxRows(home, st).map((t) => t.id)).toEqual(["T-1", "T-2"])
@@ -23,6 +24,7 @@ test("rows: open topics, sorted; Enter opens one; a number answers it; t then te
   expect(inboxKey(opened, st, key("z")).action).toEqual({ type: "snooze-topic", id: "T-1" })
   expect(inboxKey(opened, st, key("escape")).ui.inbox.open).toBeUndefined()
 })
+// @scenario S-0095
 test("batch: space marks topics of one kind (another kind is not marked); a number answers them all", () => {
   const st = s(topic("T-1"), topic("T-2"), topic("T-3", { kind: "drift", answers: [{ id: "card", label: "Reword" }] }))
   let ui = inboxKey(home, st, key("space")).ui
@@ -51,6 +53,7 @@ test("home on arrival: zarg's sheet stays closed while topics wait, so the inbox
   expect(goHome(initialUi, s(topic("T-2", { blocking: true }), topic("T-3", { kind: "question", from: { plugin: "zarg", agent: "zarg" } })))).toMatchObject({ sheet: true })
 })
 
+// @scenario S-0094
 test("a reason sent closes the topic; leaving the inbox drops a half-typed reason; t only where there is something to answer", () => {
   const st = s(topic("T-1"), topic("T-2", { kind: "report", answers: undefined }))
   const opened = inboxKey(home, st, key("return")).ui

@@ -18,6 +18,7 @@ export const JourneysView = defineView("journeys", {
   flow: { kind: "text", role: "pinned", title: "", follows: "list" },
 })
 
+// @scenario S-0099 S-0100 S-0101
 /** Intents, above the agents (the `intents` nav item): every intent and its statements, with what serves them. */
 export const IntentsView = defineView("intents", {
   summary: { kind: "stats", role: "summary" },

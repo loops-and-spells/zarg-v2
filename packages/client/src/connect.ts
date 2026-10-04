@@ -95,19 +95,23 @@ const stopPid = (pid: number, timeoutMs: number) =>
 export const connect = (opts: { readonly root: string; readonly command: ReadonlyArray<string>; readonly timeoutMs?: number; readonly attach?: boolean }) =>
   Effect.gen(function* () {
     const timeoutMs = opts.timeoutMs ?? 30_000
+    // @scenario S-0091
     if (opts.attach === true) {
       yield* untilStarted(opts.root, timeoutMs)
       const live = readInfo(opts.root)
       if (live === undefined) return yield* new CoreStartError({ message: "no zarg core running here; start one with zarg" })
       return { info: live, owned: false, close: async () => {} } satisfies Connection
     }
+    // @scenario S-0090
     const claim = readClaim(opts.root)
     if (claim !== undefined) {
       if (claim.mode === "headless") return yield* new CoreStartError({ message: `a headless core runs here (pid ${claim.pid}); zarg --attach to join it, or zarg core stop` })
       if (claim.owner !== undefined && isAlive(claim.owner)) return yield* new CoreStartError({ message: `a zarg session is running here (pid ${claim.pid}); zarg --attach to join it, or quit it first` })
+      // @scenario S-0089
       // Its session is gone: an orphan, replaced by this session's own core.
       yield* stopPid(claim.pid, 10_000)
     }
+    // @scenario S-0088
     const child = yield* start(opts.root, opts.command, "child", timeoutMs)
     return { info: child.info, owned: true, close: child.stop } satisfies Connection
   })

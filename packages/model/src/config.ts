@@ -77,6 +77,7 @@ const expandDeep = (value: unknown, key: string, env: Env["Service"]): Effect.Ef
   return Effect.succeed(value)
 }
 
+// @scenario S-0035
 /** Roles as every reader sees them: a role's own model, else `roles.default`; updated in place by `reload`. */
 const liveRoles = (own: Record<string, string>) => {
   let current = own
@@ -170,6 +171,7 @@ export const roleModel = (config: ZargConfig, role: string) => {
 export const reload = (config: ZargConfig, opts: { readonly userDir: string; readonly projectDir: string }) =>
   Effect.flatMap(load(opts), (next) => Effect.sync(() => setters.get(config)?.(next)))
 
+// @scenario S-0035
 /**
  * Edit the user config: `roles.default`, and a provider section only when it is missing. Other lines stay as they are; an edit
  * that would not parse is refused (the file untouched); the write is atomic. Answers what was there before (for `restoreUserConfig`).

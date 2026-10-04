@@ -23,7 +23,6 @@
   ],
   "id": "S-0026",
   "props": {
-    "planned": true,
     "title": "Operator logs in to a provider",
     "when": "the operator logs in to a provider"
   },

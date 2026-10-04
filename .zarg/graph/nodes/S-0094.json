@@ -23,7 +23,6 @@
   ],
   "id": "S-0094",
   "props": {
-    "planned": true,
     "title": "Operator answers with a reason",
     "when": "the operator answers a topic with a reason"
   },

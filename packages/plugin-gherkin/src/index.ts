@@ -138,6 +138,7 @@ export default definePlugin({
       constraint: { get: nodes, label: (e: E) => String(e.data.props.text ?? e.id) },
       question: { get: nodes, label: (e: E) => String(e.data.props.text ?? e.id) },
     }
+    // @scenario S-0099
     const showIntents = Effect.gen(function* () {
       // The plans serving each statement (none without the backlog).
       const items = yield* entities_.query({ type: "backlog/item" }).pipe(Effect.orElseSucceed(() => []))
@@ -165,9 +166,11 @@ export default definePlugin({
         const intent = node.type === INTENT ? node.id : intentOf(s, node.id)
         const command = (r: string, name: string, args: Record<string, unknown>) => Effect.map(entities_.command(r, name, args), (res) => String((res as { message?: unknown }).message ?? "done"))
         const notice: string = yield* (() => {
+          // @scenario S-0100
           if (action === "add-outcome" || action === "add-constraint" || action === "ask-question")
             return intent === undefined || text === undefined ? Effect.succeed("nothing to add") : command(`gherkin/intent:${intent}`, action, { intent, text })
           if (action === "edit") return text === undefined ? Effect.succeed("nothing to change") : command(ref, "edit", node.type === INTENT ? { title: text } : { text })
+          // @scenario S-0101
           if (action === "answer") return node.type !== QUESTION ? Effect.succeed(`${node.id} is not a question`) : text === undefined ? Effect.succeed("no answer given") : command(ref, "answer", { answer: text })
           if (action === "remove") return text !== "yes" ? Effect.succeed(`kept ${node.id}`) : command(ref, "remove", {})
           return Effect.succeed(`no action ${action}`)

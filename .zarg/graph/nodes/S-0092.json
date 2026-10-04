@@ -19,7 +19,6 @@
   ],
   "id": "S-0092",
   "props": {
-    "planned": true,
     "title": "Operator sees what needs them",
     "when": "the operator opens the inbox"
   },

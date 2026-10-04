@@ -19,7 +19,6 @@
   ],
   "id": "S-0112",
   "props": {
-    "planned": true,
     "title": "Operator drops a plan",
     "when": "the operator drops a plan"
   },

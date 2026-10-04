@@ -10,6 +10,7 @@ export const MODELS = ["deepseek-v4.1-flash-exl3", "jevk5"]
 const JOURNEYS = join(import.meta.dir, "..", "journeys")
 
 /** Every journey (or one), one after another, each in its own fresh world; the answer is the exit code. */
+// @scenario S-0114
 export const run = async (opts: { readonly tier: "fast" | "full"; readonly only?: string; readonly url: string }): Promise<number> => {
   const files = opts.only !== undefined ? [`${opts.only}.test.ts`] : readdirSync(JOURNEYS).filter((f) => /^J-\d+\.test\.ts$/.test(f)).sort()
   for (const f of files) if (!existsSync(join(JOURNEYS, f))) throw new Error(`no journey ${f.replace(".test.ts", "")} (journeys/${f})`)

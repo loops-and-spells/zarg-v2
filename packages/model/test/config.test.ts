@@ -88,6 +88,7 @@ const dirs = () => setup(undefined, undefined)
 const run = <A, E>(e: Effect.Effect<A, E, any>) => Effect.runPromise(e.pipe(Effect.provide(Layer.merge(envLayer, BunServices.layer))) as Effect.Effect<A, E>)
 
 describe("the default model", () => {
+  // @scenario S-0035
   test("a role without its own model uses roles.default; a project's own role wins; keys list only set roles", async () => {
     const d = dirs()
     writeFileSync(join(d.userDir, "config.toml"), '[roles]\ndefault = "zarg-router:big"\n')
@@ -117,6 +118,7 @@ describe("the default model", () => {
 })
 
 describe("the user config writer", () => {
+  // @scenario S-0035
   test("sets roles.default and adds a missing provider section; comments and other content stay; an existing provider section is left alone", async () => {
     const d = dirs()
     const file = join(d.userDir, "config.toml")

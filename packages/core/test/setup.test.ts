@@ -88,6 +88,7 @@ const run = <A>(e: Effect.Effect<A, unknown>) => Effect.runPromise(e as Effect.E
 const sectionData = (events: ReadonlyArray<Record<string, unknown>>, section: string) => events.filter((e) => e.event === "set" && e.section === section).at(-1)?.data as { rows?: ReadonlyArray<{ id: string; cells: Record<string, string>; secret?: boolean }>; markdown?: string } | undefined
 
 describe("first-run setup", () => {
+  // @scenario S-0084
   test("not set up: needed, and open starts the core:setup agent, fills its sections and opens its sheet", async () => {
     const w = world()
     const { s, events } = await setupIn(w)
@@ -98,6 +99,7 @@ describe("first-run setup", () => {
     expect(events.find((e) => e.event === "open")).toMatchObject({ plugin: "core", surfaces: [{ surface: "setup", agent: "setup", focus: true }] })
   })
 
+  // @scenario S-0026 S-0027
   test("login: fields come from the env schema, secret rows marked; set stores a secret with Secrets.set and a URL with setPlain; no value in any notice or event", async () => {
     const w = world()
     const { s, events, refreshed } = await setupIn(w)
@@ -111,6 +113,7 @@ describe("first-run setup", () => {
     expect(JSON.stringify(events)).not.toContain(SECRET)
   })
 
+  // @scenario S-0028
   test("done with a refused key: the provider says the key was refused; no default; the values stay", async () => {
     const w = world({ values: { [KEY]: "wrong-one", [URL]: "http://fake.invalid" } })
     const { s, events, config } = await setupIn(w)
@@ -122,6 +125,7 @@ describe("first-run setup", () => {
     expect(w.values.get(KEY)).toBe("wrong-one")
   })
 
+  // @scenario S-0027 S-0034 S-0035 S-0085
   test("done with a good key, then default: the provider section and roles.default are written, needed is false, the sheet closes", async () => {
     const w = world({ values: { [KEY]: "good", [URL]: "http://fake.invalid" } })
     const { s, events, config, userConfig } = await setupIn(w)
@@ -137,6 +141,7 @@ describe("first-run setup", () => {
     expect(events.find((e) => e.event === "close")).toMatchObject({ plugin: "core", surface: "setup", id: "setup" })
   })
 
+  // @scenario S-0084
   test("openIfNeeded: a client joining later sees setup while it is needed, and nothing once it is done", async () => {
     const fresh = await setupIn(world())
     await run(fresh.s.openIfNeeded)
@@ -146,6 +151,12 @@ describe("first-run setup", () => {
     expect(done.events).toEqual([])
   })
 
+  // @scenario S-0030
+  test("a default whose provider stops answering: needed again, so setup opens", async () => {
+    const w = world({ userConfig: '[providers.fake]\nbase_url = "x"\n[roles]\ndefault = "fake:big"\n', values: { [KEY]: "refused" } })
+    const { s } = await setupIn(w)
+    expect(await run(s.needed)).toBe(true)
+  })
   test("already set up (a default whose provider verifies): not needed", async () => {
     const w = world({ userConfig: '[providers.fake]\nbase_url = "x"\n[roles]\ndefault = "fake:big"\n', values: { [KEY]: "good" } })
     const { s } = await setupIn(w)
@@ -180,6 +191,7 @@ describe("a value this project overrides", () => {
 })
 
 describe("a save that would break the config", () => {
+  // @scenario S-0028
   test("done with a section the config cannot load (a variable with no value): the user config goes back as it was, the core keeps working", async () => {
     const w = world({ userConfig: "# mine\n" })
     w.provider = { ...w.provider, settings: { base_url: "${ZT_SETUP_NOWHERE}" } } as never

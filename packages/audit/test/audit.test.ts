@@ -104,6 +104,7 @@ describe("the full audit", () => {
     expect(r.checks.find((c) => c.name === "proof")).toMatchObject({ level: "warning", items: [{ id: "S-1" }] })
     expect(exitCode(r)).toBe(0)
   })
+  // @scenario S-0117
   test("proven and stale come from the evidence at the scenario's current version", () => {
     const dir = root()
     mk(join(dir, ".zarg", "evidence"), { recursive: true })
@@ -114,6 +115,7 @@ describe("the full audit", () => {
     const stale = fullAudit({ ...base, snap: graph, root: dir, tags: [{ id: "S-1", file: "a.ts", line: 1 }], changedSince: () => true })
     expect(stale.proofs[0]!.proof).toBe("stale")
   })
+  // @scenario S-0113
   test("structure, lints and integrity are problems (exit 1); completeness and coverage are warnings until strict", () => {
     const r = fullAudit({
       ...base,
@@ -143,6 +145,7 @@ describe("the full audit", () => {
     expect(xml).toContain('<testcase classname="zarg" name="S-1 one"><failure message="unproven"')
     expect(xml).toContain('<testcase classname="zarg" name="S-2 two"><skipped message="planned"/></testcase>')
   })
+  // @scenario S-0113
   test("the summary groups by check, problems first, with a count line", () => {
     const r = fullAudit({ ...base, snap: graph, root: root(), tags: [{ id: "S-1", file: "a.ts", line: 1 }] })
     expect(sum(r).split("\n").at(-1)).toBe("structure 0 · lints 0 · code 0 · integrity 0 (problems) · completeness 0 · coverage 0 · proof 1 (warnings) · 0 proven of 1 built, 1 planned")

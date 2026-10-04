@@ -38,6 +38,7 @@ const addTo = (snap: Snapshot.Snapshot, intent: string, type: string, prefix: st
     return { id, changes: [Put(node), Put({ ...i, edges: [...i.edges, { type: HAS, to: id }] })] }
   })
 
+// @scenario S-0100 S-0102
 const statement = (name: string, type: string, prefix: string, what: string) => ({
   add: tool({
     name: name === "question" ? "ask-question" : `add-${name}`,
@@ -57,6 +58,7 @@ const outcome = statement("outcome", OUTCOME, "O", "an outcome (one result the i
 const constraint = statement("constraint", CONSTRAINT, "K", "a constraint (one rule that must hold where it bounds)")
 const question = statement("question", QUESTION, "Q", "an open question (one thing not decided yet)")
 
+// @scenario S-0101
 export const answerQuestion = tool({
   name: "answer-question",
   description: "Answer an open question; with as, the answer also becomes an outcome or a constraint of the same intent.",
@@ -73,4 +75,5 @@ export const answerQuestion = tool({
     }),
 })
 
+// @scenario S-0102
 export const intentTools = [addIntent, editIntent, outcome.add, outcome.edit, constraint.add, constraint.edit, question.add, question.edit, answerQuestion]

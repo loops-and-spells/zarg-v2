@@ -19,7 +19,6 @@
   ],
   "id": "S-0098",
   "props": {
-    "planned": true,
     "title": "zarg's question survives a restart",
     "when": "the core restarts"
   },

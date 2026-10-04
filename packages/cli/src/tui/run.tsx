@@ -19,6 +19,7 @@ export interface Opened {
   readonly close: () => Promise<void>
 }
 
+// @scenario S-0088 S-0091
 /** Start this session's own core as a child (or, with `attach`, join the running one) and open a session on one thread. */
 export const openSession = (opts: { readonly root: string; readonly threadId: string; readonly focus: ReadonlyArray<string>; readonly command?: ReadonlyArray<string>; readonly attach?: boolean }) =>
   Effect.gen(function* () {
@@ -49,6 +50,7 @@ export const mount = (renderer: CliRenderer, opened: Opened, theme?: Theme["Serv
     }
     // Scroll boxes each listen to the renderer (a board has one per lane): no warning printed over the screen.
     renderer.setMaxListeners(1000)
+    // @scenario S-0088
     renderer.once("destroy", () => void opened.close().then(done))
     renderer.keyInput.on("keypress", (key) => {
       if (key.ctrl && key.name === "d") exit()

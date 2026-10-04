@@ -19,7 +19,6 @@
   ],
   "id": "S-0120",
   "props": {
-    "planned": true,
     "title": "Evidence nobody here renders",
     "when": "a scenario's evidence has no installed renderer"
   },

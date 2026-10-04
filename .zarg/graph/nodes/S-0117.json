@@ -19,7 +19,6 @@
   ],
   "id": "S-0117",
   "props": {
-    "planned": true,
     "title": "Changed code makes proof stale",
     "when": "the scenario's tagged code changes"
   },

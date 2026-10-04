@@ -19,7 +19,6 @@
   ],
   "id": "S-0096",
   "props": {
-    "planned": true,
     "title": "Operator snoozes a topic",
     "when": "the operator snoozes a topic"
   },

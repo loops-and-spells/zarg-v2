@@ -324,6 +324,7 @@ export default definePlugin({
         return true
       })
     /** Move a plan by hand or by an agent: the move recorded; Done closes its feedback. */
+    // @scenario S-0111
     const move = (id: string, to: Item["status"], by: string, what?: string, needs?: string, scenarios?: ReadonlyArray<string>) =>
       Effect.gen(function* () {
         const i = (yield* loadItems).find((x) => x.id === id)
@@ -338,6 +339,7 @@ export default definePlugin({
         if (to === "done") yield* markFeedback(i.feedback, "closed")
         return `${id} → ${LANE_TITLES[to]}`
       }).pipe(writing.withPermits(1), Effect.tap(() => (to === "ready" ? ready : Effect.ignore(syncTopics))))
+    // @scenario S-0112
     const drop = (id: string) =>
       Effect.gen(function* () {
         const i = (yield* loadItems).find((x) => x.id === id)
@@ -381,6 +383,7 @@ export default definePlugin({
       }).pipe(Effect.mapError(fail))
 
     /** Each entry filed, or "" where it was refused (a ref without a version) or could not be saved; the rest are filed. */
+    // @scenario S-0106
     const file = ({ entries, walked, run }: { entries: ReadonlyArray<FiledEntry>; walked?: ReadonlyArray<string>; run?: string }) =>
       Effect.gen(function* () {
         const had = new Map((yield* load).map((e) => [e.id, e]))
@@ -500,6 +503,7 @@ export default definePlugin({
           return `${j}: backlogged as ${id}`
       }).pipe(planning.withPermits(1))
     /** A folded round's plans to the Backlog lane, in order: each with its scenarios at their versions now and the plans it waits on by id; the journey planned with all of them. */
+    // @scenario S-0110
     const plans = (p: typeof PlansParams.Type) =>
       Effect.gen(function* () {
         const entries = yield* load
@@ -521,6 +525,7 @@ export default definePlugin({
         yield* ready
         return { ids }
       }).pipe(planning.withPermits(1), Effect.tap(() => Effect.ignore(Effect.suspend(() => (feedbackOpened ? refresh : Effect.void)))), Effect.mapError(fail))
+    // @scenario S-0109
     const stageAct = (j: string, action: string) =>
       Effect.gen(function* () {
         if (action === "refine") {
@@ -595,6 +600,7 @@ export default definePlugin({
         if (agent !== "feedback") return { notice: `backlog has no view ${agent}` }
         if (action === "journey" && rows[0] !== undefined) journey = rows[0]
         // The view opens with its cursor on the first journey: show that one.
+        // @scenario S-0121
         if (action === "open") {
           journey = undefined
           feedbackOpened = true
@@ -627,6 +633,7 @@ export default definePlugin({
           yield* refresh
           return { notice }
         }
+        // @scenario S-0108
         if (action === "toggle")
           yield* Effect.gen(function* () {
             const all = yield* load
@@ -688,6 +695,7 @@ export default definePlugin({
       const asks = new Map<string, Array<Entry>>()
       const openKeys = new Set((yield* inbox.list()).flatMap((t) => (t.key !== undefined ? [t.key] : [])))
       for (const { e, state } of yield* withStates(yield* load, true))
+        // @scenario S-0107
         if (state === "open" && e.triage.by !== "operator" && e.triage.why.startsWith("ask") && !rounds.has(e.id) && walkedBy(e.journeys) === undefined && e.kind === "drift") {
           const read = yield* codeEvidence(e.ref)
           // Code that cannot be read now: a topic already there stays as it is (no flapping evidence, no woken snooze).
@@ -751,6 +759,7 @@ export default definePlugin({
           if (feedbackOpened) yield* Effect.ignore(refresh)
           return { notice: `${j}: ${plural_(es.length, "entry")} ${answer === "off" ? "turned off" : "kept on"}` }
         }
+        // @scenario S-0107
         if (kind === "drift" && rest[0] !== undefined) {
           const id = rest[0]
           const e = (yield* load).find((x) => x.id === id)

@@ -8,6 +8,7 @@ export type RenderedLike =
   | { readonly ok: false; readonly reason: string }
 
 /** Every committed medium through `render`, its HTML sanitized; anything not rendered becomes a fallback with its reason. */
+// @scenario S-0120
 export const renderAll = async (c: Catalog, render: (m: MediaView) => Promise<RenderedLike>): Promise<Rendered> => {
   const media = c.scenarios.flatMap((s) => s.proof?.media ?? []).filter((m) => m.present)
   const out = new Map<string, Fragment>()

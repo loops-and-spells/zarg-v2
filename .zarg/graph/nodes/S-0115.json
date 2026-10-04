@@ -19,7 +19,6 @@
   ],
   "id": "S-0115",
   "props": {
-    "planned": true,
     "title": "A step proves its scenario",
     "when": "a step passes"
   },

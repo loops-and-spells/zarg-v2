@@ -37,6 +37,7 @@ describe("intent nodes", () => {
 
 describe("intent tools", () => {
   const visitor = call("add-persona", { name: "Visitor", kind: "human", text: "Someone choosing a plan on the website." })
+  // @scenario S-0100 S-0101 S-0102
   test("add an intent and its statements; each statement is in its intent; a question is answered into an outcome", async () => {
     const got = await run(
       Effect.gen(function* () {
@@ -200,6 +201,7 @@ describe("the Intents view", () => {
     n("Q-0001", "question", { text: "Is there a yearly plan?" }),
     n("J-0001", "journey", { name: "Checkout" }, [["serves", "O-0001"]]),
   )
+  // @scenario S-0099
   test("rows: the intent, then its statements with their coverage; the summary counts outcomes and uncovered ones", () => {
     const v = intentsView(s)
     expect(v.rows.map((r) => [r.id, r.cells.item, r.cells.cover])).toEqual([
@@ -223,6 +225,7 @@ describe("the Intents view", () => {
 })
 
 describe("the Intents view, through the host", () => {
+  // @scenario S-0099 S-0100 S-0101
   test("open fills it; a adds an outcome, e rewords it, ⏎ answers a question, d removes after yes", async () => {
     const got = await run(
       Effect.gen(function* () {

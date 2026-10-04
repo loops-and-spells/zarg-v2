@@ -42,6 +42,7 @@ const setup = async () => {
   return { inbox, post }
 }
 
+// @scenario S-0093 S-0095 S-0096
 test("POST /inbox/:id/answer answers; a second answer is 409 with the topic's state; batch, snooze and read routes", async () => {
   const { inbox, post } = await setup()
   const from = { plugin: "backlog" }

@@ -23,7 +23,6 @@
   ],
   "id": "S-0088",
   "props": {
-    "planned": true,
     "title": "Operator starts a session",
     "when": "the operator runs zarg"
   },

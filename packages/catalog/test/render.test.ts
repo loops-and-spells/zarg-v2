@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 import { renderAll } from "../src/render"
 import { catalog } from "./fixture"
 
+// @scenario S-0120
 test("renderAll: every committed medium through its renderer, sanitized; a reason becomes a fallback; absent media is never rendered", async () => {
   const asked: Array<string> = []
   const r = await renderAll(catalog(), async (m) => {

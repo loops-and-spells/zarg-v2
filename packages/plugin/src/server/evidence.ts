@@ -41,6 +41,7 @@ export const makeEvidence = (deps: {
     const owner = kind.split("/")[0]!
     const decl = kinds()[kind]
     if (decl === undefined)
+// @scenario S-0120
       return Effect.succeed({ ok: false, reason: `rendered by ${owner}, ${deps.waiting().includes(owner) ? "not granted" : deps.manifests().some((m) => m.name === owner) ? `which has no kind ${kind}` : "not installed"}` })
     const could = (why: string): Rendered => ({ ok: false, reason: `${owner} could not render ${kind}: ${why}` })
     if (hung.has(owner)) return Effect.succeed({ ok: false, reason: `${owner} did not answer in time earlier; its media are not rendered` })

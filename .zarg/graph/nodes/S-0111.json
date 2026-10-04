@@ -19,7 +19,6 @@
   ],
   "id": "S-0111",
   "props": {
-    "planned": true,
     "title": "Operator moves a plan to Ready",
     "when": "the operator moves the plan to Ready"
   },

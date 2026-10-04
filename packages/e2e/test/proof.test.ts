@@ -24,6 +24,7 @@ const runJourney = (root: string, body: string, env: Record<string, string> = {}
 }
 const evidence = (root: string, id: string) => JSON.parse(readFileSync(join(root, ".zarg", "evidence", `${id}.json`), "utf8"))
 
+// @scenario S-0115
 test("a passing CLI step writes evidence at the scenario's version with its notes as media", () => {
   const root = repo()
   runJourney(root, `journey("J-0001", { tier: "fast" }, (proves) => { proves("S-0001", async (s) => { const r = await s.cli(["agenda"]); s.note("buffer", "zarg agenda", r.out) }) })`)
@@ -34,6 +35,7 @@ test("a passing CLI step writes evidence at the scenario's version with its note
   expect(readFileSync(join(root, ".zarg", "evidence", "media", "S-0001", "1-text.txt"), "utf8")).toStartWith("[")
 }, 60_000)
 
+// @scenario S-0116
 test("a step that throws before anything still writes passed: false with the error", () => {
   const root = repo()
   runJourney(root, `journey("J-0001", { tier: "fast" }, (proves) => { proves("S-0002", async () => { throw new Error("expected the agenda") }) })`)

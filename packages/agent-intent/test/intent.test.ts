@@ -39,6 +39,7 @@ const setup = (o: { statements?: ReadonlyArray<Statement>; journeys?: ReadonlyAr
 }
 
 describe("the Intent Agent", () => {
+  // @scenario S-0103
   test("a new outcome: one round, its draft dry-run, one plan serving it, the checkpoint at its version", async () => {
     const answer = JSON.stringify({ units: [unit("S-0001", [{ tool: "edit-scenario", params: { id: "S-0001", title: "Visitor picks a plan" } }])], steps: ["Shorten the pricing scenario"], ask: null })
     const { a, calls, cp } = setup({ journeys: [checkout], answers: [answer] })
@@ -54,6 +55,7 @@ describe("the Intent Agent", () => {
     expect(calls.filter(([k]) => k === "complete" || k === "plan" || k === "post")).toEqual([])
   })
 
+  // @scenario S-0104
   test("the model asks: a topic with its options; the round waits; the answer makes it due with the decision", async () => {
     const ask = JSON.stringify({ units: [], steps: [], ask: { question: "O-0001 has no journey: add to Checkout, or a new journey?", options: [{ id: "J-0001", label: "Add to Checkout" }, { id: "new", label: "A new journey" }] } })
     const { a, calls, cp } = setup({ answers: [ask] })
@@ -70,6 +72,7 @@ describe("the Intent Agent", () => {
     expect(await Effect.runPromise(a.answered("decide:O-0042", "J-0001", undefined))).toBe("O-0042 is gone")
   })
 
+  // @scenario S-0104
   test("a draft that fails its dry-run is tried again with the problems, up to 3 tries; then left out with a topic", async () => {
     const answer = JSON.stringify({ units: [unit("S-0001", [{ tool: "edit-scenario", params: { id: "S-0001" } }])], steps: [], ask: null })
     const { a, calls, cp } = setup({ answers: [answer, answer, answer], dry: () => ({ ok: false, problems: ["S-0001: a clause has if"] }) })

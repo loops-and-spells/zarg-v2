@@ -11,6 +11,7 @@ export const MARKER = ".zarg-catalog"
  * Writes the catalog's pages, its CSS, the assets its rendered evidence uses and every present medium to `out`, from empty. Only media under
  * `<root>/.zarg/evidence/media` goes in (symlinks followed): anything else fails the build before it writes a thing.
  */
+// @scenario S-0119
 export const build = (input: { readonly catalog: Catalog; readonly rendered: Rendered; readonly root: string; readonly out: string; readonly ignoreSelf?: boolean }): void => {
   const { catalog, rendered, root, out } = input
   // Every file of every committed medium (a trace's screenshots too); the medium's own must be here, the others may not be.

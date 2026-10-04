@@ -65,6 +65,7 @@ describe("the backlog's plans", () => {
     expect(out.lanes.ready![0]!.lines.map((l) => l.text)).toEqual(["Operator", "⚠ scenario changed"])
     expect((out.feedback as Array<{ state: string }>)[0]!.state).toBe("closed")
   })
+  // @scenario S-0111 S-0112
   test("moves by hand record events; the drawer opens on a scenario and its buttons move it; drop reopens its feedback", async () => {
     const out = await run((seen) => Effect.gen(function* () {
       const { scenario, feedback } = yield* setUp
@@ -208,6 +209,7 @@ describe("the backlog's plans", () => {
     expect(out.closed).toEqual(["item"])
     expect(out.notice).toBe("B-01 dropped; its feedback is open again")
   })
+  // @scenario S-0112
   test("dropping a triaged plan leaves its journey as if never planned (nothing says Planned for a plan that is gone)", async () => {
     const out = await run(() => Effect.gen(function* () {
       const { scenario, feedback } = yield* setUp

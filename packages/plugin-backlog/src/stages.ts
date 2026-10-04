@@ -77,6 +77,7 @@ export const current = (s: Stage) => s.proposals.find((p) => p.status === "propo
 type OnLike = { readonly id?: string; readonly ref: string; readonly triage: { readonly on: boolean } }
 const scenariosOn = (entries: ReadonlyArray<OnLike>) => [...new Set(entries.filter((e) => e.triage.on).map((e) => parseRef(e.ref)?.id ?? e.ref))]
 const waiting = (scenario: string) => ({ scenario, changes: [], answers: [], summary: "", status: "waiting" as const })
+// @scenario S-0108 S-0109
 export const startRefine = (s: Stage, entries: ReadonlyArray<OnLike>): Stage | string => {
   const scenarios = scenariosOn(entries)
   if (scenarios.length === 0) return `nothing on in ${s.journey}: turn feedback on first`

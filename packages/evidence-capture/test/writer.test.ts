@@ -7,6 +7,7 @@ import { clearStale, commit, stage } from "../src/writer"
 
 const evidence = (media: Evidence["media"]): Evidence => ({ scenario: "S-0001", version: "aaaaaaaaaaaa", commit: "abc1234", run: "r", journey: "J-1", passed: true, flaky: false, at: "t", ms: 1, media, failure: null })
 
+// @scenario S-0115
 test("captures are staged, then swapped in with the evidence; a trace's other files are listed", () => {
   const dir = mkdtempSync(join(tmpdir(), "zt-writer-"))
   const s = stage(dir, "S-0001", "1")

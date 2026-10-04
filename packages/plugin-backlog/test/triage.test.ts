@@ -33,6 +33,7 @@ describe("the triage hub's stages", () => {
     expect(out.buttons).toEqual(["refine", "note"])
     expect(out.notice).toBe("nothing on in Set up: turn feedback on first")
   })
+  // @scenario S-0110
   test("Refine drafts on its own; the drafted plan goes to the Backlog lane (not Ready) and the journey is Planned", async () => {
     const out = await run((seen, root) => Effect.gen(function* () {
       const { ids } = yield* setUp()
@@ -114,6 +115,7 @@ describe("the triage hub's stages", () => {
     expect(out.again).toBe("Set up: drafting S-0001 again")
     expect(out.after).toEqual(["refine", 0, "waiting"])
   })
+  // @scenario S-0109
   test("queued journeys wait in line; a worker's journey says so; their feedback is read-only until Plan", async () => {
     const out = await run((seen) => Effect.gen(function* () {
       const { ids, scenario } = yield* setUp()

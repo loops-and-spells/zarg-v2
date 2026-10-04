@@ -167,9 +167,11 @@ export const fullAudit = (i: FullInput): Full => {
   return { ...report, checks, proofs }
 }
 
+// @scenario S-0113
 export const exitCode = (r: Full): 0 | 1 => (r.checks.some((c) => c.level === "problem" && c.items.length > 0) ? 1 : 0)
 
 /** A line per item, problems first, then the counts. */
+// @scenario S-0113
 export const fullSummary = (r: Full): string => {
   const ordered = PROBLEMS_FIRST.map((n) => r.checks.find((c) => c.name === n)!)
   const counts = (l: Level) => ordered.filter((c) => c.level === l).map((c) => `${c.name} ${c.items.length}`)

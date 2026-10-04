@@ -108,6 +108,7 @@ const scriptData = (v: unknown) => JSON.stringify(v).replace(/</g, "\\u003c")
 const badge = (s: Status) => `<span class="badge s-${s}">${s}</span>`
 const words = (c: Counts) => STATUSES.filter((s) => c[s] > 0).map((s) => `${c[s]} ${s}`).join(", ")
 /** The tick strip: one cell per scenario, red first. */
+// @scenario S-0118
 const ticks = (c: Counts, big = false) => {
   const cells = STATUSES.flatMap((s) => Array.from({ length: c[s] }, () => `<span class="tick s-${s}"></span>`)).join("")
   return cells === "" ? "" : `<div class="ticks${big ? " big" : ""}" role="img" aria-label="${esc(words(c))}">${cells}</div>`
@@ -324,6 +325,7 @@ const journeyPage = (c: Catalog, j: Catalog["journeys"][number], byId: ReadonlyM
   )
 }
 
+// @scenario S-0119 S-0120
 const medium = (m: Medium, rendered: Rendered) => {
   const cap = `<figcaption>${esc(m.caption)} · ${esc(m.label)}</figcaption>`
   if (!m.present) return `<figure class="medium"><p class="absent">${esc("captured on the run's machine, not committed")}: ${esc(m.path)}</p>${cap}</figure>`
@@ -351,6 +353,7 @@ const scenarioPage = (c: Catalog, s: ScenarioPage, rendered: Rendered) => {
       ...(p?.failure === null || p === undefined
         ? []
         : [
+            // @scenario S-0116
             `<section class="failure"><h2>It failed here</h2><div class="pair">`,
             `<div><h3>Expected</h3><pre>${esc(p.failure.expected)}</pre></div>`,
             `<div><h3>Saw</h3>${saw === undefined ? `<pre>${esc(p.failure.saw)}</pre>` : `<figure class="medium">${saw.html}</figure>`}</div>`,

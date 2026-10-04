@@ -19,7 +19,6 @@
   ],
   "id": "S-0090",
   "props": {
-    "planned": true,
     "title": "A live session's core is refused",
     "when": "the operator runs zarg"
   },

@@ -90,6 +90,7 @@ export default definePlugin({
     const run = (p: Parameters<typeof r.start>[0]) => r.start(p)
     return {
       run,
+      // @scenario S-0105
       command: ({ args }: { args: ReadonlyArray<string> }) =>
         Effect.map(
           run({

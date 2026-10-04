@@ -19,7 +19,6 @@
   ],
   "id": "S-0104",
   "props": {
-    "planned": true,
     "title": "An outcome cannot be drafted",
     "when": "the Intent Agent cannot draft scenarios for it"
   },

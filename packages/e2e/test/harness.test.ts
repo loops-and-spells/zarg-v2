@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { cli, preflight, world, zarg } from "../src"
 
+// @scenario S-0114
 test("a world is a fresh git project with its own user dir and home; disposed after a pass", () => {
   const w = world({ "README.md": "hi\n" })
   expect(existsSync(join(w.project, ".git"))).toBe(true)

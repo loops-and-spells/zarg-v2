@@ -19,7 +19,6 @@
   ],
   "id": "S-0089",
   "props": {
-    "planned": true,
     "title": "A core left by a gone session is replaced",
     "when": "the operator runs zarg"
   },

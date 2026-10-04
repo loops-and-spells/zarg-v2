@@ -18,6 +18,7 @@ export interface World {
 const IDENTITY = { GIT_AUTHOR_NAME: "e2e", GIT_AUTHOR_EMAIL: "e2e@zarg.invalid", GIT_COMMITTER_NAME: "e2e", GIT_COMMITTER_EMAIL: "e2e@zarg.invalid" }
 
 /** A brand-new project: a git repo with the seed files in its first commit, its own user dir and home, and nothing else from this machine's environment. */
+// @scenario S-0114
 export const world = (seed: Readonly<Record<string, string>> = {}): World => {
   const base = mkdtempSync(join(tmpdir(), "zarg-e2e-"))
   const project = join(base, "project")

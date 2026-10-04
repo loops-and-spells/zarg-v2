@@ -19,7 +19,6 @@
   ],
   "id": "S-0034",
   "props": {
-    "planned": true,
     "title": "Operator sees the models to choose from",
     "when": "the operator opens the default model list"
   },
