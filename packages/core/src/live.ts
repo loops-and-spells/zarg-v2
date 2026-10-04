@@ -355,7 +355,8 @@ const pluginsFor = (
 
 /** Layers for a project root: env, config, models, decisions, graph and plugins. `stubFile` swaps in the scripted models. */
 export const liveLayer = (root: string, stubFile?: string, opts: { readonly yolo?: boolean } = {}) => {
-  const base = Layer.merge(envLayer(root), BunServices.layer)
+  // Env in any project: the providers' schemas, then the operator's own (~/.config/zarg), then the project's.
+  const base = Layer.merge(envLayer(root, { userDir: join(homedir(), ".config", "zarg"), schemas: [zargRouter.schemaFile, openrouter.schemaFile] }), BunServices.layer)
   const config = Layer.provideMerge(Config.layer({ userDir: join(homedir(), ".config", "zarg"), projectDir: root }), base)
   const decisions =
     stubFile !== undefined

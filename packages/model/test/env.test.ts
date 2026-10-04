@@ -110,3 +110,24 @@ describe("Env schema errors", () => {
     rmSync(bad, { recursive: true, force: true })
   })
 })
+
+describe("Env in any project", () => {
+  test("a project without .env.schema sees the provider schemas and the user dir's values; the project's own schema still wins", async () => {
+    const root = mkdtempSync(join(tmpdir(), "zt-env-any-"))
+    const prov = join(root, "prov"), user = join(root, "user"), proj = join(root, "proj"), proj2 = join(root, "proj2")
+    for (const d of [prov, user, proj, proj2]) mkdirSync(d, { recursive: true })
+    writeFileSync(join(prov, ".env.schema"), "# @defaultSensitive=false\n# ---\n# @type=url\nZTANY_URL=http://default.invalid\n")
+    writeFileSync(join(user, ".env.schema"), "# @defaultSensitive=false\n# ---\n")
+    writeFileSync(join(user, ".env.local"), "ZTANY_URL=http://user.invalid\n")
+    writeFileSync(join(proj2, ".env.schema"), "# @defaultSensitive=false\n# ---\nZTANY_URL=http://project.invalid\n")
+    const get = (projectDir: string) => Effect.runPromise(Effect.flatMap(Env, (e) => e.lookup("ZTANY_URL")).pipe(Effect.provide(layer(projectDir, { userDir: user, schemas: [join(prov, ".env.schema")] }))))
+    expect(await get(proj)).toBe("http://user.invalid")
+    expect(await get(proj2)).toBe("http://project.invalid")
+    rmSync(root, { recursive: true, force: true })
+  })
+  test("no schema anywhere: an empty env, not a failure", async () => {
+    const root = mkdtempSync(join(tmpdir(), "zt-env-none-"))
+    expect(await Effect.runPromise(Effect.flatMap(Env, (e) => e.lookup("ZTANY_NONE")).pipe(Effect.provide(layer(root, {}))))).toBeUndefined()
+    rmSync(root, { recursive: true, force: true })
+  })
+})

@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs"
+import { dirname, join } from "node:path"
 import { Context, Effect, Layer, Redacted, Ref } from "effect"
 import { internal } from "varlock"
 import { EnvError } from "./errors"
@@ -40,10 +42,26 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
  * and lets process env values override files (varlock's precedence).
  * Uses varlock's `internal` loader, the one its CLI uses (the plain loader lacks the `varlock()` resolver).
  */
-const loadSnapshot = (projectDir: string) =>
+export interface EnvOptions {
+  /** The operator's own settings (`~/.config/zarg`): their logins, for every project. */
+  readonly userDir?: string
+  /** Providers' `.env.schema` fragments (zarg's own install). */
+  readonly schemas?: ReadonlyArray<string>
+}
+
+/** Where env is read from, later winning: the providers' schemas, the user dir, the project (each only when it has a schema). */
+const entries = (projectDir: string, opts: EnvOptions) => [
+  ...new Set((opts.schemas ?? []).map((f) => dirname(f))),
+  ...(opts.userDir !== undefined && existsSync(join(opts.userDir, ".env.schema")) ? [opts.userDir] : []),
+  ...(existsSync(join(projectDir, ".env.schema")) || (opts.userDir === undefined && opts.schemas === undefined) ? [projectDir] : []),
+]
+
+const loadSnapshot = (projectDir: string, opts: EnvOptions = {}) =>
   Effect.tryPromise({
     try: async (): Promise<Snapshot> => {
-      const graph = await internal.loadVarlockEnvGraph({ entryFilePaths: [projectDir], skipCache: true })
+      const paths = entries(projectDir, opts)
+      if (paths.length === 0) return { values: new Map(), fields: new Map(), sensitive: [] }
+      const graph = await internal.loadVarlockEnvGraph({ entryFilePaths: paths, skipCache: true })
       const schemaErrors = graph.sortedDataSources.flatMap((s) => s.errors.map((e) => e.message))
       if (schemaErrors.length > 0) throw new Error(schemaErrors.join("; "))
       await graph.resolveEnvValues()
@@ -71,11 +89,11 @@ const loadSnapshot = (projectDir: string) =>
     catch: (e) => new EnvError({ message: `could not load env schema in ${projectDir}: ${message(e)}` }),
   })
 
-export const layer = (projectDir: string): Layer.Layer<Env, EnvError> =>
+export const layer = (projectDir: string, opts: EnvOptions = {}): Layer.Layer<Env, EnvError> =>
   Layer.effect(
     Env,
     Effect.gen(function* () {
-      const ref = yield* Ref.make(yield* loadSnapshot(projectDir))
+      const ref = yield* Ref.make(yield* loadSnapshot(projectDir, opts))
       const wrap = (s: Snapshot, name: string, value: string) =>
         s.fields.get(name)?.sensitive === true ? Redacted.make(value) : value
 
@@ -103,7 +121,7 @@ export const layer = (projectDir: string): Layer.Layer<Env, EnvError> =>
             }),
           ),
         sensitive: Effect.map(Ref.get(ref), (s) => s.sensitive),
-        reload: Effect.flatMap(loadSnapshot(projectDir), (s) => Ref.set(ref, s)),
+        reload: Effect.flatMap(loadSnapshot(projectDir, opts), (s) => Ref.set(ref, s)),
       }
     }),
   )
