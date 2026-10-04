@@ -106,6 +106,29 @@ Date: 2026-10-04 · Status: approved design (the operator), pending spec review.
 - `failing` and `unproven` are **problems**, so `verify` fails.
 - Planned scenarios are exempt until built, as today.
 
+## One command for CI: `zarg audit`
+
+`zarg audit` is the single check CI runs (and `verify` with it). It says whether the graph is complete and proven, and it exits 1 on any problem.
+
+| Check | Problem when | Source today |
+|---|---|---|
+| **Graph structure** | a dangling edge; a node whose file does not parse; edge limits broken; an unknown node type | the host's structural check and `invalid-file` agenda items |
+| **Graph lints** | any error-level lint over the whole graph: atomic clauses (length, no "if"), duplicate states, persona and journey shape, intent titles, a statement in no intent or in two | the plugins' `lint`, which `zarg lint` runs today, run over every node, not only the changed ones |
+| **Completeness** | a scenario in no journey; a scenario with no `by` persona; a dead end (a state no scenario continues from, not `terminal`); an unreached state (not `entry`); an open intent question; an intent with no outcome | gherkin's agenda items, the ones that mean "incomplete", as problems |
+| **Intent coverage** | `uncovered` (an outcome no journey serves); `unserving` (a journey serving no outcome) | today's audit warnings, as problems |
+| **Code** | `untagged`, `planned-but-tagged`, `orphan` | today's audit |
+| **Proof** | `unproven`, `failing`, and **`stale`**: the scenario's tagged code changed after its evidence commit (`git log` on the tagged files is newer than `evidence.commit`) | the evidence files |
+| **Evidence integrity** | an evidence file for no scenario; one whose `version` is malformed; a media path that does not exist; a `commit` the repo does not have | the evidence files |
+
+- **Output:**
+  - the default is the summary: one line per problem, grouped by check, then a count line per check;
+  - `--json`: every check with its items, for tools;
+  - `--junit <file>`: one test case per scenario (proven passes; unproven, failing and stale fail, with the media paths in the message), so CI shows proof like test results.
+- **Exit codes:** `0` when complete and proven; `1` on any problem; `2` when the audit itself could not run (an unreadable graph, git missing).
+- **`zarg lint`** stays, as the lints alone; `zarg audit` includes them.
+- **Planned scenarios** are exempt from Code and Proof, as today; they still count in Structure, Lints and Completeness.
+- **The gate:** `mise run verify` runs `zarg audit`, so the strict switch in "Getting there" (step 5) is when Completeness, Intent coverage and Proof stop being reported as warnings. A CI job needs only `mise run audit` (no models, no router): it checks the committed graph and evidence. Running the e2e suite to refresh the evidence is a separate job on a machine with the router.
+
 ## Red becomes work
 
 The core watches `.zarg/evidence` (as it watches the graph) and turns each red scenario into work.
@@ -138,7 +161,7 @@ The core watches `.zarg/evidence` (as it watches the graph) and turns each red s
    - tag their code.
 3. **Coverage, journey by journey:** write each journey's steps until a full run is green for all built scenarios.
 4. **Red becomes work:** the core's evidence watcher, fix plans, prove plans and inbox topics.
-5. **Strict:** audit's proof statuses become problems, once a full run is green.
+5. **Strict:** `zarg audit` reports Completeness, Intent coverage and Proof as problems (they are warnings until then), once a full run is green; CI runs `mise run audit`.
 
 ## Out of scope
 
@@ -156,3 +179,4 @@ The core watches `.zarg/evidence` (as it watches the graph) and turns each red s
 - Retry bookkeeping: a step that passes on its second try is recorded `flaky: true`, and one that fails twice fails.
 - Evidence: a passing step writes its file at the scenario's current version with `buffer` and `cast` media. A failing one writes `passed: false`, its failure and media. A `proves` naming another journey's scenario is refused.
 - The core's evidence watcher: a `failing` file produces one fix plan, and a `flaky` journey failure produces one inbox topic, not one per step.
+- `zarg audit`: each check's problem on a fixture graph and evidence set (a dangling edge, an "if" clause, a dead end, an uncovered outcome, an untagged scenario, a stale proof, a missing media file); `--json` and `--junit` shapes; exit codes 0, 1 and 2.
