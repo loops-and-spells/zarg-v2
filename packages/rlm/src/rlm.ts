@@ -191,7 +191,7 @@ export const make = (deps: RlmDeps) =>
             if (depth > deps.settings.maxDepth) return yield* new RlmError({ kind: "spawn", message: `max depth ${deps.settings.maxDepth} reached` })
           }
           const ref = deps.roles[preset.role]
-          if (ref === undefined) return yield* new RlmError({ kind: "config", message: `no model for role "${preset.role}"; set roles.${preset.role}` })
+          if (ref === undefined) return yield* new RlmError({ kind: "config", message: `no model for role "${preset.role}" (set a default with /models)` })
           const resultSchema = results[preset.result ?? "text"]
           if (resultSchema === undefined) return yield* new RlmError({ kind: "config", message: `unknown result "${preset.result}"` })
           const budget = budgetOf(preset, spec.budget)

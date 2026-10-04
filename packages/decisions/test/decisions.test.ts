@@ -114,7 +114,7 @@ describe("Decisions", () => {
     expect(
       (await run({ roles: { driver: "r:chat" }, chat: () => [{ type: "text", delta: '{"prob' }, { type: "done", finishReason: "length" }] }, one)).out,
     ).toMatchObject({ kind: "malformed", message: "ready: answer was truncated" })
-    expect((await run({ roles: {} }, one)).out).toMatchObject({ kind: "unavailable", message: "no decision model; set roles.decision or roles.driver" })
+    expect((await run({ roles: {} }, one)).out).toMatchObject({ kind: "unavailable", message: "no decision model (set a default with /models)" })
   })
 
   test("limits are checked before any model call", async () => {

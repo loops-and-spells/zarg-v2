@@ -52,6 +52,10 @@ const err = (r: { exit: any }) => {
 const scope: Scope = { paths: ["src/**"] }
 
 describe("Rlm.exec", () => {
+  test("a preset whose role has no model fails pointing at /models", async () => {
+    const r = await run({}, { task: "t", preset: "plan", scope })
+    expect(err(r).message).toBe('no model for role "plan" (set a default with /models)')
+  })
   test("runs cells and finishes with a result that matches the preset's Schema", async () => {
     const r = await run(
       { research: [{ cell: 'const t = yield* Fs.read({ path: "src/a.ts" })\nreturn t' }, { cell: 'yield* Rlm.done({ value: { findings: ["a is 1"], sources: ["src/a.ts"] } })' }] },

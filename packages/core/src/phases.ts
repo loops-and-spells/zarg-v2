@@ -59,7 +59,7 @@ export const reconcileGate = (root: string, extra: Readonly<Record<string, unkno
     const settings = yield* reconcileSettings(extra.reconcile)
     if (!settings.enabled && !opts.force) return { on: false, reason: "plan and implement are off ([reconcile] enabled = false)" } as const
     const missing = ["plan", "implement"].filter((r) => roles[r] === undefined)
-    if (missing.length > 0) return { on: false, reason: `plan and implement are off: set ${missing.map((r) => `roles.${r}`).join(" and ")} in .zarg/config.toml` } as const
+    if (missing.length > 0) return { on: false, reason: "plan and implement are off: set a default model with /models (or roles.plan and roles.implement)" } as const
     const top = yield* gitRun(root, ["rev-parse", "--show-toplevel"])
     if (top.code !== 0 || realpathSync(top.stdout.trim()) !== realpathSync(root)) {
       return { on: false, reason: `plan and implement are off: ${root} is not the top of a git repository` } as const

@@ -119,7 +119,7 @@ describe("when reconcile runs", () => {
     const r = project([])
     const gate = (extra: Record<string, unknown>, rs: Record<string, string>, root = r) => Effect.runPromise(reconcileGate(root, extra, rs))
     expect(await gate({}, roles)).toMatchObject({ on: false, reason: expect.stringContaining("[reconcile]") })
-    expect(await gate({ reconcile: {} }, { driver: "a:b" })).toMatchObject({ on: false, reason: expect.stringContaining("roles.plan") })
+    expect(await gate({ reconcile: {} }, { driver: "a:b" })).toMatchObject({ on: false, reason: expect.stringContaining("set a default model with /models") })
     expect(await gate({ reconcile: { enabled: false } }, roles)).toMatchObject({ on: false })
     const sub = join(r, "app")
     mkdirSync(sub)

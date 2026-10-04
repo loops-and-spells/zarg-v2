@@ -227,7 +227,7 @@ export const make = (opts: DecisionsOptions = {}) =>
             )
           : config.roles[fallbackRole] !== undefined
             ? structured(config.roles[fallbackRole]!, req).pipe(Effect.mapError(toDecisionError))
-            : Effect.fail(new DecisionError({ kind: "unavailable", message: `no decision model; set roles.${role} or roles.${fallbackRole}` }))
+            : Effect.fail(new DecisionError({ kind: "unavailable", message: "no decision model (set a default with /models)" }))
         return { answers, transport: nativeOk ? "native" : "structured" }
       })
 

@@ -8,7 +8,7 @@ import { Decisions, layer as decisionsLayer } from "@zarg/decisions"
 import { GraphStore, layer as graphLayer } from "@zarg/graph"
 import { watchGraph } from "./graph-watch"
 import { type Bound } from "@zarg/kernel"
-import { Config, Env, layer as envLayer, Model, redact, type SensitiveValue } from "@zarg/model"
+import { Config, Env, layer as envLayer, Model, ModelError, redact, type SensitiveValue } from "@zarg/model"
 import { makeGrants } from "@zarg/plugin/runtime"
 import { PluginHost } from "@zarg/plugin/server"
 import { openrouter } from "@zarg/provider-openrouter"
@@ -353,6 +353,18 @@ const pluginsFor = (
   })
 }
 
+/** A plugin's completion on its role's model (the role's own, else the default); none at all is a clear failure, never the stub. */
+export const completeWith = (roles: Readonly<Record<string, string>>, model: Model.Model["Service"]) =>
+  (req: { readonly role: string; readonly messages: ReadonlyArray<unknown>; readonly outputSchema?: unknown; readonly maxTokens?: number; readonly reasoning?: { readonly effort?: string; readonly enabled?: boolean } }) =>
+    Effect.gen(function* () {
+      const ref = roles[req.role]
+      if (ref === undefined) return yield* new ModelError({ kind: "config", message: `no model for role "${req.role}" (set a default with /models)` })
+      const events = yield* Stream.runCollect(
+        model.stream({ model: ref, messages: req.messages as never, ...(req.outputSchema !== undefined ? { outputSchema: req.outputSchema as Record<string, unknown> } : {}), ...(req.maxTokens !== undefined ? { maxTokens: req.maxTokens } : {}), ...(req.reasoning !== undefined ? { reasoning: req.reasoning } : {}) }),
+      )
+      return Model.completion(events)
+    })
+
 /** Layers for a project root: env, config, models, decisions, graph and plugins. `stubFile` swaps in the scripted models. */
 export const liveLayer = (root: string, stubFile?: string, opts: { readonly yolo?: boolean } = {}) => {
   // Env in any project: the providers' schemas, then the operator's own (~/.config/zarg), then the project's.
@@ -370,14 +382,7 @@ export const liveLayer = (root: string, stubFile?: string, opts: { readonly yolo
       const model = yield* Model.Model
       // Service plugins reach the decision model and the model roles through the core's own services.
       const roles: Readonly<Record<string, string>> = stubFile !== undefined ? Object.fromEntries(Object.keys(cfg.roles).map((r) => [r, STUB_MODEL])) : cfg.roles
-      const complete = (req: { readonly role: string; readonly messages: ReadonlyArray<unknown>; readonly outputSchema?: unknown; readonly maxTokens?: number; readonly reasoning?: { readonly effort?: string; readonly enabled?: boolean } }) =>
-        Effect.gen(function* () {
-          const ref = roles[req.role] ?? roles.driver ?? STUB_MODEL
-          const events = yield* Stream.runCollect(
-            model.stream({ model: ref, messages: req.messages as never, ...(req.outputSchema !== undefined ? { outputSchema: req.outputSchema as Record<string, unknown> } : {}), ...(req.maxTokens !== undefined ? { maxTokens: req.maxTokens } : {}), ...(req.reasoning !== undefined ? { reasoning: req.reasoning } : {}) }),
-          )
-          return Model.completion(events)
-        })
+      const complete = completeWith(roles, model)
       return pluginsFor(root, env, cfg, yield* env.sensitive, opts.yolo, { decide: (req) => decisions.decide(req as never), complete })
     }),
   ).pipe(Layer.provide(decisions))
