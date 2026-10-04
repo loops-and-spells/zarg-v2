@@ -2,6 +2,7 @@
   "edges": [],
   "id": "Q-0002",
   "props": {
+    "answer": "One tester per persona, on /rehearse; only findings triage cannot settle reach the inbox.",
     "text": "How many testers rehearse, how often, and which findings reach the operator?"
   },
   "type": "gherkin/question"

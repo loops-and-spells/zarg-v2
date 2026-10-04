@@ -1,5 +1,18 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "O-0005",
+      "type": "gherkin/serves"
+    },
+    {
+      "to": "O-0009",
+      "type": "gherkin/serves"
+    },
+    {
+      "to": "O-0011",
+      "type": "gherkin/serves"
+    }
+  ],
   "id": "J-0004",
   "props": {
     "name": "Reconcile"

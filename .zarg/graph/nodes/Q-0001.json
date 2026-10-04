@@ -2,6 +2,7 @@
   "edges": [],
   "id": "Q-0001",
   "props": {
+    "answer": "Intents draft on their own; the operator says yes per plan, moving it to Ready.",
     "text": "How is an intent accepted: the operator's explicit yes, or implied once its requirements follow?"
   },
   "type": "gherkin/question"

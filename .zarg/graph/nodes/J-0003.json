@@ -1,5 +1,14 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "O-0007",
+      "type": "gherkin/serves"
+    },
+    {
+      "to": "O-0008",
+      "type": "gherkin/serves"
+    }
+  ],
   "id": "J-0003",
   "props": {
     "name": "Watch agents"

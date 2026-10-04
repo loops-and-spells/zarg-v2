@@ -1,5 +1,10 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "O-0012",
+      "type": "gherkin/serves"
+    }
+  ],
   "id": "J-0002",
   "props": {
     "name": "Set up"

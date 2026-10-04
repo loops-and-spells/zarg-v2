@@ -1,5 +1,26 @@
 {
-  "edges": [],
+  "edges": [
+    {
+      "to": "O-0001",
+      "type": "gherkin/serves"
+    },
+    {
+      "to": "O-0002",
+      "type": "gherkin/serves"
+    },
+    {
+      "to": "O-0003",
+      "type": "gherkin/serves"
+    },
+    {
+      "to": "O-0004",
+      "type": "gherkin/serves"
+    },
+    {
+      "to": "O-0006",
+      "type": "gherkin/serves"
+    }
+  ],
   "id": "J-0001",
   "props": {
     "name": "Talk with zarg"
