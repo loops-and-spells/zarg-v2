@@ -4,6 +4,7 @@ import { join } from "node:path"
 import { tags, type Tag } from "@zarg/audit"
 import { codeOf } from "@zarg/audit/evidence"
 import { type Capture, EVIDENCE_DIR, type Evidence, type Media, text } from "@zarg/evidence-capture"
+import { cast, frame, gif } from "@zarg/evidence-capture-xterm"
 import { clearStale, commit as commitEvidence, type Staged, stage } from "@zarg/evidence-capture/writer"
 import { scenarioVersion } from "@zarg/audit/version"
 import { Snapshot } from "@zarg/graph/pure"
@@ -93,7 +94,7 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
             // A world that cannot start fails the step, with its reason as evidence.
             w ??= world(opts.seed)
             const castFrom = term?.cast().trimEnd().split("\n").length ?? 1
-            if (term !== undefined) mine.attach(text("the screen before", term.screen()))
+            if (term !== undefined) mine.attach(frame("the screen before", term.xterm))
             const step: Step = {
               get w() {
                 return w!
@@ -119,9 +120,13 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
               await fn(step)
             } finally {
               if (term !== undefined) {
-                mine.attach(text("the screen after", term.screen()))
+                mine.attach(frame("the screen after", term.xterm))
                 const [header, ...events] = term.cast().trimEnd().split("\n")
-                mine.attach({ kind: "evidence-terminal/cast", caption: "the step as it played", files: { "step.cast": [header, ...events.slice(Math.max(0, castFrom - 1))].join("\n") + "\n" } })
+                const played = [header, ...events.slice(Math.max(0, castFrom - 1))].join("\n") + "\n"
+                mine.attach(cast("the step as it played", played))
+                // A gif too, when agg is installed.
+                const moving = gif("the step as a gif", played)
+                if (moving !== undefined) mine.attach(moving)
               }
             }
           }

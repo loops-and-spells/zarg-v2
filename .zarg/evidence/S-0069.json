@@ -1,0 +1,36 @@
+{
+  "scenario": "S-0069",
+  "version": "6c8d6ea60db0",
+  "commit": "db03402",
+  "run": "e2e-2026-10-04T19-06-54.568Z",
+  "journey": "J-0002",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T19:06:58.914Z",
+  "ms": 4287,
+  "media": [
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "zarg agenda (the grants asked for)",
+      "path": "media/S-0069/1-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0069/2-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0069/3-step.cast"
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/plugin/src/server/host.ts": "be619b3d6a4b92f47f1f1b11653a1bba33c13074",
+    "packages/plugin/test/host.test.ts": "6f9202a574a2c8ad01fc1bc2016731c5dad703a8"
+  }
+}

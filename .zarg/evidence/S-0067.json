@@ -1,0 +1,37 @@
+{
+  "scenario": "S-0067",
+  "version": "88a7b53705d3",
+  "commit": "db03402",
+  "run": "e2e-2026-10-04T19-06-54.568Z",
+  "journey": "J-0002",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T19:06:59.039Z",
+  "ms": 107,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0067/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0067/2-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0067/3-step.cast"
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/client/src/session.ts": "ed0dfb03fc47b3f60e3869c0210131964e4e6faa",
+    "packages/client/test/session.test.ts": "3cdc7c504a6771430c22e9e3e6e97fb57169b1d8",
+    "packages/core/test/yolo.test.ts": "33987002434e4ead223f8cc2d71e256aa4a12a91",
+    "packages/plugin/src/runtime/powers.ts": "5f2696731d331d8d311938c54ca555d921290289",
+    "packages/plugin/test/load-waiting.test.ts": "eb8518bc9f80d05a43ead19cf34041fc566c6613",
+    "packages/view-tui/src/view.ts": "e6ae22ea131f33d2de36a4cf4fa479895e053b4a"
+  }
+}

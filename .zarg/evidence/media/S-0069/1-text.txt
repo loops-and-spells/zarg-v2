@@ -1,0 +1,4 @@
+plugin-grant:backlog
+plugin-grant:intent
+plugin-grant:rehearse
+plugin-grant:triage

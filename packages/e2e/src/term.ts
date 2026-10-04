@@ -1,3 +1,4 @@
+import type { XtermLike } from "@zarg/evidence-capture-xterm"
 import { Terminal } from "@xterm/headless"
 import { cli, MAIN, type World } from "./world"
 
@@ -13,6 +14,8 @@ export interface Term {
   readonly exit: () => Promise<number>
   /** The session so far as an asciicast v2 document. */
   readonly cast: () => string
+  /** The headless terminal itself (its cells and colours), for frame captures. */
+  readonly xterm: XtermLike
 }
 
 const NAMED: Readonly<Record<string, string>> = { enter: "\r", esc: "\x1b", tab: "\t", up: "\x1b[A", down: "\x1b[B", left: "\x1b[D", right: "\x1b[C", space: " ", backspace: "\x7f" }
@@ -77,5 +80,6 @@ export const zarg = async (w: World, args: ReadonlyArray<string> = []): Promise<
       return code
     },
     cast: () => [header, ...events].join("\n") + "\n",
+    xterm: term as unknown as XtermLike,
   }
 }
