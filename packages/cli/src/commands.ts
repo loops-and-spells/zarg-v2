@@ -11,6 +11,7 @@ import { buildPlugin, writeDist } from "@zarg/plugin-sdk/tools"
 import { readClaim, startHeadless, stopCore } from "@zarg/client"
 import { baseTree, CHECKPOINT, git, LEGACY_CHECKPOINT, snapshotAtTree, workingGraphTree } from "@zarg/reconcile"
 import { audit as auditOf, codeChanged, exitCode as auditExit, fullAudit, fullSummary, type Tag, tags as auditTags, toJunit } from "@zarg/audit"
+import { isText as declaredText } from "@zarg/evidence-capture"
 import { build as buildCatalog, catalogOf, githubRepo, trackedReader } from "@zarg/catalog"
 import { scenarioRefs, snapshotAt } from "./git"
 import { root } from "./root"
@@ -129,7 +130,9 @@ const fullReport = (loaded: { readonly snapshot: Snapshot.Snapshot; readonly pro
   Effect.gen(function* () {
     const findings = yield* PluginHost.use((h) => h.lint)
     const agenda = yield* PluginHost.use((h) => h.agenda())
+    const kinds = yield* PluginHost.use((h) => Effect.sync(() => h.evidence.kinds()))
     return fullAudit({
+      isText: declaredText(Object.fromEntries(Object.entries(kinds).map(([k, d]) => [k, { label: d.label, files: d.files }]))),
       snap: loaded.snapshot,
       tags: found,
       root,

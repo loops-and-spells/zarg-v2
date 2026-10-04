@@ -38,7 +38,7 @@ test("binary media is gitignored by default: missing on this machine is not a pr
   writeFileSync(join(root, ".zarg", "evidence", "S-0001.json"), JSON.stringify(ev({ media: [{ kind: "image", path: "media/S-0001/shot.png", caption: "c" }] })))
   const entries = readEvidence(root)
   expect(integrity(root, entries, new Set(["S-0001"]), () => true)).toEqual([])
-  expect(integrity(root, entries, new Set(["S-0001"]), () => true, true).map((f) => f.kind)).toEqual(["missing-media"])
+  expect(integrity(root, entries, new Set(["S-0001"]), () => true, { commitBinary: true }).map((f) => f.kind)).toEqual(["missing-media"])
 })
 
 import { changedSince } from "../src/evidence"
@@ -89,4 +89,15 @@ test("an evidence file named for another scenario is bad evidence", () => {
   mkdirSync(join(root, ".zarg", "evidence"), { recursive: true })
   writeFileSync(join(root, ".zarg", "evidence", "S-0001.json"), JSON.stringify(ev({ scenario: "S-0002" })))
   expect(integrity(root, readEvidence(root), new Set(["S-0001", "S-0002"]), () => true).map((f) => f.kind)).toEqual(["bad-evidence"])
+})
+
+test("text or binary comes from the declared kinds: a missing text medium is a problem, a missing binary one is not; old kinds through their aliases", () => {
+  const root = mkdtempSync(join(tmpdir(), "zt-ev-kinds-"))
+  mkdirSync(join(root, ".zarg", "evidence"), { recursive: true })
+  writeFileSync(join(root, ".zarg", "evidence", "S-0001.json"), JSON.stringify(ev({ media: [{ kind: "evidence-x/notes", path: "media/S-0001/1-notes.txt", caption: "n" }, { kind: "image", path: "media/S-0001/shot.png", caption: "s" }] })))
+  const entries = readEvidence(root)
+  const declared = (files: "text" | "binary") => ({ isText: (k: string) => k === "evidence-x/notes" && files === "text" })
+  expect(integrity(root, entries, new Set(["S-0001"]), () => true, declared("text")).map((f) => f.detail)).toEqual(["evidence-x/notes media/S-0001/1-notes.txt"])
+  expect(integrity(root, entries, new Set(["S-0001"]), () => true, declared("binary"))).toEqual([])
+  expect(integrity(root, entries, new Set(["S-0001"]), () => true, { commitBinary: true, isText: () => false }).map((f) => f.detail)).toEqual(["evidence-x/notes media/S-0001/1-notes.txt", "image media/S-0001/shot.png"])
 })

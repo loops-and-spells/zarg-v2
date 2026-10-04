@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
 import type { Evidence } from "@zarg/evidence-capture"
-import { EVIDENCE_DIR } from "@zarg/evidence-capture"
+import { EVIDENCE_DIR, isText as declaredText } from "@zarg/evidence-capture"
 
 export type { Evidence, Media } from "@zarg/evidence-capture"
 export { EVIDENCE_DIR } from "@zarg/evidence-capture"
@@ -11,7 +11,6 @@ export type MediaKind = string
 export type Proof = "proven" | "failing" | "stale" | "unproven"
 const ID = /^S-\d+$/
 const VERSION = /^[0-9a-f]{12}$/
-const BINARY: ReadonlySet<MediaKind> = new Set(["image", "gif", "video"])
 
 const shape = (v: unknown): v is Evidence => {
   const e = v as Evidence
@@ -43,20 +42,29 @@ export const proofOf = (e: Evidence | undefined, current: string, changedSince: 
 
 export type Integrity = { readonly kind: "orphan-evidence" | "bad-evidence" | "missing-media" | "unknown-commit"; readonly file: string; readonly detail: string }
 /** What makes evidence untrustworthy. Binary media is gitignored unless `commitBinary` (`[e2e] media = "commit"`), so only then must it be here. */
-export const integrity = (root: string, entries: ReadonlyArray<Entry>, scenarios: ReadonlySet<string>, hasCommit: (sha: string) => boolean, commitBinary = false): ReadonlyArray<Integrity> =>
-  entries.flatMap((x): ReadonlyArray<Integrity> => {
+export const integrity = (
+  root: string,
+  entries: ReadonlyArray<Entry>,
+  scenarios: ReadonlySet<string>,
+  hasCommit: (sha: string) => boolean,
+  opts: { readonly commitBinary?: boolean; readonly isText?: (kind: string) => boolean } = {},
+): ReadonlyArray<Integrity> => {
+  // Text media is committed, so it must be here; binary media only when media = "commit".
+  const isText = opts.isText ?? declaredText({})
+  return entries.flatMap((x): ReadonlyArray<Integrity> => {
     if (x.evidence === undefined) return [{ kind: "bad-evidence", file: x.file, detail: x.error ?? "unreadable" }]
     const e = x.evidence
     if (x.file !== `${e.scenario}.json`) return [{ kind: "bad-evidence", file: x.file, detail: `holds ${e.scenario}'s evidence` }]
     if (!scenarios.has(e.scenario)) return [{ kind: "orphan-evidence", file: x.file, detail: `${e.scenario} is not in the graph` }]
     return [
       ...e.media
-        .filter((m) => (commitBinary || !BINARY.has(m.kind)) && !existsSync(join(root, EVIDENCE_DIR, m.path)))
+        .filter((m) => (opts.commitBinary === true || isText(m.kind)) && !existsSync(join(root, EVIDENCE_DIR, m.path)))
         .map((m): Integrity => ({ kind: "missing-media", file: x.file, detail: `${m.kind} ${m.path}` })),
       // Evidence with its code by content does not need its commit (a squash or a shallow clone loses it).
       ...(e.code !== undefined || hasCommit(e.commit) ? [] : [{ kind: "unknown-commit" as const, file: x.file, detail: `commit ${e.commit} is not in this repository` }]),
     ]
   })
+}
 
 /** True when any of `files` changed after `commit`: a later commit (renames included) or an edit not yet committed. An unknown commit is integrity's to report. */
 export const changedSince = (root: string, files: ReadonlyArray<string>, commit: string): boolean => {

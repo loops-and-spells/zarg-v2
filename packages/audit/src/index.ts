@@ -108,6 +108,8 @@ export type FullInput = {
   /** True when a scenario's tagged code is not what its evidence ran. */
   readonly changedSince: (scenario: string, evidence: Evidence) => boolean
   readonly hasCommit: (sha: string) => boolean
+  /** Text or binary by kind (from the running evidence plugins); zarg's own kinds and aliases without it. */
+  readonly isText?: (kind: string) => boolean
   /** Binary media is committed (`[e2e] media = "commit"`). */
   readonly commitBinary?: boolean
   /** Completeness, coverage and proof fail the audit too. */
@@ -160,7 +162,7 @@ export const fullAudit = (i: FullInput): Full => {
         .filter((p) => p.proof !== "proven" && p.proof !== "planned")
         .map((p) => ({ id: p.scenario, detail: `${p.proof}: ${p.title}${p.evidence?.failure ? ` (expected ${p.evidence.failure.expected})` : ""}`, ...(p.evidence ? { media: p.evidence.media.map((m) => m.path) } : {}) })),
     },
-    { name: "integrity", level: "problem", items: integrity(i.root, entries, new Set(report.scenarios.map((s) => s.id)), i.hasCommit, i.commitBinary).map((x) => ({ id: x.file, detail: `${x.kind}: ${x.detail}` })) },
+    { name: "integrity", level: "problem", items: integrity(i.root, entries, new Set(report.scenarios.map((s) => s.id)), i.hasCommit, { ...(i.commitBinary === undefined ? {} : { commitBinary: i.commitBinary }), ...(i.isText === undefined ? {} : { isText: i.isText }) }).map((x) => ({ id: x.file, detail: `${x.kind}: ${x.detail}` })) },
   ]
   return { ...report, checks, proofs }
 }

@@ -123,6 +123,7 @@
         "@zarg/catalog": "workspace:*",
         "@zarg/client": "workspace:*",
         "@zarg/core": "workspace:*",
+        "@zarg/evidence-capture": "workspace:*",
         "@zarg/graph": "workspace:*",
         "@zarg/plugin": "workspace:*",
         "@zarg/plugin-sdk": "workspace:*",
