@@ -234,6 +234,7 @@ const scopeWords = (s: ManifestScopes) =>
     ...(s.entities?.read ?? []).map((t) => `read ${t}`),
     s.code === true ? "read the code tagged with scenarios" : undefined,
     ...(s.entities?.command ?? []).map((t) => `change ${t}`),
+    s.evidence === true ? "render evidence in the catalog" : undefined,
   ].filter((p) => p !== undefined)
 
 /** What a plugin asks for, in words: what it gets now and what it may ask for later (both are approved). */

@@ -14,6 +14,8 @@ export interface ManifestScopes {
   readonly inbox?: boolean
   /** Read the code tagged with scenarios (`Entities.code`). */
   readonly code?: boolean
+  /** Render evidence in the catalog. */
+  readonly evidence?: boolean
   readonly entities?: { readonly read?: ReadonlyArray<string>; readonly command?: ReadonlyArray<string> }
 }
 export type Grant =

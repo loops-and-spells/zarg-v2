@@ -22,7 +22,11 @@ export interface Scopes {
   readonly code?: boolean
   /** Other plugins' entity types it reads or commands (patterns: `plugin/kind`, `plugin/*`); its own always. */
   readonly entities?: { readonly read?: ReadonlyArray<string>; readonly command?: ReadonlyArray<string> }
+  /** Render evidence in the catalog: the kinds it declares, through its `renderEvidence` method. */
+  readonly evidence?: boolean
 }
+/** An evidence kind a plugin renders (`<plugin>/<kind>`): text media is committed, binary stays on the run's machine. */
+export interface EvidenceDecl { readonly label: string; readonly files: "text" | "binary" }
 export interface MethodSpec {
   readonly doc: string
   readonly params: Schema.Codec<any, any>
@@ -71,6 +75,10 @@ export interface PluginDef<M extends Record<string, MethodSpec>> {
   readonly graph?: { readonly nodes: Readonly<Record<string, Schema.Codec<any, any>>>; readonly edges: Readonly<Record<string, EdgeSpec>> }
   /** Entity kinds it serves (`<name>/<kind>`), implemented by `entities` in what `make` returns. */
   readonly entities?: Readonly<Record<string, EntityDecl>>
+  /** Evidence kinds it renders in the catalog (`renderEvidence`; scope `evidence`). */
+  readonly evidence?: Readonly<Record<string, EvidenceDecl>>
+  /** Files its rendered evidence uses in pages (scripts, styles), relative to its package; shipped hashed in dist/assets. */
+  readonly assets?: ReadonlyArray<string>
   readonly make: Effect.Effect<Handlers<M> & { readonly entities?: Readonly<Record<string, EntityHandlers>> }, never, any>
 }
 export interface Plugin<M extends Record<string, MethodSpec> = Record<string, MethodSpec>> extends PluginDef<M> {
@@ -81,6 +89,25 @@ export interface Plugin<M extends Record<string, MethodSpec> = Record<string, Me
 // Same rule as the host (@zarg/plugin/runtime PLUGIN_NAME): no doubled or trailing dash, so secret namespaces never collide.
 const NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/
 const SERVICE = /^[A-Z][A-Za-z0-9]*$/
+
+const KIND = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/
+const evidenceProblem = (def: PluginDef<any>): string | undefined => {
+  const seen = new Set<string>()
+  for (const a of def.assets ?? []) {
+    const name = a.split("/").at(-1)!
+    if (seen.has(name)) return `asset ${name} is listed twice`
+    seen.add(name)
+  }
+  const kinds = Object.entries(def.evidence ?? {})
+  if (kinds.length === 0) return undefined
+  if (!("renderEvidence" in def.methods)) return "evidence kinds need a renderEvidence method"
+  if (def.scopes.evidence !== true) return "evidence kinds need scopes.evidence"
+  for (const [k, d] of kinds) {
+    if (!KIND.test(k)) return `evidence kind "${k}" must be kebab-case`
+    if (d.files !== "text" && d.files !== "binary") return `evidence kind ${k}: files must be "text" or "binary"`
+  }
+  return undefined
+}
 
 export const definePlugin = <const M extends Record<string, MethodSpec>>(def: PluginDef<M>): Plugin<M> => {
   if (!NAME.test(def.name)) throw new Error(`plugin name "${def.name}" must be kebab-case`)
@@ -100,6 +127,8 @@ export const definePlugin = <const M extends Record<string, MethodSpec>>(def: Pl
   if (tones !== undefined) throw new Error(`plugin ${def.name}: ${tones}`)
   const ents = entitiesProblem(def.name, def.entities, Object.keys(def.methods))
   if (ents !== undefined) throw new Error(ents)
+  const evidence = evidenceProblem(def)
+  if (evidence !== undefined) throw new Error(`plugin ${def.name}: ${evidence}`)
   const serve = (raw: RawPowers) => {
     const s = servicesFrom(raw)
     const talks = conversations(raw)

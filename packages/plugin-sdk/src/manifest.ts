@@ -25,6 +25,12 @@ export interface Manifest {
   readonly graph?: { readonly nodes: Readonly<Record<string, unknown>>; readonly edges: Readonly<Record<string, EdgeSpec>> }
   /** Entity kinds it serves: data schema, tone, glyph, commands (command → method), the nav surface that shows them, the ops it serves itself. */
   readonly entities?: Readonly<Record<string, { readonly doc: string; readonly data: unknown; readonly tone: string; readonly glyph: string; readonly commands: Readonly<Record<string, string>>; readonly open?: string; readonly ops: ReadonlyArray<EntityOp> }>>
+  /** Evidence kinds it renders. */
+  readonly evidence?: Readonly<Record<string, { readonly label: string; readonly files: "text" | "binary" }>>
+  /** Its assets as built: file name → sha256 (`writeDist` fills it from `assetFiles`). */
+  readonly assets?: Readonly<Record<string, string>>
+  /** Its assets as declared, relative to its package (build only; `writeDist` replaces them with `assets`). */
+  readonly assetFiles?: ReadonlyArray<string>
 }
 
 const json = (s: Schema.Top) => Schema.toJsonSchemaDocument(s)
@@ -48,5 +54,7 @@ export const manifestOf = (p: Plugin): Manifest => ({
   ...(p.entities !== undefined && Object.keys(p.entities).length > 0
     ? { entities: Object.fromEntries(Object.entries(p.entities).map(([k, d]) => [k, { doc: d.doc, data: json(d.data), tone: d.tone, glyph: d.glyph, commands: d.commands ?? {}, ...(d.open !== undefined ? { open: d.open } : {}), ops: d.ops ?? (p.archetype === "graph" ? [] : ["get", "label", "version"]) }])) }
     : {}),
+  ...(p.evidence !== undefined && Object.keys(p.evidence).length > 0 ? { evidence: Object.fromEntries(Object.entries(p.evidence).map(([k, d]) => [k, { label: d.label, files: d.files }])) } : {}),
+  ...(p.assets !== undefined && p.assets.length > 0 ? { assetFiles: p.assets } : {}),
   ...(p.graph !== undefined ? { graph: { nodes: Object.fromEntries(Object.entries(p.graph.nodes).map(([k, s]) => [k, json(s)])), edges: p.graph.edges } } : {}),
 })

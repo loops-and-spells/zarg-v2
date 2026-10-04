@@ -1,4 +1,7 @@
+import { createHash } from "node:crypto"
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { builtinModules } from "node:module"
+import { basename, join } from "node:path"
 import { Schema } from "effect"
 import type { Plugin } from "./define"
 import { type Manifest, manifestOf } from "./manifest"
@@ -56,4 +59,20 @@ export const buildPlugin = async (entry: string): Promise<{ ok: true; bundle: st
   }
   if (errors.length > 0) return { ok: false, errors }
   return { ok: true, bundle, manifest: manifestOf(plugin) }
+}
+
+/** Writes a built plugin into `<pkgDir>/dist`: the bundle, its assets under assets/ (hashed in the manifest), the manifest. */
+export const writeDist = (pkgDir: string, built: { readonly bundle: string; readonly manifest: Manifest }): void => {
+  const out = join(pkgDir, "dist")
+  mkdirSync(out, { recursive: true })
+  writeFileSync(join(out, "zarg-plugin.js"), built.bundle)
+  const { assetFiles, ...manifest } = built.manifest
+  if ((assetFiles ?? []).length > 0) mkdirSync(join(out, "assets"), { recursive: true })
+  const assets: Record<string, string> = {}
+  for (const f of assetFiles ?? []) {
+    const name = basename(f)
+    copyFileSync(join(pkgDir, f), join(out, "assets", name))
+    assets[name] = createHash("sha256").update(readFileSync(join(pkgDir, f))).digest("hex")
+  }
+  writeFileSync(join(out, "zarg-plugin.json"), `${JSON.stringify(Object.keys(assets).length > 0 ? { ...manifest, assets } : manifest, null, 2)}\n`)
 }

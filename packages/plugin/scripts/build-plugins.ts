@@ -1,11 +1,11 @@
 // Build zarg's own plugins for the runtime and record every first-party hash (zarg ships them).
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { bundleHash } from "@zarg/plugin/server"
-import { buildPlugin } from "@zarg/plugin-sdk/tools"
+import { buildPlugin, writeDist } from "@zarg/plugin-sdk/tools"
 
 const root = join(import.meta.dir, "..", "..")
-const FIRST_PARTY = ["plugin-gherkin", "plugin-backlog", "agent-rehearse", "agent-triage", "agent-intent"]
+const FIRST_PARTY = ["plugin-gherkin", "plugin-backlog", "agent-rehearse", "agent-triage", "agent-intent", "evidence-terminal", "evidence-screen"]
 const only = process.argv[2]
 // Bundles name their sources relative to the working directory: build from one place so the hashes do not depend on who ran it.
 process.chdir(join(root, ".."))
@@ -15,9 +15,7 @@ for (const pkg of FIRST_PARTY.filter((p) => existsSync(join(root, p)) && (only =
     console.error(`${pkg}:\n${r.errors.join("\n")}`)
     process.exit(1)
   }
-  mkdirSync(join(root, pkg, "dist"), { recursive: true })
-  writeFileSync(join(root, pkg, "dist/zarg-plugin.js"), r.bundle)
-  writeFileSync(join(root, pkg, "dist/zarg-plugin.json"), `${JSON.stringify(r.manifest, null, 2)}\n`)
+  writeDist(join(root, pkg), r)
   console.error(`${pkg}: ${(r.bundle.length / 1024).toFixed(0)} KiB`)
 }
 // Every first-party bundle on disk, not only the ones built now.

@@ -8,7 +8,7 @@ import { makeGrants } from "@zarg/plugin/runtime"
 import { layer as hostLayer, type LoadedPlugin, PluginHost } from "@zarg/plugin/server"
 import { buildPlugin } from "@zarg/plugin-sdk/tools"
 
-const build = (entry: string, origin: string) =>
+const build = (entry: string, origin: string): Promise<LoadedPlugin> =>
   buildPlugin(entry).then((r) => {
     if (!r.ok) throw new Error(r.errors.join("\n"))
     return { manifest: r.manifest as never, bundle: r.bundle, origin } satisfies LoadedPlugin

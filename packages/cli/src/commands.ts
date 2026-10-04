@@ -7,7 +7,7 @@ import { basename, join, resolve } from "node:path"
 import { findPlugin, USER_DIR } from "@zarg/core/plugins"
 import { type Grant, makeGrants, scopesDigest, warnings } from "@zarg/plugin/runtime"
 import { describeScopes, installPlugin } from "@zarg/plugin/server"
-import { buildPlugin } from "@zarg/plugin-sdk/tools"
+import { buildPlugin, writeDist } from "@zarg/plugin-sdk/tools"
 import { readClaim, startHeadless, stopCore } from "@zarg/client"
 import { baseTree, CHECKPOINT, git, LEGACY_CHECKPOINT, snapshotAtTree, workingGraphTree } from "@zarg/reconcile"
 import { audit as auditOf, codeChanged, exitCode as auditExit, fullAudit, fullSummary, type Tag, tags as auditTags, toJunit } from "@zarg/audit"
@@ -301,11 +301,8 @@ const pluginBuild = Command.make("build", { dir: Argument.String("dir").pipe(Arg
     if (entry === undefined) return yield* Effect.fail(new Error(`${dir}: no src/index.ts or index.ts to build`))
     const r = yield* Effect.promise(() => buildPlugin(entry))
     if (!r.ok) return yield* Effect.fail(new Error(r.errors.join("\n")))
-    const out = join(resolve(dir), "dist")
-    mkdirSync(out, { recursive: true })
-    writeFileSync(join(out, "zarg-plugin.js"), r.bundle)
-    writeFileSync(join(out, "zarg-plugin.json"), `${JSON.stringify(r.manifest, null, 2)}\n`)
-    yield* print({ built: r.manifest.name, dir: out, kib: Math.round(r.bundle.length / 1024) })
+    writeDist(resolve(dir), r)
+    yield* print({ built: r.manifest.name, dir: join(resolve(dir), "dist"), kib: Math.round(r.bundle.length / 1024) })
   }),
 )
 
