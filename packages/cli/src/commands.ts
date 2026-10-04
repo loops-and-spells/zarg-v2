@@ -1,16 +1,16 @@
-import { Console, Effect, Option } from "effect"
+import { Cause, Console, Effect, Option } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
 import { diff, GraphStore, hash, Snapshot } from "@zarg/graph"
 import { PluginHost } from "@zarg/plugin/server"
 import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs"
-import { join, resolve } from "node:path"
+import { basename, join, resolve } from "node:path"
 import { findPlugin, USER_DIR } from "@zarg/core/plugins"
 import { type Grant, makeGrants, scopesDigest, warnings } from "@zarg/plugin/runtime"
 import { describeScopes, installPlugin } from "@zarg/plugin/server"
 import { buildPlugin } from "@zarg/plugin-sdk/tools"
 import { readClaim, startHeadless, stopCore } from "@zarg/client"
 import { baseTree, CHECKPOINT, git, LEGACY_CHECKPOINT, snapshotAtTree, workingGraphTree } from "@zarg/reconcile"
-import { audit as auditOf, summary as auditSummary, tags as auditTags } from "@zarg/audit"
+import { audit as auditOf, exitCode as auditExit, fullAudit, fullSummary, tags as auditTags, toJunit } from "@zarg/audit"
 import { scenarioRefs, snapshotAt } from "./git"
 import { root } from "./root"
 
@@ -121,33 +121,63 @@ const checkpoint = Command.make("checkpoint", {}, () =>
   }),
 )
 
-/** Every scenario against its @scenario tags, and intent coverage: JSON (or --summary), exit 1 on problems (warnings never fail it); --scenario for one scenario. */
+/** The one CI check: graph structure and lints, completeness, intent coverage, code tags, proof by evidence, evidence integrity. JSON (or --summary, --junit <file>); exit 0 complete, 1 a problem, 2 the audit could not run; --scenario for one scenario. */
 const auditCmd = Command.make(
   "audit",
   {
-    summary: Flag.Boolean("summary").pipe(Flag.withDefault(false), Flag.withDescription("a line per problem and the counts, for people and CI logs")),
+    summary: Flag.Boolean("summary").pipe(Flag.withDefault(false), Flag.withDescription("a line per item and the counts, for people and CI logs")),
+    json: Flag.Boolean("json").pipe(Flag.withDefault(false), Flag.withDescription("the whole report as JSON (the default)")),
+    junit: Flag.String("junit").pipe(Flag.optional, Flag.withDescription("also write one JUnit test case per scenario to this file")),
     scenario: Flag.String("scenario").pipe(Flag.optional, Flag.withDescription("one scenario's status and tags")),
   },
   (o) =>
     Effect.gen(function* () {
-      const snap = yield* GraphStore.use((s) => s.snapshot)
-      const report = auditOf(snap, yield* auditTags(root))
+      const loaded = yield* GraphStore.use((s) => s.load)
+      const snap = loaded.snapshot
+      const found = yield* auditTags(root)
       if (Option.isSome(o.scenario)) {
         const id = o.scenario.value
-        const found = report.scenarios.find((c) => c.id === id)
-        yield* print(found ?? { id, missing: true })
-        if (found === undefined)
+        const one = auditOf(snap, found).scenarios.find((c) => c.id === id)
+        yield* print(one ?? { id, missing: true })
+        if (one === undefined)
           yield* Effect.sync(() => {
             process.exitCode = 1
           })
         return
       }
-      yield* print(o.summary ? auditSummary(report) : report)
-      if (report.problems.length > 0)
-        yield* Effect.sync(() => {
-          process.exitCode = 1
-        })
-    }),
+      const findings = yield* PluginHost.use((h) => h.lint)
+      const agenda = yield* PluginHost.use((h) => h.agenda())
+      const run = (...args: Array<string>) => Bun.spawnSync(["git", ...args], { cwd: root })
+      const report = fullAudit({
+        snap,
+        tags: found,
+        root,
+        invalid: loaded.problems.map((p) => ({ id: basename(p.file, ".json"), detail: p.message })),
+        findings,
+        agenda,
+        changedSince: (scenario, commit) => {
+          const files = [...new Set(found.filter((t) => t.id === scenario).map((t) => t.file))]
+          if (files.length === 0) return false
+          const p = run("log", "-1", "--format=%H", `${commit}..HEAD`, "--", ...files)
+          return p.exitCode === 0 && p.stdout.toString().trim() !== ""
+        },
+        hasCommit: (sha) => run("cat-file", "-e", `${sha}^{commit}`).exitCode === 0,
+      })
+      const junit = o.junit
+      if (Option.isSome(junit)) yield* Effect.sync(() => writeFileSync(junit.value, toJunit(report)))
+      yield* print(o.summary && !o.json ? fullSummary(report) : report)
+      yield* Effect.sync(() => {
+        process.exitCode = auditExit(report)
+      })
+    }).pipe(
+      // The audit could not run (an unreadable graph, no git): 2, never a pass or an ordinary failure.
+      Effect.catchCause((c) =>
+        Effect.sync(() => {
+          console.error(`zarg audit could not run: ${String(Cause.squash(c))}`)
+          process.exitCode = 2
+        }),
+      ),
+    ),
 )
 
 const coreStart = Command.make(

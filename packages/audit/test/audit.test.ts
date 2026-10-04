@@ -82,3 +82,66 @@ describe("intent coverage", () => {
     expect(audit(Snapshot.make([j("J-0001")] as never), []).warnings).toEqual([])
   })
 })
+
+import { mkdirSync as mk, mkdtempSync as mkt, writeFileSync as wf } from "node:fs"
+import { exitCode, fullAudit, fullSummary as sum, toJunit } from "../src/index"
+import { scenarioVersion } from "../src/version"
+
+describe("the full audit", () => {
+  const base = { tags: [], invalid: [], findings: [], agenda: [], changedSince: () => false, hasCommit: () => true }
+  const root = () => mkt(join(tmpdir(), "zt-full-"))
+  const graph = Snapshot.make([
+    { id: "ST-1", type: "gherkin/state", props: { text: "a" }, edges: [] },
+    { id: "S-1", type: "gherkin/scenario", props: { title: "one", when: "w" }, edges: [{ type: "gherkin/arrives", to: "ST-1" }, { type: "gherkin/then", to: "ST-1" }] },
+    { id: "S-2", type: "gherkin/scenario", props: { title: "two", when: "w", planned: true }, edges: [{ type: "gherkin/arrives", to: "ST-1" }, { type: "gherkin/then", to: "ST-1" }] },
+  ] as never)
+  test("a repo without evidence: built scenarios unproven (a warning), planned ones planned; exit 0 when nothing else is wrong", () => {
+    const r = fullAudit({ ...base, snap: graph, root: root(), tags: [{ id: "S-1", file: "a.ts", line: 1 }] })
+    expect(r.proofs.map((p) => [p.scenario, p.proof])).toEqual([["S-1", "unproven"], ["S-2", "planned"]])
+    expect(r.checks.find((c) => c.name === "proof")).toMatchObject({ level: "warning", items: [{ id: "S-1" }] })
+    expect(exitCode(r)).toBe(0)
+  })
+  test("proven and stale come from the evidence at the scenario's current version", () => {
+    const dir = root()
+    mk(join(dir, ".zarg", "evidence"), { recursive: true })
+    const v = scenarioVersion(graph, "S-1")!
+    wf(join(dir, ".zarg", "evidence", "S-1.json"), JSON.stringify({ scenario: "S-1", version: v, commit: "c1", run: "r", journey: "J-1", passed: true, flaky: false, at: "t", ms: 1, media: [], failure: null }))
+    const proven = fullAudit({ ...base, snap: graph, root: dir, tags: [{ id: "S-1", file: "a.ts", line: 1 }] })
+    expect(proven.proofs[0]!.proof).toBe("proven")
+    const stale = fullAudit({ ...base, snap: graph, root: dir, tags: [{ id: "S-1", file: "a.ts", line: 1 }], changedSince: () => true })
+    expect(stale.proofs[0]!.proof).toBe("stale")
+  })
+  test("structure, lints and integrity are problems (exit 1); completeness and coverage are warnings until strict", () => {
+    const r = fullAudit({
+      ...base,
+      snap: graph,
+      root: root(),
+      tags: [{ id: "S-1", file: "a.ts", line: 1 }],
+      invalid: [{ id: "S-9", detail: "S-9.json: not JSON" }],
+      findings: [{ severity: "error", code: "conditional", message: "S-1: contains if", about: ["S-1"] }, { severity: "warn", code: "and-chaining", message: "x", about: [] }],
+      agenda: [{ id: "gherkin:dead-end:ST-1", title: "What next?", about: ["ST-1"] }, { id: "plugin-grant:backlog", title: "grant", about: [] }],
+    })
+    expect(r.checks.map((c) => [c.name, c.level, c.items.length])).toEqual([
+      ["structure", "problem", 1],
+      ["lints", "problem", 1],
+      ["completeness", "warning", 1],
+      ["coverage", "warning", 0],
+      ["code", "problem", 0],
+      ["proof", "warning", 1],
+      ["integrity", "problem", 0],
+    ])
+    expect(exitCode(r)).toBe(1)
+    expect(fullAudit({ ...base, snap: graph, root: root(), tags: [{ id: "S-1", file: "a.ts", line: 1 }], strict: true }).checks.find((c) => c.name === "proof")!.level).toBe("problem")
+  })
+  test("junit: one test case per scenario; proven passes, the rest fail with their media; planned is skipped", () => {
+    const xml = toJunit(fullAudit({ ...base, snap: graph, root: root(), tags: [{ id: "S-1", file: "a.ts", line: 1 }] }))
+    expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true)
+    expect(xml).toContain('<testsuite name="zarg proof" tests="2" failures="1" skipped="1">')
+    expect(xml).toContain('<testcase classname="zarg" name="S-1 one"><failure message="unproven"')
+    expect(xml).toContain('<testcase classname="zarg" name="S-2 two"><skipped message="planned"/></testcase>')
+  })
+  test("the summary groups by check, problems first, with a count line", () => {
+    const r = fullAudit({ ...base, snap: graph, root: root(), tags: [{ id: "S-1", file: "a.ts", line: 1 }] })
+    expect(sum(r).split("\n").at(-1)).toBe("structure 0 · lints 0 · code 0 · integrity 0 (problems) · completeness 0 · coverage 0 · proof 1 (warnings) · 0 proven of 1 built, 1 planned")
+  })
+})

@@ -37,7 +37,7 @@ describe("zarg cli", () => {
     const before = zarg("audit")
     expect(before.code).toBe(1)
     expect(JSON.parse(before.out).problems).toContainEqual({ kind: "untagged", scenario: "S-0001", title: "Open pricing" })
-    expect(zarg("audit", "--summary").out).toContain("untagged            S-0001 Open pricing")
+    expect(zarg("audit", "--summary").out).toContain("code          S-0001 untagged: Open pricing")
     // A new, untracked file's tag counts, and query code finds it.
     require("node:fs").writeFileSync(join(dir, "pricing.ts"), `export const open = () => 1 // ${TAG} S-0001\n`)
     const mine = (JSON.parse(zarg("audit").out).problems as Array<{ scenario?: string }>).filter((p) => p.scenario === "S-0001")
@@ -241,5 +241,27 @@ describe("zarg plugin", () => {
     const r = zarg("plugin", "grant", "zt-nope", "--net", "a.test")
     expect(r.code).toBe(1)
     expect(r.err).toContain("zt-nope")
+  })
+})
+
+describe("zarg audit, the one CI check", () => {
+  const repo = () => {
+    const r = mkdtempSync(join(tmpdir(), "zarg-cli-audit-"))
+    Bun.spawnSync(["git", "init", "-q"], { cwd: r })
+    return r
+  }
+  test("an empty graph: exit 0 with the seven checks; a damaged node file: structure, exit 1; --junit writes the report", () => {
+    const r = repo()
+    const ok = zargIn(r, "audit", "--json")
+    expect(ok.code).toBe(0)
+    expect((JSON.parse(ok.out).checks as Array<{ name: string }>).map((c) => c.name)).toEqual(["structure", "lints", "completeness", "coverage", "code", "proof", "integrity"])
+    require("node:fs").mkdirSync(join(r, ".zarg", "graph", "nodes"), { recursive: true })
+    require("node:fs").writeFileSync(join(r, ".zarg", "graph", "nodes", "S-0099.json"), "{ not json")
+    const junit = join(r, "j.xml")
+    const bad = zargIn(r, "audit", "--summary", "--junit", junit)
+    expect(bad.code).toBe(1)
+    expect(bad.out).toContain("structure     S-0099")
+    expect(readFileSync(junit, "utf8").startsWith("<?xml")).toBe(true)
+    rmSync(r, { recursive: true, force: true })
   })
 })

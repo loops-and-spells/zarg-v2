@@ -1,5 +1,10 @@
 import { Effect } from "effect"
-import type { Snapshot } from "@zarg/graph/pure"
+import { Snapshot } from "@zarg/graph/pure"
+import { EVIDENCE_DIR, type Evidence, integrity, type Proof, proofOf, readEvidence } from "./evidence"
+import { scenarioVersion } from "./version"
+
+export * from "./evidence"
+export { scenarioVersion } from "./version"
 
 export const SCENARIO = "gherkin/scenario"
 export type Tag = { readonly id: string; readonly file: string; readonly line: number }
@@ -84,3 +89,109 @@ export const tags = (root: string) =>
     },
     catch: (e) => new Error(`git grep in ${root}: ${String(e)}`),
   })
+
+export type Level = "problem" | "warning"
+export type Item = { readonly id: string; readonly detail: string; readonly media?: ReadonlyArray<string> }
+export type CheckName = "structure" | "lints" | "completeness" | "coverage" | "code" | "proof" | "integrity"
+export type Check = { readonly name: CheckName; readonly level: Level; readonly items: ReadonlyArray<Item> }
+export type ProofRow = { readonly scenario: string; readonly title: string; readonly proof: Proof | "planned"; readonly evidence?: Evidence }
+export type Full = Report & { readonly checks: ReadonlyArray<Check>; readonly proofs: ReadonlyArray<ProofRow> }
+export type FullInput = {
+  readonly snap: Snapshot.Snapshot
+  readonly tags: ReadonlyArray<Tag>
+  readonly root: string
+  /** The store's invalid node files. */
+  readonly invalid: ReadonlyArray<{ readonly id: string; readonly detail: string }>
+  /** The whole graph's lint findings. */
+  readonly findings: ReadonlyArray<{ readonly severity: string; readonly code: string; readonly message: string; readonly about: ReadonlyArray<string> }>
+  readonly agenda: ReadonlyArray<{ readonly id: string; readonly title: string; readonly about: ReadonlyArray<string> }>
+  /** True when a scenario's tagged code has a commit after `commit`. */
+  readonly changedSince: (scenario: string, commit: string) => boolean
+  readonly hasCommit: (sha: string) => boolean
+  /** Binary media is committed (`[e2e] media = "commit"`). */
+  readonly commitBinary?: boolean
+  /** Completeness, coverage and proof fail the audit too. */
+  readonly strict?: boolean
+}
+
+/** Lint codes that mean the graph's shape is broken, not its wording. */
+const STRUCTURE = new Set(["unknown-type", "unknown-edge", "edge-source", "edge-target", "too-few-edges", "too-many-edges", "duplicate-edge"])
+/** Gherkin agenda items coverage reports on its own. */
+const COVERAGE_ITEMS = new Set(["gherkin:uncovered", "gherkin:unserving"])
+const PROBLEMS_FIRST: ReadonlyArray<CheckName> = ["structure", "lints", "code", "integrity", "completeness", "coverage", "proof"]
+
+/** Everything CI needs to know: the graph's shape and lints, its completeness and intent coverage, code tags, proof by evidence, and the evidence's integrity. */
+export const fullAudit = (i: FullInput): Full => {
+  const report = audit(i.snap, i.tags)
+  const entries = readEvidence(i.root)
+  const byScenario = new Map(entries.flatMap((e) => (e.evidence === undefined ? [] : [[e.evidence.scenario, e.evidence] as const])))
+  const proofs = report.scenarios.map((s): ProofRow => {
+    const evidence = byScenario.get(s.id)
+    const proof = s.status === "planned" ? "planned" : proofOf(evidence, scenarioVersion(i.snap, s.id)!, evidence !== undefined && i.changedSince(s.id, evidence.commit))
+    return { scenario: s.id, title: s.title, proof, ...(evidence === undefined ? {} : { evidence }) }
+  })
+  const soft: Level = i.strict === true ? "problem" : "warning"
+  const errors = i.findings.filter((f) => f.severity === "error")
+  const finding = (f: (typeof errors)[number]): Item => ({ id: f.about[0] ?? f.code, detail: `${f.code}: ${f.message}` })
+  const checks: ReadonlyArray<Check> = [
+    {
+      name: "structure",
+      level: "problem",
+      items: [
+        ...i.invalid.map((x) => ({ id: x.id, detail: x.detail })),
+        ...errors.filter((f) => STRUCTURE.has(f.code)).map(finding),
+        ...Snapshot.danglingEdges(i.snap).map((d) => ({ id: d.from, detail: `${d.edge.type} to missing ${d.edge.to}` })),
+      ],
+    },
+    { name: "lints", level: "problem", items: errors.filter((f) => !STRUCTURE.has(f.code)).map(finding) },
+    { name: "completeness", level: soft, items: i.agenda.filter((a) => a.id.startsWith("gherkin:") && !COVERAGE_ITEMS.has(a.id)).map((a) => ({ id: a.about[0] ?? a.id, detail: a.title })) },
+    { name: "coverage", level: soft, items: report.warnings.map((w) => (w.kind === "uncovered" ? { id: w.outcome, detail: `uncovered: ${w.text}` } : { id: w.journey, detail: `unserving: ${w.name}` })) },
+    {
+      name: "code",
+      level: "problem",
+      items: report.problems.map((p) =>
+        p.kind === "untagged" ? { id: p.scenario, detail: `untagged: ${p.title}` } : p.kind === "planned-but-tagged" ? { id: p.scenario, detail: `planned-but-tagged: ${p.tags.map((t) => `${t.file}:${t.line}`).join(", ")}` } : { id: p.id, detail: `orphan: ${p.file}:${p.line}` },
+      ),
+    },
+    {
+      name: "proof",
+      level: soft,
+      items: proofs
+        .filter((p) => p.proof !== "proven" && p.proof !== "planned")
+        .map((p) => ({ id: p.scenario, detail: `${p.proof}: ${p.title}${p.evidence?.failure ? ` (expected ${p.evidence.failure.expected})` : ""}`, ...(p.evidence ? { media: p.evidence.media.map((m) => m.path) } : {}) })),
+    },
+    { name: "integrity", level: "problem", items: integrity(i.root, entries, new Set(report.scenarios.map((s) => s.id)), i.hasCommit, i.commitBinary).map((x) => ({ id: x.file, detail: `${x.kind}: ${x.detail}` })) },
+  ]
+  return { ...report, checks, proofs }
+}
+
+export const exitCode = (r: Full): 0 | 1 => (r.checks.some((c) => c.level === "problem" && c.items.length > 0) ? 1 : 0)
+
+/** A line per item, problems first, then the counts. */
+export const fullSummary = (r: Full): string => {
+  const ordered = PROBLEMS_FIRST.map((n) => r.checks.find((c) => c.name === n)!)
+  const counts = (l: Level) => ordered.filter((c) => c.level === l).map((c) => `${c.name} ${c.items.length}`)
+  const built = r.proofs.filter((p) => p.proof !== "planned")
+  const tail = [
+    ...(counts("problem").length > 0 ? [`${counts("problem").join(" · ")} (problems)`] : []),
+    ...(counts("warning").length > 0 ? [`${counts("warning").join(" · ")} (warnings)`] : []),
+    `${built.filter((p) => p.proof === "proven").length} proven of ${built.length} built, ${r.proofs.length - built.length} planned`,
+  ].join(" · ")
+  return [...[...ordered].sort((a, b) => (a.level === b.level ? 0 : a.level === "problem" ? -1 : 1)).flatMap((c) => c.items.map((it) => `${c.name.padEnd(13)} ${it.id} ${it.detail}`)), tail].join("\n")
+}
+
+const xml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+/** One test case per scenario: proven passes, planned is skipped, the rest fail with what they expected and their media. */
+export const toJunit = (r: Full): string => {
+  const failures = r.proofs.filter((p) => p.proof !== "proven" && p.proof !== "planned").length
+  const skipped = r.proofs.filter((p) => p.proof === "planned").length
+  const cases = r.proofs.map((p) => {
+    const open = `<testcase classname="zarg" name="${xml(`${p.scenario} ${p.title}`)}">`
+    if (p.proof === "proven") return `${open}</testcase>`
+    if (p.proof === "planned") return `${open}<skipped message="planned"/></testcase>`
+    const f = p.evidence?.failure
+    const body = [f ? `expected: ${f.expected}\nsaw: ${f.saw}` : "", ...(p.evidence?.media ?? []).map((m) => `${m.kind}: ${EVIDENCE_DIR}/${m.path}`)].filter((x) => x !== "").join("\n")
+    return `${open}<failure message="${p.proof}">${xml(body)}</failure></testcase>`
+  })
+  return [`<?xml version="1.0" encoding="UTF-8"?>`, `<testsuite name="zarg proof" tests="${r.proofs.length}" failures="${failures}" skipped="${skipped}">`, ...cases, `</testsuite>`, ""].join("\n")
+}
