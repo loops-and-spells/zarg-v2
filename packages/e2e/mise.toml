@@ -1,0 +1,6 @@
+[tasks.typecheck]
+run = "mise x -- bunx tsc"
+
+[tasks.test]
+description = "The harness's own tests (no models, no router)"
+run = "mise x -- bun test test"

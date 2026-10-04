@@ -1,0 +1,15 @@
+{
+  "name": "@zarg/e2e",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@zarg/audit": "workspace:*",
+    "@zarg/graph": "workspace:*"
+  },
+  "devDependencies": {
+    "@xterm/headless": "^6"
+  }
+}
