@@ -361,13 +361,17 @@ describe("zarg audit, the one CI check", () => {
     call("add-scenario", { title: "User pays", when: "the user pays", by: [{ name: "User" }], arrives: { text: "the plans are shown" }, then: [{ text: "the receipt is shown" }] })
     for (const id of ["S-0001", "S-0002"]) call("link", { scenario: id, edge: "in", journey: { name: "Buy" } })
     call("edit-scenario", { id: "S-0002", planned: true })
+    call("edit-state", { id: "ST-0001", entry: true })
     require("node:fs").writeFileSync(join(r, "pricing.ts"), `export const open = () => 1 // ${"@" + "scenario"} S-0001\n`)
     // Unproven is a warning by default, a problem under --strict.
     expect(zargIn(r, "audit", "--summary").code).toBe(0)
     const strict = zargIn(r, "audit", "--summary", "--strict")
     expect(strict.code).toBe(1)
     expect(strict.out).toContain("S-0001 unproven")
-    expect(strict.out).not.toContain("S-0002 unproven")
+    // Only the proof: nothing about the planned scenario, or the states only it reaches.
+    expect(strict.out).not.toContain("S-0002")
+    expect(strict.out).not.toContain("ST-0003")
+    expect(strict.out.split("\n").at(-2) ?? "").toMatch(/completeness 0 · coverage 0 · proof 1/)
     rmSync(r, { recursive: true, force: true })
   }, 60_000)
 })

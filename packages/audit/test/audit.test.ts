@@ -138,6 +138,23 @@ describe("the full audit", () => {
     expect(exitCode(r)).toBe(1)
     expect(fullAudit({ ...base, snap: graph, root: root(), tags: [{ id: "S-1", file: "a.ts", line: 1 }], strict: true }).checks.find((c) => c.name === "proof")!.level).toBe("problem")
   })
+  // @scenario S-0113
+  test("strict: completeness never counts what only planned scenarios reach, or planned scenarios themselves", () => {
+    const g = Snapshot.make([
+      { id: "ST-1", type: "gherkin/state", props: { text: "a" }, edges: [] },
+      { id: "ST-2", type: "gherkin/state", props: { text: "b" }, edges: [] },
+      { id: "ST-3", type: "gherkin/state", props: { text: "c" }, edges: [] },
+      { id: "S-1", type: "gherkin/scenario", props: { title: "one", when: "w" }, edges: [{ type: "gherkin/arrives", to: "ST-1" }, { type: "gherkin/then", to: "ST-2" }] },
+      { id: "S-2", type: "gherkin/scenario", props: { title: "two", when: "w", planned: true }, edges: [{ type: "gherkin/arrives", to: "ST-2" }, { type: "gherkin/then", to: "ST-3" }] },
+    ] as never)
+    const agenda = [
+      { id: "gherkin:dead-end:ST-3", title: "What next after c?", about: ["ST-3"] },
+      { id: "gherkin:planned:S-2", title: "S-2 is planned", about: ["S-2"] },
+      { id: "gherkin:entry:ST-1", title: "What leads to a?", about: ["ST-1"] },
+    ]
+    const r = fullAudit({ ...base, snap: g, root: root(), tags: [{ id: "S-1", file: "a.ts", line: 1 }], agenda, strict: true })
+    expect(r.checks.find((c) => c.name === "completeness")!.items.map((x) => x.id)).toEqual(["ST-1"])
+  })
   test("junit: one test case per scenario; proven passes, the rest fail with their media; planned is skipped", () => {
     const xml = toJunit(fullAudit({ ...base, snap: graph, root: root(), tags: [{ id: "S-1", file: "a.ts", line: 1 }] }))
     expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true)

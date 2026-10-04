@@ -133,6 +133,13 @@ export const fullAudit = (i: FullInput): Full => {
     return { scenario: s.id, title: s.title, proof, ...(evidence === undefined ? {} : { evidence }) }
   })
   const soft: Level = i.strict === true ? "problem" : "warning"
+  // Planned scenarios never count: nor do the states only they reach (a planned scenario's Then is no dead end yet).
+  const planned = (id: string) => i.snap.nodes.get(id)?.props.planned === true
+  const onlyPlanned = (id: string) => {
+    if (planned(id)) return true
+    const users = [...i.snap.nodes.values()].filter((n) => n.type === "gherkin/scenario" && n.edges.some((e) => e.to === id))
+    return users.length > 0 && users.every((n) => planned(n.id))
+  }
   const errors = i.findings.filter((f) => f.severity === "error")
   const finding = (f: (typeof errors)[number]): Item => ({ id: f.about[0] ?? f.code, detail: `${f.code}: ${f.message}` })
   const checks: ReadonlyArray<Check> = [
@@ -146,7 +153,7 @@ export const fullAudit = (i: FullInput): Full => {
       ],
     },
     { name: "lints", level: "problem", items: errors.filter((f) => !STRUCTURE.has(f.code)).map(finding) },
-    { name: "completeness", level: soft, items: i.agenda.filter((a) => a.id.startsWith("gherkin:") && !COVERAGE_ITEMS.has(a.id)).map((a) => ({ id: a.about[0] ?? a.id, detail: a.title })) },
+    { name: "completeness", level: soft, items: i.agenda.filter((a) => a.id.startsWith("gherkin:") && !COVERAGE_ITEMS.has(a.id) && !(a.about.length > 0 && a.about.every(onlyPlanned))).map((a) => ({ id: a.about[0] ?? a.id, detail: a.title })) },
     { name: "coverage", level: soft, items: report.warnings.map((w) => (w.kind === "uncovered" ? { id: w.outcome, detail: `uncovered: ${w.text}` } : { id: w.journey, detail: `unserving: ${w.name}` })) },
     {
       name: "code",
