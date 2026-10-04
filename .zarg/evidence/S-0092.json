@@ -1,0 +1,42 @@
+{
+  "scenario": "S-0092",
+  "version": "dcd49f10ab93",
+  "commit": "290d24a",
+  "run": "e2e-2026-10-04T22-12-42.674Z",
+  "journey": "J-0006",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T22:12:48.415Z",
+  "ms": 5685,
+  "media": [
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "the inbox's rows",
+      "path": "media/S-0092/1-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0092/2-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0092/3-step.cast",
+      "meta": {
+        "startAt": 0
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/client/src/inbox.ts": "13b88a44c212d5fc6af803044e8af770c022489b",
+    "packages/client/src/state.ts": "4573aa9bfa830f98473f9758704f7807862981db",
+    "packages/client/test/inbox.test.ts": "5dc4ad2182c33e271286f410c7215b3e906a7af2",
+    "packages/view-tui/src/inbox-keys.ts": "2640092c93e5d1791f2d79ac44136457ee9a16be",
+    "packages/view-tui/test/inbox.test.ts": "f98feaf9ac6294dea82c66ef0ec211179e51a89f"
+  }
+}

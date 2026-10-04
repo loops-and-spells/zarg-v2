@@ -1,0 +1,4 @@
+   project · main      │   · probe         Gate: go  probe-heard  now                                                   
+                       │  ▍· probe         Heard a: drop (too old)  probe-heard  now                                    
+ VIEWS               3 │   · probe         Heard b: keep  probe-heard  now                                              
+▍ ▤ Inbox            4 │   · probe         Heard c: keep  probe-heard  now                                              

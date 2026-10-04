@@ -1,0 +1,39 @@
+{
+  "scenario": "S-0095",
+  "version": "23a5bba24183",
+  "commit": "290d24a",
+  "run": "e2e-2026-10-04T22-12-42.674Z",
+  "journey": "J-0006",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T22:12:49.907Z",
+  "ms": 607,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0095/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0095/2-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0095/3-step.cast",
+      "meta": {
+        "startAt": 5.2
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/core/src/inbox.ts": "54ae1741107fe2bed0358ce51addf3a256a48a25",
+    "packages/core/test/inbox-routes.test.ts": "c75622c6c355fbade456e184dc3470b5c9af14ed",
+    "packages/core/test/inbox.test.ts": "c34bbdbcef749fbcff0599e96a00e60983766ca7",
+    "packages/view-tui/src/inbox-keys.ts": "2640092c93e5d1791f2d79ac44136457ee9a16be",
+    "packages/view-tui/test/inbox.test.ts": "f98feaf9ac6294dea82c66ef0ec211179e51a89f"
+  }
+}

@@ -1,18 +1,12 @@
 import { expect } from "bun:test"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { fakeProvider, journey, type Term } from "../src"
+import { answerLoads, command, fakeProvider, journey, PROBE, type Term, termOf } from "../src"
 
 // A provider on the OpenRouter wire, with a key made up for this run: never a real one.
 const KEY = `sk-or-e2e-${crypto.randomUUID()}`
 const provider = fakeProvider({ key: KEY, models: ["e2e/one", "e2e/two"] })
 
-/** A slash command, typed as the operator types it. */
-const command = async (t: Term, text: string) => {
-  t.type(text)
-  await t.waitFor(text, 5_000)
-  t.press("enter")
-}
 /** Sets the highlighted setting of the Log in table to `value` (its old value cleared). */
 const setValue = async (t: Term, value: string) => {
   t.press("enter")
@@ -21,41 +15,6 @@ const setValue = async (t: Term, value: string) => {
   t.type(value)
   t.press("enter")
   await t.waitGone("⏎ save", 5_000)
-}
-/** Answers Not now to each plugin's grant question until none is left; the plugins that asked. */
-const notNow = async (t: Term) => {
-  const asked = new Set<string>()
-  const until = Date.now() + 30_000
-  for (let quiet = 0; quiet < 3 && Date.now() < until; ) {
-    await Bun.sleep(400)
-    const m = /Plugin (\S+) wants to load/.exec(t.screen())
-    if (m !== null && t.screen().includes("Not now")) {
-      quiet = 0
-      asked.add(m[1]!)
-      await t.choose("Not now")
-    } else quiet++
-  }
-  return [...asked]
-}
-/** Answers each plugin's load question: Allow for `allow`, Not now for the rest; the plugins that asked. */
-const answerLoads = async (t: Term, allow: string) => {
-  const asked: Array<string> = []
-  const until = Date.now() + 30_000
-  for (let quiet = 0; quiet < 4 && Date.now() < until; ) {
-    await Bun.sleep(400)
-    const m = /Plugin (\S+) wants to load/.exec(t.screen())
-    if (m !== null && t.screen().includes("Not now")) {
-      quiet = 0
-      asked.push(m[1]!)
-      await t.choose(m[1] === allow ? "Allow" : "Not now")
-    } else quiet++
-  }
-  return asked
-}
-const PROBE = join(import.meta.dir, "..", "fixtures", "probe")
-const termOf = (t: Term | undefined, id: string) => {
-  if (t === undefined) throw new Error(`${id} runs in the session an earlier step opened, and none is open`)
-  return t
 }
 
 // Notes the probe plugin may read (once it asks), and a file it never declared.
@@ -114,7 +73,7 @@ journey("J-0002", { tier: "fast", seed: SEED }, (proves) => {
     await t.waitGone(/·\s*YOLO\s*·/, 10_000)
     // The plugins the operator never approved ask again.
     await t.waitFor("wants to load", 15_000)
-    const asked = await notNow(t)
+    const asked = await answerLoads(t)
     s.note("buffer", "plugins that asked again", asked.join("\n"))
     // None of them was ever approved (S-0069 said Not now to each).
     expect(asked.length).toBeGreaterThan(0)
@@ -185,7 +144,8 @@ journey("J-0002", { tier: "fast", seed: SEED }, (proves) => {
   proves("S-0034", async (s) => {
     const t = termOf(s.term, "S-0034")
     await t.waitFor("openrouter:e2e/one", 10_000)
-    expect(t.screen()).toContain("openrouter:e2e/two")
+    // (The table may draw its rows one frame apart.)
+    await t.waitFor("openrouter:e2e/two", 5_000)
   })
 
   proves("S-0035", async (s) => {

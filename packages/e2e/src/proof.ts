@@ -69,10 +69,11 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
     }
     // A step that ends the process (a crash, an exit) has failed: its world goes the same way.
     process.on("exit", () => dispose(true))
+    // Quitting can take the exit's own 10 s (a session that will not quit is killed): more than a hook's default.
     afterAll(async () => {
       if (term !== undefined) await term.exit().catch(() => undefined)
       dispose(failed)
-    })
+    }, 30_000)
     let tagged: Promise<ReadonlyArray<Tag>> | undefined
     // @scenario S-0115
     const proves: Proves = (scenario, fn, o = {}) => {

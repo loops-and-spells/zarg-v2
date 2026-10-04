@@ -1,0 +1,4 @@
+   project · main      │  ▍◆ probe         Probe waits for a go  probe-gate · waiting · 2 options  now                  
+                       │   ◇ probe         Check a  probe-check · 2 options  now                                        
+ VIEWS               3 │   ◇ probe         Check b  probe-check · 2 options  now                                        
+▍ ◆ Inbox            4 │   ◇ probe         Check c  probe-check · 2 options  now                                        
