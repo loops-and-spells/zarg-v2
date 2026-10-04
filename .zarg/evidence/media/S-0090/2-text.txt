@@ -1,0 +1,4 @@
+{
+  "error": "CoreStartError",
+  "message": "a zarg session is running here (pid 2981611); zarg --attach to join it, or quit it first"
+}

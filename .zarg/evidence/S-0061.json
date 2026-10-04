@@ -1,0 +1,45 @@
+{
+  "scenario": "S-0061",
+  "version": "4f05d32ad097",
+  "commit": "be930b2",
+  "run": "e2e-2026-10-04T22-05-35.870Z",
+  "journey": "J-0002",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T22:06:09.383Z",
+  "ms": 4361,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0061/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "plugins that asked to load",
+      "path": "media/S-0061/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0061/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0061/4-step.cast",
+      "meta": {
+        "startAt": 12.7
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/cli/src/commands.ts": "832c0799df4890ae0a697ced852db039d338e34b",
+    "packages/plugin/src/server/host.ts": "be619b3d6a4b92f47f1f1b11653a1bba33c13074",
+    "packages/plugin/test/load-waiting.test.ts": "eb8518bc9f80d05a43ead19cf34041fc566c6613"
+  }
+}

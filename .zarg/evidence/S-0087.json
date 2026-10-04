@@ -1,0 +1,37 @@
+{
+  "scenario": "S-0087",
+  "version": "24debaf1b603",
+  "commit": "be930b2",
+  "run": "e2e-2026-10-04T22-05-35.870Z",
+  "journey": "J-0002",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T22:05:45.344Z",
+  "ms": 105,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0087/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0087/2-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0087/3-step.cast",
+      "meta": {
+        "startAt": 8.8
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/client/src/session.ts": "88faa1c0f22e57e24e825816df9a7f29556d9d59",
+    "packages/client/test/session.test.ts": "e9a1dcff712f0d041048f1ca3fd5bfbd75d86bb4",
+    "packages/core/src/setup.ts": "58734091e3047abd62e960c6596a46190feb3065"
+  }
+}

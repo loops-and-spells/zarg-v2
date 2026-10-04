@@ -1,5 +1,5 @@
 import { expect } from "bun:test"
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { fakeProvider, journey, type Term } from "../src"
 
@@ -37,12 +37,31 @@ const notNow = async (t: Term) => {
   }
   return [...asked]
 }
+/** Answers each plugin's load question: Allow for `allow`, Not now for the rest; the plugins that asked. */
+const answerLoads = async (t: Term, allow: string) => {
+  const asked: Array<string> = []
+  const until = Date.now() + 30_000
+  for (let quiet = 0; quiet < 4 && Date.now() < until; ) {
+    await Bun.sleep(400)
+    const m = /Plugin (\S+) wants to load/.exec(t.screen())
+    if (m !== null && t.screen().includes("Not now")) {
+      quiet = 0
+      asked.push(m[1]!)
+      await t.choose(m[1] === allow ? "Allow" : "Not now")
+    } else quiet++
+  }
+  return asked
+}
+const PROBE = join(import.meta.dir, "..", "fixtures", "probe")
 const termOf = (t: Term | undefined, id: string) => {
   if (t === undefined) throw new Error(`${id} runs in the session an earlier step opened, and none is open`)
   return t
 }
 
-journey("J-0002", { tier: "fast" }, (proves) => {
+// Notes the probe plugin may read (once it asks), and a file it never declared.
+const SEED = { "notes/a.md": "alpha\n", "notes/b.md": "beta\n", "notes/c.md": "gamma\n", "secrets.txt": "hidden\n" }
+
+journey("J-0002", { tier: "fast", seed: SEED }, (proves) => {
   proves("S-0084", async (s) => {
     const t = await s.open()
     // First run, no model: the Setup sheet, every provider and whether it answers.
@@ -256,5 +275,88 @@ journey("J-0002", { tier: "fast" }, (proves) => {
     }
     if (!gone) process.kill(left.pid, "SIGKILL")
     expect(gone).toBe(true)
+  })
+
+  proves("S-0060", async (s) => {
+    // A third-party plugin, built and published with an install script.
+    const built = await s.cli(["plugin", "build", PROBE])
+    expect(built.code).toBe(0)
+    const dist = join(PROBE, "dist")
+    const marker = join(s.w.home, "install-script-ran")
+    writeFileSync(join(dist, "package.json"), JSON.stringify({ name: "probe", scripts: { postinstall: `touch ${marker}`, preinstall: `touch ${marker}` } }))
+    const added = await s.cli(["plugin", "add", dist])
+    s.note("buffer", "zarg plugin add", added.out + added.err)
+    expect(added.json).toMatchObject({ installed: "probe" })
+    expect(existsSync(marker)).toBe(false)
+    // It waits for the operator: listed in the project, never yet approved.
+    writeFileSync(join(s.w.project, ".zarg", "config.toml"), `[plugins.probe]\nsource = ${JSON.stringify(dist)}\n`)
+    expect(String((added.json as { next: string }).next)).toContain("approve it")
+  })
+
+  proves("S-0061", async (s) => {
+    s.term !== undefined && (await s.term.exit())
+    const t = await s.open()
+    const asked = await answerLoads(t, "probe")
+    s.note("buffer", "plugins that asked to load", asked.join("\n"))
+    expect(asked).toContain("probe")
+    const grants = JSON.parse(readFileSync(join(s.w.userDir, "grants.json"), "utf8"))
+    expect(grants[s.w.project]?.probe?.digests?.length).toBe(1)
+    // Only what it declared: no extra grant yet.
+    expect(grants[s.w.project]?.probe?.extra).toBeUndefined()
+    // The Setup sheet (no provider answers) gives the keys back on Esc.
+    t.press("esc")
+    await t.waitGone("esc closes", 10_000)
+  })
+
+  proves("S-0062", async (s) => {
+    const t = termOf(s.term, "S-0062")
+    await command(t, "/peek a")
+    await t.waitFor("Plugin probe wants to read", 15_000)
+    expect(t.screen()).toMatch(/notes\/a\.md/)
+    expect(t.screen()).toMatch(/Always\s+Deny/)
+  })
+
+  proves("S-0063", async (s) => {
+    const t = termOf(s.term, "S-0063")
+    await t.choose("Allow")
+    await t.waitFor("note: alpha", 10_000)
+  })
+
+  proves("S-0064", async (s) => {
+    const t = termOf(s.term, "S-0064")
+    await command(t, "/peek b")
+    await t.waitFor(/Plugin probe wants to read[\s\S]*b\.md/, 15_000)
+    await t.choose("Always")
+    await t.waitFor("note: beta", 10_000)
+    const extra = JSON.parse(readFileSync(join(s.w.userDir, "grants.json"), "utf8"))[s.w.project]?.probe?.extra
+    s.note("buffer", "grants.json (probe's saved grants)", JSON.stringify(extra, null, 2))
+    expect(extra).toEqual([{ kind: "fs-read", glob: join(s.w.project, "notes", "b.md") }])
+  })
+
+  proves("S-0065", async (s) => {
+    const t = termOf(s.term, "S-0065")
+    await command(t, "/peek c")
+    await t.waitFor(/Plugin probe wants to read[\s\S]*c\.md/, 15_000)
+    await t.choose("Deny")
+    await t.waitFor("refused: denied", 10_000)
+    expect(t.screen()).not.toContain("gamma")
+  })
+
+  proves("S-0066", async (s) => {
+    const t = termOf(s.term, "S-0066")
+    await command(t, "/escape")
+    await t.waitFor("undeclared", 10_000)
+    expect(t.screen()).not.toContain("hidden")
+    expect(t.screen()).not.toContain("wants to read")
+  })
+
+  proves("S-0068", async (s) => {
+    const t = termOf(s.term, "S-0068")
+    for (let i = 0; i < 3; i++) {
+      await command(t, "/spin")
+      await Bun.sleep(1_500)
+    }
+    // The inbox says it stopped, and why.
+    await t.waitFor("Plugin probe was disabled after 3 restarts", 15_000)
   })
 })

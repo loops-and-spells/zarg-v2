@@ -1,0 +1,6 @@
+[
+  {
+    "kind": "fs-read",
+    "glob": "/tmp/zarg-e2e-vtuCVC/project/notes/b.md"
+  }
+]

@@ -1,0 +1,44 @@
+{
+  "scenario": "S-0064",
+  "version": "9a948bcd74a1",
+  "commit": "be930b2",
+  "run": "e2e-2026-10-04T22-05-35.870Z",
+  "journey": "J-0002",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T22:06:12.920Z",
+  "ms": 1861,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0064/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "grants.json (probe's saved grants)",
+      "path": "media/S-0064/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0064/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0064/4-step.cast",
+      "meta": {
+        "startAt": 5.5
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/plugin/src/runtime/powers.ts": "5f2696731d331d8d311938c54ca555d921290289",
+    "packages/plugin/test/powers.test.ts": "274890f9808c32d3e98f35dffc5e420cc3eba4db"
+  }
+}

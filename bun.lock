@@ -188,6 +188,7 @@
       },
       "devDependencies": {
         "@xterm/headless": "^6",
+        "@zarg/plugin-sdk": "workspace:*",
       },
     },
     "packages/entities": {

@@ -1,0 +1,45 @@
+{
+  "scenario": "S-0060",
+  "version": "e47c5ba61aab",
+  "commit": "be930b2",
+  "run": "e2e-2026-10-04T22-05-35.870Z",
+  "journey": "J-0002",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T22:06:05.021Z",
+  "ms": 952,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0060/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "zarg plugin add",
+      "path": "media/S-0060/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0060/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0060/4-step.cast",
+      "meta": {
+        "startAt": 11.8
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/cli/src/commands.ts": "832c0799df4890ae0a697ced852db039d338e34b",
+    "packages/plugin/src/server/install.ts": "2245666f3f335b637d348b6652c36150479bad53",
+    "packages/plugin/test/install.test.ts": "f2331b1a6ce7e4e00431a715ecdb2830d1e2cc09"
+  }
+}

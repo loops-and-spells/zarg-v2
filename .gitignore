@@ -20,3 +20,4 @@ packages/plugin/test/fixtures/.gen/
 
 # the built catalog (mise run catalog)
 site/
+packages/e2e/fixtures/*/dist/

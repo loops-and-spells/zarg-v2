@@ -1,0 +1,44 @@
+{
+  "scenario": "S-0090",
+  "version": "9375ee874d05",
+  "commit": "be930b2",
+  "run": "e2e-2026-10-04T22-05-35.870Z",
+  "journey": "J-0002",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T22:05:48.549Z",
+  "ms": 483,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0090/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "zarg (a second session)",
+      "path": "media/S-0090/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0090/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0090/4-step.cast",
+      "meta": {
+        "startAt": 1.3
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/client/src/connect.ts": "b10535add4502008f447d5065c55128810bb0272",
+    "packages/client/test/connect.test.ts": "feafb3abfb1f511e4172b4269c840aff5d6ec1b6"
+  }
+}
