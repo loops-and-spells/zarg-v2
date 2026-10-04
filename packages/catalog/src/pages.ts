@@ -30,7 +30,7 @@ export const css = (): string =>
     `@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){${vars("web.dark")}color-scheme:dark}}`,
     `:root[data-theme="dark"]{${vars("web.dark")}color-scheme:dark}`,
     `*,*::before,*::after{box-sizing:border-box}`,
-    `body{margin:0;background:var(--ground);color:var(--text);font:15px/1.55 ${SANS};-webkit-text-size-adjust:100%}`,
+    `body{margin:0;background:var(--ground);color:var(--text);font:15px/1.55 ${SANS};-webkit-text-size-adjust:100%;overflow-wrap:anywhere}`,
     `a{color:var(--accent);text-underline-offset:2px}a:hover{text-decoration-thickness:2px}`,
     `:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}`,
     `h1,h2,h3{text-wrap:balance;line-height:1.2;margin:0}h1{font-size:1.95rem;font-weight:700;letter-spacing:-.01em}h2{font-size:1.25rem;font-weight:650;margin-top:2.2rem}h3{font-size:1rem;font-weight:650}`,
@@ -78,7 +78,8 @@ export const css = (): string =>
     `.card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 22px;padding:12px 14px;background:var(--raised);border:1px solid var(--line);border-radius:6px}`,
     `.card .title{font-weight:650;font-size:1.05rem;color:var(--text);text-decoration:none}.card .title:hover{color:var(--accent)}`,
     `.card .who{color:var(--dim);font-size:.9em}`,
-    `.thumb{width:260px;max-width:100%;overflow:hidden;border-radius:4px;border:1px solid var(--line);align-self:start;line-height:0}.thumb svg,.thumb img{display:block;width:100%;height:auto;max-height:180px;object-fit:cover;object-position:top}`,
+    // The catalog's own class: evidence plugins have their own (a trace's film strip uses .thumb).
+    `.card-thumb{width:260px;max-width:100%;max-height:180px;overflow:hidden;border-radius:4px;border:1px solid var(--line);align-self:start;line-height:0}.card-thumb svg,.card-thumb img{display:block;width:100%;height:auto;max-height:180px;object-fit:cover;object-position:top}`,
     `.flow{grid-column:1/-1;color:var(--dim);font-size:.9em;margin:0}`,
     `details{grid-column:1/-1}summary{cursor:pointer;color:var(--dim);font-size:.9em}`,
     // Scenario.
@@ -97,7 +98,7 @@ export const css = (): string =>
     `.hits{list-style:none;padding:0}.hits li{padding:6px 0;border-bottom:1px solid var(--line)}`,
     ...Object.entries(TOKEN_KEY).map(([t, k]) => `.t-${t}{color:var(--${k})}`),
     `.t-title{font-weight:700}`,
-    `@media (max-width:640px){.verdict{font-size:1.7rem}.card{grid-template-columns:minmax(0,1fr)}.thumb{width:100%}.pair{grid-template-columns:minmax(0,1fr)}.ledger>li{grid-template-columns:minmax(0,1fr)}.ledger .red{text-align:left}.top input{width:100%}}`,
+    `@media (max-width:640px){.verdict{font-size:1.7rem}.card{grid-template-columns:minmax(0,1fr)}.card-thumb{width:100%}.pair{grid-template-columns:minmax(0,1fr)}.ledger>li{grid-template-columns:minmax(0,1fr)}.ledger .red{text-align:left}.top input{width:100%}}`,
     `@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}`,
   ].join("\n") + "\n"
 
@@ -131,7 +132,10 @@ const THEME_HEAD = `<script>try{const t=localStorage.getItem("zarg-catalog-theme
 const THEME_SCRIPT = `<script>
 {
   const root = document.documentElement, b = document.getElementById("theme")
-  const label = () => (b.textContent = { light: "Light", dark: "Dark" }[root.dataset.theme] || "System")
+  const label = () => {
+    b.textContent = { light: "Light", dark: "Dark" }[root.dataset.theme] || "System"
+    b.setAttribute("aria-label", "Theme: " + b.textContent)
+  }
   label()
   b.addEventListener("click", () => {
     const next = root.dataset.theme === "light" ? "dark" : root.dataset.theme === "dark" ? "system" : "light"
@@ -156,7 +160,7 @@ const layout = (c: Catalog, up: string, title: string, body: string, scripts = "
     ...(head === "" ? [] : [head]),
     `</head>`,
     `<body>`,
-    `<header class="top"><a class="name" href="${up}index.html">${esc(c.project || "zarg")} catalog</a><nav><a href="${up}index.html">Intents</a><a href="${up}search.html">Search</a></nav><form action="${up}search.html" method="get" role="search"><input name="q" type="search" placeholder="Search scenarios, journeys…" aria-label="Search"></form><button type="button" class="theme" id="theme">System</button></header>`,
+    `<header class="top"><a class="name" href="${up}index.html">${esc(c.project || "zarg")} catalog</a><nav><a href="${up}index.html">Intents</a><a href="${up}search.html">Search</a></nav><form action="${up}search.html" method="get" role="search"><input name="q" type="search" placeholder="Search scenarios, journeys…" aria-label="Search"></form><button type="button" class="theme" id="theme" aria-label="Theme: System">System</button></header>`,
     `<main>`,
     body,
     `</main>`,
@@ -286,7 +290,7 @@ const journeyPage = (c: Catalog, j: Catalog["journeys"][number], byId: ReadonlyM
       `<li class="step s-${s.status}" id="${esc(id)}"><div class="card">`,
       `<div><a class="title" href="../scenarios/${esc(id)}.html">${esc(s.title)}</a> ${badge(s.status)}`,
       `<div class="who">${s.by.length > 0 ? `${esc(s.by.map((p) => p.name).join(", "))} · ` : ""}${link("../", id)}</div></div>`,
-      thumb === undefined ? "" : `<div class="thumb">${thumb.html}</div>`,
+      thumb === undefined ? "" : `<div class="card-thumb">${thumb.html}</div>`,
       flow.length > 0 ? `<p class="flow">${flow.join("<br>")}</p>` : "",
       `<details><summary>Gherkin</summary>${gherkin(scenarioText(s))}</details>`,
       `</div></li>`,
@@ -336,7 +340,7 @@ const scenarioPage = (c: Catalog, s: ScenarioPage, rendered: Rendered) => {
   const visual = media.filter((m) => VISUAL.has(m.kind))
   const other = media.filter((m) => !VISUAL.has(m.kind))
   const assets = assetTags("../", assetsOf(media.filter((m) => m.present).map((m) => m.path), rendered))
-  const saw = fragment(rendered, s.thumb)
+  const saw = fragment(rendered, s.saw)
   return layout(
     c,
     "../",

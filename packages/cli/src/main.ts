@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { BunRuntime, BunServices } from "@effect/platform-bun"
-import { Console, Effect, Layer } from "effect"
+import { Effect, Layer } from "effect"
 import { CliError, Command } from "effect/unstable/cli"
 import { layer as graphLayer } from "@zarg/graph"
 import { zarg } from "./commands"
@@ -19,7 +19,8 @@ const report = (e: unknown) => {
   const { _tag, ...fields } = e as { _tag?: string }
   const message = e instanceof Error && e.message !== "" ? { message: e.message } : {}
   return Effect.andThen(
-    Console.error(JSON.stringify({ error: _tag ?? "Error", ...fields, ...message }, null, 2)),
+    // Written as is: a runtime's console may colour what it prints (FORCE_COLOR), and JSON must stay JSON.
+    Effect.sync(() => void process.stderr.write(`${JSON.stringify({ error: _tag ?? "Error", ...fields, ...message }, null, 2)}\n`)),
     Effect.sync(() => {
       process.exitCode = 1
     }),

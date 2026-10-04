@@ -54,3 +54,14 @@ test("minors: a plugin's assets load in the order it gave them; paths in links a
   expect(s1.indexOf("plugins/evidence-x/z.js")).toBeLessThan(s1.indexOf("plugins/evidence-x/a.js"))
   expect(s1).toContain('<a href="../media/S-1/a%20b%23.cast">a b#.cast</a>')
 })
+
+test("review fixes: the card's thumbnail class is the catalog's own; long strings wrap; the theme button says what it is", () => {
+  const c = catalog()
+  const withThumb = { ...c, scenarios: c.scenarios.map((s) => (s.id === "S-1" ? { ...s, thumb: "media/S-1/after.txt" } : s)) }
+  const j = pages(withThumb, rendered()).get("journeys/J-1.html")!
+  expect(j).toContain('<div class="card-thumb">')
+  expect(j).not.toContain('class="thumb"')
+  expect(css()).toContain("overflow-wrap:anywhere")
+  expect(css()).not.toMatch(/(^|[^-])\.thumb\{/)
+  expect(pages(c, rendered()).get("index.html")).toContain('aria-label="Theme: System"')
+})

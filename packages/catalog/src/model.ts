@@ -34,6 +34,8 @@ export type ScenarioPage = {
   readonly code: ReadonlyArray<{ readonly file: string; readonly line: number; readonly url?: string }>
   /** Its first committed visual medium (the screen after first): a journey card's thumbnail. */
   readonly thumb?: string
+  /** On failure, what the run saw: its committed "the screen after" frame or screenshot, if any. */
+  readonly saw?: string
   readonly proof?: { readonly run: string; readonly commit: string; readonly at: string; readonly ms: number; readonly flaky: boolean; readonly failure: Evidence["failure"]; readonly media: ReadonlyArray<MediaView> }
 }
 export type JourneyPage = { readonly id: string; readonly name: string; readonly outcomes: ReadonlyArray<{ readonly id: string; readonly text: string }>; readonly steps: ReadonlyArray<FlowStep>; readonly apart: ReadonlyArray<string>; readonly counts: Counts }
@@ -91,9 +93,13 @@ export const githubRepo = (remote: string): string | undefined => /^(?:git@githu
 export const VISUAL: ReadonlySet<string> = new Set(["evidence-terminal/frame", "evidence-screen/screenshot", "evidence-screen/gif", "evidence-screen/trace"])
 /** A scenario's first committed visual medium, "the screen after" first: what its journey card shows. */
 const thumbOf = (s: ScenarioPage): string | undefined => {
-  const visual = (s.proof?.media ?? []).filter((m) => m.present && VISUAL.has(m.kind))
+  // A trace is a whole timeline: never a thumbnail.
+  const visual = (s.proof?.media ?? []).filter((m) => m.present && VISUAL.has(m.kind) && m.kind !== "evidence-screen/trace")
   return (visual.find((m) => m.caption === "the screen after") ?? visual[0])?.path
 }
+/** What the run saw when it failed: only the screen after, never the screen before. */
+const sawOf = (s: ScenarioPage): string | undefined =>
+  (s.proof?.media ?? []).find((m) => m.present && VISUAL.has(m.kind) && m.kind !== "evidence-screen/trace" && m.caption === "the screen after")?.path
 const countOf = (statuses: ReadonlyArray<Status>): Counts => Object.fromEntries(STATUSES.map((s) => [s, statuses.filter((x) => x === s).length])) as Counts
 
 /** The page data of a catalog: the graph from intent to scenario, each scenario's proof and its evidence. */
@@ -252,7 +258,8 @@ export const catalogOf = (input: {
     journeys,
     scenarios: scenarios.map((sc) => {
       const thumb = thumbOf(sc)
-      return thumb === undefined ? sc : { ...sc, thumb }
+      const saw = sawOf(sc)
+      return { ...sc, ...(thumb === undefined ? {} : { thumb }), ...(saw === undefined ? {} : { saw }) }
     }),
     search,
   }

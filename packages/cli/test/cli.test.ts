@@ -286,6 +286,36 @@ describe("zarg catalog in any project", () => {
   })
 })
 
+describe("machine-readable output", () => {
+  test("a failure is plain JSON on stderr even where colour is forced (FORCE_COLOR, as CI often sets)", () => {
+    const r = mkdtempSync(join(tmpdir(), "zarg-cli-color-"))
+    Bun.spawnSync(["git", "init", "-q"], { cwd: r })
+    const p = Bun.spawnSync([process.execPath, main, "tool", "call", "gherkin/add-state", '{"text":"shown if paid"}'], { cwd: r, env: { ...process.env, ZARG_ROOT: r, FORCE_COLOR: "3" } })
+    expect(p.exitCode).toBe(1)
+    expect(JSON.parse(p.stderr.toString())).toMatchObject({ error: "LintFailed" })
+    rmSync(r, { recursive: true, force: true })
+  })
+})
+
+describe("zarg catalog never builds over the project", () => {
+  test("--out at the project, its .zarg or above them is refused, the graph untouched; a folder that is not a git repository still builds", () => {
+    const r = mkdtempSync(join(tmpdir(), "zarg-cli-out-"))
+    Bun.spawnSync(["git", "init", "-q"], { cwd: r })
+    zargIn(r, "tool", "call", "gherkin/add-state", JSON.stringify({ text: "the home page is shown" }))
+    for (const out of [".zarg", ".", ".."]) {
+      const res = zargIn(r, "catalog", "build", "--out", out)
+      expect(res.code).toBe(2)
+      expect(res.err).toContain("would write over the project")
+    }
+    expect(require("node:fs").existsSync(join(r, ".zarg", "graph", "nodes", "ST-0001.json"))).toBe(true)
+    rmSync(r, { recursive: true, force: true })
+    const plain = mkdtempSync(join(tmpdir(), "zarg-cli-plain-"))
+    expect(zargIn(plain, "catalog", "build").code).toBe(0)
+    expect(readFileSync(join(plain, ".zarg", "catalog", "index.html"), "utf8")).toContain(require("node:path").basename(plain))
+    rmSync(plain, { recursive: true, force: true })
+  }, 60_000)
+})
+
 describe("zarg audit, the one CI check", () => {
   const repo = () => {
     const r = mkdtempSync(join(tmpdir(), "zarg-cli-audit-"))

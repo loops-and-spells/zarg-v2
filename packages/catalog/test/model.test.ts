@@ -127,3 +127,15 @@ test("a scenario's thumbnail is its first committed visual medium, the screen af
   expect(c.scenarios.find((s) => s.id === "S-1")!.thumb).toBe("media/S-1/after.json")
   expect(catalogOf({ snap, report: reportOf(repo()), readText: reader(repo()) }).scenarios.find((s) => s.id === "S-1")!.thumb).toBeUndefined()
 })
+
+test("a trace is never a thumbnail; 'saw' is only the screen after, never the screen before", () => {
+  const root = repo()
+  wf(pj(root, ".zarg/evidence/media/S-1/before.json"), "{}")
+  wf(pj(root, ".zarg/evidence/media/S-1/t.json"), "[]")
+  const file = pj(root, ".zarg/evidence/S-1.json")
+  const e = JSON.parse(require("node:fs").readFileSync(file, "utf8"))
+  wf(file, JSON.stringify({ ...e, media: [{ kind: "evidence-screen/trace", caption: "trace", path: "media/S-1/t.json" }, { kind: "evidence-terminal/frame", caption: "the screen before", path: "media/S-1/before.json" }] }))
+  const s = catalogOf({ snap, report: reportOf(root), readText: reader(root) }).scenarios.find((x) => x.id === "S-1")!
+  expect(s.thumb).toBe("media/S-1/before.json")
+  expect(s.saw).toBeUndefined()
+})

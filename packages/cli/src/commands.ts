@@ -3,7 +3,7 @@ import { Argument, Command, Flag } from "effect/unstable/cli"
 import { diff, GraphStore, hash, Snapshot } from "@zarg/graph"
 import { PluginHost } from "@zarg/plugin/server"
 import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs"
-import { basename, join, relative, resolve } from "node:path"
+import { basename, isAbsolute, join, relative, resolve } from "node:path"
 import { findPlugin, USER_DIR } from "@zarg/core/plugins"
 import { type Grant, makeGrants, scopesDigest, warnings } from "@zarg/plugin/runtime"
 import { describeScopes, installPlugin } from "@zarg/plugin/server"
@@ -190,6 +190,9 @@ const CATALOG_OUT = ".zarg/catalog"
 const outFlag = Flag.String("out").pipe(Flag.withDefault(CATALOG_OUT), Flag.withDescription("the directory to write (emptied first; only a catalog's own)"))
 /** The project's name: its repository's, else its folder's. */
 const projectName = () => {
+  // A folder inside another repository is named after itself, never after that repository's remote.
+  const top = gitOut("rev-parse", "--show-toplevel").stdout.toString().trim()
+  if (top === "" || resolve(top) !== resolve(root)) return basename(root)
   const remote = gitOut("remote", "get-url", "origin").stdout.toString().trim()
   const fromRemote = remote === "" ? undefined : remote.replace(/\.git$/, "").split(/[/:]/).at(-1)
   return fromRemote !== undefined && fromRemote !== "" ? fromRemote : basename(root)
@@ -198,8 +201,17 @@ const projectName = () => {
 /** Builds the catalog (intent, journeys, scenarios and their evidence, from what is committed) into `out`. */
 const buildCatalogAt = (outArg: string) =>
   Effect.gen(function* () {
+    const out = resolve(root, outArg)
+    // Never over the project: not its root, its .zarg (the graph, the evidence), nor anything above them.
+    const inside = (child: string, parent: string) => {
+      const rel = relative(parent, child)
+      return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel))
+    }
+    if ([root, join(root, ".zarg")].some((p) => inside(p, out))) return yield* Effect.fail(new Error(`--out ${outArg} would write over the project; pick a directory of its own, like ${CATALOG_OUT}`))
     const loaded = yield* GraphStore.use((s) => s.load)
-    const report = yield* fullReport(loaded, yield* auditTags(root))
+    // A folder that is not a git repository has no tags, and builds all the same.
+    const isRepo = gitOut("rev-parse", "--is-inside-work-tree").stdout.toString().trim() === "true"
+    const report = yield* fullReport(loaded, isRepo ? yield* auditTags(root) : [])
     const repo = githubRepo(gitOut("remote", "get-url", "origin").stdout.toString())
     const ref = gitOut("rev-parse", "HEAD").stdout.toString().trim()
     const host = yield* PluginHost
@@ -213,11 +225,10 @@ const buildCatalogAt = (outArg: string) =>
       // Only committed media: what every clone has.
       readText: trackedReader(root),
     })
-    const out = resolve(root, outArg)
     // Each medium through the evidence plugin that owns its kind; what none renders gets a fallback card.
     const rendered = yield* Effect.promise(() => renderAll(catalog, (m) => Effect.runPromise(host.evidence.render({ kind: m.kind, caption: m.caption, ...(m.meta === undefined ? {} : { meta: m.meta }), files: m.files }))))
     // Inside the project's .zarg it ignores itself; the project's own .gitignore is never touched.
-    const ignoreSelf = !relative(join(root, ".zarg"), out).startsWith("..")
+    const ignoreSelf = inside(out, join(root, ".zarg"))
     yield* Effect.sync(() => buildCatalog({ catalog, rendered, root, out, ignoreSelf }))
     return { out, pages: catalog.intents.length + catalog.journeys.length + catalog.scenarios.length + 2, media: catalog.scenarios.reduce((n, s) => n + (s.proof?.media.filter((m) => m.present).length ?? 0), 0) }
   })
@@ -246,8 +257,9 @@ const catalogCmd = Command.make(
       const url = `http://localhost:${server.port}`
       yield* print(`the catalog: ${url}`)
       if (o.open) {
-        const opener = ["xdg-open", "open", "start"].find((c) => Bun.which(c) !== null)
-        if (opener !== undefined) Bun.spawn([opener, url], { stdout: "ignore", stderr: "ignore" })
+        // start is cmd's own command on Windows, never a program on PATH.
+        const opener = process.platform === "win32" ? ["cmd", "/c", "start", "", url] : (["xdg-open", "open"].map((c) => (Bun.which(c) === null ? undefined : [c, url])).find((x) => x !== undefined))
+        if (opener !== undefined) Bun.spawn(opener, { stdout: "ignore", stderr: "ignore" })
       }
       return yield* Effect.never
     }).pipe(couldNot("catalog")),
