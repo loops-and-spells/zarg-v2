@@ -254,6 +254,7 @@ export const zarg = Command.make(
     thread: Flag.String("thread").pipe(Flag.withDefault("main"), Flag.withDescription("driver thread to open")),
     focus: Flag.String("focus").pipe(Flag.atLeast(0), Flag.withDescription("graph node the thread focuses on (repeatable)")),
     yolo: Flag.Boolean("yolo").pipe(Flag.withDefault(false), Flag.withDescription("plugins use every scope they declare without asking, until /yolo off (nothing saved)")),
+    attach: Flag.Boolean("attach").pipe(Flag.withDefault(false), Flag.withDescription("join the core already running here (a headless one, or another session's) instead of starting this session's own")),
   },
-  ({ thread, focus, yolo }) => Effect.flatMap(Effect.promise(() => import("./tui/run")), (m) => m.runTui({ root, threadId: thread, focus, yolo })),
+  ({ thread, focus, yolo, attach }) => Effect.flatMap(Effect.promise(() => import("./tui/run")), (m) => m.runTui({ root, threadId: thread, focus, yolo, attach })),
 ).pipe(Command.withSubcommands([tool, show, render, agenda, lint, query, diffCmd, affected, checkpoint, auditCmd, core, plugin]))

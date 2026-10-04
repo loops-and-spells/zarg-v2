@@ -61,8 +61,8 @@ describe("tui end to end", () => {
       expect(frame).toContain("you  Checkout")
       expect(frame).toContain("zarg  Working on Checkout.")
       expect(frame).toContain("core child")
-      // A second client attaches to the same core (it does not own it) and sees the pending question.
-      const second = await Effect.runPromise(openSession({ root, threadId: "main", focus: [] }))
+      // A second client joins the same core with --attach (it does not own it) and sees the pending question.
+      const second = await Effect.runPromise(openSession({ root, threadId: "main", focus: [], attach: true }))
       second.session.start()
       const until = Date.now() + 10_000
       while (second.session.state().thread.pendingInquiry?.question !== "What next?" && Date.now() < until) await Bun.sleep(50)

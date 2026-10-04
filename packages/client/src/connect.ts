@@ -73,16 +73,42 @@ const untilStarted = (root: string, timeoutMs: number) =>
     }
   })
 
+/** Stop a core and wait until it is gone. */
+const stopPid = (pid: number, timeoutMs: number) =>
+  Effect.gen(function* () {
+    try {
+      process.kill(pid, "SIGTERM")
+    } catch {}
+    const deadline = Date.now() + timeoutMs
+    while (isAlive(pid)) {
+      if (Date.now() > deadline) return yield* new CoreStartError({ message: `core (pid ${pid}) did not stop within ${timeoutMs}ms` })
+      yield* Effect.sleep(50)
+    }
+  })
+
 /**
- * Attach to this project's running core, or start one as a child of this process.
+ * One core per session: start this session's own core as a child (it stops when this process exits).
+ * A core left behind by a session that is gone (an orphan) is replaced; a live session's core, or a headless one, is refused.
+ * `attach`: join the project's running core instead (it keeps running when this process exits).
  * `command` runs zarg-core (for example `[process.execPath, "<path>/main.ts"]`).
  */
-export const connect = (opts: { readonly root: string; readonly command: ReadonlyArray<string>; readonly timeoutMs?: number }) =>
+export const connect = (opts: { readonly root: string; readonly command: ReadonlyArray<string>; readonly timeoutMs?: number; readonly attach?: boolean }) =>
   Effect.gen(function* () {
-    yield* untilStarted(opts.root, opts.timeoutMs ?? 30_000)
-    const live = readInfo(opts.root)
-    if (live !== undefined) return { info: live, owned: false, close: async () => {} } satisfies Connection
-    const child = yield* start(opts.root, opts.command, "child", opts.timeoutMs ?? 30_000)
+    const timeoutMs = opts.timeoutMs ?? 30_000
+    if (opts.attach === true) {
+      yield* untilStarted(opts.root, timeoutMs)
+      const live = readInfo(opts.root)
+      if (live === undefined) return yield* new CoreStartError({ message: "no zarg core running here; start one with zarg" })
+      return { info: live, owned: false, close: async () => {} } satisfies Connection
+    }
+    const claim = readClaim(opts.root)
+    if (claim !== undefined) {
+      if (claim.mode === "headless") return yield* new CoreStartError({ message: `a headless core runs here (pid ${claim.pid}); zarg --attach to join it, or zarg core stop` })
+      if (claim.owner !== undefined && isAlive(claim.owner)) return yield* new CoreStartError({ message: `a zarg session is running here (pid ${claim.pid}); zarg --attach to join it, or quit it first` })
+      // Its session is gone: an orphan, replaced by this session's own core.
+      yield* stopPid(claim.pid, 10_000)
+    }
+    const child = yield* start(opts.root, opts.command, "child", timeoutMs)
     return { info: child.info, owned: true, close: child.stop } satisfies Connection
   })
 

@@ -26,10 +26,19 @@ describe("connect", () => {
     expect(readInfo(root)).toBeUndefined()
   })
 
-  test("attaches to a running core without owning it", async () => {
+  test("one core per session: a core a live TUI owns is refused, naming --attach", async () => {
     const root = fresh()
     const first = await Effect.runPromise(connect({ root, command }))
-    const second = await Effect.runPromise(connect({ root, command }))
+    const err = await Effect.runPromise(Effect.flip(connect({ root, command })))
+    expect(err.message).toBe(`a zarg session is running here (pid ${first.info.pid}); zarg --attach to join it, or quit it first`)
+    await first.close()
+  })
+
+  test("--attach joins a running core without owning it; with none it says so", async () => {
+    const root = fresh()
+    expect((await Effect.runPromise(Effect.flip(connect({ root, command, attach: true })))).message).toBe("no zarg core running here; start one with zarg")
+    const first = await Effect.runPromise(connect({ root, command }))
+    const second = await Effect.runPromise(connect({ root, command, attach: true }))
     expect(second.owned).toBe(false)
     expect(second.info.pid).toBe(first.info.pid)
     await second.close()
@@ -37,7 +46,29 @@ describe("connect", () => {
     await first.close()
   })
 
-  test("a core that is still starting is waited for, then attached", async () => {
+  test("a headless core is refused by default, naming --attach and zarg core stop", async () => {
+    const root = fresh()
+    const info = await Effect.runPromise(startHeadless({ root, command }))
+    expect((await Effect.runPromise(Effect.flip(connect({ root, command })))).message).toBe(`a headless core runs here (pid ${info.pid}); zarg --attach to join it, or zarg core stop`)
+    await Effect.runPromise(stopCore(root))
+  })
+
+  test("an orphaned core (its TUI is gone) is stopped and replaced by this session's own", async () => {
+    const root = fresh()
+    const gone = Bun.spawn(["true"])
+    await gone.exited
+    const orphan = Bun.spawn(["sleep", "30"])
+    mkdirSync(join(root, ".zarg", "run"), { recursive: true })
+    writeFileSync(infoPath(root), JSON.stringify({ pid: orphan.pid, socket: join(root, "x.sock"), token: "t", mode: "child", owner: gone.pid, ready: true }))
+    const c = await Effect.runPromise(connect({ root, command }))
+    expect(c.owned).toBe(true)
+    expect(c.info.pid).not.toBe(orphan.pid)
+    await orphan.exited
+    expect(isAlive(orphan.pid)).toBe(false)
+    await c.close()
+  })
+
+  test("a core that is still starting is waited for, then joined with --attach", async () => {
     const root = fresh()
     const socket = join(root, "core.sock")
     const server = Bun.serve({ unix: socket, fetch: () => Response.json([]) })
@@ -45,7 +76,7 @@ describe("connect", () => {
     const info = { pid: process.pid, socket, token: "t", mode: "headless" }
     writeFileSync(infoPath(root), JSON.stringify(info))
     setTimeout(() => writeFileSync(infoPath(root), JSON.stringify({ ...info, ready: true })), 300)
-    const c = await Effect.runPromise(connect({ root, command: ["false"] }))
+    const c = await Effect.runPromise(connect({ root, command: ["false"], attach: true }))
     server.stop(true)
     expect(c).toMatchObject({ owned: false, info: { pid: process.pid, ready: true } })
   })

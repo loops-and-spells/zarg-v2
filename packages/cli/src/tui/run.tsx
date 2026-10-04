@@ -19,10 +19,10 @@ export interface Opened {
   readonly close: () => Promise<void>
 }
 
-/** Attach to the project's core, or start one as a child, and open a session on one thread. */
-export const openSession = (opts: { readonly root: string; readonly threadId: string; readonly focus: ReadonlyArray<string>; readonly command?: ReadonlyArray<string> }) =>
+/** Start this session's own core as a child (or, with `attach`, join the running one) and open a session on one thread. */
+export const openSession = (opts: { readonly root: string; readonly threadId: string; readonly focus: ReadonlyArray<string>; readonly command?: ReadonlyArray<string>; readonly attach?: boolean }) =>
   Effect.gen(function* () {
-    const conn = yield* connect({ root: opts.root, command: opts.command ?? coreCommand() })
+    const conn = yield* connect({ root: opts.root, command: opts.command ?? coreCommand(), ...(opts.attach === true ? { attach: true } : {}) })
     const session = makeSession({ client: makeClient(conn.info), threadId: opts.threadId, focus: opts.focus })
     const meta: Meta = { threadId: opts.threadId, repo: basename(opts.root), mode: conn.info.mode, ...(conn.info.driver !== undefined ? { driver: conn.info.driver } : {}) }
     return {
@@ -56,7 +56,7 @@ export const mount = (renderer: CliRenderer, opened: Opened, theme?: Theme["Serv
   })
 
 /** `zarg`: open the TUI on a thread; resolves when the operator exits. */
-export const runTui = (opts: { readonly root: string; readonly threadId: string; readonly focus: ReadonlyArray<string>; readonly yolo?: boolean }) =>
+export const runTui = (opts: { readonly root: string; readonly threadId: string; readonly focus: ReadonlyArray<string>; readonly yolo?: boolean; readonly attach?: boolean }) =>
   Effect.gen(function* () {
     const opened = yield* openSession(opts)
     // --yolo: switched on through the core, so it also works on a core that was already running.
