@@ -47,3 +47,51 @@ test("an asset named like a path is refused at load: nothing installs outside th
   const err = await Effect.runPromise(Effect.flip(loadPluginDir(join(dir, "dist"))))
   expect(err.message).toContain('asset "../../../../grants.json" is not a file name')
 })
+
+import { mkdtempSync, symlinkSync, readdirSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { installPlugin, isFirstParty, pluginHash } from "../src/server"
+
+const built = async () => {
+  const dir = pkg()
+  const r = await buildPlugin(join(dir, "index.ts"))
+  if (!r.ok) throw new Error(r.errors.join("\n"))
+  writeDist(dir, r)
+  return dir
+}
+
+test("first-party identity covers the assets: the same bundle with a changed asset (and its manifest hash) is not zarg's own", async () => {
+  const dir = await built()
+  const p = await Effect.runPromise(loadPluginDir(join(dir, "dist")))
+  const known = new Set([pluginHash(p)])
+  const root = join(import.meta.dir, "..", "..", "..")
+  expect(isFirstParty({ ...p, origin: join(root, "packages", "x", "dist") }, root, known)).toBe(true)
+  const tampered = { ...p, manifest: { ...p.manifest, assets: { "notes.css": "0".repeat(64) } }, origin: join(root, "packages", "x", "dist") }
+  expect(isFirstParty(tampered, root, known)).toBe(false)
+})
+
+test("a reinstall of the same bundle with other assets leaves none of the old ones; an assets dir that is a symlink is refused", async () => {
+  const dir = await built()
+  const user = mkdtempSync(join(tmpdir(), "zt-user-"))
+  const first = await Effect.runPromise(installPlugin(join(dir, "dist"), user))
+  writeFileSync(join(first.dir, "assets", "stale.js"), "old")
+  await Effect.runPromise(installPlugin(join(dir, "dist"), user))
+  expect(readdirSync(join(first.dir, "assets"))).toEqual(["notes.css"])
+  const linked = mkdtempSync(join(tmpdir(), "zt-linked-"))
+  for (const f of ["zarg-plugin.js", "zarg-plugin.json"]) writeFileSync(join(linked, f), require("node:fs").readFileSync(join(dir, "dist", f)))
+  symlinkSync(join(dir, "dist", "assets"), join(linked, "assets"))
+  const err = await Effect.runPromise(Effect.flip(installPlugin(linked, mkdtempSync(join(tmpdir(), "zt-user-")))))
+  expect(err.message).toContain("assets is a symlink")
+})
+
+test("the host checks a manifest's evidence kinds at load: names kebab-case, files text or binary", async () => {
+  const dir = await built()
+  const manifestFile = join(dir, "dist", "zarg-plugin.json")
+  const m = JSON.parse(require("node:fs").readFileSync(manifestFile, "utf8"))
+  for (const [evidence, why] of [[{ "a/b": { label: "x", files: "text" } }, 'evidence kind "a/b" must be kebab-case'], [{ notes: { label: "x", files: "foo" } }, 'evidence kind notes: files must be "text" or "binary"']] as const) {
+    writeFileSync(manifestFile, JSON.stringify({ ...m, evidence }))
+    const err = await Effect.runPromise(Effect.flip(loadPluginDir(join(dir, "dist"))))
+    expect(err.message).toContain(why)
+  }
+  rmSync(join(dir, "dist"), { recursive: true, force: true })
+})

@@ -1,5 +1,5 @@
-import { copyFileSync, existsSync, mkdirSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs"
-import { dirname, join, relative, sep } from "node:path"
+import { copyFileSync, existsSync, mkdirSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { dirname, join, relative, resolve, sep } from "node:path"
 import { EVIDENCE_DIR } from "@zarg/audit/evidence"
 import type { Catalog } from "./model"
 import { css, pages, type Rendered } from "./pages"
@@ -18,21 +18,27 @@ export const build = (input: { readonly catalog: Catalog; readonly rendered: Ren
   for (const m of catalog.scenarios.flatMap((s) => s.proof?.media ?? []).filter((m) => m.present))
     for (const f of m.files) wanted.set(f.url, (wanted.get(f.url) ?? false) || f.url === m.path)
   const present = [...wanted].filter(([path, required]) => required || existsSync(join(root, EVIDENCE_DIR, path))).map(([path]) => path).sort()
-  const mediaRoot = present.length === 0 ? "" : realpathSync(join(root, EVIDENCE_DIR, "media"))
+  const mediaDir = resolve(root, EVIDENCE_DIR, "media")
+  // Real, so a symlink is followed before it is checked; a missing media dir holds nothing, so any medium is outside it.
+  const mediaRoot = present.length === 0 || !existsSync(mediaDir) ? undefined : realpathSync(mediaDir)
   const media = present.map((path) => {
+    const own = resolve(root, EVIDENCE_DIR, path)
+    if (mediaRoot === undefined || !own.startsWith(mediaDir + sep)) throw new Error(`${path} is outside .zarg/evidence/media`)
     let real: string
     try {
-      real = realpathSync(join(root, EVIDENCE_DIR, path))
+      real = realpathSync(own)
     } catch {
       throw new Error(`${path} could not be read`)
     }
     if (!real.startsWith(mediaRoot + sep)) throw new Error(`${path} is outside .zarg/evidence/media`)
-    return { from: real, to: join(out, "media", relative(mediaRoot, real)) }
+    // Written at its own path (a symlink's name, which the page links to), from the file it points at.
+    return { from: real, to: join(out, "media", relative(mediaDir, own)) }
   })
+
   // An asset is a file name of its plugin's: it is written under plugins/<owner>/ and nowhere else.
   const assets = new Map([...rendered.values()].flatMap((f) => ("html" in f ? f.assets.map((a) => [`${a.owner}/${a.name}`, a] as const) : [])))
   for (const a of assets.values()) if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(a.name) || !/^[a-z0-9-]+$/.test(a.owner)) throw new Error(`asset "${a.name}" of ${a.owner} is not a file name`)
-  if (existsSync(out) && readdirSync(out).length > 0 && !existsSync(join(out, MARKER))) throw new Error(`${out} is not a catalog (no ${MARKER}); pick another --out`)
+  if (existsSync(out) && (!statSync(out).isDirectory() || (readdirSync(out).length > 0 && !existsSync(join(out, MARKER))))) throw new Error(`${out} is not a catalog (no ${MARKER}); pick another --out`)
   rmSync(out, { recursive: true, force: true })
   const put = (path: string, text: string) => {
     mkdirSync(dirname(join(out, path)), { recursive: true })

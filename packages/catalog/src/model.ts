@@ -108,7 +108,7 @@ export const catalogOf = (input: {
     const thens = out(s, "gherkin/then")
     const code = [...(tags.get(s.id) ?? [])]
       .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
-      .map((t) => ({ file: t.file, line: t.line, ...(github === undefined ? {} : { url: `https://github.com/${github.repo}/blob/${github.ref}/${t.file}#L${t.line}` }) }))
+      .map((t) => ({ file: t.file, line: t.line, ...(github === undefined ? {} : { url: `https://github.com/${github.repo}/blob/${github.ref}/${t.file.split("/").map(encodeURIComponent).join("/")}#L${t.line}` }) }))
     return {
       id: s.id,
       title: str(s.props.title),

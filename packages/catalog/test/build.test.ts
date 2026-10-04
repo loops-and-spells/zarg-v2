@@ -72,3 +72,21 @@ test("an asset named like a path never leaves plugins/<owner>/", () => {
   const bad = new Map([["media/S-1/after.txt", { html: "<p>x</p>", assets: [{ owner: "evidence-x", name: "../../escape.js", path: join(root, ".zarg/evidence/media/S-1/after.txt") }] }]])
   expect(() => build({ catalog: catalog(root), rendered: bad, root, out })).toThrow('asset "../../escape.js" of evidence-x is not a file name')
 })
+
+test("minors: a symlink inside media is written at its own path; a missing media dir still names the file; --out that is a file is refused by name", () => {
+  const root = repo()
+  symlinkSync(join(root, ".zarg/evidence/media/S-1/after.txt"), join(root, ".zarg/evidence/media/S-1/alias.txt"))
+  const c = catalog(root)
+  const aliased = { ...c, scenarios: c.scenarios.map((s) => (s.id === "S-1" ? { ...s, proof: { ...s.proof!, media: [{ kind: "evidence-terminal/text", label: "t", caption: "a", path: "media/S-1/alias.txt", present: true, files: [{ name: "alias.txt", url: "media/S-1/alias.txt" }] }] } } : s)) }
+  const out = site()
+  build({ catalog: aliased, rendered: new Map(), root, out })
+  expect(readFileSync(join(out, "media/S-1/alias.txt"), "utf8")).toBe("plans <b>")
+  const bare = mkdtempSync(join(tmpdir(), "zt-bare-"))
+  writeFileSync(join(bare, ".env.local"), "SECRET=x")
+  const out2 = site()
+  expect(() => build({ catalog: { ...aliased, scenarios: aliased.scenarios.map((s) => (s.id === "S-1" ? { ...s, proof: { ...s.proof!, media: [{ ...s.proof!.media[0]!, path: "media/../../../.env.local", files: [{ name: "x", url: "media/../../../.env.local" }] }] } } : s)) }, rendered: new Map(), root: bare, out: out2 })).toThrow("media/../../../.env.local is outside .zarg/evidence/media")
+  const file = join(mkdtempSync(join(tmpdir(), "zt-file-")), "site")
+  writeFileSync(file, "keep")
+  expect(() => build({ catalog: catalog(root), rendered: new Map(), root, out: file })).toThrow(`${file} is not a catalog`)
+  expect(readFileSync(file, "utf8")).toBe("keep")
+})

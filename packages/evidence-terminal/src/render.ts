@@ -9,6 +9,10 @@ export type RenderInput = {
   readonly files: ReadonlyArray<{ readonly name: string; readonly url: string; readonly text?: string }>
 }
 
+/** Control characters (an escape sequence's leftovers, a bell) as U+FFFD: a page shows text, never a terminal's control codes. Newlines and tabs stay. */
+// eslint-disable-next-line no-control-regex
+const visible = (s: string) => s.replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "\uFFFD")
+
 /** A terminal medium as catalog HTML (pages sit one level below the site root, hence "../"). */
 export const render = (input: RenderInput): { readonly html: string; readonly assets: ReadonlyArray<string> } => {
   const main = input.files[0]
@@ -21,11 +25,11 @@ export const render = (input: RenderInput): { readonly html: string; readonly as
       const at = typeof startAt === "number" && Number.isFinite(startAt) && startAt > 0 ? ` data-start-at="${startAt}"` : ""
       return { html: `<div class="evidence-cast" data-cast-data="${esc(text)}"${at}></div>`, assets: ["asciinema-player.css", "asciinema-player.min.js", "cast.js"] }
     case "gif":
-      return { html: `<img class="evidence-gif" src="../${esc(main?.url ?? "")}" alt="${esc(input.caption)}">`, assets: [] }
+      return { html: `<img class="evidence-gif" src="../${esc(main?.url ?? "")}" alt="${esc(input.caption)}">`, assets: ["terminal.css"] }
     default: {
       const fold = (input.meta as { fold?: unknown } | undefined)?.fold === true
       return {
-        html: fold ? `<details class="evidence-text"><summary>${esc(input.caption)}</summary><pre>${esc(text)}</pre></details>` : `<pre class="evidence-text">${esc(text)}</pre>`,
+        html: fold ? `<details class="evidence-text"><summary>${esc(input.caption)}</summary><pre>${esc(visible(text))}</pre></details>` : `<pre class="evidence-text">${esc(visible(text))}</pre>`,
         assets: ["terminal.css"],
       }
     }

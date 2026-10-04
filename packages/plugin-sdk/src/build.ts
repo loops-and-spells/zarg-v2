@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto"
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { builtinModules } from "node:module"
 import { basename, join } from "node:path"
 import { Schema } from "effect"
@@ -61,6 +61,13 @@ export const buildPlugin = async (entry: string): Promise<{ ok: true; bundle: st
   return { ok: true, bundle, manifest: manifestOf(plugin) }
 }
 
+/** An asset's file: relative to the package, or a dependency's file (`node_modules/<pkg>/…`) wherever the install put it. */
+const assetSource = (pkgDir: string, f: string) => {
+  const local = join(pkgDir, f)
+  if (existsSync(local) || !f.startsWith("node_modules/")) return local
+  return Bun.resolveSync(f.slice("node_modules/".length), pkgDir)
+}
+
 /** Writes a built plugin into `<pkgDir>/dist`: the bundle, its assets under assets/ (hashed in the manifest), the manifest. */
 export const writeDist = (pkgDir: string, built: { readonly bundle: string; readonly manifest: Manifest }): void => {
   const out = join(pkgDir, "dist")
@@ -71,8 +78,9 @@ export const writeDist = (pkgDir: string, built: { readonly bundle: string; read
   const assets: Record<string, string> = {}
   for (const f of assetFiles ?? []) {
     const name = basename(f)
-    copyFileSync(join(pkgDir, f), join(out, "assets", name))
-    assets[name] = createHash("sha256").update(readFileSync(join(pkgDir, f))).digest("hex")
+    const from = assetSource(pkgDir, f)
+    copyFileSync(from, join(out, "assets", name))
+    assets[name] = createHash("sha256").update(readFileSync(from)).digest("hex")
   }
   writeFileSync(join(out, "zarg-plugin.json"), `${JSON.stringify(Object.keys(assets).length > 0 ? { ...manifest, assets } : manifest, null, 2)}\n`)
 }

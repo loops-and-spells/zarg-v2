@@ -22,6 +22,8 @@ export const stage = (evidenceDir: string, scenario: string, attempt: string): S
       const n = media.length + 1
       const names = Object.keys(c.files)
       if (names.length === 0) throw new Error(`capture "${c.caption}" has no files`)
+      const bad = names.find((n) => !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(n))
+      if (bad !== undefined) throw new Error(`capture "${c.caption}": file "${bad}" is not a file name`)
       for (const name of names) writeFileSync(join(dir, `${n}-${name}`), c.files[name]!)
       const at = (name: string) => `media/${scenario}/${n}-${name}`
       // A capture of several files (a trace): the first is the medium, the rest are listed for its renderer.

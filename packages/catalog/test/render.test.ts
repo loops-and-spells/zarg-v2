@@ -15,3 +15,14 @@ test("renderAll: every committed medium through its renderer, sanitized; a reaso
   expect(r.get("media/S-1/step.cast")).toEqual({ fallback: "rendered by evidence-terminal, not installed" })
   expect(r.has("media/S-1/shot.png")).toBe(false)
 })
+
+test("renderers get URL-encoded file URLs", async () => {
+  const c = catalog()
+  const odd = { ...c, scenarios: c.scenarios.map((s) => (s.id === "S-1" ? { ...s, proof: { ...s.proof!, media: [{ ...s.proof!.media[0]!, files: [{ name: "a b.txt", url: "media/S-1/a b.txt" }] }] } } : s)) }
+  const seen: Array<string> = []
+  await renderAll(odd, async (m) => {
+    seen.push(m.files[0]!.url)
+    return { ok: false as const, reason: "x" }
+  })
+  expect(seen).toEqual(["media/S-1/a%20b.txt"])
+})

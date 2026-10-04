@@ -46,3 +46,10 @@ test("evidence with no media: the scenario's old media goes", () => {
   commit(dir, undefined, evidence([]))
   expect(existsSync(join(dir, "media/S-0001"))).toBe(false)
 })
+
+test("a capture's file names are file names: one that is a path is refused, nothing written outside staging", () => {
+  const dir = mkdtempSync(join(tmpdir(), "zt-writer-"))
+  const s = stage(dir, "S-0001", "1")
+  expect(() => s.attach({ kind: "evidence-x/y", caption: "c", files: { "../../escape.txt": "x" } })).toThrow('capture "c": file "../../escape.txt" is not a file name')
+  expect(existsSync(join(dir, "escape.txt"))).toBe(false)
+})

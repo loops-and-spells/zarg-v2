@@ -61,6 +61,11 @@ export const loadPluginDir = (dir: string): Effect.Effect<LoadedPlugin, PluginCo
       catch: (e) => new PluginConfigError(`${dir}: not a built plugin (${MANIFEST_FILE} and ${BUNDLE_FILE}): ${e instanceof Error ? e.message : String(e)}`),
     }),
     (p) => {
+      // Its evidence kinds as definePlugin would have them (a manifest can be written by hand).
+      for (const [kind, d] of Object.entries(p.manifest.evidence ?? {})) {
+        if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(kind)) return Effect.fail(new PluginConfigError(`${dir}: evidence kind "${kind}" must be kebab-case`))
+        if (d?.files !== "text" && d?.files !== "binary") return Effect.fail(new PluginConfigError(`${dir}: evidence kind ${kind}: files must be "text" or "binary"`))
+      }
       // Each asset is the file the plugin was built with: a changed or missing one stops the load.
       const assets: Record<string, string> = {}
       for (const [name, sha] of Object.entries(p.manifest.assets ?? {})) {

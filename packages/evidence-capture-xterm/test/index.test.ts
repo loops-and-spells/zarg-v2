@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { Terminal } from "@xterm/headless"
-import { BG, cast, FG, frame, frameOf } from "../src"
+import { BG, cast, FG, frame, frameOf, gif } from "../src"
 
 const term = async (cols: number, rows: number, text: string) => {
   const t = new Terminal({ cols, rows, allowProposedApi: true })
@@ -36,4 +36,13 @@ test("the same screen gives the same bytes; a cast is the asciicast as given", a
 
 test("a step's cast is the session so far, starting at the step (the player fast-forwards: the screen is whole from its first frame)", () => {
   expect(cast("step", '{"version":2}\n', { startAt: 3.9 })).toEqual({ kind: "evidence-terminal/cast", caption: "step", files: { "step.cast": '{"version":2}\n' }, meta: { startAt: 3.9 } })
+})
+
+test("minors: hidden text (SGR 8) is marked; a gif is made only when asked (ZARG_EVIDENCE_GIF=1), so evidence does not depend on the machine", async () => {
+  const f = frameOf(await term(4, 1, "\x1b[8mab\x1b[0m"))
+  expect(f.lines[0]![0]).toEqual({ t: "ab", h: true, cells: 2 })
+  const before = process.env.ZARG_EVIDENCE_GIF
+  delete process.env.ZARG_EVIDENCE_GIF
+  expect(gif("g", '{"version":2}\n')).toBeUndefined()
+  if (before !== undefined) process.env.ZARG_EVIDENCE_GIF = before
 })

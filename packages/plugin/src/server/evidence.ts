@@ -21,7 +21,11 @@ export const makeEvidence = (deps: {
   readonly waiting: () => ReadonlyArray<string>
   readonly assetsOf: (plugin: string) => Readonly<Record<string, string>>
   readonly invoke: (plugin: string, params: RenderInput) => Effect.Effect<unknown, { readonly message: string }>
+  /** How long one render may take (default 10 s). */
+  readonly timeoutMs?: number
 }) => {
+  // A plugin that once did not answer in time is not asked again: one hung renderer costs one timeout, not one per medium.
+  const hung = new Set<string>()
   const kinds = (): EvidenceKinds =>
     Object.fromEntries(
       deps
@@ -30,17 +34,24 @@ export const makeEvidence = (deps: {
         .flatMap((m) => Object.entries(m.evidence ?? {}).map(([k, d]) => [`${m.name}/${k}`, { owner: m.name, label: d.label, files: d.files }] as const))
         .sort(([a], [b]) => a.localeCompare(b)),
     )
-  const render = (input: RenderInput): Effect.Effect<Rendered> => {
+  // Suspended: whether its plugin hung is asked when it runs, not when it is built.
+  const render = (input: RenderInput): Effect.Effect<Rendered> => Effect.suspend(() => renderNow(input))
+  const renderNow = (input: RenderInput): Effect.Effect<Rendered> => {
     const kind = resolveKind(input.kind)
     const owner = kind.split("/")[0]!
     const decl = kinds()[kind]
     if (decl === undefined)
       return Effect.succeed({ ok: false, reason: `rendered by ${owner}, ${deps.waiting().includes(owner) ? "not granted" : deps.manifests().some((m) => m.name === owner) ? `which has no kind ${kind}` : "not installed"}` })
     const could = (why: string): Rendered => ({ ok: false, reason: `${owner} could not render ${kind}: ${why}` })
+    if (hung.has(owner)) return Effect.succeed({ ok: false, reason: `${owner} did not answer in time earlier; its media are not rendered` })
     return deps.invoke(owner, { ...input, kind }).pipe(
-      Effect.timeout(Duration.millis(RENDER_MS)),
-      Effect.map((out): Rendered => {
-        const r = out as { html?: unknown; assets?: unknown }
+      Effect.timeoutOption(Duration.millis(deps.timeoutMs ?? RENDER_MS)),
+      Effect.map((answer): Rendered => {
+        if (answer._tag === "None") {
+          hung.add(owner)
+          return could(`no answer within ${deps.timeoutMs ?? RENDER_MS} ms`)
+        }
+        const r = answer.value as { html?: unknown; assets?: unknown }
         if (typeof r?.html !== "string") return could("it returned no html")
         const named = Array.isArray(r.assets) ? r.assets.map(String) : []
         const declared = deps.assetsOf(owner)

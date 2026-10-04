@@ -21,6 +21,7 @@ export interface CellLike {
   isUnderline(): number
   isInverse(): number
   isDim(): number
+  isInvisible(): number
 }
 export interface XtermLike {
   readonly cols: number
@@ -28,7 +29,7 @@ export interface XtermLike {
   readonly buffer: { readonly active: { readonly viewportY: number; getLine(y: number): { getCell(x: number): CellLike | undefined } | undefined } }
 }
 /** A run of cells that look the same: its text, colours (hex; none = the frame's default), weight, and the columns it covers. */
-export type Span = { readonly t: string; readonly cells: number; readonly fg?: string; readonly bg?: string; readonly b?: true; readonly i?: true; readonly u?: true; readonly d?: true }
+export type Span = { readonly t: string; readonly cells: number; readonly fg?: string; readonly bg?: string; readonly b?: true; readonly i?: true; readonly u?: true; readonly d?: true; readonly h?: true }
 export type Frame = { readonly cols: number; readonly rows: number; readonly fg: string; readonly bg: string; readonly lines: ReadonlyArray<ReadonlyArray<Span>> }
 export const FG = "#c0c0c0"
 export const BG = "#101010"
@@ -38,7 +39,7 @@ const colour = (palette: boolean, isRgb: boolean, value: number) => (isRgb ? rgb
 
 /** A cell whose glyph's advance is the font's, not one column: two columns wide, or outside the BMP (an emoji). */
 const alone = (t: string, width: number) => width > 1 || [...t].some((c) => c.codePointAt(0)! > 0xffff)
-const LOOK = ["fg", "bg", "b", "i", "u", "d"] as const
+const LOOK = ["fg", "bg", "b", "i", "u", "d", "h"] as const
 const sameLook = (a: Omit<Span, "t" | "cells">, b: Omit<Span, "t" | "cells">) => LOOK.every((k) => a[k] === b[k])
 
 /** The screen as coloured spans: adjacent cells that look the same merge; inverse is resolved; a wide cell's spacer is skipped. */
@@ -61,6 +62,7 @@ export const frameOf = (term: XtermLike): Frame => {
         ...(c?.isItalic() ? { i: true as const } : {}),
         ...(c?.isUnderline() ? { u: true as const } : {}),
         ...(c?.isDim() ? { d: true as const } : {}),
+        ...(c?.isInvisible() ? { h: true as const } : {}),
       }
       const t = c?.getChars() || " "
       const w = c?.getWidth() ?? 1
@@ -87,14 +89,17 @@ export const cast = (caption: string, asciicast: string, opts: { readonly startA
   ...(opts.startAt === undefined ? {} : { meta: { startAt: opts.startAt } }),
 })
 
-/** A gif of the cast through `agg` (asciinema's gif tool) when it is on PATH; undefined otherwise. */
+/**
+ * A gif of the cast through `agg` (asciinema's gif tool): only when asked (`ZARG_EVIDENCE_GIF=1`) and installed, so
+ * evidence does not depend on the machine that ran it; one that takes over a minute is given up.
+ */
 export const gif = (caption: string, asciicast: string): Capture | undefined => {
-  const agg = Bun.which("agg")
+  const agg = process.env.ZARG_EVIDENCE_GIF === "1" ? Bun.which("agg") : null
   if (agg === null) return undefined
   const dir = mkdtempSync(join(tmpdir(), "zarg-agg-"))
   try {
     writeFileSync(join(dir, "step.cast"), asciicast)
-    const p = Bun.spawnSync([agg, join(dir, "step.cast"), join(dir, "step.gif")])
+    const p = Bun.spawnSync([agg, join(dir, "step.cast"), join(dir, "step.gif")], { timeout: 60_000 })
     return p.exitCode === 0 ? { kind: "evidence-terminal/gif", caption, files: { "step.gif": new Uint8Array(readFileSync(join(dir, "step.gif"))) } } : undefined
   } finally {
     rmSync(dir, { recursive: true, force: true })

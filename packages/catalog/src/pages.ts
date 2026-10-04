@@ -2,6 +2,9 @@ import { highlight } from "@zarg/highlight"
 import { BASE, type BaseKey, makeTheme, PALETTES } from "@zarg/tokens"
 import { type Catalog, type Counts, type ScenarioPage, type Status, STATUSES } from "./model"
 
+/** A site path as a URL: each segment percent-encoded (a space, #, ?, %). */
+export const encodePath = (path: string): string => path.split("/").map(encodeURIComponent).join("/")
+
 /** Text as HTML text: never markup. */
 export const esc = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;")
 
@@ -160,7 +163,7 @@ const medium = (m: Medium, rendered: Rendered) => {
   const f = rendered.get(m.path)
   if (f !== undefined && "html" in f) return `<figure class="medium">${f.html}${cap}</figure>`
   // A kind nobody here renders: say why, and link its files.
-  const links = m.files.map((x) => `<li><a href="../${esc(x.url)}">${esc(x.name)}</a></li>`).join("")
+  const links = m.files.map((x) => `<li><a href="../${esc(encodePath(x.url))}">${esc(x.name)}</a></li>`).join("")
   return `<figure class="medium fallback"><p>${esc(m.label)}: ${esc(m.caption)}</p><p class="absent">${esc(f?.fallback ?? `nothing renders ${m.kind}`)}</p><ul>${links}</ul></figure>`
 }
 
@@ -170,7 +173,8 @@ const assetsOf = (media: ReadonlyArray<Medium>, rendered: Rendered) => {
     const f = rendered.get(m.path)
     return m.present && f !== undefined && "html" in f ? f.assets.map((a) => `${a.owner}/${a.name}`) : []
   })
-  return [...new Set(all)].sort()
+  // In the order the media and their plugins give them (a player before the script that starts it).
+  return [...new Set(all)]
 }
 const assetTags = (up: string, assets: ReadonlyArray<string>) => ({
   head: assets.filter((a) => a.endsWith(".css")).map((a) => `<link rel="stylesheet" href="${up}plugins/${esc(a)}">`).join("\n"),

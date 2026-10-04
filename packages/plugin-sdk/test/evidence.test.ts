@@ -21,3 +21,19 @@ test("evidence kinds need a renderEvidence method, the evidence scope, kebab-cas
   expect(() => def({ evidence: { notes: { label: "n", files: "words" } } })).toThrow('plugin evidence-x: evidence kind notes: files must be "text" or "binary"')
   expect(() => def({ assets: ["a/x.css", "b/x.css"] })).toThrow("plugin evidence-x: asset x.css is listed twice")
 })
+
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { writeDist } from "../src/tools"
+test("an asset under node_modules is found wherever the install put it (hoisted to a parent, not linked under the package)", () => {
+  const top = mkdtempSync(join(tmpdir(), "zt-hoist-"))
+  mkdirSync(join(top, "node_modules", "zt-player"), { recursive: true })
+  writeFileSync(join(top, "node_modules", "zt-player", "package.json"), JSON.stringify({ name: "zt-player", version: "1.0.0" }))
+  writeFileSync(join(top, "node_modules", "zt-player", "p.css"), ".p{}\n")
+  const pkg = join(top, "packages", "evidence-x")
+  mkdirSync(pkg, { recursive: true })
+  writeDist(pkg, { bundle: "module.exports={}", manifest: { ...manifestOf(def({})), assetFiles: ["node_modules/zt-player/p.css"] } })
+  expect(readFileSync(join(pkg, "dist", "assets", "p.css"), "utf8")).toBe(".p{}\n")
+  expect(JSON.parse(readFileSync(join(pkg, "dist", "zarg-plugin.json"), "utf8")).assets["p.css"]).toMatch(/^[0-9a-f]{64}$/)
+})

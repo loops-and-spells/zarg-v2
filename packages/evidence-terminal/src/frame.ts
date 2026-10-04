@@ -15,17 +15,20 @@ export const frameSvg = (f: Frame): string => {
     let col = 0
     for (const s of line) {
       if (s.bg !== undefined) parts.push(`<rect x="${n(col * CW)}" y="${n(row * LH)}" width="${n(s.cells * CW)}" height="${n(LH)}" fill="${s.bg}"/>`)
+      // An underline is drawn as a line, so a blank underlined run still shows it.
+      if (s.u) parts.push(`<rect x="${n(col * CW)}" y="${n(row * LH + 15)}" width="${n(s.cells * CW)}" height="1" fill="${s.fg ?? f.fg}"/>`)
       col += s.cells
     }
   })
   f.lines.forEach((line, row) => {
-    if (line.every((s) => s.t.trim() === "")) return
+    if (line.every((s) => s.t.trim() === "" || s.h)) return
     let col = 0
     const spans = line.flatMap((s) => {
       const at = col
       col += s.cells
-      if (s.t.trim() === "") return []
-      const look = [`fill="${s.fg ?? f.fg}"`, ...(s.b ? ['font-weight="bold"'] : []), ...(s.i ? ['font-style="italic"'] : []), ...(s.u ? ['text-decoration="underline"'] : []), ...(s.d ? ['opacity="0.6"'] : [])]
+      // Blank and hidden (SGR 8) text draws nothing.
+      if (s.t.trim() === "" || s.h) return []
+      const look = [`fill="${s.fg ?? f.fg}"`, ...(s.b ? ['font-weight="bold"'] : []), ...(s.i ? ['font-style="italic"'] : []), ...(s.d ? ['opacity="0.6"'] : [])]
       return [`<tspan x="${n(at * CW)}" ${look.join(" ")}>${esc(s.t)}</tspan>`]
     })
     parts.push(`<text y="${n((row + 0.8) * LH)}" xml:space="preserve">${spans.join("")}</text>`)

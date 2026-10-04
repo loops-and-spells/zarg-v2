@@ -30,6 +30,7 @@ export const installPlugin = (source: string, userDir: string): Effect.Effect<{ 
         const at = join(root, f)
         if (existsSync(at) && lstatSync(at).isSymbolicLink()) return yield* Effect.fail(new PluginConfigError(`${source}: ${f} is a symlink; a plugin must ship the file itself`))
       }
+      if (existsSync(join(root, ASSETS_DIR)) && lstatSync(join(root, ASSETS_DIR)).isSymbolicLink()) return yield* Effect.fail(new PluginConfigError(`${source}: assets is a symlink; a plugin must ship the files themselves`))
       const plugin = yield* loadPluginDir(root)
       const name = plugin.manifest.name
       if (!PLUGIN_NAME.test(String(name))) return yield* Effect.fail(new PluginConfigError(`${source}: plugin name "${name}" must be kebab-case, with no doubled or trailing dash`))
@@ -37,7 +38,8 @@ export const installPlugin = (source: string, userDir: string): Effect.Effect<{ 
       const dir = join(userDir, "plugins", name, sha)
       mkdirSync(dir, { recursive: true })
       for (const f of [MANIFEST_FILE, BUNDLE_FILE]) copyFileSync(join(root, f), join(dir, f))
-      // Its assets, already checked against the manifest by loadPluginDir.
+      // Its assets, already checked against the manifest by loadPluginDir; none left from an earlier install of this bundle.
+      rmSync(join(dir, ASSETS_DIR), { recursive: true, force: true })
       for (const [name, from] of Object.entries(plugin.assets ?? {})) {
         if (lstatSync(from).isSymbolicLink()) return yield* Effect.fail(new PluginConfigError(`${source}: asset ${name} is a symlink; a plugin must ship the file itself`))
         mkdirSync(join(dir, ASSETS_DIR), { recursive: true })

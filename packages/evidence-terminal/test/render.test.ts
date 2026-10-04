@@ -44,3 +44,13 @@ test("a cast that starts at its step tells the player where to start", async () 
   expect(r.html).toBe('<div class="evidence-cast" data-cast-data="{}" data-start-at="3.9"></div>')
   expect(await sanitize(r.html)).toBe(r.html)
 })
+
+test("minors: a gif loads the stylesheet that bounds it; control characters never reach a page; an underlined blank still shows its line; hidden text is not drawn", async () => {
+  expect(render({ kind: "evidence-terminal/gif", caption: "g", files: [{ name: "s.gif", url: "m/s.gif" }] }).assets).toEqual(["terminal.css"])
+  const t = render({ kind: "evidence-terminal/text", caption: "c", files: [{ name: "t.txt", url: "m/t.txt", text: "a\x1b[31mb\x07c\td" }] })
+  expect(t.html).toBe('<pre class="evidence-text">a�[31mb�c\td</pre>')
+  const svg = frameSvg({ cols: 3, rows: 1, fg: "#c0c0c0", bg: "#101010", lines: [[{ t: "  ", u: true as const, cells: 2 }, { t: "x", h: true as const, cells: 1 }]] })
+  expect(svg).toContain('<rect x="0" y="15" width="16.8" height="1" fill="#c0c0c0"/>')
+  expect(svg).not.toContain(">x<")
+  expect(await sanitize(svg)).toBe(svg)
+})

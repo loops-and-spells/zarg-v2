@@ -44,3 +44,12 @@ test("opened from disk (no server): search carries its data in the page, never a
   expect(p.get("search.html")).toContain('<script type="application/json" id="search-data">')
   expect(p.get("search.html")).not.toContain("fetch(")
 })
+
+test("minors: a plugin's assets load in the order it gave them; paths in links are URL-encoded", () => {
+  const c = catalog()
+  const odd = { ...c, scenarios: c.scenarios.map((s) => (s.id === "S-1" ? { ...s, code: [{ file: "src/a b#.ts", line: 1, url: "https://github.com/o/r/blob/abc1234/src/a%20b%23.ts#L1" }], proof: { ...s.proof!, media: s.proof!.media.map((m) => (m.path.endsWith("step.cast") ? { ...m, files: [{ name: "a b#.cast", url: "media/S-1/a b#.cast" }] } : m)) } } : s)) }
+  const ordered = new Map([...rendered()].map(([k, f]) => [k, "html" in f ? { ...f, assets: [{ owner: "evidence-x", name: "z.js", path: "/z" }, { owner: "evidence-x", name: "a.js", path: "/a" }] } : f]))
+  const s1 = pages(odd, ordered).get("scenarios/S-1.html")!
+  expect(s1.indexOf("plugins/evidence-x/z.js")).toBeLessThan(s1.indexOf("plugins/evidence-x/a.js"))
+  expect(s1).toContain('<a href="../media/S-1/a%20b%23.cast">a b#.cast</a>')
+})
