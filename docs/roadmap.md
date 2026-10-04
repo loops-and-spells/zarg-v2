@@ -34,7 +34,7 @@ Done:
 - The plugin runtime and SDK: every plugin runs in its own locked-down process with only the scopes you granted, and Gherkin is the first plugin on it.
 
 Next:
-1. **Plugins, continued**: providers become plugins (zarg-router's warm and decisions as its own methods), agents call plugin methods you grant them (plugin output always marked untrusted), and a TUI for consent, config and login by archetype (replacing `/models`).
+1. **Plugins, continued**: providers become plugins (zarg-router's warm and decisions as its own methods), agents call plugin methods you grant them (plugin output always marked untrusted), and a TUI for consent, config and login by archetype (first-run setup, `/login` and `/models` for the default model are done; per-role models and OAuth come later).
 2. **Capture**: the driver becomes the intent agent and keeps `intent/*.md`; its context comes from artifacts, never the transcript; pending questions become durable.
 3. **Specify**: intents projected to cards, with each card tracing to its intent.
 4. **Rehearse**: roleplay testers over the graph (ported from Colony's flow tester: edge-pair walks, typed findings, step scores).
