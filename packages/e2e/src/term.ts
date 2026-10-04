@@ -26,7 +26,7 @@ export interface Term {
   readonly xterm: XtermLike
 }
 
-const NAMED: Readonly<Record<string, string>> = { enter: "\r", esc: "\x1b", tab: "\t", up: "\x1b[A", down: "\x1b[B", left: "\x1b[D", right: "\x1b[C", space: " ", backspace: "\x7f" }
+const NAMED: Readonly<Record<string, string>> = { enter: "\r", esc: "\x1b", tab: "\t", up: "\x1b[A", down: "\x1b[B", left: "\x1b[D", right: "\x1b[C", space: " ", backspace: "\x7f", "shift+right": "\x1b[1;2C", "shift+left": "\x1b[1;2D", "shift+tab": "\x1b[Z", "alt+up": "\x1b[1;3A", "alt+down": "\x1b[1;3B", "alt+right": "\x1b[1;3C", "alt+left": "\x1b[1;3D" }
 /** A key name as the bytes a terminal sends. */
 export const keyBytes = (key: string): string => {
   if (NAMED[key] !== undefined) return NAMED[key]

@@ -1,0 +1,18 @@
+{
+  "journey": "Assign chores",
+  "stage": "refine",
+  "proposals": [
+    {
+      "scenario": "S-0001",
+      "changes": [],
+      "answers": [],
+      "summary": "",
+      "status": "waiting"
+    }
+  ],
+  "draft": [],
+  "inputs": [
+    "F-60e08b6a"
+  ],
+  "queued": 1
+}

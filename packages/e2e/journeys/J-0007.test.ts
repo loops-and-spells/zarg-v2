@@ -1,7 +1,7 @@
 import { expect } from "bun:test"
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
-import { answerLoads, command, journey, termOf, type Term, type World } from "../src"
+import { answerLoads, command, journey, openNav, termOf, type World } from "../src"
 
 /** The project's model: the live router (the full tier's). */
 const liveModel = (w: World) => {
@@ -21,19 +21,6 @@ const eventually = async <A>(ms: number, check: () => A | undefined): Promise<A 
 const plans = (w: World) => {
   const dir = join(w.project, ".zarg", "backlog")
   return existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")) as { id: string; status: string; serves?: string }) : []
-}
-
-/** Opens a nav view from the rail (alt+a): the nav items sit above the agents. */
-const openNav = async (t: Term, label: string) => {
-  const on = () => t.screen().split("\n").some((l) => l.slice(0, 23).includes("▍") && l.slice(0, 23).includes(label))
-  t.press("alt+a")
-  await Bun.sleep(300)
-  for (let k = 0; k < 8 && !on(); k++) {
-    t.press("up")
-    await Bun.sleep(200)
-  }
-  expect(on()).toBe(true)
-  t.press("enter")
 }
 
 journey("J-0007", { tier: "fast" }, (proves) => {

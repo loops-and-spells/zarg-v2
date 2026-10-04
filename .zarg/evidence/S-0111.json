@@ -1,0 +1,54 @@
+{
+  "scenario": "S-0111",
+  "version": "807837da9af6",
+  "commit": "02a4c36",
+  "run": "e2e-2026-10-04T22-28-20.248Z",
+  "journey": "J-0008",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T22:28:33.534Z",
+  "ms": 1155,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0111/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "git log -1 --stat",
+      "path": "media/S-0111/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "screen",
+      "path": "media/S-0111/3-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0111/4-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0111/5-step.cast",
+      "meta": {
+        "startAt": 9
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/core/src/planner.ts": "407a24677c503655b44d4e2d5bddcd342673fa15",
+    "packages/core/test/planner.test.ts": "1a12b411d961ec0973a33de5c70a0a7ed9acf24d",
+    "packages/plugin-backlog/src/index.ts": "fd9daa61f0ea9a22c5337e342a21dd8116938286",
+    "packages/plugin-backlog/test/backlog.test.ts": "5642242fd9958796b64f091a5524c7ab0bcabbdd"
+  }
+}

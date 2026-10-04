@@ -1,0 +1,31 @@
+{
+  "scenario": "S-0121",
+  "version": "fa1b08ef8a0b",
+  "commit": "02a4c36",
+  "run": "e2e-2026-10-04T22-28-20.248Z",
+  "journey": "J-0008",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T22:28:30.195Z",
+  "ms": 9894,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0121/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0121/2-step.cast",
+      "meta": {
+        "startAt": 0
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/plugin-backlog/src/index.ts": "fd9daa61f0ea9a22c5337e342a21dd8116938286",
+    "packages/plugin-backlog/test/plugin.test.ts": "4dd05cd9834ded975d756d128b20cf58efa1efd3"
+  }
+}

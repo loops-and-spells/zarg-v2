@@ -1,0 +1,46 @@
+{
+  "scenario": "S-0109",
+  "version": "5156ab7dfde2",
+  "commit": "02a4c36",
+  "run": "e2e-2026-10-04T22-28-20.248Z",
+  "journey": "J-0008",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T22:28:32.378Z",
+  "ms": 156,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0109/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": ".zarg/triage (the journey's stage)",
+      "path": "media/S-0109/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0109/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0109/4-step.cast",
+      "meta": {
+        "startAt": 8.8
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/plugin-backlog/src/index.ts": "fd9daa61f0ea9a22c5337e342a21dd8116938286",
+    "packages/plugin-backlog/src/stages.ts": "f574c17c08895ac9a8ff3546595585eb4c0cf312",
+    "packages/plugin-backlog/test/stages.test.ts": "447021607529a629df28de75cfaf87c1790c8798",
+    "packages/plugin-backlog/test/triage.test.ts": "4644798cf39d14aa255e3353bcbda218bfb570c5"
+  }
+}

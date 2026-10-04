@@ -1,0 +1,31 @@
+{
+  "id": "B-02",
+  "status": "backlog",
+  "title": "Confirm removals",
+  "journey": "Assign chores",
+  "scenarios": [
+    {
+      "ref": "gherkin/scenario:S-0002@e4fe18f8c172"
+    }
+  ],
+  "changes": [
+    {
+      "tool": "edit-scenario",
+      "params": {
+        "id": "S-0002",
+        "title": "Parent removes a chore after a confirm"
+      }
+    }
+  ],
+  "feedback": [],
+  "steps": [
+    "Retitle S-0002"
+  ],
+  "events": [
+    {
+      "what": "dropped",
+      "by": "operator"
+    }
+  ],
+  "dropped": true
+}

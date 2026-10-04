@@ -1,3 +1,4 @@
+import { expect } from "bun:test"
 import { join } from "node:path"
 import type { Term } from "./term"
 
@@ -31,4 +32,17 @@ export const PROBE = join(import.meta.dir, "..", "fixtures", "probe")
 export const termOf = (t: Term | undefined, id: string) => {
   if (t === undefined) throw new Error(`${id} runs in the session an earlier step opened, and none is open`)
   return t
+}
+
+/** Opens a nav view (Intents, Feedback, Backlog, …) from the rail (alt+a): the nav items sit above the agents. */
+export const openNav = async (t: Term, label: string) => {
+  const on = () => t.screen().split("\n").some((l) => l.slice(0, 23).includes("▍") && l.slice(0, 23).includes(label))
+  t.press("alt+a")
+  await Bun.sleep(300)
+  for (let k = 0; k < 10 && !on(); k++) {
+    t.press("up")
+    await Bun.sleep(200)
+  }
+  expect(on()).toBe(true)
+  t.press("enter")
 }
