@@ -17,7 +17,8 @@ export interface Step {
   readonly w: World
   /** The open terminal (opened by `open`, kept for the journey's later steps), or undefined for CLI-only steps. */
   readonly term: Term | undefined
-  readonly open: (args?: ReadonlyArray<string>) => Promise<Term>
+  /** Opens zarg's TUI (the step's terminal from now on); a core left in the world is stopped first unless `keepCore`. */
+  readonly open: (args?: ReadonlyArray<string>, opts?: { readonly keepCore?: boolean }) => Promise<Term>
   readonly cli: (args: ReadonlyArray<string>) => Promise<Ran>
   /** Attach a text medium now (a CLI transcript, a log excerpt). */
   readonly note: (kind: "buffer" | "log", caption: string, text: string) => Media
@@ -106,8 +107,8 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
               get term() {
                 return term
               },
-              open: async (args) => {
-                term = await zarg(w!, args)
+              open: async (args, o) => {
+                term = await zarg(w!, args, o)
                 return term
               },
               cli: (args) => cli(w!, args),

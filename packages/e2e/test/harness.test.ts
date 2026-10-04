@@ -10,9 +10,17 @@ test("a world is a fresh git project with its own user dir and home; disposed af
   expect(readFileSync(join(w.project, "README.md"), "utf8")).toBe("hi\n")
   expect(w.env.ZARG_USER_DIR).toBe(w.userDir)
   expect(w.env.HOME).toBe(w.home)
-  expect(Object.keys(w.env).sort()).toEqual(["GIT_AUTHOR_EMAIL", "GIT_AUTHOR_NAME", "GIT_COMMITTER_EMAIL", "GIT_COMMITTER_NAME", "HOME", "PATH", "TERM", "ZARG_USER_DIR"])
+  expect(Object.keys(w.env).sort()).toEqual(["DBUS_SESSION_BUS_ADDRESS", "GIT_AUTHOR_EMAIL", "GIT_AUTHOR_NAME", "GIT_COMMITTER_EMAIL", "GIT_COMMITTER_NAME", "HOME", "PATH", "TERM", "XDG_RUNTIME_DIR", "ZARG_USER_DIR"])
   w.dispose(false)
   expect(existsSync(w.project)).toBe(false)
+})
+
+test.if(process.platform === "linux" && process.arch === "x64")("a world never reaches this machine's keyring: varlock keeps its key in the world's home", () => {
+  const w = world()
+  const helper = Bun.resolveSync("@varlock/native-helper-linux-x64/package.json", Bun.resolveSync("varlock/package.json", join(import.meta.dir, "..", "..", "model")))
+  const status = JSON.parse(Bun.spawnSync([join(helper, "..", "varlock-local-encrypt"), "status"], { env: w.env }).stdout.toString())
+  expect(status.backend).toBe("linux-file")
+  w.dispose(false)
 })
 
 test("cli runs zarg in the world and parses its JSON", async () => {

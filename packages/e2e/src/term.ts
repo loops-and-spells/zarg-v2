@@ -16,6 +16,8 @@ export interface Term {
   readonly press: (key: string) => void
   readonly paste: (text: string) => void
   readonly exit: () => Promise<number>
+  /** Kills the TUI at once (SIGKILL), as a crash or a closed terminal would: its core is left behind. */
+  readonly kill: () => Promise<number>
   /** The session so far as an asciicast v2 document. */
   readonly cast: () => string
   /** Seconds since the session started (the cast's clock). */
@@ -37,9 +39,9 @@ export const keyBytes = (key: string): string => {
 }
 
 /** zarg's TUI on a real pseudo-terminal, read through a headless xterm, recorded as a cast. */
-export const zarg = async (w: World, args: ReadonlyArray<string> = []): Promise<Term> => {
-  // A core a previous session in this world left behind would be refused or replaced: stop it first.
-  await cli(w, ["core", "stop"])
+export const zarg = async (w: World, args: ReadonlyArray<string> = [], opts: { readonly keepCore?: boolean } = {}): Promise<Term> => {
+  // A core a previous session in this world left behind would be refused or replaced: stop it first (unless the session joins it, or the step keeps it).
+  if (!args.includes("--attach") && opts.keepCore !== true) await cli(w, ["core", "stop"])
   const term = new Terminal({ cols: COLS, rows: ROWS, allowProposedApi: true })
   const started = performance.now()
   const events: Array<string> = []
@@ -103,6 +105,10 @@ export const zarg = async (w: World, args: ReadonlyArray<string> = []): Promise<
       const code = await proc.exited
       clearTimeout(timer)
       return code
+    },
+    kill: () => {
+      proc.kill(9)
+      return proc.exited
     },
     cast: () => [header, ...events].join("\n") + "\n",
     xterm: term as unknown as XtermLike,

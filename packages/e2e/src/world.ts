@@ -25,7 +25,9 @@ export const world = (seed: Readonly<Record<string, string>> = {}): World => {
   const userDir = join(base, "user")
   const home = join(base, "home")
   for (const d of [project, userDir, home]) mkdirSync(d)
-  const env = { PATH: process.env.PATH ?? "", HOME: home, ZARG_USER_DIR: userDir, TERM: "xterm-256color", ...IDENTITY }
+  // No session bus and a runtime dir of its own: varlock would otherwise keep a world's key in this machine's keyring,
+  // under the same id as the real one (replacing it).
+  const env = { PATH: process.env.PATH ?? "", HOME: home, ZARG_USER_DIR: userDir, TERM: "xterm-256color", DBUS_SESSION_BUS_ADDRESS: "disabled:", XDG_RUNTIME_DIR: home, ...IDENTITY }
   const git = (...args: Array<string>) => {
     const p = Bun.spawnSync(["git", ...args], { cwd: project, env })
     if (p.exitCode !== 0) throw new Error(`git ${args.join(" ")}: ${p.stderr.toString()}`)
