@@ -73,15 +73,23 @@ const untilStarted = (root: string, timeoutMs: number) =>
     }
   })
 
-/** Stop a core and wait until it is gone. */
-const stopPid = (pid: number, timeoutMs: number) =>
+/** Stop a core and wait until it is gone; `kill`: one that does not stop in time is killed (an orphan: no session needs it). */
+const stopPid = (pid: number, timeoutMs: number, opts: { readonly kill?: boolean } = {}) =>
   Effect.gen(function* () {
     try {
       process.kill(pid, "SIGTERM")
     } catch {}
-    const deadline = Date.now() + timeoutMs
+    let deadline = Date.now() + timeoutMs
+    let killed = false
     while (isAlive(pid)) {
-      if (Date.now() > deadline) return yield* new CoreStartError({ message: `core (pid ${pid}) did not stop within ${timeoutMs}ms` })
+      if (Date.now() > deadline) {
+        if (opts.kill !== true || killed) return yield* new CoreStartError({ message: `core (pid ${pid}) did not stop within ${timeoutMs}ms` })
+        try {
+          process.kill(pid, "SIGKILL")
+        } catch {}
+        killed = true
+        deadline = Date.now() + 5_000
+      }
       yield* Effect.sleep(50)
     }
   })
@@ -108,8 +116,8 @@ export const connect = (opts: { readonly root: string; readonly command: Readonl
       if (claim.mode === "headless") return yield* new CoreStartError({ message: `a headless core runs here (pid ${claim.pid}); zarg --attach to join it, or zarg core stop` })
       if (claim.owner !== undefined && isAlive(claim.owner)) return yield* new CoreStartError({ message: `a zarg session is running here (pid ${claim.pid}); zarg --attach to join it, or quit it first` })
       // @scenario S-0089
-      // Its session is gone: an orphan, replaced by this session's own core.
-      yield* stopPid(claim.pid, 10_000)
+      // Its session is gone: an orphan, replaced by this session's own core (killed when it will not stop).
+      yield* stopPid(claim.pid, 10_000, { kill: true })
     }
     // @scenario S-0088
     const child = yield* start(opts.root, opts.command, "child", timeoutMs)

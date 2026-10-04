@@ -73,6 +73,26 @@ describe("connect", () => {
     await c.close()
   })
 
+  // @scenario S-0089
+  test("an orphaned core that does not stop when asked (wedged) is killed and replaced", async () => {
+    const root = fresh()
+    const gone = Bun.spawn(["true"])
+    await gone.exited
+    const orphan = Bun.spawn([process.execPath, "-e", `process.on("SIGTERM", () => {}); setInterval(() => {}, 1000)`])
+    await Bun.sleep(300)
+    mkdirSync(join(root, ".zarg", "run"), { recursive: true })
+    writeFileSync(infoPath(root), JSON.stringify({ pid: orphan.pid, socket: join(root, "x.sock"), token: "t", mode: "child", owner: gone.pid, ready: true }))
+    try {
+      const c = await Effect.runPromise(connect({ root, command }))
+      expect(c.info.pid).not.toBe(orphan.pid)
+      await orphan.exited
+      expect(isAlive(orphan.pid)).toBe(false)
+      await c.close()
+    } finally {
+      orphan.kill(9)
+    }
+  }, 30_000)
+
   // @scenario S-0091
   test("a core that is still starting is waited for, then joined with --attach", async () => {
     const root = fresh()
