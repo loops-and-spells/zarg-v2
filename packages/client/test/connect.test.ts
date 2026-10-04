@@ -78,7 +78,8 @@ describe("connect", () => {
     const root = fresh()
     const gone = Bun.spawn(["true"])
     await gone.exited
-    const orphan = Bun.spawn([process.execPath, "-e", `process.on("SIGTERM", () => {}); setInterval(() => {}, 1000)`])
+    // A core's own command line: --root names this project.
+    const orphan = Bun.spawn([process.execPath, "-e", `process.on("SIGTERM", () => {}); setInterval(() => {}, 1000)`, "--root", root])
     await Bun.sleep(300)
     mkdirSync(join(root, ".zarg", "run"), { recursive: true })
     writeFileSync(infoPath(root), JSON.stringify({ pid: orphan.pid, socket: join(root, "x.sock"), token: "t", mode: "child", owner: gone.pid, ready: true }))
@@ -90,6 +91,24 @@ describe("connect", () => {
       await c.close()
     } finally {
       orphan.kill(9)
+    }
+  }, 30_000)
+
+  // @scenario S-0089
+  test.if(process.platform === "linux")("a claim whose pid now names another program (the pid was reused) is never killed: the start is refused", async () => {
+    const root = fresh()
+    const gone = Bun.spawn(["true"])
+    await gone.exited
+    const other = Bun.spawn([process.execPath, "-e", `process.on("SIGTERM", () => {}); setInterval(() => {}, 1000)`])
+    await Bun.sleep(300)
+    mkdirSync(join(root, ".zarg", "run"), { recursive: true })
+    writeFileSync(infoPath(root), JSON.stringify({ pid: other.pid, socket: join(root, "x.sock"), token: "t", mode: "child", owner: gone.pid, ready: true }))
+    try {
+      const err = await Effect.runPromise(Effect.flip(connect({ root, command })))
+      expect(err.message).toContain("did not stop")
+      expect(isAlive(other.pid)).toBe(true)
+    } finally {
+      other.kill(9)
     }
   }, 30_000)
 

@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process"
+import { readFileSync } from "node:fs"
 import { Data, Effect } from "effect"
 import { type CoreInfo, isAlive, readClaim, readInfo } from "./info"
 
@@ -73,8 +74,19 @@ const untilStarted = (root: string, timeoutMs: number) =>
     }
   })
 
-/** Stop a core and wait until it is gone; `kill`: one that does not stop in time is killed (an orphan: no session needs it). */
-const stopPid = (pid: number, timeoutMs: number, opts: { readonly kill?: boolean } = {}) =>
+/** Whether `pid` is still this project's core (Linux: its command line names `--root <root>`); a reused pid is someone else's. */
+const isCoreOf = (pid: number, root: string) => {
+  try {
+    const args = readFileSync(`/proc/${pid}/cmdline`, "utf8").split("\0")
+    const at = args.indexOf("--root")
+    return at >= 0 && args[at + 1] === root
+  } catch {
+    return false
+  }
+}
+
+/** Stop a core and wait until it is gone; `kill`: one that does not stop in time is killed, when it is still this project's core (an orphan: no session needs it). */
+const stopPid = (pid: number, timeoutMs: number, opts: { readonly kill?: { readonly root: string } } = {}) =>
   Effect.gen(function* () {
     try {
       process.kill(pid, "SIGTERM")
@@ -83,7 +95,7 @@ const stopPid = (pid: number, timeoutMs: number, opts: { readonly kill?: boolean
     let killed = false
     while (isAlive(pid)) {
       if (Date.now() > deadline) {
-        if (opts.kill !== true || killed) return yield* new CoreStartError({ message: `core (pid ${pid}) did not stop within ${timeoutMs}ms` })
+        if (opts.kill === undefined || killed || !isCoreOf(pid, opts.kill.root)) return yield* new CoreStartError({ message: `core (pid ${pid}) did not stop within ${timeoutMs}ms` })
         try {
           process.kill(pid, "SIGKILL")
         } catch {}
@@ -117,7 +129,7 @@ export const connect = (opts: { readonly root: string; readonly command: Readonl
       if (claim.owner !== undefined && isAlive(claim.owner)) return yield* new CoreStartError({ message: `a zarg session is running here (pid ${claim.pid}); zarg --attach to join it, or quit it first` })
       // @scenario S-0089
       // Its session is gone: an orphan, replaced by this session's own core (killed when it will not stop).
-      yield* stopPid(claim.pid, 10_000, { kill: true })
+      yield* stopPid(claim.pid, 10_000, { kill: { root: opts.root } })
     }
     // @scenario S-0088
     const child = yield* start(opts.root, opts.command, "child", timeoutMs)
