@@ -1,13 +1,8 @@
 import { expect } from "bun:test"
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
-import { answerLoads, command, journey, openNav, termOf, type World } from "../src"
+import { answerLoads, command, journey, liveModel, MAIN, openNav, quit, termOf, type World } from "../src"
 
-/** The project's model: the live router (the full tier's). */
-const liveModel = (w: World) => {
-  mkdirSync(join(w.project, ".zarg"), { recursive: true })
-  appendFileSync(join(w.project, ".zarg", "config.toml"), `\n[providers.zarg-router]\nbase_url = ${JSON.stringify(process.env.E2E_ZARG_ROUTER_URL ?? "http://localhost:11435/api/v1")}\n\n[roles]\ndefault = "zarg-router:deepseek-v4.1-flash-exl3"\n`)
-}
 /** Waits up to `ms` for `check` to hold. */
 const eventually = async <A>(ms: number, check: () => A | undefined): Promise<A | undefined> => {
   const until = Date.now() + ms
@@ -83,18 +78,21 @@ journey("J-0007", { tier: "fast" }, (proves) => {
     "S-0102",
     async (s) => {
       liveModel(s.w)
-      await termOf(s.term, "S-0102").exit()
+      await quit(s.term)
+      const outcomes = () => {
+        const r = Bun.spawnSync([process.execPath, MAIN, "render", "--focus", "I-0001"], { cwd: s.w.project, env: s.w.env }).stdout.toString()
+        return { r, n: r.split("\n").filter((l) => l.trimStart().startsWith("Outcome ")).length }
+      }
+      const before = outcomes().n
       const t = await s.open()
       // YOLO: every plugin (the Intent Agent, the backlog) loads without asking.
       await command(t, "/yolo on")
       t.press("alt+m")
       await Bun.sleep(300)
       await command(t, "The app also lets parents reward finished chores with points. Keep that as an outcome.")
-      const kept = await eventually(240_000, () => {
-        const r = Bun.spawnSync([process.execPath, join(import.meta.dir, "..", "..", "cli", "src", "main.ts"), "render", "--focus", "I-0001"], { cwd: s.w.project, env: s.w.env }).stdout.toString()
-        return /Outcome .*point/i.test(r) ? r : undefined
-      })
-      s.note("buffer", "zarg render --focus I-0001", kept ?? "(no outcome about points)")
+      // One more outcome on the intent, however the model words it.
+      const kept = await eventually(240_000, () => (outcomes().n > before ? outcomes().r : undefined))
+      s.note("buffer", "zarg render --focus I-0001", kept ?? outcomes().r)
       expect(kept).toBeDefined()
     },
     { model: true },

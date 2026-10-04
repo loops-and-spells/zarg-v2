@@ -1,9 +1,9 @@
 import { expect } from "bun:test"
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { scenarioVersion } from "@zarg/audit/version"
 import { Snapshot } from "@zarg/graph/pure"
-import { answerLoads, choresGraph, command, journey, openNav, seed, termOf, type World } from "../src"
+import { answerLoads, choresGraph, command, journey, liveModel, openNav, quit, seed, termOf, type World } from "../src"
 
 const versionOf = (root: string, id: string) => {
   const dir = join(root, ".zarg", "graph", "nodes")
@@ -28,6 +28,8 @@ const eventually = async <A>(ms: number, check: () => A | undefined): Promise<A 
     await Bun.sleep(2_000)
   }
 }
+/** What was filed before the rehearsal: id → how many runs reported it. */
+let filedBefore = new Map<string, number>()
 const finding = (ref: string, note: string) => ({ ref, journeys: ["Assign chores"], persona: "Parent", kind: "bug", severity: "high" as const, note, from: { agent: "rehearse", run: "r-e2e" }, triage: { on: true, why: "real" } })
 
 journey("J-0008", { tier: "fast" }, (proves) => {
@@ -41,6 +43,8 @@ journey("J-0008", { tier: "fast" }, (proves) => {
     const ref = (id: string, v: string) => ({ ref: `gherkin/scenario:${id}@${v}` })
     write(s.w.project, seed.plan({ id: "B-01", status: "backlog", title: "Tell the child", journey: "Assign chores", scenarios: [ref("S-0001", v1)], changes: [{ tool: "edit-scenario", params: { id: "S-0001", title: "Parent assigns a chore and the child is told" } }], feedback: [], steps: ["Retitle S-0001"] }))
     write(s.w.project, seed.plan({ id: "B-02", status: "backlog", title: "Confirm removals", journey: "Assign chores", scenarios: [ref("S-0002", v2)], changes: [{ tool: "edit-scenario", params: { id: "S-0002", title: "Parent removes a chore after a confirm" } }], feedback: [], steps: ["Retitle S-0002"] }))
+    // And one drafted on a version of S-0002 that is gone: the scenario changed since.
+    write(s.w.project, seed.plan({ id: "B-03", status: "backlog", title: "Undo a removal", journey: "Assign chores", scenarios: [ref("S-0002", "000000000000")], changes: [{ tool: "edit-scenario", params: { id: "S-0002", title: "Parent removes a chore and can undo it" } }], feedback: [], steps: ["Retitle S-0002"] }))
     Bun.spawnSync(["git", "add", "-A"], { cwd: s.w.project, env: s.w.env })
     Bun.spawnSync(["git", "commit", "-qm", "the graph, its feedback and plans"], { cwd: s.w.project, env: s.w.env })
     const t = await s.open()
@@ -85,6 +89,11 @@ journey("J-0008", { tier: "fast" }, (proves) => {
     const t = termOf(s.term, "S-0111")
     await openNav(t, "Backlog")
     await t.waitFor("B-01 S-0001", 10_000)
+    // The plan drafted on an old version says so; the current ones do not.
+    // (A lane's card cuts the words: "⚠ scenari…".)
+    await t.waitFor("⚠ scenar", 10_000)
+    expect(t.screen().match(/⚠ scenar/g)?.length).toBe(1)
+    expect(t.screen()).toMatch(/B-03 S-0002[\s\S]*⚠ scenar/)
     // B-01 is the first card: ⇧→ moves it to Ready.
     t.press("shift+right")
     // The Planner applies its change and commits exactly that.
@@ -126,15 +135,22 @@ journey("J-0008", { tier: "fast" }, (proves) => {
     "S-0105",
     async (s) => {
       // The live router as the project's model; tagged code for the testers to read.
-      appendFileSync(join(s.w.project, ".zarg", "config.toml"), `\n[providers.zarg-router]\nbase_url = ${JSON.stringify(process.env.E2E_ZARG_ROUTER_URL ?? "http://localhost:11435/api/v1")}\n\n[roles]\ndefault = "zarg-router:deepseek-v4.1-flash-exl3"\n`)
+      liveModel(s.w)
       write(s.w.project, { "src/chores.ts": `// @scenario S-0001\nexport const assign = (chores: string[], chore: string) => [...chores, chore]\n// @scenario S-0002\nexport const remove = (chores: string[], chore: string) => chores.filter((c) => c !== chore)\n` })
-      await termOf(s.term, "S-0105").exit()
+      await quit(s.term)
+      // What was filed before this run (S-0106 looks for what it adds).
+      filedBefore = new Map(filesOf<{ id: string; runs?: ReadonlyArray<string> }>(s.w, "feedback").map((f) => [f.id, f.runs?.length ?? 1]))
       const t = await s.open()
       await command(t, "/yolo on")
       await command(t, "/rehearse journey")
-      // A tester per persona: the rehearse agent and its testers show on the rail.
-      await t.waitFor(/rehearse/, 60_000)
-      await t.waitFor(/tester|Parent/i, 120_000)
+      // A run walks the journey with a tester for its one persona (Parent).
+      const run = await eventually(180_000, () => {
+        const index = join(s.w.project, ".zarg", "rehearse", "index.json")
+        const text = existsSync(index) ? readFileSync(index, "utf8") : ""
+        return text.includes("Parent") ? text : undefined
+      })
+      s.note("buffer", ".zarg/rehearse/index.json", run ?? "(no run)")
+      expect(run).toBeDefined()
     },
     { model: true },
   )
@@ -142,8 +158,8 @@ journey("J-0008", { tier: "fast" }, (proves) => {
   proves(
     "S-0106",
     async (s) => {
-      const before = new Set(filesOf<{ id: string }>(s.w, "feedback").map((f) => f.id))
-      const filed = await eventually(300_000, () => filesOf<{ id: string; ref: string; from: { agent: string } }>(s.w, "feedback").find((f) => !before.has(f.id) && f.from.agent === "rehearse"))
+      // A new entry, or a seeded one the run reported again (same finding, same version: it merges).
+      const filed = await eventually(300_000, () => filesOf<{ id: string; ref: string; runs?: ReadonlyArray<string>; from: { agent: string } }>(s.w, "feedback").find((f) => f.from.agent === "rehearse" && (f.runs?.length ?? 1) > (filedBefore.get(f.id) ?? 0)))
       s.note("buffer", "the feedback filed", JSON.stringify(filed ?? null, null, 2))
       expect(filed?.ref).toMatch(/^gherkin\/scenario:S-000[12]@[0-9a-f]{12}$/)
     },
@@ -165,10 +181,7 @@ journey("J-0008", { tier: "fast" }, (proves) => {
   proves(
     "S-0110",
     async (s) => {
-      const t = termOf(s.term, "S-0110")
-      await openNav(t, "Feedback")
-      await t.waitFor("Assign chores", 10_000)
-      t.press("r")
+      // The journey waits in line since S-0109; with YOLO a Triage Agent takes it.
       const plan = await eventually(400_000, () => filesOf<{ id: string; status: string; dropped?: boolean }>(s.w, "backlog").find((p) => p.status === "backlog" && p.dropped !== true && !["B-01", "B-02"].includes(p.id)))
       s.note("buffer", "the plan triage drafted", JSON.stringify(plan ?? null, null, 2))
       expect(plan).toBeDefined()

@@ -1,7 +1,7 @@
 import { expect } from "bun:test"
-import { appendFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { answerLoads, command, journey, PROBE, termOf, type Term, type World } from "../src"
+import { answerLoads, command, journey, liveModel, PROBE, quit, termOf, type Term, type World } from "../src"
 
 /** The inbox's topics as the core keeps them (one file each). */
 const topics = (w: World) =>
@@ -130,9 +130,8 @@ journey("J-0006", { tier: "fast" }, (proves) => {
   proves(
     "S-0098",
     async (s) => {
-      // The live router as the project's model.
-      appendFileSync(join(s.w.project, ".zarg", "config.toml"), `\n[providers.zarg-router]\nbase_url = ${JSON.stringify(process.env.E2E_ZARG_ROUTER_URL ?? "http://localhost:11435/api/v1")}\n\n[roles]\ndefault = "zarg-router:deepseek-v4.1-flash-exl3"\n`)
-      await termOf(s.term, "S-0098").exit()
+      liveModel(s.w)
+      await quit(s.term)
       let t = await s.open()
       await answerLoads(t, "probe")
       // The message bar, then a message to zarg.

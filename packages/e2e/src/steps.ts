@@ -1,7 +1,9 @@
 import { expect } from "bun:test"
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import type { Step } from "./proof"
 import type { Term } from "./term"
+import type { World } from "./world"
 
 /** A slash command, typed as the operator types it. */
 export const command = async (t: Term, text: string) => {
@@ -20,7 +22,8 @@ export const answerLoads = async (t: Term, allow?: string) => {
     if (m !== null && t.screen().includes("Not now")) {
       quiet = 0
       asked.push(m[1]!)
-      await t.choose(m[1] === allow ? "Allow" : "Not now")
+      // Done when this question is gone (the next one may show the same options at once).
+      await t.choose(m[1] === allow ? "Allow" : "Not now", "right", `Plugin ${m[1]} wants to load`)
     } else quiet++
   }
   return asked
@@ -59,4 +62,17 @@ export const choresGraph = async (s: Step) => {
   await call("add-scenario", { title: "Parent assigns a chore", when: "the parent assigns a chore to a child", by: [{ name: "Parent" }], arrives: { text: "the parent sees the family's chores" }, then: [{ text: "the child sees the new chore" }] })
   await call("add-scenario", { title: "Parent removes a chore", when: "the parent removes a chore", by: [{ name: "Parent" }], arrives: { text: "the parent sees the family's chores" }, then: [{ text: "the chore leaves every list" }] })
   for (const id of ["S-0001", "S-0002"]) await call("link", { scenario: id, edge: "in", journey: { name: "Assign chores" } })
+}
+
+/** The project's model: the live router (the full tier's). Written once: a model step's retry runs again in the same world. */
+export const liveModel = (w: World) => {
+  const file = join(w.project, ".zarg", "config.toml")
+  if (existsSync(file) && readFileSync(file, "utf8").includes("[providers.zarg-router]")) return
+  mkdirSync(join(w.project, ".zarg"), { recursive: true })
+  appendFileSync(file, `\n[providers.zarg-router]\nbase_url = ${JSON.stringify(process.env.E2E_ZARG_ROUTER_URL ?? "http://localhost:11435/api/v1")}\n\n[roles]\ndefault = "zarg-router:deepseek-v4.1-flash-exl3"\n`)
+}
+
+/** Quits the session an earlier step opened, when one is still open (a retry finds it gone). */
+export const quit = async (t: Term | undefined) => {
+  if (t !== undefined) await t.exit().catch(() => undefined)
 }

@@ -10,8 +10,8 @@ export interface Term {
   readonly waitFor: (what: string | RegExp, timeoutMs?: number) => Promise<string>
   /** Waits until the screen no longer shows `what`. */
   readonly waitGone: (what: string | RegExp, timeoutMs?: number) => Promise<string>
-  /** Moves the selection (with `key`, right by default) to the option labelled `label`, then presses Enter until it leaves: for options that go once chosen (a question's answers). */
-  readonly choose: (label: string, key?: string) => Promise<void>
+  /** Moves the selection (with `key`, right by default) to the option labelled `label`, then presses Enter until the question (`gone`, else the option) leaves. */
+  readonly choose: (label: string, key?: string, gone?: string | RegExp) => Promise<void>
   readonly type: (text: string) => void
   readonly press: (key: string) => void
   readonly paste: (text: string) => void
@@ -78,17 +78,19 @@ export const zarg = async (w: World, args: ReadonlyArray<string> = [], opts: { r
   const waitFor = (what: string | RegExp, timeoutMs = 10_000) => until(what, true, timeoutMs)
   // The selected option is drawn after a ›.
   const selected = (label: string) => new RegExp(`›\\s*${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`)
-  const choose = async (label: string, key = "right") => {
+  const choose = async (label: string, key = "right", gone?: string | RegExp) => {
     await waitFor(label)
     for (let k = 0; k < 8 && !selected(label).test(screen()); k++) {
       send(keyBytes(key))
       await Bun.sleep(100)
     }
     if (!selected(label).test(screen())) throw new Error(`could not select ${label} with ${key}; the screen:\n${screen()}`)
-    // A question just drawn may not take keys yet: Enter again until the chosen option leaves (at most 3 times).
-    for (let k = 0; k < 3 && selected(label).test(screen()); k++) {
+    // A question just drawn may not take keys yet: Enter again until it leaves (at most 3 times). `gone` names the
+    // question itself: the next question can show the same option selected at once.
+    const done = gone ?? selected(label)
+    for (let k = 0; k < 3 && shows(screen(), done); k++) {
       send(keyBytes("enter"))
-      await until(selected(label), false, 1_500).catch(() => undefined)
+      await until(done, false, 1_500).catch(() => undefined)
     }
   }
   return {

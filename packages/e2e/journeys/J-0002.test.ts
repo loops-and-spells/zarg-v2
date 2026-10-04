@@ -261,8 +261,9 @@ journey("J-0002", { tier: "fast", seed: SEED }, (proves) => {
     expect(asked).toContain("probe")
     const grants = JSON.parse(readFileSync(join(s.w.userDir, "grants.json"), "utf8"))
     expect(grants[s.w.project]?.probe?.digests?.length).toBe(1)
-    // Only what it declared: no extra grant yet.
+    // Only what it declared: no extra grant yet; and no other plugin approved on the way.
     expect(grants[s.w.project]?.probe?.extra).toBeUndefined()
+    expect(Object.keys(grants[s.w.project]).sort()).toEqual(["evidence-screen", "evidence-terminal", "gherkin", "probe"])
     // The Setup sheet (no provider answers) gives the keys back on Esc.
     t.press("esc")
     await t.waitGone("esc closes", 10_000)
