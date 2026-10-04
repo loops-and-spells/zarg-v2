@@ -51,6 +51,11 @@ run = "mise x -- bun packages/e2e/src/run.ts --full"
 description = "Use the repo's git hooks (.githooks): the fast e2e tier before every push"
 run = "git config core.hooksPath .githooks"
 
+[tasks.catalog]
+description = "Build the catalog (intent, journeys, scenarios and their evidence) into site/ and serve it at http://localhost:4173"
+depends = ["//...:build"]
+run = ["mise x -- bun packages/cli/src/main.ts catalog build --out site", "mise x -- bun packages/catalog/src/serve.ts site"]
+
 [tasks."build:plugins"]
 description = "Build zarg's own plugins (dist/) and record their first-party hashes"
 run = "mise x -- bun packages/plugin/scripts/build-plugins.ts"

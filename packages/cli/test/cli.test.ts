@@ -248,6 +248,21 @@ describe("zarg plugin", () => {
   })
 })
 
+describe("zarg catalog", () => {
+  test("catalog build writes the site from the graph, with no evidence yet", () => {
+    const r = mkdtempSync(join(tmpdir(), "zarg-cli-catalog-"))
+    Bun.spawnSync(["git", "init", "-q"], { cwd: r })
+    zargIn(r, "tool", "call", "gherkin/add-persona", JSON.stringify({ name: "Operator", kind: "human", text: "The person using the product." }))
+    zargIn(r, "tool", "call", "gherkin/add-scenario", JSON.stringify({ title: "Operator opens pricing", when: "the operator opens pricing", by: [{ name: "Operator" }], arrives: { text: "the home page is shown" }, then: [{ text: "the plans are shown" }] }))
+    const built = zargIn(r, "catalog", "build", "--out", "site")
+    expect(built.code).toBe(0)
+    expect(JSON.parse(built.out).pages).toBeGreaterThan(0)
+    expect(readFileSync(join(r, "site", "scenarios", "S-0001.html"), "utf8")).toContain("Operator opens pricing")
+    expect(readFileSync(join(r, "site", "index.html"), "utf8")).toContain("zarg catalog")
+    rmSync(r, { recursive: true, force: true })
+  })
+})
+
 describe("zarg audit, the one CI check", () => {
   const repo = () => {
     const r = mkdtempSync(join(tmpdir(), "zarg-cli-audit-"))

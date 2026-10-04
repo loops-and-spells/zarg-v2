@@ -17,3 +17,6 @@ packages/plugin/test/fixtures/.gen/
 .zarg/evidence/media/**/*.gif
 .zarg/evidence/media/**/*.mp4
 .zarg/evidence/media/**/*.webm
+
+# the built catalog (mise run catalog)
+site/

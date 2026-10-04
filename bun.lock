@@ -119,6 +119,7 @@
         "@opentui/core": "^0.5.12",
         "@opentui/react": "0.5.12",
         "@zarg/audit": "workspace:*",
+        "@zarg/catalog": "workspace:*",
         "@zarg/client": "workspace:*",
         "@zarg/core": "workspace:*",
         "@zarg/graph": "workspace:*",

@@ -2,7 +2,7 @@ import { Cause, Console, Effect, Option } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
 import { diff, GraphStore, hash, Snapshot } from "@zarg/graph"
 import { PluginHost } from "@zarg/plugin/server"
-import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { basename, join, resolve } from "node:path"
 import { findPlugin, USER_DIR } from "@zarg/core/plugins"
 import { type Grant, makeGrants, scopesDigest, warnings } from "@zarg/plugin/runtime"
@@ -10,7 +10,8 @@ import { describeScopes, installPlugin } from "@zarg/plugin/server"
 import { buildPlugin } from "@zarg/plugin-sdk/tools"
 import { readClaim, startHeadless, stopCore } from "@zarg/client"
 import { baseTree, CHECKPOINT, git, LEGACY_CHECKPOINT, snapshotAtTree, workingGraphTree } from "@zarg/reconcile"
-import { audit as auditOf, codeChanged, exitCode as auditExit, fullAudit, fullSummary, tags as auditTags, toJunit } from "@zarg/audit"
+import { audit as auditOf, codeChanged, exitCode as auditExit, fullAudit, fullSummary, type Tag, tags as auditTags, toJunit } from "@zarg/audit"
+import { build as buildCatalog, catalogOf, githubRepo } from "@zarg/catalog"
 import { scenarioRefs, snapshotAt } from "./git"
 import { root } from "./root"
 
@@ -121,6 +122,25 @@ const checkpoint = Command.make("checkpoint", {}, () =>
   }),
 )
 
+const gitOut = (...args: Array<string>) => Bun.spawnSync(["git", ...args], { cwd: root })
+
+/** The whole audit: what only the plugin host knows (lints, the agenda) with the graph, the tags and the evidence. */
+const fullReport = (loaded: { readonly snapshot: Snapshot.Snapshot; readonly problems: ReadonlyArray<{ readonly file: string; readonly message: string }> }, found: ReadonlyArray<Tag>) =>
+  Effect.gen(function* () {
+    const findings = yield* PluginHost.use((h) => h.lint)
+    const agenda = yield* PluginHost.use((h) => h.agenda())
+    return fullAudit({
+      snap: loaded.snapshot,
+      tags: found,
+      root,
+      invalid: loaded.problems.map((p) => ({ id: basename(p.file, ".json"), detail: p.message })),
+      findings,
+      agenda,
+      changedSince: (scenario, evidence) => codeChanged(root, found.filter((t) => t.id === scenario).map((t) => t.file), evidence),
+      hasCommit: (sha) => gitOut("cat-file", "-e", `${sha}^{commit}`).exitCode === 0,
+    })
+  })
+
 /** The one CI check: graph structure and lints, completeness, intent coverage, code tags, proof by evidence, evidence integrity. JSON (or --summary, --junit <file>); exit 0 complete, 1 a problem, 2 the audit could not run; --scenario for one scenario. */
 const auditCmd = Command.make(
   "audit",
@@ -145,19 +165,7 @@ const auditCmd = Command.make(
           })
         return
       }
-      const findings = yield* PluginHost.use((h) => h.lint)
-      const agenda = yield* PluginHost.use((h) => h.agenda())
-      const run = (...args: Array<string>) => Bun.spawnSync(["git", ...args], { cwd: root })
-      const report = fullAudit({
-        snap,
-        tags: found,
-        root,
-        invalid: loaded.problems.map((p) => ({ id: basename(p.file, ".json"), detail: p.message })),
-        findings,
-        agenda,
-        changedSince: (scenario, evidence) => codeChanged(root, found.filter((t) => t.id === scenario).map((t) => t.file), evidence),
-        hasCommit: (sha) => run("cat-file", "-e", `${sha}^{commit}`).exitCode === 0,
-      })
+      const report = yield* fullReport(loaded, found)
       const junit = o.junit
       if (Option.isSome(junit)) yield* Effect.sync(() => writeFileSync(junit.value, toJunit(report)))
       yield* print(o.summary && !o.json ? fullSummary(report) : report)
@@ -174,6 +182,43 @@ const auditCmd = Command.make(
       ),
     ),
 )
+
+/** The catalog: a static site of the intent, the journeys, the scenarios and their evidence, from what is committed. */
+const catalogBuild = Command.make(
+  "build",
+  { out: Flag.String("out").pipe(Flag.withDefault("site"), Flag.withDescription("the directory to write (emptied first; only a catalog's own)")) },
+  (o) =>
+    Effect.gen(function* () {
+      const loaded = yield* GraphStore.use((s) => s.load)
+      const report = yield* fullReport(loaded, yield* auditTags(root))
+      const repo = githubRepo(gitOut("remote", "get-url", "origin").stdout.toString())
+      const ref = gitOut("rev-parse", "HEAD").stdout.toString().trim()
+      const evidence = join(root, ".zarg", "evidence")
+      const catalog = catalogOf({
+        snap: loaded.snapshot,
+        report,
+        ...(repo === undefined || ref === "" ? {} : { github: { repo, ref } }),
+        readText: (path) => {
+          try {
+            return readFileSync(join(evidence, path), "utf8")
+          } catch {
+            return undefined
+          }
+        },
+      })
+      const out = resolve(root, o.out)
+      yield* Effect.sync(() => buildCatalog({ catalog, root, out }))
+      yield* print({ out, pages: catalog.intents.length + catalog.journeys.length + catalog.scenarios.length + 2, media: catalog.scenarios.reduce((n, s) => n + (s.proof?.media.filter((m) => m.present).length ?? 0), 0) })
+    }).pipe(
+      Effect.catchCause((c) =>
+        Effect.sync(() => {
+          console.error(`zarg catalog build could not run: ${String(Cause.squash(c))}`)
+          process.exitCode = 2
+        }),
+      ),
+    ),
+)
+const catalogCmd = Command.make("catalog").pipe(Command.withSubcommands([catalogBuild]))
 
 const coreStart = Command.make(
   "start",
@@ -282,4 +327,4 @@ export const zarg = Command.make(
     attach: Flag.Boolean("attach").pipe(Flag.withDefault(false), Flag.withDescription("join the core already running here (a headless one, or another session's) instead of starting this session's own")),
   },
   ({ thread, focus, yolo, attach }) => Effect.flatMap(Effect.promise(() => import("./tui/run")), (m) => m.runTui({ root, threadId: thread, focus, yolo, attach })),
-).pipe(Command.withSubcommands([tool, show, render, agenda, lint, query, diffCmd, affected, checkpoint, auditCmd, core, plugin]))
+).pipe(Command.withSubcommands([tool, show, render, agenda, lint, query, diffCmd, affected, checkpoint, auditCmd, catalogCmd, core, plugin]))
