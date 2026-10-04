@@ -14,6 +14,8 @@ export interface Term {
   readonly exit: () => Promise<number>
   /** The session so far as an asciicast v2 document. */
   readonly cast: () => string
+  /** Seconds since the session started (the cast's clock). */
+  readonly elapsed: () => number
   /** The headless terminal itself (its cells and colours), for frame captures. */
   readonly xterm: XtermLike
 }
@@ -81,5 +83,6 @@ export const zarg = async (w: World, args: ReadonlyArray<string> = []): Promise<
     },
     cast: () => [header, ...events].join("\n") + "\n",
     xterm: term as unknown as XtermLike,
+    elapsed: () => (performance.now() - started) / 1000,
   }
 }

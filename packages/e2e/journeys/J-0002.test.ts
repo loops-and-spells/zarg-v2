@@ -14,25 +14,33 @@ journey("J-0002", { tier: "fast" }, (proves) => {
     s.note("buffer", "zarg agenda (the grants asked for)", grants.join("\n"))
     expect(grants).toContain("plugin-grant:backlog")
     for (const own of ["gherkin", "evidence-terminal", "evidence-screen"]) expect(grants).not.toContain(`plugin-grant:${own}`)
-    // Not now, for each question, then the Setup sheet closes: the inbox.
-    for (let i = 0; i < 8; i++) {
-      // A question can follow the one just answered: settle before looking again.
-      await Bun.sleep(800)
-      if (!t.screen().includes("Not now")) break
-      t.press("right")
-      t.press("enter")
+    // Not now, for each question, then the Setup sheet closes: wait until neither shows, and the screen has settled.
+    const until = Date.now() + 30_000
+    for (let quiet = 0; quiet < 3 && Date.now() < until; ) {
+      await Bun.sleep(400)
+      const screen = t.screen()
+      if (screen.includes("Not now")) {
+        quiet = 0
+        // Pick "Not now" by its label, whatever is selected.
+        for (let k = 0; k < 3 && !/›\s*Not now/.test(t.screen()); k++) {
+          t.press("right")
+          await Bun.sleep(100)
+        }
+        t.press("enter")
+      } else if (screen.includes("esc closes")) {
+        quiet = 0
+        // An answered question gives the bar its keys first; Esc until the sheet is gone.
+        t.press("esc")
+      } else quiet++
     }
-    // Esc until the Setup sheet is gone (an answered question gives the bar its keys back first).
-    for (let i = 0; i < 4 && t.screen().includes("esc closes"); i++) {
-      t.press("esc")
-      await Bun.sleep(500)
-    }
+    expect(t.screen()).not.toContain("Not now")
     expect(t.screen()).not.toContain("esc closes")
     await t.waitFor("Nothing needs you", 10_000)
   })
 
   proves("S-0067", async (s) => {
-    const t = s.term!
+    const t = s.term
+    if (t === undefined) throw new Error("S-0067 runs in the TUI S-0069 opened, and S-0069 did not open it")
     // One burst, as the operator types it.
     t.type("/yolo on")
     await t.waitFor("/yolo on", 5_000)

@@ -38,3 +38,9 @@ test("a frame medium renders its SVG; text folds when asked; a gif is an image",
   expect(g.html).toBe('<img class="evidence-gif" src="../media/S-1/s.gif" alt="g">')
   for (const r of [f, folded, plain, g]) expect(await sanitize(r.html)).toBe(r.html)
 })
+
+test("a cast that starts at its step tells the player where to start", async () => {
+  const r = render({ kind: "evidence-terminal/cast", caption: "step", meta: { startAt: 3.9 }, files: [{ name: "step.cast", url: "m/step.cast", text: "{}" }] })
+  expect(r.html).toBe('<div class="evidence-cast" data-cast-data="{}" data-start-at="3.9"></div>')
+  expect(await sanitize(r.html)).toBe(r.html)
+})

@@ -21,9 +21,9 @@ test("a frame: spans merge by look; palette, 256 and truecolor resolve to hex; i
   expect(f.lines[1]).toEqual([{ t: "Inv", fg: BG, bg: FG, cells: 3 }, { t: "         ", cells: 9 }])
 })
 
-test("a wide character covers two columns once; the row still spans every column", async () => {
-  const f = frameOf(await term(6, 1, "a界b"))
-  expect(f.lines[0]).toEqual([{ t: "a界b  ", cells: 6 }])
+test("a wide character (or one outside the BMP, an emoji, whose glyph is wider than its column) is a span of its own: every other span has one column per character, so nothing after it drifts", async () => {
+  const f = frameOf(await term(8, 1, "a界b😀c"))
+  expect(f.lines[0]).toEqual([{ t: "a", cells: 1 }, { t: "界", cells: 2 }, { t: "b", cells: 1 }, { t: "😀", cells: 1 }, { t: "c  ", cells: 3 }])
 })
 
 test("the same screen gives the same bytes; a cast is the asciicast as given", async () => {
@@ -32,4 +32,8 @@ test("the same screen gives the same bytes; a cast is the asciicast as given", a
   expect(a.kind).toBe("evidence-terminal/frame")
   expect(a.files["frame.json"]).toBe(b.files["frame.json"] as string)
   expect(cast("step", '{"version":2}\n')).toEqual({ kind: "evidence-terminal/cast", caption: "step", files: { "step.cast": '{"version":2}\n' } })
+})
+
+test("a step's cast is the session so far, starting at the step (the player fast-forwards: the screen is whole from its first frame)", () => {
+  expect(cast("step", '{"version":2}\n', { startAt: 3.9 })).toEqual({ kind: "evidence-terminal/cast", caption: "step", files: { "step.cast": '{"version":2}\n' }, meta: { startAt: 3.9 } })
 })

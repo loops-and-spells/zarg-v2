@@ -505,6 +505,15 @@ describe("tui frames", () => {
     expect(t.captureCharFrame().split("\n").find((l) => l.includes("› /")) ?? "").toContain("/re")
   })
 
+  test("in that same burst, Backspace deletes and Enter runs the command (as typed slowly)", async () => {
+    const t = await render({ thread: { ...initial("main"), status: "idle" }, core: "up" })
+    t.mockInput.pressKey("v", { meta: true })
+    await t.waitForVisualIdle()
+    await t.mockInput.typeText("/reconcilx\x7fe\r")
+    await settle(t)
+    expect(t.calls).toEqual(["command /reconcile"])
+  })
+
   test("a key typed right after Tab lands after the completion", async () => {
     const t = await render({ thread: { ...initial("main"), status: "idle" }, core: "up" })
     await t.mockInput.typeText("/re")

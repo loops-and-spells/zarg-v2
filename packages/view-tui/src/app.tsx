@@ -143,11 +143,27 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     } else if (action.type === "exit") props.onExit()
   }
 
+  /** The bar's Enter: the input's own, or the one typed in the burst that opened it. */
+  const submit = (value: string) => {
+    const r = onSubmit(latest(), props.session.state(), value)
+    setUi(r.ui)
+    if (r.draft !== undefined) setDraft(r.draft)
+    else if (r.action !== undefined) setDraft("")
+    act(r.action)
+  }
   useKeyboard((key) => {
     // The bar opened earlier in this same burst (after /) and its input has not rendered yet: the typing is the bar's, never a panel's key.
-    const printable = key.sequence !== undefined && key.sequence.length === 1 && key.sequence >= " " && key.ctrl !== true && key.meta !== true && key.option !== true
+    const printable = key.sequence !== undefined && key.sequence.length === 1 && key.sequence >= " " && key.sequence !== "\x7f" && key.ctrl !== true && key.meta !== true && key.option !== true
     if (barOpening.current && printable) {
       setDraft(draftRef.current + key.sequence)
+      return
+    }
+    if (barOpening.current && key.name === "backspace") {
+      setDraft(draftRef.current.slice(0, -1))
+      return
+    }
+    if (barOpening.current && key.name === "return") {
+      submit(draftRef.current)
       return
     }
     const before = latest().focus
@@ -522,13 +538,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
               if (u.slash?.sel !== null && u.slash?.sel !== undefined) setUi({ ...u, slash: { sel: null, cycle: u.slash.cycle } })
             }}
             // The input passes its value; the prop's type also admits DOM's SubmitEvent, hence `unknown`.
-            onSubmit={(value: unknown) => {
-              const r = onSubmit(latest(), props.session.state(), String(value))
-              setUi(r.ui)
-              if (r.draft !== undefined) setDraft(r.draft)
-              else if (r.action !== undefined) setDraft("")
-              act(r.action)
-            }}
+            onSubmit={(value: unknown) => submit(String(value))}
           />
         </>
       ) : line.tone === "question" && line.text.startsWith("◆ zarg asks ") ? (

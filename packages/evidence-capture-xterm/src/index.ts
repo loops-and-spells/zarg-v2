@@ -36,6 +36,8 @@ export const BG = "#101010"
 const rgb = (n: number) => `#${n.toString(16).padStart(6, "0")}`
 const colour = (palette: boolean, isRgb: boolean, value: number) => (isRgb ? rgb(value) : palette ? PALETTE[value] : undefined)
 
+/** A cell whose glyph's advance is the font's, not one column: two columns wide, or outside the BMP (an emoji). */
+const alone = (t: string, width: number) => width > 1 || [...t].some((c) => c.codePointAt(0)! > 0xffff)
 const LOOK = ["fg", "bg", "b", "i", "u", "d"] as const
 const sameLook = (a: Omit<Span, "t" | "cells">, b: Omit<Span, "t" | "cells">) => LOOK.every((k) => a[k] === b[k])
 
@@ -45,6 +47,7 @@ export const frameOf = (term: XtermLike): Frame => {
   const lines = Array.from({ length: term.rows }, (_, y) => {
     const line = buf.getLine(buf.viewportY + y)
     const spans: Array<Span> = []
+    let prevAlone = false
     for (let x = 0; x < term.cols; x++) {
       const c = line?.getCell(x)
       if (c !== undefined && c.getWidth() === 0) continue
@@ -62,7 +65,11 @@ export const frameOf = (term: XtermLike): Frame => {
       const t = c?.getChars() || " "
       const w = c?.getWidth() ?? 1
       const last = spans.at(-1)
-      if (last !== undefined && sameLook(last, look)) spans[spans.length - 1] = { ...last, t: last.t + t, cells: last.cells + w }
+      // A wide cell stands alone (its glyph's advance is the font's, not two columns): nothing merges into or after it.
+      const single = alone(t, w)
+      const merge = last !== undefined && !single && !prevAlone && sameLook(last, look)
+      prevAlone = single
+      if (merge) spans[spans.length - 1] = { ...last, t: last.t + t, cells: last.cells + w }
       else spans.push({ t, ...look, cells: w })
     }
     // Key order fixed (t, then the look, then cells) so the same screen is the same bytes.
@@ -72,7 +79,13 @@ export const frameOf = (term: XtermLike): Frame => {
 }
 
 export const frame = (caption: string, term: XtermLike): Capture => ({ kind: "evidence-terminal/frame", caption, files: { "frame.json": JSON.stringify(frameOf(term)) } })
-export const cast = (caption: string, asciicast: string): Capture => ({ kind: "evidence-terminal/cast", caption, files: { "step.cast": asciicast } })
+/** A recording; `startAt` (seconds) is where its step begins, so the player opens on a whole screen rather than a partial redraw. */
+export const cast = (caption: string, asciicast: string, opts: { readonly startAt?: number } = {}): Capture => ({
+  kind: "evidence-terminal/cast",
+  caption,
+  files: { "step.cast": asciicast },
+  ...(opts.startAt === undefined ? {} : { meta: { startAt: opts.startAt } }),
+})
 
 /** A gif of the cast through `agg` (asciinema's gif tool) when it is on PATH; undefined otherwise. */
 export const gif = (caption: string, asciicast: string): Capture | undefined => {

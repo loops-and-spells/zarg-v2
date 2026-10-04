@@ -17,7 +17,9 @@ export const render = (input: RenderInput): { readonly html: string; readonly as
     case "frame":
       return { html: frameSvg(JSON.parse(text) as Frame), assets: ["terminal.css"] }
     case "cast":
-      return { html: `<div class="evidence-cast" data-cast-data="${esc(text)}"></div>`, assets: ["asciinema-player.css", "asciinema-player.min.js", "cast.js"] }
+      const startAt = (input.meta as { startAt?: unknown } | undefined)?.startAt
+      const at = typeof startAt === "number" && Number.isFinite(startAt) && startAt > 0 ? ` data-start-at="${startAt}"` : ""
+      return { html: `<div class="evidence-cast" data-cast-data="${esc(text)}"${at}></div>`, assets: ["asciinema-player.css", "asciinema-player.min.js", "cast.js"] }
     case "gif":
       return { html: `<img class="evidence-gif" src="../${esc(main?.url ?? "")}" alt="${esc(input.caption)}">`, assets: [] }
     default: {

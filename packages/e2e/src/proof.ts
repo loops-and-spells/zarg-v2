@@ -93,7 +93,8 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
             staged = mine
             // A world that cannot start fails the step, with its reason as evidence.
             w ??= world(opts.seed)
-            const castFrom = term?.cast().trimEnd().split("\n").length ?? 1
+            // Where this step begins on the session's clock (a terminal opened by the step itself begins at 0).
+            const stepAt = term?.elapsed() ?? 0
             if (term !== undefined) mine.attach(frame("the screen before", term.xterm))
             const step: Step = {
               get w() {
@@ -121,9 +122,9 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
             } finally {
               if (term !== undefined) {
                 mine.attach(frame("the screen after", term.xterm))
-                const [header, ...events] = term.cast().trimEnd().split("\n")
-                const played = [header, ...events.slice(Math.max(0, castFrom - 1))].join("\n") + "\n"
-                mine.attach(cast("the step as it played", played))
+                // The session so far, played from the step: the player fast-forwards, so its screen is whole from the start.
+                const played = term.cast()
+                mine.attach(cast("the step as it played", played, { startAt: Math.round(stepAt * 10) / 10 }))
                 // A gif too, when agg is installed.
                 const moving = gif("the step as a gif", played)
                 if (moving !== undefined) mine.attach(moving)

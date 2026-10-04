@@ -48,3 +48,24 @@ test("a screenshot on its own; video only when the page records one", async () =
   const withVideo = fakePage({ video: new Uint8Array([9, 9]) })
   expect(await record(withVideo.page as never).video("run")).toMatchObject({ kind: "evidence-screen/video", files: { "video.webm": new Uint8Array([9, 9]) } })
 })
+
+test("a request belongs to the action it started in, its time from start to finish; one still in flight is waited for", async () => {
+  const { page, emit } = fakePage()
+  const rec = record(page as never)
+  const slow = { method: () => "POST", url: () => "/api/slow", response: async () => ({ status: () => 201 }) }
+  await rec.action("submit", async () => {
+    emit("request", slow)
+    // finishes 30 ms later, after the action's own work is done
+    setTimeout(() => emit("requestfinished", slow), 30)
+  })
+  const late = { method: () => "GET", url: () => "/api/late", response: async () => ({ status: () => 200 }) }
+  emit("request", late)
+  await rec.action("next", async () => {
+    emit("requestfinished", late)
+  })
+  const steps = JSON.parse(rec.trace("t").files["trace.json"] as string)
+  expect(steps[0].requests.map((r: { url: string; status: number }) => [r.url, r.status])).toEqual([["/api/slow", 201]])
+  expect(steps[0].requests[0].ms).toBeGreaterThanOrEqual(25)
+  // A request started between actions belongs to none: it never lands in the next one.
+  expect(steps[1].requests).toEqual([])
+})
