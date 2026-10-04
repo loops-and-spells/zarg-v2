@@ -1,13 +1,13 @@
 {
   "scenario": "S-0001",
   "version": "ed5a7457d05a",
-  "commit": "712d316",
-  "run": "e2e-2026-10-04T22-32-28.595Z",
+  "commit": "b9aa753",
+  "run": "e2e-2026-10-04T22-49-10.062Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T22:33:11.916Z",
-  "ms": 435,
+  "at": "2026-10-04T22:49:53.967Z",
+  "ms": 476,
   "media": [
     {
       "kind": "evidence-terminal/text",
@@ -20,9 +20,9 @@
   ],
   "failure": null,
   "code": {
-    "packages/cli/src/commands.ts": "832c0799df4890ae0a697ced852db039d338e34b",
-    "packages/cli/test/cli.test.ts": "f7825bc307eeca9c409820aa37b2f2274c5c6600",
-    "packages/e2e/journeys/J-0008.test.ts": "63c619c9cba2fba9cefc4ea1fdd25ea6518a5fd7",
+    "packages/cli/src/commands.ts": "75bcf3f9f03e54ee419a833218aa4e72cce045bb",
+    "packages/cli/test/cli.test.ts": "56b6cfac8208bfa88a3987e69d2f667eaae17327",
+    "packages/e2e/journeys/J-0008.test.ts": "11ef200f6ab2f42fb4b00bf9e16dc26b3dc64244",
     "packages/plugin/src/server/host.ts": "be619b3d6a4b92f47f1f1b11653a1bba33c13074",
     "packages/plugin/test/host.test.ts": "6f9202a574a2c8ad01fc1bc2016731c5dad703a8"
   }

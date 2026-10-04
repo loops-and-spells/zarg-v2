@@ -1,17 +1,17 @@
                        │  Backlog                                                                                       
  ◆ zarg                │                                                                                                
-   project · main      │  Backlog 0      ◂  Ready 0        ◂  Running 0      ◂  Review 1       ◂  Done 0         ◂      
+   project · main      │  Backlog 1      ◂  Ready 0        ◂  Running 0      ◂  Review 1       ◂  Done 0         ◂      
                        │  ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔  ────────────────  ────────────────  ────────────────  ────────────────      
- VIEWS               5 │                                                        ▌B-01 S-0001 ◇0                         
-  ▤ Inbox              │                                                        ▌Tell the child                         
-  ▤ Journeys           │                                                                                                
+ VIEWS               5 │  ▌B-03 S-0002 ◇0                                       ▌B-01 S-0001 ◇0                         
+  ▤ Inbox              │  ▌Undo a removal                                       ▌Tell the child                         
+  ▤ Journeys           │  ▌⚠ scenario ch…                                                                               
   ▤ Intents            │                                                                                                
   ▤ Feedback           │                                                                                                
 ▍ ▤ Backlog            │                                                                                                
                        │                                                                                                
  AGENTS              2 │                                                                                                
   ● zarg           0/0 │                                                                                                
-  ⠼ setup          0/1 │                                                                                                
+  ⠦ setup          0/1 │                                                                                                
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                
