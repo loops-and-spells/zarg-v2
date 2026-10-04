@@ -129,6 +129,32 @@ Date: 2026-10-04 · Status: approved design (the operator), pending spec review.
 - **Planned scenarios** are exempt from Code and Proof, as today; they still count in Structure, Lints and Completeness.
 - **The gate:** `mise run verify` runs `zarg audit`, so the strict switch in "Getting there" (step 5) is when Completeness, Intent coverage and Proof stop being reported as warnings. A CI job needs only `mise run audit` (no models, no router): it checks the committed graph and evidence. Running the e2e suite to refresh the evidence is a separate job on a machine with the router.
 
+## The catalog: a static site of the intent, the journeys, the scenarios and their proof
+
+A human reader's one stop to know whether everything works: the graph from intent to scenario, each scenario's proof, and the captured evidence, replayable.
+
+- **Built by** `zarg catalog build [--out site]` (package `packages/catalog`, `@zarg/catalog`). It is a plain static site: HTML, CSS and a little JS, with no server needed. It reads the committed graph, `.zarg/evidence` and its media, and the audit.
+- **Served locally** by `mise run catalog`: build, then serve `site/` with Bun on `http://localhost:4173`. The same output is what a GitHub Pages workflow publishes later (out of scope for now; the site works from any static host and under a sub-path).
+- **Pages:**
+
+  | Page | Shows |
+  |---|---|
+  | **Overview** | the audit at a glance: every check's count, red first; proven / failing / stale / unproven / planned per journey as bars; the run and commit the evidence comes from |
+  | **Intent** (per intent) | its problem; each outcome with the journeys serving it (or "◇ no journey"); constraints and what they bound; open questions |
+  | **Journey** (per journey) | the outcomes it serves; its scenarios in flow order (the graph's own arrivals and Thens), each as Gherkin with its status badge |
+  | **Scenario** (per scenario) | its Given / When / Then with persona; its version; its code (each `@scenario` tag as `file:line`, linked to the repo when the git remote is GitHub); its proof (run, commit, time, flaky or not); its **evidence**: buffer snapshots before and after as terminal frames, the step's cast **replayable** (play, pause, scrub), images and gifs inline, videos with a player, logs folded; on failure, what was expected and the frame it failed on |
+  | **Search** | every intent, outcome, journey and scenario by text and id, client-side |
+
+- **Players:**
+  - **Casts:** the asciinema player (`asciinema-player`, an npm dependency, copied into the site, so nothing comes from a CDN).
+  - **Buffers:** shown as monospace frames.
+  - **Images and gifs:** `<img>`.
+  - **Videos:** `<video>`.
+  - **Binary media that is not committed:** shown as "captured on the run's machine, not committed" instead of a broken link.
+- **Status words** are the audit's own (`proven`, `failing`, `stale`, `unproven`, `planned`), with the same colours everywhere.
+- **No secrets:** the site holds only what is committed (the graph, the evidence and its text media), and a build refuses to copy a media file that is not under `.zarg/evidence/media`.
+- **Deterministic:** the same graph and evidence build the same site byte for byte, sorted throughout, with no build timestamp in pages. A catalog diff shows what changed.
+
 ## Red becomes work
 
 The core watches `.zarg/evidence` (as it watches the graph) and turns each red scenario into work.
@@ -161,7 +187,8 @@ The core watches `.zarg/evidence` (as it watches the graph) and turns each red s
    - tag their code.
 3. **Coverage, journey by journey:** write each journey's steps until a full run is green for all built scenarios.
 4. **Red becomes work:** the core's evidence watcher, fix plans, prove plans and inbox topics.
-5. **Strict:** `zarg audit` reports Completeness, Intent coverage and Proof as problems (they are warnings until then), once a full run is green; CI runs `mise run audit`.
+5. **The catalog**: `zarg catalog build` and `mise run catalog`.
+6. **Strict:** `zarg audit` reports Completeness, Intent coverage and Proof as problems (they are warnings until then), once a full run is green; CI runs `mise run audit`.
 
 ## Out of scope
 
@@ -170,6 +197,7 @@ The core watches `.zarg/evidence` (as it watches the graph) and turns each red s
 - Networks outside localhost.
 - Web and native harnesses. The media contract is ready for them.
 - Rendering casts to GIF. The `gif` kind is in the contract, but nothing renders one yet.
+- The GitHub Pages workflow. The catalog is built to be published from any static host; the workflow comes after it is in use locally.
 
 ## Tests of the harness itself
 
@@ -179,4 +207,5 @@ The core watches `.zarg/evidence` (as it watches the graph) and turns each red s
 - Retry bookkeeping: a step that passes on its second try is recorded `flaky: true`, and one that fails twice fails.
 - Evidence: a passing step writes its file at the scenario's current version with `buffer` and `cast` media. A failing one writes `passed: false`, its failure and media. A `proves` naming another journey's scenario is refused.
 - The core's evidence watcher: a `failing` file produces one fix plan, and a `flaky` journey failure produces one inbox topic, not one per step.
+- The catalog: a fixture graph and evidence build the expected pages (an intent, a journey in flow order, a scenario with buffer, cast and image evidence, a failing one with its frame); two builds are identical; a media path outside `.zarg/evidence/media` is refused; links work under a sub-path.
 - `zarg audit`: each check's problem on a fixture graph and evidence set (a dangling edge, an "if" clause, a dead end, an uncovered outcome, an untagged scenario, a stale proof, a missing media file); `--json` and `--junit` shapes; exit codes 0, 1 and 2.
