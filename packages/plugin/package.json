@@ -10,6 +10,7 @@
     "@zarg/audit": "workspace:*",
     "@zarg/bm25": "workspace:*",
     "@zarg/entities": "workspace:*",
+    "@zarg/evidence-capture": "workspace:*",
     "@zarg/graph": "workspace:*",
     "@zarg/view": "workspace:*",
     "effect": "^4.0.0-rc.117",

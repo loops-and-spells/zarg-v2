@@ -1,4 +1,5 @@
 import { codeOf } from "./code"
+import { type EvidenceKinds, makeEvidence, type RenderInput, type Rendered } from "./evidence"
 import { Cause, Context, Data, Effect, Exit, Layer, type Redacted, Scope, Semaphore } from "effect"
 import { entitiesProblem, keysProblem, type Layout, opensProblem, reviewProblem, surfacesProblem, tonesProblem } from "@zarg/view"
 import { diff, type Expect, GraphStore, type GraphError, hash, type IoError, type Loaded, Snapshot } from "@zarg/graph"
@@ -85,6 +86,11 @@ export class PluginHost extends Context.Service<
      * saved); otherwise the operator is asked (Allow saves the grant). Dependents follow their dependencies.
      */
     readonly loadWaiting: Effect.Effect<void>
+    /** Evidence kinds the running plugins render, and rendering a medium through its kind's owner (never fails). */
+    readonly evidence: {
+      readonly kinds: () => EvidenceKinds
+      readonly render: (input: RenderInput) => Effect.Effect<Rendered>
+    }
   }
 >()("@zarg/plugin/PluginHost") {}
 
@@ -657,6 +663,17 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
         scopeOf: (c) => ({ read: running.get(c)?.manifest.scopes.entities?.read ?? [], command: running.get(c)?.manifest.scopes.entities?.command ?? [] }),
       })
 
+      const assetsOf = new Map(plugins.map((p) => [p.manifest.name, p.assets ?? {}]))
+      const evidence = makeEvidence({
+        manifests: () => [...running.values()].filter((r) => !r.disabled).map((r) => r.manifest),
+        waiting: () => waiting.map((w) => w.manifest.name),
+        assetsOf: (name) => assetsOf.get(name) ?? {},
+        invoke: (owner, params) => {
+          const r = running.get(owner)
+          return r === undefined ? Effect.fail({ message: `${owner} is not running` }) : invoke(r, "renderEvidence", params)
+        },
+      })
+
       const affected = (before: Snapshot.Snapshot, after: Snapshot.Snapshot) =>
         Effect.map(each<Affected>("affected", { before: json(before), after: json(after) }), (parts) => ({
           scenarios: [...new Set(defined(parts).flatMap((p) => p.scenarios))].sort(),
@@ -722,6 +739,7 @@ export const layer = (plugins: ReadonlyArray<LoadedPlugin>, opts: HostOptions): 
       }).pipe(Semaphore.withPermits(loadingLock, 1), Effect.catchCause((c) => Effect.sync(() => opts.log(`loading waiting plugins failed: ${Cause.pretty(c)}`))))
 
       return {
+        evidence,
         tools,
         manifests: loaded,
         loadWaiting,
