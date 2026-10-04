@@ -1,0 +1,16 @@
+{
+  "name": "@zarg/catalog",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@zarg/audit": "workspace:*",
+    "@zarg/graph": "workspace:*",
+    "@zarg/highlight": "workspace:*",
+    "@zarg/tokens": "workspace:*",
+    "asciinema-player": "3.17.0",
+    "effect": "^4.0.0-rc.117"
+  }
+}
