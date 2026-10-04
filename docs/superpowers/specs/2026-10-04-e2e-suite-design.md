@@ -131,6 +131,8 @@ Date: 2026-10-04 · Status: approved design (the operator), pending spec review.
 
 ## The catalog: a static site of the intent, the journeys, the scenarios and their proof
 
+> Superseded in part by `docs/superpowers/specs/2026-10-04-evidence-plugins-design.md`: evidence renders through evidence plugins, the catalog builds and serves in any project (`zarg catalog`, `.zarg/catalog/`), and its pages follow `packages/catalog/DESIGN.md`.
+
 A human reader's one stop to know whether everything works: the graph from intent to scenario, each scenario's proof, and the captured evidence, replayable.
 
 - **Built by** `zarg catalog build [--out site]` (package `packages/catalog`, `@zarg/catalog`). It is a plain static site: HTML, CSS and a little JS, with no server needed. It reads the committed graph, `.zarg/evidence` and its media, and the audit.

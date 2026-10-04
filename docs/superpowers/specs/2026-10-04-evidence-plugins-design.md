@@ -198,6 +198,12 @@ step.attach(rec.trace("saving a plan"))
 - **Plan C, the catalog for any project:** `zarg catalog`, `.zarg/catalog/`, the project name, the intent-list home, the pages above, and the redesign through `impeccable` with `DESIGN.md`.
 - **Then e2e plan 3 (red becomes work) and plan 4 (coverage, strict).** Plan 4's TUI and web journeys capture through these from the start.
 
+## Next: publishing the catalog (the operator's idea, not yet designed)
+
+- A GitHub Pages plugin. Evidence and media live on an evidence branch, for every PR and for the main branch, so binary media need not be in the source history.
+- CI drives it with the zarg CLI: `zarg audit` gates, `zarg catalog build` publishes.
+- zarg offers GitHub Action templates for this.
+
 ## Out of scope
 
 - Adapters for frameworks other than xterm and Playwright.
