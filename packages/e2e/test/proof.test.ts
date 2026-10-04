@@ -120,3 +120,10 @@ test("a run killed mid-step leaves no staging media behind for the next run, and
   const project = /world:(\S+)/.exec(r.stderr.toString())![1]!
   expect(existsSync(project)).toBe(false)
 }, 60_000)
+
+test("E2E_TIER=fast skips a model step (no evidence written) and runs the fast step beside it", () => {
+  const root = repo()
+  runJourney(root, `journey("J-0001", { tier: "fast" }, (proves) => { proves("S-0001", async () => {}, { model: true }); proves("S-0002", async () => {}) })`, { E2E_TIER: "fast" })
+  expect(() => evidence(root, "S-0001")).toThrow()
+  expect(evidence(root, "S-0002")).toMatchObject({ passed: true })
+}, 60_000)

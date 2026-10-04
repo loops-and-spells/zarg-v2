@@ -8,6 +8,10 @@ const ROWS = 40
 export interface Term {
   readonly screen: () => string
   readonly waitFor: (what: string | RegExp, timeoutMs?: number) => Promise<string>
+  /** Waits until the screen no longer shows `what`. */
+  readonly waitGone: (what: string | RegExp, timeoutMs?: number) => Promise<string>
+  /** Moves the selection (with `key`, right by default) to the option labelled `label`, then presses Enter until it leaves: for options that go once chosen (a question's answers). */
+  readonly choose: (label: string, key?: string) => Promise<void>
   readonly type: (text: string) => void
   readonly press: (key: string) => void
   readonly paste: (text: string) => void
@@ -59,18 +63,37 @@ export const zarg = async (w: World, args: ReadonlyArray<string> = []): Promise<
     const b = term.buffer.active
     return Array.from({ length: ROWS }, (_, y) => b.getLine(b.viewportY + y)?.translateToString(true) ?? "").join("\n")
   }
-  const waitFor = async (what: string | RegExp, timeoutMs = 10_000) => {
-    const until = Date.now() + timeoutMs
+  const shows = (s: string, what: string | RegExp) => (typeof what === "string" ? s.includes(what) : what.test(s))
+  const until = async (what: string | RegExp, present: boolean, timeoutMs: number) => {
+    const end = Date.now() + timeoutMs
     for (;;) {
       const s = screen()
-      if (typeof what === "string" ? s.includes(what) : what.test(s)) return s
-      if (Date.now() > until) throw new Error(`waited ${timeoutMs} ms for ${String(what)}; the screen:\n${s}`)
+      if (shows(s, what) === present) return s
+      if (Date.now() > end) throw new Error(`waited ${timeoutMs} ms for ${String(what)}${present ? "" : " to go"}; the screen:\n${s}`)
       await Bun.sleep(50)
+    }
+  }
+  const waitFor = (what: string | RegExp, timeoutMs = 10_000) => until(what, true, timeoutMs)
+  // The selected option is drawn after a ›.
+  const selected = (label: string) => new RegExp(`›\\s*${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`)
+  const choose = async (label: string, key = "right") => {
+    await waitFor(label)
+    for (let k = 0; k < 8 && !selected(label).test(screen()); k++) {
+      send(keyBytes(key))
+      await Bun.sleep(100)
+    }
+    if (!selected(label).test(screen())) throw new Error(`could not select ${label} with ${key}; the screen:\n${screen()}`)
+    // A question just drawn may not take keys yet: Enter again until the chosen option leaves (at most 3 times).
+    for (let k = 0; k < 3 && selected(label).test(screen()); k++) {
+      send(keyBytes("enter"))
+      await until(selected(label), false, 1_500).catch(() => undefined)
     }
   }
   return {
     screen,
     waitFor,
+    waitGone: (what, timeoutMs = 10_000) => until(what, false, timeoutMs),
+    choose,
     type: (text) => send(text),
     press: (key) => send(keyBytes(key)),
     paste: (text) => send(`\x1b[200~${text}\x1b[201~`),

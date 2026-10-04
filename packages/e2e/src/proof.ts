@@ -79,7 +79,8 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
       if (node?.type !== "gherkin/scenario" || !node.edges.some((e) => e.type === "gherkin/in" && e.to === id)) throw new Error(`${scenario} is not a scenario of ${id}`)
       const timeout = o.timeoutMs ?? (o.model === true ? 300_000 : 120_000)
       let attempts = 0
-      test(
+      // The fast tier has no model turns: a model step is skipped, its scenario left as it was.
+      ;(process.env.E2E_TIER === "fast" && o.model === true ? test.skip : test)(
         `${scenario} ${String(node.props.title ?? "")}`,
         async () => {
           const evidenceDir = join(evidenceOut(), EVIDENCE_DIR)

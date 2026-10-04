@@ -10,6 +10,7 @@
     "@zarg/evidence-capture": "workspace:*",
     "@zarg/evidence-capture-xterm": "workspace:*",
     "@zarg/graph": "workspace:*",
+    "@zarg/plugin-backlog": "workspace:*",
     "effect": "^4.0.0-rc.117"
   },
   "devDependencies": {

@@ -40,3 +40,13 @@ test("the real TUI on a PTY: the Setup sheet appears in a new project; keys reac
 test("the preflight fails with its message when nothing listens", async () => {
   await expect(preflight("http://127.0.0.1:9/api/v1", ["deepseek-v4.1-flash-exl3"])).rejects.toThrow("zarg-router at http://127.0.0.1:9/api/v1 does not list deepseek-v4.1-flash-exl3: start the router and load it")
 })
+
+test("choose picks an option by its label, and waitGone waits for the question to leave", async () => {
+  const w = world()
+  const t = await zarg(w)
+  await t.waitFor("Plugin backlog wants to load", 30_000)
+  await t.choose("Not now")
+  await t.waitGone("Plugin backlog wants to load", 10_000)
+  await t.exit()
+  w.dispose(false)
+}, 60_000)
