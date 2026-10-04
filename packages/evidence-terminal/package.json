@@ -1,0 +1,17 @@
+{
+  "name": "@zarg/evidence-terminal",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@zarg/evidence-capture-xterm": "workspace:*",
+    "@zarg/plugin-sdk": "workspace:*",
+    "asciinema-player": "3.17.0",
+    "effect": "^4.0.0-rc.117"
+  },
+  "devDependencies": {
+    "@zarg/catalog": "workspace:*"
+  }
+}

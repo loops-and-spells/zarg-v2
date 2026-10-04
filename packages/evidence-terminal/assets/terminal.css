@@ -1,0 +1,4 @@
+.evidence-frame { display: block; width: 100%; height: auto; border-radius: 6px; }
+.evidence-text { overflow-x: auto; white-space: pre; }
+details.evidence-text > summary { cursor: pointer; }
+.evidence-gif { max-width: 100%; border-radius: 6px; }
