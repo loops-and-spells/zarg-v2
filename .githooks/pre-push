@@ -1,0 +1,3 @@
+#!/bin/sh
+# Every push proves the fast tier end to end; `git push --no-verify` skips it.
+exec mise run -q e2e

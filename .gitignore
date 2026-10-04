@@ -11,3 +11,9 @@ packages/plugin/test/fixtures/.gen/
 
 # skill mirrors other agent tools generate
 .agents/
+
+# e2e binary media stays local unless [e2e] media = "commit"
+.zarg/evidence/media/**/*.png
+.zarg/evidence/media/**/*.gif
+.zarg/evidence/media/**/*.mp4
+.zarg/evidence/media/**/*.webm

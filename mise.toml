@@ -11,7 +11,7 @@ description = "Typecheck and test every package. Exit code is the verdict."
 depends = ["//...:typecheck", "//...:test", "audit"]
 
 [tasks.audit]
-description = "Every card is tagged in the code or planned; no tag names a missing card (zarg audit)"
+description = "The one CI check (zarg audit): graph structure and lints, completeness, intent coverage, code tags, proof by e2e evidence, evidence integrity"
 depends = ["//...:build"]
 run = "mise x -- bun packages/cli/src/main.ts audit --summary"
 
@@ -36,6 +36,20 @@ run = "mise x -- bun packages/rlm/smoke/smoke.ts"
 [tasks."calibrate:rehearse"]
 description = "Live rehearse calibration: the labelled steps against the decision model (needs zarg-router; ask first)"
 run = "mise x -- bun packages/agent-rehearse/scripts/calibrate.ts"
+
+[tasks.e2e]
+description = "End-to-end proof, fast tier: journeys with no model turns, each on a fresh project (mise run e2e -- J-0005 for one)"
+depends = ["build:plugins"]
+run = "mise x -- bun packages/e2e/src/run.ts"
+
+[tasks."e2e:full"]
+description = "End-to-end proof, every journey, on the live zarg-router models (deepseek-v4.1-flash-exl3, jevk5; never started or loaded by the suite)"
+depends = ["build:plugins"]
+run = "mise x -- bun packages/e2e/src/run.ts --full"
+
+[tasks."setup:hooks"]
+description = "Use the repo's git hooks (.githooks): the fast e2e tier before every push"
+run = "git config core.hooksPath .githooks"
 
 [tasks."build:plugins"]
 description = "Build zarg's own plugins (dist/) and record their first-party hashes"
