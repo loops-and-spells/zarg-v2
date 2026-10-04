@@ -13,6 +13,8 @@ export interface Provider {
   readonly envKeys: ReadonlyArray<string>
   /** Absolute path of the provider's `.env.schema` fragment, imported by the project schema. */
   readonly schemaFile: string
+  /** The \`[providers.<name>]\` section login writes when it is missing (\`\${VAR}\` references to its envKeys). */
+  readonly settings: Readonly<Record<string, string>>
   /** Build a client from the provider's config table (`[providers.<name>]`, already `${VAR}`-expanded). */
   readonly connect: (settings: Readonly<Record<string, ConfigValue>>) => Effect.Effect<ProviderClient, ConfigError>
 }

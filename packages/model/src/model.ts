@@ -1,5 +1,6 @@
 import { Context, Effect, Layer, Stream } from "effect"
 import { Config, type ZargConfig } from "./config"
+import type { ConfigError } from "./errors"
 import type { Provider, ProviderClient } from "./provider"
 import { type ChatMessage, ModelError, type ModelInfo, type StreamEvent, type ToolDef } from "./wire"
 
@@ -25,6 +26,8 @@ export class Model extends Context.Service<
     /** Load a cold model; a no-op for providers without warm-up. */
     readonly warm: (ref: ModelRef) => Effect.Effect<void, ModelError>
     readonly client: (provider: string) => Effect.Effect<ProviderClient, ModelError>
+    /** Connect again from the (live) config: providers set up since start, settings changed; clears the model lists. */
+    readonly reconnect?: Effect.Effect<void, ConfigError>
   }
 >()("@zarg/model/Model") {}
 
@@ -39,11 +42,17 @@ export const splitRef = (ref: ModelRef) => {
 export const make = (providers: ReadonlyArray<Provider>, config: ZargConfig) =>
   Effect.gen(function* () {
     const clients = new Map<string, ProviderClient>()
-    for (const p of providers) {
-      const settings = config.providers[p.name]
-      if (settings === undefined) continue
-      clients.set(p.name, yield* p.connect(settings))
-    }
+    const cache = new Map<string, ReadonlyArray<ModelInfo>>()
+    const connectAll = Effect.gen(function* () {
+      clients.clear()
+      cache.clear()
+      for (const p of providers) {
+        const settings = config.providers[p.name]
+        if (settings === undefined) continue
+        clients.set(p.name, yield* p.connect(settings))
+      }
+    })
+    yield* connectAll
     const client = (name: string) => {
       const c = clients.get(name)
       return c === undefined
@@ -57,7 +66,6 @@ export const make = (providers: ReadonlyArray<Provider>, config: ZargConfig) =>
           )
         : Effect.succeed(c)
     }
-    const cache = new Map<string, ReadonlyArray<ModelInfo>>()
     const list = (name: string) =>
       cache.has(name)
         ? Effect.succeed(cache.get(name)!)
@@ -73,6 +81,7 @@ export const make = (providers: ReadonlyArray<Provider>, config: ZargConfig) =>
       })
     return {
       client,
+      reconnect: connectAll,
       list,
       info,
       warm: (ref) =>

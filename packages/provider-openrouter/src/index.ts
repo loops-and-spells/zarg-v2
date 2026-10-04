@@ -12,6 +12,7 @@ export const openrouter: Provider = {
   name: "openrouter",
   envKeys: ["OPENROUTER_API_KEY", "OPENROUTER_URL"],
   schemaFile: fileURLToPath(new URL("../.env.schema", import.meta.url)),
+  settings: { base_url: "${OPENROUTER_URL}", api_key: "${OPENROUTER_API_KEY}" },
   connect: (settings) =>
     Effect.gen(function* () {
       const baseUrl = yield* plain("openrouter", settings, "base_url")

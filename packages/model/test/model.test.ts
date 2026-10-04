@@ -14,6 +14,7 @@ const local: Provider = {
   name: "local",
   envKeys: [],
   schemaFile: "/dev/null",
+  settings: {},
   connect: (settings) => Effect.map(plain("local", settings, "base_url"), (baseUrl) => openRouterWire({ baseUrl })),
 }
 const config = (base: string): Config.ZargConfig => ({ providers: { local: { base_url: base } }, roles: {}, extra: {} })
@@ -51,4 +52,17 @@ describe("a completion from a stream", () => {
     expect(Model.completion([{ type: "text", delta: "{\"a\"" }, { type: "text", delta: ":1}" }, u(12, 0), { type: "done", finishReason: "stop" }])).toEqual({ text: "{\"a\":1}", promptTokens: 900, completionTokens: 12, reasoningTokens: 0, finishReason: "stop" })
     expect(Model.completion([{ type: "reasoning", delta: "hmm" }, u(4096, 4096), { type: "done", finishReason: "length" }])).toEqual({ text: "", promptTokens: 900, completionTokens: 4096, reasoningTokens: 4096, finishReason: "length" })
   })
+})
+
+test("reconnect picks up a provider configured after start, from the same live config", async () => {
+  const fake: Provider = { name: "fake", envKeys: [], schemaFile: "/dev/null", settings: { base_url: "x" }, connect: () => Effect.succeed({ models: Effect.succeed([]), verify: Effect.void, stream: () => Stream.empty } as never) }
+  const config = { providers: {} as Record<string, Record<string, string>>, roles: {}, extra: {} }
+  const out = await Effect.runPromise(Effect.gen(function* () {
+    const m = yield* Model.make([fake], config)
+    const before = yield* Effect.flip(m.client("fake"))
+    config.providers.fake = { base_url: "x" }
+    yield* m.reconnect!
+    return { before: before.message, after: yield* Effect.map(m.client("fake"), () => "connected") }
+  }))
+  expect(out).toEqual({ before: 'provider "fake" is not configured; add [providers.fake] to .zarg/config.toml', after: "connected" })
 })

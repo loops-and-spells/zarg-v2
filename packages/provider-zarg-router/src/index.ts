@@ -30,6 +30,7 @@ export const makeZargRouter = (f: typeof fetch = fetch): Provider => ({
   name: "zarg-router",
   envKeys: ["ZARG_ROUTER_URL"],
   schemaFile: fileURLToPath(new URL("../.env.schema", import.meta.url)),
+  settings: { base_url: "${ZARG_ROUTER_URL}" },
   connect: (settings) =>
     Effect.gen(function* () {
       const baseUrl = (yield* plain("zarg-router", settings, "base_url")).replace(/\/+$/, "")
