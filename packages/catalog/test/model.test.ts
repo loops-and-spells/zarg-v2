@@ -68,3 +68,8 @@ test("a binary kind's text files reach its renderer (a trace's trace.json)", () 
   const c = catalogOf({ snap, report: reportOf(root), readText: reader(root) })
   expect(c.scenarios[0]!.proof!.media[0]!.files).toEqual([{ name: "2-trace.json", url: "media/S-1/2-trace.json", text: "[]" }])
 })
+
+test("the catalog carries the project's name", () => {
+  const root = repo()
+  expect(catalogOf({ snap, report: reportOf(root), readText: reader(root), project: "demo" }).project).toBe("demo")
+})

@@ -52,7 +52,7 @@ export type Overview = {
   readonly commits: ReadonlyArray<string>
 }
 export type SearchEntry = { readonly id: string; readonly kind: "intent" | "outcome" | "journey" | "scenario"; readonly text: string; readonly url: string }
-export type Catalog = { readonly overview: Overview; readonly intents: ReadonlyArray<IntentPage>; readonly journeys: ReadonlyArray<JourneyPage>; readonly scenarios: ReadonlyArray<ScenarioPage>; readonly search: ReadonlyArray<SearchEntry> }
+export type Catalog = { readonly project: string; readonly overview: Overview; readonly intents: ReadonlyArray<IntentPage>; readonly journeys: ReadonlyArray<JourneyPage>; readonly scenarios: ReadonlyArray<ScenarioPage>; readonly search: ReadonlyArray<SearchEntry> }
 
 const byId = (a: { readonly id: string }, b: { readonly id: string }) => a.id.localeCompare(b.id)
 const str = (v: unknown) => (v === undefined ? "" : String(v))
@@ -89,6 +89,8 @@ export const catalogOf = (input: {
   readonly readText: (path: string) => string | undefined
   /** The evidence kinds the running plugins declare (their labels, text or binary); zarg's own are known without. */
   readonly kinds?: Readonly<Record<string, KindDecl>>
+  /** The project's name (its repository's, or its folder's). */
+  readonly project?: string
 }): Catalog => {
   const { snap, report, github } = input
   const declared = input.kinds ?? {}
@@ -201,6 +203,7 @@ export const catalogOf = (input: {
   ].sort(byId)
 
   return {
+    project: input.project ?? "",
     overview: {
       // Problems first, each level in the report's order.
       checks: [...report.checks].sort((a, b) => (a.level === b.level ? 0 : a.level === "problem" ? -1 : 1)).map((c) => ({ name: c.name, level: c.level, count: c.items.length })),

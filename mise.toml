@@ -52,9 +52,9 @@ description = "Use the repo's git hooks (.githooks): the fast e2e tier before ev
 run = "git config core.hooksPath .githooks"
 
 [tasks.catalog]
-description = "Build the catalog (intent, journeys, scenarios and their evidence) into site/ and serve it at http://localhost:4173"
+description = "Build this repo's catalog (intent, journeys, scenarios and their evidence) into .zarg/catalog and serve it at http://localhost:4173 (zarg catalog does the same in any project)"
 depends = ["//...:build"]
-run = ["mise x -- bun packages/cli/src/main.ts catalog build --out site", "mise x -- bun packages/catalog/src/serve.ts site"]
+run = "mise x -- bun packages/cli/src/main.ts catalog"
 
 [tasks."build:plugins"]
 description = "Build zarg's own plugins (dist/) and record their first-party hashes"

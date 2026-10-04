@@ -90,3 +90,13 @@ test("minors: a symlink inside media is written at its own path; a missing media
   expect(() => build({ catalog: catalog(root), rendered: new Map(), root, out: file })).toThrow(`${file} is not a catalog`)
   expect(readFileSync(file, "utf8")).toBe("keep")
 })
+
+test("ignoreSelf: the catalog ignores itself (inside .zarg, never touching the project's .gitignore)", () => {
+  const root = repo()
+  const a = site()
+  build({ catalog: catalog(root), rendered: rendered(), root, out: a, ignoreSelf: true })
+  expect(readFileSync(join(a, ".gitignore"), "utf8")).toBe("*\n")
+  const b = site()
+  build({ catalog: catalog(root), rendered: rendered(), root, out: b })
+  expect(existsSync(join(b, ".gitignore"))).toBe(false)
+})

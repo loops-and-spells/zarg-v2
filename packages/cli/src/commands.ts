@@ -3,7 +3,7 @@ import { Argument, Command, Flag } from "effect/unstable/cli"
 import { diff, GraphStore, hash, Snapshot } from "@zarg/graph"
 import { PluginHost } from "@zarg/plugin/server"
 import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs"
-import { basename, join, resolve } from "node:path"
+import { basename, join, relative, resolve } from "node:path"
 import { findPlugin, USER_DIR } from "@zarg/core/plugins"
 import { type Grant, makeGrants, scopesDigest, warnings } from "@zarg/plugin/runtime"
 import { describeScopes, installPlugin } from "@zarg/plugin/server"
@@ -12,7 +12,7 @@ import { readClaim, startHeadless, stopCore } from "@zarg/client"
 import { baseTree, CHECKPOINT, git, LEGACY_CHECKPOINT, snapshotAtTree, workingGraphTree } from "@zarg/reconcile"
 import { audit as auditOf, codeChanged, exitCode as auditExit, fullAudit, fullSummary, type Tag, tags as auditTags, toJunit } from "@zarg/audit"
 import { isText as declaredText } from "@zarg/evidence-capture"
-import { build as buildCatalog, catalogOf, githubRepo, renderAll, trackedReader } from "@zarg/catalog"
+import { build as buildCatalog, catalogOf, githubRepo, renderAll, serve as serveCatalog, trackedReader } from "@zarg/catalog"
 import { scenarioRefs, snapshotAt } from "./git"
 import { root } from "./root"
 
@@ -186,41 +186,72 @@ const auditCmd = Command.make(
     ),
 )
 
-/** The catalog: a static site of the intent, the journeys, the scenarios and their evidence, from what is committed. */
-const catalogBuild = Command.make(
-  "build",
-  { out: Flag.String("out").pipe(Flag.withDefault("site"), Flag.withDescription("the directory to write (emptied first; only a catalog's own)")) },
+const CATALOG_OUT = ".zarg/catalog"
+const outFlag = Flag.String("out").pipe(Flag.withDefault(CATALOG_OUT), Flag.withDescription("the directory to write (emptied first; only a catalog's own)"))
+/** The project's name: its repository's, else its folder's. */
+const projectName = () => {
+  const remote = gitOut("remote", "get-url", "origin").stdout.toString().trim()
+  const fromRemote = remote === "" ? undefined : remote.replace(/\.git$/, "").split(/[/:]/).at(-1)
+  return fromRemote !== undefined && fromRemote !== "" ? fromRemote : basename(root)
+}
+
+/** Builds the catalog (intent, journeys, scenarios and their evidence, from what is committed) into `out`. */
+const buildCatalogAt = (outArg: string) =>
+  Effect.gen(function* () {
+    const loaded = yield* GraphStore.use((s) => s.load)
+    const report = yield* fullReport(loaded, yield* auditTags(root))
+    const repo = githubRepo(gitOut("remote", "get-url", "origin").stdout.toString())
+    const ref = gitOut("rev-parse", "HEAD").stdout.toString().trim()
+    const host = yield* PluginHost
+    const kinds = host.evidence.kinds()
+    const catalog = catalogOf({
+      snap: loaded.snapshot,
+      report,
+      project: projectName(),
+      kinds: Object.fromEntries(Object.entries(kinds).map(([k, d]) => [k, { label: d.label, files: d.files }])),
+      ...(repo === undefined || ref === "" ? {} : { github: { repo, ref } }),
+      // Only committed media: what every clone has.
+      readText: trackedReader(root),
+    })
+    const out = resolve(root, outArg)
+    // Each medium through the evidence plugin that owns its kind; what none renders gets a fallback card.
+    const rendered = yield* Effect.promise(() => renderAll(catalog, (m) => Effect.runPromise(host.evidence.render({ kind: m.kind, caption: m.caption, ...(m.meta === undefined ? {} : { meta: m.meta }), files: m.files }))))
+    // Inside the project's .zarg it ignores itself; the project's own .gitignore is never touched.
+    const ignoreSelf = !relative(join(root, ".zarg"), out).startsWith("..")
+    yield* Effect.sync(() => buildCatalog({ catalog, rendered, root, out, ignoreSelf }))
+    return { out, pages: catalog.intents.length + catalog.journeys.length + catalog.scenarios.length + 2, media: catalog.scenarios.reduce((n, s) => n + (s.proof?.media.filter((m) => m.present).length ?? 0), 0) }
+  })
+const couldNot = (what: string) =>
+  Effect.catchCause((c: Cause.Cause<unknown>) =>
+    Effect.sync(() => {
+      console.error(`zarg ${what} could not run: ${String(Cause.squash(c))}`)
+      process.exitCode = 2
+    }),
+  )
+
+const catalogBuild = Command.make("build", { out: outFlag }, (o) => buildCatalogAt(o.out).pipe(Effect.flatMap(print), couldNot("catalog build")))
+
+/** `zarg catalog`: build the catalog, then serve it (Ctrl+C stops it); `zarg catalog build` only builds. */
+const catalogCmd = Command.make(
+  "catalog",
+  {
+    out: outFlag,
+    port: Flag.Int("port").pipe(Flag.withDefault(4173), Flag.withDescription("the port to serve on")),
+    open: Flag.Boolean("open").pipe(Flag.withDefault(false), Flag.withDescription("open it in the browser")),
+  },
   (o) =>
     Effect.gen(function* () {
-      const loaded = yield* GraphStore.use((s) => s.load)
-      const report = yield* fullReport(loaded, yield* auditTags(root))
-      const repo = githubRepo(gitOut("remote", "get-url", "origin").stdout.toString())
-      const ref = gitOut("rev-parse", "HEAD").stdout.toString().trim()
-      const host = yield* PluginHost
-      const kinds = host.evidence.kinds()
-      const catalog = catalogOf({
-        snap: loaded.snapshot,
-        report,
-        kinds: Object.fromEntries(Object.entries(kinds).map(([k, d]) => [k, { label: d.label, files: d.files }])),
-        ...(repo === undefined || ref === "" ? {} : { github: { repo, ref } }),
-        // Only committed media: what every clone has.
-        readText: trackedReader(root),
-      })
-      const out = resolve(root, o.out)
-      // Each medium through the evidence plugin that owns its kind; what none renders gets a fallback card.
-      const rendered = yield* Effect.promise(() => renderAll(catalog, (m) => Effect.runPromise(host.evidence.render({ kind: m.kind, caption: m.caption, ...(m.meta === undefined ? {} : { meta: m.meta }), files: m.files }))))
-      yield* Effect.sync(() => buildCatalog({ catalog, rendered, root, out }))
-      yield* print({ out, pages: catalog.intents.length + catalog.journeys.length + catalog.scenarios.length + 2, media: catalog.scenarios.reduce((n, s) => n + (s.proof?.media.filter((m) => m.present).length ?? 0), 0) })
-    }).pipe(
-      Effect.catchCause((c) =>
-        Effect.sync(() => {
-          console.error(`zarg catalog build could not run: ${String(Cause.squash(c))}`)
-          process.exitCode = 2
-        }),
-      ),
-    ),
-)
-const catalogCmd = Command.make("catalog").pipe(Command.withSubcommands([catalogBuild]))
+      const built = yield* buildCatalogAt(o.out)
+      const server = serveCatalog(built.out, o.port)
+      const url = `http://localhost:${server.port}`
+      yield* print(`the catalog: ${url}`)
+      if (o.open) {
+        const opener = ["xdg-open", "open", "start"].find((c) => Bun.which(c) !== null)
+        if (opener !== undefined) Bun.spawn([opener, url], { stdout: "ignore", stderr: "ignore" })
+      }
+      return yield* Effect.never
+    }).pipe(couldNot("catalog")),
+).pipe(Command.withSubcommands([catalogBuild]))
 
 const coreStart = Command.make(
   "start",
