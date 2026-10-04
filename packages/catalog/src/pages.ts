@@ -59,7 +59,7 @@ const scenarioText = (s: ScenarioPage) =>
     ...s.lines.map((l) => `  ${l.keyword.padEnd(5)} ${l.text}${l.ref === undefined ? "" : `  # ${l.ref}`}`),
   ].join("\n")
 
-const layout = (c: Catalog, up: string, title: string, body: string, scripts = "") =>
+const layout = (c: Catalog, up: string, title: string, body: string, scripts = "", head = "") =>
   [
     `<!doctype html>`,
     `<html lang="en">`,
@@ -68,6 +68,7 @@ const layout = (c: Catalog, up: string, title: string, body: string, scripts = "
     `<meta name="viewport" content="width=device-width, initial-scale=1">`,
     `<title>${esc(title)} · zarg catalog</title>`,
     `<link rel="stylesheet" href="${up}catalog.css">`,
+    ...(head === "" ? [] : [head]),
     `</head>`,
     `<body>`,
     `<header><a href="${up}index.html"><strong>zarg catalog</strong></a>${c.intents.map((i) => `<a href="${up}intents/${i.id}.html">${esc(i.title)}</a>`).join("")}<a href="${up}search.html">Search</a></header>`,
@@ -147,36 +148,38 @@ const journeyPage = (c: Catalog, j: Catalog["journeys"][number], byId: ReadonlyM
   )
 }
 
-const medium = (m: NonNullable<ScenarioPage["proof"]>["media"][number]) => {
-  const cap = `<figcaption>${esc(m.caption)} <span class="id">${esc(m.kind)}</span></figcaption>`
-  if (!m.present) return `<figure><p class="absent">${esc("captured on the run's machine, not committed")}: ${esc(m.path)}</p>${cap}</figure>`
-  const src = `../${esc(m.path)}`
-  switch (m.kind) {
-    case "buffer":
-      return `<figure><pre class="frame">${esc(m.text ?? "")}</pre>${cap}</figure>`
-    case "log":
-      return `<details><summary>${esc(m.caption)}</summary><pre>${esc(m.text ?? "")}</pre></details>`
-    case "cast":
-      return `<figure><div class="cast" data-cast="${src}"><noscript><a href="${src}">${esc(m.caption)}</a></noscript></div><script type="application/json" class="cast-data">${scriptData(m.text ?? "")}</script>${cap}</figure>`
-    case "image":
-    case "gif":
-      return `<figure><img src="${src}" alt="${esc(m.caption)}">${cap}</figure>`
-    case "video":
-      return `<figure><video controls src="${src}"></video>${cap}</figure>`
-  }
+/** What an evidence plugin rendered for a medium (sanitized), with the assets it needs; or why it could not be. */
+export type Fragment = { readonly html: string; readonly assets: ReadonlyArray<{ readonly owner: string; readonly name: string; readonly path: string }> } | { readonly fallback: string }
+/** Media path → its fragment, rendered and sanitized before pages() runs. */
+export type Rendered = ReadonlyMap<string, Fragment>
+type Medium = NonNullable<ScenarioPage["proof"]>["media"][number]
+
+const medium = (m: Medium, rendered: Rendered) => {
+  const cap = `<figcaption>${esc(m.caption)} <span class="id">${esc(m.label)}</span></figcaption>`
+  if (!m.present) return `<figure class="medium"><p class="absent">${esc("captured on the run's machine, not committed")}: ${esc(m.path)}</p>${cap}</figure>`
+  const f = rendered.get(m.path)
+  if (f !== undefined && "html" in f) return `<figure class="medium">${f.html}${cap}</figure>`
+  // A kind nobody here renders: say why, and link its files.
+  const links = m.files.map((x) => `<li><a href="../${esc(x.url)}">${esc(x.name)}</a></li>`).join("")
+  return `<figure class="medium fallback"><p>${esc(m.label)}: ${esc(m.caption)}</p><p class="absent">${esc(f?.fallback ?? `nothing renders ${m.kind}`)}</p><ul>${links}</ul></figure>`
 }
 
-const PLAYER = (up: string) =>
-  [
-    `<link rel="stylesheet" href="${up}player/asciinema-player.css">`,
-    `<script src="${up}player/asciinema-player.min.js"></script>`,
-    // The cast's data is in the page, so it plays opened from disk as well as served.
-    `<script>document.querySelectorAll("[data-cast]").forEach((el) => AsciinemaPlayer.create({ data: JSON.parse(el.nextElementSibling.textContent) }, el, { fit: "width" }))</script>`,
-  ].join("\n")
+/** The assets a page's rendered media need, once each, in a stable order. */
+const assetsOf = (media: ReadonlyArray<Medium>, rendered: Rendered) => {
+  const all = media.flatMap((m) => {
+    const f = rendered.get(m.path)
+    return m.present && f !== undefined && "html" in f ? f.assets.map((a) => `${a.owner}/${a.name}`) : []
+  })
+  return [...new Set(all)].sort()
+}
+const assetTags = (up: string, assets: ReadonlyArray<string>) => ({
+  head: assets.filter((a) => a.endsWith(".css")).map((a) => `<link rel="stylesheet" href="${up}plugins/${esc(a)}">`).join("\n"),
+  body: assets.filter((a) => a.endsWith(".js")).map((a) => `<script src="${up}plugins/${esc(a)}"></script>`).join("\n"),
+})
 
-const scenarioPage = (c: Catalog, s: ScenarioPage) => {
+const scenarioPage = (c: Catalog, s: ScenarioPage, rendered: Rendered) => {
   const p = s.proof
-  const casts = p?.media.some((m) => m.kind === "cast" && m.present) === true
+  const assets = assetTags("../", assetsOf(p?.media ?? [], rendered))
   return layout(
     c,
     "../",
@@ -194,10 +197,11 @@ const scenarioPage = (c: Catalog, s: ScenarioPage) => {
             `<p>${badge(s.status)} run <span class="id">${esc(p.run)}</span> · commit <span class="id">${esc(p.commit)}</span> · ${esc(p.at)} · ${p.ms} ms${p.flaky ? " · flaky (passed on its retry)" : ""}</p>`,
             ...(p.failure === null ? [] : [`<h3>Expected</h3><pre>${esc(p.failure.expected)}</pre><h3>Saw</h3><pre class="frame">${esc(p.failure.saw)}</pre>`]),
             `<h2>Evidence</h2>`,
-            ...p.media.map(medium),
+            ...p.media.map((m) => medium(m, rendered)),
           ].join("\n"),
     ].join("\n"),
-    casts ? PLAYER("../") : "",
+    assets.body,
+    assets.head,
   )
 }
 
@@ -221,7 +225,7 @@ const SEARCH_SCRIPT = `<script>
 </script>`
 
 /** Every page as path → content. */
-export const pages = (c: Catalog): ReadonlyMap<string, string> => {
+export const pages = (c: Catalog, rendered: Rendered): ReadonlyMap<string, string> => {
   const byId = new Map(c.scenarios.map((s) => [s.id, s]))
   return new Map([
     ["index.html", overview(c)],
@@ -229,6 +233,6 @@ export const pages = (c: Catalog): ReadonlyMap<string, string> => {
     ["search.json", `${JSON.stringify(c.search)}\n`],
     ...c.intents.map((i) => [`intents/${i.id}.html`, intentPage(c, i)] as const),
     ...c.journeys.map((j) => [`journeys/${j.id}.html`, journeyPage(c, j, byId)] as const),
-    ...c.scenarios.map((s) => [`scenarios/${s.id}.html`, scenarioPage(c, s)] as const),
+    ...c.scenarios.map((s) => [`scenarios/${s.id}.html`, scenarioPage(c, s, rendered)] as const),
   ])
 }

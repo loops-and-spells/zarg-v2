@@ -12,9 +12,9 @@ test("the catalog of a small graph: statuses, lines, code links, media, overview
   expect(s1.lines).toEqual([{ keyword: "Given", text: "the home page is shown", ref: "ST-1" }, { keyword: "When", text: "the operator opens pricing" }, { keyword: "Then", text: "the plans are shown", ref: "ST-2" }])
   expect(s1.code).toEqual([{ file: "src/a.ts", line: 3, url: "https://github.com/o/r/blob/abc1234/src/a.ts#L3" }, { file: "src/b.ts", line: 9, url: "https://github.com/o/r/blob/abc1234/src/b.ts#L9" }])
   expect(s1.proof!.media).toEqual([
-    { kind: "buffer", caption: "after", path: "media/S-1/after.txt", present: true, text: "plans <b>" },
-    { kind: "cast", caption: "cast", path: "media/S-1/step.cast", present: true, text: `{"version":2,"width":120,"height":40}\n[0.1,"o","hi"]\n` },
-    { kind: "image", caption: "shot", path: "media/S-1/shot.png", present: false },
+    { kind: "evidence-terminal/text", label: "terminal text", caption: "after", path: "media/S-1/after.txt", present: true, files: [{ name: "after.txt", url: "media/S-1/after.txt", text: "plans <b>" }] },
+    { kind: "evidence-terminal/cast", label: "terminal recording", caption: "cast", path: "media/S-1/step.cast", present: true, files: [{ name: "step.cast", url: "media/S-1/step.cast", text: `{"version":2,"width":120,"height":40}\n[0.1,"o","hi"]\n` }] },
+    { kind: "evidence-screen/screenshot", label: "screenshot", caption: "shot", path: "media/S-1/shot.png", present: false, files: [{ name: "shot.png", url: "media/S-1/shot.png" }] },
   ])
   expect(c.scenarios.map((s) => [s.id, s.status])).toEqual([["S-1", "proven"], ["S-2", "planned"], ["S-3", "unproven"]])
   expect(c.journeys[0]).toMatchObject({ id: "J-1", name: "Buy", outcomes: [{ id: "O-1", text: "The operator picks a plan" }], counts: { proven: 1, planned: 1, failing: 0, stale: 0, unproven: 0 } })

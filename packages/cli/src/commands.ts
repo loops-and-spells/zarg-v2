@@ -12,7 +12,7 @@ import { readClaim, startHeadless, stopCore } from "@zarg/client"
 import { baseTree, CHECKPOINT, git, LEGACY_CHECKPOINT, snapshotAtTree, workingGraphTree } from "@zarg/reconcile"
 import { audit as auditOf, codeChanged, exitCode as auditExit, fullAudit, fullSummary, type Tag, tags as auditTags, toJunit } from "@zarg/audit"
 import { isText as declaredText } from "@zarg/evidence-capture"
-import { build as buildCatalog, catalogOf, githubRepo, trackedReader } from "@zarg/catalog"
+import { build as buildCatalog, catalogOf, githubRepo, renderAll, trackedReader } from "@zarg/catalog"
 import { scenarioRefs, snapshotAt } from "./git"
 import { root } from "./root"
 
@@ -196,15 +196,20 @@ const catalogBuild = Command.make(
       const report = yield* fullReport(loaded, yield* auditTags(root))
       const repo = githubRepo(gitOut("remote", "get-url", "origin").stdout.toString())
       const ref = gitOut("rev-parse", "HEAD").stdout.toString().trim()
+      const host = yield* PluginHost
+      const kinds = host.evidence.kinds()
       const catalog = catalogOf({
         snap: loaded.snapshot,
         report,
+        kinds: Object.fromEntries(Object.entries(kinds).map(([k, d]) => [k, { label: d.label, files: d.files }])),
         ...(repo === undefined || ref === "" ? {} : { github: { repo, ref } }),
         // Only committed media: what every clone has.
         readText: trackedReader(root),
       })
       const out = resolve(root, o.out)
-      yield* Effect.sync(() => buildCatalog({ catalog, root, out }))
+      // Each medium through the evidence plugin that owns its kind; what none renders gets a fallback card.
+      const rendered = yield* Effect.promise(() => renderAll(catalog, (m) => Effect.runPromise(host.evidence.render({ kind: m.kind, caption: m.caption, ...(m.meta === undefined ? {} : { meta: m.meta }), files: m.files }))))
+      yield* Effect.sync(() => buildCatalog({ catalog, rendered, root, out }))
       yield* print({ out, pages: catalog.intents.length + catalog.journeys.length + catalog.scenarios.length + 2, media: catalog.scenarios.reduce((n, s) => n + (s.proof?.media.filter((m) => m.present).length ?? 0), 0) })
     }).pipe(
       Effect.catchCause((c) =>

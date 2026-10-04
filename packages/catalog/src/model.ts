@@ -1,5 +1,6 @@
 import type { Full } from "@zarg/audit"
 import { EVIDENCE_DIR, type Evidence } from "@zarg/audit/evidence"
+import { FIRST_PARTY_KINDS, isText, type Json, type KindDecl, resolveKind } from "@zarg/evidence-capture"
 import { readFileSync } from "node:fs"
 import { join, posix } from "node:path"
 import { type FlowStep, flowOf } from "@zarg/audit/flow"
@@ -11,7 +12,16 @@ export type Status = "proven" | "failing" | "stale" | "unproven" | "planned"
 export const STATUSES: ReadonlyArray<Status> = ["failing", "stale", "unproven", "proven", "planned"]
 export type Counts = Readonly<Record<Status, number>>
 export type Line = { readonly keyword: "Given" | "And" | "When" | "Then"; readonly text: string; readonly ref?: string }
-export type MediaView = { readonly kind: Evidence["media"][number]["kind"]; readonly caption: string; readonly path: string; readonly present: boolean; readonly text?: string }
+/** A medium as its renderer gets it: its kind (resolved), its files with their site URLs, the text of text kinds. */
+export type MediaView = {
+  readonly kind: string
+  readonly label: string
+  readonly caption: string
+  readonly path: string
+  readonly present: boolean
+  readonly meta?: Json
+  readonly files: ReadonlyArray<{ readonly name: string; readonly url: string; readonly text?: string }>
+}
 type Named = { readonly id: string; readonly name: string }
 export type ScenarioPage = {
   readonly id: string
@@ -44,8 +54,6 @@ export type Overview = {
 export type SearchEntry = { readonly id: string; readonly kind: "intent" | "outcome" | "journey" | "scenario"; readonly text: string; readonly url: string }
 export type Catalog = { readonly overview: Overview; readonly intents: ReadonlyArray<IntentPage>; readonly journeys: ReadonlyArray<JourneyPage>; readonly scenarios: ReadonlyArray<ScenarioPage>; readonly search: ReadonlyArray<SearchEntry> }
 
-/** Media whose content goes in the page: frames and logs to read, casts for the player (so the page works from disk). */
-const TEXT_MEDIA = new Set(["buffer", "log", "cast"])
 const byId = (a: { readonly id: string }, b: { readonly id: string }) => a.id.localeCompare(b.id)
 const str = (v: unknown) => (v === undefined ? "" : String(v))
 
@@ -79,8 +87,13 @@ export const catalogOf = (input: {
   readonly github?: { readonly repo: string; readonly ref: string }
   /** A medium's content (relative to the evidence dir), or undefined when its file is not here. */
   readonly readText: (path: string) => string | undefined
+  /** The evidence kinds the running plugins declare (their labels, text or binary); zarg's own are known without. */
+  readonly kinds?: Readonly<Record<string, KindDecl>>
 }): Catalog => {
   const { snap, report, github } = input
+  const declared = input.kinds ?? {}
+  const textKind = isText(declared)
+  const labelOf = (ref: string) => (declared[ref] ?? FIRST_PARTY_KINDS[ref])?.label ?? ref
   const of = (type: string) => Snapshot.byType(snap, type)
   const out = (n: Node, type: string) => n.edges.filter((e) => e.type === type).map((e) => e.to)
   const named = (id: string): Named => ({ id, name: str(snap.nodes.get(id)?.props.name) || id })
@@ -120,8 +133,21 @@ export const catalogOf = (input: {
               flaky: e.flaky,
               failure: e.failure,
               media: e.media.map((m): MediaView => {
-                const content = input.readText(m.path)
-                return { kind: m.kind, caption: m.caption, path: m.path, present: content !== undefined, ...(content !== undefined && TEXT_MEDIA.has(m.kind) ? { text: content } : {}) }
+                const kind = resolveKind(m.kind)
+                const others = (m.meta as { files?: ReadonlyArray<string> } | undefined)?.files ?? []
+                const files = [m.path, ...others].map((path) => {
+                  const content = input.readText(path)
+                  return { name: path.split("/").at(-1)!, url: path, ...(content !== undefined && textKind(kind) ? { text: content } : {}), present: content !== undefined }
+                })
+                return {
+                  kind,
+                  label: labelOf(kind),
+                  caption: m.caption,
+                  path: m.path,
+                  present: files[0]!.present,
+                  ...(m.meta === undefined ? {} : { meta: m.meta }),
+                  files: files.map(({ present: _, ...f }) => f),
+                }
               }),
             },
           }),

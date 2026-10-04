@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test"
 import { css, esc, pages } from "../src/pages"
-import { catalog } from "./fixture"
+import { catalog, rendered } from "./fixture"
 
 test("every page, relative links only, statuses as classes", () => {
-  const p = pages(catalog())
+  const p = pages(catalog(), rendered())
   expect([...p.keys()].sort()).toEqual(["index.html", "intents/I-1.html", "journeys/J-1.html", "scenarios/S-1.html", "scenarios/S-2.html", "scenarios/S-3.html", "search.html", "search.json"])
   for (const [path, html] of p) if (path.endsWith(".html")) expect(html).not.toMatch(/(href|src)="\//)
   expect(p.get("scenarios/S-1.html")).toContain('<link rel="stylesheet" href="../catalog.css">')
@@ -13,21 +13,22 @@ test("every page, relative links only, statuses as classes", () => {
   expect(p.get("journeys/J-1.html")).toContain('<a href="../scenarios/S-2.html">S-2</a>')
 })
 
-test("graph text and frames are text, never markup", () => {
-  const html = pages(catalog())
-  expect(html.get("intents/I-1.html")).toContain("People cannot &lt;compare&gt; plans")
-  expect(html.get("scenarios/S-1.html")).toContain('<pre class="frame">plans &lt;b&gt;</pre>')
+test("graph text is text, never markup", () => {
+  expect(pages(catalog(), rendered()).get("intents/I-1.html")).toContain("People cannot &lt;compare&gt; plans")
   expect(esc(`</script>"'&`)).toBe("&lt;/script&gt;&quot;&#39;&amp;")
 })
 
-test("media: a cast plays in the player; uncommitted binary media says so; code links out", () => {
-  const s1 = pages(catalog()).get("scenarios/S-1.html")!
-  expect(s1).toContain('<div class="cast" data-cast="../media/S-1/step.cast">')
-  expect(s1).toContain('src="../player/asciinema-player.min.js"')
+test("media: rendered by its plugin with the plugin's assets; a fallback card when it cannot be; uncommitted media says so; code links out", () => {
+  const s1 = pages(catalog(), rendered()).get("scenarios/S-1.html")!
+  expect(s1).toContain('<pre class="t">plans &lt;b&gt;</pre>')
+  expect(s1).toContain('<link rel="stylesheet" href="../plugins/evidence-terminal/terminal.css">')
+  expect(s1).toContain('<figure class="medium fallback">')
+  expect(s1).toContain("rendered by evidence-terminal, not installed")
+  expect(s1).toContain('<a href="../media/S-1/step.cast">step.cast</a>')
   expect(s1).toContain("captured on the run&#39;s machine, not committed")
   expect(s1).toContain('<a href="https://github.com/o/r/blob/abc1234/src/a.ts#L3">src/a.ts:3</a>')
-  // A page without casts loads no player.
-  expect(pages(catalog()).get("scenarios/S-3.html")).not.toContain("asciinema-player")
+  // A page with no rendered media loads no plugin assets.
+  expect(pages(catalog(), rendered()).get("scenarios/S-3.html")).not.toContain("plugins/")
 })
 
 test("the colours are the design tokens, light and dark", () => {
@@ -38,13 +39,8 @@ test("the colours are the design tokens, light and dark", () => {
   expect(c).toContain(".badge.s-failing")
 })
 
-test("opened from disk (no server): casts and search carry their data in the page, never a fetch", () => {
-  const p = pages(catalog())
-  const s1 = p.get("scenarios/S-1.html")!
-  expect(s1).toContain('<script type="application/json" class="cast-data">')
-  expect(s1).toContain("AsciinemaPlayer.create({ data: JSON.parse(")
+test("opened from disk (no server): search carries its data in the page, never a fetch", () => {
+  const p = pages(catalog(), rendered())
   expect(p.get("search.html")).toContain('<script type="application/json" id="search-data">')
   expect(p.get("search.html")).not.toContain("fetch(")
-  // Data in a script element cannot end it early.
-  expect(s1.match(/<script type="application\/json" class="cast-data">([^<]*)<\/script>/)?.[1]).toBeDefined()
 })

@@ -4,12 +4,12 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { build } from "../src/build"
 import { serve } from "../src/serve"
-import { catalog, repo } from "./fixture"
+import { catalog, rendered, repo } from "./fixture"
 
 test("the local server: pages by path, / is the overview, nothing outside the site", async () => {
   const root = repo()
   const out = join(mkdtempSync(join(tmpdir(), "zt-serve-")), "site")
-  build({ catalog: catalog(root), root, out })
+  build({ catalog: catalog(root), rendered: rendered(), root, out })
   const server = serve(out, 0)
   try {
     const base = `http://localhost:${server.port}`

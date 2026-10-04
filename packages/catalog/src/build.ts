@@ -2,18 +2,17 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, realpathSync, rmSync,
 import { dirname, join, relative, sep } from "node:path"
 import { EVIDENCE_DIR } from "@zarg/audit/evidence"
 import type { Catalog } from "./model"
-import { css, pages } from "./pages"
+import { css, pages, type Rendered } from "./pages"
 
 /** The file that says a directory is a catalog this build may empty. */
 export const MARKER = ".zarg-catalog"
-const PLAYER = dirname(require.resolve("asciinema-player/dist/bundle/asciinema-player.min.js"))
 
 /**
- * Writes the catalog's pages, its CSS, the player and every present medium to `out`, from empty. Only media under
+ * Writes the catalog's pages, its CSS, the assets its rendered evidence uses and every present medium to `out`, from empty. Only media under
  * `<root>/.zarg/evidence/media` goes in (symlinks followed): anything else fails the build before it writes a thing.
  */
-export const build = (input: { readonly catalog: Catalog; readonly root: string; readonly out: string }): void => {
-  const { catalog, root, out } = input
+export const build = (input: { readonly catalog: Catalog; readonly rendered: Rendered; readonly root: string; readonly out: string }): void => {
+  const { catalog, rendered, root, out } = input
   const present = [...new Set(catalog.scenarios.flatMap((s) => (s.proof?.media ?? []).filter((m) => m.present).map((m) => m.path)))].sort()
   const mediaRoot = present.length === 0 ? "" : realpathSync(join(root, EVIDENCE_DIR, "media"))
   const media = present.map((path) => {
@@ -34,9 +33,13 @@ export const build = (input: { readonly catalog: Catalog; readonly root: string;
   }
   put(MARKER, "")
   put("catalog.css", css())
-  for (const [path, text] of pages(catalog)) put(path, text)
-  mkdirSync(join(out, "player"), { recursive: true })
-  for (const f of ["asciinema-player.min.js", "asciinema-player.css"]) copyFileSync(join(PLAYER, f), join(out, "player", f))
+  for (const [path, text] of pages(catalog, rendered)) put(path, text)
+  // The assets rendered evidence uses: each plugin's own, under plugins/<plugin>/.
+  const assets = new Map([...rendered.values()].flatMap((f) => ("html" in f ? f.assets.map((a) => [`${a.owner}/${a.name}`, a.path] as const) : [])))
+  for (const [to, from] of [...assets].sort(([a], [b]) => a.localeCompare(b))) {
+    mkdirSync(dirname(join(out, "plugins", to)), { recursive: true })
+    copyFileSync(from, join(out, "plugins", to))
+  }
   for (const m of media) {
     mkdirSync(dirname(m.to), { recursive: true })
     copyFileSync(m.from, m.to)

@@ -1,4 +1,5 @@
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs"
+import type { Rendered } from "../src/pages"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fullAudit } from "@zarg/audit"
@@ -47,3 +48,13 @@ export const reader = (root: string) => (p: string) => {
 export const TAGS = [{ id: "S-1", file: "src/b.ts", line: 9 }, { id: "S-1", file: "src/a.ts", line: 3 }, { id: "S-3", file: "src/c.ts", line: 1 }]
 export const reportOf = (root: string) => fullAudit({ snap, tags: TAGS, root, invalid: [], findings: [], agenda: [], changedSince: () => false, hasCommit: () => true })
 export const catalog = (root: string = repo()) => catalogOf({ snap, report: reportOf(root), github: { repo: "o/r", ref: "abc1234" }, readText: reader(root) })
+
+/** What the evidence plugins rendered for S-1: its buffer by evidence-terminal (with a stylesheet), its cast not (not installed). */
+export const rendered = (): Rendered => {
+  const css = join(mkdtempSync(join(tmpdir(), "zt-asset-")), "terminal.css")
+  writeFileSync(css, ".t{color:red}\n")
+  return new Map([
+    ["media/S-1/after.txt", { html: '<pre class="t">plans &lt;b&gt;</pre>', assets: [{ owner: "evidence-terminal", name: "terminal.css", path: css }] }],
+    ["media/S-1/step.cast", { fallback: "rendered by evidence-terminal, not installed" }],
+  ])
+}
