@@ -1,0 +1,42 @@
+import { expect, test } from "bun:test"
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { type Evidence, integrity, proofOf, readEvidence } from "../src/evidence"
+
+const ev = (over: Partial<Evidence> = {}): Evidence => ({ scenario: "S-0001", version: "aaaaaaaaaaaa", commit: "abc1234", run: "e2e-1", journey: "J-0005", passed: true, flaky: false, at: "2026-10-04T00:00:00Z", ms: 10, media: [], failure: null, ...over })
+
+test("proofOf: passed at this version is proven; failed is failing; another version is unproven; code changed after is stale", () => {
+  expect(proofOf(ev(), "aaaaaaaaaaaa", false)).toBe("proven")
+  expect(proofOf(ev({ passed: false }), "aaaaaaaaaaaa", false)).toBe("failing")
+  expect(proofOf(ev(), "bbbbbbbbbbbb", false)).toBe("unproven")
+  expect(proofOf(undefined, "aaaaaaaaaaaa", false)).toBe("unproven")
+  expect(proofOf(ev(), "aaaaaaaaaaaa", true)).toBe("stale")
+  // A failure stays failing even when code changed since: the next run decides.
+  expect(proofOf(ev({ passed: false }), "aaaaaaaaaaaa", true)).toBe("failing")
+})
+
+test("readEvidence and integrity: orphans, bad files, missing media, unknown commits", () => {
+  const root = mkdtempSync(join(tmpdir(), "zt-ev-"))
+  const dir = join(root, ".zarg", "evidence")
+  mkdirSync(join(dir, "media", "S-0001"), { recursive: true })
+  writeFileSync(join(dir, "media", "S-0001", "after.txt"), "frame")
+  writeFileSync(join(dir, "S-0001.json"), JSON.stringify(ev({ media: [{ kind: "buffer", path: "media/S-0001/after.txt", caption: "c" }, { kind: "cast", path: "media/S-0001/gone.cast", caption: "c" }] })))
+  writeFileSync(join(dir, "S-0099.json"), JSON.stringify(ev({ scenario: "S-0099" })))
+  writeFileSync(join(dir, "S-0002.json"), "{ not json")
+  writeFileSync(join(dir, "S-0003.json"), JSON.stringify(ev({ scenario: "S-0003", commit: "deadbee" })))
+  const entries = readEvidence(root)
+  expect(entries.map((e) => [e.file, e.evidence?.scenario ?? null, e.error === undefined]).sort()).toEqual([["S-0001.json", "S-0001", true], ["S-0002.json", null, false], ["S-0003.json", "S-0003", true], ["S-0099.json", "S-0099", true]])
+  const found = integrity(root, entries, new Set(["S-0001", "S-0002", "S-0003"]), (sha) => sha === "abc1234")
+  expect(found.map((f) => [f.kind, f.file]).sort()).toEqual([["bad-evidence", "S-0002.json"], ["missing-media", "S-0001.json"], ["orphan-evidence", "S-0099.json"], ["unknown-commit", "S-0003.json"]])
+  expect(readEvidence(mkdtempSync(join(tmpdir(), "zt-ev-none-")))).toEqual([])
+})
+
+test("binary media is gitignored by default: missing on this machine is not a problem, unless media is committed", () => {
+  const root = mkdtempSync(join(tmpdir(), "zt-ev-bin-"))
+  mkdirSync(join(root, ".zarg", "evidence"), { recursive: true })
+  writeFileSync(join(root, ".zarg", "evidence", "S-0001.json"), JSON.stringify(ev({ media: [{ kind: "image", path: "media/S-0001/shot.png", caption: "c" }] })))
+  const entries = readEvidence(root)
+  expect(integrity(root, entries, new Set(["S-0001"]), () => true)).toEqual([])
+  expect(integrity(root, entries, new Set(["S-0001"]), () => true, true).map((f) => f.kind)).toEqual(["missing-media"])
+})
