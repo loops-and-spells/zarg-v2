@@ -1,0 +1,36 @@
+{
+  "scenario": "S-0113",
+  "version": "9fe90874b04c",
+  "commit": "712d316",
+  "run": "e2e-2026-10-04T22-32-28.595Z",
+  "journey": "J-0009",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T22:33:55.689Z",
+  "ms": 3605,
+  "media": [
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "zarg audit --summary (S-0002 untagged)",
+      "path": "media/S-0113/1-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "zarg audit --summary (both tagged)",
+      "path": "media/S-0113/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/audit/src/index.ts": "869c352a5907d620ea5b01add3c62f600f6defce",
+    "packages/audit/test/audit.test.ts": "8964d33bda7ebc55c3d425bc32605fd3e1f10dcc",
+    "packages/cli/src/commands.ts": "832c0799df4890ae0a697ced852db039d338e34b",
+    "packages/cli/test/cli.test.ts": "f7825bc307eeca9c409820aa37b2f2274c5c6600"
+  }
+}

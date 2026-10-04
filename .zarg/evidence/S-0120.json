@@ -1,0 +1,30 @@
+{
+  "scenario": "S-0120",
+  "version": "5f353227a503",
+  "commit": "712d316",
+  "run": "e2e-2026-10-04T22-32-28.595Z",
+  "journey": "J-0009",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T22:34:01.113Z",
+  "ms": 489,
+  "media": [
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "the fallback card",
+      "path": "media/S-0120/1-text.txt",
+      "meta": {
+        "fold": false
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/catalog/src/pages.ts": "194fe596aa218e0a262934843b248b84c43ed7d5",
+    "packages/catalog/src/render.ts": "75ee3b94181af2b19ffa60485a852d555edfff6a",
+    "packages/catalog/test/pages.test.ts": "07943c1b7cec7007cc3e9b82231b642fe375d043",
+    "packages/catalog/test/render.test.ts": "e663ca70714493791e1df3074c679005aa1e15db",
+    "packages/plugin/src/server/evidence.ts": "f3910cd0cbab7317b842fe80c3770d450de46985",
+    "packages/plugin/test/evidence-host.test.ts": "dbf8325c001c512b93cbc8f641e2d3f73a65bff2"
+  }
+}

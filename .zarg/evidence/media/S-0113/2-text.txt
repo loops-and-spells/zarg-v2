@@ -1,0 +1,6 @@
+completeness  ST-0002 What can the user do when "the child sees the new chore"?
+completeness  ST-0003 What can the user do when "the chore leaves every list"?
+completeness  ST-0001 How does the user reach "the parent sees the family's chores"?
+proof         S-0001 unproven: Parent assigns a chore
+proof         S-0002 unproven: Parent removes a chore
+structure 0 · lints 0 · code 0 · integrity 0 (problems) · completeness 3 · coverage 0 · proof 2 (warnings) · 0 proven of 2 built, 0 planned

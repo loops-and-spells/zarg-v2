@@ -1,5 +1,6 @@
 import { expect } from "bun:test"
 import { join } from "node:path"
+import type { Step } from "./proof"
 import type { Term } from "./term"
 
 /** A slash command, typed as the operator types it. */
@@ -45,4 +46,17 @@ export const openNav = async (t: Term, label: string) => {
   }
   expect(on()).toBe(true)
   t.press("enter")
+}
+
+/** A small graph: one journey ("Assign chores") of two scenarios (S-0001, S-0002), added through the CLI as a CLI actor would. */
+export const choresGraph = async (s: Step) => {
+  const call = async (tool: string, params: unknown) => {
+    const r = await s.cli(["tool", "call", `gherkin/${tool}`, JSON.stringify(params)])
+    if (r.code !== 0) throw new Error(`${tool}: ${r.err}`)
+  }
+  await call("add-persona", { name: "Parent", kind: "human", text: "A parent who assigns chores to the family." })
+  await call("add-journey", { name: "Assign chores" })
+  await call("add-scenario", { title: "Parent assigns a chore", when: "the parent assigns a chore to a child", by: [{ name: "Parent" }], arrives: { text: "the parent sees the family's chores" }, then: [{ text: "the child sees the new chore" }] })
+  await call("add-scenario", { title: "Parent removes a chore", when: "the parent removes a chore", by: [{ name: "Parent" }], arrives: { text: "the parent sees the family's chores" }, then: [{ text: "the chore leaves every list" }] })
+  for (const id of ["S-0001", "S-0002"]) await call("link", { scenario: id, edge: "in", journey: { name: "Assign chores" } })
 }

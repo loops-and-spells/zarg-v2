@@ -3,20 +3,8 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, write
 import { dirname, join } from "node:path"
 import { scenarioVersion } from "@zarg/audit/version"
 import { Snapshot } from "@zarg/graph/pure"
-import { answerLoads, command, journey, openNav, seed, type Step, termOf, type World } from "../src"
+import { answerLoads, choresGraph, command, journey, openNav, seed, termOf, type World } from "../src"
 
-/** A small graph: one journey of two built scenarios, through the CLI as a CLI actor would add it. */
-const graph = async (s: Step) => {
-  const call = async (tool: string, params: unknown) => {
-    const r = await s.cli(["tool", "call", `gherkin/${tool}`, JSON.stringify(params)])
-    if (r.code !== 0) throw new Error(`${tool}: ${r.err}`)
-  }
-  await call("add-persona", { name: "Parent", kind: "human", text: "A parent who assigns chores to the family." })
-  await call("add-journey", { name: "Assign chores" })
-  await call("add-scenario", { title: "Parent assigns a chore", when: "the parent assigns a chore to a child", by: [{ name: "Parent" }], arrives: { text: "the parent sees the family's chores" }, then: [{ text: "the child sees the new chore" }] })
-  await call("add-scenario", { title: "Parent removes a chore", when: "the parent removes a chore", by: [{ name: "Parent" }], arrives: { text: "the parent sees the family's chores" }, then: [{ text: "the chore leaves every list" }] })
-  for (const id of ["S-0001", "S-0002"]) await call("link", { scenario: id, edge: "in", journey: { name: "Assign chores" } })
-}
 const versionOf = (root: string, id: string) => {
   const dir = join(root, ".zarg", "graph", "nodes")
   return scenarioVersion(Snapshot.make(readdirSync(dir).map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")))), id)!
@@ -44,7 +32,7 @@ const finding = (ref: string, note: string) => ({ ref, journeys: ["Assign chores
 
 journey("J-0008", { tier: "fast" }, (proves) => {
   proves("S-0121", async (s) => {
-    await graph(s)
+    await choresGraph(s)
     const v1 = versionOf(s.w.project, "S-0001")
     const v2 = versionOf(s.w.project, "S-0002")
     // What a rehearsal filed, as the backlog keeps it.

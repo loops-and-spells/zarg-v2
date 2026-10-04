@@ -1,0 +1,29 @@
+{
+  "scenario": "S-0114",
+  "version": "a1fc650f5f11",
+  "commit": "712d316",
+  "run": "e2e-2026-10-04T22-32-28.595Z",
+  "journey": "J-0009",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T22:33:57.847Z",
+  "ms": 2141,
+  "media": [
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "bun test e2e/J-0001.test.ts",
+      "path": "media/S-0114/1-text.txt",
+      "meta": {
+        "fold": true
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/e2e/src/proof.ts": "4284c31cfc7f81174d5f4a726fd56170cdb57088",
+    "packages/e2e/src/run.ts": "5b5219a8ab948ef36cb9ffe459640977c21e510f",
+    "packages/e2e/src/world.ts": "a3a724bc621d70cd45b1cb850db5afc6f19bfd00",
+    "packages/e2e/test/harness.test.ts": "a82e96379fbc2e1929a6532c1364463eaa139652",
+    "packages/e2e/test/run.test.ts": "a8129759e4dccc30679c3d6203a9cbeb654e67ef"
+  }
+}

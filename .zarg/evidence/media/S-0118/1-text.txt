@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Intents · project catalog</title>
+<script>try{const t=localStorage.getItem("zarg-catalog-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch{}</script>
+<link rel="stylesheet" href="catalog.css">
+</head>
+<body>
+<header class="top"><a class="name" href="index.html">project catalog</a><nav><a href="index.html">Intents</a><a href="search.html">Search</a></nav><form action="search.html" method="get" role="search"><input name="q" type="search" placeholder="Search scenarios, journeys…" aria-label="Search"></form><button type="button" class="theme" id="theme" aria-label="Theme: System">System</button></header>
+<main>
+<h1 class="verdict">1 scenario failing.</h1>
+<div class="ticks big" role="img" aria-label="1 failing, 1 stale"><span class="tick s-failing"></span><span class="tick s-stale"></span></div>
+<ul class="counts"><li><span class="word s-failing">1 failing</span></li><li><span class="word s-stale">1 stale</span></li></ul>
+<ul class="checks" aria-label="Checks"><li class="quiet">structure 0</li><li class="quiet">lints 0</li><li class="quiet">code 0</li><li class="quiet">integrity 0</li><li class="warning">completeness 3</li><li class="quiet">coverage 0</li><li class="warning">proof 2</li></ul>
+<h2>Intents</h2>
+<p class="absent">No intents yet: talk to zarg about what this project is for.</p>
+<h2>Not tied to an outcome yet</h2>
+<ul class="plain"><li><a href="journeys/J-0001.html">J-0001</a> Assign chores</li></ul>
+<p class="prov">Evidence from 1 run (<span class="id">e2e-world</span>) at <span class="id">7ab1621</span>.</p>
+</main>
+<script>
+{
+  const root = document.documentElement, b = document.getElementById("theme")
+  const label = () => {
+    b.textContent = { light: "Light", dark: "Dark" }[root.dataset.theme] || "System"
+    b.setAttribute("aria-label", "Theme: " + b.textContent)
+  }
+  label()
+  b.addEventListener("click", () => {
+    const next = root.dataset.theme === "light" ? "dark" : root.dataset.theme === "dark" ? "system" : "light"
+    if (next === "system") delete root.dataset.theme
+    else root.dataset.theme = next
+    try { localStorage.setItem("zarg-catalog-theme", next) } catch {}
+    label()
+  })
+}
+</script>
+
+</body>
+</html>

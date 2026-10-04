@@ -1,0 +1,38 @@
+{
+  "scenario": "S-0001",
+  "version": "78bc231850ba",
+  "commit": "7ab1621",
+  "run": "e2e-world",
+  "journey": "J-0001",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-04T22:33:57.784Z",
+  "ms": 1930,
+  "media": [
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "where the step ran",
+      "path": "media/S-0001/1-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0001/2-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0001/3-step.cast",
+      "meta": {
+        "startAt": 0
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "src/chores.ts": "ef557427246cb1fa3bd05838d59f41c68efd5f4b"
+  }
+}
