@@ -2,7 +2,7 @@ import { Effect } from "effect"
 import type { AgentHost } from "@zarg/agent-host"
 import type { ThreadLog } from "@zarg/core"
 import type { Decisions } from "@zarg/decisions"
-import type { GraphStore } from "@zarg/graph"
+import { type GraphStore, hash } from "@zarg/graph"
 import type { Bound } from "@zarg/kernel"
 import { Model } from "@zarg/model"
 import type { PluginHost } from "@zarg/plugin/server"
@@ -32,7 +32,10 @@ export const makeZarg = (host: AgentHost) =>
       Effect.map(store.snapshot, (snap) => ids.filter((id) => !snap.nodes.has(id))).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>))
     const makeRlm = (asker: Asker, observe: (e: Rlm.RlmEvent) => void) => {
       // One driver item: graph writes wait for an answered question.
-      const guard = askFirst(asker)
+      // @scenario S-0016
+      const versions = (ids: ReadonlyArray<string>) =>
+        Effect.map(store.snapshot, (snap) => Object.fromEntries(ids.map((id) => { const n = snap.nodes.get(id); return [id, n === undefined ? undefined : hash(n)] }))).pipe(Effect.orElseSucceed(() => ({})))
+      const guard = askFirst(asker, versions)
       const outside = host.outsideReads as never
       const factory = (name: string, scope: Scope): Bound | undefined => {
         const ctx = { host: plugins, snapshot, scope }

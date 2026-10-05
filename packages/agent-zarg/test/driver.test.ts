@@ -16,6 +16,22 @@ describe("ask before writing", () => {
     expect(await Effect.runPromise(gated.handlers.addScenario!({}))).toBe("created S-0001")
   })
 
+  // @scenario S-0016
+  test("an answer meets a newer edit: a node the change was shown about, changed since by another thread, refuses the save as stale", async () => {
+    let version = "v1"
+    const guard = askFirst({ ask: () => Effect.succeed({ choice: "add" }) }, (ids) => Effect.succeed(Object.fromEntries(ids.map((id) => [id, version]))))
+    const gated = guard.gate(writes)!
+    await Effect.runPromise(guard.asker.confirm!({ change: "Edit ST-0002: the plan picker is shown with prices", about: ["ST-0002"] }))
+    // Another thread rewords ST-0002 while the developer reads the change.
+    version = "v2"
+    const stale = await Effect.runPromise(Effect.flip(gated.handlers.addScenario!({ id: "ST-0002", text: "x" })))
+    expect(stale).toMatchObject({ _tag: "StaleNode" })
+    expect((stale as { message: string }).message).toContain("ST-0002 changed since you showed the change")
+    // Writes close: the change is shown again before anything is written.
+    version = "v2"
+    expect(await Effect.runPromise(Effect.flip(gated.handlers.addScenario!({ id: "ST-0002", text: "x" })))).toMatchObject({ _tag: "AskFirst" })
+  })
+
   test("each driver item starts without an answer", async () => {
     const first = askFirst({ ask: () => Effect.succeed({ choice: "add" }) })
     await Effect.runPromise(first.asker.confirm!({ change: "Given a\nWhen b\nThen c" }))

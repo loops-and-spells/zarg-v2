@@ -14,13 +14,34 @@ const ASK_FIRST: ServiceFailure = {
  * discussed one for them), and close at the next question.
  */
 // @scenario S-0009
-export const askFirst = (asker: Asker) => {
+export const askFirst = (asker: Asker, versions?: (ids: ReadonlyArray<string>) => Effect.Effect<Readonly<Record<string, string | undefined>>>) => {
   let open = false
+  // @scenario S-0016
+  // The versions of the nodes the change was shown about, as the developer saw them: a newer edit by another thread
+  // makes the save stale (the change is shown again).
+  let shown: Readonly<Record<string, string | undefined>> = {}
   const touched = new Set<string>()
   // A fix opens writes only for its finding: these ids (and what the writes add), reported to onTouched.
   let scope: { readonly allowed: Set<string>; readonly onTouched: (ids: ReadonlyArray<string>) => void } | undefined
   // Confirm questions under discussion: choosing "add" on one of them opens writes.
   const confirms = new Set<string>()
+  const write = (h: (params: unknown) => Effect.Effect<unknown, ServiceFailure>, params: unknown, named: ReadonlyArray<string>): Effect.Effect<unknown, ServiceFailure> => {
+    const s = scope
+    // Opened for a finding: every node the write names must be the finding's (or one this fix added).
+    const outside = s === undefined ? [] : named.filter((id) => !s.allowed.has(id))
+    if (outside.length > 0) {
+      return Effect.fail({ _tag: "OutsideFinding", message: `this fix may change only its finding's scenario and states; ${outside.join(", ")} need Inquire.confirm` })
+    }
+    return Effect.tap(h(params), (r) =>
+      Effect.sync(() => {
+        const c = r as { added?: ReadonlyArray<string>; changed?: ReadonlyArray<string>; removed?: ReadonlyArray<string> }
+        const ids = [...(c?.added ?? []), ...(c?.changed ?? []), ...(c?.removed ?? [])]
+        for (const id of ids) touched.add(id)
+        for (const id of c?.added ?? []) s?.allowed.add(id)
+        if (s !== undefined && ids.length > 0) s.onTouched(ids)
+      }),
+    )
+  }
   return {
     asker: {
       ask: (question) => Effect.suspend(() => ((open = false), (scope = undefined), asker.ask(question))),
@@ -28,7 +49,9 @@ export const askFirst = (asker: Asker) => {
         Effect.suspend(() => {
           open = false
           scope = undefined
-          return Effect.tap(asker.ask(confirmQuestion(c)), (a) =>
+          shown = {}
+          const seen = versions === undefined || (c.about ?? []).length === 0 ? Effect.succeed({}) : versions(c.about ?? [])
+          return Effect.tap(Effect.tap(seen, (v) => Effect.sync(() => void (shown = v))).pipe(Effect.andThen(asker.ask(confirmQuestion(c)))), (a) =>
             Effect.sync(() => {
               if (a.interjected === true && a.question !== undefined) confirms.add(a.question)
               else open = a.choice === "add"
@@ -54,24 +77,18 @@ export const askFirst = (asker: Asker) => {
             handlers: Object.fromEntries(
               Object.entries(bound.handlers).map(([name, h]) => [
                 name,
-                (params: unknown) => {
+                (params: unknown): Effect.Effect<unknown, ServiceFailure> => {
                   if (!open) return Effect.fail(ASK_FIRST)
-                  const s = scope
-                  // Opened for a finding: every node the write names must be the finding's (or one this fix added).
                   const named = JSON.stringify(params).match(/\b[A-Za-z]+-\d{4,}\b/g) ?? []
-                  const outside = s === undefined ? [] : named.filter((id) => !s.allowed.has(id))
-                  if (outside.length > 0) {
-                    return Effect.fail({ _tag: "OutsideFinding", message: `this fix may change only its finding's scenario and states; ${outside.join(", ")} need Inquire.confirm` })
-                  }
-                  return Effect.tap(h(params), (r) =>
-                    Effect.sync(() => {
-                      const c = r as { added?: ReadonlyArray<string>; changed?: ReadonlyArray<string>; removed?: ReadonlyArray<string> }
-                      const ids = [...(c?.added ?? []), ...(c?.changed ?? []), ...(c?.removed ?? [])]
-                      for (const id of ids) touched.add(id)
-                      for (const id of c?.added ?? []) s?.allowed.add(id)
-                      if (s !== undefined && ids.length > 0) s.onTouched(ids)
-                    }),
-                  )
+                  const watched = named.filter((id) => id in shown)
+                  if (watched.length === 0 || versions === undefined) return write(h, params, named)
+                  // @scenario S-0016
+                  return Effect.flatMap(versions(watched), (now) => {
+                    const moved = watched.find((id) => now[id] !== shown[id])
+                    if (moved === undefined) return write(h, params, named)
+                    open = false
+                    return Effect.fail({ _tag: "StaleNode", message: `${moved} changed since you showed the change (another thread edited it): read it again, then show the change again with Inquire.confirm` })
+                  })
                 },
               ]),
             ),
