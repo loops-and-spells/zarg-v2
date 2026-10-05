@@ -17,7 +17,7 @@ export interface SceneView {
   readonly planned?: boolean
 }
 export interface Persona { readonly name: string; readonly text: string; readonly scenarios?: ReadonlyArray<string> }
-export type Reason = "feel" | "fail" | "fork" | "seam"
+export type Reason = "feel" | "fail" | "fork" | "seam" | "drift"
 export interface Screened { readonly feel: number; readonly fail: number; readonly arrive: number; readonly fork?: number; readonly flags: ReadonlyArray<Reason> }
 export type Kind = "friction" | "gap" | "contradiction" | "transition" | "feature" | "delight" | "drift"
 export interface Finding {

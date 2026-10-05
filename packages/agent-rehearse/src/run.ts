@@ -277,12 +277,14 @@ export const makeRehearse = (deps: RunDeps) =>
                               ),
                             ),
                           )
-                        const screened = yield* inSlot("screening", screenScene(deps.decide, persona, prior, scene, deps.settings))
+                        // The scene's code goes to screening too: a step whose code does not do what it says is flagged drift.
+                        const code = yield* codeText(scene.scenario)
+                        const screened = yield* inSlot("screening", screenScene(deps.decide, persona, prior, scene, deps.settings, code))
                         if (screened !== undefined && screened.flags.length > 0) {
                           walking.set(n, { path: pathAt(i), state: "waiting", detail: "queued" })
                           yield* showWorkers
                         }
-                        const d = screened !== undefined && screened.flags.length > 0 ? yield* inSlot(`diagnosing ${screened.flags.join(", ")}`, Effect.flatMap(codeText(scene.scenario), (code) => diagnose(deps.complete, persona, prior, scene, screened.flags, code))) : undefined
+                        const d = screened !== undefined && screened.flags.length > 0 ? yield* inSlot(`diagnosing ${screened.flags.join(", ")}`, diagnose(deps.complete, persona, prior, scene, screened.flags, code)) : undefined
                         // One write, after the diagnosis: a restart before it screens and diagnoses the scene again.
                         yield* update((r) => ({
                           ...r,

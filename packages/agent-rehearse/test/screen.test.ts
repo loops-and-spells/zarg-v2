@@ -16,7 +16,7 @@ const decideWith = (answers: Record<string, Answer>, seen: Array<DecisionRequest
 
 describe("rehearse screen", () => {
   test("settings default to the calibrated thresholds", () => {
-    expect(s).toEqual({ feelBelow: 1.45, failAt: 0.8, forkBelow: 0.8, seamBelow: 0.3, realKeep: 0.75, realDrop: 0.25, inFlight: 8, role: "rehearse" })
+    expect(s).toEqual({ feelBelow: 1.45, failAt: 0.8, forkBelow: 0.8, seamBelow: 0.3, driftBelow: 0.3, realKeep: 0.75, realDrop: 0.25, inFlight: 8, role: "rehearse" })
     expect(rehearseSettings({ feel_below: 1.2 }, "rehearse")).toMatchObject({ feelBelow: 1.2 })
   })
 
@@ -41,6 +41,20 @@ describe("rehearse screen", () => {
     // A seam needs a step before it.
     expect(await Effect.runPromise(screenScene(decideWith({ feel: score(1.8), fail: noul(0.4), arrive: noul(0.2) }), persona, [step({ scenario: "S-0" })], step(), s)).then((r) => r?.flags)).toEqual(["seam"])
     expect(await flags({ feel: score(1.8), fail: noul(0.4), arrive: noul(0.2) })).toEqual([])
+  })
+
+  // @scenario S-0107
+  test("a step with code: the decision model is asked whether the code does what the step says; a clear no flags drift", async () => {
+    const seen: Array<DecisionRequest> = []
+    const code = "export const remove = (chores) => chores"
+    const out = await Effect.runPromise(screenScene(decideWith({ feel: score(1.8), fail: noul(0.4), arrive: noul(0.6), does: noul(0.1) }, seen), persona, [], step(), s, code))
+    expect(out?.flags).toEqual(["drift"])
+    expect(JSON.stringify(seen[0]!.questions.does)).toContain(code)
+    // Code that does it, or no code at all: no drift.
+    expect(await Effect.runPromise(screenScene(decideWith({ feel: score(1.8), fail: noul(0.4), arrive: noul(0.6), does: noul(0.9) }), persona, [], step(), s, code)).then((r) => r?.flags)).toEqual([])
+    const without: Array<DecisionRequest> = []
+    await Effect.runPromise(screenScene(decideWith({ feel: score(1.8), fail: noul(0.4), arrive: noul(0.6) }, without), persona, [], step(), s))
+    expect(Object.keys(without[0]!.questions)).not.toContain("does")
   })
 
   test("a decision-model failure leaves the step unscreened", async () => {

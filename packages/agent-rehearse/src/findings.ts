@@ -37,6 +37,7 @@ const WHY: Record<Reason, string> = {
   fail: "it could go wrong and nothing covers that",
   fork: "the choice after it is unclear",
   seam: "the Given may not follow from how you got here",
+  drift: "its code may not do what the step says",
 }
 
 const textOf = (complete: Complete, system: string, user: string, outputSchema?: Record<string, unknown>) =>
