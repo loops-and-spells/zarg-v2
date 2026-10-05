@@ -79,6 +79,14 @@ describe("the Intent Agent", () => {
     expect(SYSTEM).toContain('add-persona {"name":')
   })
 
+  // @scenario S-0104
+  test("the model sees the intent's constraints beside the outcome it drafts, so a conflict can come back as an ask", async () => {
+    const rule: Statement = { id: "K-0001", kind: "constraint", text: "Data never leaves the phone", version: "k1", intent, journeys: [] }
+    const { a, calls } = setup({ statements: [outcome, rule], journeys: [checkout], answers: [], cp: { statements: { "K-0001": { version: "k1", state: "planned" } }, journeys: {} } })
+    await Effect.runPromise(a.tick)
+    expect(String(calls.find(([k]) => k === "complete")![1])).toContain("The intent's constraints:\n- K-0001: Data never leaves the phone")
+  })
+
   test("nothing due: no model call, nothing filed", async () => {
     const { a, calls } = setup({ cp: { statements: { "O-0001": { version: "v1", state: "planned" } }, journeys: {} } })
     await Effect.runPromise(a.tick)

@@ -50,7 +50,7 @@ export const SYSTEM = [
   'One statement of the intent changed, is new, or no journey delivers it yet. Propose the smallest change to the graph that makes the journeys deliver it (an outcome) or respect it (a constraint), as gherkin tool calls in order, grouped by the scenario each changes ("new:<short name>" for a new one).',
   "Clauses at most 15 words, never 'if' (one scenario per case). Titles start with the persona's name. Refer to states that exist by id; name every new state by text.",
   `Tools:\n${TOOLS}`,
-  "When the journeys already deliver it, answer no units. When it needs the operator's choice (which journey, which of two meanings, a conflict with a scenario), answer an ask with 2-4 options instead of guessing.",
+  "When the journeys already deliver it, answer no units. When it needs the operator's choice (which journey, which of two meanings, a conflict with a scenario or with one of the intent's constraints), answer an ask with 2-4 options instead of guessing.",
   'Answer with JSON only: {"units":[{"scenario":"S-0001","title":"…","summary":"one sentence","changes":[{"tool":"…","params":{…}}]}],"steps":["one line per step, for the operator"],"ask":null or {"question":"…","options":[{"id":"…","label":"…"}]}}.',
 ].join("\n\n")
 const ASK_SCHEMA = { anyOf: [{ type: "null" }, { type: "object", properties: { question: { type: "string" }, options: { type: "array", items: { type: "object", properties: { id: { type: "string" }, label: { type: "string" } }, required: ["id", "label"] } } }, required: ["question", "options"] }] }
@@ -105,7 +105,7 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
     `${id}: ${"failed" in last ? `the driver model failed: ${last.failed}` : `the driver model did not answer with JSON (${last.text.length} chars${last.finish !== undefined ? `, stopped: ${last.finish}` : ""}; it began: ${JSON.stringify(last.text.trim().slice(0, 80))}, ended: ${JSON.stringify(last.text.trim().slice(-80))})`}; the Intent Agent tries again on the next wake`
 
   /** The context a round reads: the statement, its intent, its journeys with their scenarios and code. */
-  const contextOf = (s: Statement, journeys: ReadonlyArray<JourneyInfo>) =>
+  const contextOf = (s: Statement, journeys: ReadonlyArray<JourneyInfo>, all: ReadonlyArray<Statement> = []) =>
     Effect.gen(function* () {
       const mine = journeys.filter((j) => s.journeys.includes(j.id))
       const blocks = yield* Effect.forEach(mine, (j) =>
@@ -130,6 +130,11 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
         mine.length > 0 ? (s.kind === "outcome" ? "Journeys that serve it:" : "Journeys it bounds:") : "No journey serves it yet. Journeys:",
         ...(mine.length > 0 ? blocks : journeys.map((j) => `- ${j.id} ${j.name}`)),
         "",
+        // The rules it must keep: an outcome that breaks one is a conflict to ask about, not to draft.
+        ...(() => {
+          const rules = all.filter((x) => x.kind === "constraint" && x.id !== s.id && x.intent.id === s.intent.id)
+          return rules.length > 0 ? ["", `The intent's constraints:\n${rules.map((x) => `- ${x.id}: ${x.text}`).join("\n")}`] : []
+        })(),
         personas.length > 0 ? `Personas: ${personas.map((p) => `${p.name} (${p.kind})`).join(", ")}` : "Personas: none yet (add one with add-persona before a scenario names it)",
       ].join("\n")
     })
@@ -165,10 +170,10 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
 
   // @scenario S-0103 S-0104
   /** One statement's round: draft (up to TRIES), ask or file, checkpoint; nothing filed when it changed meanwhile. */
-  const statementRound = (s: Statement, journeys: ReadonlyArray<JourneyInfo>, decision: string | undefined) =>
+  const statementRound = (s: Statement, journeys: ReadonlyArray<JourneyInfo>, decision: string | undefined, all: ReadonlyArray<Statement> = []) =>
     Effect.gen(function* () {
       yield* show({ id: s.id, title: s.text, state: "drafting", detail: "", plans: [] })
-      const context = yield* contextOf(s, journeys)
+      const context = yield* contextOf(s, journeys, all)
       let problems: ReadonlyArray<string> = []
       for (let t = 1; t <= TRIES; t++) {
         const user = [context, ...(decision !== undefined ? ["", `The operator decided: ${decision}`] : []), ...(problems.length > 0 ? ["", "Your last answer failed its checks:", ...problems.map((p) => `- ${p}`), "Fix them."] : [])].join("\n")
@@ -284,7 +289,7 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
         views.delete(x.id)
         continue
       }
-      const r = x.kind === "statement" ? yield* statementRound(x.statement, journeys, prev?.decision) : yield* journeyRound(x.journey, statements)
+      const r = x.kind === "statement" ? yield* statementRound(x.statement, journeys, prev?.decision, statements) : yield* journeyRound(x.journey, statements)
       if (r === "outage") break
     }
     yield* quiet(d.render)
