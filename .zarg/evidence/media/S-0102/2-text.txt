@@ -1,3 +1,3 @@
 Add this to the requirements?
 
-I-0001 keeps: the app also lets parents reward finished chores with points. (add-outcome: "The app also lets parents reward finished chores with points.")
+Keep your words in the intent "A todo app for families": add outcome — "Parents reward finished chores with points."

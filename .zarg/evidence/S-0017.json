@@ -1,13 +1,13 @@
 {
   "scenario": "S-0017",
   "version": "a38f67b89edf",
-  "commit": "ca09b1cb",
-  "run": "e2e-2026-10-05T16-26-00.285Z",
+  "commit": "59e10feb",
+  "run": "e2e-2026-10-05T19-22-32.970Z",
   "journey": "J-0001",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T16:26:19.649Z",
-  "ms": 266,
+  "at": "2026-10-05T19:22:52.425Z",
+  "ms": 262,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -32,14 +32,14 @@
       "caption": "the step as it played",
       "path": "media/S-0017/4-step.cast",
       "meta": {
-        "startAt": 18.4
+        "startAt": 18.5
       }
     }
   ],
   "failure": null,
   "code": {
-    "packages/agent-zarg/src/driver.ts": "e0e6bc4a0fe1232571b2701d4e7b1b48f57dcc58",
-    "packages/agent-zarg/test/driver.test.ts": "ca7f3adcf65e4639456f74ffd51bf79ceaaca31f",
+    "packages/agent-zarg/src/driver.ts": "57e72963b2c5f44a0794d85737f9459f97529b61",
+    "packages/agent-zarg/test/driver.test.ts": "0414cc1c28cb82c392cb47d76d25dee38840242d",
     "packages/e2e/journeys/J-0001.test.ts": "5ee1d99de53f0e73f4ab81e9335bc13ad211119b"
   }
 }

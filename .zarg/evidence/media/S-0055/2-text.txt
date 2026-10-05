@@ -1,33 +1,24 @@
 [
   {
     "kind": "blocked-scenario",
-    "title": "S-0001 cannot be implemented as written",
-    "detail": "The repository's Verify gate is configured (read-only .zarg/config.toml) as `verify = \"exit 1\"` — a literal failing sentinel that just runs `exit 1` with empty output; Verify.run therefore can never report passed in this scope, even though real typecheck/tests pass. Per instructions I must not edit anything under .zarg/, so I did not touch that gate config, nor change plan-designated no-change code.",
-    "about": [
-      "S-0001"
-    ],
-    "pass": "94cc195ddd75",
-    "id": "F-2c5d2173",
-    "at": "2026-10-05T15:34:15.987Z"
-  },
-  {
-    "kind": "blocked-scenario",
     "title": "S-0002 cannot be implemented as written",
-    "detail": "Verify.run reports passed=false unconditionally because .zarg/config.toml pins verify = \"exit 1\" (a literal failing command) that I may not edit; not a scenario contradiction. Files are implemented and locally green.",
+    "detail": "Verify.run never passes because .zarg read-only config.toml pins the gate to `exit 1`; that gate setting is outside the implement scope and must not be edited, so the plan's final step `Verify.run until it passes` cannot be satisfied even though the implementation and tests are correct and `bun test` passes.",
     "about": [
       "S-0002"
     ],
-    "pass": "94cc195ddd75",
-    "id": "F-742e3f8b",
-    "at": "2026-10-05T15:34:15.987Z"
+    "pass": "69df6e1f3a68",
+    "id": "F-9ee3fb31",
+    "at": "2026-10-05T19:21:35.978Z"
   },
   {
     "kind": "verify-failing",
     "title": "verify still fails after the fix attempts",
     "detail": "",
-    "about": [],
-    "pass": "94cc195ddd75",
-    "id": "F-4d05449b",
-    "at": "2026-10-05T15:34:15.987Z"
+    "about": [
+      "S-0001"
+    ],
+    "pass": "69df6e1f3a68",
+    "id": "F-0c0bfa39",
+    "at": "2026-10-05T19:21:35.978Z"
   }
 ]

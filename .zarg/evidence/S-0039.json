@@ -1,0 +1,41 @@
+{
+  "scenario": "S-0039",
+  "version": "7822129d7b9f",
+  "commit": "59e10feb",
+  "run": "e2e-2026-10-05T19-22-32.970Z",
+  "journey": "J-0002",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-05T19:23:54.722Z",
+  "ms": 5561,
+  "media": [
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "setup, saying why",
+      "path": "media/S-0039/1-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0039/2-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0039/3-step.cast",
+      "meta": {
+        "startAt": 0
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/core/src/live.ts": "f49bedab7c710b5e87ac70a662b029ea77b60bdb",
+    "packages/core/src/setup.ts": "c3bc9691d4ea53ca74dcd5108bfad7fbca63ec6b",
+    "packages/core/src/warmup.ts": "165f5926a74871a09a254028768237108af9bb3a",
+    "packages/core/test/warmup.test.ts": "3c3ce304085ea69d50182249e0a965c6904edabb"
+  }
+}

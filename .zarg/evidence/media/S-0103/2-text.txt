@@ -1,51 +1,76 @@
 {
-  "title": "Parent sets a chore to repeat weekly",
+  "title": "Family member checks their chores",
   "journey": "",
   "scenarios": [],
   "changes": [
     {
       "tool": "add-persona",
       "params": {
-        "name": "Parent",
+        "name": "Family member",
         "kind": "human",
-        "text": "a family member who sets chores and checks them done"
+        "text": "A person in a family, reaching the todo app as a web or mobile client."
       }
     },
     {
       "tool": "add-scenario",
       "params": {
-        "title": "Parent sets a chore to repeat weekly",
-        "when": "Parent marks a chore to repeat every week",
+        "title": "Family member checks their chores",
+        "when": "the family member opens the chore list",
         "by": [
           {
-            "name": "Parent"
+            "name": "Family member"
           }
         ],
         "arrives": {
-          "text": "an active todo list"
+          "text": "an account home screen"
         },
-        "then": [
+        "given": [
           {
-            "text": "the chore is due weekly"
-          },
-          {
-            "text": "next week it appears automatically"
-          },
-          {
-            "text": "Parent never retypes it"
+            "text": "chores assigned to others"
           }
         ],
-        "given": []
+        "then": [
+          {
+            "text": "the app hides chores assigned to other members"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-journey",
+      "params": {
+        "name": "See my chores"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "scenario": "S-0001",
+        "edge": "in",
+        "journey": {
+          "id": "J-0001"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "edge": "serves",
+        "journey": {
+          "id": "J-0001"
+        },
+        "outcome": "O-0001"
       }
     }
   ],
   "feedback": [],
   "steps": [
-    "Add the Parent persona",
-    "Add the scenario where Parent sets weekly repeat",
-    "Link that scenario into a journey serving O-0002"
+    "Add the Family member persona.",
+    "Add the scenario: opening the chore list shows only this member's chores and hides other members' chores.",
+    "Add the journey See my chores and put the scenario in it.",
+    "Link the journey to the outcome so it delivers O-0001."
   ],
-  "serves": "gherkin/outcome:O-0002@bf62f6842034",
+  "serves": "gherkin/outcome:O-0001@f5ebc0ef2fe2",
   "id": "B-01",
   "status": "backlog",
   "events": [

@@ -191,41 +191,6 @@ journey("J-0004", { tier: "fast", seed: SEED }, (proves) => {
     { model: true, timeoutMs: 950_000 },
   )
 
-  proves(
-    "S-0025",
-    async (s) => {
-      // The Driver Agent takes up the finding once the question it already asked is answered (that one keeps its turn).
-      const rlm = () => lines(s.w, ".zarg/threads/main.rlm.jsonl").filter((e) => e.type === "start").map((e) => String(e.task))
-      const t = s.term!
-      const zargAsks = () => topics(s.w).find((x) => x.from.agent === "zarg" && x.kind === "question" && x.state === "open")
-      for (let round = 0; round < 12 && !rlm().some((task) => task.includes("verify still fails")); round++) {
-        const asking = zargAsks()
-        if (asking !== undefined) {
-          // From the inbox: its row, then its first answer.
-          t.press("esc")
-          await Bun.sleep(300)
-          t.press("esc")
-          await Bun.sleep(500)
-          for (let k = 0; k < 10 && !/▍◆ zarg/.test(t.screen()); k++) {
-            t.press("down")
-            await Bun.sleep(150)
-          }
-          t.press("enter")
-          await Bun.sleep(800)
-          t.press("1")
-        }
-        // Until zarg takes the finding up, or asks its next question (answered on the next round).
-        const answered = asking?.id
-        await until(90_000, () => rlm().some((task) => task.includes("verify still fails")) || (zargAsks() !== undefined && zargAsks()!.id !== answered))
-      }
-      const taken = rlm().some((task) => task.includes("verify still fails"))
-      s.note("log", "the driver's items", rlm().join("\n---\n"))
-      expect(taken).toBe(true)
-      const asked = await until(300_000, () => topics(s.w).some((t) => t.from.agent === "zarg" && t.kind === "question" && t.state === "open"))
-      expect(asked).toBe(true)
-    },
-    { model: true, timeoutMs: 650_000 },
-  )
 })
 
 // Reconcile's edge cases on scripted models (the core's stub mode): each RLM follows the cells of the route its task names.
@@ -241,6 +206,8 @@ writeFileSync(
     // zarg itself (findings on its agenda): it notes them and waits.
     cells: ['return yield* Rlm.done({ value: "Noted." })'],
     routes: [
+      // zarg takes up the finding S-0002 left: it asks the operator what to do.
+      { when: "S-0002 cannot be planned", cells: ['const a = yield* Inquire.ask({ question: "S-0002 cannot be planned: reword it, or drop it?", options: [{ id: "reword", label: "Reword S-0002", recommended: true }, { id: "drop", label: "Drop S-0002" }] })\nyield* Rlm.done({ value: String(a.choice) })'] },
       { when: "implementation plan for scenario S-0001:", cells: [PLAN] },
       // Pass 1: S-0002 cannot be planned; pass 2: it can, then cannot be implemented.
       { when: "implementation plan for scenario S-0002:", cells: ['return yield* Rlm.done({ value: { blocked: "S-0002 contradicts S-0001: a chore cannot leave every list while it stays assigned" } })', PLAN] },
@@ -295,6 +262,14 @@ journey(
       expect(f?.detail).toContain("contradicts S-0001")
       // On zarg's agenda: its inbox shows the finding.
       expect(await until(30_000, () => topics(s.w).some((t) => t.kind === "finding" && t.title.includes("S-0002 cannot be planned")))).toBe(true)
+    })
+
+    // @scenario S-0025
+    proves("S-0025", async (s) => {
+      // zarg takes the finding up as its next item, and asks the operator about it.
+      expect(await until(60_000, () => tasksOf(s.w, "main").some((t) => t.includes("S-0002 cannot be planned")))).toBe(true)
+      expect(await until(60_000, () => topics(s.w).some((t) => t.from.agent === "zarg" && t.kind === "question" && t.state === "open" && t.title.includes("S-0002 cannot be planned")))).toBe(true)
+      s.note("buffer", "zarg's item", tasksOf(s.w, "main").find((t) => t.includes("S-0002 cannot be planned")) ?? "")
     })
 
     proves("S-0024", async (s) => {

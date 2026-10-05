@@ -1,13 +1,13 @@
 {
   "scenario": "S-0016",
   "version": "0c7b8a7c6544",
-  "commit": "ca09b1cb",
-  "run": "e2e-2026-10-05T16-26-00.285Z",
+  "commit": "59e10feb",
+  "run": "e2e-2026-10-05T19-22-32.970Z",
   "journey": "J-0001",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T16:26:19.381Z",
-  "ms": 264,
+  "at": "2026-10-05T19:22:52.162Z",
+  "ms": 270,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -32,15 +32,15 @@
       "caption": "the step as it played",
       "path": "media/S-0016/4-step.cast",
       "meta": {
-        "startAt": 18.1
+        "startAt": 18.2
       }
     }
   ],
   "failure": null,
   "code": {
-    "packages/agent-zarg/src/driver.ts": "e0e6bc4a0fe1232571b2701d4e7b1b48f57dcc58",
-    "packages/agent-zarg/src/zarg.ts": "777af4c59b0614c5876c766ae5a9957ece9cd7f2",
-    "packages/agent-zarg/test/driver.test.ts": "ca7f3adcf65e4639456f74ffd51bf79ceaaca31f",
+    "packages/agent-zarg/src/driver.ts": "57e72963b2c5f44a0794d85737f9459f97529b61",
+    "packages/agent-zarg/src/zarg.ts": "42e877de0c3cb4e5e7027bb0f7b6082736cd6512",
+    "packages/agent-zarg/test/driver.test.ts": "0414cc1c28cb82c392cb47d76d25dee38840242d",
     "packages/graph/src/store.ts": "6a7add2b82604519e018a0e9508e5fed285f2f34",
     "packages/plugin/test/host.test.ts": "6f9202a574a2c8ad01fc1bc2016731c5dad703a8"
   }

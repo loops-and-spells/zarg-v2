@@ -1,0 +1,43 @@
+{
+  "scenario": "S-0038",
+  "version": "db50877db9d1",
+  "commit": "59e10feb",
+  "run": "e2e-2026-10-05T19-22-32.970Z",
+  "journey": "J-0002",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-05T19:23:49.125Z",
+  "ms": 105,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0038/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "the first question",
+      "path": "media/S-0038/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0038/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0038/4-step.cast",
+      "meta": {
+        "startAt": 11
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/agent-zarg/src/zarg.ts": "42e877de0c3cb4e5e7027bb0f7b6082736cd6512"
+  }
+}

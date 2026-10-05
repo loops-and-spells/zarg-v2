@@ -1,12 +1,12 @@
 {
   "scenario": "S-0035",
   "version": "8528c392b00c",
-  "commit": "46f0ade7",
-  "run": "e2e-2026-10-05T16-34-18.487Z",
+  "commit": "59e10feb",
+  "run": "e2e-2026-10-05T19-22-32.970Z",
   "journey": "J-0002",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T16:34:29.675Z",
+  "at": "2026-10-05T19:23:05.445Z",
   "ms": 305,
   "media": [
     {
@@ -32,13 +32,13 @@
       "caption": "the step as it played",
       "path": "media/S-0035/4-step.cast",
       "meta": {
-        "startAt": 10.6
+        "startAt": 10.7
       }
     }
   ],
   "failure": null,
   "code": {
-    "packages/core/src/setup.ts": "16294b4ca5efe86728e38f3b3f97812c7491a818",
+    "packages/core/src/setup.ts": "c3bc9691d4ea53ca74dcd5108bfad7fbca63ec6b",
     "packages/core/test/setup.test.ts": "fcfa91e0878b9fc9af0c85df72fe38941031b35b",
     "packages/model/src/config.ts": "b459390de51e8d262f6d3fed0169a5c39f2fffcd",
     "packages/model/test/config.test.ts": "612f2f26fe335db7b2dffc4996be849a9bfa8e1e"

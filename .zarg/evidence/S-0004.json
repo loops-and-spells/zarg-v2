@@ -1,13 +1,13 @@
 {
   "scenario": "S-0004",
   "version": "12a496e62ed4",
-  "commit": "ca09b1cb",
-  "run": "e2e-2026-10-05T16-26-00.285Z",
+  "commit": "59e10feb",
+  "run": "e2e-2026-10-05T19-22-32.970Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T16:28:26.791Z",
-  "ms": 415,
+  "at": "2026-10-05T19:25:17.232Z",
+  "ms": 427,
   "media": [
     {
       "kind": "evidence-terminal/text",
@@ -29,6 +29,6 @@
   "failure": null,
   "code": {
     "packages/plugin-gherkin/src/tools.ts": "2bb23ed64ca2369518829df75fec991cab3835d3",
-    "packages/plugin-gherkin/test/gherkin.test.ts": "7f0baecbf65edd49d66f332504b02f4667d3a9b4"
+    "packages/plugin-gherkin/test/gherkin.test.ts": "0f88c3926a41ba68315e52acd2e5c784c4d6b8a4"
   }
 }

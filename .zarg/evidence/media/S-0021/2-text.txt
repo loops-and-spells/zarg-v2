@@ -1,84 +1,97 @@
 diff --git a/src/chores.ts b/src/chores.ts
-index 8e78d42..7933395 100644
+index 8e78d42..e956ee4 100644
 --- a/src/chores.ts
 +++ b/src/chores.ts
-@@ -1 +1,28 @@
+@@ -1 +1,25 @@
 -export const assign = (chores: ReadonlyArray<string>, chore: string) => [...chores, chore]
-+export type Chore = string
-+export type Child = string
-+export type Chores = ReadonlyArray<Chore>
-+export type FamilyChores = Readonly<Record<Child, Chores>>
++// @scenario S-0001
++export type Chore = { text: string; child: string }
 +
-+// @scenario S-0001 — when the parent assigns a chore to a child
-+export const assignToChild = (
-+  family: FamilyChores,
-+  child: Child,
-+  chore: Chore,
-+): FamilyChores => ({
-+  ...family,
-+  [child]: [...(family[child] ?? []), chore],
-+})
++// A chore is assigned to a child when a child identity is given, else it stays a plain string.
++// @scenario S-0001
++export const assign = (
++  chores: ReadonlyArray<string | Chore>,
++  chore: string,
++  child?: string,
++) =>
++  child === undefined
++    ? [...chores, chore]
++    : [...chores, { text: chore, child }]
 +
-+// @scenario S-0001 — then the child sees the new chore
-+export const childChores = (family: FamilyChores, child: Child): Chores =>
-+  family[child] ?? []
++// The child-facing view over the parent's list: only chores assigned to that child.
++// @scenario S-0001
++export const childChores = (
++  chores: ReadonlyArray<string | Chore>,
++  child: string,
++): ReadonlyArray<Chore> =>
++  chores.filter((c): c is Chore => typeof c !== "string" && c.child === child)
 +
-+// @scenario S-0001 — given the parent sees the family's chores
-+export const familyChores = (family: FamilyChores): Chores =>
-+  Object.values(family).flat()
-+
-+// untargeted assign: the original family call shape stays compatible
-+export const assign = (chores: Chores, chore: Chore): Chores => [...chores, chore]
-+
-+// @scenario S-0002
-+export const remove = (chores: ReadonlyArray<string>, chore: string) => chores.filter((c) => c !== chore)
++// @scenario S-0002 Parent removes a chore; a removal leaves every list.
++export const remove = (chores: ReadonlyArray<string | Chore>, chore: string) =>
++  chores.filter((existing) => existing !== chore)
 diff --git a/test/chores.test.ts b/test/chores.test.ts
-index 1596ebe..3dda053 100644
+index 1596ebe..c171ff7 100644
 --- a/test/chores.test.ts
 +++ b/test/chores.test.ts
-@@ -1,6 +1,43 @@
+@@ -1,6 +1,60 @@
  import { expect, test } from "bun:test"
 -import { assign } from "../src/chores"
-+import { assign, assignToChild, childChores, familyChores, remove } from "../src/chores"
++import { assign, childChores, remove } from "../src/chores"
  
--test("a chore is assigned", () => {
-+test("a chore is assigned to a child", () => {
-+  // @scenario S-0001 — the chore lands in one child's list, not just the family
-+  const family = { ana: [], bo: ["trash"] }
-+  const next = assignToChild(family, "ana", "dishes")
-+
-+  expect(next.ana).toEqual(["dishes"])
-+  expect(next.bo).toEqual(["trash"])
-+})
-+
-+test("the child sees the new chore", () => {
-+  // @scenario S-0001 — then the child sees the new chore
-+  const family = assignToChild({ ana: [] }, "ana", "dishes")
-+
-+  expect(childChores(family, "ana")).toEqual(["dishes"])
-+})
-+
-+test("the parent sees the family's chores", () => {
-+  // @scenario S-0001 — given the parent sees the family's chores
-+  const family = assignToChild({ ana: [], bo: ["trash"] }, "ana", "dishes")
-+
-+  // the family aggregate includes the child-assigned chore
-+  expect(familyChores(family)).toEqual(["dishes", "trash"])
-+  expect(familyChores(family)).toContain("dishes")
-+})
-+
-+test("an untargeted assign still works", () => {
++// Given ST-0001 the parent sees the family's chores; When the parent assigns a chore to a child.
++// @scenario S-0001
+ test("a chore is assigned", () => {
    expect(assign([], "dishes")).toEqual(["dishes"])
-+  expect(assign(["trash"], "dishes")).toEqual(["trash", "dishes"])
-+})
-+
-+// @scenario S-0002
-+test("a chore is removed from every list", () => {
-+  expect(remove(["dishes", "trash"], "dishes")).toEqual(["trash"])
-+})
-+
-+// @scenario S-0002
-+test("a chore removal is idempotent", () => {
-+  const before = ["dishes", "trash"]
-+  expect(remove(before, "mopping")).toEqual(before)
  })
++
++// the parent's list gains the chore after assign (Given -> When).
++test("the parent's list gains the chore", () => {
++  expect(assign([], "dishes", "kid")).toEqual([{ text: "dishes", child: "kid" }])
++})
++
++// assign marks the chore with the target child, not just appended text.
++// @scenario S-0001
++test("the assigned chore records its child", () => {
++  expect(assign([], "dishes", "kid")).toEqual([{ text: "dishes", child: "kid" }])
++})
++
++// Then ST-0001 the child sees the new chore.
++// @scenario S-0001
++test("the child sees the new chore", () => {
++  const family = assign([], "dishes", "kid")
++  expect(childChores(family, "kid")).toEqual([{ text: "dishes", child: "kid" }])
++})
++
++// childChores excludes chores assigned to other children.
++// @scenario S-0001
++test("the child sees only its own chores", () => {
++  const family = assign([], "dishes", "kid")
++  expect(childChores(assign(family, "trash", "other"), "kid")).toEqual([
++    { text: "dishes", child: "kid" },
++  ])
++})
++
++// @scenario S-0002 Parent removes a chore
++test("a chore is removed", () => {
++  const store = ["dishes", "laundry"]
++  expect(remove(store, "dishes")).toEqual(["laundry"])
++  expect(remove(store, "dishes")).not.toContain("dishes")
++})
++
++// @scenario S-0002 Parent removes a chore
++test("a removed chore leaves every list", () => {
++  const parentList = (chores: ReadonlyArray<string>) => chores
++  const childList = (chores: ReadonlyArray<string>) => chores
++  const store = ["dishes", "laundry"]
++  const removed = remove(store, "dishes")
++  expect(parentList(removed)).not.toContain("dishes")
++  expect(childList(removed)).not.toContain("dishes")
++  expect(parentList(removed)).toEqual(["laundry"])
++  expect(childList(removed)).toEqual(parentList(removed))
++})
++
++// @scenario S-0002 Parent removes a chore
++test("removing an absent chore is a no-op", () => {
++  const store = ["dishes", "laundry"]
++  expect(remove(store, "trash")).toEqual(store)
++})

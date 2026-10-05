@@ -1,12 +1,12 @@
 {
   "scenario": "S-0019",
   "version": "308f09d2ffdc",
-  "commit": "ca09b1cb",
-  "run": "e2e-2026-10-05T16-26-00.285Z",
+  "commit": "59e10feb",
+  "run": "e2e-2026-10-05T19-22-32.970Z",
   "journey": "J-0001",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T16:26:19.970Z",
+  "at": "2026-10-05T19:22:52.752Z",
   "ms": 55,
   "media": [
     {
@@ -24,13 +24,13 @@
       "caption": "the step as it played",
       "path": "media/S-0019/3-step.cast",
       "meta": {
-        "startAt": 18.9
+        "startAt": 19
       }
     }
   ],
   "failure": null,
   "code": {
-    "packages/agent-zarg/src/driver.ts": "e0e6bc4a0fe1232571b2701d4e7b1b48f57dcc58",
-    "packages/agent-zarg/test/driver.test.ts": "ca7f3adcf65e4639456f74ffd51bf79ceaaca31f"
+    "packages/agent-zarg/src/driver.ts": "57e72963b2c5f44a0794d85737f9459f97529b61",
+    "packages/agent-zarg/test/driver.test.ts": "0414cc1c28cb82c392cb47d76d25dee38840242d"
   }
 }

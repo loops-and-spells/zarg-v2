@@ -1,1 +1,3 @@
-Who uses this product? Pick who acts in its scenarios — a tester roleplays them. If it is a person using an app, a coding agent at the command line, or the product's own agent, that is the kind; otherwise say in your words who it is.
+This product has no requirements yet, and I cannot read its project files to ground a first statement. What is it for — where does a user start, and what is their first action?
+
+Say what it is for, then the first action: Intent: add Intent {Int-A-1: title}. Outcome: Intent wants for its users {state/scenario}. Persona: add Persona {name}, kind human. Scenario: add scenario {title}, By {persona} Given {arrival} When {first action} Then {result}
