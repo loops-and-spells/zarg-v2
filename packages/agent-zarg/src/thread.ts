@@ -24,6 +24,9 @@ export const WHAT_NEXT_GAPS =
   "The agenda is empty. Ask the developer what to work on next now, in your first turn, with Inquire.ask: 2-4 options drawn from the gaps below, one recommended, and allowOther: true so they can name their own idea. Never make up a journey or feature yourself. Do not render the whole graph; use Graph.render({ focus }) on a gap's ids only if a label needs it. No research children."
 
 /** Asked by zarg itself when nothing is open: no driver turn, no model. */
+/** How a proposal's question begins (Inquire.confirm): the change follows it. */
+const CONFIRM_PREFIX = "Add this to the requirements?"
+
 export const OPEN_QUESTION = "Nothing is open in the requirements. What do you want to work on?"
 
 // Enough gaps to choose 2-4 options from.
@@ -221,6 +224,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
       })
     // Answers to questions from before a restart, by their text: the same question asked again is answered already.
     const answeredBefore = new Map<string, { readonly answer?: string; readonly text?: string }>()
+    let approvedBefore: string | undefined
     const asker: Asker = {
       // A new question from the driver replaces any it was discussing.
       ask: (q) => {
@@ -239,6 +243,11 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
         )
       },
       choose,
+      approved: () => {
+        const a = approvedBefore
+        approvedBefore = undefined
+        return a
+      },
     }
 
     // RLM events become one activity message: the tree of RLMs working for this thread.
@@ -561,6 +570,11 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
           }
           // A question zarg no longer holds (from before a restart): asked again as it was, this answer is the answer.
           if (reply.answer !== undefined) answeredBefore.set(t.title, reply)
+          // A proposal added: the next item writes it as shown, without showing it again.
+          if (reply.answer === "add" && t.title.startsWith(CONFIRM_PREFIX) && (reply.text ?? "").trim() === "") {
+            approvedBefore = t.title.slice(CONFIRM_PREFIX.length).trim()
+            return Effect.asVoid(Effect.forkDetach(deliver(`(you added the change zarg showed before it restarted; write it as shown, without showing it again:\n${approvedBefore})`)))
+          }
           return Effect.asVoid(Effect.forkDetach(deliver(`(you answered "${t.title}": ${labelOf(t, reply)})`)))
         }),
       replied: (t: InboxTopicRef, text: string) =>

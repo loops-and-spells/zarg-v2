@@ -32,6 +32,13 @@ describe("ask before writing", () => {
     expect(await Effect.runPromise(Effect.flip(gated.handlers.addScenario!({ id: "ST-0002", text: "x" })))).toMatchObject({ _tag: "AskFirst" })
   })
 
+  test("a change the operator added before a restart opens writes for it at once: its wording only", async () => {
+    const guard = askFirst({ ask: () => Effect.die("never asked"), approved: () => "Add outcome to I-0001: A reader sees what is left" })
+    const gated = guard.gate(writes)!
+    expect(await Effect.runPromise(gated.handlers.addScenario!({ intent: "I-0001", text: "A reader sees what is left" }))).toBe("created S-0001")
+    expect(await Effect.runPromise(Effect.flip(gated.handlers.addScenario!({ intent: "I-0001", text: "Something else entirely" })))).toMatchObject({ _tag: "NotShown" })
+  })
+
   // @scenario S-0016
   test("a change's own writes are never a newer edit: writing it in parts changes the node it was shown about, and the next part still saves", async () => {
     let version = "v1"

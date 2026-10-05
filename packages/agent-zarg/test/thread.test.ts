@@ -713,6 +713,23 @@ describe("zarg's questions as inbox topics", () => {
     expect(calls.filter((c) => (c as Array<unknown>)[0] === "post")).toEqual([])
   })
 
+  // @scenario S-0098
+  test("after a restart, Add it on zarg's old proposal hands the change to the next item as added: it writes it without showing it again", async () => {
+    const { inbox } = fakeInbox()
+    const approvals: Array<string | undefined> = []
+    let calls = 0
+    const driver: Driver = (_spec, asker) => Effect.sync(() => (calls++ > 0 ? void approvals.push(asker.approved?.()) : undefined, outcome("ok")))
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setupWith(driver, { ...inbox, open: () => Effect.succeed([{ id: "T-00000099", key: "main|inq-old", title: "Add this to the requirements?\n\nAdd outcome: A reader sees what is left" }]) })
+        yield* collect(thread.run({ runId: "r1" }).pipe(Stream.takeUntil((e) => e.type === "RUN_FINISHED")))
+        yield* thread.inbox!.answered({ id: "T-00000099", title: "Add this to the requirements?\n\nAdd outcome: A reader sees what is left", answers: [{ id: "add", label: "Add it" }, { id: "skip", label: "Skip" }] }, { answer: "add" })
+        yield* Effect.sleep(80)
+      }),
+    )
+    expect(approvals[0]).toBe("Add outcome: A reader sees what is left")
+  })
+
   const askOnce = (answers: Array<unknown>): Driver => {
     let calls = 0
     return (_spec, asker) =>

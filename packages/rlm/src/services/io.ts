@@ -104,6 +104,8 @@ export interface Asker {
   readonly choose?: (c: Choice) => Effect.Effect<{ readonly choice: string }, ServiceFailure>
   /** Show a change for the operator to add, change or skip; defaults to `ask` with `confirmQuestion`. */
   readonly confirm?: (c: Confirm) => Effect.Effect<Answer, ServiceFailure>
+  /** A change the operator already added (shown before a restart): the item may write it without showing it again. Taken once. */
+  readonly approved?: () => string | undefined
 }
 
 export const inquire = (asker: Asker): Bound =>

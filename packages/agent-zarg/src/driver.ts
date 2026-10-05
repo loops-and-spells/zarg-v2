@@ -50,6 +50,12 @@ export const askFirst = (
   let scope: { readonly allowed: Set<string>; readonly onTouched: (ids: ReadonlyArray<string>) => void } | undefined
   // Confirm questions under discussion: choosing "add" on one of them opens writes.
   const confirms = new Set<string>()
+  // A change added before a restart: writes are open for it (its wording only) from the start.
+  const pre = asker.approved?.()
+  if (pre !== undefined) {
+    open = true
+    added = pre
+  }
   const write = (h: (params: unknown) => Effect.Effect<unknown, ServiceFailure>, params: unknown, named: ReadonlyArray<string>): Effect.Effect<unknown, ServiceFailure> => {
     if (added !== undefined) {
       const shownText = norm(added)
