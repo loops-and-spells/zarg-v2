@@ -80,6 +80,12 @@ export const makeZarg = (host: AgentHost) =>
           render,
           suggest,
           whatNext,
+          // @scenario S-0102
+          isGoal: (text) =>
+            Effect.map(
+              decisions.decide({ state: `The developer wrote, instead of answering zarg's question:\n${text}`, questions: { goal: { type: "noul", instructions: "Does it state a goal or a rule for the product (something it should do or must keep), not only a reply to the question?" } } }),
+              (a) => { const g = a.goal as { answer?: boolean; probability?: number } | undefined; return g?.answer === true && (g.probability ?? 0) >= 0.6 },
+            ).pipe(Effect.orElseSucceed(() => false)),
           ...(host.inbox !== undefined ? { inbox: host.inbox } : {}),
           driver: (spec, asker, observe) => Effect.flatMap(makeRlm(asker, observe), (rlm) => rlm.exec(spec)),
         }),

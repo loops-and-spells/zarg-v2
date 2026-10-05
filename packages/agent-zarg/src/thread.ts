@@ -46,6 +46,8 @@ export interface RunInput {
 }
 
 export interface ThreadDeps {
+  /** The decision model's call on a message the operator wrote instead of answering: does it state a goal or a rule for the product? */
+  readonly isGoal?: (text: string) => Effect.Effect<boolean>
   readonly id: string
   readonly focus: ReadonlyArray<string>
   readonly log: ThreadLog
@@ -111,6 +113,8 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
     const recent: Array<string> = []
     // Messages the operator sent while the driver worked: the next item answers them, before the agenda.
     const inbox: Array<string> = []
+    // @scenario S-0102
+    const isGoal = (text: string) => (deps.isGoal === undefined ? Effect.succeed(false) : deps.isGoal(text).pipe(Effect.orElseSucceed(() => false)))
     const emit = (d: E.Draft) => {
       if (d.type === "RUN_FINISHED" || d.type === "RUN_ERROR") open = false
       return log.append(threadId, d)
@@ -182,7 +186,8 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
               if (queue.length === 0 && inbox.length > 0) {
                 const words = inbox.splice(0).join(" then ")
                 discussed.push(p)
-                yield* Deferred.succeed(answer, { other: words, interjected: true, question: id } as Answer)
+                const goal = yield* isGoal(words)
+                yield* Deferred.succeed(answer, { other: words, interjected: true, question: id, ...(goal ? { goal } : {}) } as Answer)
                 return
               }
               queue.push(p)
@@ -402,7 +407,8 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
             if (!fromInbox.has(input.runId) && p.topic !== undefined) yield* topicSay((i) => i.message(p.topic!, "you", input.message!))
             yield* note("user", input.message)
             yield* note("assistant", `(discussing: ${p.question.question})`)
-            yield* Deferred.succeed(p.answer, { other: input.message, interjected: true, question: p.id } as Answer)
+            const goal = yield* isGoal(input.message)
+            yield* Deferred.succeed(p.answer, { other: input.message, interjected: true, question: p.id, ...(goal ? { goal } : {}) } as Answer)
           } else if (resume !== undefined && resolved.has(resume.interruptId)) {
             // Already answered (in the inbox, a moment before): this answer does not count again.
           } else {

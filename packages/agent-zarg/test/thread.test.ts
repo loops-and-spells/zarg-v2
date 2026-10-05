@@ -271,6 +271,27 @@ describe("thread runs", () => {
     void out
   })
 
+  // @scenario S-0102
+  test("an interjection the decision model judges to state a goal for the product is marked so (goal)", async () => {
+    const answers: Array<unknown> = []
+    let calls = 0
+    const driver: Driver = (_spec, asker) =>
+      Effect.gen(function* () {
+        if (calls++ > 0) return yield* Effect.never
+        answers.push(yield* asker.ask(question))
+        return outcome("adapted")
+      }) as never
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zt-goal-")), (t) => t)
+        const thread = yield* makeThread({ id: "main", focus: [], log, agenda: () => Effect.succeed([]), driver, isGoal: (text) => Effect.succeed(text.includes("points")) })
+        yield* collect(thread.run({ runId: "r1" }))
+        return yield* collect(thread.run({ runId: "r2", message: "parents reward chores with points" }).pipe(Stream.take(11)))
+      }),
+    )
+    expect(answers).toEqual([{ other: "parents reward chores with points", interjected: true, question: expect.stringMatching(/^inq-/), goal: true }])
+  })
+
   // @scenario S-0071
   test("the driver can choose an option of the question under discussion for the developer, once", async () => {
     const out: Record<string, unknown> = {}
