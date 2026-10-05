@@ -29,7 +29,8 @@ export interface ViewUi {
   /** Each board's cursor (a lane, a card in it) and its folded lanes (by id). */
   readonly board?: Readonly<Record<string, BoardUi>>
 }
-export interface BoardUi { readonly lane: number; readonly card: number; readonly folded: ReadonlyArray<string> }
+/** `follow`: a card just moved through the plugin; the cursor goes where it lands. */
+export interface BoardUi { readonly lane: number; readonly card: number; readonly folded: ReadonlyArray<string>; readonly follow?: string }
 export const initialViewUi: ViewUi = { focus: 0, tabs: {}, rows: {}, selected: {} }
 
 const ROLE_ORDER = ["summary", "primary", "log", "aside", "pinned"] as const
@@ -316,7 +317,10 @@ export const highlightActs = (view: ViewState, ui: ViewUi): ReadonlyArray<{ read
 /** A board's cursor and folds (clamped to its lanes and cards when read). */
 export const boardUi = (view: ViewState, ui: ViewUi, path: string): BoardUi => {
   const lanes = (view.data[path] as { lanes?: ReadonlyArray<{ id: string; cards: ReadonlyArray<{ id: string }> }> } | undefined)?.lanes ?? []
-  const b = ui.board?.[path] ?? { lane: 0, card: 0, folded: [] }
+  // Not moved through yet: the first lane with cards.
+  const b = ui.board?.[path] ?? { lane: Math.max(0, lanes.findIndex((l) => l.cards.length > 0)), card: 0, folded: [] }
+  const at = b.follow === undefined ? -1 : lanes.findIndex((l) => l.cards.some((c) => c.id === b.follow))
+  if (at >= 0) return { lane: at, card: lanes[at]!.cards.findIndex((c) => c.id === b.follow), folded: b.folded.filter((id) => lanes.some((l) => l.id === id)) }
   const lane = Math.max(0, Math.min(lanes.length - 1, b.lane))
   const card = Math.max(0, Math.min((lanes[lane]?.cards.length ?? 1) - 1, b.card))
   return { lane, card, folded: b.folded.filter((id) => lanes.some((l) => l.id === id)) }
@@ -338,8 +342,10 @@ export const boardKey = (view: ViewState, ui: ViewUi, key: { readonly name: stri
   const folded = b.folded.includes(lane.id)
   const card = folded ? undefined : lane.cards[b.card]
   const act = (action: string) => (card === undefined ? { ui } : { ui, act: { section: c.path, action, rows: [card.id] } })
-  if (key.shift === true && key.name === "right") return act("move-right")
-  if (key.shift === true && key.name === "left") return act("move-left")
+  // The cursor follows the moved card into its new lane.
+  const move = (action: string) => (card === undefined ? { ui } : { ...set({ ...b, follow: card.id }), act: { section: c.path, action, rows: [card.id] } })
+  if (key.shift === true && key.name === "right") return move("move-right")
+  if (key.shift === true && key.name === "left") return move("move-left")
   if (key.name === "right" || key.name === "left") {
     const to = Math.max(0, Math.min(lanes.length - 1, b.lane + (key.name === "right" ? 1 : -1)))
     return set({ ...b, lane: to, card: Math.max(0, Math.min((lanes[to]?.cards.length ?? 1) - 1, b.card)) })
