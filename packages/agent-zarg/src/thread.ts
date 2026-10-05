@@ -112,6 +112,8 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
       discussed.length = 0
     }
     let paused: Deferred.Deferred<void> | undefined
+    // This thread's questions still open from before a restart (the loop waits on them).
+    let fromBefore: ReadonlyArray<InboxTopicRef> = []
     const recent: Array<string> = []
     // Messages the operator sent while the driver worked: the next item answers them, before the agenda.
     const inbox: Array<string> = []
@@ -250,6 +252,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
       // After a restart, a question of this thread still open from before is the one waiting: zarg asks nothing new
       // until the operator answers it (its answer comes back as their word).
       const before = deps.inbox?.open === undefined ? [] : (yield* deps.inbox.open().pipe(Effect.orElseSucceed(() => []))).filter((t) => t.key?.startsWith(`${threadId}|`) === true)
+      fromBefore = before
       if (before.length > 0) {
         const wait = yield* Deferred.make<void>()
         paused = wait
@@ -457,6 +460,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
           if (paused !== undefined) {
             const p = paused
             paused = undefined
+            fromBefore = []
             yield* Deferred.succeed(p, undefined)
           }
           // Still waiting on a question this run did not answer (a client that just attached): ask it again.
@@ -478,6 +482,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
         yield* settleTopics([...queue, ...discussed], "zarg was stopped")
         dropLoopQuestions()
         paused = undefined
+        fromBefore = []
         if (f !== undefined) yield* Fiber.interrupt(f)
         loop = undefined
         // With no run open (waiting on a question, or idle), the stop note gets a run of its own.
@@ -498,10 +503,15 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
     const wake = Effect.suspend(() => {
       const head = pending()
       if (head !== undefined && head.question.question !== OPEN_QUESTION) return Effect.void
+      // A question from before a restart counts as the one waiting: only an old what-next gives way, and it is settled.
+      if (fromBefore.some((t) => t.title !== OPEN_QUESTION)) return Effect.void
+      const old = fromBefore
+      fromBefore = []
       const runId = `wake-${crypto.randomUUID().slice(0, 8)}`
-      return Effect.asVoid(
+      return Effect.andThen(
+        Effect.forEach(old, (t) => topicSay((i) => i.settle(t.id, "new work came in")), { discard: true }),
         Effect.forkDetach(Stream.runDrain(run(head !== undefined ? { runId, resume: [{ interruptId: head.id, payload: { wake: true } }] } : { runId }))),
-      )
+      ).pipe(Effect.asVoid)
     })
 
     /** An answer or a reply reaches zarg as a message (no question waits for it: after a restart, or one it moved past). */

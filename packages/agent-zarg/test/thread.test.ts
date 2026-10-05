@@ -606,6 +606,48 @@ describe("zarg's questions as inbox topics", () => {
     expect(events.map((e) => String(e.type))).toContain("RUN_FINISHED")
   })
 
+  // @scenario S-0098
+  test("after a restart, new work wakes zarg past its old what-next question (settled), never past a real one", async () => {
+    const wakeWith = (title: string) => {
+      const { inbox, calls } = fakeInbox()
+      let drove = 0
+      const driver: Driver = () => Effect.sync(() => (drove++, outcome("ok")))
+      return Effect.runPromise(
+        Effect.gen(function* () {
+          const { thread } = yield* setupWith(driver, { ...inbox, open: () => Effect.succeed([{ id: "T-00000099", key: "main|inq-old", title }]) })
+          yield* collect(thread.run({ runId: "r1" }).pipe(Stream.takeUntil((e) => e.type === "RUN_FINISHED")))
+          yield* thread.wake
+          yield* Effect.sleep(50)
+          return { drove, calls }
+        }),
+      )
+    }
+    const real = await wakeWith("Old question?")
+    expect(real.drove).toBe(0)
+    // Once answered, the next wake is free to go on.
+    const answered = await (() => {
+      const { inbox } = fakeInbox()
+      let drove = 0
+      const driver: Driver = () => Effect.sync(() => (drove++, outcome("ok")))
+      return Effect.runPromise(
+        Effect.gen(function* () {
+          const { thread } = yield* setupWith(driver, { ...inbox, open: () => Effect.succeed([{ id: "T-00000099", key: "main|inq-old", title: "Old question?" }]) })
+          yield* collect(thread.run({ runId: "r1" }).pipe(Stream.takeUntil((e) => e.type === "RUN_FINISHED")))
+          yield* thread.inbox!.answered({ id: "T-00000099", title: "Old question?" }, { answer: "a" })
+          yield* Effect.sleep(50)
+          const after = drove
+          yield* thread.wake
+          yield* Effect.sleep(50)
+          return { after, drove }
+        }),
+      )
+    })()
+    expect(answered.drove).toBeGreaterThan(answered.after)
+    const open = await wakeWith(OPEN_QUESTION)
+    expect(open.drove).toBeGreaterThan(0)
+    expect(open.calls).toContainEqual(["settle", "T-00000099", expect.any(String)])
+  })
+
   const askOnce = (answers: Array<unknown>): Driver => {
     let calls = 0
     return (_spec, asker) =>
