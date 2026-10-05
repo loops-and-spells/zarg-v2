@@ -8,6 +8,7 @@ import type { Bound } from "@zarg/kernel"
 import { Model } from "@zarg/model"
 import type { PluginHost } from "@zarg/plugin/server"
 import { type Asker, decisionsService, entitiesService, fsRead, graph, inquire, pluginService, Rlm, type RlmSettings, type Scope } from "@zarg/rlm"
+import { commitGraph } from "@zarg/reconcile"
 import { askFirst } from "./driver"
 import { judgeGaps } from "./gaps"
 import { nextOutcomes, nextWhenServed, type NextOption } from "./intent"
@@ -36,7 +37,7 @@ export const makeZarg = (host: AgentHost) =>
       // @scenario S-0016
       const versions = (ids: ReadonlyArray<string>) =>
         Effect.map(store.snapshot, (snap) => Object.fromEntries(ids.map((id) => { const n = snap.nodes.get(id); return [id, n === undefined ? undefined : hash(n)] }))).pipe(Effect.orElseSucceed(() => ({})))
-      const guard = askFirst(asker, versions)
+      const guard = askFirst(asker, versions, (ids, message) => commitGraph(root, ids, message))
       const outside = host.outsideReads as never
       const factory = (name: string, scope: Scope): Bound | undefined => {
         const ctx = { host: plugins, snapshot, scope }
@@ -53,7 +54,10 @@ export const makeZarg = (host: AgentHost) =>
         if (name === "Decisions") return decisionsService(decisions as never)
         return undefined
       }
-      return Rlm.make({ settings: rlmSettings, services: factory, roles: host.roles, decisions, observe, unknownIds }).pipe(Effect.provideService(Model.Model, model))
+      return Rlm.make({ settings: rlmSettings, services: factory, roles: host.roles, decisions, observe, unknownIds }).pipe(
+        Effect.provideService(Model.Model, model),
+        Effect.map((rlm) => ({ rlm, flush: guard.flush })),
+      )
     }
     // The same scope filter the driver's Graph.render applies.
     const render = (ids: ReadonlyArray<string>, scope: Scope) => Effect.map(graph({ host: plugins, snapshot, scope }).handlers.render!({ focus: ids }), String)
@@ -105,7 +109,8 @@ export const makeZarg = (host: AgentHost) =>
               (a) => { const g = a.goal as { answer?: boolean; probability?: number } | undefined; return g?.answer === true && (g.probability ?? 0) >= 0.6 },
             ).pipe(Effect.orElseSucceed(() => false)),
           ...(host.inbox !== undefined ? { inbox: host.inbox } : {}),
-          driver: (spec, asker, observe) => Effect.flatMap(makeRlm(asker, observe), (rlm) => rlm.exec(spec)),
+          // What the item wrote is committed when it ends, however it ends.
+          driver: (spec, asker, observe) => Effect.flatMap(makeRlm(asker, observe), ({ rlm, flush }) => rlm.exec(spec).pipe(Effect.ensuring(flush))),
         }),
     }
   })

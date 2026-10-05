@@ -19,8 +19,23 @@ const wording = (v: unknown): ReadonlyArray<string> =>
  * discussed one for them), and close at the next question.
  */
 // @scenario S-0009
-export const askFirst = (asker: Asker, versions?: (ids: ReadonlyArray<string>) => Effect.Effect<Readonly<Record<string, string | undefined>>>) => {
+export const askFirst = (
+  asker: Asker,
+  versions?: (ids: ReadonlyArray<string>) => Effect.Effect<Readonly<Record<string, string | undefined>>>,
+  commit?: (ids: ReadonlyArray<string>, message: string) => Effect.Effect<unknown, unknown>,
+) => {
   let open = false
+  // What the developer added, once written, is committed (at the next question, or when the item ends): the
+  // Planner and reconcile only build on a committed graph.
+  // ponytail: a node the operator also edited by hand, uncommitted, goes into the same commit.
+  const unsaved = new Set<string>()
+  let saving = ""
+  const flush = Effect.suspend(() => {
+    if (commit === undefined || unsaved.size === 0) return Effect.void
+    const ids = [...unsaved]
+    unsaved.clear()
+    return Effect.ignore(commit(ids, `req: ${saving}`))
+  })
   // @scenario S-0016
   // The versions of the nodes the change was shown about, as the developer saw them: a newer edit by another thread
   // makes the save stale (the change is shown again).
@@ -50,7 +65,8 @@ export const askFirst = (asker: Asker, versions?: (ids: ReadonlyArray<string>) =
       Effect.sync(() => {
         const c = r as { added?: ReadonlyArray<string>; changed?: ReadonlyArray<string>; removed?: ReadonlyArray<string> }
         const ids = [...(c?.added ?? []), ...(c?.changed ?? []), ...(c?.removed ?? [])]
-        for (const id of ids) touched.add(id)
+        for (const id of ids) (touched.add(id), unsaved.add(id))
+        if (ids.length > 0 && unsaved.size === ids.length) saving = (added?.split("\n")[0] ?? "a fix for a rehearse finding").slice(0, 72)
         for (const id of c?.added ?? []) s?.allowed.add(id)
         if (s !== undefined && ids.length > 0) s.onTouched(ids)
       }),
@@ -58,9 +74,9 @@ export const askFirst = (asker: Asker, versions?: (ids: ReadonlyArray<string>) =
   }
   return {
     asker: {
-      ask: (question) => Effect.suspend(() => ((open = false), (scope = undefined), asker.ask(question))),
+      ask: (question) => Effect.andThen(flush, Effect.suspend(() => ((open = false), (scope = undefined), asker.ask(question)))),
       confirm: (c) =>
-        Effect.suspend(() => {
+        Effect.andThen(flush, Effect.suspend(() => {
           open = false
           scope = undefined
           shown = {}
@@ -75,7 +91,7 @@ export const askFirst = (asker: Asker, versions?: (ids: ReadonlyArray<string>) =
               }
             }),
           )
-        }),
+        })),
       ...(asker.choose !== undefined
         ? { choose: (c) => Effect.tap(asker.choose!(c), () => Effect.sync(() => void ((scope = undefined), (open = confirms.has(c.question) && c.choice === "add"), (added = open ? changes.get(c.question) : undefined)))) }
         : {}),
@@ -86,6 +102,8 @@ export const askFirst = (asker: Asker, versions?: (ids: ReadonlyArray<string>) =
       added = undefined
       scope = finding === undefined ? undefined : { allowed: new Set(finding.allowed), onTouched: finding.onTouched }
     },
+    /** Commit what was written since the last question (the item's end calls it). */
+    flush,
     /** Node ids the gated writes added, changed or removed in this item. */
     touched: (): ReadonlySet<string> => touched,
     gate: (bound: Bound | undefined): Bound | undefined =>

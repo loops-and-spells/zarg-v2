@@ -44,6 +44,25 @@ describe("ask before writing", () => {
     expect(await Effect.runPromise(gated.handlers.addScenario!({ intent: "I-0001", text: "parents award points for finished chores" }))).toBe("created S-0001")
   })
 
+  test("what the developer added is committed once written: at the next question, or when the item ends", async () => {
+    const commits: Array<[ReadonlyArray<string>, string]> = []
+    const ids: Bound = { def: { name: "Gherkin" } as never, handlers: { addScenario: () => Effect.succeed({ added: ["S-0003", "ST-0009"], changed: ["J-0001"], removed: [] }) } }
+    const guard = askFirst({ ask: () => Effect.succeed({ choice: "add" }) }, undefined, (i, m) => Effect.sync(() => void commits.push([i, m])))
+    const gated = guard.gate(ids)!
+    await Effect.runPromise(guard.asker.confirm!({ change: "Add scenario: Parent restricts a chore\nGiven a\nWhen b\nThen c" }))
+    await Effect.runPromise(gated.handlers.addScenario!({}))
+    expect(commits).toEqual([])
+    await Effect.runPromise(guard.asker.ask({ question: "q", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }] }))
+    expect(commits).toEqual([[["S-0003", "ST-0009", "J-0001"], "req: Add scenario: Parent restricts a chore"]])
+    await Effect.runPromise(guard.asker.confirm!({ change: "Edit ST-0009: the chore is shown" }))
+    await Effect.runPromise(gated.handlers.addScenario!({}))
+    await Effect.runPromise(guard.flush)
+    expect(commits[1]).toEqual([["S-0003", "ST-0009", "J-0001"], "req: Edit ST-0009: the chore is shown"])
+    // Nothing written since: nothing to commit.
+    await Effect.runPromise(guard.flush)
+    expect(commits.length).toBe(2)
+  })
+
   test("each driver item starts without an answer", async () => {
     const first = askFirst({ ask: () => Effect.succeed({ choice: "add" }) })
     await Effect.runPromise(first.asker.confirm!({ change: "Given a\nWhen b\nThen c" }))
