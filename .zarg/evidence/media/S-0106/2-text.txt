@@ -5,20 +5,20 @@
   ],
   "persona": "Parent",
   "kind": "drift",
-  "severity": "medium",
-  "note": "The step says the chore leaves every list, but the shown remove only marks it hidden for the parent and returns the array unchanged, so other lists still show it. I would want remove to propagate across every list, or the step narrowed to say it leaves only the parent's list.",
+  "severity": "high",
+  "note": "The step says \"the chore leaves every list\", but the shown code `export const remove = (chores: string[], _chore: string) => chores` returns the array unchanged, and its comment says removal only marks it hidden for the parent while every other list still shows it. I'd change op: `export const remove = (chores: string[], chore: string) => chores.filter(c => c !== chore)` so it actually leaves every list.",
   "from": {
     "agent": "rehearse",
-    "run": "r-5a806c26"
+    "run": "r-0a60c53c"
   },
   "triage": {
     "on": true,
     "why": "ask · real 1.00",
     "by": "agent"
   },
-  "id": "F-51198048",
+  "id": "F-71cb9016",
   "count": 1,
   "runs": [
-    "rehearse:r-5a806c26"
+    "rehearse:r-0a60c53c"
   ]
 }

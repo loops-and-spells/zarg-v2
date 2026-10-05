@@ -7,7 +7,7 @@ import { FEEDBACK_COLUMNS, RunView, TesterView } from "../src/views"
 
 const noul = (p: number): Answer => ({ type: "noul", answer: p >= 0.5, probability: p, confidence: 0 })
 
-type Opts = { statusDown?: boolean; fileSome?: boolean; inFlight?: number; slowWrite?: number; down?: boolean; slowDecide?: number; gone?: ReadonlyArray<string>; state?: string; on?: boolean; unreachable?: number; personas?: ReadonlyArray<{ name: string; text: string; scenarios: ReadonlyArray<string> }>; files?: Map<string, string>; scenarioText?: (scenario: string) => string; built?: Record<string, "planned" | "untagged">; prompts?: Array<string>; codeDown?: boolean }
+type Opts = { noStories?: boolean; statusDown?: boolean; fileSome?: boolean; inFlight?: number; slowWrite?: number; down?: boolean; slowDecide?: number; gone?: ReadonlyArray<string>; state?: string; on?: boolean; unreachable?: number; personas?: ReadonlyArray<{ name: string; text: string; scenarios: ReadonlyArray<string> }>; files?: Map<string, string>; scenarioText?: (scenario: string) => string; built?: Record<string, "planned" | "untagged">; prompts?: Array<string>; codeDown?: boolean }
 const setup = (o: Opts = {}) =>
   Effect.gen(function* () {
     const files = o.files ?? new Map<string, string>()
@@ -28,7 +28,7 @@ const setup = (o: Opts = {}) =>
     const view = (scenario: string): SceneView => ({ scenario, title: `scenario ${scenario}`, given: `before ${scenario}`, when: o.scenarioText?.(scenario) ?? `do ${scenario}`, thens: [`after ${scenario}`], fork: [], hasFailure: false, journeys: ["Checkout"], by: ["Operator"] })
     const deps: RunDeps = {
       personas: () => Effect.succeed(o.personas ?? [{ name: "Operator", text: "The operator, through the zarg TUI.", scenarios: ["A", "B", "C", "D"] }]),
-      stories: (strategy, _f, draft) => Effect.sync(() => (drafts.push(["stories", draft]), strategies.push(strategy), { stories: [["A", "B", "C"], ["A", "B", "D"]], unreachable: o.unreachable ?? 0 })),
+      stories: (strategy, _f, draft) => Effect.sync(() => (drafts.push(["stories", draft]), strategies.push(strategy), { stories: o.noStories === true ? [] : [["A", "B", "C"], ["A", "B", "D"]], unreachable: o.unreachable ?? 0 })),
       scene: (scenario, _via, draft) => Effect.sync(() => (drafts.push(["step", draft]), draft !== undefined && scenario === "B" ? { ...view(scenario), thens: ["after B, drafted"] } : { ...view(scenario), ...(o.built?.[scenario] === "planned" ? { planned: true } : {}) })),
       ...(o.built !== undefined ? { code: (scenario: string) => o.codeDown === true ? Effect.fail("no git") : Effect.succeed(o.built![scenario] !== undefined ? [] : [{ file: `src/${scenario}.ts`, line: 1, text: `export const do${scenario} = () => "${scenario} code"` }]) } : {}),
       agendaChanged: Effect.sync(() => void agendaChanges.n++),
@@ -424,6 +424,13 @@ test("the cut is said where the operator sees it: in the start result; with noth
   }))
   expect(r.started.notes).toEqual(["C: not built yet (planned): not walked", "D: not built yet (no code tagged): /reconcile builds it"])
   expect(r.refused.refused).toBe("nothing built to walk: A: not built yet (no code tagged): /reconcile builds it")
+})
+test("a focus with no story in it is refused, saying so: never a run that walks nothing and reports nothing found", async () => {
+  const r = await Effect.runPromise(Effect.gen(function* () {
+    const t = yield* setup({ noStories: true })
+    return (yield* t.r.start({ focus: ["J-0009"] })) as { refused?: string }
+  }))
+  expect(r.refused).toBe("nothing to walk in J-0009: no story goes through it")
 })
 test("code that cannot be read (no git) checks no scenario: every scenario is walked, and the run says so", async () => {
   const r = await Effect.runPromise(Effect.gen(function* () {

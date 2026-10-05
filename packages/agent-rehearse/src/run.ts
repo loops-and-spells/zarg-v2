@@ -413,6 +413,7 @@ export const makeRehearse = (deps: RunDeps) =>
           // No focus, or an empty one, is every story.
           const focus = opts.focus !== undefined && opts.focus.length > 0 ? opts.focus : undefined
           const all = yield* deps.stories(strategy, focus, opts.draft).pipe(Effect.orElseSucceed(() => ({ stories: [], unreachable: 0 })))
+          if (all.stories.length === 0) return { refused: focus !== undefined ? `nothing to walk in ${focus.join(", ")}: no story goes through it` : "nothing to walk: no scenarios yet" }
           // Only what is built is walked: a story stops before a planned scenario, or one whose code is not tagged.
           const builtOf = new Map<string, Built>()
           let unreadable = false
