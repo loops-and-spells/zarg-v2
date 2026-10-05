@@ -1,7 +1,10 @@
 import { Effect, Schema } from "effect"
-import { definePlugin, Files, Inbox } from "@zarg/plugin-sdk"
+import { Agents, definePlugin, defineView, Files, Inbox, Views } from "@zarg/plugin-sdk"
 
 /** The e2e fixture: a third-party plugin that reads notes (an optional scope), reaches past its manifest, hangs, and asks the operator through the inbox. */
+/** A report in Markdown, as an agent writes one. */
+const ReportView = defineView("report", { body: { kind: "text", role: "primary", title: "" } })
+const REPORT = "## What the probe found\n\n- **two** notes read\n- one file it may not read\n\n| note | state |\n|---|---|\n| a | read |\n\n`probe` is done."
 const Args = Schema.Struct({ args: Schema.Array(Schema.String) })
 const Notice = Schema.Struct({ notice: Schema.String })
 // Short notices: the status line has room for a few words.
@@ -15,7 +18,8 @@ export default definePlugin({
   service: "Probe",
   archetype: "service",
   config: Schema.Struct({}),
-  scopes: { inbox: true },
+  scopes: { inbox: true, agents: true },
+  views: [ReportView],
   optional: { fs: { read: ["notes/**"] } },
   commands: [
     { cmd: "/peek", desc: "read a note (asks first)", method: "peek", arg: { kind: "text", hint: "note name" } },
@@ -23,6 +27,7 @@ export default definePlugin({
     { cmd: "/spin", desc: "never answers", method: "spin", arg: { kind: "none" } },
     { cmd: "/check", desc: "post a check to the inbox", method: "check", arg: { kind: "text", hint: "name" } },
     { cmd: "/block", desc: "ask the operator and wait", method: "block", arg: { kind: "none" } },
+    { cmd: "/report", desc: "write a report in Markdown", method: "report", arg: { kind: "none" } },
   ],
   methods: {
     peek: { doc: "/peek", params: Args, success: Notice },
@@ -30,12 +35,22 @@ export default definePlugin({
     spin: { doc: "/spin", params: Args, success: Notice, deadlineMs: 300 },
     check: { doc: "/check", params: Args, success: Notice },
     block: { doc: "/block", params: Args, success: Notice },
+    report: { doc: "/report", params: Args, success: Notice },
     answered: { doc: "The operator answered a check.", params: Schema.Struct({ id: Schema.String, key: Schema.optionalKey(Schema.String), answer: Schema.optionalKey(Schema.String), text: Schema.optionalKey(Schema.String) }), success: Notice },
   },
   make: Effect.gen(function* () {
     const files = yield* Files
     const inbox = yield* Inbox
+    const agents = yield* Agents
+    const views = yield* Views
     return {
+      report: () =>
+        Effect.gen(function* () {
+          yield* agents.start({ id: "report", title: "report", view: "report", task: "a report in Markdown" })
+          yield* views.set("report", ReportView, "body", { markdown: REPORT })
+          yield* agents.end({ id: "report", ok: true, message: "written" })
+          return { notice: "report written" }
+        }).pipe(Effect.catch(failed)),
       peek: ({ args }) => files.read(`notes/${args[0] ?? "a"}.md`).pipe(Effect.map((t) => ({ notice: `note: ${t.trim()}` })), Effect.catch(failed)),
       escape: () => files.read("secrets.txt").pipe(Effect.map((t) => ({ notice: `read: ${t.trim()}` })), Effect.catch(failed)),
       spin: () => Effect.never,

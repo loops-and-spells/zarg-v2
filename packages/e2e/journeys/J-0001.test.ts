@@ -1,8 +1,8 @@
 import { expect } from "bun:test"
-import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { answerLoads, journey, quit, type Term, type World } from "../src"
+import { answerLoads, command, journey, PROBE, quit, type Term, type World } from "../src"
 
 // zarg on scripted cells (the core's stub mode): each model turn runs the next cell, the last one repeats.
 // Only zarg's driver asks the model here: the plugins that would (rehearse, triage, intent) are not loaded.
@@ -64,8 +64,13 @@ const git = (w: World, ...args: Array<string>) => Bun.spawnSync(["git", ...args]
 journey("J-0001", { tier: "fast", env: { ZARG_CORE_STUB: STUB } }, (proves) => {
   // zarg's questions come up in its sheet, the picker under them (the sheet opens when zarg asks).
   proves("S-0008", async (s) => {
+    // The probe plugin (it writes reports in Markdown, S-0076), installed and allowed; the rest are not loaded.
+    expect((await s.cli(["plugin", "build", PROBE])).code).toBe(0)
+    expect((await s.cli(["plugin", "add", join(PROBE, "dist")])).code).toBe(0)
+    mkdirSync(join(s.w.project, ".zarg"), { recursive: true })
+    writeFileSync(join(s.w.project, ".zarg", "config.toml"), `[plugins.probe]\nsource = ${JSON.stringify(join(PROBE, "dist"))}\n`)
     const t = await s.open()
-    await answerLoads(t)
+    await answerLoads(t, "probe")
     await t.waitFor("Who uses the chore tracker first?", 30_000)
     s.note("buffer", "the question", t.screen())
     expect(t.screen()).toMatch(/›\s*A parent \(recommended\)/)
@@ -193,6 +198,28 @@ journey("J-0001", { tier: "fast", env: { ZARG_CORE_STUB: STUB } }, (proves) => {
     // The recommended topic: it is the driver's next word.
     await t.choose("A failure case", "down", "What should we work on next?")
     expect(await waitFor(() => readFileSync(join(s.w.project, ".zarg/threads/main.rlm.jsonl"), "utf8").includes('"choice":"fail"'))).toBe(true)
+  })
+
+  proves("S-0076", async (s) => {
+    const t = s.term!
+    t.press("esc")
+    await Bun.sleep(300)
+    await command(t, "/report")
+    await t.waitFor("report written", 15_000)
+    // The agent's view, opened from the list.
+    t.press("alt+a")
+    await t.waitFor(/report\s+done/, 10_000)
+    for (let k = 0; k < 12 && !/▍.*report\s+done/.test(t.screen()); k++) {
+      t.press("down")
+      await Bun.sleep(150)
+    }
+    t.press("enter")
+    await t.waitFor("What the probe found", 10_000)
+    s.note("buffer", "the report", t.screen())
+    // Markdown, formatted: no raw markers; the table drawn.
+    expect(t.screen()).not.toContain("## What")
+    expect(t.screen()).not.toContain("**two**")
+    expect(t.screen()).toMatch(/note\s+│?\s*state/)
     await quit(t)
   })
 })
