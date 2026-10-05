@@ -181,7 +181,7 @@ const implementTask = (item: string, scenario: string, plan: string) =>
     "",
     plan,
     "",
-    `Write the code and its tests with Fs.write; tag the implementation and its tests with a \`// @scenario ${item}\` comment.`,
+    `Write the code and its tests with Fs.write; tag the implementation and its tests with a \`// @scenario ${item}\` comment, right above the code that does it (the function or test), never at the top of a file: a scenario's tag shows its own code.`,
     "Run Verify.run until it passes. Never edit anything under .zarg/ (requirements and plans are read-only here).",
     "Finish with `yield* Rlm.done({ value: { files, summary } })`.",
     `If the scenario cannot be implemented as written (it contradicts another scenario), finish with \`yield* Rlm.done({ value: { files: [], summary: "", blocked: "<why>" } })\`.`,
