@@ -8,7 +8,7 @@ import { BunHttpServer, BunRuntime } from "@effect/platform-bun"
 import { Cause, Effect, Exit, Layer, Runtime } from "effect"
 import { HttpRouter } from "effect/unstable/http"
 import { runDir } from "@zarg/client"
-import { claim, markReady, release } from "./lifecycle"
+import { claim, claimLost, markReady, release } from "./lifecycle"
 import { liveCore, liveLayer } from "./live"
 import { Actions, api, ArchiveControl, InboxControl, Log, PluginCommands, Prompts, ReconcileControl, SetupControl, Threads, Token, YoloControl } from "./server"
 
@@ -55,7 +55,8 @@ const program = Effect.gen(function* () {
   markReady(root, { ...info, ...(core.driver !== undefined ? { driver: core.driver } : {}) })
   console.log(`ready ${socket}`)
   // SIGINT and SIGTERM interrupt this fiber (runMain); finalizers stop the server and release core.json.
-  yield* mode === "child" ? parentGone : Effect.never
+  // Also when its claim is gone (the project deleted) or taken: a core never outlives its project.
+  yield* Effect.raceFirst(mode === "child" ? parentGone : Effect.never, claimLost(root, process.pid))
 }).pipe(Effect.scoped, Effect.provide(liveLayer(root, stubFile, { yolo: values.yolo === true })))
 
 // Exit once finalizers ran, on success too: open handles (stdin, workers) would otherwise keep the process alive.

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { infoPath, readClaim, readInfo } from "@zarg/client"
 import { Effect } from "effect"
-import { claim, makeLog, markReady, release } from "../src"
+import { claim, claimLost, makeLog, markReady, release } from "../src"
 
 const roots: Array<string> = []
 const fresh = () => {
@@ -29,6 +29,18 @@ describe("core.json", () => {
     expect(readFileSync(join(root, ".zarg", "run", ".gitignore"), "utf8")).toBe("*\n")
     await Effect.runPromise(makeLog(join(root, ".zarg", "threads"), (t) => t))
     expect(readFileSync(join(root, ".zarg", "threads", ".gitignore"), "utf8")).toBe("*\n")
+  })
+
+  test("a core whose claim is gone (its project deleted) or taken notices and ends", async () => {
+    const root = fresh()
+    claim(root, { pid: process.pid, socket: "s", token: "t", mode: "headless" })
+    let ended = false
+    Effect.runFork(Effect.tap(claimLost(root, process.pid, 20), () => Effect.sync(() => void (ended = true))))
+    await Bun.sleep(60)
+    expect(ended).toBe(false)
+    rmSync(root, { recursive: true, force: true })
+    await Bun.sleep(80)
+    expect(ended).toBe(true)
   })
 
   test("a file left by a dead core is ignored", () => {
