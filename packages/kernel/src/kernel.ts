@@ -161,6 +161,14 @@ export const make = (opts: KernelOptions) =>
       }),
     )
 
+    // The calls of the running cell that succeeded: a cell that fails after them says they took effect
+    // (a driver re-added a scenario its failed cell had already added). Cells run one at a time.
+    let ran: Array<string> = []
+    const brief = (v: unknown) => {
+      const s = typeof v === "string" ? v : (JSON.stringify(v) ?? "")
+      return s.length > 120 ? `${s.slice(0, 120)}…` : s
+    }
+
     // Serve one service call from the worker; typed failures travel back as { _tag, message }.
     const serve = (m: Extract<FromWorker, { type: "call" }>) => {
       const svc = byName.get(m.service)
@@ -185,6 +193,7 @@ export const make = (opts: KernelOptions) =>
           ...(answer.ok ? { result: answer.value } : { failure: answer.error }),
           ms: Date.now() - started,
         })
+        if (answer.ok) ran.push(`${m.service}.${m.method} → ${brief(answer.value)}`)
         send(answer)
       }
       if (def === undefined || handler === undefined) {
@@ -236,6 +245,7 @@ export const make = (opts: KernelOptions) =>
     const runOnce = (cell: string): Effect.Effect<CellResult> =>
       Effect.gen(function* () {
         let restarted = false
+        ran = []
         if (dead) {
           yield* restart
           restarted = true
@@ -323,6 +333,7 @@ export const make = (opts: KernelOptions) =>
         }
         checker.declare(names)
         if (outcome.text !== undefined) out.push(outcome.ok ? outcome.text : `error: ${outcome.text}`)
+        if (!outcome.ok && ran.length > 0) out.push(`Before it failed, these calls ran and their effects stay (do not repeat them):\n${ran.map((r) => `- ${r}`).join("\n")}`)
         return { ok: outcome.ok, output: out.text(), restarted, cell: id }
       })
 

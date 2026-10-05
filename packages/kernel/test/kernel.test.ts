@@ -81,6 +81,18 @@ describe("Kernel", () => {
     expect(out.caught.output).toBe("caught Nope")
   })
 
+  test("a cell that fails after calls that took effect says which: the model does not repeat them", async () => {
+    const out = await withKernel((k) =>
+      Effect.gen(function* () {
+        const failed = yield* k.run('yield* Notes.add({ text: "x" })\nreturn yield* Notes.fail({})')
+        const next = yield* k.run("return yield* Notes.fail({})")
+        return { failed, next }
+      }),
+    )
+    expect(out.failed.output).toBe('error: Nope: always fails\nBefore it failed, these calls ran and their effects stay (do not repeat them):\n- Notes.add → {"id":"n1"}')
+    expect(out.next.output).toBe("error: Nope: always fails")
+  })
+
   test("params that break the schema at runtime are refused by the host", async () => {
     const r = await withKernel((k) => k.run("return yield* Notes.add({ text: 5 } as any)"))
     expect(r.ok).toBe(false)
