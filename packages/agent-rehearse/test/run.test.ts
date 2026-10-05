@@ -100,6 +100,13 @@ type Pushes = ReadonlyArray<{ agent: string; path: string; data?: unknown; lines
 /** The rows an agent's table shows now: its last push. */
 const rowsNow = (pushes: Pushes, agent: string, path: string) => ((pushes.filter((p) => p.agent === agent && p.path === path).at(-1)?.data as { rows?: ReadonlyArray<{ id: string; cells: Record<string, string> }> } | undefined)?.rows ?? [])
 
+describe("rehearse run files", () => {
+  test("they are this machine's: their folder ignores itself in any project", async () => {
+    const t = await finish()
+    expect(t.files.get(".zarg/rehearse/.gitignore")).toBe("*\n")
+  })
+})
+
 describe("rehearse runs in the plugin", () => {
   test("a run shows its progress in a status panel, opened before the first tester starts", async () => {
     const t = await finish()

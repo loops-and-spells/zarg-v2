@@ -140,6 +140,8 @@ export const makeRehearse = (deps: RunDeps) =>
         records.set(r.run, r)
         yield* quiet(deps.write(`${DIR}/${r.run}.json`, JSON.stringify(r, null, 2)))
         if (isNew) yield* quiet(deps.write(INDEX, JSON.stringify([...records.keys()])))
+        // Runs are this machine's record, never the project's: the folder ignores itself.
+        if (isNew) yield* quiet(deps.write(`${DIR}/.gitignore`, "*\n"))
       }).pipe(writing.withPermits(1))
     const lock = yield* Semaphore.make(1)
     let active: { run: string; fiber: Fiber.Fiber<void, unknown> } | undefined
