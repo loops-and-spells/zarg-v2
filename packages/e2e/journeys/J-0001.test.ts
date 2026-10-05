@@ -99,7 +99,7 @@ journey("J-0001", { tier: "fast", env: { ZARG_CORE_STUB: STUB } }, (proves) => {
     await t.choose("A parent", "down", "Who uses the chore tracker first?")
     // The change it leads to: shown whole, then added.
     await t.waitFor("Add persona Parent (human)", 30_000)
-    await t.choose("Add it", "down", "Add persona Parent (human)")
+    await t.choose("Write it", "down", "Add persona Parent (human)")
     expect(await waitFor(() => nodes(s.w, "P-").some((p) => p.props.name === "Parent"))).toBe(true)
     // Committed once the change is written and the item ends.
     expect(await waitFor(() => git(s.w, "log", "--format=%s").includes("req: P-0001"))).toBe(true)
@@ -121,7 +121,7 @@ journey("J-0001", { tier: "fast", env: { ZARG_CORE_STUB: STUB } }, (proves) => {
     await t.waitFor("the chores board", 5_000)
     t.press("enter")
     await t.waitFor("Add entry state: the chores board", 30_000)
-    await t.choose("Add it", "down", "Add entry state: the chores board")
+    await t.choose("Write it", "down", "Add entry state: the chores board")
     expect(await waitFor(() => nodes(s.w, "ST-").some((n) => n.props.text === "the chores board"))).toBe(true)
   })
 
@@ -182,7 +182,7 @@ journey("J-0001", { tier: "fast", env: { ZARG_CORE_STUB: STUB } }, (proves) => {
     // Another hand (a CLI actor) edits P-0001 while the operator reads the change.
     const other = await s.cli(["tool", "call", "gherkin/edit-persona", JSON.stringify({ id: "P-0001", text: "a parent who sets the chores." })])
     expect(other.code).toBe(0)
-    await t.choose("Add it", "down", "Edit persona Parent: a parent who assigns and checks chores.")
+    await t.choose("Write it", "down", "Edit persona Parent: a parent who assigns and checks chores.")
     // The save is refused as stale: what the driver got back.
     const rlm = () => readFileSync(join(s.w.project, ".zarg/threads/main.rlm.jsonl"), "utf8")
     expect(await waitFor(() => /The edit: refused[^\n]*StaleNode/.test(rlm()))).toBe(true)
@@ -196,7 +196,7 @@ journey("J-0001", { tier: "fast", env: { ZARG_CORE_STUB: STUB } }, (proves) => {
     await t.waitFor("Rename persona Parent to Guardian", 60_000)
     // Another hand rewords the persona's text: not the part this change renames.
     expect((await s.cli(["tool", "call", "gherkin/edit-persona", JSON.stringify({ id: "P-0001", text: "a parent who checks the chores." })])).code).toBe(0)
-    await t.choose("Add it", "down", "Rename persona Parent to Guardian")
+    await t.choose("Write it", "down", "Rename persona Parent to Guardian")
     await t.waitFor("Merged with another edit to P-0001", 30_000)
     s.note("buffer", "the merge, said", t.screen())
     expect(nodes(s.w, "P-").find((p) => p.id === "P-0001")?.props).toMatchObject({ name: "Guardian", text: "a parent who checks the chores." })
@@ -208,7 +208,7 @@ journey("J-0001", { tier: "fast", env: { ZARG_CORE_STUB: STUB } }, (proves) => {
     // Another hand rewords the same text: the two edits conflict.
     expect((await s.cli(["tool", "call", "gherkin/edit-persona", JSON.stringify({ id: "P-0001", text: "a guardian who sets the chores." })])).code).toBe(0)
     // Gone once the confirm is: the merge question shows the same words (as an option's change).
-    await t.choose("Add it", "down", "Add this to the requirements?")
+    await t.choose("Write it", "down", "Write this to the requirements?")
     await t.waitFor("which version stays?", 30_000)
     s.note("buffer", "the merge question", t.screen())
     expect(t.screen()).toContain("Keep theirs")

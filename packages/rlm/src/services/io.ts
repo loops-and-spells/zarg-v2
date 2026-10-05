@@ -77,12 +77,17 @@ const Confirm = Schema.Struct({
 })
 export type Confirm = typeof Confirm.Type
 
+/** What Inquire.confirm asks, over any change (an addition, an edit, a removal). */
+export const CONFIRM_QUESTION = "Write this to the requirements?"
+/** What it asked before (topics from an older zarg still open). */
+export const CONFIRM_QUESTIONS = [CONFIRM_QUESTION, "Add this to the requirements?"] as const
+
 /** The question Inquire.confirm asks: the change itself, with add, change and skip. */
 export const confirmQuestion = (c: Confirm): Question => ({
   // A change written with the question in front of it is asked once.
-  question: `Add this to the requirements?\n\n${c.change.replace(/^\s*(add this to the requirements\?\s*)+/i, "")}`,
+  question: `${CONFIRM_QUESTION}\n\n${c.change.replace(/^\s*((add|write) this to the requirements\?\s*)+/i, "")}`,
   options: [
-    { id: "add", label: "Add it", recommended: true, why: "as written" },
+    { id: "add", label: "Write it", recommended: true, why: "as shown" },
     { id: "skip", label: "Skip" },
   ],
   // Changing it is saying what to change.

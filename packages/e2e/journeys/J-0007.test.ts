@@ -3,13 +3,13 @@ import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { answerLoads, command, say, journey, liveModel, MAIN, openNav, quit, type Term, termOf, type World } from "../src"
 
-/** Answers zarg's open proposal from the inbox (home): its row, then 1, its first answer (Add it). */
+/** Answers zarg's open proposal from the inbox (home): its row, then 1, its first answer (Write it). */
 const addFromInbox = async (t: Term) => {
   t.press("esc")
   await Bun.sleep(300)
   t.press("esc")
   await t.waitFor("1-9 answer", 10_000)
-  for (let k = 0; k < 8 && !/▍.*Add this to the requirements/.test(t.screen()); k++) {
+  for (let k = 0; k < 8 && !/▍.*Write this to the requirements/.test(t.screen()); k++) {
     t.press("down")
     await Bun.sleep(150)
   }
@@ -103,12 +103,12 @@ journey("J-0007", { tier: "fast" }, (proves) => {
       await command(t, "/yolo on")
       await say(t, "The app also lets parents reward finished chores with points. Keep that as an outcome.")
       // zarg shows the change first (Inquire.confirm, also a topic in the inbox): the operator adds it from the inbox,
-      // its first answer (Add it). Then one more outcome on the intent, however the model words it.
+      // its first answer (Write it). Then one more outcome on the intent, however the model words it.
       const proposal = () =>
         readdirSync(join(s.w.project, ".zarg", "inbox"))
           .filter((f) => f.endsWith(".json"))
           .map((f) => JSON.parse(readFileSync(join(s.w.project, ".zarg", "inbox", f), "utf8")) as { title: string; state: string; from: { plugin: string } })
-          .find((x) => x.from.plugin === "zarg" && x.state === "open" && x.title.startsWith("Add this to the requirements?") && /point/i.test(x.title))
+          .find((x) => x.from.plugin === "zarg" && x.state === "open" && x.title.startsWith("Write this to the requirements?") && /point/i.test(x.title))
       let added = false
       const kept = await eventually(270_000, () => {
         if (outcomes().n > before) return outcomes().r
