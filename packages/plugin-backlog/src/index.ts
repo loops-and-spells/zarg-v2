@@ -353,7 +353,7 @@ export default definePlugin({
         const st = (yield* loadStages).find((s) => s.journey === i.journey && (s.items ?? (s.item !== undefined ? [s.item] : [])).includes(id))
         const all = yield* loadItems
         if (st !== undefined && (st.items ?? [id]).every((x) => x === id || all.find((y) => y.id === x)?.dropped === true)) yield* saveStage(fresh(st.journey))
-        return `${id} dropped; its feedback is open again`
+        return i.feedback.length > 0 ? `${id} dropped; its feedback is open again` : `${id} dropped`
       }).pipe(writing.withPermits(1), Effect.tap(() => ready))
     /** A removed statement's plans still in Backlog are dropped; one the operator moved on stays theirs. */
     const dropServing = ({ statement }: { statement: string }) =>

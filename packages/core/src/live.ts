@@ -15,6 +15,7 @@ import { zargRouter } from "@zarg/provider-zarg-router"
 import { decisionsService, type Question, Rlm, settings } from "@zarg/rlm"
 import type { AgentHost, Thread } from "@zarg/agent-host"
 import { closeStale, makeActivity } from "./activity"
+import { newWork } from "./agenda-wake"
 import { type Archive, makeArchive, parseTtl } from "./archive"
 import { threadViews } from "./views"
 import { notLoaded } from "./not-loaded"
@@ -226,9 +227,12 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // The backlog's or rehearse's agenda changing wakes the Triage Agent (a stage's turn, a re-rehearse done).
     // The host's plugin problems in the operator's inbox, whenever an agenda changes (and once plugins load, below).
     const syncPlugins = Effect.ignore(Effect.flatMap(host.agenda(), (items) => syncPluginTopics(inbox, items)))
+    // zarg wakes for agenda items it has not seen: a dropped plan or an item settled is no work for it.
+    const fresh = newWork()
+    const wakeMain = Effect.ignore(Effect.flatMap(host.agenda(), (items) => (fresh(items.map((i) => i.id)) ? main.wake : Effect.void)))
     control.setAgendaChanged((plugin) => {
       if (plugin === "host") return void Effect.runFork(syncPlugins)
-      Effect.runFork(main.wake)
+      Effect.runFork(wakeMain)
       if (plugin === "backlog") Effect.runFork(planner.tick)
       if (plugin === "backlog" || plugin === "rehearse") Effect.runFork(triageTick)
       if (plugin === "backlog") Effect.runFork(intentTick)

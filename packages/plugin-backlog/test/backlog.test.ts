@@ -209,6 +209,15 @@ describe("the backlog's plans", () => {
     expect(out.closed).toEqual(["item"])
     expect(out.notice).toBe("B-01 dropped; its feedback is open again")
   })
+  test("a plan with no feedback dropped says only that: no feedback to open again", async () => {
+    const notice = await run(() => Effect.gen(function* () {
+      const { scenario } = yield* setUp
+      const h = yield* PluginHost
+      yield* h.invoke("backlog", "plan", planOf(scenario.ref, []))
+      return ((yield* h.invoke("backlog", "drop-item", { id: "B-01" })) as { notice: string }).notice
+    }))
+    expect(notice).toBe("B-01 dropped")
+  })
   // @scenario S-0112
   test("dropping a triaged plan leaves its journey as if never planned (nothing says Planned for a plan that is gone)", async () => {
     const out = await run(() => Effect.gen(function* () {
