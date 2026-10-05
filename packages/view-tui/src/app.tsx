@@ -12,7 +12,7 @@ import { contextOf, displayName, railRows } from "./rail"
 import { reviewActs, reviewGroups } from "./review"
 import { Buttons, Heading } from "./sections"
 import { RichText } from "./markdown"
-import { inboxRows, openTopicUi, unseenBlocking } from "./inbox-keys"
+import { inboxCursor, inboxRows, openTopicUi, unseenBlocking } from "./inbox-keys"
 import { onKey, SHELL } from "./layers"
 import { AgentView, NowContext, type Scroller } from "./sections"
 import {
@@ -859,7 +859,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
 
   // The inbox (home): every topic that wants the operator, most urgent first; Enter opens one, its answers as buttons.
   const topics = inboxRows(ui, s)
-  const inboxAt = Math.min(ui.inbox.cursor, Math.max(0, topics.length - 1))
+  const inboxAt = inboxCursor(ui, topics)
   const ago = (at: number) => {
     const m = Math.max(0, Math.floor((Date.now() - at) / 60_000))
     return m < 1 ? "now" : m < 60 ? `${m}m` : m < 1440 ? `${Math.floor(m / 60)}h` : `${Math.floor(m / 1440)}d`

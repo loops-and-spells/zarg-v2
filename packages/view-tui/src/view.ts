@@ -76,6 +76,8 @@ export interface Ui {
   /** The inbox: the highlighted row, the open topic (and its highlighted answer), marked rows, answered ones shown, a reason being typed. */
   readonly inbox: {
     readonly cursor: number
+    /** The topic the highlight is on: it follows the topic as the list changes. */
+    readonly at?: string
     readonly open?: string
     readonly pick?: number
     readonly marked: ReadonlyArray<string>

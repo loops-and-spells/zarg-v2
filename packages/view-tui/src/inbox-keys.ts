@@ -9,6 +9,12 @@ type Out = { readonly ui: Ui; readonly action?: Action }
 export const inboxRows = (ui: Ui, s: SessionState): ReadonlyArray<Topic> =>
   ui.inbox.all ? sortTopics(Object.values(s.thread.inbox ?? {}), Date.now()) : openTopics(s.thread)
 
+/** The highlighted row: the topic it was on, wherever the list moved it (topics settle, others arrive); else the same place. */
+export const inboxCursor = (ui: Ui, rows: ReadonlyArray<Topic>) => {
+  const byId = ui.inbox.at === undefined ? -1 : rows.findIndex((t) => t.id === ui.inbox.at)
+  return byId >= 0 ? byId : Math.min(ui.inbox.cursor, Math.max(0, rows.length - 1))
+}
+
 type Patch = { readonly [K in keyof Ui["inbox"]]?: Ui["inbox"][K] | undefined }
 /** The inbox state with a patch; an undefined field is removed (the open topic closed, the reason dropped). */
 const withInbox = (ui: Ui, patch: Patch): Ui => {
@@ -20,7 +26,7 @@ const digit = (k: Key) => (/^[1-9]$/.test(k.name) ? Number(k.name) - 1 : undefin
 const answersOf = (t: Topic | undefined) => t?.answers ?? []
 /** Opening a topic (Enter or a click): the keys to the inbox, its recommended answer highlighted; a report (nothing to answer) is read by being opened. */
 export const openTopicUi = (ui: Ui, t: Topic): Out => ({
-  ui: { ...withInbox(ui, { open: t.id, pick: Math.max(0, answersOf(t).findIndex((a) => a.recommended === true)), typing: undefined }), focus: "tile", seen: { ...ui.seen, [`inbox:${t.id}`]: 1 } },
+  ui: { ...withInbox(ui, { open: t.id, at: t.id, pick: Math.max(0, answersOf(t).findIndex((a) => a.recommended === true)), typing: undefined }), focus: "tile", seen: { ...ui.seen, [`inbox:${t.id}`]: 1 } },
   ...(t.state === "open" && !t.blocking && answersOf(t).length === 0 ? { action: { type: "read-topic" as const, id: t.id } } : {}),
 })
 
@@ -64,11 +70,14 @@ export const inboxKey = (ui: Ui, s: SessionState, k: Key): Out => {
     if (k.name === "o" && t?.origin !== undefined) return { ui: goTo(ui, "agent", t.origin.view) }
     return { ui }
   }
-  const at = Math.min(ui.inbox.cursor, Math.max(0, rows.length - 1))
+  const at = inboxCursor(ui, rows)
   const here = rows[at]
   const n = digit(k)
-  if (k.name === "up" || k.name === "down") return { ui: withInbox(ui, { cursor: Math.max(0, Math.min(rows.length - 1, at + (k.name === "up" ? -1 : 1))) }) }
-  if (k.name === "a") return { ui: withInbox(ui, { all: !ui.inbox.all, cursor: 0 }) }
+  if (k.name === "up" || k.name === "down") {
+    const to = Math.max(0, Math.min(rows.length - 1, at + (k.name === "up" ? -1 : 1)))
+    return { ui: withInbox(ui, { cursor: to, at: rows[to]?.id }) }
+  }
+  if (k.name === "a") return { ui: withInbox(ui, { all: !ui.inbox.all, cursor: 0, at: undefined }) }
   if (k.name === "escape" && ui.inbox.marked.length > 0) return { ui: withInbox(ui, { marked: [] }) }
   if (here === undefined) return { ui }
   if (k.name === "return") return openTopicUi(ui, here)
