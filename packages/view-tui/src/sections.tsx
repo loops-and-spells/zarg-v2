@@ -342,12 +342,13 @@ type ButtonSpec = { readonly id: string; readonly label: string; readonly key?: 
 export const Buttons = (p: { readonly actions: ReadonlyArray<ButtonSpec>; readonly count: number; readonly onPress: (id: string) => void; readonly onClear?: () => void }) => {
   const C = useColors()
   return (
-    <box style={{ flexDirection: "row", height: 1, flexShrink: 0 }}>
+    // Wider than the pane: the buttons wrap to another line, never cut.
+    <box style={{ flexDirection: "row", flexWrap: "wrap", flexShrink: 0 }}>
       {p.actions.map((a, i) => {
         const fill = i === 0 ? C.accent : C.line
         const key = keyFor(a, "terminal")
         return (
-          <text key={a.id} wrapMode="none" onMouseDown={() => p.onPress(a.id)} style={{ marginRight: 2 }}>
+          <text key={a.id} wrapMode="none" onMouseDown={() => p.onPress(a.id)} style={{ marginRight: 2, flexShrink: 0 }}>
             <span fg={fill}>▐</span>
             <span fg={i === 0 ? C.bg : C.text} bg={fill}>{i === 0 && p.count > 0 ? ` ${a.label} · ${p.count} ` : ` ${a.label} `}</span>
             {key !== undefined ? <span fg={i === 0 ? C.raised : C.dim} bg={fill}>{` ${key} `}</span> : null}
