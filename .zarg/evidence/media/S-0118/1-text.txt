@@ -18,7 +18,7 @@
 <p class="absent">No intents yet: talk to zarg about what this project is for.</p>
 <h2>Not tied to an outcome yet</h2>
 <ul class="plain"><li><a href="journeys/J-0001.html">J-0001</a> Assign chores</li></ul>
-<p class="prov">Evidence from 1 run (<span class="id">e2e-world</span>) at <span class="id">9123cc0</span>.</p>
+<p class="prov">Evidence from 1 run (<span class="id">e2e-world</span>) at <span class="id">d56af2d</span>.</p>
 </main>
 <script>
 {

@@ -1,74 +1,47 @@
 {
-  "title": "Family Admin assigns a chore",
+  "title": "Family member opens the list and 2 more",
   "journey": "",
   "scenarios": [],
   "changes": [
     {
       "tool": "add-persona",
       "params": {
-        "name": "Family Admin",
+        "name": "Family member",
         "kind": "human",
-        "text": "Elder who sets up chores for the household"
+        "text": "a parent or child who opens the app to check chores"
       }
     },
     {
       "tool": "add-scenario",
       "params": {
-        "title": "Family Admin assigns a chore",
-        "when": "picks a chore and a family member",
+        "title": "Family member opens the list",
+        "when": "the family member opens the app",
         "by": [
           {
-            "name": "Family Admin"
+            "name": "Family member"
           }
         ],
         "arrives": {
-          "text": "Chore list open with chore chosen"
+          "text": "the chore list"
         },
         "then": [
           {
-            "text": "Each member sees chores assigned to them"
+            "text": "the chores assigned to them"
+          },
+          {
+            "text": "that person only"
+          },
+          {
+            "text": "names who was assigned"
           }
-        ]
+        ],
+        "given": []
       }
     },
     {
       "tool": "add-journey",
       "params": {
-        "name": "Assign chores"
-      }
-    },
-    {
-      "tool": "add-persona",
-      "params": {
-        "name": "Family Member",
-        "kind": "human",
-        "text": "Who reads and does their assigned chores"
-      }
-    },
-    {
-      "tool": "add-scenario",
-      "params": {
-        "title": "Family Member views own chores",
-        "when": "opens the todo app",
-        "by": [
-          {
-            "name": "Family Member"
-          }
-        ],
-        "arrives": {
-          "text": "Chore board open"
-        },
-        "then": [
-          {
-            "text": "Chores assigned others stay hidden"
-          }
-        ]
-      }
-    },
-    {
-      "tool": "add-journey",
-      "params": {
-        "name": "See own chores"
+        "name": "see assignments"
       }
     },
     {
@@ -84,30 +57,82 @@
     {
       "tool": "link",
       "params": {
-        "scenario": "S-0002",
-        "edge": "in",
+        "edge": "serves",
         "journey": {
-          "id": "J-0002"
-        }
+          "id": "J-0001"
+        },
+        "outcome": "O-0001"
+      }
+    },
+    {
+      "tool": "add-scenario",
+      "params": {
+        "title": "Family member switches person",
+        "when": "the family member picks a person",
+        "by": [
+          {
+            "name": "Family member"
+          }
+        ],
+        "arrives": {
+          "text": "the chore list"
+        },
+        "then": [
+          {
+            "text": "the chores assigned to that person"
+          }
+        ],
+        "given": [
+          {
+            "text": "several family members"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-scenario",
+      "params": {
+        "title": "Family member marks a chore done",
+        "when": "the family member taps a chore",
+        "by": [
+          {
+            "name": "Family member"
+          }
+        ],
+        "arrives": {
+          "text": "the chore list"
+        },
+        "then": [
+          {
+            "text": "the chore shows as done"
+          }
+        ],
+        "given": [
+          {
+            "text": "the chores assigned to them"
+          }
+        ]
       }
     },
     {
       "tool": "link",
       "params": {
-        "edge": "serves",
+        "scenario": "S-0003",
+        "edge": "in",
         "journey": {
-          "id": "J-0002"
-        },
-        "outcome": "O-0001"
+          "id": "J-0001"
+        }
       }
     }
   ],
   "feedback": [],
   "steps": [
-    "add Family Admin persona, assign-a-chore scenario, Assign chores journey",
-    "add Family Member persona, view-own-chores scenario, See own chores journey",
-    "link assignment scenario to Assign chores journey; view scenario to See own chores journey",
-    "link See own chores journey to O-0001"
+    "Add the Family member persona who acts in the scenarios.",
+    "Build the first scenario: they arrive at the chore list and see only their assigned chores.",
+    "Build the second scenario: they switch among family members to view that person's chores.",
+    "Build the third scenario: they mark one of their chores done.",
+    "Create the see assignments journey and link the three scenarios into it.",
+    "Serve outcome O-0001 from that journey."
   ],
   "serves": "gherkin/outcome:O-0001@f5ebc0ef2fe2",
   "id": "B-01",

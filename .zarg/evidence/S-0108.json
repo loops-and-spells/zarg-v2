@@ -1,13 +1,13 @@
 {
   "scenario": "S-0108",
   "version": "54504fb8b42e",
-  "commit": "79a7c147",
-  "run": "e2e-2026-10-05T20-11-54.145Z",
+  "commit": "671281ac",
+  "run": "e2e-2026-10-05T20-29-25.390Z",
   "journey": "J-0008",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T20:15:11.887Z",
-  "ms": 2008,
+  "at": "2026-10-05T20:32:43.724Z",
+  "ms": 2007,
   "media": [
     {
       "kind": "evidence-terminal/frame",

@@ -1,13 +1,13 @@
 {
   "scenario": "S-0029",
   "version": "254f85a31178",
-  "commit": "79a7c147",
-  "run": "e2e-2026-10-05T20-11-54.145Z",
+  "commit": "671281ac",
+  "run": "e2e-2026-10-05T20-29-25.390Z",
   "journey": "J-0002",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T20:12:24.878Z",
-  "ms": 256,
+  "at": "2026-10-05T20:29:56.312Z",
+  "ms": 258,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -32,7 +32,7 @@
       "caption": "the step as it played",
       "path": "media/S-0029/4-step.cast",
       "meta": {
-        "startAt": 9.2
+        "startAt": 9.3
       }
     }
   ],

@@ -1,3 +1,3 @@
 Add this to the requirements?
 
-An outcome of 'A todo app for families': Parents reward finished chores with points. (their words; one result the app should reach) — written as add-outcome to the intent I-0001.
+Add to the intent 'A todo app for families' the outcome: 'Parents reward finished chores with points.'

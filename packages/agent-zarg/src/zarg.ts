@@ -13,6 +13,7 @@ import { commitGraph } from "@zarg/reconcile"
 import { askFirst } from "./driver"
 import { judgeGaps } from "./gaps"
 import { nextOutcomes, nextWhenServed, type NextOption } from "./intent"
+import { projectMap } from "./project-map"
 import { makeThread } from "./thread"
 
 /**
@@ -119,7 +120,12 @@ export const makeZarg = (host: AgentHost) =>
                 `Scenarios: ${of("gherkin/scenario").length}; states: ${of("gherkin/state").length}.`,
                 "Graph ids are bare (I-0001); Entities refs (gherkin/intent:I-0001@…) name the same nodes.",
                 // What the project has to read before asking the developer what it says.
-                `Project files: ${(() => { try { return readdirSync(root).filter((f) => !f.startsWith(".") && f !== "node_modules").slice(0, 20).join(", ") || "none" } catch { return "unknown" } })()}`,
+                (() => {
+                  // Tracked and untracked files (git's own ignores apply); without git, the top folder only.
+                  const ls = Bun.spawnSync(["git", "ls-files", "--cached", "--others", "--exclude-standard"], { cwd: root })
+                  if (ls.exitCode === 0) return projectMap(ls.stdout.toString().split("\n").filter((f) => f !== ""))
+                  try { return `Project files: ${readdirSync(root).filter((f) => !f.startsWith(".") && f !== "node_modules").slice(0, 20).join(", ") || "none"}` } catch { return "Project files: unknown" }
+                })(),
               ].join("\n")
             }).pipe(Effect.orElseSucceed(() => "")),
           // @scenario S-0102

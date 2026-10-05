@@ -8,7 +8,7 @@
   ▤ Intents            │                                                                                                
                        │                                                                                                
  AGENTS              1 │                                                                                                
-  ⠦ zarg           0/0 │                                                                                                
+  ⠏ zarg           0/0 │                                                                                                
                        │                                                                                                
                        │                                                                                                
                        │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
@@ -28,7 +28,7 @@
                        │                                                                                                
                        │           zarg keeps it.                                                                       
                        │     ·  answered                                                                                
-                       │     ⠦ zarg is preparing a reply · 0:00                                                         
+                       │     ⠏ zarg is preparing a reply · 0:00                                                         
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                
