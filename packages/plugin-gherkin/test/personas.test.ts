@@ -162,4 +162,19 @@ describe("forgiving drafts", () => {
     expect(out.message).toBe("S-0001 already has then ST-0002: no change")
     expect(out.added).toEqual([])
   })
+
+  test("linking a node that does not exist says so and names those there (a draft that guessed an id fixes it)", async () => {
+    const out = await run(
+      Effect.gen(function* () {
+        yield* setup
+        yield* call("add-scenario", { title: "Operator answers", when: "the operator picks an option", by: [{ name: "Operator" }], arrives: { id: "ST-0001" }, then: [{ text: "the answer is recorded" }] })
+        yield* call("add-journey", { name: "Answering" })
+        const missing = yield* Effect.flip(call("link", { scenario: "S-0002", edge: "in", journey: "J-0001" }))
+        const wrong = yield* Effect.flip(call("link", { scenario: "ST-0001", edge: "in", journey: "J-0001" }))
+        return { missing: (missing as { message: string }).message, wrong: (wrong as { message: string }).message }
+      }),
+    )
+    expect(out.missing).toBe("S-0002 does not exist (not in the graph, nor added before it in this change); the scenarios there: S-0001")
+    expect(out.wrong).toBe("ST-0001 is a gherkin/state, not a gherkin/scenario")
+  })
 })

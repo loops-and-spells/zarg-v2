@@ -86,7 +86,7 @@ describe("intent tools", () => {
       }),
     )
     expect(got.linked).toEqual(["linked J-0001 serves O-0001", "linked K-0001 bounds J-0001", "linked K-0001 bounds S-0001"])
-    expect(got.wrong).toContain("K-0001 is not a gherkin/outcome")
+    expect(got.wrong).toContain("K-0001 is a gherkin/constraint, not a gherkin/outcome")
     expect(got.journey).toEqual([])
     expect(got.k).toEqual([{ type: "gherkin/bounds", to: "J-0001" }, { type: "gherkin/bounds", to: "S-0001" }])
   })

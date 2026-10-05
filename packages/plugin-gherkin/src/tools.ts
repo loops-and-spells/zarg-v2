@@ -51,7 +51,7 @@ const resolver = (snap: Snapshot.Snapshot) => {
   const resolve = (ref: StateRef): Effect.Effect<string, ToolError> => {
     if ("id" in ref) {
       const n = working.nodes.get(ref.id)
-      return n?.type === STATE ? Effect.succeed(ref.id) : Effect.fail(new ToolError({ message: `${ref.id} is not a state` }))
+      return n?.type === STATE ? Effect.succeed(ref.id) : Effect.fail(new ToolError({ message: notA(working, ref.id, STATE) }))
     }
     const existing = findStateByText(working, ref.text)
     if (existing !== undefined) return Effect.succeed(existing.id)
@@ -63,9 +63,16 @@ const resolver = (snap: Snapshot.Snapshot) => {
   return { resolve, created, next: (prefix: string) => Snapshot.nextId(working, prefix) }
 }
 
+/** Why `id` is not a `type`: it is another kind of node, or it does not exist (then the ones there, so a guessed id can be fixed). */
+const notA = (snap: Snapshot.Snapshot, id: string, type: string) => {
+  const n = snap.nodes.get(id)
+  if (n !== undefined) return `${id} is a ${n.type}, not a ${type}`
+  const there = [...snap.nodes.values()].filter((x) => x.type === type).map((x) => x.id)
+  return `${id} does not exist (not in the graph, nor added before it in this change); the ${type.split("/").pop()}s there: ${there.length > 0 ? there.slice(0, 12).join(", ") : "none"}`
+}
 const getNode = (snap: Snapshot.Snapshot, id: string, type: string) => {
   const n = snap.nodes.get(id)
-  return n?.type === type ? Effect.succeed(n) : Effect.fail(new ToolError({ message: `${id} is not a ${type}` }))
+  return n?.type === type ? Effect.succeed(n) : Effect.fail(new ToolError({ message: notA(snap, id, type) }))
 }
 
 const createdNote = (created: ReadonlyArray<Node>) =>
