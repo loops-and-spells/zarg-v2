@@ -186,6 +186,7 @@ const planTask = (item: string, scenario: string, around: string, files: Readonl
     "## Files   (one line each: - path — what changes)",
     "## Tests   (one line each: - test name — what it proves)",
     "## Depends on   (scenario ids, or none)",
+    `When code already does what the scenario says, the plan says so and names, in Files and Tests, each function and test that does it (path and name): the implementer tags those with \`// @scenario ${item}\` instead of writing them again.`,
     "If the scenario contradicts another scenario or cannot be implemented as written, finish with `yield* Rlm.done({ value: { blocked: \"<why>\" } })` instead.",
   ].join("\n")
 
@@ -198,9 +199,10 @@ const implementTask = (item: string, scenario: string, plan: string) =>
     plan,
     "",
     `Write the code and its tests with Fs.write; tag the implementation and its tests with a \`// @scenario ${item}\` comment, right above the code that does it (the function or test), never at the top of a file: a scenario's tag shows its own code.`,
+    "Code the plan says is already there is not written again: add the tag right above it, and its tests' (Fs.write the file with the tag added).",
     "Run Verify.run until it passes. Never edit anything under .zarg/ (requirements and plans are read-only here).",
     "Finish with `yield* Rlm.done({ value: { files, summary } })`.",
-    `If the scenario cannot be implemented as written (it contradicts another scenario), finish with \`yield* Rlm.done({ value: { files: [], summary: "", blocked: "<why>" } })\`.`,
+    `If the scenario cannot be implemented as written (it contradicts another scenario), finish with \`yield* Rlm.done({ value: { files: [], summary: "", blocked: "<why>" } })\`. Running short of turns is never a reason to block: write what you have.`,
   ].join("\n")
 
 /** Plan and implement as reconcile phases, backed by RLMs working in each scenario's worktree. */
