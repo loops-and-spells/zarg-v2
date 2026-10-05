@@ -879,7 +879,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             <b>{fit(openTopic.title.split("\n")[0] ?? "", focusWidth - 14)}</b>
           </span>
         </text>
-        <text fg={C.dim} wrapMode="none" style={{ flexShrink: 0 }}>{fit([openTopic.from.agent ?? openTopic.from.plugin, openTopic.kind, openTopic.why, ago(openTopic.created)].filter((x) => x !== "").join(" · "), focusWidth - 4)}</text>
+        <text fg={C.dim} wrapMode="none" style={{ flexShrink: 0 }}>{fit([openTopic.from.agent ?? openTopic.from.plugin, openTopic.kind, openTopic.why === openTopic.kind ? "" : openTopic.why, ago(openTopic.created)].filter((x) => x !== "").join(" · "), focusWidth - 4)}</text>
         <text style={{ flexShrink: 0 }}> </text>
         <scrollbox focusable={false} style={{ flexGrow: 1 }}>
           {/* A title longer than its header line (zarg's proposal holds the whole change) is shown whole: nothing is approved unseen. */}
@@ -891,7 +891,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
               <RichText content={m.text} width={focusWidth - 8} />
             </box>
           ))}
-          {openTopic.state !== "open" ? <text fg={C.dim}>{openTopic.state === "moot" ? `It stopped mattering: ${openTopic.moot ?? ""}` : `Answered: ${openTopic.answer?.id ?? ""}${openTopic.answer?.text !== undefined ? ` (${openTopic.answer.text})` : ""}`}</text> : null}
+          {openTopic.state !== "open" ? <text fg={C.dim}>{openTopic.state === "moot" ? `It stopped mattering: ${openTopic.moot ?? ""}` : openTopic.state === "read" ? "Read." : `Answered: ${openTopic.answers?.find((a) => a.id === openTopic.answer?.id)?.label ?? openTopic.answer?.id ?? ""}${openTopic.answer?.text !== undefined ? ` (${openTopic.answer.text})` : ""}`}</text> : null}
         </scrollbox>
         {openTopic.state === "open" && (openTopic.answers ?? []).length > 0 ? (
           <box style={{ flexDirection: "column", flexShrink: 0, marginTop: 1 }}>

@@ -989,6 +989,21 @@ describe("focuses", () => {
     t.mockInput.pressEnter(); await settle(t)
     expect(t.calls).toContain("reply T-9 Nothing follows a refused mark")
   })
+  test("a read report says Read, never an empty Answered; its header does not repeat its kind; an answer is named by its label", async () => {
+    const report = { id: "T-5", kind: "report", from: { plugin: "backlog" }, title: "chores folded into 1 plan: B-07", why: "report", about: [], blocking: false, messages: [], state: "read", created: Date.now(), updated: 0 }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-5": report } } as never }, big)
+    t.mockInput.pressKey("a"); await settle(t)
+    t.mockInput.pressEnter(); await settle(t)
+    const f = t.captureCharFrame()
+    expect(f).not.toContain("report · report")
+    expect(f).not.toContain("Answered:")
+    expect(f).toContain("Read.")
+    const asked = { ...report, id: "T-6", kind: "question", why: "zarg asks", state: "answered", answers: [{ id: "add", label: "Add it" }], answer: { id: "add" } }
+    const t2 = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-6": asked } } as never }, big)
+    t2.mockInput.pressKey("a"); await settle(t2)
+    t2.mockInput.pressEnter(); await settle(t2)
+    expect(t2.captureCharFrame()).toContain("Answered: Add it")
+  })
   test("an answered topic does not say it is waiting", async () => {
     const done = { id: "T-6", kind: "question", from: { plugin: "zarg", agent: "zarg" }, title: "Who uses it?", why: "zarg asks", about: [], blocking: true, messages: [], state: "answered", answer: { id: "a", by: "operator", at: 1 }, created: 1, updated: 1, answers: [{ id: "a", label: "A" }, { id: "b", label: "B" }] }
     const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-6": done } } as never }, big)
