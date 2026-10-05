@@ -1,6 +1,6 @@
 import { Effect, Semaphore } from "effect"
 import { dependencies, fold, type Folded, jsonIn, merge, type Unit } from "@zarg/fold"
-import { type Checkpoint, due, type Entry, type JourneyInfo, type Statement } from "./checkpoint"
+import { type Checkpoint, due, type Entry, type JourneyInfo, moved, type Statement } from "./checkpoint"
 
 type Draft = ReadonlyArray<{ readonly tool: string; readonly params: unknown }>
 type Option = { readonly id: string; readonly label: string; readonly recommended?: boolean }
@@ -47,12 +47,15 @@ const TOOLS = [
   'link {"edge":"serves","journey":{"id":"J-0001"},"outcome":"O-0001"}: the journey delivers the outcome',
   'link {"edge":"bounds","constraint":"K-0001","journey":{"id":"J-0001"}}: the constraint applies to a journey (or "scenario":"S-0001")',
 ].join("\n")
+/** The journeys a round read, kept with its entry (none: left out, as before). */
+const served = (s: Statement) => (s.journeys.length > 0 ? { journeys: s.journeys } : {})
+
 export const SYSTEM = [
   "You turn a product's intent into its requirements: Gherkin scenarios (Given, When, Then) in journeys.",
   'One statement of the intent changed, is new, or no journey delivers it yet. Propose the smallest change to the graph that makes the journeys deliver it (an outcome) or respect it (a constraint), as gherkin tool calls in order, grouped by the scenario each changes ("new:<short name>" for a new one).',
   "Clauses at most 15 words, never 'if' (one scenario per case). Titles start with the persona's name. Refer to states that exist by id; name every new state by text.",
   `Tools:\n${TOOLS}`,
-  "When the journeys already deliver it, answer no units. When it needs the operator's choice (which journey, which of two meanings, a conflict with a scenario or with one of the intent's constraints), answer an ask with 2-4 options instead of guessing.",
+  "When the journeys that serve it already deliver it (their scenarios do what it says), answer no units: never add actions it does not name. When it needs the operator's choice (which journey, which of two meanings, a conflict with a scenario or with one of the intent's constraints), answer an ask with 2-4 options instead of guessing.",
   'Answer with JSON only: {"units":[{"scenario":"S-0001","title":"…","summary":"one sentence","changes":[{"tool":"…","params":{…}}]}],"steps":["one line per step, for the operator"],"ask":null or {"question":"…","options":[{"id":"…","label":"…"}]}}.',
 ].join("\n\n")
 const ASK_SCHEMA = { anyOf: [{ type: "null" }, { type: "object", properties: { question: { type: "string" }, options: { type: "array", items: { type: "object", properties: { id: { type: "string" }, label: { type: "string" } }, required: ["id", "label"] } } }, required: ["question", "options"] }] }
@@ -190,7 +193,7 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
           const question = `${s.id} says the opposite of ${k.id}: "${s.text}" against "${k.text}". Which holds?`
           const options = [{ id: "outcome", label: `Keep ${s.id}; change ${k.id}` }, { id: "constraint", label: `Keep ${k.id}; change ${s.id}` }, LEAVE]
           const topic = yield* d.post({ kind: "ask", key: `decide:${s.id}`, title: question, why: `intent ${s.intent.id}`, about: [s.id, k.id], answers: options })
-          yield* setStatement(s.id, { version: s.version, state: "asked", topic, options })
+          yield* setStatement(s.id, { version: s.version, state: "asked", topic, options, ...served(s) })
           return yield* show({ id: s.id, title: s.text, state: "asked", detail: question, plans: [] })
         }
       }
@@ -208,11 +211,11 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
         if (r.ask !== undefined && r.units.length === 0) {
           const options = [...r.ask.options, LEAVE]
           const topic = yield* d.post({ kind: "ask", key: `decide:${s.id}`, title: r.ask.question, why: `intent ${s.intent.id}`, about: [s.id], answers: options })
-          yield* setStatement(s.id, { version: s.version, state: "asked", topic, options })
+          yield* setStatement(s.id, { version: s.version, state: "asked", topic, options, ...served(s) })
           return yield* show({ id: s.id, title: s.text, state: "asked", detail: r.ask.question, plans: [] })
         }
         if (r.units.length === 0) {
-          yield* setStatement(s.id, { version: s.version, state: "nothing" })
+          yield* setStatement(s.id, { version: s.version, state: "nothing", ...served(s) })
           yield* quiet(d.log(`${s.id}: the journeys already deliver it`))
           return yield* show({ id: s.id, title: s.text, state: "nothing", detail: "the journeys already deliver it", plans: [] })
         }
@@ -239,14 +242,14 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
           const { id } = yield* d.plan({ title: p.title, journey, scenarios: scenarios.flat(), changes: p.changes, feedback: [], steps: plans.length === 1 && r.steps.length > 0 ? r.steps : p.steps, serves, ...(after.length > 0 ? { after } : {}) })
           ids.push(id)
         }
-        yield* setStatement(s.id, { version: s.version, state: "planned", plans: ids })
+        yield* setStatement(s.id, { version: s.version, state: "planned", plans: ids, ...served(s) })
         yield* quiet(d.log(`${s.id}: ${ids.length} plan${ids.length === 1 ? "" : "s"} to the Backlog: ${ids.join(", ")}`))
         return yield* show({ id: s.id, title: s.text, state: "planned", detail: r.steps.join("\n"), plans: ids })
       }
       // @scenario S-0104
       const options = [{ id: "again", label: "Draft again", recommended: true }, LEAVE]
       const topic = yield* d.post({ kind: "ask", key: `left:${s.id}`, title: `${s.id} could not be drafted: ${s.text}`, why: `intent ${s.intent.id}`, about: [s.id], answers: options, evidence: problems.join("\n") })
-      yield* setStatement(s.id, { version: s.version, state: "left", topic, options })
+      yield* setStatement(s.id, { version: s.version, state: "left", topic, options, ...served(s) })
       return yield* show({ id: s.id, title: s.text, state: "left", detail: problems.join("\n"), plans: [] })
     })
 
@@ -320,7 +323,7 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
         continue
       }
       // Reworded: the plans drafted for its old wording leave the Backlog (those taken already stay).
-      if (x.kind === "statement" && prev?.state === "planned" && prev.version !== x.statement.version) {
+      if (x.kind === "statement" && prev?.state === "planned" && (prev.version !== x.statement.version || moved(prev, x.statement))) {
         const { ids } = yield* d.dropServing(x.statement.id).pipe(Effect.orElseSucceed(() => ({ ids: [] as ReadonlyArray<string> })))
         if (ids.length > 0) yield* quiet(d.log(`${x.statement.id} changed: dropped ${ids.join(", ")}`))
       }

@@ -28,3 +28,8 @@ test("removed statements come first; journeys wait while any statement is due or
   // Settled (nothing to change): the journey's turn.
   expect(kinds({ statements: { "O-0001": { version: "v1", state: "nothing" } }, journeys: {} })).toEqual(["journey"])
 })
+test("a statement whose serving journeys changed since its round is due again: its plans were drafted against other journeys", () => {
+  const cp = { statements: { "O-0001": { version: "v1", state: "planned" as const, plans: ["B-2"] }, "O-0002": { version: "v2", state: "nothing" as const, journeys: ["J-0001"] } }, journeys: {} }
+  const ids = due([o("O-0001", "v1", ["J-0001"]), o("O-0002", "v2", ["J-0001"])], [], cp, true).map((d) => (d.kind === "statement" ? d.statement.id : d.kind))
+  expect(ids).toEqual(["O-0001"])
+})

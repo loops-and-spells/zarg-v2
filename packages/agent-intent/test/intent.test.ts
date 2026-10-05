@@ -187,6 +187,15 @@ describe("the Intent Agent", () => {
     expect(kinds.indexOf("dropServing")).toBeLessThan(kinds.indexOf("plan"))
   })
 
+  test("a journey came to serve a planned statement: its old plans leave the Backlog, and a round that finds it delivered files nothing", async () => {
+    const served = { ...outcome, journeys: ["J-0001"] }
+    const { a, calls, cp } = setup({ statements: [served], cp: { statements: { "O-0001": { version: "v1", state: "planned", plans: ["B-9"] } }, journeys: {} }, journeys: [checkout], answers: [JSON.stringify({ units: [], steps: [], ask: null })] })
+    await Effect.runPromise(a.tick)
+    expect(calls.find(([k]) => k === "dropServing")![1]).toBe("O-0001")
+    expect(calls.some(([k]) => k === "plan")).toBe(false)
+    expect(cp().statements["O-0001"]).toEqual({ version: "v1", state: "nothing", journeys: ["J-0001"] })
+  })
+
   test("after a restart, the rounds already reconciled show as they ended", async () => {
     const { a } = setup({ cp: { statements: { "O-0001": { version: "v1", state: "planned", plans: ["B-2"] } }, journeys: {} }, journeys: [checkout] })
     await Effect.runPromise(a.tick)

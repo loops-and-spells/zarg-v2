@@ -4,6 +4,8 @@ export type Entry = {
   /** planned: plans filed; asked: an inbox topic waits; left: drafts failed (a topic says why); nothing: no change needed. */
   readonly state: "planned" | "asked" | "left" | "nothing"
   readonly plans?: ReadonlyArray<string>
+  /** The journeys serving (or bounded by) it when its round ended: another set means its round read other journeys. */
+  readonly journeys?: ReadonlyArray<string>
   readonly topic?: string
   /** The operator's answer to the topic: the next round follows it. */
   readonly decision?: string
@@ -25,6 +27,8 @@ export type Statement = {
 export type JourneyInfo = { readonly id: string; readonly name: string; readonly version: string; readonly scenarios: ReadonlyArray<string>; readonly serves: ReadonlyArray<string> }
 export type Due = { readonly kind: "statement"; readonly statement: Statement } | { readonly kind: "journey"; readonly journey: JourneyInfo } | { readonly kind: "removed"; readonly id: string }
 
+/** The journeys serving it changed since its round: what it drafted (or found delivered) was against other journeys. */
+export const moved = (e: Entry, s: Statement) => [...(e.journeys ?? [])].sort().join() !== [...s.journeys].sort().join()
 /** Planned, but every plan it filed was dropped: nothing will land, so it needs a round again. */
 const abandoned = (e: Entry, gone: ReadonlySet<string>) => e.state === "planned" && (e.plans ?? []).length > 0 && e.plans!.every((p) => gone.has(p))
 /** Planned, with a plan still on its way (not dropped). */
@@ -42,7 +46,7 @@ export const due = (statements: ReadonlyArray<Statement>, journeys: ReadonlyArra
   const changed: Array<Due> = statements
     .filter((s) => {
       const e = cp.statements[s.id]
-      return e === undefined || e.version !== s.version || e.decision !== undefined || abandoned(e, gone)
+      return e === undefined || e.version !== s.version || e.decision !== undefined || abandoned(e, gone) || moved(e, s)
     })
     .map((statement) => ({ kind: "statement", statement }))
   const waiting = removed.length > 0 || changed.length > 0 || Object.values(cp.statements).some((e) => pending(e, gone))
