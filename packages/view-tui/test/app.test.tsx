@@ -549,6 +549,21 @@ describe("tui frames", () => {
     expect(t.calls).toEqual(["command /reconcile"])
   })
 
+  test("a command that ran leaves the bar empty, also when its notice arrives", async () => {
+    const st = { thread: { ...initial("main"), status: "idle" as const }, core: "up" as const }
+    const t = await render(st)
+    await t.mockInput.typeText("/yolo off")
+    await t.waitForVisualIdle()
+    t.mockInput.pressEnter()
+    await settle(t)
+    t.update({ ...st, notice: "YOLO is off: plugins ask before using a scope." } as never)
+    await settle(t)
+    await Bun.sleep(50)
+    await settle(t)
+    expect(t.calls).toContain("command /yolo off")
+    expect(t.captureCharFrame()).not.toContain("› /yolo off")
+  })
+
   test("keys typed in the same burst as / (from the inbox, before the bar renders) land in the bar, never as the panel's hotkeys", async () => {
     const t = await render({ thread: { ...initial("main"), status: "idle" }, core: "up" })
     t.mockInput.pressKey("v", { meta: true })

@@ -158,8 +158,12 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const submit = (value: string) => {
     const r = onSubmit(latest(), props.session.state(), value)
     setUi(r.ui)
-    if (r.draft !== undefined) setDraft(r.draft)
-    else if (r.action !== undefined) setDraft("")
+    // The input keeps a value of its own: write it too, or a later keystroke brings back what was sent.
+    const next = r.draft ?? (r.action !== undefined ? "" : undefined)
+    if (next !== undefined) {
+      if (inputRef.current !== null) inputRef.current.value = next
+      setDraft(next)
+    }
     act(r.action)
   }
   useKeyboard((key) => {
@@ -1024,14 +1028,15 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           </box>
           {shown.bottom.map(panelBox)}
         </box>
-        {slash}
-        {bar}
+        {/* Above the bar: the bar stays where it was. */}
         {/* A command's outcome (why reconcile stays off): whole, on its own line, until the next one. */}
         {s.notice !== undefined && noticeFresh ? (
           <box style={{ flexShrink: 0, paddingLeft: 1, width: Math.max(10, dims.width - railWidth - 1) }}>
             <text fg={C.attention}>{`· ${s.notice}`}</text>
           </box>
         ) : null}
+        {slash}
+        {bar}
         <box style={{ height: 1, flexShrink: 0 }}>
           <text wrapMode="none">
             {/* The keys come first: the status gives way on a narrow screen. */}

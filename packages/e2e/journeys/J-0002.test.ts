@@ -63,8 +63,9 @@ journey("J-0002", { tier: "fast", seed: SEED }, (proves) => {
     const t = termOf(s.term, "S-0067")
     await command(t, "/yolo on")
     await t.waitFor(/·\s*YOLO\s*·/, 10_000)
-    // The status line says so (its notice, "YOLO is on…", is cut to the width).
-    expect(t.screen().split("\n").at(-1)).toMatch(/·\s*YOLO\s*·.*YOLO is/)
+    // The status line says so, and the notice ("YOLO is on…") shows whole on its own line above it.
+    expect(t.screen().split("\n").at(-1)).toMatch(/·\s*YOLO\s*·/)
+    expect(t.screen()).toMatch(/·\s+YOLO is on/)
   })
 
   proves("S-0070", async (s) => {
