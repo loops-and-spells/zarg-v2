@@ -335,6 +335,12 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
           continue
         }
         const err = outcome.cause.reasons.find((r) => r._tag === "Fail")?.error
+        // @scenario S-0043
+        // Out of turns is no dead end: zarg says so and goes on (an item still open after two passes becomes what next).
+        if (err?.kind === "budget") {
+          yield* note("assistant", `I ran out of turns on ${item !== undefined ? `"${item.title}"` : "that"}; what is written so far stays. Going on.`)
+          continue
+        }
         // Set up the pause before announcing the error: the next run may arrive as soon as it is sent.
         const wait = yield* Deferred.make<void>()
         paused = wait

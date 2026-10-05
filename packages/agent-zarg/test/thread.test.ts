@@ -306,6 +306,28 @@ describe("thread runs", () => {
     expect(answers).toEqual([{ other: "parents reward chores with points", interjected: true, question: expect.stringMatching(/^inq-/), goal: true }])
   })
 
+  // @scenario S-0043
+  test("a driver item that runs out of turns says so and goes on to the next, never leaving the operator at a dead end", async () => {
+    let calls = 0
+    const asked: Array<string> = []
+    const driver: Driver = (spec, asker) =>
+      Effect.gen(function* () {
+        calls++
+        if (calls === 1) return yield* Effect.fail({ kind: "budget", message: "driver did not finish within its budget (25 turns)" })
+        asked.push(spec.task)
+        return (yield* asker.ask(question)) as never
+      }) as never
+    const events = await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setup(driver, () => [{ id: "gherkin:empty", title: "No requirements yet", detail: "d", about: [], priority: 1 }])
+        return yield* collect(thread.run({ runId: "r1" }))
+      }),
+    )
+    expect(calls).toBe(2)
+    expect(texts(events).join("\n")).toContain("ran out of turns")
+    expect(last(events)).toMatchObject({ type: "RUN_FINISHED", outcome: { type: "interrupt" } })
+  })
+
   // @scenario S-0071
   test("the driver can choose an option of the question under discussion for the developer, once", async () => {
     const out: Record<string, unknown> = {}
