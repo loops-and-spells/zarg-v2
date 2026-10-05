@@ -164,6 +164,18 @@ describe("surfaces in the shell", () => {
     expect(moved).toMatchObject({ focus: "panel", panel: "two:item:two:t1" })
     expect(moved.panelView?.choose).toBeDefined()
   })
+  test("Esc in a plugin's sheet or panel first leaves a search, a line being typed or a dropdown; only then closes it", () => {
+    const searching = { ...startUi(views["two:t1"] as never), searching: "rows" }
+    const sheet = at({ main: "agent", focus: "tile", sheet: true, sheetOf: "two:t1", viewing: "two:t1", sheetView: searching } as never)
+    const r = onKey(sheet, with_({}), key("escape"), 0).ui
+    expect(r.sheet).toBe(true)
+    expect(r.sheetView?.searching).toBeUndefined()
+    const s = with_({ panels: [panel("onFocus")] })
+    const inPanel = at({ main: "agent", focus: "panel", panel: "two:status:two:t1", viewing: "two:t1", panelView: { ...startUi(views["two:t1"] as never), input: { action: "x", section: "rows", rows: [], text: "" } } } as never)
+    const p = onKey(inPanel, s, key("escape"), 0).ui
+    expect(p.focus).toBe("panel")
+    expect(p.panelView?.input).toBeUndefined()
+  })
   test("a plugin's sheet takes its view's keys; Esc closes it", () => {
     const ui = at({ main: "agent", focus: "tile", sheet: true, sheetOf: "two:t1", viewing: "two:t1" })
     expect(onKey(ui, with_({}), key("a"), 0).action).toMatchObject({ type: "act", action: "apply", agent: "two:t1" })

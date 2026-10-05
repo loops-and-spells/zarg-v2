@@ -442,7 +442,17 @@ describe("tui frames", () => {
       ] },
       data: { summary: { markdown: "1 provider ready" }, providers: { rows: [{ id: "r", cells: { provider: "router" } }] }, fields: { rows: [{ id: "URL", cells: { name: "URL" } }] }, models: { rows: [{ id: "m1", cells: { model: "alpha-model" } }, { id: "m2", cells: { model: "jevk5-judge" } }] } },
     }
-    const t = await render({ thread: { ...initial("main"), status: "idle", rlms: { "core:setup": agent }, views: { "core:setup": view }, navigate: { seq: 1, kind: "sheet", view: "core:setup", at: Date.now() } }, core: "up" }, { width: 120, height: 40 })
+    // As live: zarg's bar is loaded and zarg asks a question while the operator types /models.
+    const zargBar = { id: "zarg:bar:zarg", plugin: "zarg", agent: "zarg", view: "zarg", name: "bar", scope: "shell" as const, edge: "bottom" as const, size: 1, input: "onFocus" as const }
+    const before = { thread: { ...initial("main"), status: "waiting" as const, pendingInquiry: inquiry, panels: [zargBar], rlms: { "core:setup": agent } }, core: "up" as const }
+    const t = await render(before, { width: 120, height: 40 })
+    t.mockInput.pressKey("/")
+    await settle(t)
+    await t.mockInput.typeText("models")
+    await settle(t)
+    t.mockInput.pressEnter()
+    await settle(t)
+    t.update({ ...before, thread: { ...before.thread, seq: 2, views: { "core:setup": view }, navigate: { seq: 1, kind: "sheet", view: "core:setup", at: Date.now() } } })
     await settle(t)
     t.mockInput.pressKey("]")
     t.mockInput.pressKey("]")

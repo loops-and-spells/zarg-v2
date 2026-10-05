@@ -71,6 +71,9 @@ const moveTile = (ui: Ui, s: SessionState, dir: string): Ui => {
   return ui.focus === "panel" ? { ...ui, focus: "tile" } : ui
 }
 
+/** The view is in the middle of something Esc ends first (a search, a line being typed, a dropdown). */
+const busyView = (vu: ViewUi | undefined) => vu !== undefined && (vu.searching !== undefined || vu.input !== undefined || vu.choose !== undefined)
+
 /** A key on a view that is not the open agent's: its new state, and its action or answer for `agent`. */
 const surfaceKey = (v: ViewState, vu: ViewUi, k: InputKey, agent: string): { readonly view: ViewUi; readonly action?: Action } => {
   const r = viewKeys(v, vu, k)
@@ -279,7 +282,7 @@ export const SHELL: ReadonlyArray<Layer> = [
     handle: (ui, w, k) => {
       const p = focusedPanel(ui, w.s)!
       if (k.name === "escape" && ui.panelView?.menu !== undefined) return { ui: { ...ui, panelView: closeMenu(ui.panelView) } }
-      if (k.name === "escape") {
+      if (k.name === "escape" && !busyView(ui.panelView)) {
         const { panel: _, panelView: __, ...rest } = ui
         return { ui: { ...rest, focus: "tile", closedPanels: [...ui.closedPanels, closedKey(p)] } }
       }
@@ -298,7 +301,7 @@ export const SHELL: ReadonlyArray<Layer> = [
     hints: () => [{ keys: "Esc", does: "close" }],
     handle: (ui, w, k) => {
       if (k.name === "escape" && ui.sheetView?.menu !== undefined) return { ui: { ...ui, sheetView: closeMenu(ui.sheetView) } }
-      if (k.name === "escape") {
+      if (k.name === "escape" && !busyView(ui.sheetView)) {
         const { sheetOf: _, sheetView: __, ...rest } = ui
         return { ui: { ...rest, sheet: false } }
       }
