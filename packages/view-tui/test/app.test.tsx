@@ -94,6 +94,12 @@ const settle = async (t: { renderOnce: () => Promise<void>; waitForVisualIdle: (
   await t.waitForVisualIdle()
 }
 
+/** The frame once it shows `text` (up to 2s: under a busy machine, a key's frame can take longer than settle). */
+const shows = async (t: Parameters<typeof settle>[0] & { captureCharFrame: () => string }, text: string) => {
+  for (let i = 0; i < 40 && !t.captureCharFrame().includes(text); i++) await settle(t)
+  return t.captureCharFrame()
+}
+
 // Home is the inbox: go to the grid the way the operator does, ^k "agents" ⏎.
 const toGrid = async <T extends { mockInput: { pressKey: (k: string, m?: { ctrl?: boolean }) => void; typeText: (s: string) => Promise<void>; pressEnter: () => void }; renderOnce: () => Promise<void>; waitForVisualIdle: () => Promise<unknown> }>(t: T) => {
   t.mockInput.pressKey("k", { ctrl: true })
@@ -1089,11 +1095,9 @@ describe("focuses", () => {
   test("⏎ on a card opens its view; Esc comes back to the grid", async () => {
     const t = await toGrid(await render(two(), big))
     t.mockInput.pressEnter()
-    await settle(t)
-    expect(t.captureCharFrame()).toContain("note R-1")
+    expect(await shows(t, "note R-1")).toContain("note R-1")
     t.mockInput.pressEscape()
-    await settle(t)
-    expect(t.captureCharFrame()).toContain("all agents")
+    expect(await shows(t, "all agents")).toContain("all agents")
   })
   test("a click on a card opens its view", async () => {
     const t = await toGrid(await render(two(), big))

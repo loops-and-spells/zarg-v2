@@ -115,6 +115,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // The core's own scope: reconcile started later (by /reconcile) closes with the core.
     const scope = yield* Effect.scope
     // Reconcile's findings, as inbox topics (none while reconcile is off).
+    // zarg wakes for work it has not seen on its agenda (reconcile's findings, plugins' items); set once main exists.
+    let wakeMain: Effect.Effect<void> = Effect.void
     const syncFindings = Effect.suspend(() => Effect.ignore(syncFindingTopics(inbox, reconcile?.findings.list() ?? [], reconcile === undefined ? "reconcile is off" : "the finding cleared")))
     const startReconcile = (settings: ReconcileSettings) =>
       makeReconcile({
@@ -135,7 +137,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         onPassEnd: () =>
           void Effect.runFork(
             Effect.andThen(
-              syncFindings,
+              Effect.andThen(syncFindings, Effect.suspend(() => wakeMain)),
               // The pass is over: its landing no longer waits.
               Effect.forEach(inbox.list().filter((t) => t.from.plugin === "zarg" && t.key === "land-wait" && t.state === "open"), (t) => Effect.ignore(inbox.settle("zarg", t.id, "the pass ended")), { discard: true }),
             ),
@@ -229,7 +231,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     const syncPlugins = Effect.ignore(Effect.flatMap(host.agenda(), (items) => syncPluginTopics(inbox, items)))
     // zarg wakes for agenda items it has not seen: a dropped plan or an item settled is no work for it.
     const fresh = newWork()
-    const wakeMain = Effect.ignore(Effect.flatMap(host.agenda(), (items) => (fresh(items.map((i) => i.id)) ? main.wake : Effect.void)))
+    wakeMain = Effect.ignore(Effect.flatMap(agenda(undefined), (items) => (fresh(items.map((i) => i.id)) ? main.wake : Effect.void)))
     control.setAgendaChanged((plugin) => {
       if (plugin === "host") return void Effect.runFork(syncPlugins)
       Effect.runFork(wakeMain)
