@@ -48,6 +48,15 @@ export const reconcileSettings = (raw: unknown) =>
     }),
   )
 
+/** /reconcile turned plan and implement on: a project without a [reconcile] section gets one, so they stay on. */
+export const rememberReconcile = (root: string) => {
+  const file = join(root, ".zarg", "config.toml")
+  const text = existsSync(file) ? readFileSync(file, "utf8") : ""
+  if (/^\s*\[\s*reconcile\s*\]/m.test(text)) return
+  mkdirSync(dirname(file), { recursive: true })
+  writeFileSync(file, text === "" ? "[reconcile]\n" : `${text.replace(/\n*$/, "\n")}\n[reconcile]\n`)
+}
+
 /** The project's own check: a verify task, else a test task (its mise.toml), else its package.json script. */
 export const projectCheck = (root: string): string | undefined => {
   const read = (f: string) => (existsSync(join(root, f)) ? readFileSync(join(root, f), "utf8") : undefined)
@@ -74,7 +83,7 @@ export const projectCheck = (root: string): string | undefined => {
 export const reconcileGate = (root: string, extra: Readonly<Record<string, unknown>>, roles: Readonly<Record<string, string>>, opts: { readonly force?: boolean } = {}) =>
   Effect.gen(function* () {
     // `force` (the /reconcile command) overrides a missing section and `enabled = false`, nothing else.
-    if (extra.reconcile === undefined && !opts.force) return { on: false, reason: "plan and implement are off: add a [reconcile] section to .zarg/config.toml to turn them on" } as const
+    if (extra.reconcile === undefined && !opts.force) return { on: false, reason: "plan and implement are off: /reconcile turns them on (it adds a [reconcile] section to .zarg/config.toml)" } as const
     const settings = yield* reconcileSettings(extra.reconcile)
     if (!settings.enabled && !opts.force) return { on: false, reason: "plan and implement are off ([reconcile] enabled = false)" } as const
     const missing = ["plan", "implement"].filter((r) => roles[r] === undefined)

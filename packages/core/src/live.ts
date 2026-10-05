@@ -30,7 +30,7 @@ import { makeLog } from "./log"
 import { pluginAgents } from "./plugin-agents"
 import { forDriver, makeYolo, PluginControl, pluginHostLayer, trustedAgents, USER_DIR, vaultFrom, ZARG_ROOT } from "./plugins"
 import { STUB_MODEL, stubLayer } from "./stub"
-import { reasonOf, reconcileGate, type ReconcileSettings } from "./phases"
+import { reasonOf, reconcileGate, type ReconcileSettings, rememberReconcile } from "./phases"
 import { checkoutProblem, commitGraph, gitRun, graphFiles } from "@zarg/reconcile"
 import { makePlanner } from "./planner"
 import { makeReconcile } from "./reconcile"
@@ -301,6 +301,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       const problem = yield* checkoutProblem(root).pipe(Effect.orElseSucceed(() => undefined))
       if (problem !== undefined) return { on: false, reason: `no pass can run: ${problem}` } satisfies ReconcileAnswer
       if (reconcile === undefined && forced?.on) {
+        // Turned on by hand where the config said nothing: it stays on (enabled = false is kept as written).
+        if (config.extra.reconcile === undefined) yield* Effect.sync(() => rememberReconcile(root))
         reconcile = yield* startReconcile(forced.settings)
         yield* syncFindings
         for (const t of reconcile.threads) threads.add(t)

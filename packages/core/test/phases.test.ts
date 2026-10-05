@@ -7,7 +7,7 @@ import { Effect, Layer, Redacted, Stream } from "effect"
 import { Model, type StreamEvent } from "@zarg/model"
 import { engineLayer, makeFindings, Pass, passLayer, workingGraphTree } from "@zarg/reconcile"
 import { Rlm, settings } from "@zarg/rlm"
-import { reasonOf, reconcileGate, reconcileSettings, reconcileSpec } from "../src/phases"
+import { reasonOf, reconcileGate, reconcileSettings, reconcileSpec, rememberReconcile } from "../src/phases"
 import { testAffected, testPlugins } from "./plugins-helper"
 
 const roots: Array<string> = []
@@ -155,6 +155,20 @@ describe("when reconcile runs", () => {
     } finally {
       process.env = saved
     }
+  })
+})
+
+describe("/reconcile remembers", () => {
+  test("it adds a [reconcile] section where the project has none, so plan and implement stay on after a restart; others are left alone", () => {
+    const r = project([])
+    rememberReconcile(r)
+    expect(readFileSync(join(r, ".zarg/config.toml"), "utf8")).toBe("[reconcile]\n")
+    write(r, ".zarg/config.toml", '# mine\n[plugins]\nx = 1\n')
+    rememberReconcile(r)
+    expect(readFileSync(join(r, ".zarg/config.toml"), "utf8")).toBe('# mine\n[plugins]\nx = 1\n\n[reconcile]\n')
+    write(r, ".zarg/config.toml", "[reconcile]\nenabled = false\n")
+    rememberReconcile(r)
+    expect(readFileSync(join(r, ".zarg/config.toml"), "utf8")).toBe("[reconcile]\nenabled = false\n")
   })
 })
 
