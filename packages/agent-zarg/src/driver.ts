@@ -8,6 +8,7 @@ const ASK_FIRST: ServiceFailure = {
     "Requirements change only with the developer's say: show the exact change with Inquire.confirm({ change }) (each scenario as its title, then By / Given / When / Then lines; every scenario names who acts in it with by, a persona), then write it once they add it. An Inquire.ask option that is itself a change carries it as its `change`: picking it adds it. Any other question closes writes again.",
 }
 
+const NO_DRAFT = "Show a scenario change with its draft too: Inquire.confirm({ change, draft }), the draft being the gherkin tool calls that write it (add-scenario, link, …), so the checks run before the developer sees it."
 const PICKED_HINT = "They picked an option that is a change: it is added. Write it now, as shown; no Inquire.confirm."
 
 /** The change's first line; one that only heads it (ends with a colon) takes the next line too. */
@@ -169,6 +170,9 @@ export const askFirst = (
       confirm: (c) =>
         Effect.andThen(flush, Effect.suspend(() => {
           // A change shown with its draft is checked first: what the checks refuse goes back to the driver, unasked.
+          // A scenario change (a When line) is shown with its draft: the checks need its tool calls.
+          if (dryRun !== undefined && (c.draft === undefined || c.draft.length === 0) && /^\s*When\b/im.test(c.change))
+            return Effect.succeed({ problems: [NO_DRAFT] } as Answer)
           if (c.draft !== undefined && c.draft.length > 0 && dryRun !== undefined)
             return Effect.flatMap(dryRun(c.draft), (r) => (r.ok ? confirmIt(c) : Effect.succeed({ problems: [...r.problems] } as Answer)))
           return confirmIt(c)

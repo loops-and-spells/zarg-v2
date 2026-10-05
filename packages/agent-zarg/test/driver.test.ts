@@ -219,6 +219,16 @@ describe("ask before writing", () => {
     expect(good).toEqual({ choice: "add" })
   })
 
+  test("a scenario change shown without its draft goes back for it: the checks need the tool calls", async () => {
+    let asked = 0
+    const guard = askFirst({ ask: () => Effect.sync(() => (asked++, { choice: "add" })) }, undefined, undefined, undefined, () => Effect.succeed({ ok: true, problems: [] }))
+    const back = await Effect.runPromise(guard.asker.confirm!({ change: "S-0003 Tracker renames a habit\n  By Tracker\n  When Tracker renames the habit\n  Then the habit has its new name" }))
+    expect(asked).toBe(0)
+    expect(back.problems?.[0]).toContain("draft")
+    // A change with no scenario in it (a persona's text) needs none.
+    expect(await Effect.runPromise(guard.asker.confirm!({ change: "Edit persona Tracker: a person who tracks habits." }))).toEqual({ choice: "add" })
+  })
+
   test("Add with words of the operator's (a reason) is what to change, not a yes: nothing is written, and the words come back", async () => {
     const guard = askFirst({ ask: () => Effect.succeed({ choice: "add", other: "drop 'or an unknown id'" }) })
     const gated = guard.gate(writes)!
