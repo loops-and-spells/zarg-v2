@@ -562,7 +562,12 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
             fromInbox.add(runId)
             return Effect.asVoid(Effect.forkDetach(Stream.runDrain(run({ runId, message: text }))))
           }
-          return Effect.asVoid(Effect.forkDetach(deliver(`(about "${t.title}": ${text})`)))
+          // A question zarg no longer holds (from before a restart): the reply is the operator's word, and the topic closes.
+          const held = queue.some((p) => p.topic === t.id) || discussed.some((p) => p.topic === t.id)
+          return Effect.andThen(
+            held ? Effect.void : topicSay((i) => i.settle(t.id, "your reply reached zarg as a message")),
+            Effect.asVoid(Effect.forkDetach(deliver(`(about "${t.title}": ${text})`))),
+          )
         }),
     }
 

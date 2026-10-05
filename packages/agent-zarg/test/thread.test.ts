@@ -670,6 +670,21 @@ describe("zarg's questions as inbox topics", () => {
     expect(calls).not.toContainEqual(["settle", "T-00000099", expect.any(String)])
   })
 
+  test("a reply to a question zarg no longer holds (from before a restart) reaches it as a message, and that topic closes", async () => {
+    const { inbox, calls } = fakeInbox()
+    const said: Array<string> = []
+    const driver: Driver = (spec) => Effect.sync(() => (said.push(spec.task), outcome("ok")))
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setupWith(driver, inbox)
+        yield* thread.inbox!.replied({ id: "T-00000097", title: "Old question?" }, "make them terminal")
+        yield* Effect.sleep(50)
+      }),
+    )
+    expect(said.some((t) => t.includes("make them terminal"))).toBe(true)
+    expect(calls).toContainEqual(["settle", "T-00000097", expect.any(String)])
+  })
+
   const askOnce = (answers: Array<unknown>): Driver => {
     let calls = 0
     return (_spec, asker) =>
