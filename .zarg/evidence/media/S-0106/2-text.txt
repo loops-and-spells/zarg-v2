@@ -6,19 +6,19 @@
   "persona": "Parent",
   "kind": "drift",
   "severity": "high",
-  "note": "Drift: the step says the chore leaves every list, but code remove only hides it for the parent and returns the same array, so other lists still show it. Suggest changing op remove to genuinely filter the chore out of every list, or restate the Then to parent-only.",
+  "note": "Drift: the step says the chore leaves every list, but the code only marks it hidden for the parent and every other list still shows it.",
   "from": {
     "agent": "rehearse",
-    "run": "r-54c3fad6"
+    "run": "r-528208ce"
   },
   "triage": {
     "on": true,
     "why": "ask · real 1.00",
     "by": "agent"
   },
-  "id": "F-bf13d086",
+  "id": "F-3a4b6f4a",
   "count": 1,
   "runs": [
-    "rehearse:r-54c3fad6"
+    "rehearse:r-528208ce"
   ]
 }

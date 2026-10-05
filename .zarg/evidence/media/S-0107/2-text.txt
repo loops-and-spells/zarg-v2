@@ -7,28 +7,28 @@
     "persona": "Parent",
     "kind": "drift",
     "severity": "high",
-    "note": "Drift: the step says the chore leaves every list, but code remove only hides it for the parent and returns the same array, so other lists still show it. Suggest changing op remove to genuinely filter the chore out of every list, or restate the Then to parent-only.",
+    "note": "Drift: the step says the chore leaves every list, but the code only marks it hidden for the parent and every other list still shows it.",
     "from": {
       "agent": "rehearse",
-      "run": "r-54c3fad6"
+      "run": "r-528208ce"
     },
     "triage": {
       "on": true,
       "why": "ask · real 1.00",
       "by": "agent"
     },
-    "id": "F-bf13d086",
+    "id": "F-3a4b6f4a",
     "count": 1,
     "runs": [
-      "rehearse:r-54c3fad6"
+      "rehearse:r-528208ce"
     ]
   },
   "topic": {
     "kind": "drift",
     "title": "S-0002: the scenario and the code differ",
     "why": "rehearse (high)",
-    "evidence": "Drift: the step says the chore leaves every list, but code remove only hides it for the parent and returns the same array, so other lists still show it. Suggest changing op remove to genuinely filter the chore out of every list, or restate the Then to parent-only.\n\nWhat zarg does now:\n\nsrc/chores.ts:3\n\n```\n// Removing only marks the chore as hidden for the parent; every other list still shows it.\nexport const remove = (chores: string[], _chore: string) => chores\n\n```",
-    "key": "drift:F-bf13d086",
+    "evidence": "Drift: the step says the chore leaves every list, but the code only marks it hidden for the parent and every other list still shows it.\n\nWhat zarg does now:\n\nsrc/chores.ts:3\n\n```\n// Removing only marks the chore as hidden for the parent; every other list still shows it.\nexport const remove = (chores: string[], _chore: string) => chores\n\n```",
+    "key": "drift:F-3a4b6f4a",
     "about": [
       "S-0002"
     ],
@@ -49,14 +49,14 @@
     "origin": {
       "view": "feedback"
     },
-    "id": "T-3893456c",
+    "id": "T-2cf2b3e9",
     "from": {
       "plugin": "backlog"
     },
     "blocking": false,
     "messages": [],
     "state": "open",
-    "created": 1791211522079,
-    "updated": 1791211522079
+    "created": 1791211794908,
+    "updated": 1791211794908
   }
 }

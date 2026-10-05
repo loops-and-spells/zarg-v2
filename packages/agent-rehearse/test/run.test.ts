@@ -213,6 +213,15 @@ describe("rehearse runs in the plugin", () => {
     expect(started.next).toContain("never wait for it or poll it")
   })
 
+  test("an empty list of personas means every persona that acts, as no list does", async () => {
+    const started = await Effect.runPromise(Effect.gen(function* () {
+      const t = yield* setup()
+      return (yield* t.r.start({ personas: [] })) as { refused?: string; run?: string }
+    }))
+    expect(started.refused).toBeUndefined()
+    expect(started.run).toBeDefined()
+  })
+
   test("filing that fails is said in the run's notes, never dropped in silence", async () => {
     const t = await finish({ fileDown: true })
     expect(t.r.record(t.run)!.infra).toContainEqual("filing with the backlog failed: backlog: the call timed out")

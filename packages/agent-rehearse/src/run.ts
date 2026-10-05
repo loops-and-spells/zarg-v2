@@ -446,7 +446,7 @@ export const makeRehearse = (deps: RunDeps) =>
           if (graph.length === 0) return { refused: "no personas yet: the Driver Agent asks about them" }
           const acting = graph.filter((p) => p.scenarios.length > 0)
           if (acting.length === 0) return { refused: "no persona acts in any scenario" }
-          const personas = opts.personas !== undefined ? acting.filter((p) => opts.personas!.includes(p.name)) : acting
+          const personas = opts.personas !== undefined && opts.personas.length > 0 ? acting.filter((p) => opts.personas!.includes(p.name)) : acting
           if (personas.length === 0) return { refused: `no such personas: ${opts.personas!.join(", ")}` }
           const startedAt = yield* deps.now.pipe(Effect.orElseSucceed(() => 0))
           const run = `r-${(yield* deps.uuid.pipe(Effect.orElseSucceed(() => String(startedAt)))).slice(0, 8)}`
