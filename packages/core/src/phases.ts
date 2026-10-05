@@ -48,6 +48,25 @@ export const reconcileSettings = (raw: unknown) =>
     }),
   )
 
+/** The project's own check: a verify task, else a test task (its mise.toml), else its package.json script. */
+export const projectCheck = (root: string): string | undefined => {
+  const read = (f: string) => (existsSync(join(root, f)) ? readFileSync(join(root, f), "utf8") : undefined)
+  // ponytail: a line match, not a TOML parse; set [reconcile] verify when it guesses wrong.
+  const mise = read("mise.toml") ?? read(".mise.toml") ?? ""
+  const task = (n: string) => new RegExp(`^\\[tasks\\.${n}\\]|^${n}\\s*=`, "m").test(mise)
+  for (const n of ["verify", "test"]) if (task(n)) return `mise run ${n}`
+  const scripts = (() => {
+    try {
+      return (JSON.parse(read("package.json") ?? "{}") as { scripts?: Record<string, unknown> }).scripts ?? {}
+    } catch {
+      return {}
+    }
+  })()
+  const bun = existsSync(join(root, "bun.lock")) || existsSync(join(root, "bun.lockb"))
+  for (const n of ["verify", "test"]) if (typeof scripts[n] === "string") return bun ? `bun run ${n}` : n === "test" ? "npm test" : `npm run ${n}`
+  return undefined
+}
+
 /**
  * Whether plan and implement run for a project: only with a `[reconcile]` section (not `enabled = false`),
  * models for `roles.plan` and `roles.implement`, and the project at the top of a git repository.
@@ -68,7 +87,12 @@ export const reconcileGate = (root: string, extra: Readonly<Record<string, unkno
     if ((yield* gitRun(root, ["var", "GIT_AUTHOR_IDENT"])).code !== 0) {
       return { on: false, reason: "plan and implement are off: git does not know who commits here: set git config user.name and user.email (--global for every project), then /reconcile" } as const
     }
-    return { on: true, settings } as const
+    // Set in [reconcile]: that command; else the project's own check.
+    const own = (extra.reconcile as { verify?: unknown } | undefined)?.verify !== undefined ? settings.verify : projectCheck(root)
+    if (own === undefined) {
+      return { on: false, reason: "plan and implement are off: nothing says the code is right: add a verify or test task (mise.toml or package.json), or set [reconcile] verify in .zarg/config.toml, then /reconcile" } as const
+    }
+    return { on: true, settings: { ...settings, verify: own } } as const
   })
 
 /** A failure as text a client may see: its message (never "[object Object]"), with secrets redacted. */

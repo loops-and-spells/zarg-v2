@@ -124,7 +124,23 @@ describe("when reconcile runs", () => {
     const sub = join(r, "app")
     mkdirSync(sub)
     expect(await gate({ reconcile: {} }, roles, sub)).toMatchObject({ on: false, reason: expect.stringContaining("top of a git repository") })
-    expect(await gate({ reconcile: { quiet_ms: 500 } }, roles)).toMatchObject({ on: true, settings: { quietMs: 500 } })
+    expect(await gate({ reconcile: { quiet_ms: 500, verify: "true" } }, roles)).toMatchObject({ on: true, settings: { quietMs: 500 } })
+  })
+
+  test("verify is the project's own check, found where it keeps it; with none it says what to add", async () => {
+    const r = project([])
+    const gate = () => Effect.runPromise(reconcileGate(r, { reconcile: {} }, roles))
+    expect(await gate()).toMatchObject({ on: false, reason: expect.stringContaining("[reconcile] verify") })
+    write(r, "package.json", JSON.stringify({ scripts: { test: "bun test" } }))
+    expect(await gate()).toMatchObject({ on: true, settings: { verify: "npm test" } })
+    write(r, "bun.lock", "")
+    expect(await gate()).toMatchObject({ on: true, settings: { verify: "bun run test" } })
+    write(r, "mise.toml", "[tasks]\ntest = \"bun test\"\n")
+    expect(await gate()).toMatchObject({ on: true, settings: { verify: "mise run test" } })
+    write(r, "mise.toml", "[tasks.verify]\nrun = \"bun test\"\n")
+    expect(await gate()).toMatchObject({ on: true, settings: { verify: "mise run verify" } })
+    // Set in [reconcile]: that command, whatever the project has.
+    expect(await Effect.runPromise(reconcileGate(r, { reconcile: { verify: "make check" } }, roles))).toMatchObject({ on: true, settings: { verify: "make check" } })
   })
 
   test("only where git knows who commits: without an author it says how to set one", async () => {
