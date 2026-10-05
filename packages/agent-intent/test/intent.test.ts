@@ -92,7 +92,7 @@ describe("the Intent Agent", () => {
   test("the model knows the ids its new nodes will take, so a draft refers to what it adds", async () => {
     const { a, calls } = setup({ journeys: [checkout], answers: [] })
     await Effect.runPromise(a.tick)
-    expect(String(calls.find(([k]) => k === "complete")![1])).toContain("New nodes take the next ids, in order: scenarios S-0002, S-0003, …; states ST-0004, …; journeys J-0002, …; personas P-0001, …")
+    expect(String(calls.find(([k]) => k === "complete")![1])).toContain("New nodes take the next ids, in order: scenarios S-0002, S-0003, …; journeys J-0002, …; personas P-0001, …")
   })
 
   // @scenario S-0104
@@ -107,6 +107,14 @@ describe("the Intent Agent", () => {
     expect(posted.about).toEqual(["O-0001", "K-0001"])
     expect(posted.answers.map((x) => x.id)).toEqual(["outcome", "constraint", "leave"])
     expect(cp().statements["O-0001"]).toMatchObject({ state: "asked" })
+  })
+
+  test("a new state is named by its text, never by an id it would take", async () => {
+    const { a, calls } = setup({ journeys: [checkout], answers: [] })
+    await Effect.runPromise(a.tick)
+    const prompt = String(calls.find(([k]) => k === "complete")![1])
+    expect(prompt).not.toContain("ST-0004")
+    expect(prompt).toContain('A state that does not exist yet is always named by its text ({"text":"…"}), never by an id')
   })
 
   test("nothing due: no model call, nothing filed", async () => {

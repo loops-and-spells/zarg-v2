@@ -140,7 +140,7 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
           const rules = all.filter((x) => x.kind === "constraint" && x.id !== s.id && x.intent.id === s.intent.id)
           return rules.length > 0 ? ["", `The intent's constraints:\n${rules.map((x) => `- ${x.id}: ${x.text}`).join("\n")}`] : []
         })(),
-        ...(next !== undefined ? ["", `New nodes take the next ids, in order: scenarios ${next.scenario}, ${after(next.scenario)}, …; states ${next.state}, …; journeys ${next.journey}, …; personas ${next.persona}, …. Refer to a node your draft adds by the id it will take; a state that does not exist yet is named by its text.`] : []),
+        ...(next !== undefined ? ["", `New nodes take the next ids, in order: scenarios ${next.scenario}, ${after(next.scenario)}, …; journeys ${next.journey}, …; personas ${next.persona}, …. In a later call, refer to a scenario, journey or persona your draft adds by the id it will take. A state that does not exist yet is always named by its text ({"text":"…"}), never by an id: add-scenario creates it.`] : []),
         personas.length > 0 ? `Personas: ${personas.map((p) => `${p.name} (${p.kind})`).join(", ")}` : "Personas: none yet (add one with add-persona before a scenario names it)",
       ].join("\n")
     })
