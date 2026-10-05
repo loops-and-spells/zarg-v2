@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, watch } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, watch, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { Cause, Effect } from "effect"
 import { baseTree, GRAPH, workingGraphTree } from "./checkpoint"
@@ -7,6 +7,7 @@ import { git } from "./git"
 import { checkoutProblem } from "./land"
 import type { PassResult } from "./pass"
 import { makeTrigger } from "./trigger"
+import { ensureIgnored } from "./worktree"
 
 export interface ReconcilerOptions {
   readonly repo: string
@@ -23,8 +24,19 @@ export interface ReconcilerOptions {
  * writes). A pass starts only when the working graph differs from the last reconciled one.
  */
 export const startReconciler = (opts: ReconcilerOptions) => {
-  // A pass that failed for a state is tried again (under a new key) the next time the trigger fires.
-  const attempts = new Map<string, number>()
+  // A pass that failed for a state is tried again (under a new key) the next time the trigger fires. Kept on disk:
+  // after a restart the old key would only replay the failed pass from the engine.
+  // ponytail: every failed state's count is kept; prune when the file grows.
+  const file = join(opts.repo, ".zarg", "reconcile", "attempts.json")
+  const attempts = new Map<string, number>(
+    (() => {
+      try {
+        return Object.entries(JSON.parse(readFileSync(file, "utf8")) as Record<string, number>)
+      } catch {
+        return []
+      }
+    })(),
+  )
   const once = Effect.gen(function* () {
     const problem = yield* checkoutProblem(opts.repo)
     if (problem !== undefined) {
@@ -38,7 +50,11 @@ export const startReconciler = (opts: ReconcilerOptions) => {
     const key = `${graph}:${branch}@${base}`
     const attempt = attempts.get(key) ?? 0
     const result = yield* opts.execute({ graph, branch, base, attempt })
-    if (result.status === "failed") attempts.set(key, attempt + 1)
+    if (result.status === "failed") {
+      attempts.set(key, attempt + 1)
+      ensureIgnored(opts.repo)
+      writeFileSync(file, JSON.stringify(Object.fromEntries(attempts)))
+    }
     return result
   })
   // @scenario S-0020

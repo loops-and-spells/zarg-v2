@@ -72,6 +72,22 @@ describe("reconciler", () => {
     expect(sh(r, "git log -1 --format=%s")).toBe("feat: implement S-0001")
   }, 20_000)
 
+  test("a pass that failed is tried again under a new attempt, after a restart too (the engine would replay the failure)", async () => {
+    const r = repo()
+    writeNode(r, state("ST-0001", "home"))
+    const seen: Array<number> = []
+    const run = async () => {
+      const done: Array<string> = []
+      const rec = startReconciler({ repo: r, quietMs: 20, findings: stubSpec(r).findings, execute: (p) => Effect.sync(() => (seen.push(p.attempt), { status: "failed" }) as never), onResult: (x) => done.push(x.status) })
+      rec.notify()
+      await until(() => done.length > 0)
+      rec.close()
+    }
+    await run()
+    await run()
+    expect(seen).toEqual([0, 1])
+  })
+
   test("a checkout it cannot land on (detached HEAD) raises a finding instead of running", async () => {
     const r = repo()
     sh(r, "git checkout -q --detach")
