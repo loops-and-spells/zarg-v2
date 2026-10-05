@@ -50,7 +50,7 @@ const setup = (o: Opts = {}) =>
           return { text: req.outputSchema ? JSON.stringify({ findings: [{ kind: "friction", severity: "medium", note: "B is unclear" }] }) : "Testers stalled at B." }
         }),
       agents: {
-        start: (a) => Effect.sync(() => void events.push({ event: "start", id: a.id })),
+        start: (a) => Effect.sync(() => void events.push({ event: "start", id: a.id, ...(a.id === "run" ? { text: a.task } : {}) })),
         status: (a) => Effect.sync(() => void events.push({ event: "status", id: a.id, ...(a.text !== undefined ? { text: a.text } : {}), ...(a.progress !== undefined ? { progress: a.progress } : {}) })),
         step: (a) => Effect.sync(() => void events.push({ event: "step", id: a.id, text: a.text })),
         end: (a) => Effect.sync(() => void events.push({ event: "end", id: a.id })),
@@ -99,6 +99,14 @@ const finish = (o: Opts = {}) =>
 type Pushes = ReadonlyArray<{ agent: string; path: string; data?: unknown; lines?: unknown }>
 /** The rows an agent's table shows now: its last push. */
 const rowsNow = (pushes: Pushes, agent: string, path: string) => ((pushes.filter((p) => p.agent === agent && p.path === path).at(-1)?.data as { rows?: ReadonlyArray<{ id: string; cells: Record<string, string> }> } | undefined)?.rows ?? [])
+
+describe("the run's line", () => {
+  test("counts stories as stories (never storys)", async () => {
+    const t = await finish()
+    const line = String(t.events.find((e) => e.event === "start" && e.id === "run")?.text)
+    expect(line).toMatch(/\d+ stor(y|ies) ×/)
+  })
+})
 
 describe("rehearse run files", () => {
   test("they are this machine's: their folder ignores itself in any project", async () => {

@@ -116,7 +116,7 @@ const findingDetail = (x: { readonly id: string; readonly scenario: string; read
 
 const DIR = ".zarg/rehearse"
 const INDEX = `${DIR}/index.json`
-const plural = (n: number, s: string) => `${n} ${s}${n === 1 ? "" : "s"}`
+const plural = (n: number, s: string) => `${n} ${n === 1 ? s : s.endsWith("y") ? `${s.slice(0, -1)}ies` : `${s}s`}`
 
 /** Rehearse runs: one at a time, in the background, recorded scene by scene so a restart resumes them. */
 export const makeRehearse = (deps: RunDeps) =>
