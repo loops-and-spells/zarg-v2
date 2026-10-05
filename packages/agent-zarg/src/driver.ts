@@ -8,6 +8,7 @@ const ASK_FIRST: ServiceFailure = {
     "Requirements change only with the developer's say: show the exact change with Inquire.confirm({ change }) (each scenario as its title, then By / Given / When / Then lines; every scenario names who acts in it with by, a persona), then write it once they add it. An Inquire.ask option that is itself a change carries it as its `change`: picking it adds it. Any other question closes writes again.",
 }
 
+const JUDGED = "(Fix it, or show the same change again if it holds as it is: the developer then decides.)"
 const NO_DRAFT = "Show a scenario change with its draft too: Inquire.confirm({ change, draft }), the draft being the gherkin tool calls that write it (add-scenario, link, …), so the checks run before the developer sees it."
 const PICKED_HINT = "They picked an option that is a change: it is added. Write it now, as shown; no Inquire.confirm."
 
@@ -59,7 +60,10 @@ export const askFirst = (
   commit?: (ids: ReadonlyArray<string>, message: string) => Effect.Effect<unknown, unknown>,
   nodes?: (ids: ReadonlyArray<string>) => Effect.Effect<Readonly<Record<string, NodeView | undefined>>>,
   dryRun?: (draft: ReadonlyArray<{ readonly tool: string; readonly params: unknown }>) => Effect.Effect<{ readonly ok: boolean; readonly problems: ReadonlyArray<string> }>,
+  judge?: (change: string) => Effect.Effect<ReadonlyArray<string>>,
 ) => {
+  // Changes the judge already sent back: shown again as they were, the operator decides.
+  const judged = new Set<string>()
   // The nodes the change was shown about, as they were: a newer edit to other parts of them merges.
   let shownNodes: Readonly<Record<string, NodeView | undefined>> = {}
   // Something was written since the operator added the change (an added change not written yet is owed).
@@ -178,7 +182,13 @@ export const askFirst = (
           if (dryRun !== undefined && (c.draft === undefined || c.draft.length === 0) && /^\s*When\b/im.test(c.change))
             return Effect.succeed({ problems: [NO_DRAFT] } as Answer)
           if (c.draft !== undefined && c.draft.length > 0 && dryRun !== undefined)
-            return Effect.flatMap(dryRun(c.draft), (r) => (r.ok ? confirmIt(c) : Effect.succeed({ problems: [...r.problems] } as Answer)))
+            return Effect.flatMap(dryRun(c.draft), (r) => {
+              if (!r.ok) return Effect.succeed({ problems: [...r.problems] } as Answer)
+              // What the checks cannot see (a Given and an And that cannot both hold): the judge's word, once.
+              if (judge === undefined || judged.has(norm(c.change))) return confirmIt(c)
+              judged.add(norm(c.change))
+              return Effect.flatMap(judge(c.change), (found) => (found.length > 0 ? Effect.succeed({ problems: [...found, JUDGED] } as Answer) : confirmIt(c)))
+            })
           return confirmIt(c)
         })),
       ...(asker.choose !== undefined

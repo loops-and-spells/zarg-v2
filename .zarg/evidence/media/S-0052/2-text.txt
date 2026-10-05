@@ -1,3 +1,3 @@
-dae1a57 feat: implement S-0007
-158bfef the operator's commit
-44d1866 feat: implement S-0006
+417ceb5 feat: implement S-0007
+d217b60 the operator's commit
+3058796 feat: implement S-0006

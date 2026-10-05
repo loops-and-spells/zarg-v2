@@ -238,6 +238,26 @@ describe("ask before writing", () => {
     expect(guard.owed()).toBeUndefined()
   })
 
+  test("a change the judge finds self-contradictory goes back once; shown again as it was, the operator decides", async () => {
+    let asked = 0
+    const guard = askFirst(
+      { ask: () => Effect.sync(() => (asked++, { choice: "add" })) },
+      undefined,
+      undefined,
+      undefined,
+      () => Effect.succeed({ ok: true, problems: [] }),
+      (change) => Effect.succeed(change.includes("no days yet") ? ['its Given "A habit has no days yet" and its And "A habit with its marked days" cannot both hold'] : []),
+    )
+    const change = "Scenario: Tracker renames a habit\n  Given A habit has no days yet\n  And A habit with its marked days\n  When Tracker renames the habit\n  Then the habit has its new name"
+    const draft = [{ tool: "add-scenario", params: {} }]
+    const first = await Effect.runPromise(guard.asker.confirm!({ change, draft }))
+    expect(asked).toBe(0)
+    expect(first.problems?.[0]).toContain("cannot both hold")
+    // The driver insists (the same change): the operator sees it.
+    expect(await Effect.runPromise(guard.asker.confirm!({ change, draft }))).toEqual({ choice: "add" })
+    expect(asked).toBe(1)
+  })
+
   test("Add with words of the operator's (a reason) is what to change, not a yes: nothing is written, and the words come back", async () => {
     const guard = askFirst({ ask: () => Effect.succeed({ choice: "add", other: "drop 'or an unknown id'" }) })
     const gated = guard.gate(writes)!

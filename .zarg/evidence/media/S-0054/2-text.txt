@@ -2,19 +2,19 @@
   "kind": "finding",
   "title": "S-0006 conflicts with other scenarios in this pass",
   "why": "merge-conflict",
-  "evidence": "branch zarg/fa005e9bc357/implement-S-0006 could not be merged\n\nzarg takes this up first on its agenda.",
-  "key": "finding:F-f7385b3c",
+  "evidence": "branch zarg/25830cfcae18/implement-S-0006 could not be merged\n\nzarg takes this up first on its agenda.",
+  "key": "finding:F-85a5c487",
   "about": [
     "S-0006"
   ],
   "severity": "high",
-  "id": "T-a7b7b3c6",
+  "id": "T-f527a5e3",
   "from": {
     "plugin": "zarg"
   },
   "blocking": false,
   "messages": [],
   "state": "open",
-  "created": 1791232307659,
-  "updated": 1791232307659
+  "created": 1791232750554,
+  "updated": 1791232750554
 }

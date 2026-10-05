@@ -45,7 +45,19 @@ export const makeZarg = (host: AgentHost) =>
       // A change shown with its draft: checked as a write would be (gherkin's dry run) before the operator sees it.
       const dryRun = (draft: ReadonlyArray<{ readonly tool: string; readonly params: unknown }>) =>
         Effect.map(plugins.invoke("gherkin", "dryRun", { draft }), (r) => r as { readonly ok: boolean; readonly problems: ReadonlyArray<string> }).pipe(Effect.orElseSucceed(() => ({ ok: true, problems: [] as ReadonlyArray<string> })))
-      const guard = askFirst(asker, versions, (ids, message) => commitGraph(root, ids, message), nodesOf, dryRun)
+      // What the checks cannot see: the decision model's word on a scenario that holds two states that cannot both be true.
+      const judge = (change: string) =>
+        Effect.map(
+          decisions.decide({
+            state: change,
+            questions: { contradiction: { type: "noul", instructions: "Does any scenario in this change hold two states at once that cannot both be true (its Given and an And, an And and a Then, or two Thens)?" } },
+          }),
+          (a): ReadonlyArray<string> => {
+            const x = a.contradiction as { answer?: boolean; probability?: number } | undefined
+            return x?.answer === true && (x.probability ?? 0) >= 0.8 ? ["a scenario here holds two states that cannot both be true: check its Given, its Ands and its Thens against each other"] : []
+          },
+        ).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>))
+      const guard = askFirst(asker, versions, (ids, message) => commitGraph(root, ids, message), nodesOf, dryRun, judge)
       const outside = host.outsideReads as never
       const factory = (name: string, scope: Scope): Bound | undefined => {
         const ctx = { host: plugins, snapshot, scope }
