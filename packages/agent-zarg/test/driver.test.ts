@@ -63,6 +63,14 @@ describe("ask before writing", () => {
     expect(commits.length).toBe(2)
   })
 
+  test("Add with words of the operator's (a reason) is what to change, not a yes: nothing is written, and the words come back", async () => {
+    const guard = askFirst({ ask: () => Effect.succeed({ choice: "add", other: "drop 'or an unknown id'" }) })
+    const gated = guard.gate(writes)!
+    const a = await Effect.runPromise(guard.asker.confirm!({ change: "Given a\nWhen b or c\nThen d" }))
+    expect(a).toEqual({ other: "drop 'or an unknown id'" })
+    expect(await Effect.runPromise(Effect.flip(gated.handlers.addScenario!({})))).toMatchObject({ _tag: "AskFirst" })
+  })
+
   test("each driver item starts without an answer", async () => {
     const first = askFirst({ ask: () => Effect.succeed({ choice: "add" }) })
     await Effect.runPromise(first.asker.confirm!({ change: "Given a\nWhen b\nThen c" }))

@@ -82,7 +82,9 @@ export const askFirst = (
           shown = {}
           added = undefined
           const seen = versions === undefined || (c.about ?? []).length === 0 ? Effect.succeed({}) : versions(c.about ?? [])
-          return Effect.tap(Effect.tap(seen, (v) => Effect.sync(() => void (shown = v))).pipe(Effect.andThen(asker.ask(confirmQuestion(c)))), (a) =>
+          // Add with the operator's words (a reason) is what to change, not a yes.
+          const asked = Effect.map(asker.ask(confirmQuestion(c)), (a) => (a.choice === "add" && (a.other ?? "").trim() !== "" ? { other: a.other! } : a))
+          return Effect.tap(Effect.tap(seen, (v) => Effect.sync(() => void (shown = v))).pipe(Effect.andThen(asked)), (a) =>
             Effect.sync(() => {
               if (a.interjected === true && a.question !== undefined) (confirms.add(a.question), changes.set(a.question, c.change))
               else {

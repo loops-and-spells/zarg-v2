@@ -673,6 +673,16 @@ describe("zarg's questions as inbox topics", () => {
       yield* Effect.sleep(50)
     }))
     expect(viaInbox).toEqual([{ choice: "b" }])
+    // Answered with a reason: the reason comes along.
+    const withReason: Array<unknown> = []
+    const c = fakeInbox()
+    await Effect.runPromise(Effect.gen(function* () {
+      const { thread } = yield* setupWith(askOnce(withReason), c.inbox)
+      yield* collect(thread.run({ runId: "r1" }))
+      yield* thread.inbox!.answered({ id: "T-00000001", title: "Which?", answers: question.options }, { answer: "b", text: "only on weekdays" })
+      yield* Effect.sleep(50)
+    }))
+    expect(withReason).toEqual([{ choice: "b", other: "only on weekdays" }])
     const viaBar: Array<unknown> = []
     const b = fakeInbox()
     await Effect.runPromise(Effect.gen(function* () {

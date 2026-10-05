@@ -409,15 +409,16 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
             // @scenario S-0009 S-0011
             const payload = (resume.payload ?? {}) as { choice?: string; other?: string }
             const chosen = head.question.options.find((o) => o.id === payload.choice)
-            const answer: Answer = payload.choice !== undefined ? { choice: payload.choice } : { other: String(payload.other ?? "") }
+            const reason = String(payload.other ?? "").trim()
+            const answer: Answer = payload.choice !== undefined ? { choice: payload.choice, ...(reason !== "" ? { other: reason } : {}) } : { other: String(payload.other ?? "") }
             const p = head
             queue.shift()
             // Taken now, before anything waits: an inbox answer arriving meanwhile finds it answered.
             if (p.topic !== undefined) answeredHere.add(p.topic)
             resolved.add(p.id)
             syncAttention()
-            yield* note("user", chosen?.label ?? String(payload.other ?? ""))
-            yield* answerTopic(p, payload.choice !== undefined ? { answer: payload.choice } : { text: String(payload.other ?? "") }, "operator")
+            yield* note("user", chosen !== undefined && reason !== "" ? `${chosen.label}: ${reason}` : (chosen?.label ?? String(payload.other ?? "")))
+            yield* answerTopic(p, payload.choice !== undefined ? { answer: payload.choice, ...(reason !== "" ? { text: reason } : {}) } : { text: String(payload.other ?? "") }, "operator")
             yield* Deferred.succeed(p.answer, answer)
           } else if (input.message !== undefined && head !== undefined && !direct.has(input.runId)) {
             // A message instead of an answer: the operator is discussing the question. It stays open (for
@@ -521,6 +522,9 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
         direct.add(runId)
         return Stream.runDrain(run({ runId, message: text }))
       })
+    // An option with the operator's reason: both reach the driver.
+    const answerOf = (reply: { readonly answer?: string; readonly text?: string }) =>
+      reply.answer === undefined ? { other: reply.text ?? "" } : { choice: reply.answer, ...((reply.text ?? "").trim() !== "" ? { other: reply.text! } : {}) }
     const labelOf = (t: InboxTopicRef, reply: { readonly answer?: string; readonly text?: string }) =>
       [t.answers?.find((a) => a.id === reply.answer)?.label ?? reply.answer, reply.text].filter((x) => x !== undefined && x !== "").join(": ")
     const inboxHandlers = {
@@ -536,13 +540,13 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
               Effect.gen(function* () {
                 queue.splice(queue.indexOf(queued), 1)
                 resolved.add(queued.id)
-                yield* Deferred.succeed(queued.answer, reply.answer !== undefined ? { choice: reply.answer } : { other: reply.text ?? "" })
+                yield* Deferred.succeed(queued.answer, answerOf(reply))
               }),
             )
           // The question waits: the answer goes where the bar's would, in a run of its own.
           if (head?.topic === t.id) {
             resolved.add(head.id)
-            return Effect.asVoid(Effect.forkDetach(Stream.runDrain(run({ runId: `inbox-${crypto.randomUUID().slice(0, 8)}`, resume: [{ interruptId: head.id, payload: reply.answer !== undefined ? { choice: reply.answer } : { other: reply.text ?? "" } }] }))))
+            return Effect.asVoid(Effect.forkDetach(Stream.runDrain(run({ runId: `inbox-${crypto.randomUUID().slice(0, 8)}`, resume: [{ interruptId: head.id, payload: answerOf(reply) }] }))))
           }
           return Effect.asVoid(Effect.forkDetach(deliver(`(you answered "${t.title}": ${labelOf(t, reply)})`)))
         }),
