@@ -124,6 +124,13 @@ describe("Inquire, Agenda and Verify", () => {
     expect(out.output).toContain("add-outcome")
   })
 
+  // @scenario S-0102
+  test("an interjection zarg judged to state a goal for the product says the next call outright: propose it", async () => {
+    const svc = inquire({ ask: () => Effect.succeed({ other: "parents reward chores with points", interjected: true, question: "inq-1", goal: true }) })
+    const out = await kernel([svc], (k) => k.run('return yield* Inquire.ask({ question: "Who?", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }] })'))
+    expect(out.output).toContain("Your next call: Inquire.confirm")
+  })
+
   test("Inquire.choose without a question under discussion fails with a hint", async () => {
     const out = await kernel([inquire({ ask: () => Effect.succeed({ choice: "a" }) })], (k) => k.run('return yield* Inquire.choose({ question: "inq-9", choice: "a", why: "x" })'))
     expect(out.output).toContain("NoOpenQuestion")

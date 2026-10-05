@@ -45,8 +45,12 @@ const Answer = Schema.Struct({
   }),
   question: Schema.optionalKey(Schema.String).annotate({ description: "With interjected: the id of the question still open for Inquire.choose." }),
   hint: Schema.optionalKey(Schema.String).annotate({ description: "With interjected: what to do with what they wrote." }),
+  goal: Schema.optionalKey(Schema.Boolean).annotate({ description: "With interjected: zarg judged that what they wrote states a goal or a rule for the product." }),
 })
 export type Answer = typeof Answer.Type
+/** Said when zarg judged the interjection to state a goal for the product: the next call, not a condition to weigh. */
+export const GOAL_HINT =
+  "They stated a goal or a rule for the product. Your next call: Inquire.confirm a change that keeps it in its intent (add-outcome for a result it should reach, add-constraint for a rule it must keep), in their words; write it once they add it. Then go back to your question."
 /** Said with every interjected answer: the model reads it in the result, where a schema's doc is easy to skip. */
 export const INTERJECTED_HINT =
   "They wrote this instead of answering. Reply to it first. When it says what the product is for (an outcome to reach, a rule to keep), propose keeping it in the intent now: Inquire.confirm the change, then add-outcome or add-constraint. Then Inquire.choose the open question if it is settled, or ask it again."
@@ -109,7 +113,7 @@ export const inquire = (asker: Asker): Bound =>
     ask: (q) =>
       q.options.length < 2 || q.options.length > 4
         ? Effect.fail({ _tag: "InvalidQuestion", message: `ask with 2 to 4 options, got ${q.options.length}` })
-        : Effect.map(asker.ask(q), (a) => (a.interjected === true ? { ...a, hint: INTERJECTED_HINT } : a)),
+        : Effect.map(asker.ask(q), (a) => (a.interjected === true ? { ...a, hint: a.goal === true ? GOAL_HINT : INTERJECTED_HINT } : a)),
     choose: (c) =>
       asker.choose === undefined
         ? Effect.fail({ _tag: "NoOpenQuestion", message: `no question ${c.question} is under discussion; ask with Inquire.ask` })
