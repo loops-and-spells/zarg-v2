@@ -1037,6 +1037,13 @@ describe("focuses", () => {
     t.mockInput.pressEnter(); await settle(t)
     expect(t.captureCharFrame().replace(/[\s│]+/g, " ")).toContain("add another book to read")
   })
+  test("an answer typed in one burst at zarg's question reaches it whole (Say it in your own words)", async () => {
+    const t = await render(waiting, big)
+    t.renderer.stdin.emit("data", Buffer.from("A new feature: renaming a habit."))
+    await settle(t)
+    t.mockInput.pressEnter(); await settle(t)
+    expect(t.calls.some((c) => c.startsWith("answer ") && c.includes("A new feature: renaming a habit."))).toBe(true)
+  })
   test("a message typed in one burst right after alt+m reaches zarg whole", async () => {
     const t = await render(idleState, big)
     // Elsewhere first: the tile has the keys.

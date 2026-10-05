@@ -185,10 +185,11 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       return
     }
     const before = latest().focus
+    const typedBefore = typing(latest(), props.session.state())
     const r = onKey(latest(), props.session.state(), { name: key.name, ctrl: key.ctrl, shift: key.shift, meta: key.meta || key.option }, Date.now(), draftRef.current, gridRef.current)
     setUi(r.ui)
-    // Any key that moves focus into the bar (/, alt+m): the typing that follows in the same burst is the bar's.
-    if (before !== "bar" && r.ui.focus === "bar") barOpening.current = true
+    // Any key that gives the bar's input the typing (/, alt+m, a letter at zarg's question): the rest of its burst is the bar's.
+    if ((before !== "bar" && r.ui.focus === "bar") || (!typedBefore && typing(r.ui, props.session.state()))) barOpening.current = true
     if (r.draft !== undefined) {
       // Write into the input now, so a key typed right after Tab lands after the completion.
       if (inputRef.current !== null) inputRef.current.value = r.draft
