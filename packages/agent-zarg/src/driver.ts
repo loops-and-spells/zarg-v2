@@ -102,7 +102,7 @@ export const askFirst = (
             scope = undefined
             shown = {}
             added = undefined
-            const changing = question.options.filter((o) => o.change !== undefined)
+            const changing = question.options.filter((o) => (o.change ?? "").trim() !== "")
             const shownQ = changing.length === 0 ? question : { ...question, question: `${question.question}\n\n${changing.map((o) => `${o.label}: ${o.change}`).join("\n\n")}` }
             return Effect.map(asker.ask(shownQ), (a) => {
               const picked = changing.find((o) => o.id === a.choice && a.interjected !== true)

@@ -45,9 +45,14 @@ const textOf = (complete: Complete, system: string, user: string, outputSchema?:
 
 type Raw = { readonly kind: Kind; readonly scenario: string; readonly edge?: { from: string; to: string }; readonly severity: "high" | "medium" | "low"; readonly note: string; readonly op?: unknown }
 
-/** A flagged scene, looked at by a large-model tester in the persona's shoes. */
+const CUT = "the tester's answer was cut short"
+
+/** A flagged scene, looked at by a large-model tester in the persona's shoes; an answer cut short is asked once more. */
 // @scenario S-0106 S-0107
 export const diagnose = (complete: Complete, persona: Persona, prior: ReadonlyArray<SceneView>, scene: SceneView, flags: ReadonlyArray<Reason>, code = "") =>
+  Effect.flatMap(diagnoseOnce(complete, persona, prior, scene, flags, code), (r) => ("infra" in r && r.infra.endsWith(CUT) ? diagnoseOnce(complete, persona, prior, scene, flags, code) : Effect.succeed(r)))
+
+const diagnoseOnce = (complete: Complete, persona: Persona, prior: ReadonlyArray<SceneView>, scene: SceneView, flags: ReadonlyArray<Reason>, code: string) =>
   textOf(
     complete,
     `You ARE ${persona.text}. You are walking a product's specified journey, one step at a time, and report what is wrong with this step for you: friction (unclear), gap (something missing, like a failure you must handle), contradiction (this step says the opposite of another step in the journey), transition (the step does not follow from the one before), feature (something you would want), delight, drift (the step as written and what zarg does now differ: only when its code is shown; a step and its code differing is drift, never contradiction). Judge the step against what zarg does now when its code is shown; never report as missing what the code already does. At most ${MAX_PER_STEP}; notes of two sentences at most. Suggest a graph change in op when you can. Most steps are fine: report nothing then.`,
@@ -70,7 +75,7 @@ export const diagnose = (complete: Complete, persona: Persona, prior: ReadonlyAr
         return { findings }
       } catch {
         // Never a finding made of broken JSON: noted for the run instead.
-        if (from >= 0) return { infra: `${scene.scenario}: the tester's answer was cut short` }
+        if (from >= 0) return { infra: `${scene.scenario}: ${CUT}` }
         return { findings: [{ kind: "friction" as const, scenario: scene.scenario, severity: "low" as const, note: `the tester answered in prose: ${text.slice(0, 300)}` }] }
       }
     }),

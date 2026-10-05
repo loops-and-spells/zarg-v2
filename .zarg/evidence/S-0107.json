@@ -1,12 +1,12 @@
 {
   "scenario": "S-0107",
   "version": "003a42df5302",
-  "commit": "031d9a8",
-  "run": "e2e-2026-10-05T14-01-09.218Z",
+  "commit": "0c08b26",
+  "run": "e2e-2026-10-05T14-37-13.967Z",
   "journey": "J-0008",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T14:02:08.350Z",
+  "at": "2026-10-05T14:38:25.175Z",
   "ms": 5,
   "media": [
     {
@@ -32,16 +32,16 @@
       "caption": "the step as it played",
       "path": "media/S-0107/4-step.cast",
       "meta": {
-        "startAt": 45.5
+        "startAt": 57.5
       }
     }
   ],
   "failure": null,
   "code": {
-    "packages/agent-rehearse/src/findings.ts": "e6632347dc7591157a0752c77cd5c1f83237d20f",
+    "packages/agent-rehearse/src/findings.ts": "bed20598e297fde6ca543ba5677663467aabe9dd",
     "packages/agent-rehearse/src/screen.ts": "68ad720e722e8bf8ac9a40e615978dbcb0c602c8",
     "packages/agent-rehearse/src/triage.ts": "b5da55c14890f88dd0023518b9131122979a614b",
-    "packages/agent-rehearse/test/findings.test.ts": "e1f1534cd86859008f4543e1f90f05b10f5f3d77",
+    "packages/agent-rehearse/test/findings.test.ts": "80cf883c200423b1ab0dbd9959457cc9d226c068",
     "packages/agent-rehearse/test/screen.test.ts": "955c476a648e06b3d208c2a89f3e42f1b5decac0",
     "packages/agent-rehearse/test/triage.test.ts": "b6b8e02271dacfe5631a0f94ccc88b80d41db0a5",
     "packages/plugin-backlog/src/index.ts": "ba22def6ec9b162530b3b71f8dcf84de1fa42d67",

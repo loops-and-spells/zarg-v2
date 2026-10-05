@@ -96,6 +96,14 @@ describe("ask before writing", () => {
     expect(await Effect.runPromise(guard.gate(writes)!.handlers.addScenario!({ id: "ST-0005" }))).toBe("created S-0001")
   })
 
+  test("an option whose change is blank is no change: nothing added to the question, nothing opened", async () => {
+    let shown = ""
+    const guard = askFirst({ ask: (q) => Effect.sync(() => ((shown = q.question), { choice: "a" })) })
+    await Effect.runPromise(guard.asker.ask({ question: "How?", options: [{ id: "a", label: "Journey", change: " " }, { id: "b", label: "Teleport" }] }))
+    expect(shown).toBe("How?")
+    expect(await Effect.runPromise(Effect.flip(guard.gate(writes)!.handlers.addScenario!({})))).toMatchObject({ _tag: "AskFirst" })
+  })
+
   test("an option with a change not picked opens nothing", async () => {
     const guard = askFirst({ ask: () => Effect.succeed({ choice: "root" }) })
     const gated = guard.gate(writes)!

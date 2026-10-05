@@ -1,13 +1,13 @@
 {
   "scenario": "S-0106",
   "version": "b8d418ed8532",
-  "commit": "031d9a8",
-  "run": "e2e-2026-10-05T14-01-09.218Z",
+  "commit": "0c08b26",
+  "run": "e2e-2026-10-05T14-37-13.967Z",
   "journey": "J-0008",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T14:02:08.342Z",
-  "ms": 38014,
+  "at": "2026-10-05T14:38:25.166Z",
+  "ms": 50012,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -38,9 +38,9 @@
   ],
   "failure": null,
   "code": {
-    "packages/agent-rehearse/src/findings.ts": "e6632347dc7591157a0752c77cd5c1f83237d20f",
+    "packages/agent-rehearse/src/findings.ts": "bed20598e297fde6ca543ba5677663467aabe9dd",
     "packages/agent-rehearse/src/run.ts": "461829d473c707fe06f591d17931c41cad2a62fc",
-    "packages/agent-rehearse/test/findings.test.ts": "e1f1534cd86859008f4543e1f90f05b10f5f3d77",
+    "packages/agent-rehearse/test/findings.test.ts": "80cf883c200423b1ab0dbd9959457cc9d226c068",
     "packages/agent-rehearse/test/plugin.test.ts": "9b58eff34ef7bf4255d1d1dd9d4233e353a00b83",
     "packages/agent-rehearse/test/run.test.ts": "47e0d2f52e6fbf7d2d2cdcbd928adba4df24c152",
     "packages/plugin-backlog/src/index.ts": "ba22def6ec9b162530b3b71f8dcf84de1fa42d67",

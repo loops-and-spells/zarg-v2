@@ -6,19 +6,19 @@
   "persona": "Parent",
   "kind": "drift",
   "severity": "high",
-  "note": "The step says \"the chore leaves every list\", but the shown code `export const remove = (chores: string[], _chore: string) => chores` returns the array unchanged, and its comment says removal only marks it hidden for the parent while every other list still shows it. I'd change op: `export const remove = (chores: string[], chore: string) => chores.filter(c => c !== chore)` so it actually leaves every list.",
+  "note": "drift: this step says the chore leaves every list, but the shown remove code only marks it hidden for the parent and every other list still shows it. Change the remove op to delete the chore from all lists, or rewrite this step to match parent-only hiding.",
   "from": {
     "agent": "rehearse",
-    "run": "r-0a60c53c"
+    "run": "r-f73e4357"
   },
   "triage": {
     "on": true,
     "why": "ask · real 1.00",
     "by": "agent"
   },
-  "id": "F-71cb9016",
+  "id": "F-5868c561",
   "count": 1,
   "runs": [
-    "rehearse:r-0a60c53c"
+    "rehearse:r-f73e4357"
   ]
 }
