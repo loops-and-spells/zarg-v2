@@ -14,18 +14,29 @@ export const STUB_MODEL = "stub:scripted"
  */
 export const stubLayer = (file: string) => {
   // `decisions`, when given: each yes/no question answers yes with that confidence (the ones named in `no`, no).
-  const { cells, decisions: scripted } = JSON.parse(readFileSync(file, "utf8")) as { cells: ReadonlyArray<string>; decisions?: { readonly confidence?: number; readonly no?: ReadonlyArray<string> } }
+  // `routes`: a request whose messages hold `when` runs that route's cells instead (each route counts on its own), so
+  // RLMs that run side by side (reconcile's plan and implement) each follow their own script.
+  const { cells, routes = [], decisions: scripted } = JSON.parse(readFileSync(file, "utf8")) as {
+    cells: ReadonlyArray<string>
+    routes?: ReadonlyArray<{ readonly when: string; readonly cells: ReadonlyArray<string> }>
+    decisions?: { readonly confidence?: number; readonly no?: ReadonlyArray<string> }
+  }
   let next = 0
+  const routeNext = routes.map(() => 0)
+  let calls = 0
   const model: Model.Model["Service"] = {
     client: () => Effect.die("stub model has no client"),
     list: () => Effect.succeed([]),
     info: () => Effect.die("stub model has no info"),
     warm: () => Effect.void,
-    stream: () => {
-      const n = next++
-      const code = cells[Math.min(n, cells.length - 1)] ?? 'yield* Rlm.done({ value: "(no script)" })'
+    stream: (req) => {
+      const text = req.messages.map((m) => (typeof m.content === "string" ? m.content : JSON.stringify(m.content))).join("\n")
+      const r = routes.findIndex((x) => text.includes(x.when))
+      const own = r >= 0 ? routes[r]!.cells : cells
+      const n = r >= 0 ? routeNext[r]!++ : next++
+      const code = own[Math.min(n, own.length - 1)] ?? 'yield* Rlm.done({ value: "(no script)" })'
       const events: ReadonlyArray<StreamEvent> = [
-        { type: "toolCall", call: { id: `stub-${n}`, type: "function", function: { name: "exec", arguments: JSON.stringify({ code }) } } },
+        { type: "toolCall", call: { id: `stub-${calls++}`, type: "function", function: { name: "exec", arguments: JSON.stringify({ code }) } } },
         { type: "done", finishReason: "tool_calls" },
       ]
       return Stream.fromIterable(events)

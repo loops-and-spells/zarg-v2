@@ -1,5 +1,6 @@
 import { expect } from "bun:test"
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { answerLoads, choresGraph, command, journey, liveModel, quit, type Step, type World } from "../src"
 
@@ -226,3 +227,125 @@ journey("J-0004", { tier: "fast", seed: SEED }, (proves) => {
     { model: true, timeoutMs: 650_000 },
   )
 })
+
+// Reconcile's edge cases on scripted models (the core's stub mode): each RLM follows the cells of the route its task names.
+const SECRET = "zt-e2e-reconcile-hush-5521"
+const PLAN = 'return yield* Rlm.done({ value: { plan: "## Approach\\nWrite it.\\n## Files\\n- src — it\\n## Tests\\n- the project test — it\\n## Depends on\\nnone" } })'
+const done = (files: ReadonlyArray<string>) => `return yield* Rlm.done({ value: { files: ${JSON.stringify(files)}, summary: "written" } })`
+const write = (path: string, content: string) => `yield* Fs.write({ path: ${JSON.stringify(path)}, content: ${JSON.stringify(content)} })`
+const implement = (id: string, path: string, content: string, before = "") => ({ when: `Implement scenario ${id} by`, cells: [`${before}${write(path, content)}\n${done([path])}`] })
+const STUB_FILE = join(mkdtempSync(join(tmpdir(), "zarg-e2e-stub-")), "cells.json")
+writeFileSync(
+  STUB_FILE,
+  JSON.stringify({
+    // zarg itself (findings on its agenda): it notes them and waits.
+    cells: ['return yield* Rlm.done({ value: "Noted." })'],
+    routes: [
+      { when: "implementation plan for scenario S-0001:", cells: [PLAN] },
+      // Pass 1: S-0002 cannot be planned; pass 2: it can, then cannot be implemented.
+      { when: "implementation plan for scenario S-0002:", cells: ['return yield* Rlm.done({ value: { blocked: "S-0002 contradicts S-0001: a chore cannot leave every list while it stays assigned" } })', PLAN] },
+      { when: "implementation plan for scenario", cells: [PLAN] },
+      // S-0001 runs a command first: its environment, with the project's secret in the core's.
+      { when: "Implement scenario S-0001 by", cells: ['const r = yield* Sh.run({ command: "env" })\nreturn r', `${write("src/assign.ts", "export const assignTo = (child: string) => child\n")}\n${done(["src/assign.ts"])}`] },
+      { when: "Implement scenario S-0002 by", cells: ['return yield* Rlm.done({ value: { files: [], summary: "", blocked: "S-0002 contradicts S-0001: removing leaves the chore assigned" } })'] },
+      // Two scenarios adding the same file: an obvious conflict (resolved), then one beyond an obvious fix (not).
+      implement("S-0003", "src/shared.ts", "export const three = 3\n"),
+      implement("S-0004", "src/shared.ts", "export const four = 4\n"),
+      implement("S-0005", "src/other.ts", "export const five = 5\n"),
+      implement("S-0006", "src/other.ts", "export const five = 6\n"),
+      { when: "These files have merge conflicts", cells: [`${write("src/shared.ts", "export const three = 3\nexport const four = 4\n")}\nreturn yield* Rlm.done({ value: { resolved: true } })`, "return yield* Rlm.done({ value: { resolved: false } })"] },
+      // S-0007 takes a while: the operator commits meanwhile.
+      implement("S-0007", "src/seven.ts", "export const seven = 7\n", 'yield* Effect.sleep("15 seconds")\n'),
+    ],
+  }),
+)
+const rlmLog = (w: World, thread: string) => lines(w, `.zarg/threads/${thread}.rlm.jsonl`)
+const cellsOf = (w: World, thread: string) => rlmLog(w, thread).flatMap((e) => (e.type === "step" ? ((e.cells ?? []) as Array<{ code: string; ok: boolean; output: string }>) : []))
+const tasksOf = (w: World, thread: string) => rlmLog(w, thread).filter((e) => e.type === "start").map((e) => String(e.task))
+const scenario = (s: Step, n: number, path: string) =>
+  call(s, "add-scenario", { title: `Parent sorts chores ${n}`, when: `the parent sorts the chores by ${path}`, by: [{ name: "Parent" }], arrives: { id: "ST-0001" }, then: [{ text: `the chores are sorted by ${path}` }] })
+
+journey(
+  "J-0004",
+  {
+    tier: "fast",
+    seed: { ...SEED, ".env.schema": "# @defaultSensitive=false\n# ---\n# A key no command may see.\n# @sensitive\nZT_E2E_RECONCILE_SECRET=\n", ".env.local": `ZT_E2E_RECONCILE_SECRET=${SECRET}\n` },
+    env: { ZARG_CORE_STUB: STUB_FILE },
+  },
+  (proves) => {
+    proves("S-0047", async (s) => {
+      await choresGraph(s)
+      git(s.w, "add", "-A")
+      git(s.w, "commit", "-qm", "chores graph")
+      await turnOn(s)
+      expect(await until(120_000, () => cellsOf(s.w, "implement").some((c) => c.code.includes('Sh.run({ command: "env" })')))).toBe(true)
+      const env = cellsOf(s.w, "implement").find((c) => c.code.includes('Sh.run({ command: "env" })'))!
+      s.note("buffer", "env, as the implementer's command saw it", env.output)
+      expect(env.ok).toBe(true)
+      expect(env.output).toContain("PATH")
+      expect(env.output).not.toContain("ZT_E2E_RECONCILE_SECRET")
+      expect(env.output).not.toContain(SECRET)
+    })
+
+    proves("S-0057", async (s) => {
+      expect(await until(120_000, () => git(s.w, "log", "-1", "--format=%s").startsWith("feat: implement"))).toBe(true)
+      const f = findings(s.w).find((x) => x.kind === "unplannable")
+      s.note("buffer", "the finding", JSON.stringify(f, null, 2))
+      expect(f?.title).toBe("S-0002 cannot be planned")
+      expect(f?.detail).toContain("contradicts S-0001")
+      // On zarg's agenda: its inbox shows the finding.
+      expect(await until(30_000, () => topics(s.w).some((t) => t.kind === "finding" && t.title.includes("S-0002 cannot be planned")))).toBe(true)
+    })
+
+    proves("S-0024", async (s) => {
+      // A new pass: S-0002 (pending) plans now, then cannot be implemented; S-0003 and S-0004 come with it.
+      await scenario(s, 3, "name")
+      await scenario(s, 4, "date")
+      const head = git(s.w, "rev-parse", "HEAD")
+      expect(await until(180_000, () => git(s.w, "rev-parse", "HEAD") !== head && findings(s.w).some((x) => x.kind === "blocked-scenario"))).toBe(true)
+      const f = findings(s.w).find((x) => x.kind === "blocked-scenario")!
+      s.note("buffer", "the finding", JSON.stringify(f, null, 2))
+      expect(f.title).toBe("S-0002 cannot be implemented as written")
+      expect(await until(30_000, () => topics(s.w).some((t) => t.kind === "finding" && t.title.includes("S-0002 cannot be implemented")))).toBe(true)
+    }, { timeoutMs: 300_000 })
+
+    proves("S-0053", async (s) => {
+      // S-0003 and S-0004 both added src/shared.ts: the resolver kept both sides, verify ran, the pass landed.
+      expect(tasksOf(s.w, "implement").some((t) => t.includes("These files have merge conflicts"))).toBe(true)
+      const log = git(s.w, "log", "-1", "--format=%s")
+      s.note("buffer", "git log -1", log)
+      expect(log).toContain("S-0003")
+      expect(log).toContain("S-0004")
+      const shared = readFileSync(join(s.w.project, "src/shared.ts"), "utf8")
+      s.note("buffer", "src/shared.ts", shared)
+      expect(shared).toBe("export const three = 3\nexport const four = 4\n")
+    })
+
+    proves("S-0054", async (s) => {
+      await scenario(s, 5, "size")
+      await scenario(s, 6, "colour")
+      // The finding is in zarg's inbox (the next pass builds that scenario alone, and the finding clears).
+      const raised = () => topics(s.w).find((t) => t.kind === "finding" && /S-000[56] conflicts with other scenarios in this pass/.test(t.title))
+      expect(await until(180_000, () => raised() !== undefined)).toBe(true)
+      s.note("buffer", "the finding", JSON.stringify(raised(), null, 2))
+      expect(tasksOf(s.w, "implement").filter((t) => t.includes("These files have merge conflicts")).length).toBeGreaterThanOrEqual(2)
+    }, { timeoutMs: 300_000 })
+
+    proves("S-0052", async (s) => {
+      // Wait for the last pass to settle, then S-0007: it takes a while, and the operator commits meanwhile.
+      await until(120_000, () => !tasksOf(s.w, "implement").some((t) => t.includes("Implement scenario S-0007")) && passes(s.w) >= 3)
+      await scenario(s, 7, "owner")
+      expect(await until(120_000, () => tasksOf(s.w, "implement").some((t) => t.includes("Implement scenario S-0007")))).toBe(true)
+      writeFileSync(join(s.w.project, "NOTES.md"), "The operator's own note.\n")
+      git(s.w, "add", "NOTES.md")
+      git(s.w, "commit", "-qm", "the operator's commit")
+      const mine = git(s.w, "rev-parse", "HEAD")
+      expect(await until(180_000, () => git(s.w, "log", "-1", "--format=%s").includes("S-0007"))).toBe(true)
+      const log = git(s.w, "log", "-3", "--format=%h %s")
+      s.note("buffer", "git log", log)
+      // The pass landed on top of the operator's commit, after verify ran again there.
+      expect(git(s.w, "rev-parse", "HEAD~1")).toBe(mine)
+      expect(lines(s.w, ".zarg/threads/implement.jsonl").length).toBeGreaterThan(0)
+    }, { timeoutMs: 400_000 })
+  },
+)

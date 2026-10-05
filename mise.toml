@@ -15,7 +15,7 @@ run = "find \"${TMPDIR:-/tmp}\" -maxdepth 1 \\( -name 'zt-*' -o -name 'zarg-*' \
 [tasks.audit]
 description = "The one CI check (zarg audit): graph structure and lints, completeness, intent coverage, code tags, proof by e2e evidence, evidence integrity"
 depends = ["//...:build"]
-run = "mise x -- bun packages/cli/src/main.ts audit --summary"
+run = "mise x -- bun packages/cli/src/main.ts audit --summary --strict"
 
 [tasks.zarg]
 description = "Run this repo's zarg CLI: mise run zarg -- agenda (builds every plugin in the monorepo first)"

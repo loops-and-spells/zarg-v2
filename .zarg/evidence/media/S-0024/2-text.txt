@@ -1,0 +1,11 @@
+{
+  "kind": "blocked-scenario",
+  "title": "S-0002 cannot be implemented as written",
+  "detail": "S-0002 contradicts S-0001: removing leaves the chore assigned",
+  "about": [
+    "S-0002"
+  ],
+  "pass": "167e10e6dc3f",
+  "id": "F-806dbd7e",
+  "at": "2026-10-05T13:56:18.865Z"
+}

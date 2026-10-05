@@ -1,0 +1,11 @@
+{
+  "kind": "unplannable",
+  "title": "S-0002 cannot be planned",
+  "detail": "S-0002 contradicts S-0001: a chore cannot leave every list while it stays assigned",
+  "about": [
+    "S-0002"
+  ],
+  "pass": "dc0552fc22ac",
+  "id": "F-eb84fb7f",
+  "at": "2026-10-05T13:56:11.990Z"
+}
