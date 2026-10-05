@@ -175,7 +175,17 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
                   .pipe(Effect.orElseSucceed(() => undefined))
           yield* locked(
             Effect.gen(function* () {
-              queue.push({ id, question, answer, interrupt, ...(topic !== undefined ? { topic } : {}) })
+              const p = { id, question, answer, interrupt, ...(topic !== undefined ? { topic } : {}) }
+              // @scenario S-0012 S-0102
+              // The operator wrote while the driver worked: they spoke first. Their words discuss this question now
+              // (it stays open for Inquire.choose), instead of waiting behind it until they answer it.
+              if (queue.length === 0 && inbox.length > 0) {
+                const words = inbox.splice(0).join(" then ")
+                discussed.push(p)
+                yield* Deferred.succeed(answer, { other: words, interjected: true, question: id } as Answer)
+                return
+              }
+              queue.push(p)
               syncAttention()
               // Behind another question: shown once that one is answered.
               if (queue.length === 1) yield* emit(E.runInterrupted(threadId, runId, interrupt))

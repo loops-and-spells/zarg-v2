@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { Effect, Fiber, Stream } from "effect"
+import { Deferred, Effect, Fiber, Stream } from "effect"
 import type { AgendaItem } from "@zarg/plugin/server"
 import type { Asker, Rlm } from "@zarg/rlm"
 import { makeLog } from "@zarg/core"
@@ -240,6 +240,35 @@ describe("thread runs", () => {
     )
     expect(answers).toEqual([{ other: "actually, do payments first", interjected: true, question: expect.stringMatching(/^inq-/) }])
     expect(texts(second)).toEqual(["actually, do payments first", "(discussing: Which?)", "adapted"])
+  })
+
+  // @scenario S-0012 S-0102
+  test("a message sent while the driver works reaches its next question as discussion: the operator spoke first", async () => {
+    const answers: Array<unknown> = []
+    let calls = 0
+    const out = await Effect.runPromise(
+      Effect.gen(function* () {
+        const gate = yield* Deferred.make<void>()
+        const driver: Driver = (_spec, asker) =>
+          Effect.gen(function* () {
+            if (calls++ > 0) return yield* Effect.never
+            yield* Deferred.await(gate)
+            answers.push(yield* asker.ask(question))
+            return outcome("adapted")
+          }) as never
+        const { thread } = yield* setup(driver)
+        const first = yield* Effect.forkChild(collect(thread.run({ runId: "r1" }).pipe(Stream.take(4))))
+        yield* Effect.sleep("50 millis")
+        const second = yield* Effect.forkChild(collect(thread.run({ runId: "r2", message: "parents reward chores with points" }).pipe(Stream.take(3))))
+        yield* Effect.sleep("50 millis")
+        yield* Deferred.succeed(gate, undefined)
+        yield* Fiber.join(second)
+        yield* Effect.sleep("100 millis")
+        return yield* Fiber.join(first).pipe(Effect.timeout("1 second"), Effect.option)
+      }),
+    )
+    expect(answers).toEqual([{ other: "parents reward chores with points", interjected: true, question: expect.stringMatching(/^inq-/) }])
+    void out
   })
 
   // @scenario S-0071
