@@ -7,7 +7,7 @@ import { parseRef } from "@zarg/entities"
 import { ENTRY_ID, type Entry, entryId, stateOf, target, upsert } from "./feedback"
 import { boardCard, type Item, ITEM_ID, LANE_TITLES, LANES, moved, neighbour, nextId, pickNext, stale } from "./items"
 import { BacklogView, FeedbackView, ItemView } from "./views"
-import { planText } from "./plan-text"
+import { planText, plural } from "./plan-text"
 
 const DIR = ".zarg/feedback"
 const ITEMS = ".zarg/backlog"
@@ -26,7 +26,7 @@ const EntryData = Schema.Struct({
 })
 const isEntry = Schema.is(EntryData)
 const NO_JOURNEY = "—"
-const plural = (n: number, s: string) => `${n} ${n === 1 ? s : s.endsWith("y") ? `${s.slice(0, -1)}ies` : `${s}s`}`
+
 const fail = (e: unknown) => new PluginFailure({ tag: "BacklogError", message: String((e as { message?: unknown })?.message ?? e) })
 
 /** The backlog: feedback per scenario version (triaged in the Feedback view), later the plans built from it. */
