@@ -27,6 +27,20 @@ const texts = (events: ReadonlyArray<WireEvent>) => events.filter((e) => e.type 
 const question = { question: "Which?", options: [{ id: "a", label: "Option A", recommended: true, why: "simpler" }, { id: "b", label: "Option B" }] }
 
 describe("thread runs", () => {
+  test("the driver's task starts with the graph as it is now (an overview), so its first turns need not rediscover it", async () => {
+    const tasks: Array<string> = []
+    let calls = 0
+    const driver: Driver = (spec) => Effect.suspend(() => (calls++ > 0 ? Effect.never : (tasks.push(spec.task), Effect.succeed(outcome("ok"))))) as never
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zt-overview-")), (t) => t)
+        const thread = yield* makeThread({ id: "main", focus: [], log, agenda: () => Effect.succeed([{ id: "gherkin:empty", title: "No requirements yet", detail: "d", about: [], priority: 1 }]), driver, overview: () => Effect.succeed("1 intent, 0 personas, 0 journeys, 0 scenarios") })
+        return yield* collect(thread.run({ runId: "r1" }).pipe(Stream.take(3)))
+      }),
+    )
+    expect(tasks[0]).toContain("The graph now (no need to read it again):\n1 intent, 0 personas, 0 journeys, 0 scenarios")
+  })
+
   test("the driver's task already holds the agenda and the item's scenarios, so its first turn need not fetch them", async () => {
     const tasks: Array<string> = []
     const driver: Driver = (spec, asker) =>

@@ -46,6 +46,8 @@ export interface RunInput {
 }
 
 export interface ThreadDeps {
+  /** A short overview of the graph now (intents, personas, journeys, counts): every driver item starts from it. */
+  readonly overview?: () => Effect.Effect<string>
   /** The decision model's call on a message the operator wrote instead of answering: does it state a goal or a rule for the product? */
   readonly isGoal?: (text: string) => Effect.Effect<boolean>
   readonly id: string
@@ -281,6 +283,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
                 Effect.catchCause(() => Effect.succeed("")),
               )
             : ""
+        const now = deps.overview === undefined ? "" : yield* deps.overview().pipe(Effect.orElseSucceed(() => ""))
         // @scenario S-0013
         const task = [
           said.length > 0
@@ -294,6 +297,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
                 : WHAT_NEXT
               : `${agendaText(item)}\nPropose how to resolve it: ask the developer with Inquire.ask when there is a choice, and show the exact change with Inquire.confirm before writing it.`,
           stuck ? `Note: "${item!.title}" is still open after two passes; mention it among the options.` : "",
+          now.length > 0 ? `The graph now (no need to read it again):\n${now}` : "",
           around.length > 0 ? `The scenarios around it (Graph.render of ${item!.about.join(", ")}):\n${around}` : "",
           items.length > 0
             ? `Open agenda (${items.length}):\n${items

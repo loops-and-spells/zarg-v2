@@ -80,6 +80,23 @@ export const makeZarg = (host: AgentHost) =>
           render,
           suggest,
           whatNext,
+          // What every driver item starts from: the graph in a few lines, so its first turns are not spent rediscovering it.
+          overview: () =>
+            Effect.map(store.snapshot, (snap) => {
+              const all = [...snap.nodes.values()]
+              const of = (type: string) => all.filter((n) => n.type === type)
+              const has = (id: string) => (snap.nodes.get(id)?.edges ?? []).filter((e) => e.type === "gherkin/has").map((e) => e.to)
+              const intents = of("gherkin/intent").map((i) => `- ${i.id} ${String(i.props.title ?? "")}: ${has(i.id).join(", ") || "no statements yet"}`)
+              const personas = of("gherkin/persona").map((p) => String(p.props.name ?? p.id))
+              const journeys = of("gherkin/journey").map((j) => `${j.id} ${String(j.props.name ?? "")}`)
+              return [
+                `Intents (${intents.length}):`, ...intents.slice(0, 10),
+                `Personas (${personas.length}): ${personas.slice(0, 12).join(", ") || "none yet"}`,
+                `Journeys (${journeys.length}): ${journeys.slice(0, 12).join("; ") || "none yet"}`,
+                `Scenarios: ${of("gherkin/scenario").length}; states: ${of("gherkin/state").length}.`,
+                "Graph ids are bare (I-0001); Entities refs (gherkin/intent:I-0001@…) name the same nodes.",
+              ].join("\n")
+            }).pipe(Effect.orElseSucceed(() => "")),
           // @scenario S-0102
           isGoal: (text) =>
             Effect.map(
