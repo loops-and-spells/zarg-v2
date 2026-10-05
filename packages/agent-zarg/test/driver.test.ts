@@ -69,6 +69,16 @@ describe("ask before writing", () => {
     expect(await Effect.runPromise(Effect.flip(gated.handlers.addScenario!({ text: "Something else" })))).toMatchObject({ _tag: "NotShown" })
   })
 
+  test("a picked option's change is never asked again: the answer says to write it, and confirming that same change answers add at once", async () => {
+    let asked = 0
+    const guard = askFirst({ ask: () => Effect.sync(() => (asked++, { choice: "terminal" })) })
+    const a = await Effect.runPromise(guard.asker.ask({ question: "Which?", options: [{ id: "root", label: "Root" }, { id: "terminal", label: "Terminal", change: "Make ST-0005 terminal." }] }))
+    expect(a.hint).toContain("Write it now")
+    expect(await Effect.runPromise(guard.asker.confirm!({ change: "make ST-0005 terminal" }))).toEqual({ choice: "add" })
+    expect(asked).toBe(1)
+    expect(await Effect.runPromise(guard.gate(writes)!.handlers.addScenario!({ id: "ST-0005" }))).toBe("created S-0001")
+  })
+
   test("an option with a change not picked opens nothing", async () => {
     const guard = askFirst({ ask: () => Effect.succeed({ choice: "root" }) })
     const gated = guard.gate(writes)!

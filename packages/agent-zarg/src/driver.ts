@@ -8,6 +8,8 @@ const ASK_FIRST: ServiceFailure = {
     "Requirements change only with the developer's say: show the exact change with Inquire.confirm({ change }) (each scenario as By / Given / When / Then lines; every scenario names who acts in it with by, a persona), then write it once they add it. An Inquire.ask option that is itself a change carries it as its `change`: picking it adds it. Any other question closes writes again.",
 }
 
+const PICKED_HINT = "They picked an option that is a change: it is added. Write it now, as shown; no Inquire.confirm."
+
 const norm = (t: string) => t.toLowerCase().replace(/\s+/g, " ").trim().replace(/[.!]$/, "")
 /** The words a write puts in the graph (titles, Whens, state and statement texts, names): what the developer must have seen. */
 const wording = (v: unknown): ReadonlyArray<string> =>
@@ -95,16 +97,19 @@ export const askFirst = (
             added = undefined
             const changing = question.options.filter((o) => o.change !== undefined)
             const shownQ = changing.length === 0 ? question : { ...question, question: `${question.question}\n\n${changing.map((o) => `${o.label}: ${o.change}`).join("\n\n")}` }
-            return Effect.tap(asker.ask(shownQ), (a) =>
-              Effect.sync(() => {
-                const picked = changing.find((o) => o.id === a.choice && a.interjected !== true)
-                if (picked !== undefined) (open = true), (added = picked.change)
-              }),
-            )
+            return Effect.map(asker.ask(shownQ), (a) => {
+              const picked = changing.find((o) => o.id === a.choice && a.interjected !== true)
+              if (picked === undefined) return a
+              open = true
+              added = picked.change
+              return { ...a, hint: PICKED_HINT }
+            })
           }),
         ),
       confirm: (c) =>
         Effect.andThen(flush, Effect.suspend(() => {
+          // The change of the option they just picked (or part of it): already added, never asked again.
+          if (open && scope === undefined && added !== undefined && norm(added).includes(norm(c.change))) return Effect.succeed({ choice: "add" })
           open = false
           scope = undefined
           shown = {}
