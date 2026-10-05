@@ -559,6 +559,11 @@ test("the driver shows every scenario with who acts in it (By), and names by whe
 })
 
 // @scenario S-0008
+test("the driver shows statements already split: one idea each, never two joined by and", () => {
+  expect(REPLY_RULE).toContain("one idea each: split two joined by \"and\" before you show them")
+})
+
+// @scenario S-0008
 test("the driver never asks again what the developer settled, and names what it asks about by its words", () => {
   expect(REPLY_RULE).toContain("never ask again what the developer settled")
   expect(REPLY_RULE).toContain("by their words, not by ids alone")
