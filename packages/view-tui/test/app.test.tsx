@@ -938,6 +938,13 @@ describe("focuses", () => {
     expect(f).toContain("Nothing needs you.")
     expect(f).not.toContain("zarg  Hello.")
   })
+  test("a long notice (why reconcile stays off) is shown whole on its own line, not cut on the status line", async () => {
+    const notice = "Reconcile stays off: plan and implement are off: set a default model with /models (or roles.plan and roles.implement)"
+    const t = await render({ ...viewState, notice } as never, { width: 110, height: 24 })
+    const f = t.captureCharFrame().replace(/\s*\n\s*│?\s*/g, " ")
+    expect(f).toContain("set a default model with /models")
+    expect(f).toContain("roles.implement)")
+  })
   test("the inbox: blocking first with ◆, a report with ·; the status line counts; Enter opens a topic and a number answers it", async () => {
     const topic = (id: string, over: Record<string, unknown>) => ({ id, kind: "grant", from: { plugin: "backlog" }, title: `title ${id}`, why: "fs write", about: [], blocking: false, messages: [], state: "open", created: Date.now(), updated: 0, ...over })
     const inbox = {

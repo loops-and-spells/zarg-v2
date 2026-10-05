@@ -59,6 +59,9 @@ const AGENTS_WIDTH = 24
  * The zarg TUI: the agents list on the left, the open agent's view (or zarg's sheet) in the tile area, the message
  * bar under it, grant popovers over everything, and the status line.
  */
+/** How long a new notice shows whole on its own line. */
+const NOTICE_MS = 10_000
+
 export const App = (props: { readonly session: Session; readonly meta: Meta; readonly onExit: () => void; readonly theme?: ThemeService }) => {
   const theme = props.theme ?? DEFAULT_THEME
   // Every scroll box listens to the renderer (a board has one per lane): past Node's default of 10 it would print a
@@ -111,6 +114,14 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     const timer = setInterval(() => setNow(Date.now()), 100)
     return () => clearInterval(timer)
   }, [moving])
+  // A new notice shows whole on its own line for a while, then keeps to the end of the status line.
+  const [noticeFresh, setNoticeFresh] = useState(false)
+  useEffect(() => {
+    if (s.notice === undefined) return
+    setNoticeFresh(true)
+    const t = setTimeout(() => setNoticeFresh(false), NOTICE_MS)
+    return () => clearTimeout(t)
+  }, [s.notice])
   const scroller = useRef<Scroller | undefined>(undefined)
   // The grid's shape as last drawn: the keys move by its columns and pages.
   const gridRef = useRef({ gridCols: 2, gridPage: 4 })
@@ -971,7 +982,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const firstAsking = attentionOf(s.thread.rlms)[0]
   const askingNode = firstAsking === undefined ? undefined : s.thread.rlms[firstAsking.id]
   // Who asks first (it must survive a narrow line), then where things stand.
-  const status = ` ${[...(askingNode !== undefined ? [`◆ ${displayName(askingNode)} ${firstAsking!.reason}`] : []), statusLine(s, props.meta), ...(s.notice !== undefined ? [s.notice] : [])].join("   ")}`
+  const status = ` ${[...(askingNode !== undefined ? [`◆ ${displayName(askingNode)} ${firstAsking!.reason}`] : []), statusLine(s, props.meta), ...(s.notice !== undefined && !noticeFresh ? [s.notice] : [])].join("   ")}`
 
   return (
     <ThemeContext.Provider value={theme}>
@@ -1015,6 +1026,12 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         </box>
         {slash}
         {bar}
+        {/* A command's outcome (why reconcile stays off): whole, on its own line, until the next one. */}
+        {s.notice !== undefined && noticeFresh ? (
+          <box style={{ flexShrink: 0, paddingLeft: 1, width: Math.max(10, dims.width - railWidth - 1) }}>
+            <text fg={C.attention}>{`· ${s.notice}`}</text>
+          </box>
+        ) : null}
         <box style={{ height: 1, flexShrink: 0 }}>
           <text wrapMode="none">
             {/* The keys come first: the status gives way on a narrow screen. */}
