@@ -423,7 +423,7 @@ export default definePlugin({
             if (run !== undefined && ids.some((x) => x !== "")) {
               const filed = (yield* load).filter((e) => ids.includes(e.id))
               const journeys = [...new Set(filed.flatMap((e) => e.journeys))]
-              yield* report(`run:${run}`, `Rehearse run ${run}: ${plural_(filed.length, "entry")}${journeys.length > 0 ? ` on ${journeys.join(", ")}` : ""}`, "feedback")
+              yield* report(`run:${run}`, `Rehearse run ${run}: ${plural(filed.length, "entry")}${journeys.length > 0 ? ` on ${journeys.join(", ")}` : ""}`, "feedback")
             }
             yield* ready
           }),
@@ -522,7 +522,7 @@ export default definePlugin({
           const { item: _, ...rest } = st
           return { ...rest, stage: "planned", items: ids }
         })
-        yield* report(`plans:${p.journey}:${ids.join(",")}`, `${p.journey} folded into ${plural_(ids.length, "plan")}: ${ids.join(", ")}`, "backlog")
+        yield* report(`plans:${p.journey}:${ids.join(",")}`, `${p.journey} folded into ${plural(ids.length, "plan")}: ${ids.join(", ")}`, "backlog")
         yield* ready
         return { ids }
       }).pipe(planning.withPermits(1), Effect.tap(() => Effect.ignore(Effect.suspend(() => (feedbackOpened ? refresh : Effect.void)))), Effect.mapError(fail))
@@ -737,7 +737,6 @@ export default definePlugin({
       for (const t of yield* inbox.list())
         if (t.key?.startsWith("plans:") === true && (t.key.split(":").at(-1) ?? "").split(",").every((id) => dropped.has(id))) yield* inbox.settle(t.id, "its plans were dropped")
     }))
-    const plural_ = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`
     /** A report for the inbox: read once opened. */
     const report = (key: string, title: string, view: string) => Effect.ignore(inbox.post({ kind: "report", key, title, why: "report", origin: { view } }))
     /** The operator's answer to one of the backlog's topics: the same as the matching action in its views. */
@@ -762,7 +761,7 @@ export default definePlugin({
           }).pipe(writing.withPermits(1))
           yield* ready
           if (feedbackOpened) yield* Effect.ignore(refresh)
-          return { notice: `${j}: ${plural_(es.length, "entry")} ${answer === "off" ? "turned off" : "kept on"}` }
+          return { notice: `${j}: ${plural(es.length, "entry")} ${answer === "off" ? "turned off" : "kept on"}` }
         }
         // @scenario S-0107
         if (kind === "drift" && rest[0] !== undefined) {

@@ -78,11 +78,12 @@ describe("the backlog's topics in the inbox", () => {
       Effect.gen(function* () {
         const { scenario, ids, h } = yield* setUp()
         yield* h.invoke("backlog", "plans", { journey: "Set up", plans: [{ title: "First", steps: [], changes: [], scenarios: ["S-0001"], feedback: ids, after: [] }] })
-        yield* h.invoke("backlog", "file", { entries: [{ ref: scenario.ref, journeys: ["Set up"], persona: "Operator", kind: "friction", severity: "low", note: "Wordy.", from: { agent: "rehearse", run: "r-2" }, triage: { on: false, why: "drop · real 0.10" } }], walked: ["S-0001"], run: "r-2" })
+        const two = { ref: scenario.ref, journeys: ["Set up"], persona: "Operator", from: { agent: "rehearse", run: "r-2" }, triage: { on: false, why: "drop · real 0.10" } }
+        yield* h.invoke("backlog", "file", { entries: [{ ...two, kind: "friction", severity: "low", note: "Wordy." }, { ...two, kind: "gap", severity: "low", note: "Missing." }], walked: ["S-0001"], run: "r-2" })
         return (seen.inbox ?? []).filter((t) => t.kind === "report").map((t) => t.title)
       }),
     )
-    expect(out).toEqual(["Set up folded into 1 plan: B-01", "Rehearse run r-2: 1 entry on Set up"])
+    expect(out).toEqual(["Set up folded into 1 plan: B-01", "Rehearse run r-2: 2 entries on Set up"])
   })
   test("a folded round's report settles once all its plans are dropped (it named plans that are gone)", async () => {
     const out = await run((seen) =>
