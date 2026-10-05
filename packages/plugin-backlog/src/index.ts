@@ -732,6 +732,10 @@ export default definePlugin({
       for (const t of want.values()) yield* inbox.post(t)
       const isMine = (key: string | undefined) => key !== undefined && /^(needs|ask|left|drift|code):/.test(key)
       for (const t of yield* inbox.list()) if (isMine(t.key) && !want.has(t.key!) && !keepOpen.has(t.key!)) yield* inbox.settle(t.id, "it no longer waits on you")
+      // A folded round's report names its plans: once they are all dropped, it reports nothing.
+      const dropped = new Set((yield* loadItems).filter((i) => i.dropped === true).map((i) => i.id))
+      for (const t of yield* inbox.list())
+        if (t.key?.startsWith("plans:") === true && (t.key.split(":").at(-1) ?? "").split(",").every((id) => dropped.has(id))) yield* inbox.settle(t.id, "its plans were dropped")
     }))
     const plural_ = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`
     /** A report for the inbox: read once opened. */

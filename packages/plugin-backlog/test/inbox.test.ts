@@ -84,6 +84,20 @@ describe("the backlog's topics in the inbox", () => {
     )
     expect(out).toEqual(["Set up folded into 1 plan: B-01", "Rehearse run r-2: 1 entry on Set up"])
   })
+  test("a folded round's report settles once all its plans are dropped (it named plans that are gone)", async () => {
+    const out = await run((seen) =>
+      Effect.gen(function* () {
+        const { ids, h } = yield* setUp()
+        yield* h.invoke("backlog", "plans", { journey: "Set up", plans: [{ title: "First", steps: [], changes: [], scenarios: ["S-0001"], feedback: ids, after: [] }] })
+        const before = { ...(seen.inbox ?? []).find((t) => t.kind === "report" && t.title.includes("B-01"))! }
+        yield* h.invoke("backlog", "moved", { id: "B-01", to: "ready", by: "Planner", needs: "x" })
+        const t = { ...topic(seen, "needs:B-01")! }
+        yield* h.invoke("backlog", "answered", { id: t.id, key: "needs:B-01", answer: "drop" })
+        return { before: before.state, after: (seen.inbox ?? []).find((x) => x.id === before.id)?.state }
+      }),
+    )
+    expect(out).toEqual({ before: "open", after: "moot" })
+  })
   test("stale answers change nothing and say so: a parked plan's Back to Ready, a dropped plan's Drop", async () => {
     const out = await run((seen) =>
       Effect.gen(function* () {
