@@ -2,7 +2,7 @@ import { Effect, Schema } from "effect"
 import { type Change, type Node, Put, Remove, Snapshot } from "@zarg/graph/pure"
 import { tool, ToolError } from "./kit"
 import { intentTools } from "./intent-tools"
-import { ARRIVES, BOUNDS, BY, CONSTRAINT, findJourney, findPersona, findStateByText, FOR, GIVEN, HAS, IN, INTENT, isStatement, JOURNEY, journeyName, journeys, OUTCOME, PERSONA, personaName, personas, SCENARIO, SERVES, STATE, THEN } from "./model"
+import { ARRIVES, BOUNDS, BY, CONSTRAINT, findJourney, findPersona, findStateByText, FOR, GIVEN, HAS, IN, INTENT, isStatement, JOURNEY, journeyName, journeys, normalize, OUTCOME, PERSONA, personaName, personas, SCENARIO, scenarios, SERVES, STATE, THEN } from "./model"
 
 /** Point at an existing state by id, or describe one by text (reused if the text already exists). */
 const StateRef = Schema.Union([Schema.Struct({ id: Schema.String }), Schema.Struct({ text: Schema.NonEmptyString })]).annotate({
@@ -71,7 +71,8 @@ const notA = (snap: Snapshot.Snapshot, id: string, type: string) => {
   return `${id} does not exist (not in the graph, nor added before it in this change); the ${type.split("/").pop()}s there: ${there.length > 0 ? there.slice(0, 12).join(", ") : "none"}`
 }
 const getNode = (snap: Snapshot.Snapshot, id: string, type: string) => {
-  const n = snap.nodes.get(id)
+  // A scenario by its title too (titles are unique): a draft links the scenario it adds before knowing its id.
+  const n = snap.nodes.get(id) ?? (type === SCENARIO ? scenarios(snap).find((s) => normalize(String(s.props.title ?? "")) === normalize(id)) : undefined)
   return n?.type === type ? Effect.succeed(n) : Effect.fail(new ToolError({ message: notA(snap, id, type) }))
 }
 
@@ -165,11 +166,13 @@ export const addScenario = tool({
     arrives: StateRef.annotate({ description: "The state the user is in before the action (the Given). In a journey it is where the scenario before it leads: that scenario's Then, by id." }),
     given: Schema.optionalKey(Schema.Array(StateRef)).annotate({ description: "Up to 3 extra context states (And) that also hold. Never the state the user arrives from: that is arrives." }),
     then: Schema.Array(StateRef).annotate({ description: "1-5 states the action leads to." }),
+    in: Schema.optionalKey(Schema.Array(JourneyRef)).annotate({ description: "Journeys it is in (as link in would do)." }),
   }),
   run: (p, snap) =>
     Effect.gen(function* () {
       if (p.by === undefined || p.by.length === 0) return yield* new ToolError({ message: `a scenario needs at least one persona in by; known: ${known(snap)}` })
       const by = yield* Effect.forEach(p.by, (ref) => personaOf(snap, ref))
+      const inJourneys = yield* Effect.forEach(p.in ?? [], (ref) => journeyOf(snap, ref))
       const r = resolver(snap)
       const arrives = yield* r.resolve(p.arrives)
       const given = yield* Effect.forEach(p.given ?? [], r.resolve)
@@ -184,6 +187,7 @@ export const addScenario = tool({
           { type: ARRIVES, to: arrives },
           ...given.map((to) => ({ type: GIVEN, to })),
           ...then.map((to) => ({ type: THEN, to })),
+          ...inJourneys.map((to) => ({ type: IN, to })),
         ],
       }
       return { changes: [...r.created.map(Put), Put(scenario)], message: `created ${id}${createdNote(r.created)}` }
@@ -211,7 +215,7 @@ export const editScenario = tool({
 export const link = tool({
   name: "link",
   description:
-    'Connect a scenario to a state as arrives (replaces the current one), given or then; to a persona as by; or to a journey as in. Also: a journey serves an outcome {edge: "serves", journey, outcome}; a constraint bounds a journey or a scenario {edge: "bounds", constraint, journey or scenario}; an intent is for a persona {edge: "for", intent, persona}.',
+    'Connect a scenario (its id, or its exact title: one added earlier in the same change) to a state as arrives (replaces the current one), given or then; to a persona as by; or to a journey as in. Also: a journey serves an outcome {edge: "serves", journey, outcome}; a constraint bounds a journey or a scenario {edge: "bounds", constraint, journey or scenario}; an intent is for a persona {edge: "for", intent, persona}.',
   params: Schema.Struct({
     scenario: Schema.optionalKey(Schema.String),
     edge: EdgeName,

@@ -83,6 +83,20 @@ describe("drafts", () => {
           lint: (yield* h.invoke("gherkin", "dryRun", { draft: [{ tool: "edit-state", params: { id: "ST-0002", text: "if the visitor wants, the picker is shown" } }] })) as { ok: boolean; problems: string[] },
           tool: (yield* h.invoke("gherkin", "dryRun", { draft: [{ tool: "nope", params: {} }] })) as { ok: boolean; problems: string[] },
           camel: (yield* h.invoke("gherkin", "dryRun", { draft: [{ tool: "Gherkin.editState", params: { id: "ST-0002", text: "The picker is shown" } }] })) as { ok: boolean; problems: string[] },
+          // The scenario a draft adds is linked by its title: its id is not known yet.
+          byTitle: (yield* h.invoke("gherkin", "dryRun", {
+            draft: [
+              { tool: "addJourney", params: { name: "Picking" } },
+              { tool: "addScenario", params: { title: "Visitor drops a plan", when: "the visitor drops a plan", by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ text: "the plan is off the list" }] } },
+              { tool: "link", params: { scenario: "visitor drops a plan", edge: "in", journey: "Picking" } },
+            ],
+          })) as { ok: boolean; problems: string[] },
+          inJourney: (yield* h.invoke("gherkin", "dryRun", {
+            draft: [
+              { tool: "addJourney", params: { name: "Picking" } },
+              { tool: "addScenario", params: { title: "Visitor drops a plan", when: "the visitor drops a plan", by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ text: "the plan is off the list" }], in: ["Picking"] } },
+            ],
+          })) as { ok: boolean; problems: string[]; messages: string[] },
         }
       }),
     )
@@ -91,6 +105,8 @@ describe("drafts", () => {
     expect(out.tool.problems[0]).toStartWith("nope is not a gherkin tool (they are: ")
     expect(out.tool.problems[0]).toContain("add-scenario")
     expect(out.camel).toMatchObject({ ok: true, problems: [] })
+    expect(out.byTitle).toMatchObject({ ok: true, problems: [] })
+    expect(out.inJourney).toMatchObject({ ok: true, problems: [] })
   })
   test("scenes and stories over a draft show the drafted scenarios; journeys list their scenarios", async () => {
     const out = await run(
