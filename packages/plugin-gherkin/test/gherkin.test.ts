@@ -56,6 +56,14 @@ describe("pricing example", () => {
     expect(ids.after).toEqual(["gherkin:dead-end:ST-0003", "gherkin:dead-end:ST-0006"])
   })
 
+  test("a dead end says what to do in the graph's terms: a scenario that starts from it, or terminal (any Then may be)", async () => {
+    const detail = await run(Effect.andThen(pricing, PluginHost.use((h) => h.agenda())))
+    const d = detail.find((i) => i.id === "gherkin:dead-end:ST-0005")!.detail
+    expect(d).toContain("starts from ST-0005")
+    expect(d).toContain("any Then may be terminal")
+    expect(d).not.toContain("arrives there")
+  })
+
   test("suggest: failure candidates for states with only one way on, busiest first, within focus", async () => {
     const out = await run(
       Effect.gen(function* () {

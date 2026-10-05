@@ -18,7 +18,7 @@ export const agenda = (snap: Snapshot.Snapshot): ReadonlyArray<AgendaItem> => {
       items.push({
         id: `gherkin:dead-end:${s.id}`,
         title: `What can the user do when "${text(s)}"?`,
-        detail: `No scenario continues from ${s.id}. Add a scenario that arrives there, or mark it terminal.`,
+        detail: `No scenario starts from ${s.id} (none has it as its Given). Add one that starts from ${s.id}, or mark it terminal when nothing needs to follow (any Then may be terminal, the scenario's other Thens too).`,
         about: [s.id],
         priority: 2,
       })
