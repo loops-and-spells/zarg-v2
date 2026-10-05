@@ -8,7 +8,7 @@
   ▤ Intents            │                                                                                                
                        │                                                                                                
  AGENTS              1 │                                                                                                
-  ⠇ zarg           0/0 │                                                                                                
+  ⠙ zarg           0/0 │                                                                                                
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                
@@ -35,6 +35,6 @@
                        │           └────────┘  └─────────────┘                                                      █   
                        │           That is all for now.                                                             █   
                        │     ·  answered                                                                            █   
-                       │     ⠇ zarg is preparing a reply · 0:06                                                     █   
+                       │     ⠙ zarg is preparing a reply · 0:06                                                     █   
                        │ › type a message, Enter to send                                                                
                        │ core child · running · thread main · stub:scripted   answered   ⏎ send   esc leave             

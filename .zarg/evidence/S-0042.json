@@ -1,13 +1,13 @@
 {
   "scenario": "S-0042",
   "version": "6e4de5e64d09",
-  "commit": "0c80c38",
-  "run": "e2e-2026-10-05T09-27-55.329Z",
+  "commit": "cea1f8a",
+  "run": "e2e-2026-10-05T10-18-17.492Z",
   "journey": "J-0003",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T09:28:02.125Z",
-  "ms": 6,
+  "at": "2026-10-05T10:19:27.096Z",
+  "ms": 5,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -40,6 +40,6 @@
   "code": {
     "packages/core/src/rlm-view.ts": "c55072b56b7862f793d7ad31a0763f76215238c0",
     "packages/view-tui/src/view.ts": "41ce33faa15f7156b1a6f75e9376ac818afd11db",
-    "packages/view-tui/test/app.test.tsx": "f55e18bf8e201cf1d4e8712691d6819258792561"
+    "packages/view-tui/test/app.test.tsx": "bf91ee463ebd293324203fa1919df26cfd2579fc"
   }
 }

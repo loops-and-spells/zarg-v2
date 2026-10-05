@@ -1,13 +1,13 @@
 {
   "scenario": "S-0059",
   "version": "db67e9d3a989",
-  "commit": "33e645c",
-  "run": "e2e-2026-10-05T09-10-28.063Z",
+  "commit": "cea1f8a",
+  "run": "e2e-2026-10-05T10-18-17.492Z",
   "journey": "J-0004",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T09:10:34.232Z",
-  "ms": 6167,
+  "at": "2026-10-05T10:20:00.126Z",
+  "ms": 6184,
   "media": [
     {
       "kind": "evidence-terminal/text",
@@ -33,6 +33,6 @@
   ],
   "failure": null,
   "code": {
-    "packages/core/src/live.ts": "0adca1883e7e7fccadd481e7ccc5db74b3d7d264"
+    "packages/core/src/live.ts": "1a5b9afb47aea450ced12669732dc6a3521cfce7"
   }
 }

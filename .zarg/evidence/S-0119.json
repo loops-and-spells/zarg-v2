@@ -1,13 +1,13 @@
 {
   "scenario": "S-0119",
   "version": "189c36306d82",
-  "commit": "5f5c8eb",
-  "run": "e2e-2026-10-05T08-03-01.447Z",
+  "commit": "cea1f8a",
+  "run": "e2e-2026-10-05T10-18-17.492Z",
   "journey": "J-0009",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T09:07:23.169Z",
-  "ms": 240,
+  "at": "2026-10-05T10:20:43.612Z",
+  "ms": 255,
   "media": [],
   "failure": null,
   "code": {

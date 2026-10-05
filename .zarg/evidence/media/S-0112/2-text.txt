@@ -35,6 +35,6 @@
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                
-                       │ · B-02 dropped; its feedback is open again                                                     
+                       │ · B-02 dropped                                                                                 
                        │ › message zarg… (alt+m or /)                                                                   
                        │ core child · error · thread main · driver model unkn…   ⏎ open   ⇧←→ move   z Z fold   esc back

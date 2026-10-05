@@ -1,12 +1,12 @@
 {
   "scenario": "S-0111",
   "version": "807837da9af6",
-  "commit": "5f5c8eb",
-  "run": "e2e-2026-10-05T08-03-01.447Z",
+  "commit": "cea1f8a",
+  "run": "e2e-2026-10-05T10-18-17.492Z",
   "journey": "J-0008",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T09:06:39.549Z",
+  "at": "2026-10-05T10:20:37.594Z",
   "ms": 879,
   "media": [
     {
@@ -48,7 +48,7 @@
   "code": {
     "packages/core/src/planner.ts": "7fb8a8749116b5083e028ad32e7ccb1386fb69a8",
     "packages/core/test/planner.test.ts": "9eeaa5f422e0cc1faa931292c6829e8b27c76afa",
-    "packages/plugin-backlog/src/index.ts": "8fe1821075fddcbba2e22f7f9c95bbefb4b479d5",
-    "packages/plugin-backlog/test/backlog.test.ts": "5642242fd9958796b64f091a5524c7ab0bcabbdd"
+    "packages/plugin-backlog/src/index.ts": "13c32bf556f3eda7a6a89ae418deb989617c729c",
+    "packages/plugin-backlog/test/backlog.test.ts": "a639f622b4cce5432d8ff15d9c87180f0d147e7b"
   }
 }
