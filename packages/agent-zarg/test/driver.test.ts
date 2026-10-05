@@ -115,6 +115,13 @@ describe("ask before writing", () => {
     expect(await Effect.runPromise(gated.handlers.addScenario!({ intent: "I-0001", text: "parents award points for finished chores" }))).toBe("created S-0001")
   })
 
+  test("wording shown in quotes, sentence by sentence, is the same wording: quote marks and line breaks aside", async () => {
+    const guard = askFirst({ ask: () => Effect.succeed({ choice: "add" }) })
+    const gated = guard.gate(writes)!
+    await Effect.runPromise(guard.asker.confirm!({ change: 'Add persona Child (human): "A child in the family tracker." "They see the chores assigned to them."' }))
+    expect(await Effect.runPromise(gated.handlers.addScenario!({ name: "Child", text: "A child in the family tracker.\nThey see the chores assigned to them." }))).toBe("created S-0001")
+  })
+
   test("what the developer added is committed once written: at the next question, or when the item ends", async () => {
     const commits: Array<[ReadonlyArray<string>, string]> = []
     const ids: Bound = { def: { name: "Gherkin" } as never, handlers: { addScenario: () => Effect.succeed({ added: ["S-0003", "ST-0009"], changed: ["J-0001"], removed: [] }) } }

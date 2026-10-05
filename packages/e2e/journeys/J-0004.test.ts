@@ -18,7 +18,7 @@ const git = (w: World, ...args: Array<string>) => Bun.spawnSync(["git", ...args]
 const lines = (w: World, file: string) => (existsSync(join(w.project, file)) ? readFileSync(join(w.project, file), "utf8").trim().split("\n").filter((l) => l.length > 0).map((l) => JSON.parse(l) as Record<string, unknown>) : [])
 const passes = (w: World) => lines(w, ".zarg/threads/plan.jsonl").filter((e) => e.type === "RUN_STARTED").length
 const findings = (w: World) => (existsSync(join(w.project, ".zarg/reconcile/findings.json")) ? (JSON.parse(readFileSync(join(w.project, ".zarg/reconcile/findings.json"), "utf8")) as Array<{ kind: string; title: string; detail: string }>) : [])
-const topics = (w: World) => (existsSync(join(w.project, ".zarg/inbox")) ? readdirSync(join(w.project, ".zarg/inbox")).filter((f) => f.endsWith(".json")).map((f) => JSON.parse(readFileSync(join(w.project, ".zarg/inbox", f), "utf8")) as { kind: string; title: string; state: string; from: { agent?: string } }) : [])
+const topics = (w: World) => (existsSync(join(w.project, ".zarg/inbox")) ? readdirSync(join(w.project, ".zarg/inbox")).filter((f) => f.endsWith(".json")).map((f) => JSON.parse(readFileSync(join(w.project, ".zarg/inbox", f), "utf8")) as { id: string; kind: string; title: string; state: string; from: { agent?: string } }) : [])
 const said = (w: World, thread: string) => lines(w, `.zarg/threads/${thread}.jsonl`).filter((e) => e.type === "TEXT_MESSAGE_CONTENT").map((e) => String(e.delta)).join("\n")
 /** Waits up to `ms` for `check` to hold, every 2 s. */
 const until = async (ms: number, check: () => boolean) => {
@@ -196,8 +196,9 @@ journey("J-0004", { tier: "fast", seed: SEED }, (proves) => {
       // The Driver Agent takes up the finding once the question it already asked is answered (that one keeps its turn).
       const rlm = () => lines(s.w, ".zarg/threads/main.rlm.jsonl").filter((e) => e.type === "start").map((e) => String(e.task))
       const t = s.term!
-      for (let round = 0; round < 6 && !rlm().some((task) => task.includes("verify still fails")); round++) {
-        const asking = topics(s.w).find((x) => x.from.agent === "zarg" && x.kind === "question" && x.state === "open")
+      const zargAsks = () => topics(s.w).find((x) => x.from.agent === "zarg" && x.kind === "question" && x.state === "open")
+      for (let round = 0; round < 12 && !rlm().some((task) => task.includes("verify still fails")); round++) {
+        const asking = zargAsks()
         if (asking !== undefined) {
           // From the inbox: its row, then its first answer.
           t.press("esc")
@@ -212,7 +213,9 @@ journey("J-0004", { tier: "fast", seed: SEED }, (proves) => {
           await Bun.sleep(800)
           t.press("1")
         }
-        await until(60_000, () => rlm().some((task) => task.includes("verify still fails")))
+        // Until zarg takes the finding up, or asks its next question (answered on the next round).
+        const answered = asking?.id
+        await until(90_000, () => rlm().some((task) => task.includes("verify still fails")) || (zargAsks() !== undefined && zargAsks()!.id !== answered))
       }
       const taken = rlm().some((task) => task.includes("verify still fails"))
       s.note("log", "the driver's items", rlm().join("\n---\n"))

@@ -10,7 +10,8 @@ const ASK_FIRST: ServiceFailure = {
 
 const PICKED_HINT = "They picked an option that is a change: it is added. Write it now, as shown; no Inquire.confirm."
 
-const norm = (t: string) => t.toLowerCase().replace(/\s+/g, " ").trim().replace(/[.!]$/, "")
+// Quote marks aside: a change shows sentences quoted one by one that a write joins.
+const norm = (t: string) => t.toLowerCase().replace(/["“”`]/g, "").replace(/\s+/g, " ").trim().replace(/[.!]$/, "")
 /** The words a write puts in the graph (titles, Whens, state and statement texts, names): what the developer must have seen. */
 const wording = (v: unknown): ReadonlyArray<string> =>
   Array.isArray(v) ? v.flatMap(wording) : v !== null && typeof v === "object" ? Object.entries(v).flatMap(([k, x]) => (typeof x === "string" ? (["text", "title", "when", "name", "answer"].includes(k) ? [x] : []) : wording(x))) : []
