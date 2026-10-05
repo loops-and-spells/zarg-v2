@@ -29,6 +29,13 @@ describe("affectedScenarios", () => {
     expect(affectedScenarios(base, after)).toEqual({ scenarios: [], removed: ["S-2"] })
     expect(affectedScenarios(base, base)).toEqual({ scenarios: [], removed: [] })
   })
+  test("a scenario put in a journey, or a state marked terminal or entry, affects nothing to implement", () => {
+    const inJourney = { ...scenario("S-1", "ST-1", ["ST-2"]), edges: [...scenario("S-1", "ST-1", ["ST-2"]).edges, { type: "gherkin/in", to: "J-1" }] }
+    const terminal = { ...state("ST-3", "paid"), props: { text: "paid", terminal: true } }
+    const after = snap(state("ST-1", "home"), state("ST-2", "cart"), terminal as never, inJourney as never, scenario("S-2", "ST-2", ["ST-3"]))
+    expect(affectedScenarios(base, after)).toEqual({ scenarios: [], removed: [] })
+  })
+
   test("a change to planned alone affects no scenario", () => {
     const planned = (c: ReturnType<typeof scenario>) => ({ ...c, props: { ...c.props, planned: true } })
     const after = snap(state("ST-1", "home"), state("ST-2", "cart"), state("ST-3", "paid"), planned(scenario("S-1", "ST-1", ["ST-2"])), scenario("S-2", "ST-2", ["ST-3"]))
