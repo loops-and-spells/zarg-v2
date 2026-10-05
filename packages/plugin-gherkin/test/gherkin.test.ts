@@ -181,6 +181,11 @@ describe("gherkin rules", () => {
     expect(r.warnings.map((w) => w.code)).toEqual(["and-chaining"])
   })
 
+  test("a When with 'or' warns: one scenario per case when the cases lead to different outcomes", async () => {
+    const r = await run(Effect.andThen(pricing, call("add-scenario", { title: "Visitor leaves", when: "the visitor closes the tab or goes back", by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ id: "ST-0002" }] })))
+    expect(r.warnings.map((w) => w.code)).toContain("alternatives")
+  })
+
   test("adding a state with existing text points at the existing one", async () => {
     const err = await run(
       Effect.andThen(call("add-state", { text: "the home page" }), Effect.flip(call("add-state", { text: "The home page." }))),

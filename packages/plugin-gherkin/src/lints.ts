@@ -28,6 +28,9 @@ export const clauseShape: Lint = (ctx) =>
       if (/\bif\b/i.test(c)) {
         out.push({ severity: "error", code: "conditional", message: `${n.id}: "${c}" contains "if"; make one scenario per case instead`, about: [n.id] })
       }
+      if (n.type === "gherkin/scenario" && c === n.props.when && /\bor\b/i.test(c)) {
+        out.push({ severity: "warn", code: "alternatives", message: `${n.id}: "${c}" contains "or"; make one scenario per case when the cases lead to different outcomes`, about: [n.id] })
+      }
       if (/\band\b/i.test(c)) {
         out.push({ severity: "warn", code: "and-chaining", message: `${n.id}: "${c}" contains "and"; split it if it states two facts`, about: [n.id] })
       }
