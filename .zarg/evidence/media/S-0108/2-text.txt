@@ -11,7 +11,7 @@
                        │  goes to the Backlog.                                                                          
  AGENTS              2 │                                                                                                
   ● zarg           0/0 │   ⌕ search                                      f │ bug · high · off (your call: real)         
-  ⠴ setup          0/1 │      scenario             severity  kind  ✎   sta…│ Removing a chore asks nothing, so a        
+  ⠼ setup          0/1 │      scenario             severity  kind  ✎   sta…│ Removing a chore asks nothing, so a        
                        │  ▍[ ]◇ S-0002 Parent removes…  high        bug    │ slip deletes it.                           
                        │   [●]◇ S-0001 Parent assigns…  high        bug    │ by Parent · in Assign chores · from        
                        │                                                   │ rehearse r-e2e                             

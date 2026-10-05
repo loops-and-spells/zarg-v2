@@ -271,7 +271,11 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
       // @scenario S-0098
       // After a restart, a question of this thread still open from before is the one waiting: zarg asks nothing new
       // until the operator answers it (its answer comes back as their word).
-      const before = deps.inbox?.open === undefined ? [] : (yield* deps.inbox.open().pipe(Effect.orElseSucceed(() => []))).filter((t) => t.key?.startsWith(`${threadId}|`) === true)
+      const all = deps.inbox?.open === undefined ? [] : (yield* deps.inbox.open().pipe(Effect.orElseSucceed(() => []))).filter((t) => t.key?.startsWith(`${threadId}|`) === true)
+      // An old what-next costs no model to ask again: settled, and asked afresh with this core's options.
+      const stale = all.filter((t) => t.title === OPEN_QUESTION)
+      yield* Effect.forEach(stale, (t) => topicSay((i) => i.settle(t.id, "zarg asks it again")), { discard: true })
+      const before = all.filter((t) => t.title !== OPEN_QUESTION)
       fromBefore = before
       if (before.length > 0) {
         const wait = yield* Deferred.make<void>()

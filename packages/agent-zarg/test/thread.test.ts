@@ -666,6 +666,23 @@ describe("zarg's questions as inbox topics", () => {
   })
 
   // @scenario S-0098
+  test("after a restart, an old what-next question is settled and asked afresh: its options are this core's", async () => {
+    const { inbox, calls } = fakeInbox()
+    let asked = 0
+    const whatNext: ThreadDeps["whatNext"] = () => Effect.sync(() => (asked++, [{ id: "build", label: "Build the scenarios", task: "t" }]))
+    const events = await Effect.runPromise(
+      Effect.gen(function* () {
+        const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zarg-thread-")), (t) => t)
+        const thread = yield* makeThread({ id: "main", focus: [], log, agenda: () => Effect.succeed([]), driver: () => Effect.succeed(outcome("ok")) as never, suggest: () => Effect.succeed([]), whatNext, inbox: { ...inbox, open: () => Effect.succeed([{ id: "T-00000099", key: "main|inq-old", title: OPEN_QUESTION }]) } })
+        return yield* collect(thread.run({ runId: "r1" }).pipe(Stream.takeUntil((e) => e.type === "RUN_FINISHED")))
+      }),
+    )
+    expect(calls).toContainEqual(["settle", "T-00000099", expect.any(String)])
+    expect(asked).toBe(1)
+    expect(JSON.stringify(events)).toContain("Build the scenarios")
+  })
+
+  // @scenario S-0098
   test("after a restart, new work wakes zarg past its old what-next question (settled), never past a real one", async () => {
     const wakeWith = (title: string) => {
       const { inbox, calls } = fakeInbox()

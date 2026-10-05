@@ -1,1 +1,3 @@
-What is this product for, and who uses it? (I have no project files yet, so this comes from you.)
+This product has no requirements yet. To describe where a user starts and their first action, first I need to know who meets it. Who, in your words, meets the product and how do they reach it?
+
+A person at the app: persona: name and text still unknown — I will draft it from what you write, then show the exact persona with confirm
