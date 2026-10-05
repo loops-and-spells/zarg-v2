@@ -32,6 +32,17 @@ describe("ask before writing", () => {
     expect(await Effect.runPromise(Effect.flip(gated.handlers.addScenario!({ id: "ST-0002", text: "x" })))).toMatchObject({ _tag: "AskFirst" })
   })
 
+  // @scenario S-0016
+  test("a change's own writes are never a newer edit: writing it in parts changes the node it was shown about, and the next part still saves", async () => {
+    let version = "v1"
+    const parts: Bound = { def: { name: "Gherkin" } as never, handlers: { addOutcome: () => Effect.sync(() => ((version = `v${Number(version.slice(1)) + 1}`), { added: ["O-1"], changed: ["I-0001"], removed: [] })) } }
+    const guard = askFirst({ ask: () => Effect.succeed({ choice: "add" }) }, (ids) => Effect.succeed(Object.fromEntries(ids.map((id) => [id, version]))))
+    const gated = guard.gate(parts)!
+    await Effect.runPromise(guard.asker.confirm!({ change: "Add outcomes to I-0001: a reader adds a book; a reader marks a book read", about: ["I-0001"] }))
+    await Effect.runPromise(gated.handlers.addOutcome!({ intent: "I-0001", text: "a reader adds a book" }))
+    expect(await Effect.runPromise(gated.handlers.addOutcome!({ intent: "I-0001", text: "a reader marks a book read" }))).toMatchObject({ changed: ["I-0001"] })
+  })
+
   // @scenario S-0009
   test("what is written is what the developer added: wording not in the change shown is refused", async () => {
     const guard = askFirst({ ask: () => Effect.succeed({ choice: "add" }) })
