@@ -120,9 +120,19 @@ describe("gherkin rules", () => {
 
   test("a state nothing leads to is unreached unless it is an entry", async () => {
     const ids = await run(
-      Effect.andThen(call("add-state", { text: "a lonely screen", terminal: true }), PluginHost.use((h) => h.agenda())),
+      Effect.andThen(
+        Effect.andThen(call("add-persona", { name: "Visitor", kind: "human", text: "A visitor." }), call("add-scenario", { title: "Visitor leaves", when: "the visitor leaves", by: [{ name: "Visitor" }], arrives: { text: "a lonely screen" }, then: [{ text: "the visitor is gone", terminal: true }] })),
+        PluginHost.use((h) => h.agenda()),
+      ),
     )
-    expect(ids.map((i) => i.id)).toEqual(["gherkin:no-personas", "gherkin:unreached:ST-0001"])
+    expect(ids.map((i) => i.id)).toContain("gherkin:unreached:ST-0001")
+    expect(ids.map((i) => i.id)).not.toContain("gherkin:unreached:ST-0002")
+  })
+
+  test("a state no scenario uses is one item, unused: use it or remove it (not a dead end and unreached both)", async () => {
+    const items = await run(Effect.andThen(call("add-state", { text: "a shelf reader asks what is left" }), PluginHost.use((h) => h.agenda())))
+    expect(items.map((i) => i.id)).toEqual(["gherkin:no-personas", "gherkin:unused-state:ST-0001"])
+    expect(items[1]!.detail).toContain("remove")
   })
 
   test("a state a scenario uses as a Given (its context) is no dead end: something happens while it holds", async () => {

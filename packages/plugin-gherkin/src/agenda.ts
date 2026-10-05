@@ -13,6 +13,17 @@ export const agenda = (snap: Snapshot.Snapshot): ReadonlyArray<AgendaItem> => {
   }
   const items: Array<AgendaItem> = []
   for (const s of all) {
+    // A state no scenario uses (no Given, And or Then): one question, not a dead end and unreached both.
+    if ([ARRIVES, GIVEN, THEN].every((e) => Snapshot.inbound(snap, s.id, e).length === 0)) {
+      items.push({
+        id: `gherkin:unused-state:${s.id}`,
+        title: `Nothing uses "${text(s)}"`,
+        detail: `No scenario has ${s.id} as its Given, an And or a Then. Use it in a scenario, or remove it (remove {id: "${s.id}"}).`,
+        about: [s.id],
+        priority: 2,
+      })
+      continue
+    }
     // A state some scenario starts from, or uses as its context (a Given), has something happening while it holds.
     if (s.props.terminal !== true && Snapshot.inbound(snap, s.id, ARRIVES).length === 0 && Snapshot.inbound(snap, s.id, GIVEN).length === 0) {
       items.push({

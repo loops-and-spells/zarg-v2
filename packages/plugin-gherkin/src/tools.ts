@@ -162,8 +162,8 @@ export const addScenario = tool({
     title: Schema.NonEmptyString.annotate({ description: "Short: who does what." }),
     when: Schema.NonEmptyString.annotate({ description: "The one user action." }),
     by: Schema.optionalKey(Schema.Array(PersonaRef)).annotate({ description: "Who acts in the When: one or more personas (required)." }),
-    arrives: StateRef.annotate({ description: "The state the user is in before the action (the Given)." }),
-    given: Schema.optionalKey(Schema.Array(StateRef)).annotate({ description: "Up to 3 extra context states (And)." }),
+    arrives: StateRef.annotate({ description: "The state the user is in before the action (the Given). In a journey it is where the scenario before it leads: that scenario's Then, by id." }),
+    given: Schema.optionalKey(Schema.Array(StateRef)).annotate({ description: "Up to 3 extra context states (And) that also hold. Never the state the user arrives from: that is arrives." }),
     then: Schema.Array(StateRef).annotate({ description: "1-5 states the action leads to." }),
   }),
   run: (p, snap) =>
