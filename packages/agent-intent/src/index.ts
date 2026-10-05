@@ -1,7 +1,7 @@
 import { Effect, Schema } from "effect"
 import { Backlog } from "@zarg/plugin-backlog/contract"
 import { Gherkin } from "@zarg/plugin-gherkin/contract"
-import { Agents, Config, definePlugin, Entities, Files, Inbox, Models, PluginFailure, Views } from "@zarg/plugin-sdk"
+import { Agents, Config, Decisions, definePlugin, Entities, Files, Inbox, Models, PluginFailure, Views } from "@zarg/plugin-sdk"
 import { type Checkpoint, EMPTY, type JourneyInfo, type Statement } from "./checkpoint"
 import { makeIntent } from "./intent"
 import { intentView } from "./view"
@@ -18,7 +18,7 @@ export default definePlugin({
   // reasoning: let the model reason before answering (off by default, as triage).
   config: Schema.Struct({ reasoning: Schema.optionalKey(Schema.Boolean) }),
   pluginDependencies: [Gherkin, Backlog],
-  scopes: { models: ["driver"], agents: true, inbox: true, code: true, entities: { read: ["gherkin/*", "backlog/item"] }, fs: { read: [".zarg/intent/**"], write: [".zarg/intent/**"] } },
+  scopes: { models: ["driver"], decisions: true, agents: true, inbox: true, code: true, entities: { read: ["gherkin/*", "backlog/item"] }, fs: { read: [".zarg/intent/**"], write: [".zarg/intent/**"] } },
   views: [IntentView],
   methods: {
     tick: { doc: "Reconcile what is due: changed, new or uncovered statements and journeys serving nothing, one round at a time (the core wakes it when the graph changes).", params: Schema.Struct({}), success: Schema.Null, deadlineMs: 30 * 60_000 },
@@ -30,6 +30,7 @@ export default definePlugin({
     const backlog = yield* Backlog
     const entities = yield* Entities
     const models = yield* Models
+    const decisions = yield* Decisions
     const inbox = yield* Inbox
     const files = yield* Files
     const agents = yield* Agents
@@ -96,6 +97,15 @@ export default definePlugin({
       {
         statements,
         journeys: journeysOf,
+        // @scenario S-0104
+        contradicts: (outcome, rules) =>
+          Effect.map(
+            decisions.decide({
+              state: `Outcome ${outcome.id}: ${outcome.text}\n\nConstraints of the same intent:\n${rules.map((k) => `- ${k.id}: ${k.text}`).join("\n")}`,
+              questions: Object.fromEntries(rules.map((k) => [k.id, { type: "noul", instructions: `Does the outcome say the opposite of ${k.id}, so both cannot hold at once?` }])),
+            }),
+            (a) => rules.find((k) => (a[k.id] as { answer?: boolean; probability?: number } | undefined)?.answer === true && ((a[k.id] as { probability?: number }).probability ?? 0) >= 0.6)?.id,
+          ),
         personas: () => Effect.map(entities.query({ type: "gherkin/persona" }), (es) => es.map((e) => ({ name: String(data(e).props.name ?? e.id), kind: String(data(e).props.kind ?? "human") }))),
         scene: sceneText,
         code: (scenario) => entities.code(`gherkin/scenario:${scenario}`),

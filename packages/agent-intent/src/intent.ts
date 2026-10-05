@@ -28,6 +28,8 @@ export interface IntentDeps {
   readonly log: (text: string) => Effect.Effect<void, unknown>
   /** Draw the agent's view again. */
   readonly render: Effect.Effect<void, unknown>
+  /** The decision model's call: the constraint (of these) the outcome says the opposite of, if any. */
+  readonly contradicts: (outcome: Statement, constraints: ReadonlyArray<Statement>) => Effect.Effect<string | undefined, unknown>
   /** Who can act in scenarios now (a scenario's `by` must name one). */
   readonly personas: () => Effect.Effect<ReadonlyArray<{ readonly name: string; readonly kind: string }>, unknown>
 }
@@ -177,6 +179,21 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
   const statementRound = (s: Statement, journeys: ReadonlyArray<JourneyInfo>, decision: string | undefined, all: ReadonlyArray<Statement> = []) =>
     Effect.gen(function* () {
       yield* show({ id: s.id, title: s.text, state: "drafting", detail: "", plans: [] })
+      // @scenario S-0104
+      // An outcome against one of its intent's constraints cannot be served as it stands: the operator says which holds
+      // (a drafting model plans around a contradiction rather than asking; the decision model judges it).
+      const rules = all.filter((x) => x.kind === "constraint" && x.intent.id === s.intent.id)
+      if (s.kind === "outcome" && decision === undefined && rules.length > 0) {
+        const hit = yield* d.contradicts(s, rules).pipe(Effect.orElseSucceed(() => undefined))
+        const k = rules.find((x) => x.id === hit)
+        if (k !== undefined) {
+          const question = `${s.id} says the opposite of ${k.id}: "${s.text}" against "${k.text}". Which holds?`
+          const options = [{ id: "outcome", label: `Keep ${s.id}; change ${k.id}` }, { id: "constraint", label: `Keep ${k.id}; change ${s.id}` }, LEAVE]
+          const topic = yield* d.post({ kind: "ask", key: `decide:${s.id}`, title: question, why: `intent ${s.intent.id}`, about: [s.id, k.id], answers: options })
+          yield* setStatement(s.id, { version: s.version, state: "asked", topic, options })
+          return yield* show({ id: s.id, title: s.text, state: "asked", detail: question, plans: [] })
+        }
+      }
       const context = yield* contextOf(s, journeys, all)
       let problems: ReadonlyArray<string> = []
       for (let t = 1; t <= TRIES; t++) {

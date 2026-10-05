@@ -8,7 +8,7 @@ const outcome: Statement = { id: "O-0001", kind: "outcome", text: "A visitor pic
 const checkout: JourneyInfo = { id: "J-0001", name: "Checkout", version: "jv", scenarios: ["S-0001"], serves: ["O-0001"] }
 const unit = (scenario: string, changes: ReadonlyArray<unknown>) => ({ scenario, title: `t ${scenario}`, summary: `s ${scenario}`, changes })
 
-const setup = (o: { personas?: ReadonlyArray<{ name: string; kind: string }>; statements?: ReadonlyArray<Statement>; journeys?: ReadonlyArray<JourneyInfo>; answers?: ReadonlyArray<string>; cp?: Checkpoint; down?: boolean; dry?: (n: number) => { ok: boolean; problems: string[] }; versionAfter?: string; slow?: number; broken?: boolean; dropped?: ReadonlyArray<string> }) => {
+const setup = (o: { conflicts?: ReadonlyArray<string>; personas?: ReadonlyArray<{ name: string; kind: string }>; statements?: ReadonlyArray<Statement>; journeys?: ReadonlyArray<JourneyInfo>; answers?: ReadonlyArray<string>; cp?: Checkpoint; down?: boolean; dry?: (n: number) => { ok: boolean; problems: string[] }; versionAfter?: string; slow?: number; broken?: boolean; dropped?: ReadonlyArray<string> }) => {
   const calls: Array<[string, unknown]> = []
   const schemas: Array<unknown> = []
   const answers = [...(o.answers ?? [])]
@@ -19,6 +19,7 @@ const setup = (o: { personas?: ReadonlyArray<{ name: string; kind: string }>; st
     statements: () => Effect.sync(() => (reads++, (o.statements ?? [outcome]).map((s) => (o.versionAfter !== undefined && reads > 1 ? { ...s, version: o.versionAfter } : s)))),
     journeys: () => Effect.succeed(o.journeys ?? []),
     personas: () => Effect.succeed(o.personas ?? []),
+    contradicts: (statement, rules) => Effect.sync(() => (calls.push(["contradicts", [statement.id, rules.map((r) => r.id)]]), rules.find((r) => (o.conflicts ?? []).includes(r.id))?.id)),
     scene: (scenario) => Effect.succeed(`${scenario} title\nGiven a\nWhen b\nThen c`),
     code: () => Effect.succeed([]),
     dryRun: (draft) => (draft.length === 0 ? Effect.succeed({ scenarios: [], ok: true, problems: [], next: { scenario: "S-0002", state: "ST-0004", journey: "J-0002", persona: "P-0001" } }) : Effect.sync(() => ({ scenarios: ["S-0001"], ...(o.dry?.(dries++) ?? { ok: true, problems: [] }) }))),
@@ -92,6 +93,20 @@ describe("the Intent Agent", () => {
     const { a, calls } = setup({ journeys: [checkout], answers: [] })
     await Effect.runPromise(a.tick)
     expect(String(calls.find(([k]) => k === "complete")![1])).toContain("New nodes take the next ids, in order: scenarios S-0002, S-0003, …; states ST-0004, …; journeys J-0002, …; personas P-0001, …")
+  })
+
+  // @scenario S-0104
+  test("an outcome that says the opposite of a constraint is asked about, never drafted: which of the two holds", async () => {
+    const rule: Statement = { id: "K-0001", kind: "constraint", text: "Chores are never shown to grandparents", version: "k1", intent, journeys: [] }
+    const wants: Statement = { ...outcome, text: "Grandparents see every chore" }
+    const { a, calls, cp } = setup({ statements: [wants, rule], journeys: [checkout], conflicts: ["K-0001"], cp: { statements: { "K-0001": { version: "k1", state: "planned" } }, journeys: {} } })
+    await Effect.runPromise(a.tick)
+    expect(calls.filter(([k]) => k === "complete")).toEqual([])
+    const posted = calls.find(([k]) => k === "post")![1] as { title: string; about: ReadonlyArray<string>; answers: ReadonlyArray<{ id: string }> }
+    expect(posted.title).toBe('O-0001 says the opposite of K-0001: "Grandparents see every chore" against "Chores are never shown to grandparents". Which holds?')
+    expect(posted.about).toEqual(["O-0001", "K-0001"])
+    expect(posted.answers.map((x) => x.id)).toEqual(["outcome", "constraint", "leave"])
+    expect(cp().statements["O-0001"]).toMatchObject({ state: "asked" })
   })
 
   test("nothing due: no model call, nothing filed", async () => {
