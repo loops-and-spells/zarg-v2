@@ -11,7 +11,7 @@ export const cutStories = (stories: ReadonlyArray<ReadonlyArray<string>>, built:
     const at = s.findIndex((c) => built(c) !== "built")
     if (at >= 0) {
       const c = s[at]!
-      notes.set(c, built(c) === "planned" ? `${c}: not built yet (planned): not walked` : `${c}: no code tagged and not planned: tag its code or mark it planned`)
+      notes.set(c, built(c) === "planned" ? `${c}: not built yet (planned): not walked` : `${c}: not built yet (no code tagged): /reconcile builds it`)
     }
     const kept = at >= 0 ? s.slice(0, at) : s
     return kept.length > 0 ? [kept] : []

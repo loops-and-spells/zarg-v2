@@ -410,7 +410,7 @@ test("stories stop before a planned or untagged scenario (the run notes why); te
   const out = await finish({ built: { C: "planned", D: "untagged" }, prompts })
   // The same story twice after the cut is one story.
   expect(out.r.record(out.run)?.stories).toEqual([["A", "B"]])
-  expect(out.r.record(out.run)?.infra).toEqual(expect.arrayContaining(["C: not built yet (planned): not walked", "D: no code tagged and not planned: tag its code or mark it planned"]))
+  expect(out.r.record(out.run)?.infra).toEqual(expect.arrayContaining(["C: not built yet (planned): not walked", "D: not built yet (no code tagged): /reconcile builds it"]))
   expect(prompts.some((p) => p.includes("What zarg does now") && p.includes('export const doB = () => "B code"'))).toBe(true)
 })
 
@@ -422,8 +422,8 @@ test("the cut is said where the operator sees it: in the start result; with noth
     const refused = (yield* t2.r.start({})) as { refused?: string }
     return { started, refused }
   }))
-  expect(r.started.notes).toEqual(["C: not built yet (planned): not walked", "D: no code tagged and not planned: tag its code or mark it planned"])
-  expect(r.refused.refused).toBe("nothing built to walk: A: no code tagged and not planned: tag its code or mark it planned")
+  expect(r.started.notes).toEqual(["C: not built yet (planned): not walked", "D: not built yet (no code tagged): /reconcile builds it"])
+  expect(r.refused.refused).toBe("nothing built to walk: A: not built yet (no code tagged): /reconcile builds it")
 })
 test("code that cannot be read (no git) checks no scenario: every scenario is walked, and the run says so", async () => {
   const r = await Effect.runPromise(Effect.gen(function* () {
