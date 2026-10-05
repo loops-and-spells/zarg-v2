@@ -613,6 +613,13 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
             approvedBefore = t.title.slice(CONFIRM_PREFIX.length).trim()
             return Effect.asVoid(Effect.forkDetach(deliver(`(you added the change zarg showed before it restarted; write it as shown, without showing it again:\n${approvedBefore})`)))
           }
+          // An option that was itself a change (shown under the question as "label: change"): picking it added it.
+          const label = t.answers?.find((a) => a.id === reply.answer)?.label
+          const picked = label === undefined || (reply.text ?? "").trim() !== "" ? undefined : t.title.split("\n\n").find((p) => p.startsWith(`${label}: `))?.slice(label.length + 2).trim()
+          if (picked !== undefined && picked !== "") {
+            approvedBefore = picked
+            return Effect.asVoid(Effect.forkDetach(deliver(`(you picked "${label}" on a question zarg asked before it restarted; that option is a change, so it is added: write it as shown, without showing it again:\n${picked})`)))
+          }
           return Effect.asVoid(Effect.forkDetach(deliver(`(you answered "${t.title}": ${labelOf(t, reply)})`)))
         }),
       replied: (t: InboxTopicRef, text: string) =>

@@ -818,6 +818,24 @@ describe("zarg's questions as inbox topics", () => {
     expect(approvals[0]).toBe("Add outcome: A reader sees what is left")
   })
 
+  test("after a restart, picking an option of zarg's old question that is itself a change adds it: the next item writes it without asking again", async () => {
+    const { inbox } = fakeInbox()
+    const approvals: Array<string | undefined> = []
+    let calls = 0
+    const driver: Driver = (_spec, asker) => Effect.sync(() => (calls++ > 0 ? void approvals.push(asker.approved?.()) : undefined, outcome("ok")))
+    const title = "Which journey?\n\nOne journey: Add journey “In and out”.\n\nTwo journeys: Add journey “In”. Add journey “Out”."
+    const answers = [{ id: "one", label: "One journey" }, { id: "two", label: "Two journeys" }]
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setupWith(driver, { ...inbox, open: () => Effect.succeed([{ id: "T-00000099", key: "main|inq-old", title }]) })
+        yield* collect(thread.run({ runId: "r1" }).pipe(Stream.takeUntil((e) => e.type === "RUN_FINISHED")))
+        yield* thread.inbox!.answered({ id: "T-00000099", title, answers }, { answer: "one" })
+        yield* Effect.sleep(80)
+      }),
+    )
+    expect(approvals[0]).toBe("Add journey “In and out”.")
+  })
+
   const askOnce = (answers: Array<unknown>): Driver => {
     let calls = 0
     return (_spec, asker) =>
