@@ -1,13 +1,13 @@
 {
   "scenario": "S-0092",
   "version": "dcd49f10ab93",
-  "commit": "8a3d026",
-  "run": "e2e-2026-10-05T12-00-10.952Z",
+  "commit": "7a9204f",
+  "run": "e2e-2026-10-05T13-47-27.241Z",
   "journey": "J-0006",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T12:32:27.562Z",
-  "ms": 7025,
+  "at": "2026-10-05T13:47:34.261Z",
+  "ms": 6962,
   "media": [
     {
       "kind": "evidence-terminal/text",

@@ -24,7 +24,7 @@
                        │             N2[Parent picks a child] --> N3                                                    
                        │             N3[Child sees the chore] --> N4                                                    
                        │             N4[Child does the chore] --> N5                                                    
-                       │                                                                                            █   
+                       │                                                                                            ▄   
                        │           Too wide to draw.                                                                █   
                        │     you  Add it                                                                            █   
                        │     you  it depends on the chore                                                           █   
