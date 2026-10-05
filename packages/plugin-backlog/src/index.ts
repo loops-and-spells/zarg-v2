@@ -424,7 +424,7 @@ export default definePlugin({
               const filed = (yield* load).filter((e) => ids.includes(e.id))
               const journeys = [...new Set(filed.flatMap((e) => e.journeys))]
               yield* report(`run:${run}`, `Rehearse run ${run}: ${plural(filed.length, "entry")}${journeys.length > 0 ? ` on ${journeys.join(", ")}` : ""}`, "feedback")
-            }
+            } else if (run !== undefined) yield* report(`run:${run}`, `Rehearse run ${run}: nothing found`, "feedback")
             yield* ready
           }),
         ),
