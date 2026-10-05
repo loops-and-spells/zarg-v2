@@ -1,8 +1,20 @@
 import { expect } from "bun:test"
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
-import { answerLoads, command, say, journey, liveModel, MAIN, openNav, quit, termOf, type World } from "../src"
+import { answerLoads, command, say, journey, liveModel, MAIN, openNav, quit, type Term, termOf, type World } from "../src"
 
+/** Answers zarg's open proposal from the inbox (home): its row, then 1, its first answer (Add it). */
+const addFromInbox = async (t: Term) => {
+  t.press("esc")
+  await Bun.sleep(300)
+  t.press("esc")
+  await t.waitFor("1-9 answer", 10_000)
+  for (let k = 0; k < 8 && !/▍.*Add this to the requirements/.test(t.screen()); k++) {
+    t.press("down")
+    await Bun.sleep(150)
+  }
+  t.press("1")
+}
 /** Waits up to `ms` for `check` to hold. */
 const eventually = async <A>(ms: number, check: () => A | undefined): Promise<A | undefined> => {
   const until = Date.now() + ms
@@ -90,18 +102,21 @@ journey("J-0007", { tier: "fast" }, (proves) => {
       // YOLO: every plugin (the Intent Agent, the backlog) loads without asking.
       await command(t, "/yolo on")
       await say(t, "The app also lets parents reward finished chores with points. Keep that as an outcome.")
-      // zarg shows the change first (Inquire.confirm): the operator adds it, its recommended answer. Then one more
-      // outcome on the intent, however the model words it.
+      // zarg shows the change first (Inquire.confirm, also a topic in the inbox): the operator adds it from the inbox,
+      // its first answer (Add it). Then one more outcome on the intent, however the model words it.
+      const proposal = () =>
+        readdirSync(join(s.w.project, ".zarg", "inbox"))
+          .filter((f) => f.endsWith(".json"))
+          .map((f) => JSON.parse(readFileSync(join(s.w.project, ".zarg", "inbox", f), "utf8")) as { title: string; state: string; from: { plugin: string } })
+          .find((x) => x.from.plugin === "zarg" && x.state === "open" && x.title.startsWith("Add this to the requirements?") && /point/i.test(x.title))
       let added = false
       const kept = await eventually(270_000, () => {
         if (outcomes().n > before) return outcomes().r
-        const screen = t.screen()
-        // Only zarg's confirm ("Add this to the requirements?") about points; never another question it asks.
-        const confirm = screen.slice(screen.indexOf("Add this to the requirements?"))
-        if (!added && screen.includes("Add this to the requirements?") && /point/i.test(confirm) && /›\s*Add it/.test(confirm)) {
+        const p = proposal()
+        if (!added && p !== undefined) {
           added = true
-          s.note("buffer", "zarg shows the outcome before keeping it", screen)
-          t.press("enter")
+          s.note("buffer", "zarg shows the outcome before keeping it", p.title)
+          void addFromInbox(t)
         }
         return undefined
       })
