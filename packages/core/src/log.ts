@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs"
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { Effect, PubSub, Stream } from "effect"
 import type { Draft, WireEvent } from "./events"
@@ -23,6 +23,8 @@ export const redactValues = (value: unknown, redact: (text: string) => string): 
 export const makeLog = (dir: string, redact: (text: string) => string) =>
   Effect.gen(function* () {
     mkdirSync(dir, { recursive: true })
+    // The operator's conversations, never the project's.
+    if (!existsSync(join(dir, ".gitignore"))) writeFileSync(join(dir, ".gitignore"), "*\n")
     const events: Array<WireEvent> = []
     // Earlier sessions' events come first so sequence numbers keep increasing across restarts.
     for (const f of readdirSync(dir).filter((f) => f.endsWith(".jsonl") && !f.endsWith(TRANSCRIPT)).sort()) {

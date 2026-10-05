@@ -1,9 +1,10 @@
 import { afterAll, describe, expect, test } from "bun:test"
-import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { infoPath, readClaim, readInfo } from "@zarg/client"
-import { claim, markReady, release } from "../src"
+import { Effect } from "effect"
+import { claim, makeLog, markReady, release } from "../src"
 
 const roots: Array<string> = []
 const fresh = () => {
@@ -20,6 +21,14 @@ describe("core.json", () => {
     expect(statSync(infoPath(root)).mode & 0o777).toBe(0o600)
     const other = claim(root, { pid: 1, socket: "s", token: "t", mode: "headless" })
     expect(other).toMatchObject({ ok: false })
+  })
+
+  test("the core's run files (its token) and thread logs ignore themselves in any project", async () => {
+    const root = fresh()
+    claim(root, { pid: process.pid, socket: "s", token: "t", mode: "child" })
+    expect(readFileSync(join(root, ".zarg", "run", ".gitignore"), "utf8")).toBe("*\n")
+    await Effect.runPromise(makeLog(join(root, ".zarg", "threads"), (t) => t))
+    expect(readFileSync(join(root, ".zarg", "threads", ".gitignore"), "utf8")).toBe("*\n")
   })
 
   test("a file left by a dead core is ignored", () => {
