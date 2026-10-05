@@ -1,24 +1,33 @@
 [
   {
     "kind": "pass-error",
-    "title": "implement failed for S-0002",
-    "detail": "Cause([Fail(RlmError: implement-scenario did not finish within its budget (25 turns))])",
+    "title": "plan failed for S-0002",
+    "detail": "Cause([Fail(RlmError: plan did not finish within its budget (20 turns))])",
     "about": [
       "S-0002"
     ],
-    "pass": "483f4963065f",
-    "id": "F-7d3b5396",
-    "at": "2026-10-05T13:03:23.829Z"
+    "pass": "0290181e7030",
+    "id": "F-0415448e",
+    "at": "2026-10-05T13:39:10.622Z"
+  },
+  {
+    "kind": "blocked-scenario",
+    "title": "S-0001 cannot be implemented as written",
+    "detail": "Verify.run can never pass in this scope: .zarg/config.toml sets verify = \"exit 1\" (a command that always fails) and every .zarg file is read-only to me, so the gate returns passed:false with empty output regardless of the implementation. The suite it would run (bun test / bun test --typecheck) passes 7/7.",
+    "about": [
+      "S-0001"
+    ],
+    "pass": "0290181e7030",
+    "id": "F-a7b4c85f",
+    "at": "2026-10-05T13:39:10.625Z"
   },
   {
     "kind": "verify-failing",
     "title": "verify still fails after the fix attempts",
     "detail": "",
-    "about": [
-      "S-0001"
-    ],
-    "pass": "483f4963065f",
-    "id": "F-86579bd0",
-    "at": "2026-10-05T13:03:23.829Z"
+    "about": [],
+    "pass": "0290181e7030",
+    "id": "F-3ff152b7",
+    "at": "2026-10-05T13:39:10.625Z"
   }
 ]
