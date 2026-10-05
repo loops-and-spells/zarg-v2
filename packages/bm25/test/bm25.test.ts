@@ -32,4 +32,10 @@ describe("bm25", () => {
     expect(ix.score("alpha")[0]!).toBeGreaterThan(0)
     expect(ix.score("gamma")[1]!).toBeGreaterThan(0)
   })
+  test("a word still being typed matches the words it begins (a whole word still ranks first)", () => {
+    const s = rank(["zarg-router:jevk5", "zarg-router:deepseek-v4", "jevk"], "jevk")
+    expect(s[0]!).toBeGreaterThan(0)
+    expect(s[1]).toBe(0)
+    expect(s[2]!).toBeGreaterThan(s[0]!)
+  })
 })

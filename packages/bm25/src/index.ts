@@ -44,10 +44,15 @@ export const bm25 = (docs: ReadonlyArray<string>, options: Bm25Options = {}) => 
   return {
     score: (query: string): ReadonlyArray<number> => {
       const q = [...new Set(tokens(query))]
+      const weight = (t: string, f: number, d: (typeof terms)[number]) => (idf(t) * (f * (k1 + 1))) / (f + k1 * (1 - b + (b * d.length) / (avgdl || 1)))
       return terms.map((d) =>
         q.reduce((sum, t) => {
           const f = d.tf.get(t) ?? 0
-          return f === 0 ? sum : sum + (idf(t) * (f * (k1 + 1))) / (f + k1 * (1 - b + (b * d.length) / (avgdl || 1)))
+          if (f > 0) return sum + weight(t, f, d)
+          // A word still being typed: the words it begins count, at half weight (a whole word ranks first).
+          // ponytail: a scan of the document's words per query word; fine for short texts.
+          const begun = [...d.tf.entries()].filter(([w]) => w.length > t.length && w.startsWith(t)).reduce((a, [, n]) => a + n, 0)
+          return begun === 0 ? sum : sum + weight(t, begun, d) / 2
         }, 0),
       )
     },

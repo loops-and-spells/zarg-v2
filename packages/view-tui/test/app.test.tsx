@@ -430,6 +430,32 @@ describe("tui frames", () => {
     expect(t.captureCharFrame()).not.toContain("Show")
   })
 
+  test("a plugin sheet opened by a command takes the keys: ] moves to the next section, f searches it", async () => {
+    const agent = { id: "core:setup", parent: null, preset: "view", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
+    const view = {
+      agent: "core:setup",
+      layout: { name: "setup", sections: [
+        { id: "summary", kind: "text" as const, role: "summary" as const, title: "" },
+        { id: "providers", kind: "table" as const, role: "primary" as const, title: "Providers", columns: [{ id: "provider", label: "provider" }], actions: [{ id: "login", label: "Log in", on: "row" as const, default: true }] },
+        { id: "fields", kind: "table" as const, role: "primary" as const, title: "Log in", columns: [{ id: "name", label: "setting" }], actions: [{ id: "set", label: "Set", on: "row" as const, default: true, input: "the value" }, { id: "done", label: "Check and save", key: "c", on: "none" as const }] },
+        { id: "models", kind: "table" as const, role: "primary" as const, title: "Default model", search: true, columns: [{ id: "model", label: "model" }], actions: [{ id: "default", label: "Use as default", on: "row" as const, default: true }] },
+      ] },
+      data: { summary: { markdown: "1 provider ready" }, providers: { rows: [{ id: "r", cells: { provider: "router" } }] }, fields: { rows: [{ id: "URL", cells: { name: "URL" } }] }, models: { rows: [{ id: "m1", cells: { model: "alpha-model" } }, { id: "m2", cells: { model: "jevk5-judge" } }] } },
+    }
+    const t = await render({ thread: { ...initial("main"), status: "idle", rlms: { "core:setup": agent }, views: { "core:setup": view }, navigate: { seq: 1, kind: "sheet", view: "core:setup", at: Date.now() } }, core: "up" }, { width: 120, height: 40 })
+    await settle(t)
+    t.mockInput.pressKey("]")
+    t.mockInput.pressKey("]")
+    await settle(t)
+    t.mockInput.pressKey("f")
+    await settle(t)
+    for (const c of "jevk") t.mockInput.pressKey(c)
+    await settle(t)
+    const frame = t.captureCharFrame()
+    expect(frame).toContain("jevk5-judge")
+    expect(frame).not.toContain("alpha-model")
+  })
+
   test("a wide view shows a long first column whole (model names that differ only at their end)", async () => {
     const agent = { id: "core:setup", parent: null, preset: "view", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
     const view = {
