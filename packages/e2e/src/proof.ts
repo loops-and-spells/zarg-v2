@@ -87,7 +87,6 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
         async () => {
           const evidenceDir = join(evidenceOut(), EVIDENCE_DIR)
           const started = performance.now()
-          const deadline = started + timeout
           clearStale(evidenceDir, scenario)
           let staged: Staged | undefined
           let lastNote = ""
@@ -146,7 +145,8 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
               run.catch(() => undefined)
               let timer: ReturnType<typeof setTimeout> | undefined
               const late = new Promise<never>((_, reject) => {
-                timer = setTimeout(() => reject(new Error(`timed out after ${timeout} ms`)), Math.max(0, deadline - performance.now()))
+                // Each try has the step's whole time: a retry after a slow first try is not left with what remains.
+                timer = setTimeout(() => reject(new Error(`timed out after ${timeout} ms`)), timeout)
               })
               await Promise.race([run, late]).finally(() => clearTimeout(timer))
               passed = true
@@ -174,8 +174,8 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
           commitEvidence(evidenceDir, staged, evidence)
           if (!passed) throw error
         },
-        // Bun's own timeout only backs up the step's deadline, which writes the evidence first.
-        timeout + 10_000,
+        // Bun's own timeout only backs up the step's deadline (per try), which writes the evidence first.
+        timeout * (o.model === true ? 2 : 1) + 10_000,
       )
     }
     body(proves)
