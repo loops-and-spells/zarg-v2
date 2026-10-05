@@ -1037,6 +1037,16 @@ describe("focuses", () => {
     t.mockInput.pressEnter(); await settle(t)
     expect(t.captureCharFrame().replace(/[\s│]+/g, " ")).toContain("add another book to read")
   })
+  test("a message typed in one burst right after alt+m reaches zarg whole", async () => {
+    const t = await render(idleState, big)
+    // Elsewhere first: the tile has the keys.
+    t.mockInput.pressEscape(); await settle(t)
+    t.mockInput.pressKey("m", { meta: true })
+    t.renderer.stdin.emit("data", Buffer.from("I want to rename a habit."))
+    await settle(t)
+    t.mockInput.pressEnter(); await settle(t)
+    expect(t.calls).toContain("send I want to rename a habit.")
+  })
   test("a reply typed in one burst (as a fast typist or a paste) is sent whole, its r and t letters too", async () => {
     const t0 = { id: "T-9", kind: "question", from: { plugin: "zarg", agent: "zarg" }, title: "Which?", why: "zarg asks", about: [], blocking: true, messages: [], state: "open", created: Date.now(), updated: 0, answers: [{ id: "a", label: "A", recommended: true }, { id: "b", label: "B" }] }
     const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-9": t0 } } as never }, big)

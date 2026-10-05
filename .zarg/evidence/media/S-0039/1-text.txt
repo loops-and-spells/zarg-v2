@@ -11,7 +11,7 @@
   ▾ zarg           0/0 │                                                                                                
   └ ✓ driver 1    done │                                                                                                
   ✗ warmup      failed │                                                                                                
-  ⠦ setup          0/1 │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+  ⠧ setup          0/1 │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
                        │     setup  setup   esc closes                                                                  
                        │     ✗ zarg-router:e2e-bad did not start: 500 out of memory: pick another model below.          
                        │     1 provider ready · default: zarg-router:e2e-bad                                            
