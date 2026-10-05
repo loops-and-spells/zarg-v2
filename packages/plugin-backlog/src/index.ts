@@ -93,7 +93,7 @@ export default definePlugin({
     const inbox = yield* Inbox
     // Whatever changed: what waits on the operator is posted or settled in the inbox, then the agenda is told.
     // After any change to the plans: the inbox's topics, the board (whoever moved a plan: the Planner, reconcile), the agenda.
-    const ready = Effect.suspend(() => Effect.andThen(Effect.andThen(Effect.ignore(syncTopics), Effect.ignore(refreshBoard)), Effect.ignore(agendaPower.changed)))
+    const ready = Effect.suspend(() => Effect.andThen(Effect.andThen(Effect.ignore(syncTopics), boardAgain), Effect.ignore(agendaPower.changed)))
     const entities = yield* Entities
     const gherkin = yield* Gherkin
     yield* Config
@@ -277,7 +277,11 @@ export default definePlugin({
         const now = new Set(got.entities.map((e) => e.ref))
         return new Set(refs.filter((r) => !now.has(r)))
       })
+    // Once the board was shown, every plan change draws it again; never drawn before it is opened.
+    let boardShown = false
+    const boardAgain = Effect.suspend(() => (boardShown ? Effect.ignore(refreshBoard) : Effect.void))
     const refreshBoard = Effect.gen(function* () {
+      boardShown = true
       const all = yield* loadItems
       const items = all.filter((i) => i.dropped !== true)
       const changed = yield* changedRefs(items)
@@ -340,7 +344,7 @@ export default definePlugin({
         yield* saveItem(needs !== undefined ? { ...withScenarios, needs } : withScenarios)
         if (to === "done") yield* markFeedback(i.feedback, "closed")
         return `${id} → ${LANE_TITLES[to]}`
-      }).pipe(writing.withPermits(1), Effect.tap(() => (to === "ready" ? ready : Effect.andThen(Effect.ignore(syncTopics), Effect.ignore(refreshBoard)))))
+      }).pipe(writing.withPermits(1), Effect.tap(() => (to === "ready" ? ready : Effect.andThen(Effect.ignore(syncTopics), boardAgain))))
     // @scenario S-0112
     const drop = (id: string, by = "operator") =>
       Effect.gen(function* () {
