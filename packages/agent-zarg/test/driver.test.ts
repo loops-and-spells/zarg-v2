@@ -160,6 +160,16 @@ describe("ask before writing", () => {
     expect(commits[0]).toBe('req: P-0001: Add persona "Shelf reader" (human): "A person tending a shelf for books…')
   })
 
+  test("a first line that only heads the change (it ends with a colon) takes the next line into the subject", async () => {
+    const commits: Array<string> = []
+    const ids: Bound = { def: { name: "Gherkin" } as never, handlers: { addScenario: () => Effect.succeed({ added: ["I-0001"], changed: [], removed: [] }) } }
+    const guard = askFirst({ ask: () => Effect.succeed({ choice: "add" }) }, undefined, (_, m) => Effect.sync(() => void commits.push(m)))
+    await Effect.runPromise(guard.asker.confirm!({ change: "Intent:\nTally: a tiny habit tally.\nOutcomes:\n1. A user marks a habit done today." }))
+    await Effect.runPromise(guard.gate(ids)!.handlers.addScenario!({}))
+    await Effect.runPromise(guard.flush)
+    expect(commits[0]).toBe("req: I-0001: Intent: Tally: a tiny habit tally.")
+  })
+
   test("Add with words of the operator's (a reason) is what to change, not a yes: nothing is written, and the words come back", async () => {
     const guard = askFirst({ ask: () => Effect.succeed({ choice: "add", other: "drop 'or an unknown id'" }) })
     const gated = guard.gate(writes)!

@@ -10,6 +10,12 @@ const ASK_FIRST: ServiceFailure = {
 
 const PICKED_HINT = "They picked an option that is a change: it is added. Write it now, as shown; no Inquire.confirm."
 
+/** The change's first line; one that only heads it (ends with a colon) takes the next line too. */
+const headline = (change: string | undefined) => {
+  const lines = (change ?? "").split("\n").map((l) => l.trim()).filter((l) => l !== "")
+  if (lines.length === 0) return undefined
+  return lines[0]!.endsWith(":") && lines[1] !== undefined ? `${lines[0]} ${lines[1]}` : lines[0]
+}
 /** A commit subject's words: up to 72 characters, cut at a word with an ellipsis. */
 const subject = (line: string) => {
   if (line.length <= 72) return line
@@ -85,7 +91,7 @@ export const askFirst = (
         const mine = [...(c?.added ?? []), ...(c?.changed ?? [])].filter((id) => id in shown)
         if (mine.length > 0 && versions !== undefined) shown = { ...shown, ...(yield* versions(mine)) }
         for (const id of ids) (touched.add(id), unsaved.add(id))
-        if (ids.length > 0 && unsaved.size === ids.length) saving = subject(added?.split("\n")[0] ?? "a fix for a rehearse finding")
+        if (ids.length > 0 && unsaved.size === ids.length) saving = subject(headline(added) ?? "a fix for a rehearse finding")
         for (const id of c?.added ?? []) s?.allowed.add(id)
         if (s !== undefined && ids.length > 0) s.onTouched(ids)
       }),
