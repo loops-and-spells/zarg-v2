@@ -219,17 +219,25 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
         yield* answerTopic(p, { answer: option.id, text: c.why }, "zarg")
         return { choice: option.id }
       })
+    // Answers to questions from before a restart, by their text: the same question asked again is answered already.
+    const answeredBefore = new Map<string, { readonly answer?: string; readonly text?: string }>()
     const asker: Asker = {
       // A new question from the driver replaces any it was discussing.
-      ask: (q) =>
-        Effect.andThen(
+      ask: (q) => {
+        const before = answeredBefore.get(q.question)
+        if (before !== undefined && q.options.some((o) => o.id === before.answer)) {
+          answeredBefore.delete(q.question)
+          return Effect.succeed(answerOf(before))
+        }
+        return Effect.andThen(
           Effect.suspend(() => {
             const was = [...discussed]
             discussed.length = 0
             return settleTopics(was, "zarg asked again")
           }),
           loopAsk(q),
-        ),
+        )
+      },
       choose,
     }
 
@@ -551,6 +559,8 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
             resolved.add(head.id)
             return Effect.asVoid(Effect.forkDetach(Stream.runDrain(run({ runId: `inbox-${crypto.randomUUID().slice(0, 8)}`, resume: [{ interruptId: head.id, payload: answerOf(reply) }] }))))
           }
+          // A question zarg no longer holds (from before a restart): asked again as it was, this answer is the answer.
+          if (reply.answer !== undefined) answeredBefore.set(t.title, reply)
           return Effect.asVoid(Effect.forkDetach(deliver(`(you answered "${t.title}": ${labelOf(t, reply)})`)))
         }),
       replied: (t: InboxTopicRef, text: string) =>

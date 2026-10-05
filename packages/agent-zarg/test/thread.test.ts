@@ -685,6 +685,29 @@ describe("zarg's questions as inbox topics", () => {
     expect(calls).toContainEqual(["settle", "T-00000097", expect.any(String)])
   })
 
+  // @scenario S-0098
+  test("after a restart, an answer to zarg's old question counts when it asks that same question again: the operator answers once", async () => {
+    const { inbox, calls } = fakeInbox()
+    const got: Array<unknown> = []
+    let asked = 0
+    const driver: Driver = (_spec, asker) =>
+      Effect.gen(function* () {
+        if (asked++ > 0) return yield* Effect.never
+        got.push(yield* asker.ask({ question: "Old question?", options: [{ id: "a", label: "Old A" }, { id: "b", label: "B" }] }))
+        return outcome("done")
+      }) as never
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setupWith(driver, { ...inbox, open: () => Effect.succeed([{ id: "T-00000099", key: "main|inq-old", title: "Old question?" }]) })
+        yield* collect(thread.run({ runId: "r1" }).pipe(Stream.takeUntil((e) => e.type === "RUN_FINISHED")))
+        yield* thread.inbox!.answered({ id: "T-00000099", title: "Old question?", answers: [{ id: "a", label: "Old A" }, { id: "b", label: "B" }] }, { answer: "a" })
+        yield* Effect.sleep(80)
+      }),
+    )
+    expect(got).toEqual([{ choice: "a" }])
+    expect(calls.filter((c) => (c as Array<unknown>)[0] === "post")).toEqual([])
+  })
+
   const askOnce = (answers: Array<unknown>): Driver => {
     let calls = 0
     return (_spec, asker) =>
