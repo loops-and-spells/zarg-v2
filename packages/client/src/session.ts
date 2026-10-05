@@ -196,8 +196,8 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
             !a.on
               ? `Reconcile stays off: ${a.reason ?? "unknown reason"}`
               : (a.pending ?? 0) > 0
-                ? `Reconcile is on for this session; a pass is starting (${a.pending} card${a.pending === 1 ? "" : "s"}).`
-                : "Reconcile is on for this session; nothing to reconcile.",
+                ? `Reconcile is on; a pass is starting (${a.pending} scenario${a.pending === 1 ? "" : "s"}).`
+                : "Reconcile is on; nothing to reconcile.",
           ),
           Effect.catch((e) => Effect.succeed(e.message)),
           Effect.flatMap((notice) => Effect.sync(() => set({ ...state, notice }))),

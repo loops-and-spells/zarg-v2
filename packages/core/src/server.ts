@@ -28,7 +28,7 @@ export interface ReconcileAnswer {
   readonly pending?: number
 }
 
-/** Turn plan and implement on for this session (`POST /reconcile`), even when the config leaves them off. */
+/** Turn plan and implement on (`POST /reconcile`), even when the config leaves them off; a project without a [reconcile] section gets one. */
 export class ReconcileControl extends Context.Service<ReconcileControl, { readonly turnOn: Effect.Effect<ReconcileAnswer> }>()("@zarg/core/ReconcileControl") {}
 
 /** First-run setup: \`POST /setup/open\` opens the Setup view (absent in cores and tests without it). */

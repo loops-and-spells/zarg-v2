@@ -3,7 +3,7 @@ import { decodeCommands, lintSlashInput, parseSlashInput, registerCommands, SLAS
 
 // A fixture table with every argument kind (the real table has only /reconcile so far).
 const T = decodeCommands([
-  { cmd: "/reconcile", desc: "turn plan and implement on for this session", arg: { kind: "none" } },
+  { cmd: "/reconcile", desc: "turn plan and implement on (it stays on)", arg: { kind: "none" } },
   { cmd: "/bench", desc: "run a suite", arg: { kind: "choice", hint: "suite", choices: ["humaneval", "mbpp"], required: true, params: { keys: ["limit", "mode"], flags: ["fast"] } } },
   { cmd: "/btw", desc: "steer the running work", arg: { kind: "text", hint: "aside", required: true } },
   { cmd: "/open", desc: "open a file", arg: { kind: "path" } },

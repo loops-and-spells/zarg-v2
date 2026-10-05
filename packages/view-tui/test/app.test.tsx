@@ -538,7 +538,7 @@ describe("tui frames", () => {
     await t.waitForVisualIdle()
     const frame = t.captureCharFrame()
     expect(frame).toContain("commands")
-    expect(frame).toContain("/reconcile  turn plan and implement on for this session")
+    expect(frame).toContain("/reconcile  turn plan and implement on (it stays on)")
     // Tab writes the completion into the input itself (the box row alone would not prove it).
     t.mockInput.pressTab()
     await t.waitForVisualIdle()

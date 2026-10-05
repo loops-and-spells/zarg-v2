@@ -123,7 +123,7 @@ describe("session", () => {
     s.command("/reconcile")
     await tick()
     expect(f.reconciles).toHaveLength(1)
-    expect(s.state().notice).toBe("Reconcile is on for this session; a pass is starting (2 cards).")
+    expect(s.state().notice).toBe("Reconcile is on; a pass is starting (2 scenarios).")
     s.command("/nope")
     expect(s.state().notice).toBe("unknown command: /nope (try /reconcile, /yolo, /login or /models)")
     const off = fakeClient({ reconcileResult: { on: false, reason: "set roles.plan in .zarg/config.toml" } })
@@ -135,7 +135,7 @@ describe("session", () => {
     const s3 = makeSession({ client: idle.client, threadId: "main" })
     s3.command("/reconcile")
     await tick()
-    expect(s3.state().notice).toBe("Reconcile is on for this session; nothing to reconcile.")
+    expect(s3.state().notice).toBe("Reconcile is on; nothing to reconcile.")
   })
 
   test("a refused run shows its reason", async () => {
