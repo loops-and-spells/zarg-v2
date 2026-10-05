@@ -155,13 +155,16 @@ const keepRequirements = (cwd: string) =>
 
 export const planPath = (item: string) => `.zarg/plans/${item}.md`
 
-const planTask = (item: string, scenario: string) =>
+const planTask = (item: string, scenario: string, around: string, files: ReadonlyArray<string>) =>
   [
     `Write the implementation plan for scenario ${item}:`,
     "",
     scenario,
     "",
-    "Read the code you need (Fs.list, Fs.read) and the scenarios around it (Graph.render, Graph.show).",
+    ...(around.trim() !== "" ? ["The scenarios sharing a state with it:", "", around, ""] : []),
+    `The project's files: ${files.length > 0 ? files.join(", ") : "none yet"}.`,
+    "",
+    "Plan from these: read the code you need (Fs.read); look further in the graph only when they leave something out, never the backlog or feedback.",
     "Finish with `yield* Rlm.done({ value: { plan } })`, where `plan` is Markdown with exactly these sections:",
     "## Approach",
     "## Files   (one line each: - path — what changes)",
@@ -211,7 +214,11 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
       Effect.gen(function* () {
         const snap = yield* store.snapshot
         const node = snap.nodes.get(item)
-        return { text: yield* host.render(new Set([item])), title: String(node?.props.title ?? item), hash: node ? hash(node) : "" }
+        // The scenarios that share a state with it (its Given, context or Thens): what the planner reads first.
+        const states = new Set((node?.edges ?? []).map((e) => e.to).filter((id) => snap.nodes.get(id)?.type === "gherkin/state"))
+        const siblings = [...snap.nodes.values()].filter((n) => n.id !== item && n.type === "gherkin/scenario" && n.edges.some((e) => states.has(e.to))).map((n) => n.id).slice(0, 8)
+        const around = siblings.length === 0 ? "" : yield* host.render(new Set(siblings))
+        return { text: yield* host.render(new Set([item])), around, title: String(node?.props.title ?? item), hash: node ? hash(node) : "" }
       }),
     )
   const command = (cwd: string, script: string) => runCommand({ root: cwd, scope: {}, sensitive: deps.sensitive }, ["bash", "-c", script], 1_800_000)
@@ -227,7 +234,9 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
         run: (item, cwd) =>
           Effect.gen(function* () {
             const c = yield* scenario(cwd, item)
-            const out = (yield* run("plan", "plan", item, planTask(item, c.text), cwd)) as { plan?: string; blocked?: string }
+            // ponytail: the first 80 tracked files; a project map when projects are larger.
+            const files = (yield* gitRun(cwd, ["ls-files"])).stdout.split("\n").filter((f) => f !== "" && !f.startsWith(".zarg/")).slice(0, 80)
+            const out = (yield* run("plan", "plan", item, planTask(item, c.text, c.around, files), cwd)) as { plan?: string; blocked?: string }
             // @scenario S-0057
             if (out.blocked !== undefined || out.plan === undefined) {
               return { ok: false, kind: "unplannable", title: `${item} cannot be planned`, detail: out.blocked ?? "the planner returned no plan" } satisfies ItemOutcome

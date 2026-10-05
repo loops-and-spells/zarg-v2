@@ -34,7 +34,7 @@ const project = (scenarios: ReadonlyArray<string>) => {
 }
 
 /** A model that answers by preset (from the system prompt) with the scenario id substituted into the cell. */
-const stub = (cells: Record<string, (scenario: string) => string>) =>
+const stub = (cells: Record<string, (scenario: string) => string>, seen?: Array<[string, string]>) =>
   Layer.succeed(Model.Model, {
     client: () => Effect.die("unused"),
     list: () => Effect.succeed([]),
@@ -43,6 +43,7 @@ const stub = (cells: Record<string, (scenario: string) => string>) =>
     stream: (req) => {
       const preset = /zarg (\S+) agent/.exec(String(req.messages[0]?.content))?.[1] ?? "?"
       const scenario = /scenario (S-\d+)/.exec(String(req.messages[1]?.content))?.[1] ?? ""
+      seen?.push([preset, String(req.messages[1]?.content)])
       const code = cells[preset]?.(scenario) ?? 'yield* Rlm.done({ value: "?" })'
       const events: ReadonlyArray<StreamEvent> = [
         { type: "toolCall", call: { id: `c${Math.random()}`, type: "function", function: { name: "exec", arguments: JSON.stringify({ code }) } } },
@@ -102,6 +103,16 @@ describe("plan and implement phases", () => {
     expect(readFileSync(join(r, "src/S-0001.ts"), "utf8")).toContain(`// ${"@" + "scenario"} S-0001`)
     expect(readFileSync(join(r, ".zarg/graph/nodes/ST-0001.json"), "utf8")).toBe(before)
     expect(sh(r, "git log -1 --format=%s")).toBe("feat: implement S-0001")
+  }, 60_000)
+
+  test("the planner starts from what it needs: the scenarios sharing a state with this one, and the project's files", async () => {
+    const r = project(["S-0001", "S-0002"])
+    const seen: Array<[string, string]> = []
+    await pass(r, stub({ plan: () => `yield* Rlm.done({ value: { plan: "${PLAN}" } })`, "implement-scenario": implementer }, seen))
+    const task = seen.find(([p, t]) => p === "plan" && t.includes("plan for scenario S-0001"))![1]
+    expect(task).toContain("S-0002 Scenario S-0002")
+    expect(task).toContain("README.md")
+    expect(task).toContain("never the backlog or feedback")
   }, 60_000)
 
   test("a scenario the planner calls contradictory becomes an unplannable finding; the other scenario lands", async () => {
