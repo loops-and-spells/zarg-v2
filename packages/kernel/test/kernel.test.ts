@@ -52,6 +52,13 @@ describe("Kernel", () => {
     expect(r.calls).toBe(0)
   })
 
+  test("a method call on an effect (.catch, .pipe) says how to write it instead", async () => {
+    const r = await withKernel((k) => k.run('const x = yield* Notes.add({ text: "a" }).catch(() => Effect.succeed(null))\nreturn x'))
+    expect(r.ok).toBe(false)
+    expect(r.output).toContain("Property 'catch' does not exist")
+    expect(r.output).toContain("Effect.catch(Svc.m(p), (e) => Effect.succeed(null))")
+  })
+
   test("untyped values (from earlier cells, empty objects) do not fail the typecheck", async () => {
     const out = await withKernel((k) =>
       Effect.gen(function* () {

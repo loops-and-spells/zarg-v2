@@ -244,7 +244,9 @@ export const make = (opts: KernelOptions) =>
         const checked = checker.check(cell)
         if (!checked.ok) {
           const out = collector(outputCap)
-          out.push(`typecheck failed, the cell did not run:\n${checked.errors.join("\n")}`)
+          // A service call is an Eff, not a promise: a method on it (.catch, .pipe, .then) is the usual slip.
+          const methodOnEff = checked.errors.some((e) => /Property '\w+' does not exist on type 'Eff</.test(e))
+          out.push(`typecheck failed, the cell did not run:\n${checked.errors.join("\n")}${methodOnEff ? "\nAn Eff has no methods: recover with `yield* Effect.catch(Svc.m(p), (e) => Effect.succeed(null))`." : ""}`)
           return { ok: false, output: out.text(), restarted }
         }
         const { body, names } = toBody(cell)
