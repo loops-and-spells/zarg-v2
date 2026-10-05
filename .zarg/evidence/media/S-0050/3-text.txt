@@ -1,9 +1,9 @@
                        │  inbox   2 open                                                                                
  ◆ zarg                │                                                                                                
-   project · main      │  ▍◆ zarg          When "the child sees the new chore…  question · waiting · 4 options  12m     
+   project · main      │  ▍◆ zarg          What happens after 'the child sees…  question · waiting · 3 options  12m     
                        │   · zarg          Landing waits on your uncommitted edits in .zarg/plans/S-0…  report  now     
  VIEWS               3 │                                                                                                
-▍ ◇ Inbox            2 │                                                                                                
+▍ ◆ Inbox            2 │                                                                                                
   ▤ Journeys           │                                                                                                
   ▤ Intents            │                                                                                                
                        │                                                                                                

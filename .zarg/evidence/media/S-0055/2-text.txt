@@ -1,33 +1,33 @@
 [
   {
-    "kind": "pass-error",
-    "title": "plan failed for S-0002",
-    "detail": "Cause([Fail(RlmError: plan did not finish within its budget (20 turns))])",
-    "about": [
-      "S-0002"
-    ],
-    "pass": "0290181e7030",
-    "id": "F-0415448e",
-    "at": "2026-10-05T13:39:10.622Z"
-  },
-  {
     "kind": "blocked-scenario",
     "title": "S-0001 cannot be implemented as written",
-    "detail": "Verify.run can never pass in this scope: .zarg/config.toml sets verify = \"exit 1\" (a command that always fails) and every .zarg file is read-only to me, so the gate returns passed:false with empty output regardless of the implementation. The suite it would run (bun test / bun test --typecheck) passes 7/7.",
+    "detail": "The repository's Verify gate is configured (read-only .zarg/config.toml) as `verify = \"exit 1\"` — a literal failing sentinel that just runs `exit 1` with empty output; Verify.run therefore can never report passed in this scope, even though real typecheck/tests pass. Per instructions I must not edit anything under .zarg/, so I did not touch that gate config, nor change plan-designated no-change code.",
     "about": [
       "S-0001"
     ],
-    "pass": "0290181e7030",
-    "id": "F-a7b4c85f",
-    "at": "2026-10-05T13:39:10.625Z"
+    "pass": "94cc195ddd75",
+    "id": "F-2c5d2173",
+    "at": "2026-10-05T15:34:15.987Z"
+  },
+  {
+    "kind": "blocked-scenario",
+    "title": "S-0002 cannot be implemented as written",
+    "detail": "Verify.run reports passed=false unconditionally because .zarg/config.toml pins verify = \"exit 1\" (a literal failing command) that I may not edit; not a scenario contradiction. Files are implemented and locally green.",
+    "about": [
+      "S-0002"
+    ],
+    "pass": "94cc195ddd75",
+    "id": "F-742e3f8b",
+    "at": "2026-10-05T15:34:15.987Z"
   },
   {
     "kind": "verify-failing",
     "title": "verify still fails after the fix attempts",
     "detail": "",
     "about": [],
-    "pass": "0290181e7030",
-    "id": "F-3ff152b7",
-    "at": "2026-10-05T13:39:10.625Z"
+    "pass": "94cc195ddd75",
+    "id": "F-4d05449b",
+    "at": "2026-10-05T15:34:15.987Z"
   }
 ]

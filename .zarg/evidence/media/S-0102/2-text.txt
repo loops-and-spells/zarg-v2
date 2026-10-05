@@ -1,3 +1,6 @@
 Add this to the requirements?
 
-Add an outcome to Intent I-0001 'A todo app for families' in your words: Parents reward finished chores with points.
+Add an outcome to the intent I-0001 'A todo app for families':
+O-0003 (new)
+  Outcome  Parents reward finished chores with points.
+This is one idea: the parent gives finished chores a points reward, to the intent 'A todo app for families'.

@@ -1,75 +1,111 @@
 {
-  "title": "Family member reviews assigned chores",
+  "title": "Parent schedules a chore to repeat weekly and 1 more",
   "journey": "",
   "scenarios": [],
   "changes": [
     {
       "tool": "add-persona",
       "params": {
-        "name": "Family member",
+        "name": "Parent",
         "kind": "human",
-        "text": "a person in a household who shares chores"
+        "text": "a household member who manages shared chores"
       }
     },
     {
       "tool": "add-scenario",
       "params": {
-        "title": "Family member reviews assigned chores",
-        "when": "opens their chore list",
+        "title": "Parent schedules a chore to repeat weekly",
+        "when": "chooses a weekly repeat for the chore",
         "by": [
           {
-            "name": "Family member"
+            "name": "Parent"
+          }
+        ],
+        "given": [
+          {
+            "text": "A chore with days and a doer exists"
+          }
+        ],
+        "then": [
+          {
+            "text": "Days and doer stay the same"
           }
         ],
         "arrives": {
-          "text": "Their chores"
-        },
-        "then": [
-          {
-            "text": "Each chore shows who it is assigned to"
-          },
-          {
-            "text": "They see only chores assigned to them"
-          }
-        ]
-      }
-    },
-    {
-      "tool": "add-journey",
-      "params": {
-        "name": "Review chores"
-      }
-    },
-    {
-      "tool": "link",
-      "params": {
-        "scenario": "S-0001",
-        "edge": "in",
-        "journey": {
-          "id": "J-0001"
+          "text": "A chore awaiting first run"
         }
       }
     },
     {
       "tool": "link",
       "params": {
-        "edge": "serves",
-        "journey": {
-          "id": "J-0001"
+        "scenario": "S-0001",
+        "edge": "then",
+        "state": {
+          "text": "The chore repeats next week"
         },
-        "outcome": "O-0001"
+        "state_type": "outcome"
+      }
+    },
+    {
+      "tool": "add-scenario",
+      "params": {
+        "title": "Parent reuses the weekly chore",
+        "when": "opens the recurring chore's next week",
+        "by": [
+          {
+            "name": "Parent"
+          }
+        ],
+        "given": [
+          {
+            "text": "The chore repeats next week"
+          }
+        ],
+        "then": [
+          {
+            "text": "Days and doer are still set"
+          }
+        ],
+        "arrives": {
+          "text": "The chore repeats next week"
+        }
+      }
+    },
+    {
+      "tool": "add-journey",
+      "params": {
+        "name": "Weekly chores"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "scenario": "S-0002",
+        "edge": "in",
+        "journey": "J-0001"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "edge": "serves",
+        "journey": "J-0001",
+        "outcome": "O-0002"
       }
     }
   ],
   "feedback": [],
   "steps": [
-    "Add the Family member persona",
-    "Create the S-0001 scenario",
-    "Create the J-0001 journey",
-    "Put S-0001 into J-0001",
-    "J-0001 serves O-0001"
+    "Add Parent persona",
+    "Add scenario S-0001 creating the weekly repeat state",
+    "Link S-0001 to the outcome state",
+    "Add scenario S-0002",
+    "Add journey J-0001",
+    "Put S-0002 in J-0001",
+    "Link J-0001 to outcome O-0002"
   ],
-  "serves": "gherkin/outcome:O-0001@f5ebc0ef2fe2",
+  "serves": "gherkin/outcome:O-0002@bf62f6842034",
   "id": "B-01",
   "status": "backlog",
   "events": [

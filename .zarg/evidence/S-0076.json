@@ -1,13 +1,13 @@
 {
   "scenario": "S-0076",
   "version": "0e5ff73275d7",
-  "commit": "a9fa5d3",
-  "run": "e2e-2026-10-05T14-52-55.361Z",
+  "commit": "c5974f4",
+  "run": "e2e-2026-10-05T15-49-18.346Z",
   "journey": "J-0001",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T14:53:15.955Z",
-  "ms": 799,
+  "at": "2026-10-05T15:49:38.819Z",
+  "ms": 795,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -32,16 +32,16 @@
       "caption": "the step as it played",
       "path": "media/S-0076/4-step.cast",
       "meta": {
-        "startAt": 19.1
+        "startAt": 19
       }
     }
   ],
   "failure": null,
   "code": {
-    "packages/view-tui/src/app.tsx": "c680feeea6f2312717aade3d17b8150e5ccfb498",
+    "packages/view-tui/src/app.tsx": "35fe94c0d9ed9363518754f74ab54a5447deccc4",
     "packages/view-tui/src/markdown.tsx": "2a2b2575df4258872fa8f3bdd96ed98eb4811757",
     "packages/view-tui/src/sections.tsx": "1ea70d4fbca9bc21e759e9fe1884611ec1fc953c",
-    "packages/view-tui/test/app.test.tsx": "8b2824da4af0129151e27490cb6d68c437bd8fa8",
+    "packages/view-tui/test/app.test.tsx": "361a7042427e4f9f34f03758c164a9b4c1c29f8b",
     "packages/view-tui/test/sections.test.tsx": "70a02ddb89be6c42b1f54172091ec88aaba8ed6c"
   }
 }

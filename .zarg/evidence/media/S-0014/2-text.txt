@@ -3,12 +3,12 @@
    project · main      │  ▍◆ zarg          What should we work on next?  question · waiting · 2 options  now            
                        │                                                                                                
  VIEWS               3 │                                                                                                
-▍ ◆ Inbox            1 │                                                                                                
+▍ ◇ Inbox            1 │                                                                                                
   ▤ Journeys           │                                                                                                
   ▤ Intents            │                                                                                                
                        │                                                                                                
  AGENTS             ◆1 │                                                                                                
-  ◆ zarg          asks │                                                                                                
+  ◇ zarg          asks │                                                                                                
   └ ⠼ driver 1    3/25 │                                                                                                
                        │                                                                                                
                        │                                                                                                
@@ -24,7 +24,7 @@
                        │             N2[Parent picks a child] --> N3                                                    
                        │             N3[Child sees the chore] --> N4                                                    
                        │             N4[Child does the chore] --> N5                                                    
-                       │                                                                                            █   
+                       │                                                                                            ▄   
                        │           Too wide to draw.                                                                █   
                        │     you  Add it                                                                            █   
                        │     you  it depends on the chore                                                           █   

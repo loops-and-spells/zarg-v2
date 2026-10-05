@@ -1,12 +1,12 @@
 {
   "scenario": "S-0094",
   "version": "27ce58d0f1b8",
-  "commit": "7a9204f",
-  "run": "e2e-2026-10-05T13-47-27.241Z",
+  "commit": "c5974f4",
+  "run": "e2e-2026-10-05T15-49-18.346Z",
   "journey": "J-0006",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T13:47:35.152Z",
+  "at": "2026-10-05T15:51:53.122Z",
   "ms": 807,
   "media": [
     {
