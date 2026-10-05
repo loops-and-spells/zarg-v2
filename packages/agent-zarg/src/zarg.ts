@@ -1,5 +1,5 @@
 import { readdirSync } from "node:fs"
-import { Effect } from "effect"
+import { Effect, Stream } from "effect"
 import type { AgentHost } from "@zarg/agent-host"
 import type { ThreadLog } from "@zarg/core"
 import type { Decisions } from "@zarg/decisions"
@@ -20,6 +20,10 @@ import { makeThread } from "./thread"
  * zarg, the conversational agent: the driver loop on a thread, its RLMs and their services, what next when nothing
  * is open. Everything it touches comes from the core through `host`.
  */
+/** The reviewer's instructions: real contradictions only (a false alarm costs the operator nothing but a round). */
+const REVIEW =
+  'You review a requirements change before a person sees it. Find only real contradictions: a scenario whose Given and an And, an And and a Then, or two Thens cannot all be true at once. Answer JSON only: {"problems":["one sentence each"]} (empty when there are none).'
+
 export const makeZarg = (host: AgentHost) =>
   Effect.sync(() => {
     const root = host.root
@@ -45,7 +49,29 @@ export const makeZarg = (host: AgentHost) =>
       // A change shown with its draft: checked as a write would be (gherkin's dry run) before the operator sees it.
       const dryRun = (draft: ReadonlyArray<{ readonly tool: string; readonly params: unknown }>) =>
         Effect.map(plugins.invoke("gherkin", "dryRun", { draft }), (r) => r as { readonly ok: boolean; readonly problems: ReadonlyArray<string> }).pipe(Effect.orElseSucceed(() => ({ ok: true, problems: [] as ReadonlyArray<string> })))
-      const guard = askFirst(asker, versions, (ids, message) => commitGraph(root, ids, message), nodesOf, dryRun)
+      // @scenario S-0009
+      // What the checks cannot see: a reviewer (the driver's model, reasoning off, a few hundred ms) reads the change
+      // for a scenario whose states cannot all hold at once. Probed: the decision model could not tell; this one can.
+      const judge = (change: string) =>
+        Effect.gen(function* () {
+          const roles = host.roles as Readonly<Record<string, string | undefined>>
+          const ref = roles.driver ?? roles.default
+          if (ref === undefined) return [] as ReadonlyArray<string>
+          const events = yield* Stream.runCollect(
+            model.stream({
+              model: ref as never,
+              messages: [{ role: "system", content: REVIEW }, { role: "user", content: change }],
+              reasoning: { enabled: false },
+              maxTokens: 400,
+              outputSchema: { type: "object", properties: { problems: { type: "array", items: { type: "string" } } }, required: ["problems"] },
+            }),
+          )
+          const text = Model.completion(events).text
+          const json = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)
+          const problems = (JSON.parse(json) as { problems?: unknown }).problems
+          return Array.isArray(problems) ? problems.filter((x): x is string => typeof x === "string" && x.trim() !== "").slice(0, 3) : []
+        }).pipe(Effect.timeout("20 seconds"), Effect.orElseSucceed(() => [] as ReadonlyArray<string>))
+      const guard = askFirst(asker, versions, (ids, message) => commitGraph(root, ids, message), nodesOf, dryRun, judge)
       const outside = host.outsideReads as never
       const factory = (name: string, scope: Scope): Bound | undefined => {
         const ctx = { host: plugins, snapshot, scope }

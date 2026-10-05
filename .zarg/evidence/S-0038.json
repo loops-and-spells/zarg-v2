@@ -1,12 +1,12 @@
 {
   "scenario": "S-0038",
   "version": "db50877db9d1",
-  "commit": "9e0d47ea",
-  "run": "e2e-2026-10-05T20-43-00.477Z",
+  "commit": "a412e625",
+  "run": "e2e-2026-10-05T20-49-02.495Z",
   "journey": "J-0002",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T20:44:16.353Z",
+  "at": "2026-10-05T20:50:18.292Z",
   "ms": 55,
   "media": [
     {
@@ -38,6 +38,6 @@
   ],
   "failure": null,
   "code": {
-    "packages/agent-zarg/src/zarg.ts": "e70055dcbf4f943a7c7cd309e529a6a6706293df"
+    "packages/agent-zarg/src/zarg.ts": "d38b0d4c99998249606366779b92722efd74c8ae"
   }
 }

@@ -10,7 +10,7 @@
  AGENTS              3 │                                                                                                
   ▾ zarg           0/0 │                                                                                                
   └ ✗ driver 1  failed │                                                                                                
-  ⠋ setup          0/1 │                                                                                                
+  ⠏ setup          0/1 │                                                                                                
                        │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
                        │     setup  setup   esc closes                                                                  
                        │     0 providers ready · default: openrouter:e2e/one                                            

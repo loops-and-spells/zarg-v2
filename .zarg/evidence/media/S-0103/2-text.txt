@@ -1,51 +1,128 @@
 {
-  "title": "Family member views their chores",
+  "title": "Parent opens the family chore list",
   "journey": "",
   "scenarios": [],
   "changes": [
     {
       "tool": "add-persona",
       "params": {
-        "name": "Family member",
+        "name": "Parent",
         "kind": "human",
-        "text": "A parent or child in the family who checks what chores are theirs"
+        "text": "Parent who runs the household and opens the todo app"
       }
     },
     {
       "tool": "add-scenario",
       "params": {
-        "title": "Family member views their chores",
-        "when": "They open the chore list",
+        "title": "Parent opens the family chore list",
+        "when": "Parent opens the family chore list",
         "by": [
           {
-            "name": "Family member"
+            "name": "Parent"
           }
         ],
         "arrives": {
-          "text": "The chore list for the family"
+          "text": "App loaded with the family view"
         },
         "then": [
           {
-            "text": "Each member sees the chores assigned to them"
+            "text": "Parent sees each member's assigned chores"
           }
         ],
-        "given": [
+        "given": []
+      }
+    },
+    {
+      "tool": "add-persona",
+      "params": {
+        "name": "Child",
+        "kind": "human",
+        "text": "Child in the family who checks their chores"
+      }
+    },
+    {
+      "tool": "add-scenario",
+      "params": {
+        "title": "Child checks their assigned chores",
+        "when": "Child opens their own chore view",
+        "by": [
           {
-            "text": "Chores are assigned among family members"
+            "name": "Child"
           }
-        ]
+        ],
+        "arrives": {
+          "text": "Child view loaded"
+        },
+        "then": [
+          {
+            "text": "Child sees the chores assigned to them"
+          }
+        ],
+        "given": []
+      }
+    },
+    {
+      "tool": "add-persona",
+      "params": {
+        "name": "Operator",
+        "kind": "human",
+        "text": "Operator who assigns chores to family members"
+      }
+    },
+    {
+      "tool": "add-scenario",
+      "params": {
+        "title": "Operator assigns a chore to a member",
+        "when": "Operator assigns a chore to a member",
+        "by": [
+          {
+            "name": "Operator"
+          }
+        ],
+        "arrives": {
+          "text": "Chore assignment saved"
+        },
+        "then": [
+          {
+            "text": "Chore is listed for that member"
+          },
+          {
+            "text": "Assignment is visible in the family view"
+          }
+        ],
+        "given": []
       }
     },
     {
       "tool": "add-journey",
       "params": {
-        "name": "Family chore viewing"
+        "name": "Family chore check-ins"
       }
     },
     {
       "tool": "link",
       "params": {
         "scenario": "S-0001",
+        "edge": "in",
+        "journey": {
+          "id": "J-0001"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "scenario": "S-0002",
+        "edge": "in",
+        "journey": {
+          "id": "J-0001"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "scenario": "S-0003",
         "edge": "in",
         "journey": {
           "id": "J-0001"
@@ -65,10 +142,15 @@
   ],
   "feedback": [],
   "steps": [
-    "Add the Family member persona.",
-    "Create scenario S-0001: they open the chore list and see the chores assigned to them.",
-    "Create journey J-0001 Family chore viewing and put S-0001 in it.",
-    "Link J-0001 to outcome O-0001 so the journey delivers it."
+    "Add the Parent persona",
+    "Create the parent family-view scenario",
+    "Add the Child persona",
+    "Create the child's own-view scenario",
+    "Add the Operator persona",
+    "Create the operator's assignment scenario",
+    "Create the Family chore check-ins journey",
+    "Put the three scenarios in it",
+    "Mark it as serving O-0001"
   ],
   "serves": "gherkin/outcome:O-0001@f5ebc0ef2fe2",
   "id": "B-01",
