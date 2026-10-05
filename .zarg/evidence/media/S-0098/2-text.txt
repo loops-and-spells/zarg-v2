@@ -1,1 +1,1 @@
-Who uses this product, and which persona should the tester roleplay first? Draft from the conversation: plugins ask the operator to allow them (use the driver/rehearse/triage models, read-write .zarg records), and zarg's own agents act in scenarios.
+There are no requirements yet. What is the first thing you want this product to be for?

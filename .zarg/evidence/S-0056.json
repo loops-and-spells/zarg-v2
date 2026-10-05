@@ -1,0 +1,52 @@
+{
+  "scenario": "S-0056",
+  "version": "19c16e7d5e04",
+  "commit": "5f5c8eb",
+  "run": "e2e-2026-10-05T08-03-01.447Z",
+  "journey": "J-0004",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-05T08:12:42.638Z",
+  "ms": 470371,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0056/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "implement thread",
+      "path": "media/S-0056/2-text.txt",
+      "meta": {
+        "fold": true
+      }
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "the landed commit",
+      "path": "media/S-0056/3-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0056/4-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0056/5-step.cast",
+      "meta": {
+        "startAt": 9.1
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/core/src/phases.ts": "17121525575df71a252fc7bb9c5dad477073808e",
+    "packages/reconcile/test/pass.test.ts": "24ebf2698dd5989c6c163047fde20cdf71bc5d25"
+  }
+}

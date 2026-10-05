@@ -1,0 +1,46 @@
+{
+  "scenario": "S-0014",
+  "version": "3a445c457242",
+  "commit": "5f5c8eb",
+  "run": "e2e-2026-10-05T08-03-01.447Z",
+  "journey": "J-0001",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-05T08:03:19.404Z",
+  "ms": 5,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0014/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "what next",
+      "path": "media/S-0014/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0014/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0014/4-step.cast",
+      "meta": {
+        "startAt": 17.7
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/agent-zarg/src/intent.ts": "d803bbf51e40063b8717e24c968196acbff5dd66",
+    "packages/agent-zarg/src/thread.ts": "e73d48eaa6b0dcbb8653be8e1812a3be702aa49b",
+    "packages/agent-zarg/test/intent.test.ts": "9024e2282160008c3105347a540f164ed830422c",
+    "packages/agent-zarg/test/thread.test.ts": "b74d54ad64fc2da6d0a3d0eda56b3e66efab931b"
+  }
+}

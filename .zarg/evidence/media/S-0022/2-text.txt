@@ -1,0 +1,12 @@
+bun test v1.4.2 (744846f84)
+
+test/chores.test.ts:
+(pass) a chore is assigned [0.15ms]
+(pass) parent assigns a chore to a child [0.02ms]
+(pass) child sees the new chore [0.05ms]
+(pass) parent sees the family's chores [0.02ms]
+
+ 4 pass
+ 0 fail
+ 5 expect() calls
+Ran 4 tests across 1 file. [11.00ms]

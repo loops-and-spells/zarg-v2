@@ -9,7 +9,7 @@
                        │                                                                                                
  AGENTS              2 │                                                                                                
 ▍ ● zarg           0/0 │                                                                                                
-  ⠴ setup          0/1 │                                                                                                
+  ⠸ setup          0/1 │                                                                                                
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                
@@ -32,9 +32,9 @@
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                
-                       │                                                                                                
-                       │                                                                                                
-                       │                                                                                                
-                       │                                                                                                
+                       │ zarg zarg · running                                                                            
+                       │ task  the conversation                                                                         
+                       │ turn 0 of 0                                                                                    
+                       │ · answered                                                                                     
                        │ › message zarg… (alt+m or /)                                                                   
                        │ core child · error · thread mai…   ↑↓ move   ⏎ open   x archive   X archive finished   g next ◆

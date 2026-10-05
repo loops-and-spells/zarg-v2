@@ -1,0 +1,40 @@
+{
+  "scenario": "S-0045",
+  "version": "7e212bf04ef4",
+  "commit": "5f5c8eb",
+  "run": "e2e-2026-10-05T08-03-01.447Z",
+  "journey": "J-0003",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-05T08:04:07.457Z",
+  "ms": 5567,
+  "media": [
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "the cell's output, as kept",
+      "path": "media/S-0045/1-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0045/2-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0045/3-step.cast",
+      "meta": {
+        "startAt": 0
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/agent-zarg/test/thread.test.ts": "b74d54ad64fc2da6d0a3d0eda56b3e66efab931b",
+    "packages/model/src/redact.ts": "fd5cc1bd13a57563584551c96d5376765918ce03",
+    "packages/rlm/src/services/core.ts": "a842a466bca93b160776ee45459ecdeb59b253e7"
+  }
+}

@@ -1,0 +1,2 @@
+the key is <redacted:ZT_E2E_SECRET>
+printed

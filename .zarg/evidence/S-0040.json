@@ -1,0 +1,44 @@
+{
+  "scenario": "S-0040",
+  "version": "6f02dbbcaac5",
+  "commit": "5f5c8eb",
+  "run": "e2e-2026-10-05T08-03-01.447Z",
+  "journey": "J-0003",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-05T08:04:08.604Z",
+  "ms": 6,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0040/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "the agents at work",
+      "path": "media/S-0040/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0040/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0040/4-step.cast",
+      "meta": {
+        "startAt": 6.5
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/core/src/activity.ts": "091cebada58d39331922b481831f3375ef001347",
+    "packages/view-tui/src/rail.ts": "17d0ab9638c362dc6d26ab93247ce4117d30c361"
+  }
+}

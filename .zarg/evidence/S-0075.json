@@ -1,0 +1,44 @@
+{
+  "scenario": "S-0075",
+  "version": "efe355d54fa4",
+  "commit": "5f5c8eb",
+  "run": "e2e-2026-10-05T08-03-01.447Z",
+  "journey": "J-0001",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-05T08:03:12.193Z",
+  "ms": 5,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0075/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "zarg's reply",
+      "path": "media/S-0075/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0075/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0075/4-step.cast",
+      "meta": {
+        "startAt": 10.5
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/markdown/src/react.tsx": "18d8eda609db447c6d9f26e4d57df9db8ff2ec45",
+    "packages/markdown/test/render.test.tsx": "8b483f3c9bb8062bc5dafe1fb65a1262471fa3c9"
+  }
+}

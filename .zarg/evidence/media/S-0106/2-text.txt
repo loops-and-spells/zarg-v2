@@ -4,21 +4,21 @@
     "Assign chores"
   ],
   "persona": "Parent",
-  "kind": "drift",
+  "kind": "gap",
   "severity": "medium",
-  "note": "The step promises the chore leaves every list, but the code only marks it hidden for the parent while every other list still shows it. As written, the removal is parent-local, so this step's 'every list' claim differs from zarg now.",
+  "note": "You remove a chore and then must handle the chore still showing up in other lists, which the code does not address. This is a failure the parent is left to work around, not something the step resolves.",
   "from": {
     "agent": "rehearse",
-    "run": "r-80c6cf82"
+    "run": "r-af9468db"
   },
   "triage": {
     "on": true,
-    "why": "ask · real 1.00",
+    "why": "ask · real 0.63",
     "by": "agent"
   },
-  "id": "F-8ff371dc",
+  "id": "F-79460afe",
   "count": 1,
   "runs": [
-    "rehearse:r-80c6cf82"
+    "rehearse:r-af9468db"
   ]
 }

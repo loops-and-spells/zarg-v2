@@ -1,0 +1,40 @@
+                       │  inbox   0 open                                                                                
+ ◆ zarg                │  Nothing needs you.                                                                            
+   project · main      │                                                                                                
+                       │                                                                                                
+ VIEWS               3 │                                                                                                
+▍ ▤ Inbox              │                                                                                                
+  ▤ Journeys           │                                                                                                
+  ▤ Intents            │                                                                                                
+                       │                                                                                                
+ AGENTS              1 │                                                                                                
+  ⠙ zarg           0/0 │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+                       │     zarg   esc closes                                                                          
+                       │     you  A parent                                                                              
+                       │     you  Add it                                                                                
+                       │     zarg  You picked parent.                                                                   
+                       │     you  the chores board                                                                      
+                       │     you  Add it                                                                                
+                       │     zarg  Saved                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │           - Parent starts at: the chores board                                                 
+                       │                                                                                                
+                       │           step  state                                                                          
+                       │           1     saved                                                                          
+                       │                                                                                                
+                       │           zarg keeps it.                                                                       
+                       │     ·  answered                                                                                
+                       │     ⠙ zarg is preparing a reply · 0:00                                                         
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │ · answered                                                                                     
+                       │ › type a message, Enter to send                                                                
+                       │ core child · running · thread main · stub:scripted   ⏎ send   esc leave                        

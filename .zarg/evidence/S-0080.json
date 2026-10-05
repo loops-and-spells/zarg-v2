@@ -1,13 +1,13 @@
 {
   "scenario": "S-0080",
   "version": "83924b526abc",
-  "commit": "0519397",
-  "run": "e2e-2026-10-05T05-45-20.657Z",
+  "commit": "5f5c8eb",
+  "run": "e2e-2026-10-05T08-03-01.447Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T05:45:29.284Z",
-  "ms": 508,
+  "at": "2026-10-05T09:05:17.711Z",
+  "ms": 222,
   "media": [
     {
       "kind": "evidence-terminal/text",
@@ -22,6 +22,6 @@
   "code": {
     ".claude/skills/zarg-implement/SKILL.md": "a92ddf4601b3cec0044a17fff75effc481d31ec0",
     "packages/cli/src/commands.ts": "75bcf3f9f03e54ee419a833218aa4e72cce045bb",
-    "packages/cli/test/cli.test.ts": "905dfac0f71b3f8133938b51f95f2369784d2069"
+    "packages/cli/test/cli.test.ts": "33681500bdb42de851e9e8a737c7fcd2a56148e1"
   }
 }

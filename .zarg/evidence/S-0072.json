@@ -1,0 +1,43 @@
+{
+  "scenario": "S-0072",
+  "version": "c6f07f1994d1",
+  "commit": "5f5c8eb",
+  "run": "e2e-2026-10-05T08-03-01.447Z",
+  "journey": "J-0001",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-05T08:03:12.248Z",
+  "ms": 54,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0072/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "the working line",
+      "path": "media/S-0072/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0072/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0072/4-step.cast",
+      "meta": {
+        "startAt": 10.5
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/view-tui/src/view.ts": "41ce33faa15f7156b1a6f75e9376ac818afd11db"
+  }
+}

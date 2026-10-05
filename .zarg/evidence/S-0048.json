@@ -1,0 +1,44 @@
+{
+  "scenario": "S-0048",
+  "version": "ba9d9e139b95",
+  "commit": "5f5c8eb",
+  "run": "e2e-2026-10-05T08-03-01.447Z",
+  "journey": "J-0003",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-05T08:04:07.488Z",
+  "ms": 4,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0048/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "the refusal",
+      "path": "media/S-0048/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0048/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0048/4-step.cast",
+      "meta": {
+        "startAt": 5.4
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/kernel/src/kernel.ts": "dea8fcc3e581a0010b6b6885e1cee9397e1adbc7",
+    "packages/kernel/test/transform.test.ts": "6b0a3b74135591113d15ea46227cba78cc1317de"
+  }
+}

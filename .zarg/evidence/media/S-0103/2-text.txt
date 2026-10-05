@@ -1,40 +1,52 @@
 {
-  "title": "Parent sets a chore",
+  "title": "Assigner assigns a chore",
   "journey": "",
   "scenarios": [],
   "changes": [
     {
       "tool": "add-persona",
       "params": {
-        "name": "Parent",
+        "name": "Assigner",
         "kind": "human",
-        "text": "A parent who manages the family's shared household tasks"
+        "text": "A parent or guardian who assigns chores to family members"
+      }
+    },
+    {
+      "tool": "add-persona",
+      "params": {
+        "name": "Family member",
+        "kind": "human",
+        "text": "A family member who sees and does the chores assigned to them"
       }
     },
     {
       "tool": "add-scenario",
       "params": {
-        "title": "Parent sets a chore",
-        "when": "Parent saves a chore with a weekly repeat",
+        "title": "Assigner assigns a chore",
+        "when": "Assigner assigns a chore to a family member",
         "by": [
           {
-            "name": "Parent"
+            "name": "Assigner"
           }
         ],
         "arrives": {
-          "text": "Chore list for the family"
+          "text": "a chore list for a family"
         },
         "then": [
           {
-            "text": "A weekly repeating chore appears on the family list"
+            "text": "the chore shows under that member's name"
+          },
+          {
+            "text": "Family member sees the chore assigned to them"
           }
-        ]
+        ],
+        "given": []
       }
     },
     {
       "tool": "add-journey",
       "params": {
-        "name": "Reusable chore setup"
+        "name": "Assigning chores to family members"
       }
     },
     {
@@ -54,20 +66,20 @@
         "journey": {
           "id": "J-0001"
         },
-        "outcome": "O-0002"
+        "outcome": "O-0001"
       }
     }
   ],
   "feedback": [],
   "steps": [
-    "Add the Parent persona",
-    "Add scenario S-0001: Parent sets a chore",
-    "Create journey J-0001: Reusable chore setup",
-    "Put S-0001 in journey J-0001",
-    "Serve outcome O-0002 with journey J-0001"
+    "Add Assigner persona",
+    "Add Family member persona",
+    "Add scenario S-0001 with its two thens",
+    "Add journey J-0001 and link S-0001 into it",
+    "Link J-0001 to serve O-0001"
   ],
-  "serves": "gherkin/outcome:O-0002@bf62f6842034",
-  "id": "B-02",
+  "serves": "gherkin/outcome:O-0001@f5ebc0ef2fe2",
+  "id": "B-01",
   "status": "backlog",
   "events": [
     {

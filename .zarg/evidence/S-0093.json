@@ -1,12 +1,12 @@
 {
   "scenario": "S-0093",
   "version": "37258e23ad70",
-  "commit": "0519397",
-  "run": "e2e-2026-10-05T05-43-14.533Z",
+  "commit": "5f5c8eb",
+  "run": "e2e-2026-10-05T08-03-01.447Z",
   "journey": "J-0006",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T05:44:22.321Z",
+  "at": "2026-10-05T09:05:24.795Z",
   "ms": 57,
   "media": [
     {
@@ -24,7 +24,7 @@
       "caption": "the step as it played",
       "path": "media/S-0093/3-step.cast",
       "meta": {
-        "startAt": 8.2
+        "startAt": 6.3
       }
     }
   ],
@@ -33,7 +33,7 @@
     "packages/core/src/inbox.ts": "54ae1741107fe2bed0358ce51addf3a256a48a25",
     "packages/core/test/inbox-routes.test.ts": "c75622c6c355fbade456e184dc3470b5c9af14ed",
     "packages/core/test/inbox.test.ts": "c34bbdbcef749fbcff0599e96a00e60983766ca7",
-    "packages/view-tui/src/inbox-keys.ts": "2640092c93e5d1791f2d79ac44136457ee9a16be",
-    "packages/view-tui/test/inbox.test.ts": "f98feaf9ac6294dea82c66ef0ec211179e51a89f"
+    "packages/view-tui/src/inbox-keys.ts": "64a1222b55df7a3fb62bf0e23e80558bfa393e87",
+    "packages/view-tui/test/inbox.test.ts": "b9b91e155038026a1341a7d9fb52d254ef22046c"
   }
 }

@@ -1,0 +1,59 @@
+{
+  "scenario": "S-0050",
+  "version": "e1e0f8a40f1c",
+  "commit": "5f5c8eb",
+  "run": "e2e-2026-10-05T08-03-01.447Z",
+  "journey": "J-0004",
+  "passed": false,
+  "flaky": false,
+  "at": "2026-10-05T08:44:27.087Z",
+  "ms": 1816103,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0050/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "implement thread",
+      "path": "media/S-0050/2-text.txt",
+      "meta": {
+        "fold": true
+      }
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "screen",
+      "path": "media/S-0050/3-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0050/4-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0050/5-step.cast",
+      "meta": {
+        "startAt": 907.8
+      }
+    }
+  ],
+  "failure": {
+    "expected": "\u001b[2mexpect(\u001b[0m\u001b[31mreceived\u001b[0m\u001b[2m).\u001b[0mtoBe\u001b[2m(\u001b[0m\u001b[32mexpected\u001b[0m\u001b[2m)\u001b[0m\n\nExpected: \u001b[32mtrue\u001b[0m\nReceived: \u001b[31mfalse\u001b[0m\n",
+    "saw": "                       │  inbox   1 open                                                                                \n ◆ zarg                │                                                                                                \n   project · main      │  ▍◆ zarg          A scenario starts where the child …  question · waiting · 2 options  39m     \n                       │                                                                                                \n VIEWS               3 │                                                                                                \n▍ ◇ Inbox            1 │                                                                                                \n  ▤ Journeys           │                                                                                                \n  ▤ Intents            │                                                                                                \n                       │                                                                                                \n AGENTS              1 │                                                                                                \n  ● zarg           0/0 │                                                                                                \n                       │                                                                                                \n  ▸ archived         1 │                                                                                                \n                       │                                                                                                \n                       │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   \n                       │     zarg   esc closes                                                                          \n                       │     ·  Reconcile is on; nothing to reconcile.                                                  \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │ › type a message, Enter to send                                                                \n                       │ core child · ◆ 1 blocking · 1 open · idle · thread main · zarg-router:dee…   ⏎ send   esc leave"
+  },
+  "code": {
+    "packages/core/src/live.ts": "0adca1883e7e7fccadd481e7ccc5db74b3d7d264",
+    "packages/core/src/reconcile.ts": "0488e147524cd8195668190c73d490c15c41be78",
+    "packages/reconcile/src/land.ts": "6bf1e7563d506a43b325574e165992ebd91b8bc2",
+    "packages/reconcile/src/pass.ts": "ada0d6523e5efb61cb57d1d4e1db27cfb1095341",
+    "packages/reconcile/test/land.test.ts": "c9a46f90999bbb451cf7724822d554f4d058f2a4",
+    "packages/reconcile/test/pass.test.ts": "24ebf2698dd5989c6c163047fde20cdf71bc5d25"
+  }
+}

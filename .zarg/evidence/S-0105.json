@@ -1,13 +1,13 @@
 {
   "scenario": "S-0105",
   "version": "a42d272c91a9",
-  "commit": "554ba14",
-  "run": "e2e-2026-10-05T02-48-34.328Z",
+  "commit": "5f5c8eb",
+  "run": "e2e-2026-10-05T08-03-01.447Z",
   "journey": "J-0008",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T02:49:02.102Z",
-  "ms": 10399,
+  "at": "2026-10-05T09:06:48.466Z",
+  "ms": 7757,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -32,15 +32,15 @@
       "caption": "the step as it played",
       "path": "media/S-0105/4-step.cast",
       "meta": {
-        "startAt": 14
+        "startAt": 11.5
       }
     }
   ],
   "failure": null,
   "code": {
     "packages/agent-rehearse/src/index.ts": "29b70ff9d5f165572edeaebbf6020f0bc348eab5",
-    "packages/agent-rehearse/src/run.ts": "fb76c03d5edfa68db8e48c469919df2b57886dc7",
+    "packages/agent-rehearse/src/run.ts": "f1977934d81e0596b2d8c3f0e2fbdd8dec4c87ce",
     "packages/agent-rehearse/test/plugin.test.ts": "9b58eff34ef7bf4255d1d1dd9d4233e353a00b83",
-    "packages/agent-rehearse/test/run.test.ts": "1ff6c3d35107502a5933bc4a252116a1ec3a5372"
+    "packages/agent-rehearse/test/run.test.ts": "7ef844ffa151826c6807c59d7f9a8879f3c27a03"
   }
 }

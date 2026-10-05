@@ -6,33 +6,33 @@
     ],
     "persona": "Parent",
     "kind": "drift",
-    "severity": "medium",
-    "note": "The step promises the chore leaves every list, but the code only marks it hidden for the parent while every other list still shows it. As written, the removal is parent-local, so this step's 'every list' claim differs from zarg now.",
+    "severity": "high",
+    "note": "The step promises the chore leaves every list, but the shown code only marks it hidden for the parent and returns the same array for every other list. I'd change `remove` to actually filter the chore out (e.g., `chores.filter(c => c !== chore)`) so the step's claim holds.",
     "from": {
       "agent": "rehearse",
-      "run": "r-80c6cf82"
+      "run": "r-af9468db"
     },
     "triage": {
       "on": true,
       "why": "ask · real 1.00",
       "by": "agent"
     },
-    "id": "F-8ff371dc",
+    "id": "F-8c55a347",
     "count": 1,
     "runs": [
-      "rehearse:r-80c6cf82"
+      "rehearse:r-af9468db"
     ]
   },
   "topic": {
     "kind": "drift",
     "title": "S-0002: the scenario and the code differ",
-    "why": "rehearse (medium)",
-    "evidence": "The step promises the chore leaves every list, but the code only marks it hidden for the parent while every other list still shows it. As written, the removal is parent-local, so this step's 'every list' claim differs from zarg now.\n\nWhat zarg does now:\n\nsrc/chores.ts:3\n\n```\n// Removing only marks the chore as hidden for the parent; every other list still shows it.\nexport const remove = (chores: string[], _chore: string) => chores\n\n```",
-    "key": "drift:F-8ff371dc",
+    "why": "rehearse (high)",
+    "evidence": "The step promises the chore leaves every list, but the shown code only marks it hidden for the parent and returns the same array for every other list. I'd change `remove` to actually filter the chore out (e.g., `chores.filter(c => c !== chore)`) so the step's claim holds.\n\nWhat zarg does now:\n\nsrc/chores.ts:3\n\n```\n// Removing only marks the chore as hidden for the parent; every other list still shows it.\nexport const remove = (chores: string[], _chore: string) => chores\n\n```",
+    "key": "drift:F-8c55a347",
     "about": [
       "S-0002"
     ],
-    "severity": "medium",
+    "severity": "high",
     "answers": [
       {
         "id": "scenario",
@@ -49,14 +49,14 @@
     "origin": {
       "view": "feedback"
     },
-    "id": "T-7ff540a4",
+    "id": "T-cd1044bf",
     "from": {
       "plugin": "backlog"
     },
     "blocking": false,
     "messages": [],
     "state": "open",
-    "created": 1791168560493,
-    "updated": 1791168560493
+    "created": 1791191237769,
+    "updated": 1791191237769
   }
 }

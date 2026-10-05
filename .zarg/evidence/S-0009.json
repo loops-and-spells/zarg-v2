@@ -1,0 +1,45 @@
+{
+  "scenario": "S-0009",
+  "version": "246c8cf2e6d2",
+  "commit": "5f5c8eb",
+  "run": "e2e-2026-10-05T08-03-01.447Z",
+  "journey": "J-0001",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-05T08:03:07.208Z",
+  "ms": 111,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0009/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "git log",
+      "path": "media/S-0009/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0009/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0009/4-step.cast",
+      "meta": {
+        "startAt": 5.4
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/agent-zarg/src/driver.ts": "a819d4ea648429d8c577bb6204c6e7b8c4c3a0b9",
+    "packages/agent-zarg/src/thread.ts": "e73d48eaa6b0dcbb8653be8e1812a3be702aa49b",
+    "packages/agent-zarg/test/driver.test.ts": "eec22c5a483f9556c5111d93875ebe5511f16afc"
+  }
+}

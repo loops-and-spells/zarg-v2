@@ -1,0 +1,40 @@
+                       │  inbox   1 open                                                                                
+ ◆ zarg                │                                                                                                
+   project · main      │  ▍◆ zarg          Where does the parent start?  question · waiting · 2 options  now            
+                       │                                                                                                
+ VIEWS               3 │                                                                                                
+▍ ◆ Inbox            1 │                                                                                                
+  ▤ Journeys           │                                                                                                
+  ▤ Intents            │                                                                                                
+                       │                                                                                                
+ AGENTS             ◆1 │                                                                                                
+  ◆ zarg          asks │                                                                                                
+  └ ⠼ driver 1    1/25 │                                                                                                
+                       │                                                                                                
+                       │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+                       │     zarg   esc closes                                                                          
+                       │     you  A parent                                                                              
+                       │     you  Add it                                                                                
+                       │     zarg  You picked parent.                                                                   
+                       │     ·  answered                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │     Where does the parent start?                                                               
+                       │     › The family list (recommended)                                                            
+                       │       The child page                                                                           
+                       │       Something else…                                                                          
+                       │       Chat about this                                                                          
+                       │ · answered                                                                                     
+                       │ answer zarg above, or / to chat about it                                                       
+                       │ ◆ zarg asks: Where does the parent start?   core child · ◆ 1 …   ↑↓ pick   ⏎ answer   esc leave

@@ -1,0 +1,40 @@
+                       │  inbox   1 open                                                                                
+ ◆ zarg                │                                                                                                
+   project · main      │  ▍◆ zarg          Which chore comes first?  question · waiting · 2 options  now                
+                       │                                                                                                
+ VIEWS               3 │                                                                                                
+▍ ◇ Inbox            1 │                                                                                                
+  ▤ Journeys           │                                                                                                
+  ▤ Intents            │                                                                                                
+                       │                                                                                                
+ AGENTS             ◆1 │                                                                                                
+  ◇ zarg          asks │                                                                                                
+  └ ⠼ driver 1    1/25 │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+                       │     zarg   esc closes                                                                          
+                       │     you  A parent                                                                              
+                       │     you  Add it                                                                                
+                       │     zarg  You picked parent.                                                                   
+                       │     you  the chores board                                                                      
+                       │     you  Add it                                                                                
+                       │     zarg  Saved                                                                                
+                       │           - Parent starts at: the chores board                                                 
+                       │                                                                                                
+                       │           step  state                                                                          
+                       │           1     saved                                                                          
+                       │                                                                                                
+                       │           zarg keeps it.                                                                       
+                       │     zarg  The flow so far:                                                                     
+                       │                                                                                                
+                       │           ┌────────┐  ┌─────────────┐                                                          
+                       │           │        │  │             │                                                          
+                       │           │ Parent ├─►│ Family list │                                                          
+                       │           │        │  │             │                                                          
+                       │           └────────┘  └─────────────┘                                                          
+                       │           That is all for now.                                                                 
+                       │     ·  answered                                                                                
+                       │                                                                                                
+                       │ chat › the dishes pile up every night                                                          
+                       │ ◆ zarg asks: Which chore comes first?   core child · ◆ 1 blocking · 1 ope…   ⏎ send   esc leave

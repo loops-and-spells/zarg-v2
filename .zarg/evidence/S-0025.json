@@ -1,0 +1,46 @@
+{
+  "scenario": "S-0025",
+  "version": "6d66db3e8f9e",
+  "commit": "5f5c8eb",
+  "run": "e2e-2026-10-05T08-03-01.447Z",
+  "journey": "J-0004",
+  "passed": false,
+  "flaky": false,
+  "at": "2026-10-05T09:05:03.983Z",
+  "ms": 733137,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0025/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "the driver's items",
+      "path": "media/S-0025/2-text.txt",
+      "meta": {
+        "fold": true
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0025/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0025/4-step.cast",
+      "meta": {
+        "startAt": 633.2
+      }
+    }
+  ],
+  "failure": {
+    "expected": "\u001b[2mexpect(\u001b[0m\u001b[31mreceived\u001b[0m\u001b[2m).\u001b[0mtoBe\u001b[2m(\u001b[0m\u001b[32mexpected\u001b[0m\u001b[2m)\u001b[0m\n\nExpected: \u001b[32mtrue\u001b[0m\nReceived: \u001b[31mfalse\u001b[0m\n",
+    "saw": "                       │  inbox   3 open                                                                                \n ◆ zarg                │                                                                                                \n   project · main      │  ▍· zarg          implement failed for S-0002  finding  now                                    \n                       │   · zarg          S-0003 cannot be implemented as written  finding  now                        \n VIEWS               3 │   · zarg          verify still fails after the fix attempts  finding  now                      \n▍ ▤ Inbox            3 │                                                                                                \n  ▤ Journeys           │                                                                                                \n  ▤ Intents            │                                                                                                \n                       │                                                                                                \n AGENTS              2 │                                                                                                \n  ▾ zarg           0/0 │                                                                                                \n  └ ▸ driver 1      +3 │                                                                                                \n                       │                                                                                                \n  ▸ archived         1 │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │ ⠇ zarg is preparing a reply · 5:00 · turn 6/25                                                 \n                       │ core child · 3 open · running · thread main ·…   ↑↓ move   ⏎ open   1-9 answer   ␣ mark   a all"
+  },
+  "code": {
+    "packages/core/src/reconcile.ts": "0488e147524cd8195668190c73d490c15c41be78"
+  }
+}
