@@ -160,7 +160,7 @@ export default definePlugin({
       const leftOut = st.proposals.filter((p) => p.status === "skipped" && (p.problems ?? []).length > 0)
       const leftLines = leftOut.length > 0 ? ["", `Left out: ${leftOut.map((p) => `${p.scenario} (${p.problems!.join("; ")})`).join(", ")}`] : []
       const noteLine = st.note !== undefined ? ["", st.note] : []
-      if (st.stage === "triage") return [on === 0 ? "Turn feedback on (space) to refine it; **n** adds your note." : `**r** Refine the ${plural(on, "entry")} that are on: a triage worker drafts the scenario changes, then the plan goes to the Backlog.`, ...noteLine].join("\n")
+      if (st.stage === "triage") return [on === 0 ? "Turn feedback on (space) to refine it; **n** adds your note." : `**r** Refine ${on === 1 ? "the entry that is on" : `the ${on} entries that are on`}: a triage worker drafts the scenario changes, then the plan goes to the Backlog.`, ...noteLine].join("\n")
       if (st.stage === "refine") {
         const p = current(st)
         const done = st.proposals.filter((x) => x.status === "accepted" || x.status === "skipped").length
