@@ -346,6 +346,8 @@ describe("plans serving an intent statement", () => {
     expect(out.dropped).toEqual({ ids: ["B-01"] })
     expect(out.a.dropped).toBe(true)
     expect(out.a.events[0]!.by).toBe("Intent Agent")
+    // Its statement's agent dropped it, not the operator.
+    expect(out.a.events.at(-1)).toMatchObject({ by: "Intent Agent" })
     expect(out.b.dropped).toBeUndefined()
     expect(out.c.dropped).toBeUndefined()
   })

@@ -341,13 +341,13 @@ export default definePlugin({
         return `${id} → ${LANE_TITLES[to]}`
       }).pipe(writing.withPermits(1), Effect.tap(() => (to === "ready" ? ready : Effect.ignore(syncTopics))))
     // @scenario S-0112
-    const drop = (id: string) =>
+    const drop = (id: string, by = "operator") =>
       Effect.gen(function* () {
         const i = (yield* loadItems).find((x) => x.id === id)
         if (i === undefined) return `no plan ${id}`
         // Dropped already: nothing to do again (its feedback may be another plan's by now).
         if (i.dropped === true) return `${id} is already dropped`
-        yield* saveItem({ ...i, dropped: true, events: [...i.events, { what: "dropped", by: "operator" }] })
+        yield* saveItem({ ...i, dropped: true, events: [...i.events, { what: "dropped", by }] })
         yield* markFeedback(i.feedback, undefined)
         // Its journey is as if never planned once its round's last plan is gone: nothing says Planned for plans that are gone.
         const st = (yield* loadStages).find((s) => s.journey === i.journey && (s.items ?? (s.item !== undefined ? [s.item] : [])).includes(id))
@@ -359,7 +359,7 @@ export default definePlugin({
     const dropServing = ({ statement }: { statement: string }) =>
       Effect.gen(function* () {
         const mine = (yield* loadItems).filter((i) => i.status === "backlog" && i.dropped !== true && i.serves !== undefined && parseRef(i.serves)?.id === statement)
-        for (const i of mine) yield* drop(i.id)
+        for (const i of mine) yield* drop(i.id, "Intent Agent")
         return { ids: mine.map((i) => i.id) }
       }).pipe(Effect.mapError(fail))
     const plan = (p: PlanParams) =>
