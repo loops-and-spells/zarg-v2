@@ -297,6 +297,15 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
     if (!cp.ok) return yield* quiet(d.log(`the checkpoint could not be read (${String(cp.e)}): the Intent Agent waits until it is fixed`))
     const statements = yield* d.statements().pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<Statement>))
     const journeys = yield* d.journeys().pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<JourneyInfo>))
+    // Rounds that ended before a restart show as they ended.
+    for (const s of statements) {
+      const e = cp.c.statements[s.id]
+      if (e !== undefined && !views.has(s.id)) views.set(s.id, { id: s.id, title: s.text, state: e.state, detail: "", plans: e.plans ?? [] })
+    }
+    for (const j of journeys) {
+      const e = cp.c.journeys[j.id]
+      if (e !== undefined && !views.has(j.id)) views.set(j.id, { id: j.id, title: j.name, state: e.state, detail: "", plans: e.plans ?? [] })
+    }
     const filed = [...Object.values(cp.c.statements), ...Object.values(cp.c.journeys)].flatMap((e) => (e.state === "planned" ? (e.plans ?? []) : []))
     const gone = new Set(filed.length === 0 ? [] : yield* d.dropped(filed).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>)))
     for (const x of due(statements, journeys, cp.c, statements.some((s) => s.kind === "outcome"), gone)) {

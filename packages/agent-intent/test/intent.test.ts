@@ -187,6 +187,12 @@ describe("the Intent Agent", () => {
     expect(kinds.indexOf("dropServing")).toBeLessThan(kinds.indexOf("plan"))
   })
 
+  test("after a restart, the rounds already reconciled show as they ended", async () => {
+    const { a } = setup({ cp: { statements: { "O-0001": { version: "v1", state: "planned", plans: ["B-2"] } }, journeys: {} }, journeys: [checkout] })
+    await Effect.runPromise(a.tick)
+    expect(a.rounds()).toEqual([{ id: "O-0001", title: "A visitor picks a plan in one minute", state: "planned", detail: "", plans: ["B-2"] }])
+  })
+
   test("an unserving journey: the model names the outcomes it serves; a plan links them", async () => {
     const browse: JourneyInfo = { id: "J-0002", name: "Browse", version: "bv", scenarios: ["S-0002"], serves: [] }
     const { a, calls, cp } = setup({ cp: { statements: { "O-0001": { version: "v1", state: "nothing" } }, journeys: {} }, journeys: [checkout, browse], answers: [JSON.stringify({ serves: ["O-0001"], ask: null })] })
