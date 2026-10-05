@@ -223,6 +223,14 @@ describe("focus review fixes (keys)", () => {
     const keys = hintsOf(SHELL, ui, { s: withView, now: 0, draft: "" }).map((h) => `${h.keys} ${h.does}`)
     expect(keys).toEqual(["Esc back"])
   })
+  test("a view of several sections hints [ ] between them, in the tile and in a plugin's sheet", () => {
+    const two = { agent: "p:t1", layout: { name: "t", sections: [{ id: "a", kind: "table" as const, role: "primary" as const, columns: [] }, { id: "b", kind: "table" as const, role: "primary" as const, columns: [] }] }, data: {} }
+    const s: SessionState = { ...idle, thread: { ...idle.thread, views: { "p:t1": two } } }
+    const tile = hintsOf(SHELL, at({ main: "agent", focus: "tile", viewing: "p:t1" }), { s, now: 0, draft: "" }).map((h) => `${h.keys} ${h.does}`)
+    expect(tile).toContain("[ ] section")
+    const sheet = hintsOf(SHELL, at({ focus: "tile", sheet: true, sheetOf: "p:t1" }), { s, now: 0, draft: "" }).map((h) => `${h.keys} ${h.does}`)
+    expect(sheet).toContain("[ ] section")
+  })
   test("the palette's highlight stays on the ten entries it shows", () => {
     const many = { ...idle, thread: { ...idle.thread, rlms: Object.fromEntries(Array.from({ length: 14 }, (_, i) => [`p:t${i}`, { id: `p:t${i}`, parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }])) } }
     let ui = at({ palette: { query: "", pick: 0 } })

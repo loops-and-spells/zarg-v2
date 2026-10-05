@@ -124,6 +124,9 @@ const common = (ui: Ui, w: ShellWorld, k: InputKey) =>
 /** A view keyed `${agent}@${view}` belongs to that agent: its actions and answers go there. */
 const ownerOf = (key: string) => (key.includes("@") ? { agent: key.split("@")[0]! } : {})
 
+/** [ ] move between a view's sections: hinted when it has more than one. */
+const sectionsHint = (v: ViewState | undefined): ReadonlyArray<KeyHint> => ((v?.layout.sections.length ?? 0) > 1 ? [{ keys: "[ ]", does: "section" }] : [])
+
 /** Keys a focused section has of its own (not actions): a toggle table's space, a board's folds and moves. */
 const sectionHints = (ui: Ui, s: SessionState): ReadonlyArray<KeyHint> => {
   const v = ui.viewing === undefined ? undefined : s.thread.views?.[ui.viewing]
@@ -298,7 +301,7 @@ export const SHELL: ReadonlyArray<Layer> = [
     // A plugin's sheet over the tile area: its view takes the keys; Esc closes it.
     id: "plugin-sheet",
     when: (ui) => ui.focus === "tile" && ui.sheet && ui.sheetOf !== undefined,
-    hints: () => [{ keys: "Esc", does: "close" }],
+    hints: (ui, w) => [...sectionsHint(w.s.thread.views?.[ui.sheetOf!]), { keys: "Esc", does: "close" }],
     handle: (ui, w, k) => {
       if (k.name === "escape" && ui.sheetView?.menu !== undefined) return { ui: { ...ui, sheetView: closeMenu(ui.sheetView) } }
       if (k.name === "escape" && !busyView(ui.sheetView)) {
@@ -334,7 +337,7 @@ export const SHELL: ReadonlyArray<Layer> = [
         : ui.view?.header !== undefined
           ? [{ keys: "←→", does: "column" }, { keys: "Enter", does: "sort, select" }, { keys: "↓", does: "rows" }, { keys: "Esc", does: "back" }]
           : // The view's actions are buttons in the view: the status line keeps no view keys, but the few keys a section has of its own.
-            [...sectionHints(ui, w.s), { keys: "Esc", does: "back" }],
+            [...sectionHints(ui, w.s), ...sectionsHint(ui.viewing === undefined ? undefined : w.s.thread.views?.[ui.viewing]), { keys: "Esc", does: "back" }],
     handle: (ui, w, k) => {
       // Esc closes an open menu or clears a search being typed (the view's keys handle both); else it goes back.
       // A drawer over the view closes before the view goes back.
