@@ -35,12 +35,13 @@ const Question = Schema.Struct({
 /** `kind: "grant"`: a permission question zarg itself asks (never a cell: the schema has no such field); only its options are offered. */
 export type Question = typeof Question.Type & { readonly kind?: "grant" }
 /** An option id, or free text; `interjected` when the operator wrote a message instead of answering. */
+// @scenario S-0102
 const Answer = Schema.Struct({
   choice: Schema.optionalKey(Schema.String).annotate({ description: "The option the developer picked." }),
   other: Schema.optionalKey(Schema.String).annotate({ description: "What the developer wrote instead (Something else…, or a message about the question)." }),
   interjected: Schema.optionalKey(Schema.Boolean).annotate({
     description:
-      "True when the developer is discussing the question, not answering it: reply to what they wrote, then either Inquire.choose an option they settled on or Inquire.ask again. Never change the graph on a discussion alone.",
+      "True when the developer is discussing the question, not answering it: reply to what they wrote, then either Inquire.choose an option they settled on or Inquire.ask again. When what they wrote says what the product is for, propose keeping it in the intent first (add-outcome, add-constraint) with Inquire.confirm. Never change the graph without their say.",
   }),
   question: Schema.optionalKey(Schema.String).annotate({ description: "With interjected: the id of the question still open for Inquire.choose." }),
 })

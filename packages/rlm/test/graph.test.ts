@@ -109,6 +109,13 @@ describe("Inquire, Agenda and Verify", () => {
     expect(chosen).toEqual([{ question: "inq-1", choice: "b", why: "they said checkout matters most" }])
   })
 
+  // @scenario S-0102
+  test("an interjected answer tells the driver to keep what the developer says the product is for (shown first)", () => {
+    const text = manifest([InquireDef])
+    expect(text).toContain("add-outcome")
+    expect(text).not.toContain("Never change the graph on a discussion alone")
+  })
+
   test("Inquire.choose without a question under discussion fails with a hint", async () => {
     const out = await kernel([inquire({ ask: () => Effect.succeed({ choice: "a" }) })], (k) => k.run('return yield* Inquire.choose({ question: "inq-9", choice: "a", why: "x" })'))
     expect(out.output).toContain("NoOpenQuestion")
