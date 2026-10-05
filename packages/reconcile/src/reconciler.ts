@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, watch, writeFileSync } from "node:
 import { join } from "node:path"
 import { Cause, Effect } from "effect"
 import { baseTree, GRAPH, pendingAt, workingGraphTree } from "./checkpoint"
-import type { Findings } from "./findings"
+import { causeText, type Findings } from "./findings"
 import { git } from "./git"
 import { checkoutProblem } from "./land"
 import type { PassResult } from "./pass"
@@ -64,7 +64,7 @@ export const startReconciler = (opts: ReconcilerOptions) => {
         Effect.catchCause((cause) => {
           // Interrupted (the core is shutting down): the durable pass resumes on the next start.
           if (Cause.hasInterruptsOnly(cause)) return Effect.succeed({ status: "skipped" as const, reason: "interrupted" })
-          opts.findings.raise({ kind: "pass-error", title: "a reconcile pass failed", detail: String(cause).slice(0, 4000), about: [], pass: "" })
+          opts.findings.raise({ kind: "pass-error", title: "a reconcile pass failed", detail: causeText(cause), about: [], pass: "" })
           return Effect.succeed({ status: "skipped" as const, reason: "error" })
         }),
         Effect.tap((r) =>

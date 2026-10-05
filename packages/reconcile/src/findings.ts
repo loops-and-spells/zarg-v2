@@ -1,6 +1,13 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { Cause } from "effect"
 import { ensureIgnored } from "./worktree"
+
+/** A failure as the operator reads it: its message, never the `Cause(Fail(…))` around it. */
+export const causeText = (cause: Cause.Cause<unknown>) => {
+  const e = Cause.squash(cause)
+  return (e instanceof Error && e.message !== "" ? e.message : String(e)).slice(0, 4000)
+}
 
 export type FindingKind = "unplannable" | "blocked-scenario" | "merge-conflict" | "verify-failing" | "landing-blocked" | "pass-error"
 

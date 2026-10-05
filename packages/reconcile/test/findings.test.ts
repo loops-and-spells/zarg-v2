@@ -1,5 +1,7 @@
 import { afterAll, describe, expect, test } from "bun:test"
+import { Cause, Data } from "effect"
 import { makeFindings } from "../src"
+import { causeText } from "../src/findings"
 import { cleanup, repo } from "./repo"
 
 afterAll(cleanup)
@@ -24,5 +26,10 @@ describe("findings", () => {
     expect(f.list().map((x) => x.kind)).toEqual(["verify-failing"])
     f.clearGeneral()
     expect(f.list()).toEqual([])
+  })
+  test("a failure reads as its message, never the Cause around it", () => {
+    class RlmError extends Data.TaggedError("RlmError")<{ readonly message: string }> {}
+    expect(causeText(Cause.fail(new RlmError({ message: "plan did not finish within its budget (20 turns)" })))).toBe("plan did not finish within its budget (20 turns)")
+    expect(causeText(Cause.die("boom"))).toBe("boom")
   })
 })
