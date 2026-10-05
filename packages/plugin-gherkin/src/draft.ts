@@ -70,7 +70,8 @@ export const dryRun = (snap: Snapshot.Snapshot, draft: Draft, tools: ReadonlyArr
     const d = diff(snap, a.snapshot)
     const findings = [...validate(a.changes), ...lints.flatMap((l) => l({ before: snap, after: a.snapshot, diff: d }))].filter((f) => f.severity === "error")
     const problems = [...a.problems, ...findings.map((f) => f.message)]
-    const touched = [...new Set(a.changes.map((c) => (c._tag === "Put" ? c.node.id : c.id)))]
+    // What the draft changes, not what it puts: a call that puts a node as it is touches nothing.
+    const touched = [...d.added, ...d.changed, ...d.removed].map((n) => n.id).sort()
     // The scenarios to re-implement: added or changed, or using a reworded state (as the reconcile loop will see it).
     const scenarios = affectedScenarios(snap, a.snapshot).scenarios
     const id = (prefix: string) => Snapshot.nextId(a.snapshot, prefix)

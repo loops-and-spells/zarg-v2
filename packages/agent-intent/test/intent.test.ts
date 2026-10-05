@@ -8,7 +8,7 @@ const outcome: Statement = { id: "O-0001", kind: "outcome", text: "A visitor pic
 const checkout: JourneyInfo = { id: "J-0001", name: "Checkout", version: "jv", scenarios: ["S-0001"], serves: ["O-0001"] }
 const unit = (scenario: string, changes: ReadonlyArray<unknown>) => ({ scenario, title: `t ${scenario}`, summary: `s ${scenario}`, changes })
 
-const setup = (o: { conflicts?: ReadonlyArray<string>; personas?: ReadonlyArray<{ name: string; kind: string }>; statements?: ReadonlyArray<Statement>; journeys?: ReadonlyArray<JourneyInfo>; answers?: ReadonlyArray<string>; cp?: Checkpoint; down?: boolean; dry?: (n: number) => { ok: boolean; problems: string[] }; versionAfter?: string; slow?: number; broken?: boolean; dropped?: ReadonlyArray<string> }) => {
+const setup = (o: { conflicts?: ReadonlyArray<string>; personas?: ReadonlyArray<{ name: string; kind: string }>; statements?: ReadonlyArray<Statement>; journeys?: ReadonlyArray<JourneyInfo>; answers?: ReadonlyArray<string>; cp?: Checkpoint; down?: boolean; dry?: (n: number) => { ok: boolean; problems: string[]; touched?: string[] }; versionAfter?: string; slow?: number; broken?: boolean; dropped?: ReadonlyArray<string> }) => {
   const calls: Array<[string, unknown]> = []
   const schemas: Array<unknown> = []
   const answers = [...(o.answers ?? [])]
@@ -194,6 +194,14 @@ describe("the Intent Agent", () => {
     expect(calls.find(([k]) => k === "dropServing")![1]).toBe("O-0001")
     expect(calls.some(([k]) => k === "plan")).toBe(false)
     expect(cp().statements["O-0001"]).toEqual({ version: "v1", state: "nothing", journeys: ["J-0001"] })
+  })
+
+  test("a draft that changes nothing (it puts what is there) files no plan: the journeys already deliver it", async () => {
+    const answer = JSON.stringify({ units: [unit("S-0001", [{ tool: "edit-scenario", params: { id: "S-0001", title: "Visitor picks a plan" } }])], steps: ["s"], ask: null })
+    const { a, calls, cp } = setup({ journeys: [checkout], answers: [answer], dry: () => ({ ok: true, problems: [], touched: [] }) })
+    await Effect.runPromise(a.tick)
+    expect(calls.some(([k]) => k === "plan")).toBe(false)
+    expect(cp().statements["O-0001"]?.state).toBe("nothing")
   })
 
   test("after a restart, the rounds already reconciled show as they ended", async () => {

@@ -13,7 +13,7 @@ export interface IntentDeps {
   /** A scenario as Gherkin text, as it is now. */
   readonly scene: (scenario: string) => Effect.Effect<string, unknown>
   readonly code: (scenario: string) => Effect.Effect<ReadonlyArray<{ readonly file: string; readonly line: number; readonly text: string }>, unknown>
-  readonly dryRun: (draft: Draft) => Effect.Effect<{ readonly ok: boolean; readonly problems: ReadonlyArray<string>; readonly scenarios?: ReadonlyArray<string>; readonly next?: { readonly scenario: string; readonly state: string; readonly journey: string; readonly persona: string } }, unknown>
+  readonly dryRun: (draft: Draft) => Effect.Effect<{ readonly ok: boolean; readonly problems: ReadonlyArray<string>; readonly scenarios?: ReadonlyArray<string>; readonly touched?: ReadonlyArray<string>; readonly next?: { readonly scenario: string; readonly state: string; readonly journey: string; readonly persona: string } }, unknown>
   readonly complete: (req: { readonly messages: ReadonlyArray<{ readonly role: "system" | "user"; readonly content: string }>; readonly maxTokens?: number; readonly reasoning?: { readonly enabled: boolean }; readonly outputSchema?: Record<string, unknown> }) => Effect.Effect<{ readonly text: string; readonly finishReason?: string }, unknown>
   /** An entity's version now (null: gone). */
   readonly version: (ref: string) => Effect.Effect<string | null, unknown>
@@ -214,13 +214,14 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
           yield* setStatement(s.id, { version: s.version, state: "asked", topic, options, ...served(s) })
           return yield* show({ id: s.id, title: s.text, state: "asked", detail: r.ask.question, plans: [] })
         }
-        if (r.units.length === 0) {
+        // A draft that puts only what is there (an edit to the same words) changes nothing: delivered already.
+        const dry = r.units.length === 0 ? undefined : yield* d.dryRun(r.units.flatMap((u) => u.changes)).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: ["the dry run could not run"] })))
+        if (r.units.length === 0 || (dry?.ok === true && "touched" in dry && dry.touched?.length === 0)) {
           yield* setStatement(s.id, { version: s.version, state: "nothing", ...served(s) })
           yield* quiet(d.log(`${s.id}: the journeys already deliver it`))
           return yield* show({ id: s.id, title: s.text, state: "nothing", detail: "the journeys already deliver it", plans: [] })
         }
-        const dry = yield* d.dryRun(r.units.flatMap((u) => u.changes)).pipe(Effect.orElseSucceed(() => ({ ok: false, problems: ["the dry run could not run"] })))
-        if (!dry.ok) {
+        if (dry !== undefined && !dry.ok) {
           problems = dry.problems
           continue
         }

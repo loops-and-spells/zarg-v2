@@ -27,6 +27,18 @@ describe("drafts", () => {
     expect(out.r.touched).toEqual(expect.arrayContaining(["ST-0002", "S-0006"]))
     expect(out.after).toBe(out.before)
   })
+  test("a draft that puts what is already there touches nothing: a plan of it changes nothing", async () => {
+    const r = await run(
+      Effect.gen(function* () {
+        yield* pricing
+        const h = yield* PluginHost
+        const s = (yield* (yield* GraphStore).snapshot).nodes.get("ST-0002")!
+        return (yield* h.invoke("gherkin", "dryRun", { draft: [{ tool: "edit-state", params: { id: "ST-0002", text: String(s.props.text) } }] })) as { ok: boolean; touched: string[] }
+      }),
+    )
+    expect(r.ok).toBe(true)
+    expect(r.touched).toEqual([])
+  })
   // @scenario S-0103
   test("a dry run says the ids the next new nodes take (after the draft), so a draft can refer to what it adds", async () => {
     const out = await run(
