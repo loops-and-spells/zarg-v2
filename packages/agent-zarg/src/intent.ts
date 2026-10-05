@@ -6,6 +6,8 @@ export interface NextOption {
   readonly label: string
   readonly why?: string
   readonly task: string
+  /** It starts work elsewhere (a rehearsal): once its item ends, zarg waits for that work's results rather than ask again. */
+  readonly waits?: boolean
 }
 
 /** What next: every outcome no journey serves, in id order, with the intent it belongs to. */
@@ -23,7 +25,7 @@ export const nextOutcomes = (snap: Snapshot.Snapshot): ReadonlyArray<NextOption>
     })
 }
 
-const REHEARSE: NextOption = { id: "rehearse", label: "Rehearse the journeys", why: "testers walk them and file what they find", task: "The requirements are complete for now: start a rehearsal with Rehearse.run (testers walk the journeys and file feedback), then tell the developer it runs and where its feedback will show (Feedback)." }
+const REHEARSE: NextOption = { id: "rehearse", label: "Rehearse the journeys", why: "testers walk them and file what they find", task: "The requirements are complete for now: start a rehearsal with Rehearse.run (testers walk the journeys and file feedback), then finish: your reply tells the developer it runs and that its feedback will show in Feedback. Never ask about the run: zarg takes up what it files when it ends.", waits: true }
 const BUILD: NextOption = {
   id: "build",
   label: "Build the scenarios (/reconcile)",

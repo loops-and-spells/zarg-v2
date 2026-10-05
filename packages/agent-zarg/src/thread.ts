@@ -265,6 +265,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
     const body = Effect.gen(function* () {
       let lastItem = ""
       let passes = 0
+      let waitAfter = false
       // @scenario S-0098
       // After a restart, a question of this thread still open from before is the one waiting: zarg asks nothing new
       // until the operator answers it (its answer comes back as their word).
@@ -301,8 +302,10 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
           yield* settleTopics([...discussed], "you said what you want")
           discussed.length = 0
           // @scenario S-0015
-          const text = next.find((o) => o.id === a.choice)?.task ?? a.other ?? ""
+          const picked = next.find((o) => o.id === a.choice)
+          const text = picked?.task ?? a.other ?? ""
           if (text.length > 0) inbox.push(text)
+          waitAfter = picked?.waits === true
           continue
         }
         const around =
@@ -354,7 +357,10 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
           yield* note("assistant", reply.length > REPLY_MAX ? `${reply.slice(0, REPLY_MAX)}…` : reply)
           // What next is the operator's to say: after one round, wait for them rather than ask again.
           // A message that came in meanwhile is the operator speaking: go on with it.
-          if (said.length === 0 && (item === undefined || stuck) && inbox.length === 0) {
+          // Work started elsewhere (a rehearsal) is waited for, too: what it files wakes zarg.
+          const started = waitAfter
+          waitAfter = false
+          if (inbox.length === 0 && (started || (said.length === 0 && (item === undefined || stuck)))) {
             const wait = yield* Deferred.make<void>()
             paused = wait
             // A question still waiting (asked from outside the driver) ends the run as its interrupt.

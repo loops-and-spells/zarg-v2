@@ -150,6 +150,31 @@ describe("thread runs", () => {
     expect(tasks[0]).toStartWith('The developer said: "Work on the intent\'s next goal: Rehearse: roleplay testers over the graph."')
   })
 
+  test("a what-next option that starts work elsewhere (a rehearsal) waits for it: no what-next asked again until new work wakes zarg", async () => {
+    const tasks: Array<string> = []
+    // A real item takes a while (model turns): the answer's run is over before it ends.
+    const driver: Driver = (spec) => Effect.andThen(Effect.sleep(20), Effect.sync(() => (tasks.push(spec.task), outcome("started"))))
+    let items: ReadonlyArray<AgendaItem> = []
+    let asked = 0
+    const whatNext: ThreadDeps["whatNext"] = () => Effect.sync(() => (asked++, [{ id: "rehearse", label: "Rehearse", task: "Start a rehearsal.", waits: true }]))
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zarg-thread-")), (t) => t)
+        const thread = yield* makeThread({ id: "main", focus: [], log, agenda: () => Effect.succeed(items), driver, suggest: () => Effect.succeed([]), whatNext })
+        const first = yield* collect(thread.run({ runId: "r1" }))
+        const q = (last(first) as any).outcome.interrupts[0]
+        yield* Effect.forkChild(collect(thread.run({ runId: "r2", resume: [{ interruptId: q.id, payload: { choice: "rehearse" } }] })))
+        yield* Effect.sleep(80)
+        expect(asked).toBe(1)
+        items = [{ id: "rehearse:r-1", title: "Rehearse run r-1: 1 finding", detail: "d", about: [], priority: 0 }]
+        yield* thread.wake
+        yield* Effect.sleep(80)
+      }),
+    )
+    // What the run filed, taken up (the test's agenda never empties: it comes back until it counts as stuck).
+    expect(tasks[1]).toStartWith("Rehearse run r-1: 1 finding")
+  })
+
   test("wake: a thread parked on zarg's what-next question takes up new agenda items; a real question keeps its turn", async () => {
     const tasks: Array<string> = []
     const driver: Driver = (spec) => Effect.sync(() => (tasks.push(spec.task), outcome("ok")))
