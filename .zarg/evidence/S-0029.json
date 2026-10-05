@@ -1,23 +1,23 @@
 {
-  "scenario": "S-0090",
-  "version": "9375ee874d05",
+  "scenario": "S-0029",
+  "version": "254f85a31178",
   "commit": "ea9aa98d",
   "run": "e2e-2026-10-05T16-19-45.519Z",
   "journey": "J-0002",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T16:19:58.302Z",
-  "ms": 285,
+  "at": "2026-10-05T16:19:55.406Z",
+  "ms": 257,
   "media": [
     {
       "kind": "evidence-terminal/frame",
       "caption": "the screen before",
-      "path": "media/S-0090/1-frame.json"
+      "path": "media/S-0029/1-frame.json"
     },
     {
       "kind": "evidence-terminal/text",
-      "caption": "zarg (a second session)",
-      "path": "media/S-0090/2-text.txt",
+      "caption": "screen",
+      "path": "media/S-0029/2-text.txt",
       "meta": {
         "fold": false
       }
@@ -25,20 +25,20 @@
     {
       "kind": "evidence-terminal/frame",
       "caption": "the screen after",
-      "path": "media/S-0090/3-frame.json"
+      "path": "media/S-0029/3-frame.json"
     },
     {
       "kind": "evidence-terminal/cast",
       "caption": "the step as it played",
-      "path": "media/S-0090/4-step.cast",
+      "path": "media/S-0029/4-step.cast",
       "meta": {
-        "startAt": 0.8
+        "startAt": 9.3
       }
     }
   ],
   "failure": null,
   "code": {
-    "packages/client/src/connect.ts": "fed3357d855a62eb789ecee0bd38b9e25c6668fd",
-    "packages/client/test/connect.test.ts": "63ea61e76fdba70d651aeebaa54f677b3ff6d80b"
+    "packages/core/src/setup.ts": "6514a191e29fb4b508447bf00875af21a41289bb",
+    "packages/core/test/setup.test.ts": "b185d4830725add3d0ccbdc6ca858e27ac7c1d8e"
   }
 }

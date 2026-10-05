@@ -19,6 +19,7 @@ const SetupView = defineView("setup", {
     columns: [{ id: "name", label: "setting", filter: "none" }, { id: "about", label: "", filter: "none" }],
     actions: [
       { id: "set", label: "Set", on: "row", default: true, input: "the value" },
+      { id: "clear", label: "Clear", key: "d", on: "row" },
       { id: "done", label: "Check and save", key: "c", on: "none" },
     ],
   },
@@ -95,7 +96,8 @@ export const makeSetup = (d: SetupDeps) => {
     const rows = yield* Effect.forEach(fields, (f) =>
       Effect.map(d.env.lookup(f.name), (v) => ({
         id: f.name,
-        cells: { name: f.name, about: `${f.description ?? ""}${f.required ? " (required)" : ""}${v === undefined ? "" : f.sensitive ? " · set" : ""}`.trim() },
+        // @scenario S-0029
+        cells: { name: f.name, about: `${f.description ?? ""}${f.required ? " (required)" : ""}${v === undefined ? "" : f.sensitive ? " · set" : ""}${f.errors.length > 0 ? ` · ✗ ${f.errors[0]}` : ""}`.trim() },
         ...(f.sensitive ? { secret: true } : v !== undefined && !Redacted.isRedacted(v) ? { text: v } : {}),
       })),
     )
@@ -145,10 +147,23 @@ export const makeSetup = (d: SetupDeps) => {
         yield* field?.sensitive === true ? d.secrets.set(name, Redacted.make(text)) : d.secrets.setPlain(name, text)
         yield* d.secretsChanged
         yield* render
+        // @scenario S-0029
+        // A value its schema's type refuses: the field says why (the value stays, to be typed again).
+        const [after] = yield* d.env.fields([name])
+        if (after !== undefined && after.errors.length > 0) return { notice: `${name}: ${after.errors[0]}` }
         // A project whose own .env.schema sets this variable keeps its value: say so, never fail quietly.
         const now = yield* d.env.lookup(name)
         const inEffect = now === undefined ? undefined : Redacted.isRedacted(now) ? Redacted.value(now) : now
         return { notice: inEffect !== undefined && inEffect !== text ? `${name} saved, but this project's own .env.schema sets it: its value wins here` : `${name} saved` }
+      }
+      // @scenario S-0032
+      if (action === "clear") {
+        const name = rows[0]
+        if (name === undefined) return { notice: "pick a setting" }
+        yield* d.secrets.remove(name)
+        yield* d.secretsChanged
+        yield* render
+        return { notice: `${name} cleared` }
       }
       // @scenario S-0027 S-0028
       if (action === "done") {

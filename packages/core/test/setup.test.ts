@@ -25,7 +25,8 @@ const world = (seed: { readonly userConfig?: string; readonly values?: Readonly<
   const env: Env["Service"] = {
     lookup: (n) => Effect.succeed(values.has(n) ? (sensitiveNames.includes(n) ? Redacted.make(values.get(n)!) : values.get(n)!) : undefined),
     get: (n) => (values.has(n) ? Effect.succeed(values.get(n)!) : Effect.die(`${n} unset`)) as never,
-    fields: (names) => Effect.succeed(names.map((name) => ({ name, type: undefined, description: name === KEY ? "the API key" : "the base URL", sensitive: sensitiveNames.includes(name), required: name === KEY, errors: [] }))),
+    // The URL's schema type: a value that is no URL fails it.
+    fields: (names) => Effect.succeed(names.map((name) => ({ name, type: name === URL ? "url" : undefined, description: name === KEY ? "the API key" : "the base URL", sensitive: sensitiveNames.includes(name), required: name === KEY, errors: name === URL && values.has(URL) && !/^https?:\/\//.test(values.get(URL)!) ? ["must be a valid URL"] : [] }))),
     sensitive: Effect.sync(() => (values.has(KEY) ? [{ name: KEY, value: Redacted.make(values.get(KEY)!) }] : [])),
     reload: Effect.void,
   }
@@ -113,6 +114,31 @@ describe("first-run setup", () => {
     expect(w.secretCalls).toEqual([`set ${KEY}`, `plain ${URL}`])
     expect(refreshed()).toBe(2)
     expect(JSON.stringify(events)).not.toContain(SECRET)
+  })
+
+  // @scenario S-0029
+  test("a value that fails its schema type: the field shows the schema's error, and the settings stay listed to fill in", async () => {
+    const w = world()
+    const { s, events } = await setupIn(w)
+    await run(s.open())
+    await run(s.act("login", ["fake"], undefined))
+    expect((await run(s.act("set", [URL], "not a url"))).notice).toBe(`${URL}: must be a valid URL`)
+    const rows = sectionData(events, "fields")?.rows ?? []
+    expect(rows.map((r) => r.id)).toEqual([KEY, URL])
+    expect(rows.find((r) => r.id === URL)?.cells.about).toContain("✗ must be a valid URL")
+  })
+
+  // @scenario S-0032
+  test("clearing a provider's secret deletes the stored key; the field no longer says set", async () => {
+    const w = world({ values: { [KEY]: "good", [URL]: "http://fake.invalid" } })
+    const { s, events, refreshed } = await setupIn(w)
+    await run(s.open())
+    await run(s.act("login", ["fake"], undefined))
+    expect(sectionData(events, "fields")?.rows?.find((r) => r.id === KEY)?.cells.about).toContain("· set")
+    expect((await run(s.act("clear", [KEY], undefined))).notice).toBe(`${KEY} cleared`)
+    expect(w.values.has(KEY)).toBe(false)
+    expect(refreshed()).toBe(1)
+    expect(sectionData(events, "fields")?.rows?.find((r) => r.id === KEY)?.cells.about).not.toContain("· set")
   })
 
   // @scenario S-0028

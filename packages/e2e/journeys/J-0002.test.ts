@@ -115,6 +115,19 @@ journey("J-0002", { tier: "fast", seed: SEED }, (proves) => {
     expect(readFileSync(local, "utf8")).toMatch(/^OPENROUTER_API_KEY=/m)
   })
 
+  proves("S-0029", async (s) => {
+    const t = termOf(s.term, "S-0029")
+    // The URL's schema type is a URL: a value that is none is refused in its field, with the schema's words.
+    t.press("down")
+    await t.waitFor("┃ OPENROUTER_URL", 5_000)
+    await setValue(t, "not a url")
+    await t.waitFor("✗", 10_000)
+    s.note("buffer", "screen", t.screen())
+    expect(t.screen()).toMatch(/OPENROUTER_URL[^\n]*✗/)
+    // The settings stay listed to fill in.
+    expect(t.screen()).toMatch(/Log in ─+[\s\S]*OPENROUTER_API_KEY/)
+  })
+
   proves("S-0028", async (s) => {
     const t = termOf(s.term, "S-0028")
     t.press("down")
@@ -320,5 +333,29 @@ journey("J-0002", { tier: "fast", seed: SEED }, (proves) => {
     }
     // The inbox says it stopped, and why.
     await t.waitFor("Plugin probe was disabled after 3 restarts", 15_000)
+  })
+
+  proves("S-0032", async (s) => {
+    const t = termOf(s.term, "S-0032")
+    // /login opens setup again; the key's field, then d clears it.
+    await command(t, "/login")
+    await t.waitFor("Providers", 10_000)
+    for (let k = 0; k < 4 && !/┃ openrouter/.test(t.screen()); k++) {
+      t.press("down")
+      await Bun.sleep(150)
+    }
+    t.press("enter")
+    await t.waitFor("OPENROUTER_API_KEY", 10_000)
+    t.press("]")
+    await Bun.sleep(300)
+    for (let k = 0; k < 4 && !/┃ OPENROUTER_API_KEY/.test(t.screen()); k++) {
+      t.press("up")
+      await Bun.sleep(150)
+    }
+    t.press("d")
+    await t.waitFor("OPENROUTER_API_KEY cleared", 10_000)
+    s.note("buffer", "screen", t.screen())
+    // The stored key is deleted from the operator's own settings.
+    expect(readFileSync(join(s.w.userDir, ".env.local"), "utf8")).not.toMatch(/^OPENROUTER_API_KEY=/m)
   })
 })
