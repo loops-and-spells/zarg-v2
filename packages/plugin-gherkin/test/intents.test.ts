@@ -46,7 +46,8 @@ describe("intent tools", () => {
         const out = [
           m(yield* call("add-intent", { title: "Plans for visitors", problem: "Visitors leave the pricing page." })),
           m(yield* call("add-outcome", { intent: "I-0001", text: "A visitor picks a plan in one minute" })),
-          m(yield* call("add-constraint", { intent: "I-0001", text: "Prices never hide fees" })),
+          // An entity ref (as Entities gives it, with its version) names the same node.
+          m(yield* call("add-constraint", { intent: "gherkin/intent:I-0001@0123456789ab", text: "Prices never hide fees" })),
           m(yield* call("ask-question", { intent: "I-0001", text: "Is there a yearly plan?" })),
           m(yield* call("answer-question", { id: "Q-0001", answer: "Yearly plans cost ten months", as: "outcome" })),
           m(yield* call("link", { intent: "I-0001", edge: "for", persona: { name: "Visitor" } })),

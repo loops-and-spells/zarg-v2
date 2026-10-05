@@ -45,3 +45,11 @@ export interface AgendaItem {
   /** 1 is most urgent. */
   readonly priority: number
 }
+
+/** A node named by its entity ref (`gherkin/intent:I-0001`, with or without `@version`, as Entities gives it) is that node's id. */
+export const bareIds = (v: unknown): unknown => {
+  if (typeof v === "string") return /^gherkin\/[a-z]+:([A-Z]+-\d+)(@[0-9a-f]+)?$/.exec(v)?.[1] ?? v
+  if (Array.isArray(v)) return v.map(bareIds)
+  if (v !== null && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, bareIds(x)]))
+  return v
+}

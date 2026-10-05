@@ -1,7 +1,7 @@
 import { Effect, Schema } from "effect"
 import { type Change, diff, Snapshot } from "@zarg/graph/pure"
 import { affectedScenarios } from "./affected"
-import type { Finding, Lint, Tool } from "./kit"
+import { bareIds, type Finding, type Lint, type Tool } from "./kit"
 
 /** Edge limits per edge type (the plugin's graph spec): the host checks them on every write. */
 export type EdgeLimits = Readonly<Record<string, { readonly from: string; readonly min?: number; readonly max?: number }>>
@@ -39,7 +39,7 @@ export const applyDraft = (snap: Snapshot.Snapshot, draft: Draft, tools: Readonl
         problems.push(`${c.tool} is not a gherkin tool`)
         continue
       }
-      const params = Schema.decodeUnknownExit(t.params)(c.params)
+      const params = Schema.decodeUnknownExit(t.params)(bareIds(c.params))
       if (params._tag === "Failure") {
         problems.push(`${c.tool}: its params do not fit: ${String(params.cause)}`)
         continue

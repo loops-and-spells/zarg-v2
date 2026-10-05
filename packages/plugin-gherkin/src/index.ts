@@ -7,7 +7,7 @@ import { affectedScenarios } from "./affected"
 import { agenda, suggest } from "./agenda"
 import { CompareParams, CompareResult, DryRunParams, DryRunResult, Gherkin, JourneyView, PersonaView, SceneParams, SceneView, StoriesParams, StoriesResult } from "./contract"
 import { applyDraft, type Draft, dryRun } from "./draft"
-import type { Finding } from "./kit"
+import { bareIds, type Finding } from "./kit"
 import { LINTS } from "./lints"
 import { BY, CONSTRAINT, INTENT, intentOf, IntentProps, JOURNEY, JourneyProps, OUTCOME, PERSONA, PersonaProps, personaName, personas, QUESTION, QuestionProps, SCENARIO, ScenarioProps, STATE, StatementProps, StateProps } from "./model"
 import { journeyList, journeysView } from "./journeys"
@@ -116,7 +116,7 @@ export default definePlugin({
     // The graph as a draft would leave it (the graph itself when there is none).
     const drafted = (draft: Draft | undefined) => (draft === undefined || draft.length === 0 ? snap : Effect.flatMap(snap, (s) => Effect.map(applyDraft(s, draft, tools, EDGES), (a) => a.snapshot)))
     const runTool = (t: (typeof tools)[number]) => (p: unknown) =>
-      Effect.flatMap(snap, (s) => t.run(p as never, s)).pipe(Effect.mapError((e) => new PluginFailure({ tag: "ToolError", message: e.message })))
+      Effect.flatMap(snap, (s) => t.run(bareIds(p) as never, s)).pipe(Effect.mapError((e) => new PluginFailure({ tag: "ToolError", message: e.message })))
     // Entity handlers read the graph as it is now; `get` feeds the other ops (the host serves get itself).
     const nodes = (ids: ReadonlyArray<string>) => Effect.map(snap, (s) => ids.flatMap((id) => { const n = s.nodes.get(id); return n === undefined ? [] : [{ id, data: { props: n.props, edges: n.edges } }] }))
     type E = { readonly id: string; readonly data: { readonly props: Readonly<Record<string, unknown>> } }
