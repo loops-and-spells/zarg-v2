@@ -33,3 +33,9 @@ test("a statement whose serving journeys changed since its round is due again: i
   const ids = due([o("O-0001", "v1", ["J-0001"]), o("O-0002", "v2", ["J-0001"])], [], cp, true).map((d) => (d.kind === "statement" ? d.statement.id : d.kind))
   expect(ids).toEqual(["O-0001"])
 })
+test("an outcome a journey serves whose plans were all dropped is settled, not drafted again: the operator turned the change down", () => {
+  const cp = { statements: { "O-0001": { version: "v1", state: "planned" as const, plans: ["B-1"], journeys: ["J-0001"] }, "O-0002": { version: "v2", state: "planned" as const, plans: ["B-2"] } }, journeys: {} }
+  const ids = due([o("O-0001", "v1", ["J-0001"]), o("O-0002", "v2")], [], cp, true, new Set(["B-1", "B-2"])).map((d) => (d.kind === "statement" ? d.statement.id : d.kind))
+  // O-0002, served by nothing, still needs a round.
+  expect(ids).toEqual(["O-0002"])
+})

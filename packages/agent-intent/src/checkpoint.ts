@@ -29,7 +29,7 @@ export type Due = { readonly kind: "statement"; readonly statement: Statement } 
 
 /** The journeys serving it changed since its round: what it drafted (or found delivered) was against other journeys. */
 export const moved = (e: Entry, s: Statement) => [...(e.journeys ?? [])].sort().join() !== [...s.journeys].sort().join()
-/** Planned, but every plan it filed was dropped: nothing will land, so it needs a round again. */
+/** Planned, but every plan it filed was dropped: nothing will land. Served by nothing, it needs a round again; served, the operator turned the change down. */
 const abandoned = (e: Entry, gone: ReadonlySet<string>) => e.state === "planned" && (e.plans ?? []).length > 0 && e.plans!.every((p) => gone.has(p))
 /** Planned, with a plan still on its way (not dropped). */
 const pending = (e: Entry, gone: ReadonlySet<string>) => e.state === "planned" && (e.plans ?? []).some((p) => !gone.has(p))
@@ -46,7 +46,7 @@ export const due = (statements: ReadonlyArray<Statement>, journeys: ReadonlyArra
   const changed: Array<Due> = statements
     .filter((s) => {
       const e = cp.statements[s.id]
-      return e === undefined || e.version !== s.version || e.decision !== undefined || abandoned(e, gone) || moved(e, s)
+      return e === undefined || e.version !== s.version || e.decision !== undefined || (abandoned(e, gone) && s.journeys.length === 0) || moved(e, s)
     })
     .map((statement) => ({ kind: "statement", statement }))
   const waiting = removed.length > 0 || changed.length > 0 || Object.values(cp.statements).some((e) => pending(e, gone))
