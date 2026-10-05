@@ -96,6 +96,7 @@ export default definePlugin({
       {
         statements,
         journeys: journeysOf,
+        personas: () => Effect.map(entities.query({ type: "gherkin/persona" }), (es) => es.map((e) => ({ name: String(data(e).props.name ?? e.id), kind: String(data(e).props.kind ?? "human") }))),
         scene: sceneText,
         code: (scenario) => entities.code(`gherkin/scenario:${scenario}`),
         dryRun: (draft) => gherkin.dryRun({ draft }),

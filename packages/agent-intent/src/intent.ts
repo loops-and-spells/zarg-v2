@@ -14,7 +14,7 @@ export interface IntentDeps {
   readonly scene: (scenario: string) => Effect.Effect<string, unknown>
   readonly code: (scenario: string) => Effect.Effect<ReadonlyArray<{ readonly file: string; readonly line: number; readonly text: string }>, unknown>
   readonly dryRun: (draft: Draft) => Effect.Effect<{ readonly ok: boolean; readonly problems: ReadonlyArray<string>; readonly scenarios?: ReadonlyArray<string> }, unknown>
-  readonly complete: (req: { readonly messages: ReadonlyArray<{ readonly role: "system" | "user"; readonly content: string }>; readonly maxTokens?: number; readonly reasoning?: { readonly enabled: boolean } }) => Effect.Effect<{ readonly text: string }, unknown>
+  readonly complete: (req: { readonly messages: ReadonlyArray<{ readonly role: "system" | "user"; readonly content: string }>; readonly maxTokens?: number; readonly reasoning?: { readonly enabled: boolean }; readonly outputSchema?: Record<string, unknown> }) => Effect.Effect<{ readonly text: string; readonly finishReason?: string }, unknown>
   /** An entity's version now (null: gone). */
   readonly version: (ref: string) => Effect.Effect<string | null, unknown>
   readonly plan: (p: { readonly title: string; readonly journey: string; readonly scenarios: ReadonlyArray<{ readonly ref: string }>; readonly changes: Draft; readonly feedback: ReadonlyArray<string>; readonly steps: ReadonlyArray<string>; readonly after?: ReadonlyArray<string>; readonly serves: string }) => Effect.Effect<{ readonly id: string }, unknown>
@@ -28,11 +28,14 @@ export interface IntentDeps {
   readonly log: (text: string) => Effect.Effect<void, unknown>
   /** Draw the agent's view again. */
   readonly render: Effect.Effect<void, unknown>
+  /** Who can act in scenarios now (a scenario's `by` must name one). */
+  readonly personas: () => Effect.Effect<ReadonlyArray<{ readonly name: string; readonly kind: string }>, unknown>
 }
 
 export type RoundView = { readonly id: string; readonly title: string; readonly state: "drafting" | "planned" | "asked" | "left" | "nothing" | "waiting"; readonly detail: string; readonly plans: ReadonlyArray<string> }
 
 const TOOLS = [
+  'add-persona {"name":"Parent","kind":"human","text":"who they are, how they reach the product"}: someone who acts in scenarios (kind human, cli or agent); add one before a scenario names it in by',
   'add-scenario {"title":"Who does what","when":"the one action","by":[{"name":"Operator"}],"arrives":{"id":"ST-0001"},"then":[{"text":"…"}],"given":[]}: a new scenario (1-5 thens)',
   'edit-scenario {"id":"S-0001","title":"…","when":"…"}: change a scenario\'s title or When',
   'edit-state {"id":"ST-0002","text":"…"}: reword a Given/Then sentence (every scenario using it changes)',
@@ -50,6 +53,19 @@ export const SYSTEM = [
   "When the journeys already deliver it, answer no units. When it needs the operator's choice (which journey, which of two meanings, a conflict with a scenario), answer an ask with 2-4 options instead of guessing.",
   'Answer with JSON only: {"units":[{"scenario":"S-0001","title":"…","summary":"one sentence","changes":[{"tool":"…","params":{…}}]}],"steps":["one line per step, for the operator"],"ask":null or {"question":"…","options":[{"id":"…","label":"…"}]}}.',
 ].join("\n\n")
+const ASK_SCHEMA = { anyOf: [{ type: "null" }, { type: "object", properties: { question: { type: "string" }, options: { type: "array", items: { type: "object", properties: { id: { type: "string" }, label: { type: "string" } }, required: ["id", "label"] } } }, required: ["question", "options"] }] }
+/** The plan's shape, given to the model as its output schema (a model left to the prompt alone dropped the wrapper). */
+const PLAN_SCHEMA = {
+  type: "object",
+  properties: {
+    units: { type: "array", items: { type: "object", properties: { scenario: { type: "string" }, title: { type: "string" }, summary: { type: "string" }, changes: { type: "array", items: { type: "object", properties: { tool: { type: "string" }, params: { type: "object" } }, required: ["tool", "params"] } } }, required: ["scenario", "title", "summary", "changes"] } },
+    steps: { type: "array", items: { type: "string" } },
+    ask: ASK_SCHEMA,
+  },
+  required: ["units", "steps", "ask"],
+}
+const SERVES_SCHEMA = { type: "object", properties: { serves: { type: "array", items: { type: "string" } }, ask: ASK_SCHEMA }, required: ["serves", "ask"] }
+
 const JOURNEY_SYSTEM = [
   "A journey of a product serves no outcome of its intent. Say which outcomes it delivers (one or more ids), or ask the operator when none fits.",
   'Answer with JSON only: {"serves":["O-0001"],"ask":null or {"question":"…","options":[{"id":"…","label":"…"}]}}.',
@@ -70,10 +86,10 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
   const views = new Map<string, RoundView>()
   const show = (v: RoundView) => Effect.andThen(Effect.sync(() => void views.set(v.id, v)), quiet(d.render))
   // What the last model call came to: its failure, or the text it answered (the log says which).
-  let last: { readonly failed: string } | { readonly text: string } = { text: "" }
-  const ask = (system: string, user: string) =>
-    d.complete({ messages: [{ role: "system", content: system }, { role: "user", content: user }], maxTokens: 16384, ...(reasoning ? {} : { reasoning: { enabled: false } }) }).pipe(
-      Effect.map((r) => ((last = { text: r.text }), r.text)),
+  let last: { readonly failed: string } | { readonly text: string; readonly finish?: string } = { text: "" }
+  const ask = (system: string, user: string, outputSchema: Record<string, unknown>) =>
+    d.complete({ messages: [{ role: "system", content: system }, { role: "user", content: user }], maxTokens: 16384, outputSchema, ...(reasoning ? {} : { reasoning: { enabled: false } }) }).pipe(
+      Effect.map((r) => ((last = { text: r.text, ...(r.finishReason !== undefined ? { finish: r.finishReason } : {}) }), r.text)),
       Effect.catch((e: unknown) => Effect.sync(() => ((last = { failed: String((e as { message?: unknown })?.message ?? e) }), undefined))),
     )
   const update = (f: (cp: Checkpoint) => Checkpoint) => Effect.flatMap(d.load, (cp) => d.save(f(cp)))
@@ -86,7 +102,7 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
     })
   const setJourney = (id: string, e: Entry) => update((cp) => ({ ...cp, journeys: { ...cp.journeys, [id]: e } }))
   const OUTAGE = (id: string) =>
-    `${id}: ${"failed" in last ? `the driver model failed: ${last.failed}` : `the driver model did not answer with JSON (it began: ${JSON.stringify(last.text.trim().slice(0, 80))})`}; the Intent Agent tries again on the next wake`
+    `${id}: ${"failed" in last ? `the driver model failed: ${last.failed}` : `the driver model did not answer with JSON (${last.text.length} chars${last.finish !== undefined ? `, stopped: ${last.finish}` : ""}; it began: ${JSON.stringify(last.text.trim().slice(0, 80))}, ended: ${JSON.stringify(last.text.trim().slice(-80))})`}; the Intent Agent tries again on the next wake`
 
   /** The context a round reads: the statement, its intent, its journeys with their scenarios and code. */
   const contextOf = (s: Statement, journeys: ReadonlyArray<JourneyInfo>) =>
@@ -104,6 +120,7 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
           return [`## ${j.id} ${j.name}`, ...scenes].join("\n\n")
         }),
       )
+      const personas = yield* d.personas().pipe(Effect.orElseSucceed(() => []))
       return [
         `Intent ${s.intent.id}: ${s.intent.title}`,
         ...(s.intent.problem !== undefined ? [`Problem: ${s.intent.problem}`] : []),
@@ -112,6 +129,8 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
         "",
         mine.length > 0 ? (s.kind === "outcome" ? "Journeys that serve it:" : "Journeys it bounds:") : "No journey serves it yet. Journeys:",
         ...(mine.length > 0 ? blocks : journeys.map((j) => `- ${j.id} ${j.name}`)),
+        "",
+        personas.length > 0 ? `Personas: ${personas.map((p) => `${p.name} (${p.kind})`).join(", ")}` : "Personas: none yet (add one with add-persona before a scenario names it)",
       ].join("\n")
     })
 
@@ -153,7 +172,7 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
       let problems: ReadonlyArray<string> = []
       for (let t = 1; t <= TRIES; t++) {
         const user = [context, ...(decision !== undefined ? ["", `The operator decided: ${decision}`] : []), ...(problems.length > 0 ? ["", "Your last answer failed its checks:", ...problems.map((p) => `- ${p}`), "Fix them."] : [])].join("\n")
-        const r = parse(yield* ask(SYSTEM, user))
+        const r = parse(yield* ask(SYSTEM, user, PLAN_SCHEMA))
         if (r === undefined) {
           yield* quiet(d.log(OUTAGE(s.id)))
           yield* show({ id: s.id, title: s.text, state: "waiting", detail: "the driver model did not answer", plans: [] })
@@ -211,7 +230,7 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
       yield* show({ id: j.id, title: j.name, state: "drafting", detail: "", plans: [] })
       const scenes = yield* Effect.forEach(j.scenarios, (c) => d.scene(c).pipe(Effect.orElseSucceed(() => c)))
       const outcomes = statements.filter((s) => s.kind === "outcome")
-      const text = yield* ask(JOURNEY_SYSTEM, [`Journey ${j.id} ${j.name}:`, ...scenes, "", "Outcomes:", ...outcomes.map((o) => `- ${o.id}: ${o.text}`)].join("\n\n"))
+      const text = yield* ask(JOURNEY_SYSTEM, [`Journey ${j.id} ${j.name}:`, ...scenes, "", "Outcomes:", ...outcomes.map((o) => `- ${o.id}: ${o.text}`)].join("\n\n"), SERVES_SCHEMA)
       const v = text === undefined ? undefined : (jsonIn(text) as { serves?: unknown; ask?: unknown } | undefined)
       if (v === undefined) {
         yield* quiet(d.log(OUTAGE(j.id)))
