@@ -559,6 +559,12 @@ test("the driver shows every scenario with who acts in it (By), and names by whe
 })
 
 // @scenario S-0008
+test("the driver never asks again what the developer settled, and names what it asks about by its words", () => {
+  expect(REPLY_RULE).toContain("never ask again what the developer settled")
+  expect(REPLY_RULE).toContain("by their words, not by ids alone")
+})
+
+// @scenario S-0008
 test("the driver reads the project before asking what it says, and proposes nothing from neither the developer nor the project", () => {
   expect(REPLY_RULE).toContain("read the project first")
   expect(REPLY_RULE).toContain("never anything from neither")
