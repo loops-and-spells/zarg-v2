@@ -856,7 +856,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const topicGlyph = (t: Topic) =>
     t.state === "answered" ? { g: "✓", c: C.dim } : t.state !== "open" ? { g: "–", c: C.dim } : t.blocking ? { g: "◆", c: C.attention } : (t.answers ?? []).length > 0 ? { g: "◇", c: C.accent } : { g: "·", c: C.dim }
   const topicHint = (t: Topic) =>
-    [t.kind, ...(t.blocking ? ["waiting"] : []), ...((t.answers ?? []).length > 1 ? [`${t.answers!.length} options`] : []), ...(t.messages.length > 0 ? [`${t.messages.length} ${t.messages.length === 1 ? "reply" : "replies"}`] : [])].join(" · ")
+    [t.kind, ...(t.blocking && t.state === "open" ? ["waiting"] : []), ...((t.answers ?? []).length > 1 ? [`${t.answers!.length} options`] : []), ...(t.messages.length > 0 ? [`${t.messages.length} ${t.messages.length === 1 ? "reply" : "replies"}`] : [])].join(" · ")
   const openTopic = ui.inbox.open === undefined ? undefined : s.thread.inbox?.[ui.inbox.open]
   const inbox =
     openTopic !== undefined ? (
@@ -865,12 +865,14 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         <text wrapMode="none" style={{ flexShrink: 0 }}>
           <span fg={C.dim}>{"← Inbox   "}</span>
           <span fg={C.text}>
-            <b>{fit(openTopic.title, focusWidth - 14)}</b>
+            <b>{fit(openTopic.title.split("\n")[0] ?? "", focusWidth - 14)}</b>
           </span>
         </text>
         <text fg={C.dim} wrapMode="none" style={{ flexShrink: 0 }}>{fit([openTopic.from.agent ?? openTopic.from.plugin, openTopic.kind, openTopic.why, ago(openTopic.created)].filter((x) => x !== "").join(" · "), focusWidth - 4)}</text>
         <text style={{ flexShrink: 0 }}> </text>
         <scrollbox focusable={false} style={{ flexGrow: 1 }}>
+          {/* A title longer than its header line (zarg's proposal holds the whole change) is shown whole: nothing is approved unseen. */}
+          {openTopic.title.includes("\n") || openTopic.title.length > focusWidth - 14 ? <RichText content={openTopic.title} width={focusWidth - 6} /> : null}
           {openTopic.evidence !== undefined ? <RichText content={openTopic.evidence} width={focusWidth - 6} /> : null}
           {openTopic.messages.map((m, i) => (
             <box key={`m${i}`} style={{ flexDirection: "column", flexShrink: 0, marginTop: 1 }}>

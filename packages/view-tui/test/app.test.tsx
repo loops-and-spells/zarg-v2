@@ -908,6 +908,44 @@ describe("focuses", () => {
     expect(lines.some((l) => l.includes("← Inbox") && l.includes("Set up: 80 feedback entries want your call"))).toBe(true)
     expect(lines.some((l) => l.includes("backlog · question · rehearse asks"))).toBe(true)
   })
+  test("a question whose title holds the whole change shows all of it in the topic, so nothing is approved unseen", async () => {
+    const change = "Add this to the requirements?\n\nAdd an intent for this product:\nIntent: Family chore tracker\nOutcomes:\n  - A parent adds a chore for a family member\n  - A family member marks a chore done\nConstraints:\n  - A member sees only their own chores"
+    const t0 = { id: "T-8", kind: "question", from: { plugin: "zarg", agent: "zarg" }, title: change, why: "zarg asks", about: [], blocking: true, messages: [], state: "open", created: Date.now(), updated: 0, answers: [{ id: "add", label: "Add it", recommended: true }, { id: "skip", label: "Skip" }] }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-8": t0 } } as never }, big)
+    t.mockInput.pressEnter(); await settle(t)
+    const f = t.captureCharFrame()
+    expect(f).toContain("A family member marks a chore done")
+    expect(f).toContain("A member sees only their own chores")
+  })
+  test("an answered topic does not say it is waiting", async () => {
+    const done = { id: "T-6", kind: "question", from: { plugin: "zarg", agent: "zarg" }, title: "Who uses it?", why: "zarg asks", about: [], blocking: true, messages: [], state: "answered", answer: { id: "a", by: "operator", at: 1 }, created: 1, updated: 1, answers: [{ id: "a", label: "A" }, { id: "b", label: "B" }] }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-6": done } } as never }, big)
+    t.mockInput.pressKey("a"); await settle(t)
+    const row = t.captureCharFrame().split("\n").find((l) => l.includes("Who uses it?")) ?? ""
+    expect(row).not.toContain("waiting")
+  })
+  test("from the inbox, ^k opens the palette and its zarg entry opens zarg's conversation", async () => {
+    const t0 = { id: "T-5", kind: "report", from: { plugin: "rehearse" }, title: "Run done", why: "r", about: [], blocking: false, messages: [], state: "open", created: Date.now(), updated: 0 }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-5": t0 } } as never }, big)
+    t.mockInput.pressKey("k", { ctrl: true }); await settle(t)
+    expect(t.captureCharFrame()).toContain("the conversation")
+    for (const ch of "zarg") t.mockInput.pressKey(ch)
+    await settle(t)
+    t.mockInput.pressEnter(); await settle(t)
+    expect(t.captureCharFrame()).toContain("zarg  Hello.")
+  })
+  test("^k opens the palette from the message bar too (it is not the line's)", async () => {
+    const t = await render(viewState, big)
+    t.mockInput.pressKey("m", { meta: true }); await settle(t)
+    t.mockInput.pressKey("k", { ctrl: true }); await settle(t)
+    expect(t.captureCharFrame()).toContain("the conversation")
+  })
+  test("^k opens the palette while zarg asks something (a question pending, its topic blocking)", async () => {
+    const q = { id: "T-4", kind: "question", from: { plugin: "zarg", agent: "zarg" }, title: "Who uses it?", why: "zarg asks", about: [], blocking: true, messages: [], state: "open", created: Date.now(), updated: 0, answers: [{ id: "a", label: "A" }, { id: "b", label: "B" }] }
+    const t = await render({ ...waiting, thread: { ...waiting.thread, inbox: { "T-4": q } } as never }, big)
+    t.mockInput.pressKey("k", { ctrl: true }); await settle(t)
+    expect(t.captureCharFrame()).toContain("the conversation")
+  })
   test("a grant topic shows as the popover; its Enter answers the topic", async () => {
     const grant = { id: "T-9", kind: "grant", from: { plugin: "tracker" }, title: "Plugin tracker wants to reach a.test.", why: "grant", about: [], blocking: true, messages: [], state: "open", created: 1, updated: 1, answers: [{ id: "once", label: "Allow once", recommended: true }, { id: "deny", label: "Deny" }] }
     const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-9": grant } } as never }, big)
