@@ -178,6 +178,15 @@ describe("the Intent Agent", () => {
     expect(cp().statements).toEqual({})
   })
 
+  test("a reworded statement: the plans drafted for its old wording leave the Backlog before the new round", async () => {
+    const answer = JSON.stringify({ units: [unit("S-0001", [{ tool: "edit-scenario", params: { id: "S-0001", title: "Visitor picks a plan" } }])], steps: ["s"], ask: null })
+    const { a, calls } = setup({ cp: { statements: { "O-0001": { version: "v0", state: "planned", plans: ["B-9"] } }, journeys: {} }, journeys: [checkout], answers: [answer] })
+    await Effect.runPromise(a.tick)
+    const kinds = calls.map(([k]) => k)
+    expect(calls.find(([k]) => k === "dropServing")![1]).toBe("O-0001")
+    expect(kinds.indexOf("dropServing")).toBeLessThan(kinds.indexOf("plan"))
+  })
+
   test("an unserving journey: the model names the outcomes it serves; a plan links them", async () => {
     const browse: JourneyInfo = { id: "J-0002", name: "Browse", version: "bv", scenarios: ["S-0002"], serves: [] }
     const { a, calls, cp } = setup({ cp: { statements: { "O-0001": { version: "v1", state: "nothing" } }, journeys: {} }, journeys: [checkout, browse], answers: [JSON.stringify({ serves: ["O-0001"], ask: null })] })

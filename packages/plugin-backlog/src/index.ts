@@ -80,7 +80,7 @@ export default definePlugin({
     rehearsing: { doc: "The Triage Agent started (or waits for) a re-rehearse.", params: Rehearsing, success: Schema.Null },
     rehearsed: { doc: "A re-rehearse's results: on to Plan, or back to Refine with fresh feedback.", params: Rehearsed, success: Schema.Null },
     drafted: { doc: "The Triage Agent's drafted plan.", params: Drafted, success: Schema.Null },
-    dropServing: { doc: "Drop the Backlog-lane plans serving a statement (it was removed): the Intent Agent's call.", params: Schema.Struct({ statement: Schema.String }), success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
+    dropServing: { doc: "Drop the Backlog-lane plans serving a statement (it was removed or reworded): the Intent Agent's call.", params: Schema.Struct({ statement: Schema.String }), success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
     plans: { doc: "A folded triage round's plans, in order, to the Backlog lane: each waits on the plans it names by index; the journey is planned until the last is dropped.", params: PlansParams, success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
     agenda: { doc: "Feedback files the backlog could not read, and plans that need the operator.", params: Schema.Struct({}), success: Schema.Array(Schema.Struct({ id: Schema.String, title: Schema.String, detail: Schema.String, about: Schema.Array(Schema.String), priority: Schema.Number })) },
   },

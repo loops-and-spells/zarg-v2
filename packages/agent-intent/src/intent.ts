@@ -310,6 +310,11 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
         views.delete(x.id)
         continue
       }
+      // Reworded: the plans drafted for its old wording leave the Backlog (those taken already stay).
+      if (x.kind === "statement" && prev?.state === "planned" && prev.version !== x.statement.version) {
+        const { ids } = yield* d.dropServing(x.statement.id).pipe(Effect.orElseSucceed(() => ({ ids: [] as ReadonlyArray<string> })))
+        if (ids.length > 0) yield* quiet(d.log(`${x.statement.id} changed: dropped ${ids.join(", ")}`))
+      }
       const r = x.kind === "statement" ? yield* statementRound(x.statement, journeys, prev?.decision, statements) : yield* journeyRound(x.journey, statements)
       if (r === "outage") break
     }
