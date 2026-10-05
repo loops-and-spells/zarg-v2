@@ -30,8 +30,9 @@ export const OPEN_QUESTION = "Nothing is open in the requirements. What do you w
 const GAPS_SHOWN = 8
 
 /** Appended to every driver task: its result is a message to the operator. */
+// @scenario S-0102
 export const REPLY_RULE =
-  "Before any graph write, show the developer the exact change with Inquire.confirm({ change }) (each scenario as By / Given / When / Then lines; every scenario names who acts in it with by, a persona) and write only what they add. Finish with `yield* Rlm.done({ value })`, where value is one or two sentences to the developer about what you did or found. No scenario renders, no ids-only lists."
+  "Before any graph write, show the developer the exact change with Inquire.confirm({ change }) (each scenario as By / Given / When / Then lines; every scenario names who acts in it with by, a persona) and write only what they add. When the developer says what the product is for, even while a question of yours is open, keep it in the intent first: an outcome it must reach (add-outcome) or a rule it must keep (add-constraint), shown with Inquire.confirm like any write. Finish with `yield* Rlm.done({ value })`, where value is one or two sentences to the developer about what you did or found. No scenario renders, no ids-only lists."
 
 /** The longest reply shown; longer results are cut. */
 const REPLY_MAX = 600

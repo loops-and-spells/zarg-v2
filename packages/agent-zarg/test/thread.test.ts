@@ -472,6 +472,13 @@ test("the driver shows every scenario with who acts in it (By), and names by whe
   expect(REPLY_RULE).toContain("every scenario names who acts in it with by")
 })
 
+// @scenario S-0102
+test("what the operator says the product is for goes into the intent, even mid-question: shown first, then added", () => {
+  expect(REPLY_RULE).toContain("add-outcome")
+  expect(REPLY_RULE).toContain("add-constraint")
+  expect(REPLY_RULE).toMatch(/even while a question of yours is open/)
+})
+
 describe("zarg's questions as inbox topics", () => {
   /** A recording inbox: topics raised by the thread, and what it answered, settled and noted. */
   const fakeInbox = () => {
