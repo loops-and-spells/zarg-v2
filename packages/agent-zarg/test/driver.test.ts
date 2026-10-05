@@ -141,6 +141,17 @@ describe("ask before writing", () => {
     expect(commits.length).toBe(2)
   })
 
+  test("a long first line is cut at a word, with an ellipsis: a commit subject never ends mid-word", async () => {
+    const commits: Array<string> = []
+    const ids: Bound = { def: { name: "Gherkin" } as never, handlers: { addScenario: () => Effect.succeed({ added: ["P-0001"], changed: [], removed: [] }) } }
+    const guard = askFirst({ ask: () => Effect.succeed({ choice: "add" }) }, undefined, (_, m) => Effect.sync(() => void commits.push(m)))
+    const change = 'Add persona "Shelf reader" (human): "A person tending a shelf for books to read, as in README.md."'
+    await Effect.runPromise(guard.asker.confirm!({ change }))
+    await Effect.runPromise(guard.gate(ids)!.handlers.addScenario!({}))
+    await Effect.runPromise(guard.flush)
+    expect(commits[0]).toBe('req: P-0001: Add persona "Shelf reader" (human): "A person tending a shelf for books…')
+  })
+
   test("Add with words of the operator's (a reason) is what to change, not a yes: nothing is written, and the words come back", async () => {
     const guard = askFirst({ ask: () => Effect.succeed({ choice: "add", other: "drop 'or an unknown id'" }) })
     const gated = guard.gate(writes)!

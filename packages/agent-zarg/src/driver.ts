@@ -10,6 +10,12 @@ const ASK_FIRST: ServiceFailure = {
 
 const PICKED_HINT = "They picked an option that is a change: it is added. Write it now, as shown; no Inquire.confirm."
 
+/** A commit subject's words: up to 72 characters, cut at a word with an ellipsis. */
+const subject = (line: string) => {
+  if (line.length <= 72) return line
+  const cut = line.slice(0, 72)
+  return `${cut.slice(0, Math.max(1, cut.lastIndexOf(" "))).trimEnd()}…`
+}
 // Quote marks aside: a change shows sentences quoted one by one that a write joins.
 const norm = (t: string) => t.toLowerCase().replace(/["“”`]/g, "").replace(/\s+/g, " ").trim().replace(/[.!]$/, "")
 /** The words a write puts in the graph (titles, Whens, state and statement texts, names): what the developer must have seen. */
@@ -79,7 +85,7 @@ export const askFirst = (
         const mine = [...(c?.added ?? []), ...(c?.changed ?? [])].filter((id) => id in shown)
         if (mine.length > 0 && versions !== undefined) shown = { ...shown, ...(yield* versions(mine)) }
         for (const id of ids) (touched.add(id), unsaved.add(id))
-        if (ids.length > 0 && unsaved.size === ids.length) saving = (added?.split("\n")[0] ?? "a fix for a rehearse finding").slice(0, 72)
+        if (ids.length > 0 && unsaved.size === ids.length) saving = subject(added?.split("\n")[0] ?? "a fix for a rehearse finding")
         for (const id of c?.added ?? []) s?.allowed.add(id)
         if (s !== undefined && ids.length > 0) s.onTouched(ids)
       }),
