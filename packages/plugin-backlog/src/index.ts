@@ -425,6 +425,8 @@ export default definePlugin({
         // A run's filing is news: a report, and whatever now waits on the operator (asks) in the inbox.
         Effect.tap(({ ids }) =>
           Effect.gen(function* () {
+            // The latest run's report stands for the runs before it.
+            if (run !== undefined) for (const t of yield* inbox.list().pipe(Effect.orElseSucceed(() => []))) if (t.key?.startsWith("run:") === true && t.key !== `run:${run}`) yield* Effect.ignore(inbox.settle(t.id, `a later run (${run}) reported`))
             if (run !== undefined && ids.some((x) => x !== "")) {
               const filed = (yield* load).filter((e) => ids.includes(e.id))
               const journeys = [...new Set(filed.flatMap((e) => e.journeys))]

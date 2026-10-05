@@ -4,21 +4,21 @@
     "Assign chores"
   ],
   "persona": "Parent",
-  "kind": "drift",
-  "severity": "high",
-  "note": "Drift: the step says the chore leaves every list, but the code only marks it hidden for the parent and every other list still shows it.",
+  "kind": "feature",
+  "severity": "medium",
+  "note": "As the parent I would want a remove op that genuinely takes a chore off the lists I assign, not a silent no-op. Change the graph's remove op to return lists with that chore absent, or if parent-only hiding is the intent, reword the step to say only my list stops showing it.",
   "from": {
     "agent": "rehearse",
-    "run": "r-528208ce"
+    "run": "r-4df6c0a5"
   },
   "triage": {
     "on": true,
     "why": "ask · real 1.00",
     "by": "agent"
   },
-  "id": "F-3a4b6f4a",
+  "id": "F-44303179",
   "count": 1,
   "runs": [
-    "rehearse:r-528208ce"
+    "rehearse:r-4df6c0a5"
   ]
 }

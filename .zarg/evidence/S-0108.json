@@ -1,12 +1,12 @@
 {
   "scenario": "S-0108",
   "version": "54504fb8b42e",
-  "commit": "4a61b5c",
-  "run": "e2e-2026-10-05T15-58-54.133Z",
+  "commit": "679c1007",
+  "run": "e2e-2026-10-05T16-10-53.408Z",
   "journey": "J-0008",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T16:01:53.566Z",
+  "at": "2026-10-05T16:11:04.271Z",
   "ms": 2008,
   "media": [
     {
@@ -38,7 +38,7 @@
   ],
   "failure": null,
   "code": {
-    "packages/plugin-backlog/src/index.ts": "ba22def6ec9b162530b3b71f8dcf84de1fa42d67",
+    "packages/plugin-backlog/src/index.ts": "9ffa3de01fb0753ddedadb0cd1617bdaaef679b0",
     "packages/plugin-backlog/src/stages.ts": "ee838369aa272a7f192c546b348287ea693c252b",
     "packages/plugin-backlog/test/plugin.test.ts": "4dd05cd9834ded975d756d128b20cf58efa1efd3",
     "packages/plugin-backlog/test/stages.test.ts": "23193b0696d04132cdc31ae67f1282231872c3ed"

@@ -1,13 +1,13 @@
 {
   "scenario": "S-0106",
   "version": "b8d418ed8532",
-  "commit": "32afbde",
-  "run": "e2e-2026-10-05T14-48-59.215Z",
+  "commit": "679c1007",
+  "run": "e2e-2026-10-05T16-10-53.408Z",
   "journey": "J-0008",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T14:49:56.465Z",
-  "ms": 36018,
+  "at": "2026-10-05T16:12:38.605Z",
+  "ms": 84018,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -43,7 +43,7 @@
     "packages/agent-rehearse/test/findings.test.ts": "80cf883c200423b1ab0dbd9959457cc9d226c068",
     "packages/agent-rehearse/test/plugin.test.ts": "9b58eff34ef7bf4255d1d1dd9d4233e353a00b83",
     "packages/agent-rehearse/test/run.test.ts": "bfcc36507f2ef95c71cd35b5f32d6e3f9a1acd82",
-    "packages/plugin-backlog/src/index.ts": "ba22def6ec9b162530b3b71f8dcf84de1fa42d67",
+    "packages/plugin-backlog/src/index.ts": "9ffa3de01fb0753ddedadb0cd1617bdaaef679b0",
     "packages/plugin-backlog/test/plugin.test.ts": "4dd05cd9834ded975d756d128b20cf58efa1efd3"
   }
 }

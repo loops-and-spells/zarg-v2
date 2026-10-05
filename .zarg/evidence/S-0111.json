@@ -1,13 +1,13 @@
 {
   "scenario": "S-0111",
   "version": "807837da9af6",
-  "commit": "4a61b5c",
-  "run": "e2e-2026-10-05T15-58-54.133Z",
+  "commit": "679c1007",
+  "run": "e2e-2026-10-05T16-10-53.408Z",
   "journey": "J-0008",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T16:01:54.600Z",
-  "ms": 873,
+  "at": "2026-10-05T16:11:05.351Z",
+  "ms": 870,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -48,7 +48,7 @@
   "code": {
     "packages/core/src/planner.ts": "7fb8a8749116b5083e028ad32e7ccb1386fb69a8",
     "packages/core/test/planner.test.ts": "9eeaa5f422e0cc1faa931292c6829e8b27c76afa",
-    "packages/plugin-backlog/src/index.ts": "ba22def6ec9b162530b3b71f8dcf84de1fa42d67",
+    "packages/plugin-backlog/src/index.ts": "9ffa3de01fb0753ddedadb0cd1617bdaaef679b0",
     "packages/plugin-backlog/test/backlog.test.ts": "78cbe42e24b676d71395e680f8b7722ce4822785"
   }
 }

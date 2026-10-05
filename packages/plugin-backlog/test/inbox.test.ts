@@ -95,6 +95,18 @@ describe("the backlog's topics in the inbox", () => {
     )
     expect(out).toContainEqual("Rehearse run r-3: nothing found")
   })
+  test("a new run's report settles the earlier runs' reports: the inbox keeps the latest", async () => {
+    const out = await run((seen) =>
+      Effect.gen(function* () {
+        const { h } = yield* setUp()
+        yield* h.invoke("backlog", "file", { entries: [], walked: ["S-0001"], run: "r-3" })
+        yield* h.invoke("backlog", "file", { entries: [], walked: ["S-0001"], run: "r-4" })
+        return (seen.inbox ?? []).filter((t) => t.kind === "report").map((t) => [t.title, t.state])
+      }),
+    )
+    expect(out).toContainEqual(["Rehearse run r-4: nothing found", "open"])
+    expect(out).toContainEqual(["Rehearse run r-3: nothing found", "moot"])
+  })
   test("a folded round's report settles once all its plans are dropped (it named plans that are gone)", async () => {
     const out = await run((seen) =>
       Effect.gen(function* () {
