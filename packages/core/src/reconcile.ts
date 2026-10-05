@@ -28,6 +28,8 @@ export interface ReconcileDeps {
   readonly onFailed?: (scenarios: ReadonlyArray<string>) => void
   /** A pass's outcome is known (landed, failed, skipped, errored): the findings may have changed. */
   readonly onPassEnd?: () => void
+  /** Landing waits on the operator's uncommitted edits: what to tell them (the implement thread says it too). */
+  readonly onLandWait?: (text: string) => void
 }
 
 const summary = (r: PassResult) => {
@@ -67,6 +69,13 @@ export const makeReconcile = (deps: ReconcileDeps) =>
       ...(deps.withGraphLock ? { withGraphLock: deps.withGraphLock } : {}),
       observe: (phase, item, e) => (phase === "plan" ? activity.plan : activity.implement).observe(e, `${item}:`),
       stop: { requested: () => stopRequested, wait: Effect.suspend(() => Effect.promise(() => signal)) },
+      // @scenario S-0050
+      onLandWait: (paths, attempt) =>
+        Effect.sync(() => {
+          const text = `Landing waits on your uncommitted edits in ${paths.join(", ")}: commit or stash them (try ${attempt} of ${deps.settings.landAttempts}, again in ${Math.max(1, Math.round(deps.settings.landRetryMs / 1000))}s).`
+          for (const d of E.textMessage(`implement-${crypto.randomUUID()}`, "assistant", text)) emit("implement", d)
+          deps.onLandWait?.(text)
+        }),
     })
     const engine = passLayer(spec).pipe(Layer.provideMerge(engineLayer(deps.dbFile ?? join(deps.repo, ".zarg", "reconcile", "cluster.db"))))
     const runtime = ManagedRuntime.make(engine as Layer.Layer<Layer.Success<typeof engine>, Layer.Error<typeof engine>, never>)

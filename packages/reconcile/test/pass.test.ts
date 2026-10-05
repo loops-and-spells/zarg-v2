@@ -109,9 +109,12 @@ describe("reconcile pass", () => {
     const r = repo()
     graph(r, ["S-0001"])
     write(r, "src/S-0001.ts", "mine\n")
-    const spec = stubSpec(r, { landAttempts: 3 })
+    const waits: Array<[ReadonlyArray<string>, number]> = []
+    const spec = { ...stubSpec(r, { landAttempts: 3 }), onLandWait: (paths: ReadonlyArray<string>, attempt: number) => Effect.sync(() => void waits.push([paths, attempt])) }
     expect(await runPass(spec, db())).toMatchObject({ status: "failed" })
     expect(spec.findings.list().map((f) => [f.kind, f.detail])).toEqual([["landing-blocked", "waiting on your uncommitted edits in src/S-0001.ts"]])
+    // While it waits, the operator is told which edits hold it, each try.
+    expect(waits).toEqual([[["src/S-0001.ts"], 1], [["src/S-0001.ts"], 2]])
     expect(readFileSync(join(r, "src/S-0001.ts"), "utf8")).toBe("mine\n")
   })
 

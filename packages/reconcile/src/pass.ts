@@ -50,6 +50,8 @@ export interface ReconcileSpec {
   readonly landRetry: Duration.Input
   /** Landing attempts before a landing-blocked finding (spec: 10, one a minute). */
   readonly landAttempts: number
+  /** Landing waits on the operator's uncommitted edits in these paths (try `attempt` of `landAttempts`): tell them. */
+  readonly onLandWait?: (paths: ReadonlyArray<string>, attempt: number) => Effect.Effect<void>
   readonly message: (items: ReadonlyArray<string>) => string
   /**
    * The operator's stop: `wait` completes when a stop is requested (running scenarios race it and are cut
@@ -309,6 +311,7 @@ const body = (
         }
         if (yield* isStopped(`stopped:land:${attempt}`)) return stoppedResult
         // @scenario S-0050
+        if (spec.onLandWait !== undefined) yield* spec.onLandWait(r.paths ?? [], attempt)
         yield* DurableClock.sleep({ name: `land-wait:${attempt}`, duration: spec.landRetry })
         if (yield* isStopped(`stopped:land-waited:${attempt}`)) return stoppedResult
       }

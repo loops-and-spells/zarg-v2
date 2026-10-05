@@ -131,7 +131,16 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         onLanded: (scenarios) => void Effect.runFork(planner.landed(scenarios)),
         onFailed: (scenarios) => void Effect.runFork(planner.failed(scenarios)),
         // Findings in the operator's inbox: raised when a pass finds them, settled once they clear.
-        onPassEnd: () => void Effect.runFork(syncFindings),
+        onPassEnd: () =>
+          void Effect.runFork(
+            Effect.andThen(
+              syncFindings,
+              // The pass is over: its landing no longer waits.
+              Effect.forEach(inbox.list().filter((t) => t.from.plugin === "zarg" && t.key === "land-wait" && t.state === "open"), (t) => Effect.ignore(inbox.settle("zarg", t.id, "the pass ended")), { discard: true }),
+            ),
+          ),
+        // @scenario S-0050
+        onLandWait: (text) => void Effect.runFork(Effect.ignore(inbox.post({ plugin: "zarg" }, { kind: "report", key: "land-wait", title: text, why: "reconcile", about: [] }))),
       }).pipe(Effect.provideService(EffectScope.Scope, scope))
     // The Planner Agent: Ready plans on the Backlog are applied to the graph, then reconcile implements them.
     const planner = makePlanner({

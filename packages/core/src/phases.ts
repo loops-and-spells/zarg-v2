@@ -129,6 +129,7 @@ export interface PhaseDeps {
   /** RLM events, tagged with the phase and scenario they work for. */
   readonly observe?: (phase: string, item: string, e: Rlm.RlmEvent) => void
   readonly withGraphLock?: ReconcileSpec["withGraphLock"]
+  readonly onLandWait?: ReconcileSpec["onLandWait"]
   readonly stop?: ReconcileSpec["stop"]
   /** A plugin host over a graph store (the pass's worktree graph); plugins run in their own processes. */
   readonly pluginHost: Layer.Layer<PluginHost, unknown, GraphStore>
@@ -289,5 +290,6 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
     message: (items) => `feat: implement ${items.join(", ")}`,
     ...(deps.withGraphLock ? { withGraphLock: deps.withGraphLock } : {}),
     ...(deps.stop ? { stop: deps.stop } : {}),
+    ...(deps.onLandWait ? { onLandWait: deps.onLandWait } : {}),
   }
 }
