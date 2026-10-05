@@ -1,12 +1,12 @@
 {
   "scenario": "S-0110",
   "version": "43e0a0748119",
-  "commit": "5f5c8eb",
-  "run": "e2e-2026-10-05T08-03-01.447Z",
+  "commit": "8a3d026",
+  "run": "e2e-2026-10-05T12-00-10.952Z",
   "journey": "J-0008",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T09:07:18.494Z",
+  "at": "2026-10-05T12:39:07.739Z",
   "ms": 5,
   "media": [
     {
@@ -32,15 +32,15 @@
       "caption": "the step as it played",
       "path": "media/S-0110/4-step.cast",
       "meta": {
-        "startAt": 37.5
+        "startAt": 40.4
       }
     }
   ],
   "failure": null,
   "code": {
-    "packages/agent-triage/src/triage.ts": "4c68fa1f324a25ed455db5e7f780949d19fefe3c",
+    "packages/agent-triage/src/triage.ts": "0d744def4cfd9aa1e818e17b3f75487ef8634228",
     "packages/agent-triage/test/triage.test.ts": "1a09bf3765d8b81cc066011cb3ad95e5fe713105",
-    "packages/plugin-backlog/src/index.ts": "8fe1821075fddcbba2e22f7f9c95bbefb4b479d5",
+    "packages/plugin-backlog/src/index.ts": "ba22def6ec9b162530b3b71f8dcf84de1fa42d67",
     "packages/plugin-backlog/test/triage.test.ts": "2af65a563e2d53e0797d87b2b10ee617ed947510"
   }
 }

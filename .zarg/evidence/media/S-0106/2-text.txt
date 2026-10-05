@@ -4,21 +4,21 @@
     "Assign chores"
   ],
   "persona": "Parent",
-  "kind": "gap",
+  "kind": "drift",
   "severity": "medium",
-  "note": "You remove a chore and then must handle the chore still showing up in other lists, which the code does not address. This is a failure the parent is left to work around, not something the step resolves.",
+  "note": "The step says the chore leaves every list, but the shown remove only marks it hidden for the parent and returns the array unchanged, so other lists still show it. I would want remove to propagate across every list, or the step narrowed to say it leaves only the parent's list.",
   "from": {
     "agent": "rehearse",
-    "run": "r-af9468db"
+    "run": "r-5a806c26"
   },
   "triage": {
     "on": true,
-    "why": "ask · real 0.63",
+    "why": "ask · real 1.00",
     "by": "agent"
   },
-  "id": "F-79460afe",
+  "id": "F-51198048",
   "count": 1,
   "runs": [
-    "rehearse:r-af9468db"
+    "rehearse:r-5a806c26"
   ]
 }

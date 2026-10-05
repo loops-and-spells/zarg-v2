@@ -1,6 +1,6 @@
                        │  inbox   2 open                                                                                
  ◆ zarg                │                                                                                                
-   project · main      │  ▍◆ zarg          What can the child do once "the chi…  question · waiting · 3 options  7m     
+   project · main      │  ▍◆ zarg          The scenario "Parent assigns a chor…  question · waiting · 3 options  9m     
                        │   · zarg          Landing waits on your uncommitted edits in .zarg/plans/S-0…  report  now     
  VIEWS               3 │                                                                                                
 ▍ ◆ Inbox            2 │                                                                                                

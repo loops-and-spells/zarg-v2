@@ -1,52 +1,43 @@
 {
-  "title": "Assigner assigns a chore",
+  "title": "Family member reviews assigned chores",
   "journey": "",
   "scenarios": [],
   "changes": [
     {
       "tool": "add-persona",
       "params": {
-        "name": "Assigner",
-        "kind": "human",
-        "text": "A parent or guardian who assigns chores to family members"
-      }
-    },
-    {
-      "tool": "add-persona",
-      "params": {
         "name": "Family member",
         "kind": "human",
-        "text": "A family member who sees and does the chores assigned to them"
+        "text": "a person in a household who shares chores"
       }
     },
     {
       "tool": "add-scenario",
       "params": {
-        "title": "Assigner assigns a chore",
-        "when": "Assigner assigns a chore to a family member",
+        "title": "Family member reviews assigned chores",
+        "when": "opens their chore list",
         "by": [
           {
-            "name": "Assigner"
+            "name": "Family member"
           }
         ],
         "arrives": {
-          "text": "a chore list for a family"
+          "text": "Their chores"
         },
         "then": [
           {
-            "text": "the chore shows under that member's name"
+            "text": "Each chore shows who it is assigned to"
           },
           {
-            "text": "Family member sees the chore assigned to them"
+            "text": "They see only chores assigned to them"
           }
-        ],
-        "given": []
+        ]
       }
     },
     {
       "tool": "add-journey",
       "params": {
-        "name": "Assigning chores to family members"
+        "name": "Review chores"
       }
     },
     {
@@ -72,11 +63,11 @@
   ],
   "feedback": [],
   "steps": [
-    "Add Assigner persona",
-    "Add Family member persona",
-    "Add scenario S-0001 with its two thens",
-    "Add journey J-0001 and link S-0001 into it",
-    "Link J-0001 to serve O-0001"
+    "Add the Family member persona",
+    "Create the S-0001 scenario",
+    "Create the J-0001 journey",
+    "Put S-0001 into J-0001",
+    "J-0001 serves O-0001"
   ],
   "serves": "gherkin/outcome:O-0001@f5ebc0ef2fe2",
   "id": "B-01",

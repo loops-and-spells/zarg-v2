@@ -1,13 +1,13 @@
 {
   "scenario": "S-0025",
   "version": "6d66db3e8f9e",
-  "commit": "833cf7b",
-  "run": "e2e-2026-10-05T09-10-28.063Z",
+  "commit": "09213fa",
+  "run": "e2e-2026-10-05T12-41-07.919Z",
   "journey": "J-0004",
-  "passed": true,
+  "passed": false,
   "flaky": false,
-  "at": "2026-10-05T09:32:32.442Z",
-  "ms": 139252,
+  "at": "2026-10-05T13:15:35.170Z",
+  "ms": 729862,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -32,11 +32,14 @@
       "caption": "the step as it played",
       "path": "media/S-0025/4-step.cast",
       "meta": {
-        "startAt": 711.9
+        "startAt": 1082.4
       }
     }
   ],
-  "failure": null,
+  "failure": {
+    "expected": "\u001b[2mexpect(\u001b[0m\u001b[31mreceived\u001b[0m\u001b[2m).\u001b[0mtoBe\u001b[2m(\u001b[0m\u001b[32mexpected\u001b[0m\u001b[2m)\u001b[0m\n\nExpected: \u001b[32mtrue\u001b[0m\nReceived: \u001b[31mfalse\u001b[0m\n",
+    "saw": "                       │  inbox   2 open                                                                                \n ◆ zarg                │                                                                                                \n   project · main      │  ▍· zarg          implement failed for S-0002  finding  12m                                    \n                       │   · zarg          verify still fails after the fix attempts  finding  12m                      \n VIEWS               3 │                                                                                                \n▍ ▤ Inbox            2 │                                                                                                \n  ▤ Journeys           │                                                                                                \n  ▤ Intents            │                                                                                                \n                       │                                                                                                \n AGENTS              2 │                                                                                                \n  ▾ zarg           0/0 │                                                                                                \n  └ ⠙ driver 1   20/25 │                                                                                                \n                       │                                                                                                \n  ▸ archived         1 │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │ ⠙ zarg is preparing a reply · 0:59 · turn 20/25                                                \n                       │ core child · 2 open · running · thread main ·…   ↑↓ move   ⏎ open   1-9 answer   ␣ mark   a all"
+  },
   "code": {
     "packages/core/src/reconcile.ts": "0488e147524cd8195668190c73d490c15c41be78"
   }

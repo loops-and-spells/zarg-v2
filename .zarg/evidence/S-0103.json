@@ -1,13 +1,13 @@
 {
   "scenario": "S-0103",
   "version": "559bb70c3271",
-  "commit": "5f5c8eb",
-  "run": "e2e-2026-10-05T08-03-01.447Z",
+  "commit": "8a3d026",
+  "run": "e2e-2026-10-05T12-00-10.952Z",
   "journey": "J-0007",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T09:06:21.182Z",
-  "ms": 6006,
+  "at": "2026-10-05T12:38:00.847Z",
+  "ms": 4006,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -32,15 +32,15 @@
       "caption": "the step as it played",
       "path": "media/S-0103/4-step.cast",
       "meta": {
-        "startAt": 17
+        "startAt": 30.5
       }
     }
   ],
   "failure": null,
   "code": {
-    "packages/agent-intent/src/intent.ts": "f54fe400d4d44562486fa2b1d43662b23ec05370",
-    "packages/agent-intent/test/intent.test.ts": "fd8c5a32dcdef8388a6b74c4e9bfb23e24d5c74d",
-    "packages/plugin-gherkin/src/draft.ts": "8c8977eacd1bab87d4c1e63bac31d6e5f54f0d35",
-    "packages/plugin-gherkin/test/draft.test.ts": "3e60fe50b69ea2803d5960abc030f391351cdff4"
+    "packages/agent-intent/src/intent.ts": "7d3f583da7f75f576ca47c150c5212b41783c29d",
+    "packages/agent-intent/test/intent.test.ts": "b0b53d64d37ff0d7a4c12fd674fe2c934b713842",
+    "packages/plugin-gherkin/src/draft.ts": "d1f8de950fc6ac8ffa5b67625654e420ae51368e",
+    "packages/plugin-gherkin/test/draft.test.ts": "566065d3ff9639a3b67d997ed00a600db356a72b"
   }
 }
