@@ -430,6 +430,23 @@ describe("tui frames", () => {
     expect(t.captureCharFrame()).not.toContain("Show")
   })
 
+  test("a wide view shows a long first column whole (model names that differ only at their end)", async () => {
+    const agent = { id: "core:setup", parent: null, preset: "view", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
+    const view = {
+      agent: "core:setup",
+      layout: { name: "setup", sections: [{ id: "models", kind: "table" as const, role: "primary" as const, title: "", columns: [{ id: "model", label: "model" }, { id: "about", label: "" }] }] },
+      data: { models: { rows: [{ id: "a", cells: { model: "zarg-router:deepseek-v4.1-flash-exl3", about: "256k" } }, { id: "b", cells: { model: "zarg-router:deepseek-v4.1-pro-exl3", about: "192k" } }] } },
+    }
+    const t = await render({ thread: { ...initial("main"), status: "running", rlms: { "core:setup": agent }, views: { "core:setup": view } }, core: "up" }, { width: 140, height: 24 })
+    t.mockInput.pressKey("a", { meta: true })
+    await settle(t)
+    t.mockInput.pressEnter()
+    await settle(t)
+    // The rows themselves (the highlighted one's line under the table is whole anyway).
+    expect(t.captureCharFrame()).toMatch(/▍ zarg-router:deepseek-v4\.1-flash-exl3 +256k/)
+    expect(t.captureCharFrame()).toContain("  zarg-router:deepseek-v4.1-pro-exl3 ")
+  })
+
   test("a table offers only the actions its data names; one that asks for text takes a line, prefilled, and sends it", async () => {
     const agent = { id: "backlog:feedback", parent: null, preset: "view", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
     const view = {

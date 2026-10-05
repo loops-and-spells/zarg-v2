@@ -122,13 +122,14 @@ const cellText = (v: string, ref: boolean, labels: Readonly<Record<string, RefLa
   return l === undefined ? v : `${l.glyph} ${l.text}`
 }
 const labelsOf = (view: ViewState, path: string) => (view.data[path] as { labels?: Readonly<Record<string, RefLabel>> } | undefined)?.labels
-/** A table's column widths and where each starts (after the gutter): as wide as their widest cell or label with its sort mark (at most 24); the last one takes what is left. */
+/** A table's column widths and where each starts (after the gutter): as wide as their widest cell or label with its sort mark (at most 24, or two fifths of a wide view); the last one takes what is left. */
 const tableLayout = (view: ViewState, path: string, leaf: LayoutLeaf, width: number) => {
   const cols = leaf.columns ?? []
   const rows = ((view.data[path] as { rows?: ReadonlyArray<TableRow> } | undefined)?.rows ?? [])
   const gutter = leaf.toggle === true ? 5 : leaf.selectable === true ? 3 : 2
   const labels = labelsOf(view, path)
-  const fixedWidths = cols.map((c, ci) => (ci === cols.length - 1 ? 0 : Math.min(24, Math.max(c.label.length + 2, ...rows.map((r) => cellText(r.cells[c.id] ?? "", c.ref === true, labels).replace(/\s*\n\s*/g, " ").length)))))
+  const cap = Math.max(24, Math.floor(width * 0.4))
+  const fixedWidths = cols.map((c, ci) => (ci === cols.length - 1 ? 0 : Math.min(cap, Math.max(c.label.length + 2, ...rows.map((r) => cellText(r.cells[c.id] ?? "", c.ref === true, labels).replace(/\s*\n\s*/g, " ").length)))))
   const fixed = fixedWidths.reduce((a, w) => a + w + 2, 0)
   const widths = fixedWidths.map((w) => (w === 0 ? Math.max(4, width - gutter - fixed) : w))
   const starts = widths.map((_, i) => gutter + widths.slice(0, i).reduce((a, w) => a + w + 2, 0))
