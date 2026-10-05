@@ -116,6 +116,14 @@ describe("Inquire, Agenda and Verify", () => {
     expect(text).not.toContain("Never change the graph on a discussion alone")
   })
 
+  // @scenario S-0012 S-0102
+  test("an interjected answer carries what to do with it: reply, and propose what it says the product is for", async () => {
+    const svc = inquire({ ask: () => Effect.succeed({ other: "parents reward chores with points", interjected: true, question: "inq-1" }) })
+    const out = await kernel([svc], (k) => k.run('return yield* Inquire.ask({ question: "Who?", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }] })'))
+    expect(out.output).toContain('"hint":')
+    expect(out.output).toContain("add-outcome")
+  })
+
   test("Inquire.choose without a question under discussion fails with a hint", async () => {
     const out = await kernel([inquire({ ask: () => Effect.succeed({ choice: "a" }) })], (k) => k.run('return yield* Inquire.choose({ question: "inq-9", choice: "a", why: "x" })'))
     expect(out.output).toContain("NoOpenQuestion")

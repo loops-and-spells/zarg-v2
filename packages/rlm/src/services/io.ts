@@ -44,8 +44,12 @@ const Answer = Schema.Struct({
       "True when the developer is discussing the question, not answering it: reply to what they wrote, then either Inquire.choose an option they settled on or Inquire.ask again. When what they wrote says what the product is for, propose keeping it in the intent first (add-outcome, add-constraint) with Inquire.confirm. Never change the graph without their say.",
   }),
   question: Schema.optionalKey(Schema.String).annotate({ description: "With interjected: the id of the question still open for Inquire.choose." }),
+  hint: Schema.optionalKey(Schema.String).annotate({ description: "With interjected: what to do with what they wrote." }),
 })
 export type Answer = typeof Answer.Type
+/** Said with every interjected answer: the model reads it in the result, where a schema's doc is easy to skip. */
+export const INTERJECTED_HINT =
+  "They wrote this instead of answering. Reply to it first. When it says what the product is for (an outcome to reach, a rule to keep), propose keeping it in the intent now: Inquire.confirm the change, then add-outcome or add-constraint. Then Inquire.choose the open question if it is settled, or ask it again."
 
 const Choice = Schema.Struct({
   question: Schema.String.annotate({ description: "The id of a question under discussion (an interjected answer's `question`)." }),
@@ -101,10 +105,11 @@ export interface Asker {
 export const inquire = (asker: Asker): Bound =>
   bind(InquireDef, {
     confirm: (c) => (asker.confirm !== undefined ? asker.confirm(c) : asker.ask(confirmQuestion(c))),
+    // @scenario S-0012 S-0102
     ask: (q) =>
       q.options.length < 2 || q.options.length > 4
         ? Effect.fail({ _tag: "InvalidQuestion", message: `ask with 2 to 4 options, got ${q.options.length}` })
-        : asker.ask(q),
+        : Effect.map(asker.ask(q), (a) => (a.interjected === true ? { ...a, hint: INTERJECTED_HINT } : a)),
     choose: (c) =>
       asker.choose === undefined
         ? Effect.fail({ _tag: "NoOpenQuestion", message: `no question ${c.question} is under discussion; ask with Inquire.ask` })
