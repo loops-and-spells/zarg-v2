@@ -5,7 +5,7 @@ import { answerLoads, command, fakeProvider, journey, PROBE, type Term, termOf }
 
 // A provider on the OpenRouter wire, with a key made up for this run: never a real one.
 const KEY = `sk-or-e2e-${crypto.randomUUID()}`
-const provider = fakeProvider({ key: KEY, models: ["e2e/one", "e2e/two"] })
+const provider = fakeProvider({ key: KEY, models: ["e2e/one", "e2e/two"], noTools: ["e2e/two"] })
 
 /** Sets the highlighted setting of the Log in table to `value` (its old value cleared). */
 const setValue = async (t: Term, value: string) => {
@@ -162,10 +162,27 @@ journey("J-0002", { tier: "fast", seed: SEED }, (proves) => {
     await t.waitFor("openrouter:e2e/two", 5_000)
   })
 
-  proves("S-0035", async (s) => {
-    const t = termOf(s.term, "S-0035")
+  proves("S-0036", async (s) => {
+    const t = termOf(s.term, "S-0036")
+    // The models: e2e/two lists no tool calls; picked, it is refused, and the list stays.
     t.press("]")
     await Bun.sleep(300)
+    for (let k = 0; k < 4 && !/[┃▍] ?openrouter:e2e\/two/.test(t.screen()); k++) {
+      t.press("down")
+      await Bun.sleep(200)
+    }
+    t.press("enter")
+    await t.waitFor("cannot be the default: it has no tool calls", 10_000)
+    s.note("buffer", "screen", t.screen())
+    expect(t.screen()).toContain("openrouter:e2e/one")
+  })
+
+  proves("S-0035", async (s) => {
+    const t = termOf(s.term, "S-0035")
+    for (let k = 0; k < 4 && !/[┃▍] ?openrouter:e2e\/one/.test(t.screen()); k++) {
+      t.press("up")
+      await Bun.sleep(200)
+    }
     t.press("enter")
     // The default, in the operator's own config.
     const config = join(s.w.userDir, "config.toml")

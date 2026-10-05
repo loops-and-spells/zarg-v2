@@ -182,6 +182,12 @@ export const makeSetup = (d: SetupDeps) => {
       if (action === "default") {
         const ref = rows[0]
         if (ref === undefined) return { notice: "pick a model" }
+        // @scenario S-0036
+        // Every agent works through tool calls: a model without them cannot be the default (the list stays to pick again).
+        const [provider, ...rest] = ref.split(":")
+        const st = known.get(provider ?? "")
+        const m = st?.ok === true ? st.models.find((x) => x.id === rest.join(":")) : undefined
+        if (m !== undefined && !m.supportsTools && !m.capabilities.includes("tools")) return { notice: `${ref} cannot be the default: it has no tool calls, and every agent works through them` }
         // A model of the providers' that answers decisions natively (its own provider's first): decisions use it,
         // unless the operator set one. Without it they fall back to the default model, slow and less sure.
         const judges = [...known.entries()].flatMap(([p, st]) => (st.ok ? st.models.filter((m) => m.capabilities.includes("decision")).map((m) => `${p}:${m.id}`) : []))

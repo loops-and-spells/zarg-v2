@@ -1,30 +1,38 @@
 {
-  "scenario": "S-0085",
-  "version": "00ebc197f3fc",
+  "scenario": "S-0036",
+  "version": "b792ba8259e8",
   "commit": "46f0ade7",
   "run": "e2e-2026-10-05T16-34-18.487Z",
   "journey": "J-0002",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T16:34:29.682Z",
-  "ms": 5,
+  "at": "2026-10-05T16:34:29.367Z",
+  "ms": 556,
   "media": [
     {
       "kind": "evidence-terminal/frame",
       "caption": "the screen before",
-      "path": "media/S-0085/1-frame.json"
+      "path": "media/S-0036/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "screen",
+      "path": "media/S-0036/2-text.txt",
+      "meta": {
+        "fold": false
+      }
     },
     {
       "kind": "evidence-terminal/frame",
       "caption": "the screen after",
-      "path": "media/S-0085/2-frame.json"
+      "path": "media/S-0036/3-frame.json"
     },
     {
       "kind": "evidence-terminal/cast",
       "caption": "the step as it played",
-      "path": "media/S-0085/3-step.cast",
+      "path": "media/S-0036/4-step.cast",
       "meta": {
-        "startAt": 10.9
+        "startAt": 10.1
       }
     }
   ],

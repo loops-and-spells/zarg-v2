@@ -141,6 +141,20 @@ describe("first-run setup", () => {
     expect(sectionData(events, "fields")?.rows?.find((r) => r.id === KEY)?.cells.about).not.toContain("· set")
   })
 
+  // @scenario S-0036
+  test("a default model without tool calls is refused with a reason; the models stay listed", async () => {
+    judge = true
+    const w = world({ values: { [KEY]: "good", [URL]: "http://fake.invalid" } })
+    const { s, events, config } = await setupIn(w)
+    await run(s.open())
+    await run(s.act("login", ["fake"], undefined))
+    await run(s.act("done", [], undefined))
+    expect((await run(s.act("default", ["fake:judge"], undefined))).notice).toBe("fake:judge cannot be the default: it has no tool calls, and every agent works through them")
+    expect(config.roles.default).toBeUndefined()
+    expect(sectionData(events, "models")?.rows?.map((r) => r.id)).toContain("fake:big")
+    judge = false
+  })
+
   // @scenario S-0028
   test("done with a refused key: the provider says the key was refused; no default; the values stay", async () => {
     const w = world({ values: { [KEY]: "wrong-one", [URL]: "http://fake.invalid" } })
