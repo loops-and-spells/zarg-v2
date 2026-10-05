@@ -27,3 +27,16 @@ test("with every outcome served, what next offers the next steps: rehearse the j
   expect(next[0]!.task).toContain("Rehearse.run")
   expect(next.slice(1).map((o) => o.label)).toEqual(['Extend the journey from "Parent has chores to assign."'])
 })
+
+test("with nothing built (no scenario's code tagged), what next offers building first: rehearse walks only what is built", () => {
+  const snap = Snapshot.make([
+    { id: "ST-0001", type: "gherkin/state", props: { text: "a shelf of no books", entry: true }, edges: [] },
+    { id: "S-0001", type: "gherkin/scenario", props: { title: "Reader adds a book", when: "adds" }, edges: [{ type: "gherkin/arrives", to: "ST-0001" }] },
+  ] as never)
+  const none = nextWhenServed(snap, undefined, new Set())
+  expect(none[0]).toMatchObject({ id: "build" })
+  expect(none[0]!.label).toContain("/reconcile")
+  expect(none.map((o) => o.id)).toContain("rehearse")
+  // One scenario built: rehearse leads again.
+  expect(nextWhenServed(snap, undefined, new Set(["S-0001"]))[0]).toMatchObject({ id: "rehearse" })
+})

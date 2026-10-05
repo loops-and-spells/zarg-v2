@@ -23,11 +23,28 @@ export const nextOutcomes = (snap: Snapshot.Snapshot): ReadonlyArray<NextOption>
     })
 }
 
-/** What next once every outcome is served: rehearse the journeys first, then extend a journey from where it starts. */
+const REHEARSE: NextOption = { id: "rehearse", label: "Rehearse the journeys", why: "testers walk them and file what they find", task: "The requirements are complete for now: start a rehearsal with Rehearse.run (testers walk the journeys and file feedback), then tell the developer it runs and where its feedback will show (Feedback)." }
+const BUILD: NextOption = {
+  id: "build",
+  label: "Build the scenarios (/reconcile)",
+  why: "nothing is built yet: rehearse walks only built scenarios",
+  task: "Nothing is built yet: no scenario has code tagged to it. Tell the developer that /reconcile turns on building (zarg implements each scenario, verifies and commits it), and that rehearsing waits for it.",
+}
+
+/**
+ * What next once every outcome is served: rehearse the journeys first (build them first when no scenario is built: `built`,
+ * the scenarios with code tagged), then extend a journey from where it starts.
+ */
 // @scenario S-0014
-export const nextWhenServed = (snap: Snapshot.Snapshot, focus?: ReadonlySet<string>): ReadonlyArray<NextOption> => [
-  { id: "rehearse", label: "Rehearse the journeys", why: "testers walk them and file what they find", task: "The requirements are complete for now: start a rehearsal with Rehearse.run (testers walk the journeys and file feedback), then tell the developer it runs and where its feedback will show (Feedback)." },
-  ...[...snap.nodes.values()]
-    .filter((n) => n.type === "gherkin/state" && n.props.entry === true && (focus === undefined || focus.has(n.id)))
-    .map((n): NextOption => ({ id: n.id, label: `Extend the journey from "${String(n.props.text ?? n.id)}"`, task: `Work on the journey that starts at "${String(n.props.text ?? n.id)}" (${n.id}).` })),
-]
+export const nextWhenServed = (snap: Snapshot.Snapshot, focus?: ReadonlySet<string>, built?: ReadonlySet<string>): ReadonlyArray<NextOption> => {
+  const nodes = [...snap.nodes.values()]
+  const scenarios = nodes.filter((n) => n.type === "gherkin/scenario" && n.props.planned !== true)
+  const unbuilt = built !== undefined && scenarios.length > 0 && !scenarios.some((n) => built.has(n.id))
+  return [
+    ...(unbuilt ? [BUILD] : []),
+    REHEARSE,
+    ...nodes
+      .filter((n) => n.type === "gherkin/state" && n.props.entry === true && (focus === undefined || focus.has(n.id)))
+      .map((n): NextOption => ({ id: n.id, label: `Extend the journey from "${String(n.props.text ?? n.id)}"`, task: `Work on the journey that starts at "${String(n.props.text ?? n.id)}" (${n.id}).` })),
+  ]
+}

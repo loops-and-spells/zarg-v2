@@ -8,6 +8,7 @@ import type { Bound } from "@zarg/kernel"
 import { Model } from "@zarg/model"
 import type { PluginHost } from "@zarg/plugin/server"
 import { type Asker, decisionsService, entitiesService, fsRead, graph, inquire, pluginService, Rlm, type RlmSettings, type Scope } from "@zarg/rlm"
+import { tags } from "@zarg/audit"
 import { commitGraph } from "@zarg/reconcile"
 import { askFirst } from "./driver"
 import { judgeGaps } from "./gaps"
@@ -69,7 +70,9 @@ export const makeZarg = (host: AgentHost) =>
         const snap = yield* store.snapshot
         const outcomes = nextOutcomes(snap)
         if (outcomes.length > 0) return outcomes
-        return nextWhenServed(snap, focus)
+        // What is built: the scenarios with code tagged to them (unknown when the repo cannot be searched).
+        const built = yield* tags(root).pipe(Effect.map((t) => new Set(t.map((x) => x.id))), Effect.orElseSucceed(() => undefined))
+        return nextWhenServed(snap, focus, built)
       })
     // zarg's message bar: a shell panel at the bottom, one line, taking keys (the shell draws it as the bar).
     host.panels.open({ name: "bar", view: "zarg", scope: "shell", edge: "bottom", size: 1, input: "onFocus" })
