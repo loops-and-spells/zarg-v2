@@ -1,3 +1,4 @@
 Add this to the requirements?
 
-Add outcome to intent 'A todo app for families': Parents reward finished chores with points. (your words — from what you wrote in the question)
+Add outcome Rewarding finished chores with points.
+Intent "A todo app for families" gains the outcome "Rewarding finished chores with points."
