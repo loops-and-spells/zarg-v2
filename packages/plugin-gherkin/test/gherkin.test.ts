@@ -117,6 +117,17 @@ describe("gherkin rules", () => {
     expect(ids.map((i) => i.id)).toEqual(["gherkin:no-personas", "gherkin:unreached:ST-0001"])
   })
 
+  test("a state a scenario uses as a Given (its context) is no dead end: something happens while it holds", async () => {
+    const ids = await run(
+      Effect.gen(function* () {
+        yield* call("add-persona", { name: "Parent", kind: "human", text: "A parent." })
+        yield* call("add-scenario", { title: "Parent adds a chore", when: "the parent adds a chore", by: [{ name: "Parent" }], arrives: { text: "a parent in a family household", entry: true }, given: [{ text: "the household has no chores yet", entry: true }], then: [{ text: "the chore is listed", terminal: true }] })
+        return (yield* PluginHost.use((h) => h.agenda())).map((i) => i.id)
+      }),
+    )
+    expect(ids).not.toContain("gherkin:dead-end:ST-0002")
+  })
+
   test("a scenario needs at least one Then", async () => {
     const err = await run(
       Effect.andThen(call("add-persona", { name: "User", kind: "human", text: "Someone using the product." }), Effect.flip(call("add-scenario", { title: "t", when: "the user waits", by: [{ name: "User" }], arrives: { text: "a page is shown" }, then: [] }))),

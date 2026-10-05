@@ -1,6 +1,6 @@
 import { Snapshot } from "@zarg/graph/pure"
 import type { AgendaItem } from "./kit"
-import { ARRIVES, BY, intents, JOURNEY, journeyName, OUTCOME, personaName, personas, QUESTION, scenarios, SERVES, similarity, statementsOf, states, text, THEN } from "./model"
+import { ARRIVES, BY, GIVEN, intents, JOURNEY, journeyName, OUTCOME, personaName, personas, QUESTION, scenarios, SERVES, similarity, statementsOf, states, text, THEN } from "./model"
 
 export const agenda = (snap: Snapshot.Snapshot): ReadonlyArray<AgendaItem> => {
   const all = states(snap)
@@ -13,7 +13,8 @@ export const agenda = (snap: Snapshot.Snapshot): ReadonlyArray<AgendaItem> => {
   }
   const items: Array<AgendaItem> = []
   for (const s of all) {
-    if (s.props.terminal !== true && Snapshot.inbound(snap, s.id, ARRIVES).length === 0) {
+    // A state some scenario starts from, or uses as its context (a Given), has something happening while it holds.
+    if (s.props.terminal !== true && Snapshot.inbound(snap, s.id, ARRIVES).length === 0 && Snapshot.inbound(snap, s.id, GIVEN).length === 0) {
       items.push({
         id: `gherkin:dead-end:${s.id}`,
         title: `What can the user do when "${text(s)}"?`,
