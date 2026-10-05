@@ -5,7 +5,7 @@ import type { Snapshot } from "@zarg/graph"
 import { Activity, DurableClock, Workflow } from "effect/unstable/workflow"
 import { baseTree, CHECKPOINT, GRAPH, LEGACY_CHECKPOINT, pendingAt, snapshotAtTree } from "./checkpoint"
 import { causeText, type FindingKind, type Findings } from "./findings"
-import { git, gitRun, zPaths } from "./git"
+import { EMPTY_TREE, git, gitRun, zPaths } from "./git"
 import { land, rebaseOnto } from "./land"
 import { mergeBranches } from "./merge"
 import { ensureWorktree, removeWorktree, worktreeRoot } from "./worktree"
@@ -257,13 +257,14 @@ const body = (
 
       // One commit on top of the base: the whole graph tree, plans and code, and the checkpoint.
       // @scenario S-0022
-      const squash = (base: string, graph: string) =>
+      // `tree` is the graph the commit holds; `graph` (the checkpoint) is what this pass reconciled.
+      const squash = (base: string, tree: string, graph: string) =>
         Effect.gen(function* () {
           yield* git(main, ["reset", "-q", "--soft", base])
-          // The requirements in the commit are exactly the graph this pass reconciled, whatever a phase did.
+          // The requirements in the commit are exactly that graph, whatever a phase did.
           yield* gitRun(main, ["rm", "-r", "-q", "--cached", "--ignore-unmatch", GRAPH])
           rmSync(join(main, GRAPH), { recursive: true, force: true })
-          yield* git(main, ["read-tree", `--prefix=${GRAPH}/`, "-u", graph])
+          yield* git(main, ["read-tree", `--prefix=${GRAPH}/`, "-u", tree])
           // What failed while the rest landed stays pending for the next pass.
           const still = failed()
           yield* Effect.sync(() => Bun.write(join(main, CHECKPOINT), `${JSON.stringify({ graph, ...(still.length > 0 ? { failed: [...still].sort() } : {}) }, null, 2)}\n`))
@@ -272,7 +273,7 @@ const body = (
           return yield* commitAll(main, spec.message(live, failed()))
         })
       if (yield* isStopped("stopped:commit")) return stoppedResult
-      let commit = yield* act("commit", Schema.String, squash(payload.base, payload.graph))
+      let commit = yield* act("commit", Schema.String, squash(payload.base, payload.graph, payload.graph))
       let base = payload.base
 
       for (let attempt = 1; ; attempt++) {
@@ -305,7 +306,14 @@ const body = (
             return { status: "failed", landed: [], failed: [...live, ...failed()].sort() } satisfies PassResult
           }
           base = r.head!
-          commit = yield* act(`rebased:${attempt}`, Schema.String, squash(base, payload.graph))
+          // The rebase merged this pass's graph with the requirements you committed since: that graph is kept
+          // (squashing this pass's own graph over it reverted them); the checkpoint still says what was reconciled,
+          // so the next pass takes up what is newer.
+          commit = yield* act(
+            `rebased:${attempt}`,
+            Schema.String,
+            Effect.flatMap(gitRun(main, ["rev-parse", `HEAD:${GRAPH}`]), (t) => squash(base, t.code === 0 ? t.stdout.trim() : EMPTY_TREE, payload.graph)),
+          )
           continue
         }
         // @scenario S-0051
