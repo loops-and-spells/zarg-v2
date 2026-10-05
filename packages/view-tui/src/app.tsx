@@ -211,6 +211,9 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const width = Math.max(0, ...(box?.rows ?? []).map((r) => r.label.length))
   // Agents spin only while the clock runs (not while a question waits on you).
   const cursor = railRows(ui, s, undefined, AGENTS_WIDTH - 3).find((a) => a.selected)?.id
+  // @scenario S-0073
+  // The highlighted agent, while the list has the keys: its task, its turns, its decisions with their confidence.
+  const railDetail = ui.focus === "agents" && cursor !== undefined && s.thread.rlms[cursor] !== undefined ? agentDetail(s.thread.rlms, cursor).slice(0, 8) : []
   // Keep the highlighted row on screen as the cursor moves through a tall tree.
   useEffect(() => {
     if (cursor !== undefined) agentsRef.current?.scrollChildIntoView(`agent-${cursor}`)
@@ -1028,6 +1031,13 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           </box>
           {shown.bottom.map(panelBox)}
         </box>
+        {railDetail.length > 0 ? (
+          <box style={{ flexShrink: 0, flexDirection: "column", paddingLeft: 1 }}>
+            {railDetail.map((l, i) => (
+              <text key={i} wrapMode="none" fg={i === 0 ? C.text : C.dim}>{fit(l, Math.max(10, dims.width - railWidth - 3))}</text>
+            ))}
+          </box>
+        ) : null}
         {/* Above the bar: the bar stays where it was. */}
         {/* A command's outcome (why reconcile stays off): whole, on its own line, until the next one. */}
         {s.notice !== undefined && noticeFresh ? (

@@ -333,6 +333,25 @@ describe("tui frames", () => {
     expect(t.captureCharFrame()).toContain("research 40")
   })
 
+  // @scenario S-0073 S-0042
+  test("the highlighted agent's detail shows while the agents list has the keys: its task, turns and decisions with their confidence", async () => {
+    const rlms = {
+      "rlm-1": { id: "rlm-1", parent: null, preset: "driver", depth: 0, turns: 4, budget: 25, status: "running" as const, decisions: [] },
+      "rlm-2": { id: "rlm-2", parent: "rlm-1", preset: "research", depth: 1, turns: 3, budget: 15, status: "running" as const, task: "Read the README and say what it is", decisions: [{ kind: "atomize" as const, atomic: true, criteria: [{ name: "single goal", answer: true, confidence: 0.87 }] }] },
+    }
+    const t = await render({ thread: { ...initial("main"), status: "running", rlms }, core: "up" }, { width: 120, height: 32 })
+    t.mockInput.pressKey("a", { meta: true })
+    await settle(t)
+    for (let i = 0; i < 3 && !/▍.*research/.test(t.captureCharFrame()); i++) {
+      t.mockInput.pressArrow("down")
+      await settle(t)
+    }
+    const f = t.captureCharFrame()
+    expect(f).toContain("task  Read the README and say what it is")
+    expect(f).toContain("turn 3 of 15")
+    expect(f).toMatch(/single goal\s+yes\s+0\.87/)
+  })
+
   test("while the driver works, the conversation ends with the animated working line", async () => {
     const root = { id: "rlm-1", parent: null, preset: "driver", depth: 0, turns: 4, budget: 25, status: "running" as const, decisions: [] }
     const t = await render({ thread: { ...initial("main"), status: "running", rlms: { "rlm-1": root } }, core: "up" })
