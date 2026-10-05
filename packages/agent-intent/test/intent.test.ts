@@ -8,7 +8,7 @@ const outcome: Statement = { id: "O-0001", kind: "outcome", text: "A visitor pic
 const checkout: JourneyInfo = { id: "J-0001", name: "Checkout", version: "jv", scenarios: ["S-0001"], serves: ["O-0001"] }
 const unit = (scenario: string, changes: ReadonlyArray<unknown>) => ({ scenario, title: `t ${scenario}`, summary: `s ${scenario}`, changes })
 
-const setup = (o: { conflicts?: ReadonlyArray<string>; personas?: ReadonlyArray<{ name: string; kind: string }>; statements?: ReadonlyArray<Statement>; journeys?: ReadonlyArray<JourneyInfo>; answers?: ReadonlyArray<string>; cp?: Checkpoint; down?: boolean; dry?: (n: number) => { ok: boolean; problems: string[]; touched?: string[] }; versionAfter?: string; slow?: number; broken?: boolean; dropped?: ReadonlyArray<string> }) => {
+const setup = (o: { delivered?: boolean; conflicts?: ReadonlyArray<string>; personas?: ReadonlyArray<{ name: string; kind: string }>; statements?: ReadonlyArray<Statement>; journeys?: ReadonlyArray<JourneyInfo>; answers?: ReadonlyArray<string>; cp?: Checkpoint; down?: boolean; dry?: (n: number) => { ok: boolean; problems: string[]; touched?: string[] }; versionAfter?: string; slow?: number; broken?: boolean; dropped?: ReadonlyArray<string> }) => {
   const calls: Array<[string, unknown]> = []
   const schemas: Array<unknown> = []
   const answers = [...(o.answers ?? [])]
@@ -19,6 +19,7 @@ const setup = (o: { conflicts?: ReadonlyArray<string>; personas?: ReadonlyArray<
     statements: () => Effect.sync(() => (reads++, (o.statements ?? [outcome]).map((s) => (o.versionAfter !== undefined && reads > 1 ? { ...s, version: o.versionAfter } : s)))),
     journeys: () => Effect.succeed(o.journeys ?? []),
     personas: () => Effect.succeed(o.personas ?? []),
+    ...(o.delivered !== undefined ? { delivers: () => Effect.sync(() => (calls.push(["delivers", null]), o.delivered!)) } : {}),
     contradicts: (statement, rules) => Effect.sync(() => (calls.push(["contradicts", [statement.id, rules.map((r) => r.id)]]), rules.find((r) => (o.conflicts ?? []).includes(r.id))?.id)),
     scene: (scenario) => Effect.succeed(`${scenario} title\nGiven a\nWhen b\nThen c`),
     code: () => Effect.succeed([]),
@@ -202,6 +203,15 @@ describe("the Intent Agent", () => {
     await Effect.runPromise(a.tick)
     expect(calls.some(([k]) => k === "plan")).toBe(false)
     expect(cp().statements["O-0001"]?.state).toBe("nothing")
+  })
+
+  test("an outcome its journeys already deliver (the decision model judges) is settled without drafting", async () => {
+    const served = { ...outcome, journeys: ["J-0001"] }
+    const { a, calls, cp } = setup({ statements: [served], journeys: [checkout], delivered: true })
+    await Effect.runPromise(a.tick)
+    expect(calls.some(([k]) => k === "delivers")).toBe(true)
+    expect(calls.some(([k]) => k === "complete")).toBe(false)
+    expect(cp().statements["O-0001"]).toEqual({ version: "v1", state: "nothing", journeys: ["J-0001"] })
   })
 
   test("after a restart, the rounds already reconciled show as they ended", async () => {

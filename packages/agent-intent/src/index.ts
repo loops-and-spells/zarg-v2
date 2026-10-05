@@ -108,6 +108,14 @@ export default definePlugin({
             }),
             (a) => rules.find((k) => (a[k.id] as { answer?: boolean; probability?: number } | undefined)?.answer === true && ((a[k.id] as { probability?: number }).probability ?? 0) >= 0.6)?.id,
           ),
+        delivers: (outcome, journeys) =>
+          Effect.map(
+            decisions.decide({ state: journeys, questions: { delivered: { type: "noul", instructions: `Do these journeys' scenarios already deliver ${outcome.id} ("${outcome.text}") as it is worded, so no scenario needs to change for it?` } } }),
+            (a) => {
+              const x = a.delivered as { answer?: boolean; probability?: number; confidence?: number } | undefined
+              return x?.answer === true && (x.confidence ?? 0) >= 0.7
+            },
+          ),
         personas: () => Effect.map(entities.query({ type: "gherkin/persona" }), (es) => es.map((e) => ({ name: String(data(e).props.name ?? e.id), kind: String(data(e).props.kind ?? "human") }))),
         scene: sceneText,
         code: (scenario) => entities.code(`gherkin/scenario:${scenario}`),

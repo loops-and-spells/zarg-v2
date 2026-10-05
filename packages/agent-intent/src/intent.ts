@@ -30,6 +30,8 @@ export interface IntentDeps {
   readonly render: Effect.Effect<void, unknown>
   /** The decision model's call: the constraint (of these) the outcome says the opposite of, if any. */
   readonly contradicts: (outcome: Statement, constraints: ReadonlyArray<Statement>) => Effect.Effect<string | undefined, unknown>
+  /** Whether the journeys serving an outcome already deliver it (their scenarios, as text): the decision model judges. */
+  readonly delivers?: (outcome: Statement, journeys: string) => Effect.Effect<boolean, unknown>
   /** Who can act in scenarios now (a scenario's `by` must name one). */
   readonly personas: () => Effect.Effect<ReadonlyArray<{ readonly name: string; readonly kind: string }>, unknown>
 }
@@ -198,6 +200,12 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
         }
       }
       const context = yield* contextOf(s, journeys, all)
+      // Served already, and its journeys do what it says: nothing to draft (a drafting model always finds something to change).
+      if (s.kind === "outcome" && decision === undefined && s.journeys.length > 0 && d.delivers !== undefined && (yield* d.delivers(s, context).pipe(Effect.orElseSucceed(() => false)))) {
+        yield* setStatement(s.id, { version: s.version, state: "nothing", ...served(s) })
+        yield* quiet(d.log(`${s.id}: the journeys already deliver it`))
+        return yield* show({ id: s.id, title: s.text, state: "nothing", detail: "the journeys already deliver it", plans: [] })
+      }
       let problems: ReadonlyArray<string> = []
       for (let t = 1; t <= TRIES; t++) {
         const user = [context, ...(decision !== undefined ? ["", `The operator decided: ${decision}`] : []), ...(problems.length > 0 ? ["", "Your last answer failed its checks:", ...problems.map((p) => `- ${p}`), "Fix them."] : [])].join("\n")
