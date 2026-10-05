@@ -17,6 +17,15 @@ describe("rehearse findings", () => {
     expect("findings" in out && out.findings[0]).toEqual({ kind: "gap", scenario: "S-1", severity: "medium", note: "n0" })
   })
 
+  // @scenario S-0107
+  test("the tester tells a contradiction (two steps) from a drift (a step and its code): each kind is defined", async () => {
+    let system = ""
+    const capture: Complete = (req) => Effect.sync(() => ((system = req.messages[0]!.content), { text: '{"findings":[]}' }))
+    await Effect.runPromise(diagnose(capture, persona, [], step, ["fail"], "export const remove = () => []"))
+    expect(system).toContain("contradiction (this step says the opposite of another step")
+    expect(system).toContain("a step and its code differing is drift, never contradiction")
+  })
+
   test("JSON in a fence or with words around it is read; JSON cut short is an infrastructure note, never raw JSON in a finding", async () => {
     const body = JSON.stringify({ findings: [{ kind: "gap", severity: "high", note: "no failure path" }] })
     for (const text of ["```json\n" + body + "\n```", `Here you go:\n${body}\nThat is all.`]) {
