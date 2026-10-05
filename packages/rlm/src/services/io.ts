@@ -79,7 +79,8 @@ export type Confirm = typeof Confirm.Type
 
 /** The question Inquire.confirm asks: the change itself, with add, change and skip. */
 export const confirmQuestion = (c: Confirm): Question => ({
-  question: `Add this to the requirements?\n\n${c.change}`,
+  // A change written with the question in front of it is asked once.
+  question: `Add this to the requirements?\n\n${c.change.replace(/^\s*(add this to the requirements\?\s*)+/i, "")}`,
   options: [
     { id: "add", label: "Add it", recommended: true, why: "as written" },
     { id: "skip", label: "Skip" },
