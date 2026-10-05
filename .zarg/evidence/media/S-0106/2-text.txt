@@ -1,0 +1,24 @@
+{
+  "ref": "gherkin/scenario:S-0002@e4fe18f8c172",
+  "journeys": [
+    "Assign chores"
+  ],
+  "persona": "Parent",
+  "kind": "drift",
+  "severity": "medium",
+  "note": "The step promises the chore leaves every list, but the code only marks it hidden for the parent while every other list still shows it. As written, the removal is parent-local, so this step's 'every list' claim differs from zarg now.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-80c6cf82"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 1.00",
+    "by": "agent"
+  },
+  "id": "F-8ff371dc",
+  "count": 1,
+  "runs": [
+    "rehearse:r-80c6cf82"
+  ]
+}

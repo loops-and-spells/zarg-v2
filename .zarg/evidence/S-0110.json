@@ -1,31 +1,23 @@
 {
-  "scenario": "S-0112",
-  "version": "00d0a6baab19",
+  "scenario": "S-0110",
+  "version": "43e0a0748119",
   "commit": "554ba14",
   "run": "e2e-2026-10-05T02-48-34.328Z",
   "journey": "J-0008",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T02:48:51.701Z",
-  "ms": 1470,
+  "at": "2026-10-05T02:49:22.124Z",
+  "ms": 6,
   "media": [
     {
       "kind": "evidence-terminal/frame",
       "caption": "the screen before",
-      "path": "media/S-0112/1-frame.json"
+      "path": "media/S-0110/1-frame.json"
     },
     {
       "kind": "evidence-terminal/text",
-      "caption": "screen",
-      "path": "media/S-0112/2-text.txt",
-      "meta": {
-        "fold": false
-      }
-    },
-    {
-      "kind": "evidence-terminal/text",
-      "caption": ".zarg/backlog/B-02.json",
-      "path": "media/S-0112/3-text.txt",
+      "caption": "the plan triage drafted",
+      "path": "media/S-0110/2-text.txt",
       "meta": {
         "fold": false
       }
@@ -33,20 +25,22 @@
     {
       "kind": "evidence-terminal/frame",
       "caption": "the screen after",
-      "path": "media/S-0112/4-frame.json"
+      "path": "media/S-0110/3-frame.json"
     },
     {
       "kind": "evidence-terminal/cast",
       "caption": "the step as it played",
-      "path": "media/S-0112/5-step.cast",
+      "path": "media/S-0110/4-step.cast",
       "meta": {
-        "startAt": 12.6
+        "startAt": 29.8
       }
     }
   ],
   "failure": null,
   "code": {
+    "packages/agent-triage/src/triage.ts": "6cafcead1a352f89c9b995b3c714399b6ad5b5ce",
+    "packages/agent-triage/test/triage.test.ts": "2076e79daae03c79fbb5e108a04489d27969b75a",
     "packages/plugin-backlog/src/index.ts": "fd9daa61f0ea9a22c5337e342a21dd8116938286",
-    "packages/plugin-backlog/test/backlog.test.ts": "5642242fd9958796b64f091a5524c7ab0bcabbdd"
+    "packages/plugin-backlog/test/triage.test.ts": "4644798cf39d14aa255e3353bcbda218bfb570c5"
   }
 }

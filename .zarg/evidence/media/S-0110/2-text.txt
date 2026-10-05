@@ -1,0 +1,41 @@
+{
+  "title": "Parent assigns chores",
+  "journey": "Assign chores",
+  "scenarios": [
+    {
+      "ref": "gherkin/scenario:S-0001@376a09121551"
+    }
+  ],
+  "changes": [
+    {
+      "tool": "link",
+      "params": {
+        "scenario": "S-0001",
+        "edge": "then",
+        "state": {
+          "id": "ST-0001"
+        }
+      }
+    },
+    {
+      "tool": "unlink",
+      "params": {
+        "scenario": "S-0001",
+        "edge": "then",
+        "state": "ST-0002"
+      }
+    }
+  ],
+  "feedback": [],
+  "steps": [
+    "Parent assigns one chore; the child learns its sight."
+  ],
+  "id": "B-04",
+  "status": "backlog",
+  "events": [
+    {
+      "what": "planned",
+      "by": "Triage Agent"
+    }
+  ]
+}

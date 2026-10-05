@@ -11,7 +11,7 @@
                        │   ⌕ search                                      f │ bug · high · off (your call: real)         
  AGENTS              2 │      scenario             severity  kind  ✎   sta…│ Removing a chore asks nothing, so a        
   ● zarg           0/0 │  ▍[ ]◇ S-0002 Parent removes…  high        bug    │ slip deletes it.                           
-  ⠸ setup          0/1 │   [●]◇ S-0001 Parent assigns…  high        bug    │ by Parent · in Assign chores · from        
+  ⠇ setup          0/1 │   [●]◇ S-0001 Parent assigns…  high        bug    │ by Parent · in Assign chores · from        
                        │                                                   │ rehearse r-e2e                             
                        │                                                   │                                            
                        │                                                   │ S-0002 Parent removes a chore              

@@ -1,0 +1,46 @@
+{
+  "scenario": "S-0105",
+  "version": "a42d272c91a9",
+  "commit": "554ba14",
+  "run": "e2e-2026-10-05T02-48-34.328Z",
+  "journey": "J-0008",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-05T02:49:02.102Z",
+  "ms": 10399,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0105/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "the rehearse run",
+      "path": "media/S-0105/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0105/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0105/4-step.cast",
+      "meta": {
+        "startAt": 14
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/agent-rehearse/src/index.ts": "29b70ff9d5f165572edeaebbf6020f0bc348eab5",
+    "packages/agent-rehearse/src/run.ts": "fb76c03d5edfa68db8e48c469919df2b57886dc7",
+    "packages/agent-rehearse/test/plugin.test.ts": "9b58eff34ef7bf4255d1d1dd9d4233e353a00b83",
+    "packages/agent-rehearse/test/run.test.ts": "1ff6c3d35107502a5933bc4a252116a1ec3a5372"
+  }
+}

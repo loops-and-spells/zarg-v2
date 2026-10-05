@@ -1,0 +1,49 @@
+{
+  "scenario": "S-0106",
+  "version": "b8d418ed8532",
+  "commit": "554ba14",
+  "run": "e2e-2026-10-05T02-48-34.328Z",
+  "journey": "J-0008",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-05T02:49:22.111Z",
+  "ms": 20008,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0106/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "the feedback filed",
+      "path": "media/S-0106/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0106/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0106/4-step.cast",
+      "meta": {
+        "startAt": 9.8
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/agent-rehearse/src/findings.ts": "04215a9f90651ca078564e73321ddcd98d084e45",
+    "packages/agent-rehearse/src/run.ts": "fb76c03d5edfa68db8e48c469919df2b57886dc7",
+    "packages/agent-rehearse/test/findings.test.ts": "8e62c1f1b9d698ecf610f726e2b723cb20716641",
+    "packages/agent-rehearse/test/plugin.test.ts": "9b58eff34ef7bf4255d1d1dd9d4233e353a00b83",
+    "packages/agent-rehearse/test/run.test.ts": "1ff6c3d35107502a5933bc4a252116a1ec3a5372",
+    "packages/plugin-backlog/src/index.ts": "fd9daa61f0ea9a22c5337e342a21dd8116938286",
+    "packages/plugin-backlog/test/plugin.test.ts": "4dd05cd9834ded975d756d128b20cf58efa1efd3"
+  }
+}
