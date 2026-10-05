@@ -28,13 +28,13 @@ export const nextOutcomes = (snap: Snapshot.Snapshot): ReadonlyArray<NextOption>
     })
 }
 
-const REHEARSE: NextOption = { id: "rehearse", label: "Rehearse the journeys", why: "testers walk them and file what they find", task: "The requirements are complete for now: start a rehearsal now with Rehearse.run({}) (its defaults: testers walk each journey and file feedback; never ask which strategy), then finish: your reply tells the developer it runs and that its feedback will show in Feedback. Never ask about the run: zarg takes up what it files when it ends.", waits: true }
+const REHEARSE: NextOption = { id: "rehearse", label: "Rehearse the journeys", why: "testers walk them and file what they find", task: "The requirements are complete for now: start a rehearsal now with Rehearse.run({}) (its defaults: testers walk each journey and file feedback; never ask which strategy), then finish: your reply tells the operator it runs and that its feedback will show in Feedback. Never ask about the run: zarg takes up what it files when it ends.", waits: true }
 /** Build the scenarios: reconcile on (zarg turns it on, `run`), or the operator's /reconcile when zarg cannot. */
 const build = (run?: Effect.Effect<string>): NextOption => ({
   id: "build",
   label: run !== undefined ? "Build the scenarios" : "Build the scenarios (/reconcile)",
   why: "nothing is built yet: reconcile implements, verifies and commits each one; rehearse walks only built scenarios",
-  task: "Nothing is built yet: no scenario has code tagged to it. Tell the developer that /reconcile turns on building (zarg implements each scenario, verifies and commits it), and that rehearsing waits for it.",
+  task: "Nothing is built yet: no scenario has code tagged to it. Tell the operator that /reconcile turns on building (zarg implements each scenario, verifies and commits it), and that rehearsing waits for it.",
   ...(run !== undefined ? { run } : {}),
 })
 

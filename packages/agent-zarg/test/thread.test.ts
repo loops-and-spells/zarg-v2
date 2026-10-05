@@ -97,7 +97,7 @@ describe("thread runs", () => {
     expect(tasks[0]).toContain("Gaps zarg found:\n- Only one thing happens from ST-3 [ST-3, S-6]: Add a failure case?\n- Only one thing happens from ST-1 [ST-1, S-1]: Add a failure case?")
   })
 
-  test("after a what-next item, the driver waits for the developer instead of asking what next again", async () => {
+  test("after a what-next item, the driver waits for the operator instead of asking what next again", async () => {
     const tasks: Array<string> = []
     const driver: Driver = (spec) => Effect.sync(() => (tasks.push(spec.task), outcome("I added the scenario you chose.")))
     const events = await Effect.runPromise(
@@ -112,10 +112,10 @@ describe("thread runs", () => {
       }),
     )
     expect(last(events)).toMatchObject({ type: "RUN_FINISHED", runId: "r1" })
-    expect(tasks[1]).toStartWith('The developer said: "now the login journey"')
+    expect(tasks[1]).toStartWith('The operator said: "now the login journey"')
   })
 
-  test("the what-next task offers the developer's own idea, never a journey the driver makes up", () => {
+  test("the what-next task offers the operator's own idea, never a journey the driver makes up", () => {
     expect(WHAT_NEXT_GAPS).toContain("allowOther")
     expect(WHAT_NEXT_GAPS).not.toContain("new journey")
     expect(WHAT_NEXT).not.toContain("the next journey")
@@ -147,7 +147,7 @@ describe("thread runs", () => {
       { id: "capture", label: "Capture", why: "the driver keeps intent/*.md" },
     ])
     expect(out.asked.metadata.allowOther).toBe(true)
-    expect(tasks[0]).toStartWith('The developer said: "Work on the intent\'s next goal: Rehearse: roleplay testers over the graph."')
+    expect(tasks[0]).toStartWith('The operator said: "Work on the intent\'s next goal: Rehearse: roleplay testers over the graph."')
   })
 
   test("a what-next option that starts work elsewhere (a rehearsal) waits for it: no what-next asked again until new work wakes zarg", async () => {
@@ -400,7 +400,7 @@ describe("thread runs", () => {
   })
 
   // @scenario S-0071
-  test("the driver can choose an option of the question under discussion for the developer, once", async () => {
+  test("the driver can choose an option of the question under discussion for the operator, once", async () => {
     const out: Record<string, unknown> = {}
     let calls = 0
     const driver: Driver = (_spec, asker) =>
@@ -473,7 +473,7 @@ describe("thread runs", () => {
     )
     expect(last(out.first)).toMatchObject({ type: "RUN_FINISHED", runId: "r1" })
     expect(last(out.second)).toMatchObject({ type: "RUN_FINISHED", runId: "r2", outcome: { type: "interrupt" } })
-    expect(tasks[1]).toContain("developer: also add a logout scenario")
+    expect(tasks[1]).toContain("operator: also add a logout scenario")
   })
 
   test("your message comes before the agenda: the next driver item answers you", async () => {
@@ -499,7 +499,7 @@ describe("thread runs", () => {
       }),
     )
     expect(tasks[0]).toContain("An agenda item")
-    expect(tasks[1]).toStartWith('The developer said: "hi, what can we do?"')
+    expect(tasks[1]).toStartWith('The operator said: "hi, what can we do?"')
   })
 
   test("the driver's reply is kept short, and every task says so", async () => {
@@ -535,10 +535,10 @@ describe("thread runs", () => {
         yield* collect(thread.run({ runId: "r1", message: "hello" }))
       }),
     )
-    expect(tasks[0]).toStartWith('The developer said: "hello"')
+    expect(tasks[0]).toStartWith('The operator said: "hello"')
     expect(tasks[1]).toContain("What happens after payment?\nNo scenario continues from ST-0004.")
     expect(tasks[1]).toContain("show the exact change with Inquire.confirm before writing it")
-    expect(tasks[1]).toContain("Recent conversation:\ndeveloper: hello\ndriver: Hello! Let's look at the agenda.")
+    expect(tasks[1]).toContain("Recent conversation:\noperator: hello\ndriver: Hello! Let's look at the agenda.")
   })
 
   test("an item still open after two passes turns into a what-next question", async () => {
@@ -635,13 +635,13 @@ test("the driver shows statements already split: one idea each, never two joined
 })
 
 // @scenario S-0008
-test("the driver never asks again what the developer settled, and names what it asks about by its words", () => {
-  expect(REPLY_RULE).toContain("never ask again what the developer settled")
+test("the driver never asks again what the operator settled, and names what it asks about by its words", () => {
+  expect(REPLY_RULE).toContain("never ask again what the operator settled")
   expect(REPLY_RULE).toContain("by their words, not by ids alone")
 })
 
 // @scenario S-0008
-test("the driver reads the project before asking what it says, and proposes nothing from neither the developer nor the project", () => {
+test("the driver reads the project before asking what it says, and proposes nothing from neither the operator nor the project", () => {
   expect(REPLY_RULE).toContain("read the project first")
   expect(REPLY_RULE).toContain("never anything from neither")
 })
@@ -923,7 +923,7 @@ describe("zarg's questions as inbox topics", () => {
       yield* Effect.sleep(100)
     }))
     expect(answers).toEqual([{ choice: "b" }])
-    expect(tasks.some((t) => t.includes("The developer said"))).toBe(false)
+    expect(tasks.some((t) => t.includes("The operator said"))).toBe(false)
   })
   test("after a restart the bar's answer to an old question answers its topic and reaches zarg by its label", async () => {
     const tasks: Array<string> = []

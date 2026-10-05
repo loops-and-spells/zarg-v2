@@ -9,7 +9,7 @@ const item = (id: string, title: string): AgendaItem => ({ id, title, detail: `$
 describe("what-next gaps", () => {
   test("each candidate is judged on its own scenario; only a likely yes is kept", async () => {
     const calls: Array<DecisionRequest> = []
-    const p: Record<string, number> = { "The developer pays": 0.82, "The page scrolls": 0.12, "The plugin loads": 0.66 }
+    const p: Record<string, number> = { "The operator pays": 0.82, "The page scrolls": 0.12, "The plugin loads": 0.66 }
     const decide = (req: DecisionRequest) =>
       Effect.sync(() => {
         calls.push(req)
@@ -17,7 +17,7 @@ describe("what-next gaps", () => {
         const yes = p[key]! >= 0.5
         return Object.fromEntries(Object.keys(req.questions).map((q) => [q, { type: "noul", answer: yes, probability: p[key]!, confidence: 0.1 } satisfies Answer]))
       })
-    const kept = await Effect.runPromise(judgeGaps(decide, [item("ST-1", "The developer pays"), item("ST-2", "The page scrolls"), item("ST-3", "The plugin loads")]))
+    const kept = await Effect.runPromise(judgeGaps(decide, [item("ST-1", "The operator pays"), item("ST-2", "The page scrolls"), item("ST-3", "The plugin loads")]))
     expect(kept.map((g) => g.id)).toEqual(["ST-1"])
     expect(calls.length).toBe(3)
   })

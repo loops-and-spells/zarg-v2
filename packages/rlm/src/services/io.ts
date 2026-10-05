@@ -20,12 +20,12 @@ export interface AgendaInbox {
 export const agenda = (inbox: AgendaInbox): Bound => bind(AgendaDef, { raise: (item) => Effect.map(inbox.raise(item), (id) => ({ id })) })
 
 const Option = Schema.Struct({
-  id: Schema.String.annotate({ description: "Returned as the answer's `choice` when the developer picks this option." }),
-  label: Schema.String.annotate({ description: "What the developer reads: a few words." }),
+  id: Schema.String.annotate({ description: "Returned as the answer's `choice` when the operator picks this option." }),
+  label: Schema.String.annotate({ description: "What the operator reads: a few words." }),
   recommended: Schema.optionalKey(Schema.Boolean).annotate({ description: "Mark exactly one option as your recommendation." }),
   why: Schema.optionalKey(Schema.String).annotate({ description: "One short reason, shown next to the option." }),
   change: Schema.optionalKey(Schema.String).annotate({
-    description: "When picking this option is itself a requirements change: the exact change, as Inquire.confirm would show it. The developer sees it with the question; picking it adds it (write it, no confirm after).",
+    description: "When picking this option is itself a requirements change: the exact change, as Inquire.confirm would show it. The operator sees it with the question; picking it adds it (write it, no confirm after).",
   }),
 })
 const Question = Schema.Struct({
@@ -40,16 +40,16 @@ export type Question = typeof Question.Type & { readonly kind?: "grant" }
 /** An option id, or free text; `interjected` when the operator wrote a message instead of answering. */
 // @scenario S-0102
 const Answer = Schema.Struct({
-  choice: Schema.optionalKey(Schema.String).annotate({ description: "The option the developer picked." }),
-  other: Schema.optionalKey(Schema.String).annotate({ description: "What the developer wrote instead (Something else…, or a message about the question)." }),
+  choice: Schema.optionalKey(Schema.String).annotate({ description: "The option the operator picked." }),
+  other: Schema.optionalKey(Schema.String).annotate({ description: "What the operator wrote instead (Something else…, or a message about the question)." }),
   interjected: Schema.optionalKey(Schema.Boolean).annotate({
     description:
-      "True when the developer is discussing the question, not answering it: reply to what they wrote, then either Inquire.choose an option they settled on or Inquire.ask again. When what they wrote says what the product is for, propose keeping it in the intent first (add-outcome, add-constraint) with Inquire.confirm. Never change the graph without their say.",
+      "True when the operator is discussing the question, not answering it: reply to what they wrote, then either Inquire.choose an option they settled on or Inquire.ask again. When what they wrote says what the product is for, propose keeping it in the intent first (add-outcome, add-constraint) with Inquire.confirm. Never change the graph without their say.",
   }),
   question: Schema.optionalKey(Schema.String).annotate({ description: "With interjected: the id of the question still open for Inquire.choose." }),
   hint: Schema.optionalKey(Schema.String).annotate({ description: "With interjected: what to do with what they wrote." }),
   goal: Schema.optionalKey(Schema.Boolean).annotate({ description: "With interjected: zarg judged that what they wrote states a goal or a rule for the product." }),
-  problems: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Inquire.confirm with a draft: what the checks refused; the developer was not asked. Fix them, then confirm again." }),
+  problems: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Inquire.confirm with a draft: what the checks refused; the operator was not asked. Fix them, then confirm again." }),
 })
 export type Answer = typeof Answer.Type
 /** Said when zarg judged the interjection to state a goal for the product: the next call, not a condition to weigh. */
@@ -62,7 +62,7 @@ export const INTERJECTED_HINT =
 const Choice = Schema.Struct({
   question: Schema.String.annotate({ description: "The id of a question under discussion (an interjected answer's `question`)." }),
   choice: Schema.String.annotate({ description: "One of that question's option ids." }),
-  why: Schema.String.annotate({ description: "One sentence: what the developer said that settles it; shown to them." }),
+  why: Schema.String.annotate({ description: "One sentence: what the operator said that settles it; shown to them." }),
 })
 export type Choice = typeof Choice.Type
 
@@ -72,7 +72,7 @@ const Confirm = Schema.Struct({
   }),
   about: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Scenario or state ids the change touches." }),
   draft: Schema.optionalKey(Schema.Array(Schema.Struct({ tool: Schema.String, params: Schema.Unknown }))).annotate({
-    description: "The change as the graph tool calls that write it (gherkin tool names, e.g. add-scenario, and their params), in order: checked as a write would be before the developer sees it; what the checks refuse comes back as `problems` to fix.",
+    description: "The change as the graph tool calls that write it (gherkin tool names, e.g. add-scenario, and their params), in order: checked as a write would be before the operator sees it; what the checks refuse comes back as `problems` to fix.",
   }),
 })
 export type Confirm = typeof Confirm.Type
@@ -90,15 +90,15 @@ export const confirmQuestion = (c: Confirm): Question => ({
   ...(c.about !== undefined ? { about: c.about } : {}),
 })
 
-export const InquireDef = defineService("Inquire", "Ask the developer a question. The cell waits (yielded) until they answer.", {
+export const InquireDef = defineService("Inquire", "Ask the operator a question. The cell waits (yielded) until they answer.", {
   confirm: {
-    doc: "Show the developer the exact change before writing it to the graph. The answer: `add` (write it), `skip`, or `other` = what they want changed: revise the change and confirm it again. Graph writes are refused until they add it, and closed again by your next question.",
+    doc: "Show the operator the exact change before writing it to the graph. The answer: `add` (write it), `skip`, or `other` = what they want changed: revise the change and confirm it again. Graph writes are refused until they add it, and closed again by your next question.",
     params: Confirm,
     success: Answer,
   },
   ask: { doc: "Ask with 2-4 options; mark one recommended with why. The answer is an option id or free text.", params: Question, success: Answer },
   choose: {
-    doc: "Accept an option of a question under discussion for the developer, when the conversation settled it. They see what you chose and why.",
+    doc: "Accept an option of a question under discussion for the operator, when the conversation settled it. They see what you chose and why.",
     params: Choice,
     success: Schema.Struct({ choice: Schema.String }),
   },
@@ -158,7 +158,7 @@ const DAnswer = Schema.Struct({
 
 export const DecisionsDef = defineService("Decisions", "Fast judgments by a small decision model: choice, yes/no (noul), or score, each with a confidence.", {
   decide: {
-    doc: "Answer 1-8 questions about a state. Use it to classify work or check a result before acting on it. An answer with confidence below 0.5 is a guess: never act on it or choose for the developer with it; ask them instead.",
+    doc: "Answer 1-8 questions about a state. Use it to classify work or check a result before acting on it. An answer with confidence below 0.5 is a guess: never act on it or choose for the operator with it; ask them instead.",
     params: Schema.Struct({
       state: Schema.String.annotate({ description: "What the questions are about: the situation in plain text, short." }),
       questions: Schema.Record(Schema.String, DQuestion).annotate({ description: "1-8 questions by name; the result has the same names." }),

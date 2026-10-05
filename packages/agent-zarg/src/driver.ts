@@ -5,11 +5,11 @@ import { type Answer, type Asker, confirmQuestion } from "@zarg/rlm"
 const ASK_FIRST: ServiceFailure = {
   _tag: "AskFirst",
   message:
-    "Requirements change only with the developer's say: show the exact change with Inquire.confirm({ change }) (each scenario as its title, then By / Given / When / Then lines; every scenario names who acts in it with by, a persona), then write it once they add it. An Inquire.ask option that is itself a change carries it as its `change`: picking it adds it. Any other question closes writes again.",
+    "Requirements change only with the operator's say: show the exact change with Inquire.confirm({ change }) (each scenario as its title, then By / Given / When / Then lines; every scenario names who acts in it with by, a persona), then write it once they add it. An Inquire.ask option that is itself a change carries it as its `change`: picking it adds it. Any other question closes writes again.",
 }
 
-const JUDGED = "(Fix it, or show the same change again if it holds as it is: the developer then decides.)"
-const NO_DRAFT = "Show a scenario change with its draft too: Inquire.confirm({ change, draft }), the draft being the gherkin tool calls that write it (add-scenario, link, …), so the checks run before the developer sees it."
+const JUDGED = "(Fix it, or show the same change again if it holds as it is: the operator then decides.)"
+const NO_DRAFT = "Show a scenario change with its draft too: Inquire.confirm({ change, draft }), the draft being the gherkin tool calls that write it (add-scenario, link, …), so the checks run before the operator sees it."
 const PICKED_HINT = "They picked an option that is a change: it is added. Write it now, as shown; no Inquire.confirm."
 
 /** The change's first line; one that only heads it (ends with a colon) takes the next line too. */
@@ -26,7 +26,7 @@ const subject = (line: string) => {
 }
 // Quote marks aside: a change shows sentences quoted one by one that a write joins.
 const norm = (t: string) => t.toLowerCase().replace(/["“”`]/g, "").replace(/\s+/g, " ").trim().replace(/[.!]$/, "")
-/** The words a write puts in the graph (titles, Whens, state and statement texts, names): what the developer must have seen. */
+/** The words a write puts in the graph (titles, Whens, state and statement texts, names): what the operator must have seen. */
 const wording = (v: unknown): ReadonlyArray<string> =>
   Array.isArray(v) ? v.flatMap(wording) : v !== null && typeof v === "object" ? Object.entries(v).flatMap(([k, x]) => (typeof x === "string" ? (["text", "title", "when", "name", "answer"].includes(k) ? [x] : []) : wording(x))) : []
 
@@ -69,7 +69,7 @@ export const askFirst = (
   // Something was written since the operator added the change (an added change not written yet is owed).
   let wrote = false
   let open = false
-  // What the developer added, once written, is committed (at the next question, or when the item ends): the
+  // What the operator added, once written, is committed (at the next question, or when the item ends): the
   // Planner and reconcile only build on a committed graph.
   // ponytail: a node the operator also edited by hand, uncommitted, goes into the same commit.
   const unsaved = new Set<string>()
@@ -82,11 +82,11 @@ export const askFirst = (
     return Effect.ignore(commit(ids, `req: ${ids.length > 6 ? `${ids.slice(0, 6).join(", ")} and ${ids.length - 6} more` : ids.join(", ")}: ${saving}`))
   })
   // @scenario S-0016
-  // The versions of the nodes the change was shown about, as the developer saw them: a newer edit by another thread
+  // The versions of the nodes the change was shown about, as the operator saw them: a newer edit by another thread
   // makes the save stale (the change is shown again).
   let shown: Readonly<Record<string, string | undefined>> = {}
   // @scenario S-0009
-  // The change the developer added, as shown: a write's wording must be in it (a model rewording after the yes is refused).
+  // The change the operator added, as shown: a write's wording must be in it (a model rewording after the yes is refused).
   let added: string | undefined
   const changes = new Map<string, string>()
   const touched = new Set<string>()
@@ -104,7 +104,7 @@ export const askFirst = (
     if (added !== undefined) {
       const shownText = norm(added)
       const off = wording(params).find((w) => !shownText.includes(norm(w)))
-      if (off !== undefined) return Effect.fail({ _tag: "NotShown", message: `"${off}" is not in the change the developer added: write the wording they saw, or show the new wording with Inquire.confirm` })
+      if (off !== undefined) return Effect.fail({ _tag: "NotShown", message: `"${off}" is not in the change the operator added: write the wording they saw, or show the new wording with Inquire.confirm` })
     }
     const s = scope
     // Opened for a finding: every node the write names must be the finding's (or one this fix added).
@@ -248,7 +248,7 @@ export const askFirst = (
                       const p = (params ?? {}) as Record<string, unknown>
                       return Effect.fail({
                         _tag: "StaleNode",
-                        message: `${moved} changed since you showed the change: another thread set ${both.map((k) => value(after, k)).join("; ")}; yours: ${both.map((k) => (k.startsWith("edge:") ? k : `${k}: ${JSON.stringify(p[k])}`)).join("; ")}. Ask the developer which to keep with Inquire.ask: one option per version (theirs, yours, and a merge when one fits), each option's change the exact edit it writes.`,
+                        message: `${moved} changed since you showed the change: another thread set ${both.map((k) => value(after, k)).join("; ")}; yours: ${both.map((k) => (k.startsWith("edge:") ? k : `${k}: ${JSON.stringify(p[k])}`)).join("; ")}. Ask the operator which to keep with Inquire.ask: one option per version (theirs, yours, and a merge when one fits), each option's change the exact edit it writes.`,
                       })
                     })
                   })

@@ -60,7 +60,7 @@ export const outsideReads = (opts: {
             kind: "grant",
           })
           if (a.choice === "always") return yield* opts.grants.add(AGENTS, { kind: "fs-read", glob: `${folder}/**` })
-          if (a.choice !== "once") return yield* Effect.fail(notAllowed(`the developer did not allow reading ${path}`))
+          if (a.choice !== "once") return yield* Effect.fail(notAllowed(`the operator did not allow reading ${path}`))
         }),
       )
     })

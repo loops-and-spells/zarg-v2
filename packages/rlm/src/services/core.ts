@@ -79,9 +79,9 @@ const globBase = (glob: string) => {
 const listFailed = (glob: string) => (e: unknown) => fail("ListFailed", `${glob}: ${e instanceof Error ? e.message : String(e)}; narrow the glob`)
 
 const FsRead = {
-  read: { doc: "Read a text file: a repo-relative path inside your scope, or an absolute or ~/ path outside the repository (the developer is asked first).", params: Schema.Struct({ path: Schema.String }), success: Schema.String },
+  read: { doc: "Read a text file: a repo-relative path inside your scope, or an absolute or ~/ path outside the repository (the operator is asked first).", params: Schema.Struct({ path: Schema.String }), success: Schema.String },
   list: {
-    doc: "List files matching a glob, limited to your scope; an absolute or ~/ glob lists outside the repository (the developer is asked first).",
+    doc: "List files matching a glob, limited to your scope; an absolute or ~/ glob lists outside the repository (the operator is asked first).",
     params: Schema.Struct({ glob: Schema.String }),
     success: Schema.Array(Schema.String),
   },

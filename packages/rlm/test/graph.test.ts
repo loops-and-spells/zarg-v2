@@ -85,7 +85,7 @@ describe("Inquire, Agenda and Verify", () => {
   const kernel = <A>(services: Parameters<typeof Kernel.make>[0]["services"], f: (k: Kernel.Kernel) => Effect.Effect<A>) =>
     Effect.runPromise(Effect.scoped(Effect.flatMap(Kernel.make({ services }), f)))
 
-  test("Inquire.ask returns the developer's answer; bad option counts are refused", async () => {
+  test("Inquire.ask returns the operator's answer; bad option counts are refused", async () => {
     const asked: Array<string> = []
     const svc = inquire({ ask: (q) => Effect.sync(() => (asked.push(q.question), { choice: "b" })) })
     const out = await kernel([svc], (k) =>
@@ -100,7 +100,7 @@ describe("Inquire, Agenda and Verify", () => {
   })
 
   // @scenario S-0071
-  test("Inquire.choose accepts an option of a question under discussion for the developer", async () => {
+  test("Inquire.choose accepts an option of a question under discussion for the operator", async () => {
     const chosen: Array<unknown> = []
     const svc = inquire({
       ask: () => Effect.succeed({ other: "why Checkout?", interjected: true, question: "inq-1" }),
@@ -118,7 +118,7 @@ describe("Inquire, Agenda and Verify", () => {
   })
 
   // @scenario S-0102
-  test("an interjected answer tells the driver to keep what the developer says the product is for (shown first)", () => {
+  test("an interjected answer tells the driver to keep what the operator says the product is for (shown first)", () => {
     const text = manifest([InquireDef])
     expect(text).toContain("add-outcome")
     expect(text).not.toContain("Never change the graph on a discussion alone")

@@ -14,7 +14,7 @@ test("agent ids are namespaced and checked; events become main's activity in the
   const log = await Effect.runPromise(makeLog(dir, (t) => t))
   const sink = pluginAgents(log, "main")
   sink("rehearse", { event: "start", id: "run", title: "rehearse", task: "run r-1" })
-  sink("rehearse", { event: "start", id: "tester-1", parent: "run", title: "tester", task: "The developer" })
+  sink("rehearse", { event: "start", id: "tester-1", parent: "run", title: "tester", task: "The operator" })
   sink("rehearse", { event: "step", id: "tester-1", text: "S-0001: feel 1.80" })
   sink("rehearse", { event: "status", id: "tester-1", progress: { done: 1, total: 4 }, text: "1/4 steps" })
   expect(() => sink("rehearse", { event: "start", id: "a:b", title: "x", task: "y" })).toThrow("agent id")
@@ -29,7 +29,7 @@ test("a plugin agent starts with its declared view; step lines go to its first l
   const log = await Effect.runPromise(makeLog(mkdtempSync(join(tmpdir(), "zarg-pa-")), (t) => t))
   const tester = layoutOf(defineView("tester", { steps: { kind: "log", role: "log" }, progress: { kind: "stats", role: "summary" } }))
   const on = pluginAgents(log, "main", (plugin, view) => (plugin === "rehearse" && view === "tester" ? tester : undefined))
-  on("rehearse", { event: "start", id: "tester-1", title: "tester", task: "The developer", view: "tester" })
+  on("rehearse", { event: "start", id: "tester-1", title: "tester", task: "The operator", view: "tester" })
   on("rehearse", { event: "step", id: "tester-1", text: "S-1 ok" })
   on("rehearse", { event: "set", id: "tester-1", section: "progress", data: { items: [] } })
   threadViews(log, "main").flush()
@@ -94,10 +94,10 @@ const surfaceSetup = async (surfaces: ReadonlyArray<Surface>) => {
 }
 const status: Surface = { kind: "panel", name: "status", view: "status", scope: "shell", edge: "bottom", size: 1, input: "none" }
 
-test("an open outside any developer call is refused for a tile; a panel opens any time", async () => {
+test("an open outside any operator call is refused for a tile; a panel opens any time", async () => {
   const { on, log, panels } = await surfaceSetup([{ kind: "tile", name: "main", view: "tester" }, status])
   on("rehearse", { event: "start", id: "t1", title: "tester", task: "t", view: "tester" })
-  expect(() => on("rehearse", { event: "open", surfaces: [{ surface: "main", agent: "t1" }], gesture: false })).toThrow(/opens only while you handle the developer's call/)
+  expect(() => on("rehearse", { event: "open", surfaces: [{ surface: "main", agent: "t1" }], gesture: false })).toThrow(/opens only while you handle the operator's call/)
   expect(() => on("rehearse", { event: "open", surfaces: [{ surface: "nope", agent: "t1" }], gesture: true })).toThrow(/declares no surface nope/)
   on("rehearse", { event: "open", surfaces: [{ surface: "status", agent: "t1" }], gesture: false })
   expect(panels()).toEqual(["rehearse:status:rehearse:t1"])

@@ -6,7 +6,7 @@ import { askFirst } from "../src/driver"
 const writes: Bound = { def: { name: "Gherkin" } as never, handlers: { addScenario: () => Effect.succeed("created S-0001") } }
 
 describe("ask before writing", () => {
-  test("graph writes are refused until the developer adds the change shown to them in this item", async () => {
+  test("graph writes are refused until the operator adds the change shown to them in this item", async () => {
     const guard = askFirst({ ask: () => Effect.succeed({ choice: "add" }) })
     const gated = guard.gate(writes)!
     const refused = await Effect.runPromise(Effect.flip(gated.handlers.addScenario!({})))
@@ -22,7 +22,7 @@ describe("ask before writing", () => {
     const guard = askFirst({ ask: () => Effect.succeed({ choice: "add" }) }, (ids) => Effect.succeed(Object.fromEntries(ids.map((id) => [id, version]))))
     const gated = guard.gate(writes)!
     await Effect.runPromise(guard.asker.confirm!({ change: "Edit ST-0002: the plan picker is shown with prices", about: ["ST-0002"] }))
-    // Another thread rewords ST-0002 while the developer reads the change.
+    // Another thread rewords ST-0002 while the operator reads the change.
     version = "v2"
     const stale = await Effect.runPromise(Effect.flip(gated.handlers.addScenario!({ id: "ST-0002", text: "x" })))
     expect(stale).toMatchObject({ _tag: "StaleNode" })
@@ -148,7 +148,7 @@ describe("ask before writing", () => {
   })
 
   // @scenario S-0009
-  test("what is written is what the developer added: wording not in the change shown is refused", async () => {
+  test("what is written is what the operator added: wording not in the change shown is refused", async () => {
     const guard = askFirst({ ask: () => Effect.succeed({ choice: "add" }) })
     const gated = guard.gate(writes)!
     await Effect.runPromise(guard.asker.confirm!({ change: "Add outcome to I-0001: Parents award points for finished chores." }))
@@ -166,7 +166,7 @@ describe("ask before writing", () => {
     expect(await Effect.runPromise(gated.handlers.addScenario!({ name: "Child", text: "A child in the family tracker.\nThey see the chores assigned to them." }))).toBe("created S-0001")
   })
 
-  test("what the developer added is committed once written: at the next question, or when the item ends", async () => {
+  test("what the operator added is committed once written: at the next question, or when the item ends", async () => {
     const commits: Array<[ReadonlyArray<string>, string]> = []
     const ids: Bound = { def: { name: "Gherkin" } as never, handlers: { addScenario: () => Effect.succeed({ added: ["S-0003", "ST-0009"], changed: ["J-0001"], removed: [] }) } }
     const guard = askFirst({ ask: () => Effect.succeed({ choice: "add" }) }, undefined, (i, m) => Effect.sync(() => void commits.push([i, m])))
@@ -273,7 +273,7 @@ describe("ask before writing", () => {
     expect((await Effect.runPromise(Effect.flip(next.gate(writes)!.handlers.addScenario!({})))) as { _tag: string }).toMatchObject({ _tag: "AskFirst" })
   })
 
-  test("a chat message about the question is not an answer; the driver choosing for the developer is", async () => {
+  test("a chat message about the question is not an answer; the driver choosing for the operator is", async () => {
     const guard = askFirst({ ask: () => Effect.succeed({ other: "why?", interjected: true, question: "inq-1" }), choose: (c) => Effect.succeed({ choice: c.choice }) })
     const gated = guard.gate(writes)!
     await Effect.runPromise(guard.asker.confirm!({ change: "Given a\nWhen b\nThen c" }))
@@ -282,12 +282,12 @@ describe("ask before writing", () => {
     expect(await Effect.runPromise(gated.handlers.addScenario!({}))).toBe("created S-0001")
   })
 
-  test("only the developer adding the exact change opens graph writes, and the next question closes them again", async () => {
+  test("only the operator adding the exact change opens graph writes, and the next question closes them again", async () => {
     const answers = ["add", "a", "skip"]
     const guard = askFirst({ ask: () => Effect.succeed({ choice: answers.shift()! }) })
     const gated = guard.gate(writes)!
     const write = () => Effect.runPromise(Effect.flip(gated.handlers.addScenario!({})).pipe(Effect.orElseSucceed(() => "written" as const)))
-    await Effect.runPromise(guard.asker.confirm!({ change: "Given the cart is full\nWhen the developer pays\nThen the order is placed" }))
+    await Effect.runPromise(guard.asker.confirm!({ change: "Given the cart is full\nWhen the operator pays\nThen the order is placed" }))
     expect(await write()).toBe("written")
     await Effect.runPromise(guard.asker.ask({ question: "q", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }] }))
     expect(await write()).toMatchObject({ _tag: "AskFirst" })
@@ -305,7 +305,7 @@ describe("ask before writing", () => {
     expect(asked[0]).toMatchObject({ allowOther: true, otherLabel: "Change it" })
   })
 
-  test("a discussed change the driver adds for the developer opens writes", async () => {
+  test("a discussed change the driver adds for the operator opens writes", async () => {
     const guard = askFirst({ ask: () => Effect.succeed({ other: "looks right", interjected: true, question: "inq-9" }), choose: (c) => Effect.succeed({ choice: c.choice }) })
     const gated = guard.gate(writes)!
     await Effect.runPromise(guard.asker.confirm!({ change: "Given a\nWhen b\nThen c" }))

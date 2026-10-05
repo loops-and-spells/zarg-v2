@@ -67,7 +67,7 @@ export const judgeProgress = (decisions: Decisions["Service"], task: string, p: 
     const state = [
       `Task: ${head}`,
       `Turns used: ${p.used} (extension ${p.extension + 1} of ${p.max} would be next)`,
-      `In the last turns: cells that failed typecheck: ${p.typecheckFailed} of ${p.cells.length}; repeated calls: ${p.repeated} of ${p.calls} (same service, method and params as an earlier call); questions to the developer: ${p.asked}`,
+      `In the last turns: cells that failed typecheck: ${p.typecheckFailed} of ${p.cells.length}; repeated calls: ${p.repeated} of ${p.calls} (same service, method and params as an earlier call); questions to the operator: ${p.asked}`,
       "Recent cells:",
       ...p.cells.map((c) => `- turn ${c.turn} ${c.ok ? "ok" : "failed"}: ${preview(c.code, 300)}\n  → ${preview(c.output, 300)}`),
     ].join("\n")

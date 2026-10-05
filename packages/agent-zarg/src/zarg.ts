@@ -145,7 +145,7 @@ export const makeZarg = (host: AgentHost) =>
                 `Journeys (${journeys.length}): ${journeys.slice(0, 12).join("; ") || "none yet"}`,
                 `Scenarios: ${of("gherkin/scenario").length}; states: ${of("gherkin/state").length}.`,
                 "Graph ids are bare (I-0001); Entities refs (gherkin/intent:I-0001@…) name the same nodes.",
-                // What the project has to read before asking the developer what it says.
+                // What the project has to read before asking the operator what it says.
                 (() => {
                   // Tracked and untracked files (git's own ignores apply); without git, the top folder only.
                   const ls = Bun.spawnSync(["git", "ls-files", "--cached", "--others", "--exclude-standard"], { cwd: root })
@@ -157,7 +157,7 @@ export const makeZarg = (host: AgentHost) =>
           // @scenario S-0102
           isGoal: (text) =>
             Effect.map(
-              decisions.decide({ state: `The developer wrote, instead of answering zarg's question:\n${text}`, questions: { goal: { type: "noul", instructions: "Does it state a goal or a rule for the product (something it should do or must keep), not only a reply to the question?" } } }),
+              decisions.decide({ state: `The operator wrote, instead of answering zarg's question:\n${text}`, questions: { goal: { type: "noul", instructions: "Does it state a goal or a rule for the product (something it should do or must keep), not only a reply to the question?" } } }),
               (a) => { const g = a.goal as { answer?: boolean; probability?: number } | undefined; return g?.answer === true && (g.probability ?? 0) >= 0.6 },
             ).pipe(Effect.orElseSucceed(() => false)),
           ...(host.inbox !== undefined ? { inbox: host.inbox } : {}),

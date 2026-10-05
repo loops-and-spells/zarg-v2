@@ -156,7 +156,7 @@ describe("observe", () => {
   })
 
 
-  test("the model's timing is reported as soon as the call returns, before a cell that may wait on the developer", async () => {
+  test("the model's timing is reported as soon as the call returns, before a cell that may wait on the operator", async () => {
     const events: Array<Rlm.RlmEvent> = []
     const stub = stubModel({ driver: [{ cell: 'yield* Rlm.done({ value: "ok" })' }] })
     await Effect.runPromise(

@@ -85,7 +85,7 @@ const planText = (p: Plan) => ({ text: JSON.stringify(p) })
 const researchDone = (finding: string): Reply => ({ cell: `yield* Rlm.done({ value: { findings: [${JSON.stringify(finding)}], sources: [] } })` })
 
 describe("folding", () => {
-  test("the default driver preset skips atomize: it asks the developer, it never splits its task", async () => {
+  test("the default driver preset skips atomize: it asks the operator, it never splits its task", async () => {
     const stub = stubModel({ driver: [{ cell: 'yield* Rlm.done({ value: "direct" })' }] })
     const d = decisions(true)
     const events: Array<Rlm.RlmEvent> = []
