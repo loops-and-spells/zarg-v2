@@ -69,10 +69,12 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
   const quiet = <A>(e: Effect.Effect<A, unknown>) => Effect.ignore(e)
   const views = new Map<string, RoundView>()
   const show = (v: RoundView) => Effect.andThen(Effect.sync(() => void views.set(v.id, v)), quiet(d.render))
+  // What the last model call came to: its failure, or the text it answered (the log says which).
+  let last: { readonly failed: string } | { readonly text: string } = { text: "" }
   const ask = (system: string, user: string) =>
     d.complete({ messages: [{ role: "system", content: system }, { role: "user", content: user }], maxTokens: 16384, ...(reasoning ? {} : { reasoning: { enabled: false } }) }).pipe(
-      Effect.map((r) => r.text),
-      Effect.orElseSucceed(() => undefined),
+      Effect.map((r) => ((last = { text: r.text }), r.text)),
+      Effect.catch((e: unknown) => Effect.sync(() => ((last = { failed: String((e as { message?: unknown })?.message ?? e) }), undefined))),
     )
   const update = (f: (cp: Checkpoint) => Checkpoint) => Effect.flatMap(d.load, (cp) => d.save(f(cp)))
   const setStatement = (id: string, e: Entry | undefined) =>
@@ -83,7 +85,8 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
       return { ...cp, statements }
     })
   const setJourney = (id: string, e: Entry) => update((cp) => ({ ...cp, journeys: { ...cp.journeys, [id]: e } }))
-  const OUTAGE = (id: string) => `${id}: the driver model did not answer with JSON; the Intent Agent tries again on the next wake`
+  const OUTAGE = (id: string) =>
+    `${id}: ${"failed" in last ? `the driver model failed: ${last.failed}` : `the driver model did not answer with JSON (it began: ${JSON.stringify(last.text.trim().slice(0, 80))})`}; the Intent Agent tries again on the next wake`
 
   /** The context a round reads: the statement, its intent, its journeys with their scenarios and code. */
   const contextOf = (s: Statement, journeys: ReadonlyArray<JourneyInfo>) =>

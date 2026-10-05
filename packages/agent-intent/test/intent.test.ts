@@ -49,6 +49,15 @@ describe("the Intent Agent", () => {
     expect(cp().statements["O-0001"]).toEqual({ version: "v1", state: "planned", plans: ["B-1"] })
   })
 
+  test("the log says why a round got nothing: the model call failed, or its answer was not JSON (how it began)", async () => {
+    const down = setup({ down: true })
+    await Effect.runPromise(down.a.tick)
+    expect(down.calls.filter(([k]) => k === "log").map(([, t]) => String(t))).toContainEqual(expect.stringContaining("O-0001: the driver model failed: down"))
+    const prose = setup({ answers: ["Sure! Here is my plan for the outcome"] })
+    await Effect.runPromise(prose.a.tick)
+    expect(prose.calls.filter(([k]) => k === "log").map(([, t]) => String(t))).toContainEqual(expect.stringContaining('O-0001: the driver model did not answer with JSON (it began: "Sure! Here is my plan'))
+  })
+
   test("nothing due: no model call, nothing filed", async () => {
     const { a, calls } = setup({ cp: { statements: { "O-0001": { version: "v1", state: "planned" } }, journeys: {} } })
     await Effect.runPromise(a.tick)
