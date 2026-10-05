@@ -13,7 +13,7 @@ export interface IntentDeps {
   /** A scenario as Gherkin text, as it is now. */
   readonly scene: (scenario: string) => Effect.Effect<string, unknown>
   readonly code: (scenario: string) => Effect.Effect<ReadonlyArray<{ readonly file: string; readonly line: number; readonly text: string }>, unknown>
-  readonly dryRun: (draft: Draft) => Effect.Effect<{ readonly ok: boolean; readonly problems: ReadonlyArray<string>; readonly scenarios?: ReadonlyArray<string> }, unknown>
+  readonly dryRun: (draft: Draft) => Effect.Effect<{ readonly ok: boolean; readonly problems: ReadonlyArray<string>; readonly scenarios?: ReadonlyArray<string>; readonly next?: { readonly scenario: string; readonly state: string; readonly journey: string; readonly persona: string } }, unknown>
   readonly complete: (req: { readonly messages: ReadonlyArray<{ readonly role: "system" | "user"; readonly content: string }>; readonly maxTokens?: number; readonly reasoning?: { readonly enabled: boolean }; readonly outputSchema?: Record<string, unknown> }) => Effect.Effect<{ readonly text: string; readonly finishReason?: string }, unknown>
   /** An entity's version now (null: gone). */
   readonly version: (ref: string) => Effect.Effect<string | null, unknown>
@@ -121,6 +121,9 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
         }),
       )
       const personas = yield* d.personas().pipe(Effect.orElseSucceed(() => []))
+      // Ids are given in order: the model refers to a node its draft adds by the id it will take.
+      const next = (yield* d.dryRun([]).pipe(Effect.orElseSucceed(() => undefined)))?.next
+      const after = (id: string) => id.replace(/\d+$/, (n) => String(Number(n) + 1).padStart(n.length, "0"))
       return [
         `Intent ${s.intent.id}: ${s.intent.title}`,
         ...(s.intent.problem !== undefined ? [`Problem: ${s.intent.problem}`] : []),
@@ -135,6 +138,7 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
           const rules = all.filter((x) => x.kind === "constraint" && x.id !== s.id && x.intent.id === s.intent.id)
           return rules.length > 0 ? ["", `The intent's constraints:\n${rules.map((x) => `- ${x.id}: ${x.text}`).join("\n")}`] : []
         })(),
+        ...(next !== undefined ? ["", `New nodes take the next ids, in order: scenarios ${next.scenario}, ${after(next.scenario)}, …; states ${next.state}, …; journeys ${next.journey}, …; personas ${next.persona}, …. Refer to a node your draft adds by the id it will take; a state that does not exist yet is named by its text.`] : []),
         personas.length > 0 ? `Personas: ${personas.map((p) => `${p.name} (${p.kind})`).join(", ")}` : "Personas: none yet (add one with add-persona before a scenario names it)",
       ].join("\n")
     })

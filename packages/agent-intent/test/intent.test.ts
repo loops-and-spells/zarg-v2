@@ -21,7 +21,7 @@ const setup = (o: { personas?: ReadonlyArray<{ name: string; kind: string }>; st
     personas: () => Effect.succeed(o.personas ?? []),
     scene: (scenario) => Effect.succeed(`${scenario} title\nGiven a\nWhen b\nThen c`),
     code: () => Effect.succeed([]),
-    dryRun: (draft) => Effect.sync(() => ({ scenarios: draft.length > 0 ? ["S-0001"] : [], ...(o.dry?.(dries++) ?? { ok: true, problems: [] }) })),
+    dryRun: (draft) => (draft.length === 0 ? Effect.succeed({ scenarios: [], ok: true, problems: [], next: { scenario: "S-0002", state: "ST-0004", journey: "J-0002", persona: "P-0001" } }) : Effect.sync(() => ({ scenarios: ["S-0001"], ...(o.dry?.(dries++) ?? { ok: true, problems: [] }) }))),
     complete: (req) =>
       (schemas.push(req.outputSchema), o.down === true)
         ? Effect.andThen(Effect.sync(() => void calls.push(["down", null])), Effect.fail("down"))
@@ -85,6 +85,13 @@ describe("the Intent Agent", () => {
     const { a, calls } = setup({ statements: [outcome, rule], journeys: [checkout], answers: [], cp: { statements: { "K-0001": { version: "k1", state: "planned" } }, journeys: {} } })
     await Effect.runPromise(a.tick)
     expect(String(calls.find(([k]) => k === "complete")![1])).toContain("The intent's constraints:\n- K-0001: Data never leaves the phone")
+  })
+
+  // @scenario S-0103
+  test("the model knows the ids its new nodes will take, so a draft refers to what it adds", async () => {
+    const { a, calls } = setup({ journeys: [checkout], answers: [] })
+    await Effect.runPromise(a.tick)
+    expect(String(calls.find(([k]) => k === "complete")![1])).toContain("New nodes take the next ids, in order: scenarios S-0002, S-0003, …; states ST-0004, …; journeys J-0002, …; personas P-0001, …")
   })
 
   test("nothing due: no model call, nothing filed", async () => {

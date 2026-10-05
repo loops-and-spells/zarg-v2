@@ -27,6 +27,21 @@ describe("drafts", () => {
     expect(out.r.touched).toEqual(expect.arrayContaining(["ST-0002", "S-0006"]))
     expect(out.after).toBe(out.before)
   })
+  // @scenario S-0103
+  test("a dry run says the ids the next new nodes take (after the draft), so a draft can refer to what it adds", async () => {
+    const out = await run(
+      Effect.gen(function* () {
+        yield* pricing
+        const h = yield* PluginHost
+        const now = (yield* h.invoke("gherkin", "dryRun", { draft: [] })) as { next: Record<string, string> }
+        const after = (yield* h.invoke("gherkin", "dryRun", { draft })) as { next: Record<string, string> }
+        return { now: now.next, after: after.next }
+      }),
+    )
+    expect(out.now.scenario).toBe("S-0006")
+    expect(out.after.scenario).toBe("S-0007")
+    expect(Object.keys(out.now).sort()).toEqual(["journey", "persona", "scenario", "state"])
+  })
   test("a draft that breaks a lint, or names no tool, comes back with its problems", async () => {
     const out = await run(
       Effect.gen(function* () {

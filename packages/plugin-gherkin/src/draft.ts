@@ -73,5 +73,8 @@ export const dryRun = (snap: Snapshot.Snapshot, draft: Draft, tools: ReadonlyArr
     const touched = [...new Set(a.changes.map((c) => (c._tag === "Put" ? c.node.id : c.id)))]
     // The scenarios to re-implement: added or changed, or using a reworded state (as the reconcile loop will see it).
     const scenarios = affectedScenarios(snap, a.snapshot).scenarios
-    return { ok: problems.length === 0, problems, touched, scenarios, messages: a.messages }
+    const id = (prefix: string) => Snapshot.nextId(a.snapshot, prefix)
+    // @scenario S-0103
+    const next = { scenario: id("S"), state: id("ST"), journey: id("J"), persona: id("P") }
+    return { ok: problems.length === 0, problems, touched, scenarios, messages: a.messages, next }
   })
