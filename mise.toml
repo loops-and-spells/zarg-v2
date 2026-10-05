@@ -9,6 +9,8 @@ bun = "1.4.2"
 [tasks.verify]
 description = "Typecheck and test every package. Exit code is the verdict."
 depends = ["//...:typecheck", "//...:test", "audit"]
+# What earlier runs' tests left in the temp dir (theirs by prefix, over two hours old): it fills a RAM-backed /tmp.
+run = "find \"${TMPDIR:-/tmp}\" -maxdepth 1 \\( -name 'zt-*' -o -name 'zarg-*' \\) -mmin +120 -exec rm -rf {} + 2>/dev/null || true"
 
 [tasks.audit]
 description = "The one CI check (zarg audit): graph structure and lints, completeness, intent coverage, code tags, proof by e2e evidence, evidence integrity"
