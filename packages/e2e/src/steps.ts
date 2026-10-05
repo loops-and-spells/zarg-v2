@@ -84,11 +84,16 @@ export const quit = async (t: Term | undefined) => {
   if (t !== undefined) await t.exit().catch(() => undefined)
 }
 
-/** A message to zarg, as the operator types it: out of whatever the bar held (a slash command), into the message bar. */
+/** A message to zarg, as the operator types it: out of whatever the bar held (a slash command), into the message bar; while zarg asks, as chat about its question. */
 export const say = async (t: Term, text: string) => {
+  // A grant question over everything takes the keys: answer it first (answerLoads).
+  if (/wants to load/.test(t.screen()) && t.screen().includes("⏎ choose")) throw new Error(`a grant question takes the keys; answer it before typing:\n${t.screen()}`)
   t.press("esc")
   await Bun.sleep(300)
   t.press("alt+m")
+  await Bun.sleep(500)
+  // zarg asks something: the message is chat about its question.
+  if (t.screen().includes("answer zarg above")) await t.choose("Chat about this", "down", "answer zarg above")
   await Bun.sleep(300)
   t.type(text)
   await t.waitFor(text.slice(-30), 5_000)

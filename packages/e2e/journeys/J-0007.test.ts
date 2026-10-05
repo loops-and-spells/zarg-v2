@@ -85,15 +85,30 @@ journey("J-0007", { tier: "fast" }, (proves) => {
       }
       const before = outcomes().n
       const t = await s.open()
+      // The plugins never approved ask first (YOLO, next, loads them all).
+      await answerLoads(t)
       // YOLO: every plugin (the Intent Agent, the backlog) loads without asking.
       await command(t, "/yolo on")
       await say(t, "The app also lets parents reward finished chores with points. Keep that as an outcome.")
-      // One more outcome on the intent, however the model words it.
-      const kept = await eventually(240_000, () => (outcomes().n > before ? outcomes().r : undefined))
+      // zarg shows the change first (Inquire.confirm): the operator adds it, its recommended answer. Then one more
+      // outcome on the intent, however the model words it.
+      let added = false
+      const kept = await eventually(270_000, () => {
+        if (outcomes().n > before) return outcomes().r
+        const screen = t.screen()
+        // Only zarg's confirm ("Add this to the requirements?") about points; never another question it asks.
+        const confirm = screen.slice(screen.indexOf("Add this to the requirements?"))
+        if (!added && screen.includes("Add this to the requirements?") && /point/i.test(confirm) && /›\s*Add it/.test(confirm)) {
+          added = true
+          s.note("buffer", "zarg shows the outcome before keeping it", screen)
+          t.press("enter")
+        }
+        return undefined
+      })
       s.note("buffer", "zarg render --focus I-0001", kept ?? outcomes().r)
       expect(kept).toBeDefined()
     },
-    { model: true },
+    { model: true, timeoutMs: 330_000 },
   )
 
   proves(
@@ -110,16 +125,18 @@ journey("J-0007", { tier: "fast" }, (proves) => {
   proves(
     "S-0104",
     async (s) => {
-      // An outcome against a constraint of the same intent: nothing can serve both.
-      await s.cli(["tool", "call", "gherkin/add-constraint", JSON.stringify({ intent: "I-0001", text: "Chores never leave the family's own phone." })])
-      await s.cli(["tool", "call", "gherkin/add-outcome", JSON.stringify({ intent: "I-0001", text: "Grandparents see every chore from any web browser." })])
+      // An outcome that says the opposite of a constraint of the same intent: nothing can serve both.
+      await s.cli(["tool", "call", "gherkin/add-constraint", JSON.stringify({ intent: "I-0001", text: "Chores are never shown to grandparents." })])
+      const added = await s.cli(["tool", "call", "gherkin/add-outcome", JSON.stringify({ intent: "I-0001", text: "Grandparents see every chore the family has." })])
+      const id = /created (O-\d+)/.exec(added.out)?.[1] ?? "none"
       const asked = await eventually(300_000, () => {
         const dir = join(s.w.project, ".zarg", "inbox")
         if (!existsSync(dir)) return undefined
         return readdirSync(dir)
           .filter((f) => f.endsWith(".json"))
-          .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")) as { title: string; state: string; from: { plugin: string } })
-          .find((x) => x.from.plugin === "intent" && x.state === "open")
+          .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")) as { title: string; state: string; about?: ReadonlyArray<string>; from: { plugin: string } })
+          // About the outcome seeded here, not another the agent could not draft.
+          .find((x) => x.from.plugin === "intent" && x.state === "open" && (x.about ?? []).includes(id))
       })
       s.note("buffer", "the inbox topic", JSON.stringify(asked ?? null, null, 2))
       expect(asked).toBeDefined()

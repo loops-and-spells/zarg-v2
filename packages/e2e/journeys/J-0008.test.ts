@@ -141,6 +141,8 @@ journey("J-0008", { tier: "fast" }, (proves) => {
       // What was filed before this run (S-0106 looks for what it adds).
       filedBefore = new Map(filesOf<{ id: string; runs?: ReadonlyArray<string> }>(s.w, "feedback").map((f) => [f.id, f.runs?.length ?? 1]))
       const t = await s.open()
+      // The plugins never approved ask first (YOLO, next, loads them all).
+      await answerLoads(t)
       await command(t, "/yolo on")
       // Out of /yolo's line before the next command.
       t.press("esc")
