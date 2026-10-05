@@ -75,6 +75,16 @@ describe("Rlm.exec", () => {
     expect(r.seen[1]!.messages.at(-1)?.content).toContain("InvalidResult")
   })
 
+  test("a runaway reply (a model looping on its own text) stays out of the conversation, and a turn's tokens are capped", async () => {
+    const r = await run({ research: [{ text: `planning ${"дддкк".repeat(20000)} stop` }, { cell: 'yield* Rlm.done({ value: { findings: [], sources: [] } })' }] }, { task: "t", preset: "research", scope })
+    expect(ok(r).turns).toBe(2)
+    const kept = r.seen[1]!.messages.find((m) => m.role === "assistant")!.content ?? ""
+    expect(kept.length).toBeLessThan(5000)
+    expect(kept).toStartWith("planning")
+    expect(kept).toEndWith("stop")
+    expect(r.seen[0]!.maxTokens).toBeGreaterThan(0)
+  })
+
   test("a reply without a tool call gets a nudge", async () => {
     const r = await run({ research: [{ text: "thinking out loud" }, { cell: 'yield* Rlm.done({ value: { findings: [], sources: [] } })' }] }, { task: "t", preset: "research", scope })
     expect(ok(r).turns).toBe(2)

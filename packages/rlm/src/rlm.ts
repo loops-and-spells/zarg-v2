@@ -135,6 +135,12 @@ const systemPrompt = (
  * Outputs of cells that folded work into a child (`Rlm.exec`) are the valuable part and stay whole.
  * Large cell arguments (a file written in full) are shortened once they are old.
  */
+// A turn's own text is notes around its cells: a model that loops on its words would fill the context (and the log) with them.
+const TURN_TEXT = 4000
+// ponytail: a flat cap per turn; per-preset when a preset needs longer replies.
+const TURN_TOKENS = 16384
+const clipText = (t: string) => (t.length <= TURN_TEXT ? t : `${t.slice(0, TURN_TEXT / 2)}\n… [${t.length - TURN_TEXT} characters of a runaway reply cut] …\n${t.slice(-TURN_TEXT / 2)}`)
+
 const trimOld = (messages: Array<ChatMessage>, keep: number) => {
   const folded = new Set<string>()
   for (const m of messages) for (const c of m.toolCalls ?? []) if (c.function.arguments.includes("Rlm.exec")) folded.add(c.id)
@@ -294,7 +300,7 @@ export const make = (deps: RlmDeps) =>
             const events = yield* Semaphore.withPermits(turns, 1)(
               Effect.suspend(() => {
                 started = Date.now()
-                return Stream.runCollect(model.stream({ model: ref, messages, tools: [EXEC_TOOL], ...(preset.reasoning === false ? { reasoning: { enabled: false } } : {}) }).pipe(Stream.tap(() => Effect.sync(() => void (first ??= Date.now())))))
+                return Stream.runCollect(model.stream({ model: ref, messages, tools: [EXEC_TOOL], maxTokens: TURN_TOKENS, ...(preset.reasoning === false ? { reasoning: { enabled: false } } : {}) }).pipe(Stream.tap(() => Effect.sync(() => void (first ??= Date.now())))))
               }),
             ).pipe(Effect.mapError((e) => new RlmError({ kind: "model", message: e.message })))
             const modelMs = Date.now() - started
@@ -314,6 +320,7 @@ export const make = (deps: RlmDeps) =>
               }
             }
             tokens += promptTokens + completionTokens
+            text = clipText(text)
             emit({ type: "model", id, turn: turnCount, firstTokenMs, modelMs, promptTokens, completionTokens, reasoningTokens })
             messages.push({ role: "assistant", content: text.length > 0 ? text : null, ...(calls.length > 0 ? { toolCalls: calls } : {}) })
             const cells: Array<{ code: string; ok: boolean; output: string; ms: number; cell?: number }> = []
