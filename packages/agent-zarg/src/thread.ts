@@ -461,7 +461,10 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
           if (paused !== undefined) {
             const p = paused
             paused = undefined
+            // zarg goes on from this answer: its other questions from before the restart no longer wait.
+            const moot = fromBefore.filter((t) => !answeredHere.has(t.id))
             fromBefore = []
+            yield* Effect.forEach(moot, (t) => topicSay((i) => i.settle(t.id, "zarg moved on from your other answer")), { discard: true })
             yield* Deferred.succeed(p, undefined)
           }
           // Still waiting on a question this run did not answer (a client that just attached): ask it again.

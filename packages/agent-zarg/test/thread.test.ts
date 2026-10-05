@@ -648,6 +648,22 @@ describe("zarg's questions as inbox topics", () => {
     expect(open.calls).toContainEqual(["settle", "T-00000099", expect.any(String)])
   })
 
+  // @scenario S-0098
+  test("after a restart, answering one of zarg's old questions settles the others: zarg moved on", async () => {
+    const { inbox, calls } = fakeInbox()
+    const driver: Driver = () => Effect.succeed(outcome("ok"))
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setupWith(driver, { ...inbox, open: () => Effect.succeed([{ id: "T-00000098", key: "main|inq-a", title: "First?" }, { id: "T-00000099", key: "main|inq-old", title: "Old question?" }]) })
+        yield* collect(thread.run({ runId: "r1" }).pipe(Stream.takeUntil((e) => e.type === "RUN_FINISHED")))
+        yield* thread.inbox!.answered({ id: "T-00000099", title: "Old question?" }, { answer: "a" })
+        yield* Effect.sleep(50)
+      }),
+    )
+    expect(calls).toContainEqual(["settle", "T-00000098", expect.any(String)])
+    expect(calls).not.toContainEqual(["settle", "T-00000099", expect.any(String)])
+  })
+
   const askOnce = (answers: Array<unknown>): Driver => {
     let calls = 0
     return (_spec, asker) =>

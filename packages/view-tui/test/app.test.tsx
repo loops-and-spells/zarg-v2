@@ -972,6 +972,16 @@ describe("focuses", () => {
     expect(f).toContain("A family member marks a chore done")
     expect(f).toContain("A member sees only their own chores")
   })
+  test("a reply typed in one burst (as a fast typist or a paste) is sent whole, its r and t letters too", async () => {
+    const t0 = { id: "T-9", kind: "question", from: { plugin: "zarg", agent: "zarg" }, title: "Which?", why: "zarg asks", about: [], blocking: true, messages: [], state: "open", created: Date.now(), updated: 0, answers: [{ id: "a", label: "A", recommended: true }, { id: "b", label: "B" }] }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-9": t0 } } as never }, big)
+    t.mockInput.pressEnter(); await settle(t)
+    t.mockInput.pressKey("r"); await settle(t)
+    t.renderer.stdin.emit("data", Buffer.from("Nothing follows a refused mark"))
+    await settle(t)
+    t.mockInput.pressEnter(); await settle(t)
+    expect(t.calls).toContain("reply T-9 Nothing follows a refused mark")
+  })
   test("an answered topic does not say it is waiting", async () => {
     const done = { id: "T-6", kind: "question", from: { plugin: "zarg", agent: "zarg" }, title: "Who uses it?", why: "zarg asks", about: [], blocking: true, messages: [], state: "answered", answer: { id: "a", by: "operator", at: 1 }, created: 1, updated: 1, answers: [{ id: "a", label: "A" }, { id: "b", label: "B" }] }
     const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-6": done } } as never }, big)
