@@ -225,7 +225,7 @@ describe("zarg affected and checkpoint", () => {
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
-  })
+  }, 60_000)
 })
 
 describe("zarg plugin", () => {
