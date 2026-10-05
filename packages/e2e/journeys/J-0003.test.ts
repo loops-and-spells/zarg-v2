@@ -16,7 +16,8 @@ const CELLS = [
   'yield* Effect.sleep("2 seconds")\nreturn "still reading"',
 ]
 const STUB = join(mkdtempSync(join(tmpdir(), "zarg-e2e-stub-")), "cells.json")
-writeFileSync(STUB, JSON.stringify({ cells: CELLS }))
+// Decisions too: every yes/no judgment yes at 0.83, but "making progress?" no (a budget runs out, as it should).
+writeFileSync(STUB, JSON.stringify({ cells: CELLS, decisions: { confidence: 0.83, no: ["progressing"] } }))
 const SEED = {
   ".env.schema": "# @defaultSensitive=false\n# ---\n# A key the agents must never see.\n# @sensitive\nZT_E2E_SECRET=\n",
   ".env.local": `ZT_E2E_SECRET=${SECRET}\n`,
@@ -97,6 +98,14 @@ journey("J-0003", { tier: "fast", seed: SEED, env: { ZARG_CORE_STUB: STUB } }, (
     t.press("down")
     await t.waitFor("Read the README", 10_000)
     s.note("buffer", "the child, highlighted", t.screen())
+  })
+
+  proves("S-0042", async (s) => {
+    const t = s.term!
+    // The child's decision (it runs directly: atomic), each criterion with its confidence.
+    await t.waitFor(/single\s+yes\s+0\.83/, 10_000)
+    s.note("buffer", "the decision", t.screen())
+    expect(t.screen()).toContain("atomic (runs directly)")
   })
 
   proves("S-0074", async (s) => {
