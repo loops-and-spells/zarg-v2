@@ -1,6 +1,6 @@
                        │  inbox   1 open                                                                                
  ◆ zarg                │                                                                                                
-   project · main      │  ▍◆ zarg          What should we work on next?  question · waiting · 2 options  now            
+   project · main      │  ▍◆ zarg          Add this to the requirements? Edit…  question · waiting · 2 options  now     
                        │                                                                                                
  VIEWS               3 │                                                                                                
 ▍ ◆ Inbox            1 │                                                                                                
@@ -14,8 +14,6 @@
                        │                                                                                                
                        │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
                        │     zarg   esc closes                                                                          
-                       │           │        │  │             │                                                          
-                       │           └────────┘  └─────────────┘                                                          
                        │           That is all for now.                                                                 
                        │     you  the dishes pile up every night                                                        
                        │     zarg  (discussing: Which chore comes first?)                                               
@@ -24,17 +22,19 @@
                        │                                                                                                
                        │           flowchart LR                                                                         
                        │             N0[Parent opens the list] --> N1                                                   
-                       │             N1[Parent picks a chore] --> N2                                                █   
+                       │             N1[Parent picks a chore] --> N2                                                    
                        │             N2[Parent picks a child] --> N3                                                █   
                        │             N3[Child sees the chore] --> N4                                                █   
                        │             N4[Child does the chore] --> N5                                                █   
                        │                                                                                            █   
                        │           Too wide to draw.                                                                █   
                        │     ·  answered                                                                            █   
-                       │     What should we work on next?                                                               
-                       │     › A failure case (recommended)                                                             
-                       │       Another journey                                                                          
-                       │       Something else…                                                                          
+                       │     Add this to the requirements?                                                              
+                       │                                                                                                
+                       │     Edit persona Parent: a parent who assigns and checks chores.                               
+                       │     › Add it (recommended) — as written                                                        
+                       │       Skip                                                                                     
+                       │       Change it…                                                                               
                        │       Chat about this                                                                          
                        │ answer zarg above, or / to chat about it                                                       
-                       │ ◆ zarg asks: What should we work on next?   core child · ◆ 1 …   ↑↓ pick   ⏎ answer   esc leave
+                       │ ◆ zarg asks: Add this to the requirements? Edit persona Paren…   ↑↓ pick   ⏎ answer   esc leave

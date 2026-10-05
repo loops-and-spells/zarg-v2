@@ -1,0 +1,47 @@
+{
+  "scenario": "S-0016",
+  "version": "0c7b8a7c6544",
+  "commit": "33e645c",
+  "run": "e2e-2026-10-05T09-22-37.261Z",
+  "journey": "J-0001",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-05T09:22:55.506Z",
+  "ms": 268,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0016/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "what the driver got back",
+      "path": "media/S-0016/2-text.txt",
+      "meta": {
+        "fold": true
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0016/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0016/4-step.cast",
+      "meta": {
+        "startAt": 17.8
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/agent-zarg/src/driver.ts": "a819d4ea648429d8c577bb6204c6e7b8c4c3a0b9",
+    "packages/agent-zarg/src/zarg.ts": "92f7e2021126dca02c4886da84c756d0b1473483",
+    "packages/agent-zarg/test/driver.test.ts": "eec22c5a483f9556c5111d93875ebe5511f16afc",
+    "packages/graph/src/store.ts": "6a7add2b82604519e018a0e9508e5fed285f2f34",
+    "packages/plugin/test/host.test.ts": "6f9202a574a2c8ad01fc1bc2016731c5dad703a8"
+  }
+}

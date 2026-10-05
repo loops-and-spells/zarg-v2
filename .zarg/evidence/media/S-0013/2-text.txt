@@ -1,6 +1,6 @@
                        │  inbox   1 open                                                                                
  ◆ zarg                │                                                                                                
-   project · main      │  ▍◆ zarg          What should we work on next?  question · waiting · 2 options  now            
+   project · main      │  ▍◆ zarg          Should each chore have its own sch…  question · waiting · 2 options  now     
                        │                                                                                                
  VIEWS               3 │                                                                                                
 ▍ ◇ Inbox            1 │                                                                                                
@@ -9,11 +9,12 @@
                        │                                                                                                
  AGENTS             ◆1 │                                                                                                
   ◇ zarg          asks │                                                                                                
-  └ ⠼ driver 1    3/25 │                                                                                                
+  └ ⠼ driver 1    2/25 │                                                                                                
                        │                                                                                                
                        │                                                                                                
                        │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
                        │     zarg   esc closes                                                                          
+                       │     you  the dishes pile up every night                                                        
                        │     zarg  (discussing: Which chore comes first?)                                               
                        │     zarg  zarg chose The dishes for you: you said the dishes pile up                           
                        │     zarg  Chose dishes for you. A wide flow:                                                   
@@ -23,18 +24,17 @@
                        │             N1[Parent picks a chore] --> N2                                                    
                        │             N2[Parent picks a child] --> N3                                                    
                        │             N3[Child sees the chore] --> N4                                                    
-                       │             N4[Child does the chore] --> N5                                                    
-                       │                                                                                            ▄   
+                       │             N4[Child does the chore] --> N5                                                ▄   
+                       │                                                                                            █   
                        │           Too wide to draw.                                                                █   
                        │     you  Add it                                                                            █   
                        │     you  it depends on the chore                                                           █   
                        │     zarg  (discussing: How often are chores due?)                                          █   
-                       │     you  Yes, per chore                                                                    █   
                        │     ·  answered                                                                            █   
-                       │     What should we work on next?                                                               
-                       │     › A failure case (recommended)                                                             
-                       │       Another journey                                                                          
+                       │     Should each chore have its own schedule?                                                   
+                       │     › Yes, per chore (recommended)                                                             
+                       │       No, one for all                                                                          
                        │       Something else…                                                                          
                        │       Chat about this                                                                          
                        │ answer zarg above, or / to chat about it                                                       
-                       │ ◆ zarg asks: What should we work on next?   core child · ◆ 1 …   ↑↓ pick   ⏎ answer   esc leave
+                       │ ◆ zarg asks: Should each chore have its own schedule?   core …   ↑↓ pick   ⏎ answer   esc leave

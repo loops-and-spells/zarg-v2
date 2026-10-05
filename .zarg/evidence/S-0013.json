@@ -1,30 +1,38 @@
 {
-  "scenario": "S-0011",
-  "version": "237cec01b2dd",
+  "scenario": "S-0013",
+  "version": "4617ffc75389",
   "commit": "33e645c",
   "run": "e2e-2026-10-05T09-22-37.261Z",
   "journey": "J-0001",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T09:22:47.969Z",
-  "ms": 4879,
+  "at": "2026-10-05T09:22:56.013Z",
+  "ms": 507,
   "media": [
     {
       "kind": "evidence-terminal/frame",
       "caption": "the screen before",
-      "path": "media/S-0011/1-frame.json"
+      "path": "media/S-0013/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "the next question",
+      "path": "media/S-0013/2-text.txt",
+      "meta": {
+        "fold": false
+      }
     },
     {
       "kind": "evidence-terminal/frame",
       "caption": "the screen after",
-      "path": "media/S-0011/2-frame.json"
+      "path": "media/S-0013/3-frame.json"
     },
     {
       "kind": "evidence-terminal/cast",
       "caption": "the step as it played",
-      "path": "media/S-0011/3-step.cast",
+      "path": "media/S-0013/4-step.cast",
       "meta": {
-        "startAt": 5.6
+        "startAt": 18
       }
     }
   ],

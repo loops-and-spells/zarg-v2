@@ -33,6 +33,23 @@ const CELLS = [
     `  yield* Rlm.done({ value: "Chose " + c.choice + " for you. A **wide** flow:\\n\\n\`\`\`mermaid\\nflowchart LR\\n${["Parent opens the list", "Parent picks a chore", "Parent picks a child", "Child sees the chore", "Child does the chore", "Parent sees it done"].map((l, i) => `  N${i}[${l}] --> N${i + 1}`).slice(0, 5).join("\\n")}\\n\`\`\`\\n\\nToo wide to draw." })`,
     '} else yield* Rlm.done({ value: `You picked ${a.choice}.` })',
   ].join("\n"),
+  // 5: a change shown about P-0001; another hand edits P-0001 before the answer: the save is refused as stale.
+  [
+    'const c = yield* Inquire.confirm({ change: "Edit persona Parent: a parent who assigns and checks chores.", about: ["P-0001"] })',
+    'const r: unknown = c.choice === "add" ? yield* Effect.catch(Gherkin.editPersona({ id: "P-0001", text: "a parent who assigns and checks chores." }), (e) => Effect.succeed({ refused: e })) : "skipped"',
+    'const said = JSON.stringify(r)',
+    // Said, and the item goes on (the next cell asks what next).
+    'return `The edit: ${said.includes("refused") ? "refused " + said : "saved"}`',
+  ].join("\n"),
+  // 6: a question the operator answers with a message: the driver weighs it and asks again.
+  [
+    'const a = yield* Inquire.ask({ question: "How often are chores due?", options: [{ id: "daily", label: "Every day", recommended: true }, { id: "weekly", label: "Every week" }] })',
+    'if (a.interjected === true) {',
+    '  const b = yield* Inquire.ask({ question: "Should each chore have its own schedule?", options: [{ id: "yes", label: "Yes, per chore", recommended: true }, { id: "no", label: "No, one for all" }] })',
+    '  return `Schedules: ${b.choice ?? b.other}`',
+    '}',
+    'return `Due: ${a.choice}`',
+  ].join("\n"),
   // Then, the agenda empty, what next (from the gaps the item names).
   'const a = yield* Inquire.ask({ question: "What should we work on next?", options: [{ id: "fail", label: "A failure case", recommended: true }, { id: "journey", label: "Another journey" }] })\nyield* Rlm.done({ value: `Next: ${a.choice ?? a.other}` })',
 ]
@@ -135,6 +152,32 @@ journey("J-0001", { tier: "fast", env: { ZARG_CORE_STUB: STUB } }, (proves) => {
     // Its source as code, the text around it formatted.
     expect(t.screen()).toContain("flowchart LR")
     expect(t.screen()).not.toContain("**wide**")
+  })
+
+  proves("S-0016", async (s) => {
+    const t = s.term!
+    await t.waitFor("Edit persona Parent: a parent who assigns and checks chores.", 60_000)
+    // Another hand (a CLI actor) edits P-0001 while the operator reads the change.
+    const other = await s.cli(["tool", "call", "gherkin/edit-persona", JSON.stringify({ id: "P-0001", text: "a parent who sets the chores." })])
+    expect(other.code).toBe(0)
+    await t.choose("Add it", "down", "Edit persona Parent: a parent who assigns and checks chores.")
+    // The save is refused as stale: what the driver got back.
+    const rlm = () => readFileSync(join(s.w.project, ".zarg/threads/main.rlm.jsonl"), "utf8")
+    expect(await waitFor(() => /The edit: refused[^\n]*StaleNode/.test(rlm()))).toBe(true)
+    s.note("log", "what the driver got back", rlm().split("\n").filter((l) => l.includes("The edit:")).join("\n"))
+    expect(nodes(s.w, "P-").find((p) => p.id === "P-0001")?.props.text).toBe("a parent who sets the chores.")
+  })
+
+  proves("S-0013", async (s) => {
+    const t = s.term!
+    await t.waitFor("How often are chores due?", 60_000)
+    await t.choose("Chat about this", "down", "answer zarg above")
+    t.type("it depends on the chore")
+    await t.waitFor("depends on the chore", 5_000)
+    t.press("enter")
+    await t.waitFor("Should each chore have its own schedule?", 30_000)
+    s.note("buffer", "the next question", t.screen())
+    await t.choose("Yes, per chore", "down", "Should each chore have its own schedule?")
   })
 
   proves("S-0014", async (s) => {
