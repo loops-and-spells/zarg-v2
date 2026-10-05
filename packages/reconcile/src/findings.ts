@@ -41,9 +41,10 @@ export const makeFindings = (repo: string) => {
       return finding
     },
     /** Close findings about no scenario in particular (a pass that could not start or failed outright): a later pass worked. */
-    clearGeneral: () => {
+    clearGeneral: (o: { readonly ran?: boolean } = {}) => {
       const all = read()
-      const kept = all.filter((f) => f.about.length > 0)
+      // A pass that only ran (nothing to do) proves reconcile can run, not that verify passes.
+      const kept = all.filter((f) => f.about.length > 0 || (o.ran === true && f.kind !== "pass-error"))
       if (kept.length !== all.length) write(kept)
     },
     /** Close every finding about any of these scenarios (they landed, or the driver changed them). */

@@ -109,7 +109,8 @@ journey("J-0004", { tier: "fast", seed: SEED }, (proves) => {
     async (s) => {
       const log = git(s.w, "log", "--format=%s")
       s.note("buffer", "git log", log)
-      expect(log.split("\n")[0]).toMatch(/^feat: implement S-0001, S-0002/)
+      // The scenarios that landed (one that failed stays pending for the next pass).
+      expect(log.split("\n")[0]).toMatch(/^feat: implement S-000[12]/)
       expect(git(s.w, "symbolic-ref", "--short", "HEAD")).not.toBe("")
       // Nothing of the pass is left uncommitted in the operator's checkout.
       expect(git(s.w, "status", "--porcelain", "--", "src", "test", ".zarg/graph", ".zarg/plans")).toBe("")
@@ -139,7 +140,8 @@ journey("J-0004", { tier: "fast", seed: SEED }, (proves) => {
       git(s.w, "commit", "-qam", "land quickly")
       const t = await turnOn(s)
       await call(s, "edit-scenario", { id: "S-0001", when: "the parent assigns a chore to one child" })
-      for (const f of ["src/chores.ts", "test/chores.test.ts"]) writeFileSync(join(s.w.project, f), `${readFileSync(join(s.w.project, f), "utf8")}// mine\n`)
+      // The operator's own edit in S-0001's plan: the pass rewrites it, whatever code it touches.
+      for (const f of [".zarg/plans/S-0001.md", "src/chores.ts"]) writeFileSync(join(s.w.project, f), `${readFileSync(join(s.w.project, f), "utf8")}\n<!-- mine -->\n`)
       const waited = await until(900_000, () => said(s.w, "implement").includes("Landing waits on your uncommitted edits"))
       s.note("log", "implement thread", said(s.w, "implement"))
       s.note("buffer", "screen", t.screen())
@@ -155,8 +157,8 @@ journey("J-0004", { tier: "fast", seed: SEED }, (proves) => {
       s.note("buffer", "findings", JSON.stringify(findings(s.w), null, 2))
       expect(blocked).toBe(true)
       // The operator's edits are still theirs.
-      expect(readFileSync(join(s.w.project, "src/chores.ts"), "utf8")).toContain("// mine")
-      git(s.w, "checkout", "--", "src", "test")
+      expect(readFileSync(join(s.w.project, ".zarg/plans/S-0001.md"), "utf8")).toContain("<!-- mine -->")
+      git(s.w, "checkout", "--", "src", "test", ".zarg/plans")
     },
     { model: true },
   )

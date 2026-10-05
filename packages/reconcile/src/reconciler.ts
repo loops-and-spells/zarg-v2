@@ -69,7 +69,8 @@ export const startReconciler = (opts: ReconcilerOptions) => {
         }),
         Effect.tap((r) =>
           Effect.sync(() => {
-            if (r.status === "landed" || r.status === "nothing" || (r.status === "skipped" && r.reason === "already reconciled")) opts.findings.clearGeneral()
+            if (r.status === "landed") opts.findings.clearGeneral()
+            else if (r.status === "nothing" || (r.status === "skipped" && r.reason === "already reconciled")) opts.findings.clearGeneral({ ran: true })
             opts.onResult?.(r)
           }),
         ),
