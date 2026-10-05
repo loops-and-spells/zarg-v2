@@ -259,3 +259,10 @@ test("typing a letter at zarg's question starts Say it in your own words with it
   // Digits still pick an answer; arrows still move.
   expect(onKey(at({ focus: "bar" }), asking, key("down"), 0, "").ui.other).not.toBe(true)
 })
+
+test("a number at zarg's question answers that option, as in the inbox", () => {
+  const r = onKey(at({ focus: "bar" }), asking, key("2"), 0, "")
+  expect(r.action).toEqual({ type: "answer", answer: { choice: "b" } })
+  // No option 9: nothing happens.
+  expect(onKey(at({ focus: "bar" }), asking, key("9"), 0, "").action).toBeUndefined()
+})

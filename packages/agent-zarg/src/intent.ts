@@ -25,7 +25,7 @@ export const nextOutcomes = (snap: Snapshot.Snapshot): ReadonlyArray<NextOption>
     })
 }
 
-const REHEARSE: NextOption = { id: "rehearse", label: "Rehearse the journeys", why: "testers walk them and file what they find", task: "The requirements are complete for now: start a rehearsal with Rehearse.run (testers walk the journeys and file feedback), then finish: your reply tells the developer it runs and that its feedback will show in Feedback. Never ask about the run: zarg takes up what it files when it ends.", waits: true }
+const REHEARSE: NextOption = { id: "rehearse", label: "Rehearse the journeys", why: "testers walk them and file what they find", task: "The requirements are complete for now: start a rehearsal now with Rehearse.run({}) (its defaults: testers walk each journey and file feedback; never ask which strategy), then finish: your reply tells the developer it runs and that its feedback will show in Feedback. Never ask about the run: zarg takes up what it files when it ends.", waits: true }
 const BUILD: NextOption = {
   id: "build",
   label: "Build the scenarios (/reconcile)",

@@ -765,6 +765,11 @@ export const pickerKey = (ui: Ui, s: SessionState, key: Key): { readonly ui: Ui;
   if (key.name === "up") return { ui: moveTo(Math.max(0, ui.pick - 1)) }
   if (key.name === "down") return { ui: moveTo(Math.min(rows.length - 1, ui.pick + 1)) }
   if (key.name === "escape" && ui.other) return { ui: moveTo(preselect(inquiry)) }
+  // A number answers that option, as in the inbox (when not typing Something else…).
+  if (!ui.other && /^[1-9]$/.test(key.name) && key.ctrl !== true && key.meta !== true) {
+    const option = inquiry.options[Number(key.name) - 1]
+    return option === undefined ? { ui } : { ui: { ...ui, answered: inquiry.id }, action: { type: "answer", answer: { choice: option.id } } }
+  }
   if (key.name === "return") {
     const row = rows[ui.pick]
     if (row === undefined) return { ui }
