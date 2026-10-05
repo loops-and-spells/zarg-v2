@@ -110,9 +110,11 @@ journey("J-0008", { tier: "fast" }, (proves) => {
   proves("S-0112", async (s) => {
     const t = termOf(s.term, "S-0112")
     await t.waitFor("B-02 S-0002", 10_000)
-    // B-02 waits in Backlog (the first lane): open its drawer, then Drop (X).
-    t.press("left")
-    await Bun.sleep(300)
+    // B-02 waits in Backlog (the first lane; the cursor followed B-01 on): back to it, open its drawer, then Drop (X).
+    for (let i = 0; i < 4; i++) {
+      t.press("left")
+      await Bun.sleep(150)
+    }
     t.press("enter")
     await t.waitFor("B-02 · Backlog", 10_000)
     // The drawer takes the keys (Alt+→), then Drop.

@@ -1,12 +1,12 @@
 {
   "scenario": "S-0109",
   "version": "5156ab7dfde2",
-  "commit": "cea1f8a",
-  "run": "e2e-2026-10-05T10-18-17.492Z",
+  "commit": "5959a03",
+  "run": "e2e-2026-10-05T11-58-19.092Z",
   "journey": "J-0008",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T10:20:36.714Z",
+  "at": "2026-10-05T11:58:30.229Z",
   "ms": 156,
   "media": [
     {
@@ -38,9 +38,9 @@
   ],
   "failure": null,
   "code": {
-    "packages/plugin-backlog/src/index.ts": "13c32bf556f3eda7a6a89ae418deb989617c729c",
-    "packages/plugin-backlog/src/stages.ts": "f574c17c08895ac9a8ff3546595585eb4c0cf312",
-    "packages/plugin-backlog/test/stages.test.ts": "447021607529a629df28de75cfaf87c1790c8798",
+    "packages/plugin-backlog/src/index.ts": "ba22def6ec9b162530b3b71f8dcf84de1fa42d67",
+    "packages/plugin-backlog/src/stages.ts": "ee838369aa272a7f192c546b348287ea693c252b",
+    "packages/plugin-backlog/test/stages.test.ts": "23193b0696d04132cdc31ae67f1282231872c3ed",
     "packages/plugin-backlog/test/triage.test.ts": "2af65a563e2d53e0797d87b2b10ee617ed947510"
   }
 }

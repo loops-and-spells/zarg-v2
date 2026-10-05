@@ -9,7 +9,7 @@
                        │                                                                                                
  AGENTS              2 │                                                                                                
   ● zarg           0/0 │                                                                                                
-  ⠋ setup          0/1 │                                                                                                
+  ⠹ setup          0/1 │                                                                                                
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                
