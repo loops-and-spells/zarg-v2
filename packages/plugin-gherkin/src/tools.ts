@@ -221,7 +221,7 @@ export const link = tool({
       // The source owns the edge: the journey (serves), the constraint (bounds), the intent (for), else the scenario.
       const linkFrom = (source: Node, to: string, created: ReadonlyArray<Node> = []) =>
         source.edges.some((e) => e.type === type && e.to === to)
-          ? Effect.fail(new ToolError({ message: `${source.id} already has ${p.edge} ${to}` }))
+          ? Effect.succeed({ changes: [] as Array<Change>, message: `${source.id} already has ${p.edge} ${to}: no change` })
           : Effect.succeed({
               changes: [...created.map(Put), Put({ ...source, edges: [...(p.edge === "arrives" ? source.edges.filter((e) => e.type !== ARRIVES) : source.edges), { type, to }] })] as Array<Change>,
               message: `linked ${source.id} ${p.edge} ${to}${createdNote(created)}`,

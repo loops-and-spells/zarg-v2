@@ -149,4 +149,17 @@ describe("forgiving drafts", () => {
     )
     expect(out).toContain("S-0001")
   })
+
+  test("linking what is already linked changes nothing and says so", async () => {
+    const out = await run(
+      Effect.gen(function* () {
+        yield* setup
+        yield* call("add-scenario", { title: "Operator answers", when: "the operator picks an option", by: [{ name: "Operator" }], arrives: { id: "ST-0001" }, then: [{ text: "the answer is recorded" }] })
+        const again = yield* call("link", { scenario: "S-0001", edge: "then", state: { id: "ST-0002" } })
+        return { message: again.message, added: again.added }
+      }),
+    )
+    expect(out.message).toBe("S-0001 already has then ST-0002: no change")
+    expect(out.added).toEqual([])
+  })
 })
