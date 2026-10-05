@@ -29,6 +29,7 @@ import {
   OTHER,
   pickerKey,
   pickerRows,
+  drafting,
   preselect,
   promptAction,
   queueOf,
@@ -178,7 +179,8 @@ export const SHELL: ReadonlyArray<Layer> = [
   {
     id: "popover",
     exclusive: true,
-    when: (ui, w) => queueOf(ui, w.s).length > 0,
+    // Mid-message, it waits: the operator's typing is never taken (nor answered) by a grant that just arrived.
+    when: (ui, w) => queueOf(ui, w.s).length > 0 && !drafting(ui, w.s, w.draft),
     hints: (ui, w) => {
       const head = queueOf(ui, w.s)[0]
       if (head?.kind !== "surface") return [{ keys: "←→", does: "pick" }, { keys: "Enter", does: "choose" }]

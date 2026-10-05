@@ -290,3 +290,11 @@ test("grants waiting together: the first offers Allow all, which answers every w
   const one: SessionState = { ...idle, thread: { ...idle.thread, inbox: { "T-1": topic("T-1", 1) } } as never }
   expect(queueOf(initialUi, one)[0]!.options.map((o) => o.label)).toEqual(["Allow", "Not now"])
 })
+
+test("a grant that arrives while the operator types waits: the bar keeps the keys until the draft is sent or cleared", () => {
+  const topic = { id: "T-1", kind: "grant", state: "open", blocking: true, created: 1, updated: 1, title: "Plugin p wants to load.", why: "grant", about: [], messages: [], from: { plugin: "p" }, answers: [{ id: "always", label: "Allow", recommended: true }, { id: "deny", label: "Not now" }] }
+  const s: SessionState = { ...idle, thread: { ...idle.thread, inbox: { "T-1": topic } } as never }
+  expect(onKey(at({ focus: "bar" }), s, key("return"), 10_000, "half a sentence").by).not.toBe("popover")
+  // Nothing typed: the grant has the keys.
+  expect(onKey(at({ focus: "bar" }), s, key("return"), 10_000, "").by).toBe("popover")
+})

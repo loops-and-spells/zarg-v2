@@ -763,18 +763,20 @@ describe("the shell", () => {
     await settle(t)
     expect(t.calls).toContain("prompt p1 always")
   })
-  test("a grant popover blurs the bar; answering it gives the bar back", async () => {
+  test("a grant arriving mid-message waits: the typing goes on into the message; once it is sent, the grant has the keys", async () => {
     const t = await render(idleState, wide)
     await t.mockInput.typeText("hel")
     t.update({ ...idleState, thread: { ...idleState.thread, prompts: [grantPrompt("p1")] } })
-    await settle(t)
-    await t.mockInput.typeText("xx")
-    t.update(idleState)
     await settle(t)
     await t.mockInput.typeText("lo")
     t.mockInput.pressEnter()
     await settle(t)
     expect(t.calls).toContain("send hello")
+    // Nothing typed now: the grant takes Enter.
+    await Bun.sleep(600)
+    t.mockInput.pressEnter()
+    await settle(t)
+    expect(t.calls.some((c) => c.startsWith("prompt p1"))).toBe(true)
   })
   test("hotkey letters show in the panels' names", async () => {
     const t = await render(viewState, wide)

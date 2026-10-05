@@ -1,13 +1,13 @@
 {
   "scenario": "S-0070",
   "version": "a6c22da77a4f",
-  "commit": "4ced39d0",
-  "run": "e2e-2026-10-05T19-47-07.860Z",
+  "commit": "0c1751ae",
+  "run": "e2e-2026-10-05T19-53-38.065Z",
   "journey": "J-0002",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T19:47:37.238Z",
-  "ms": 4661,
+  "at": "2026-10-05T19:54:07.577Z",
+  "ms": 4658,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -32,7 +32,7 @@
       "caption": "the step as it played",
       "path": "media/S-0070/4-step.cast",
       "meta": {
-        "startAt": 3.5
+        "startAt": 3.4
       }
     }
   ],
@@ -42,6 +42,6 @@
     "packages/client/test/session.test.ts": "e1ea13e5faac8f0fe8cef41ffd8f60c0cada5620",
     "packages/core/test/yolo.test.ts": "33987002434e4ead223f8cc2d71e256aa4a12a91",
     "packages/plugin/src/runtime/powers.ts": "5f2696731d331d8d311938c54ca555d921290289",
-    "packages/view-tui/src/view.ts": "92cb3b3a00a5a364417af36d5ef7dfb01e4b4f14"
+    "packages/view-tui/src/view.ts": "ecdb1c1ab4ca8f6d15a342d0c95641caf07c7dde"
   }
 }

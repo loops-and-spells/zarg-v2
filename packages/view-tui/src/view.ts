@@ -304,7 +304,9 @@ export const queueOf = (_ui: Ui, s: SessionState): ReadonlyArray<Prompt> => {
   return [...(s.thread.prompts ?? []).filter((p) => p.kind === "surface" || p.options.length > 0), ...all]
 }
 /** The bar's input has the keys: it takes text and no popover is up. */
-export const inputFocused = (ui: Ui, s: SessionState) => typing(ui, s) && queueOf(ui, s).length === 0 && ui.palette === undefined
+/** The operator is mid-message: a popover that arrives waits (the bar keeps the keys) until it is sent or cleared. */
+export const drafting = (ui: Ui, s: SessionState, draft: string) => typing(ui, s) && draft.trim() !== ""
+export const inputFocused = (ui: Ui, s: SessionState, draft = "") => typing(ui, s) && (queueOf(ui, s).length === 0 || drafting(ui, s, draft)) && ui.palette === undefined
 /** The bar takes focus; while zarg asks, the sheet opens with the question. */
 export const focusBar = (ui: Ui, s: SessionState): Ui => {
   // Without zarg there is no bar to type in.

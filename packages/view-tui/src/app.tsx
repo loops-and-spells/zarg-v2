@@ -37,6 +37,7 @@ import {
   inputFocused,
   type Meta,
   onSubmit,
+  drafting,
   grantLines,
   INBOX_ROW,
   promptAction,
@@ -550,7 +551,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           <text fg={C.accent} wrapMode="none">{label === "message ›" ? "› " : `${label} `}</text>
           <input
             ref={inputRef}
-            focused={inputFocused(ui, s)}
+            focused={inputFocused(ui, s, draft)}
             value={draft}
             placeholder={answeringOther(ui, s) ? "your own answer, Enter to send" : chatting ? "ask about the question; Esc goes back to the options" : "type a message, Enter to send"}
             style={{ flexGrow: 1, backgroundColor: C.raised, focusedBackgroundColor: C.raised, textColor: C.text, focusedTextColor: C.text, placeholderColor: C.faint }}
@@ -626,7 +627,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         {grantLines(head.question, popWidth - 4).map((l, i) => (
           <text key={i} fg={C.text}>{l}</text>
         ))}
-        <text> </text>
+        {drafting(ui, s, draft) ? <text fg={C.dim}>{"finish your message first (Enter sends it, Esc keeps it): this waits"}</text> : <text> </text>}
         <box style={{ flexDirection: "row", height: 1 }}>
           {head.options.map((o, i) => {
             const on = i === Math.min(ui.popover.pick, head.options.length - 1)

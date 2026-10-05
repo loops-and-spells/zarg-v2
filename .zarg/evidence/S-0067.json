@@ -1,13 +1,13 @@
 {
   "scenario": "S-0067",
   "version": "88a7b53705d3",
-  "commit": "4ced39d0",
-  "run": "e2e-2026-10-05T19-47-07.860Z",
+  "commit": "0c1751ae",
+  "run": "e2e-2026-10-05T19-53-38.065Z",
   "journey": "J-0002",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T19:47:32.576Z",
-  "ms": 106,
+  "at": "2026-10-05T19:54:02.917Z",
+  "ms": 107,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -35,6 +35,6 @@
     "packages/core/test/yolo.test.ts": "33987002434e4ead223f8cc2d71e256aa4a12a91",
     "packages/plugin/src/runtime/powers.ts": "5f2696731d331d8d311938c54ca555d921290289",
     "packages/plugin/test/load-waiting.test.ts": "eb8518bc9f80d05a43ead19cf34041fc566c6613",
-    "packages/view-tui/src/view.ts": "92cb3b3a00a5a364417af36d5ef7dfb01e4b4f14"
+    "packages/view-tui/src/view.ts": "ecdb1c1ab4ca8f6d15a342d0c95641caf07c7dde"
   }
 }
