@@ -175,6 +175,29 @@ describe("thread runs", () => {
     expect(tasks[1]).toStartWith("Rehearse run r-1: 1 finding")
   })
 
+  test("a what-next option that zarg does itself (turning reconcile on) runs when picked: its words said, no driver item, then zarg waits", async () => {
+    const tasks: Array<string> = []
+    const driver: Driver = (spec) => Effect.sync(() => (tasks.push(spec.task), outcome("ok")))
+    let ran = 0
+    let asked = 0
+    const whatNext: ThreadDeps["whatNext"] = () => Effect.sync(() => (asked++, [{ id: "build", label: "Build the scenarios", task: "", run: Effect.sync(() => (ran++, "Reconcile is on; a pass is starting (2 scenarios).")) }]))
+    const out = await Effect.runPromise(
+      Effect.gen(function* () {
+        const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zarg-thread-")), (t) => t)
+        const thread = yield* makeThread({ id: "main", focus: [], log, agenda: () => Effect.succeed([]), driver, suggest: () => Effect.succeed([]), whatNext })
+        const first = yield* collect(thread.run({ runId: "r1" }))
+        const q = (last(first) as any).outcome.interrupts[0]
+        yield* Effect.forkChild(collect(thread.run({ runId: "r2", resume: [{ interruptId: q.id, payload: { choice: "build" } }] })))
+        yield* Effect.sleep(80)
+        return { log }
+      }),
+    )
+    expect(ran).toBe(1)
+    expect(tasks).toEqual([])
+    expect(asked).toBe(1)
+    expect(out.log.all().some((e) => e.type === "TEXT_MESSAGE_CONTENT" && String(e.delta).includes("Reconcile is on"))).toBe(true)
+  })
+
   test("wake: a thread parked on zarg's what-next question takes up new agenda items; a real question keeps its turn", async () => {
     const tasks: Array<string> = []
     const driver: Driver = (spec) => Effect.sync(() => (tasks.push(spec.task), outcome("ok")))

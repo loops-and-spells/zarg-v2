@@ -72,7 +72,11 @@ export const makeZarg = (host: AgentHost) =>
         if (outcomes.length > 0) return outcomes
         // What is built: the scenarios with code tagged to them (unknown when the repo cannot be searched).
         const built = yield* tags(root).pipe(Effect.map((t) => new Set(t.map((x) => x.id))), Effect.orElseSucceed(() => undefined))
-        return nextWhenServed(snap, focus, built)
+        // Picking Build turns reconcile on here, as /reconcile does: zarg says what it answered.
+        const turnOn = host.reconcile === undefined
+          ? undefined
+          : Effect.map(host.reconcile.turnOn, (a) => (a.on ? `Reconcile is on${a.pending !== undefined && a.pending > 0 ? `; a pass is starting (${a.pending} scenario${a.pending === 1 ? "" : "s"})` : ""}: it implements, verifies and commits each scenario.` : `Reconcile stays off: ${a.reason ?? "it could not start"}.`))
+        return nextWhenServed(snap, focus, built, host.reconcile?.on() ?? false, turnOn)
       })
     // zarg's message bar: a shell panel at the bottom, one line, taking keys (the shell draws it as the bar).
     host.panels.open({ name: "bar", view: "zarg", scope: "shell", edge: "bottom", size: 1, input: "onFocus" })

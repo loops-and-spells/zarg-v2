@@ -84,6 +84,8 @@ export interface AgentHost {
   readonly outsideReads: unknown
   /** The operator's inbox, for this agent's own questions. */
   readonly inbox?: AgentInbox
+  /** Reconcile (plan and implement): whether it runs, and turning it on as /reconcile does. */
+  readonly reconcile?: { readonly on: () => boolean; readonly turnOn: Effect.Effect<{ readonly on: boolean; readonly reason?: string; readonly pending?: number }> }
   /** Panels this agent opens (its message bar): shown by every client until closed. */
   readonly panels: {
     readonly open: (p: { readonly name: string; readonly view: string; readonly scope: "agent" | "shell"; readonly edge: "top" | "bottom" | "right"; readonly size: number; readonly input: "none" | "onFocus" }) => void

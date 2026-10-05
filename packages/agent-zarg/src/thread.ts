@@ -115,6 +115,8 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
       discussed.length = 0
     }
     let paused: Deferred.Deferred<void> | undefined
+    // zarg waits for work it started elsewhere (reconcile turned on): a wake or the operator's message ends it.
+    let parked: Deferred.Deferred<void> | undefined
     // This thread's questions still open from before a restart (the loop waits on them).
     let fromBefore: ReadonlyArray<InboxTopicRef> = []
     const recent: Array<string> = []
@@ -303,6 +305,16 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
           discussed.length = 0
           // @scenario S-0015
           const picked = next.find((o) => o.id === a.choice)
+          // zarg does it itself: its words, then it waits for what that work brings (no driver item).
+          if (picked?.run !== undefined) {
+            yield* note("assistant", yield* picked.run)
+            // Parked, not paused: the answer's own run must not release it; new work (a wake) or the operator's word does.
+            const wait = yield* Deferred.make<void>()
+            parked = wait
+            if (open) yield* emit(E.runFinished(threadId, runId))
+            yield* Deferred.await(wait)
+            continue
+          }
           const text = picked?.task ?? a.other ?? ""
           if (text.length > 0) inbox.push(text)
           waitAfter = picked?.waits === true
@@ -397,6 +409,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
             const open_ = [...queue, ...discussed]
             dropLoopQuestions()
             paused = undefined
+            parked = undefined
             if (Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)) {
               // Its questions die with it (a shutdown interrupts, and keeps them for the next start).
               yield* settleTopics(open_, "zarg's loop failed")
@@ -481,6 +494,12 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
           }
           direct.delete(input.runId)
           fromInbox.delete(input.runId)
+          // New work or the operator's word ends a park; an answer does not (it is what started it).
+          if (parked !== undefined && (input.message !== undefined || input.resume === undefined || wakeUp)) {
+            const p = parked
+            parked = undefined
+            yield* Deferred.succeed(p, undefined)
+          }
           if (paused !== undefined) {
             const p = paused
             paused = undefined
@@ -509,6 +528,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
         yield* settleTopics([...queue, ...discussed], "zarg was stopped")
         dropLoopQuestions()
         paused = undefined
+        parked = undefined
         fromBefore = []
         if (f !== undefined) yield* Fiber.interrupt(f)
         loop = undefined

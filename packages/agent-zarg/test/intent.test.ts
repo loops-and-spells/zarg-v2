@@ -40,3 +40,11 @@ test("with nothing built (no scenario's code tagged), what next offers building 
   // One scenario built: rehearse leads again.
   expect(nextWhenServed(snap, undefined, new Set(["S-0001"]))[0]).toMatchObject({ id: "rehearse" })
 })
+
+test("with reconcile on, what next does not offer building: a pass builds them", () => {
+  const snap = Snapshot.make([
+    { id: "ST-0001", type: "gherkin/state", props: { text: "a shelf of no books", entry: true }, edges: [] },
+    { id: "S-0001", type: "gherkin/scenario", props: { title: "Reader adds a book", when: "adds" }, edges: [{ type: "gherkin/arrives", to: "ST-0001" }] },
+  ] as never)
+  expect(nextWhenServed(snap, undefined, new Set(), true).map((o) => o.id)).not.toContain("build")
+})

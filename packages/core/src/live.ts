@@ -177,6 +177,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       log,
       sensitive,
       agenda,
+      // Turning reconcile on, as /reconcile does (turnOn is defined below; read when called).
+      reconcile: { on: () => reconcile !== undefined, turnOn: Effect.suspend(() => turnOn) },
       outsideReads: outsideReads({ grants: agentGrants, userDir: USER_DIR, ask: ((q: Question) => grantAsk(inbox)("agents", q)) as never, yolo: () => yoloControl.on("zarg:agents") }),
       panels: { open: (p) => surfaces.openPanel({ ...p, id: `zarg:${p.name}:zarg`, plugin: "zarg", agent: "zarg" }) },
       // zarg's questions: blocking topics that survive a restart (the answer reaches zarg whenever it comes).
