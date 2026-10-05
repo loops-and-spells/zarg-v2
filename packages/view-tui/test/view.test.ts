@@ -203,8 +203,9 @@ describe("the agents pane", () => {
     expect(ui.agents.cursor).toBe("rlm-2")
     expect(text(agentRows(rlms, ui.agents))).toHaveLength(3)
     ui = press(ui, "up").ui
-    ui = press(ui, "up").ui
     expect(ui.agents.cursor).toBe("rlm-1")
+    // Above the first agent: the Inbox's row.
+    expect(press(ui, "up").ui.agents.cursor).toBe("home:inbox")
     ui = press(ui, "left").ui
     expect(text(agentRows(rlms, ui.agents))).toEqual(["▸ ● driver rlm-1  ▰▱▱▱▱▱  2/10  +4"])
   })

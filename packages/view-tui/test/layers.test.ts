@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
 import { onKey, SHELL } from "../src/layers"
 import { hintsOf, startUi } from "@zarg/view"
-import { barLine, closeOverlays, initialUi, panelsShown, POPOVER_GUARD_MS, queueOf, syncUi, type Ui } from "../src/view"
+import { barLine, closeOverlays, INBOX_ROW, initialUi, panelsShown, POPOVER_GUARD_MS, queueOf, syncUi, type Ui } from "../src/view"
 
 const inquiry: Inquiry = { id: "inq-1", question: "Which card first?", options: [{ id: "a", label: "Login" }, { id: "b", label: "Checkout", recommended: true }], allowOther: true, about: [] }
 const grant = (id: string) => ({ id, question: `Plugin ${id} wants to load.`, options: [{ id: "always", label: "Allow" }, { id: "deny", label: "Not now" }], kind: "grant" as const })
@@ -265,4 +265,16 @@ test("a number at zarg's question answers that option, as in the inbox", () => {
   expect(r.action).toEqual({ type: "answer", answer: { choice: "b" } })
   // No option 9: nothing happens.
   expect(onKey(at({ focus: "bar" }), asking, key("9"), 0, "").action).toBeUndefined()
+})
+
+test("the rail's arrows reach the Inbox above the views; Enter there goes home", () => {
+  const navved: SessionState = { ...idle, thread: { ...idle.thread, nav: [{ id: "gherkin", label: "Journeys", view: "gherkin:journeys" }] } as never }
+  const atJourneys = at({ focus: "agents", main: "agent", viewing: "gherkin:journeys", agents: { toggled: {}, tree: 0, cursor: "nav:gherkin" } })
+  const up = onKey(atJourneys, navved, key("up"), 0)
+  expect(up.ui.agents.cursor).toBe(INBOX_ROW)
+  const home = onKey(up.ui, navved, key("return"), 0)
+  expect(home.ui.main).toBe("inbox")
+  expect(home.ui.focus).toBe("tile")
+  // Down from the Inbox: the first view.
+  expect(onKey(up.ui, navved, key("down"), 0).ui.agents.cursor).toBe("nav:gherkin")
 })

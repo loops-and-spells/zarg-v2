@@ -37,6 +37,7 @@ import {
   inputFocused,
   type Meta,
   onSubmit,
+  INBOX_ROW,
   OTHER,
   CHAT,
   pickerRows,
@@ -339,7 +340,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           name: "Inbox",
           note: inboxOpen > 0 ? String(inboxOpen) : "",
           guide: "",
-          on: ui.main === "inbox" && ui.focus !== "agents",
+          on: (ui.main === "inbox" && ui.focus !== "agents") || (ui.focus === "agents" && ui.agents.cursor === INBOX_ROW),
           dimmed: false,
           onPick: () => setUi({ ...goHome(latest(), props.session.state()), sheet: false, focus: "tile" }),
         })}
