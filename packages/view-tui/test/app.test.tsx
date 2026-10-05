@@ -457,6 +457,8 @@ describe("tui frames", () => {
     t.mockInput.pressKey("]")
     t.mockInput.pressKey("]")
     await settle(t)
+    // Focused, the table still shows its rows.
+    expect(t.captureCharFrame()).toMatch(/alpha-model[\s\S]*jevk5-judge[\s\S]*Use as default/)
     t.mockInput.pressKey("f")
     await settle(t)
     for (const c of "jevk") t.mockInput.pressKey(c)

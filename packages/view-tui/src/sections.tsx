@@ -604,7 +604,8 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
             <scrollbox
               focusable={false}
               ref={(r: ScrollBoxRenderable | null) => void (r === null ? boxes.current.delete(s.id) : boxes.current.set(s.id, r))}
-              style={{ flexGrow: 1, flexShrink: 1, minHeight: 1 }}
+              // A table keeps its header and a few rows in a short window: what is under it (buttons, the row card) gives way first.
+              style={{ flexGrow: 1, flexShrink: 1, minHeight: leaf.leaf.kind === "table" ? Math.min(4, 1 + shownRows(props.view, props.ui, leaf.path).length) : 1 }}
               {...(leaf.leaf.kind === "log" ? { stickyScroll: true, stickyStart: "bottom" as const } : {})}
             >
               <Draw
