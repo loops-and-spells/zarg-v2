@@ -34,7 +34,8 @@ export const askFirst = (
     if (commit === undefined || unsaved.size === 0) return Effect.void
     const ids = [...unsaved]
     unsaved.clear()
-    return Effect.ignore(commit(ids, `req: ${saving}`))
+    // The nodes first: the change's own first line may be a preamble ("Per your words …").
+    return Effect.ignore(commit(ids, `req: ${ids.length > 6 ? `${ids.slice(0, 6).join(", ")} and ${ids.length - 6} more` : ids.join(", ")}: ${saving}`))
   })
   // @scenario S-0016
   // The versions of the nodes the change was shown about, as the developer saw them: a newer edit by another thread

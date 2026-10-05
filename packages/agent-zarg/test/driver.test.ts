@@ -53,11 +53,11 @@ describe("ask before writing", () => {
     await Effect.runPromise(gated.handlers.addScenario!({}))
     expect(commits).toEqual([])
     await Effect.runPromise(guard.asker.ask({ question: "q", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }] }))
-    expect(commits).toEqual([[["S-0003", "ST-0009", "J-0001"], "req: Add scenario: Parent restricts a chore"]])
+    expect(commits).toEqual([[["S-0003", "ST-0009", "J-0001"], "req: S-0003, ST-0009, J-0001: Add scenario: Parent restricts a chore"]])
     await Effect.runPromise(guard.asker.confirm!({ change: "Edit ST-0009: the chore is shown" }))
     await Effect.runPromise(gated.handlers.addScenario!({}))
     await Effect.runPromise(guard.flush)
-    expect(commits[1]).toEqual([["S-0003", "ST-0009", "J-0001"], "req: Edit ST-0009: the chore is shown"])
+    expect(commits[1]).toEqual([["S-0003", "ST-0009", "J-0001"], "req: S-0003, ST-0009, J-0001: Edit ST-0009: the chore is shown"])
     // Nothing written since: nothing to commit.
     await Effect.runPromise(guard.flush)
     expect(commits.length).toBe(2)

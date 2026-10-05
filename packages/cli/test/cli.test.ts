@@ -29,7 +29,8 @@ describe("zarg cli", () => {
     const r = json("tool", "call", "gherkin/add-scenario", JSON.stringify({ title: "Open pricing", when: "the user clicks Pricing", by: [{ name: "User" }], arrives: { id: "ST-0001" }, then: [{ text: "the plan picker is shown" }] }))
     expect(r.message).toBe("created S-0001; new states ST-0002")
     expect(zarg("render").out).toContain("Then  the plan picker is shown  # ST-0002")
-  })
+    // Four CLI runs, each loading the plugins: more than a busy machine does in 5 s.
+  }, 30_000)
 
   // @scenario S-0082
   test("audit: JSON with exit 1 while a scenario has no tag; --summary; a new file's tag counts", () => {
