@@ -51,6 +51,32 @@ describe("ask before writing", () => {
   })
 
   // @scenario S-0009
+  test("an option that is a change adds it when picked: the question shows its exact change, and writes open for that wording only", async () => {
+    let shown = ""
+    const guard = askFirst({ ask: (q) => Effect.sync(() => ((shown = q.question), { choice: "terminal" })) })
+    const gated = guard.gate(writes)!
+    await Effect.runPromise(
+      guard.asker.ask({
+        question: "Root a scenario from it, or mark it terminal?",
+        options: [
+          { id: "root", label: "Root a scenario" },
+          { id: "terminal", label: "Mark it terminal", change: "Make the state ST-0005 \"What is left\" terminal" },
+        ],
+      }),
+    )
+    expect(shown).toContain("Mark it terminal: Make the state ST-0005 \"What is left\" terminal")
+    expect(await Effect.runPromise(gated.handlers.addScenario!({ id: "ST-0005", text: "What is left" }))).toBe("created S-0001")
+    expect(await Effect.runPromise(Effect.flip(gated.handlers.addScenario!({ text: "Something else" })))).toMatchObject({ _tag: "NotShown" })
+  })
+
+  test("an option with a change not picked opens nothing", async () => {
+    const guard = askFirst({ ask: () => Effect.succeed({ choice: "root" }) })
+    const gated = guard.gate(writes)!
+    await Effect.runPromise(guard.asker.ask({ question: "Which?", options: [{ id: "root", label: "Root" }, { id: "terminal", label: "Terminal", change: "Make ST-0005 terminal" }] }))
+    expect(await Effect.runPromise(Effect.flip(gated.handlers.addScenario!({})))).toMatchObject({ _tag: "AskFirst" })
+  })
+
+  // @scenario S-0009
   test("what is written is what the developer added: wording not in the change shown is refused", async () => {
     const guard = askFirst({ ask: () => Effect.succeed({ choice: "add" }) })
     const gated = guard.gate(writes)!

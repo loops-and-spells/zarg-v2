@@ -1013,6 +1013,13 @@ describe("focuses", () => {
     expect(f).toContain("A family member marks a chore done")
     expect(f).toContain("A member sees only their own chores")
   })
+  test("an answer's reason is shown whole, however long: it wraps, never cut at the edge", async () => {
+    const why = "Add a scenario starting from What is left is the books not read, so the reader can go on to add another book to read"
+    const t0 = { id: "T-10", kind: "question", from: { plugin: "zarg", agent: "zarg" }, title: "Root it or mark it terminal?", why: "zarg asks", about: [], blocking: true, messages: [], state: "open", created: Date.now(), updated: 0, answers: [{ id: "root", label: "Root a scenario from it", recommended: true, why }, { id: "end", label: "Mark it terminal" }] }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-10": t0 } } as never }, big)
+    t.mockInput.pressEnter(); await settle(t)
+    expect(t.captureCharFrame().replace(/[\s│]+/g, " ")).toContain("add another book to read")
+  })
   test("a reply typed in one burst (as a fast typist or a paste) is sent whole, its r and t letters too", async () => {
     const t0 = { id: "T-9", kind: "question", from: { plugin: "zarg", agent: "zarg" }, title: "Which?", why: "zarg asks", about: [], blocking: true, messages: [], state: "open", created: Date.now(), updated: 0, answers: [{ id: "a", label: "A", recommended: true }, { id: "b", label: "B" }] }
     const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-9": t0 } } as never }, big)

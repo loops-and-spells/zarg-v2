@@ -905,7 +905,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
             {openTopic.answers!.map((a, i) => {
               const on = (ui.inbox.pick ?? 0) === i
               return (
-                <text key={a.id} wrapMode="none" {...(on ? { bg: C.selection } : {})} onMouseDown={() => act({ type: "answer-topic", id: openTopic.id, answer: a.id })}>
+                <text key={a.id} {...(on ? { bg: C.selection } : {})} onMouseDown={() => act({ type: "answer-topic", id: openTopic.id, answer: a.id })}>
                   <span fg={C.accent}>{on ? "▍" : " "}</span>
                   <span fg={C.accent}>{`${i + 1}  `}</span>
                   <span fg={C.text}>{a.label}</span>

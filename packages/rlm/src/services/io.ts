@@ -24,6 +24,9 @@ const Option = Schema.Struct({
   label: Schema.String.annotate({ description: "What the developer reads: a few words." }),
   recommended: Schema.optionalKey(Schema.Boolean).annotate({ description: "Mark exactly one option as your recommendation." }),
   why: Schema.optionalKey(Schema.String).annotate({ description: "One short reason, shown next to the option." }),
+  change: Schema.optionalKey(Schema.String).annotate({
+    description: "When picking this option is itself a requirements change: the exact change, as Inquire.confirm would show it. The developer sees it with the question; picking it adds it (write it, no confirm after).",
+  }),
 })
 const Question = Schema.Struct({
   question: Schema.String.annotate({ description: "One question, in a sentence or two." }),

@@ -5,7 +5,7 @@ import { type Asker, confirmQuestion } from "@zarg/rlm"
 const ASK_FIRST: ServiceFailure = {
   _tag: "AskFirst",
   message:
-    "Requirements change only with the developer's say: show the exact change with Inquire.confirm({ change }) (each scenario as By / Given / When / Then lines; every scenario names who acts in it with by, a persona), then write it once they add it. Any other question closes writes again.",
+    "Requirements change only with the developer's say: show the exact change with Inquire.confirm({ change }) (each scenario as By / Given / When / Then lines; every scenario names who acts in it with by, a persona), then write it once they add it. An Inquire.ask option that is itself a change carries it as its `change`: picking it adds it. Any other question closes writes again.",
 }
 
 const norm = (t: string) => t.toLowerCase().replace(/\s+/g, " ").trim().replace(/[.!]$/, "")
@@ -84,7 +84,25 @@ export const askFirst = (
   }
   return {
     asker: {
-      ask: (question) => Effect.andThen(flush, Effect.suspend(() => ((open = false), (scope = undefined), asker.ask(question)))),
+      // An option that is a change shows its exact wording with the question; picking it adds it.
+      ask: (question) =>
+        Effect.andThen(
+          flush,
+          Effect.suspend(() => {
+            open = false
+            scope = undefined
+            shown = {}
+            added = undefined
+            const changing = question.options.filter((o) => o.change !== undefined)
+            const shownQ = changing.length === 0 ? question : { ...question, question: `${question.question}\n\n${changing.map((o) => `${o.label}: ${o.change}`).join("\n\n")}` }
+            return Effect.tap(asker.ask(shownQ), (a) =>
+              Effect.sync(() => {
+                const picked = changing.find((o) => o.id === a.choice && a.interjected !== true)
+                if (picked !== undefined) (open = true), (added = picked.change)
+              }),
+            )
+          }),
+        ),
       confirm: (c) =>
         Effect.andThen(flush, Effect.suspend(() => {
           open = false
