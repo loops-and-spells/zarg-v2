@@ -32,11 +32,14 @@ export interface ReconcileDeps {
   readonly onLandWait?: (text: string) => void
 }
 
-const summary = (r: PassResult) => {
+/** What a pass says when it ends: what landed (or that nothing was built, its plans committed) and what needs the operator. */
+export const passSummary = (r: PassResult) => {
   if (r.status === "nothing") return undefined
   const failed = r.failed.length > 0 ? ` ${r.failed.join(", ")} need your attention (see the driver's agenda).` : ""
+  if (r.status === "landed" && r.landed.length === 0) return `Nothing built:${failed} ${r.failed.length === 1 ? "Its plan is" : "Their plans are"} in ${r.commit?.slice(0, 7)}.`
   return r.status === "landed" ? `Landed ${r.landed.join(", ")} in ${r.commit?.slice(0, 7)}.${failed}` : `Nothing landed.${failed}`
 }
+const summary = passSummary
 
 /**
  * Plan and implement for the core: the reconciler watching the graph, passes on a durable engine, the

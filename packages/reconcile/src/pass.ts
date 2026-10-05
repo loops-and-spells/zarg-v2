@@ -1,10 +1,10 @@
 import { rmSync } from "node:fs"
 import { join } from "node:path"
-import { type Duration, Effect, Schema, Semaphore } from "effect"
+import { Cause, type Duration, Effect, Schema, Semaphore } from "effect"
 import type { Snapshot } from "@zarg/graph"
 import { Activity, DurableClock, Workflow } from "effect/unstable/workflow"
 import { baseTree, CHECKPOINT, GRAPH, LEGACY_CHECKPOINT, pendingAt, snapshotAtTree } from "./checkpoint"
-import type { FindingKind, Findings } from "./findings"
+import { causeText, type FindingKind, type Findings } from "./findings"
 import { git, gitRun, zPaths } from "./git"
 import { land, rebaseOnto } from "./land"
 import { mergeBranches } from "./merge"
@@ -52,7 +52,7 @@ export interface ReconcileSpec {
   readonly landAttempts: number
   /** Landing waits on the operator's uncommitted edits in these paths (try `attempt` of `landAttempts`): tell them. */
   readonly onLandWait?: (paths: ReadonlyArray<string>, attempt: number) => Effect.Effect<void>
-  readonly message: (items: ReadonlyArray<string>) => string
+  readonly message: (items: ReadonlyArray<string>, failed?: ReadonlyArray<string>) => string
   /**
    * The operator's stop: `wait` completes when a stop is requested (running scenarios race it and are cut
    * short); `requested` is checked between steps. A stopped pass ends as failed, without findings.
@@ -117,11 +117,11 @@ export const passLayer = (spec: ReconcileSpec) =>
     const act = <A, I>(name: string, success: Schema.Codec<A, I>, execute: Effect.Effect<A, unknown>) =>
       Activity.make({ name, success, execute: Effect.orDie(execute) as Effect.Effect<A> })
     // Anything unexpected ends the pass as failed with a finding (recorded, so a resume does not repeat it).
-    const died = (cause: unknown) =>
+    const died = (cause: Cause.Cause<unknown>) =>
       act(
         "findings:died",
         Schema.Void,
-        Effect.sync(() => void spec.findings.raise({ kind: "pass-error", title: "a reconcile pass failed", detail: String(cause).slice(0, 4000), about: [], pass: id })),
+        Effect.sync(() => void spec.findings.raise({ kind: "pass-error", title: "a reconcile pass failed", detail: causeText(cause), about: [], pass: id })),
       ).pipe(Effect.as({ status: "failed", landed: [], failed: [] } satisfies PassResult))
     return Semaphore.withPermits(passLock(spec.repo), 1)(body(spec, payload, id, act)).pipe(Effect.catchCause(died))
   })
@@ -188,11 +188,11 @@ const body = (
               const wt = join(root, name(item))
               yield* ensureWorktree(spec.repo, wt, branchOf(name(item)), passHead)
               if (phase.setup && spec.setup) yield* spec.setup(wt)
-              const stopped = { ok: false, kind: "pass-error", title: "stopped", detail: "stopped by the developer" } as ItemOutcome
+              const stopped = { ok: false, kind: "pass-error", title: "stopped", detail: "stopped by the operator" } as ItemOutcome
               const out = yield* phase.run(item, wt).pipe(
                 Effect.raceFirst(spec.stop ? Effect.as(spec.stop.wait, stopped) : Effect.never),
                 Effect.catchCause((cause) =>
-                  Effect.succeed({ ok: false, kind: "pass-error", title: `${phase.name} failed for ${item}`, detail: String(cause).slice(0, 4000) } as ItemOutcome),
+                  Effect.succeed({ ok: false, kind: "pass-error", title: `${phase.name} failed for ${item}`, detail: causeText(cause) } as ItemOutcome),
                 ),
               )
               for (const p of phase.protect ?? []) yield* restorePath(wt, passHead, p)
@@ -269,7 +269,7 @@ const body = (
           yield* Effect.sync(() => Bun.write(join(main, CHECKPOINT), `${JSON.stringify({ graph, ...(still.length > 0 ? { failed: [...still].sort() } : {}) }, null, 2)}\n`))
           yield* gitRun(main, ["rm", "-q", "--cached", "--ignore-unmatch", LEGACY_CHECKPOINT])
           rmSync(join(main, LEGACY_CHECKPOINT), { force: true })
-          return yield* commitAll(main, spec.message(live))
+          return yield* commitAll(main, spec.message(live, failed()))
         })
       if (yield* isStopped("stopped:commit")) return stoppedResult
       let commit = yield* act("commit", Schema.String, squash(payload.base, payload.graph))
