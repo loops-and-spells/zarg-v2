@@ -22,3 +22,12 @@ export const nextOutcomes = (snap: Snapshot.Snapshot): ReadonlyArray<NextOption>
       return { id: o.id, label: text, ...(intent !== undefined ? { why: String(intent.props.title ?? intent.id) } : {}), task: `Find or shape the journey that delivers ${o.id} (${text}), then link it with link {edge: "serves", journey, outcome: "${o.id}"}.` }
     })
 }
+
+/** What next once every outcome is served: rehearse the journeys first, then extend a journey from where it starts. */
+// @scenario S-0014
+export const nextWhenServed = (snap: Snapshot.Snapshot, focus?: ReadonlySet<string>): ReadonlyArray<NextOption> => [
+  { id: "rehearse", label: "Rehearse the journeys", why: "testers walk them and file what they find", task: "The requirements are complete for now: start a rehearsal with Rehearse.run (testers walk the journeys and file feedback), then tell the developer it runs and where its feedback will show (Feedback)." },
+  ...[...snap.nodes.values()]
+    .filter((n) => n.type === "gherkin/state" && n.props.entry === true && (focus === undefined || focus.has(n.id)))
+    .map((n): NextOption => ({ id: n.id, label: `Extend the journey from "${String(n.props.text ?? n.id)}"`, task: `Work on the journey that starts at "${String(n.props.text ?? n.id)}" (${n.id}).` })),
+]

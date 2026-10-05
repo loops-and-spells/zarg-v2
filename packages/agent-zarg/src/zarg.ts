@@ -10,7 +10,7 @@ import type { PluginHost } from "@zarg/plugin/server"
 import { type Asker, decisionsService, entitiesService, fsRead, graph, inquire, pluginService, Rlm, type RlmSettings, type Scope } from "@zarg/rlm"
 import { askFirst } from "./driver"
 import { judgeGaps } from "./gaps"
-import { nextOutcomes, type NextOption } from "./intent"
+import { nextOutcomes, nextWhenServed, type NextOption } from "./intent"
 import { makeThread } from "./thread"
 
 /**
@@ -65,9 +65,7 @@ export const makeZarg = (host: AgentHost) =>
         const snap = yield* store.snapshot
         const outcomes = nextOutcomes(snap)
         if (outcomes.length > 0) return outcomes
-        return [...snap.nodes.values()]
-          .filter((n) => n.type === "gherkin/state" && n.props.entry === true && (focus === undefined || focus.has(n.id)))
-          .map((n): NextOption => ({ id: n.id, label: String(n.props.text ?? n.id), task: `Work on the journey that starts at "${String(n.props.text ?? n.id)}" (${n.id}).` }))
+        return nextWhenServed(snap, focus)
       })
     // zarg's message bar: a shell panel at the bottom, one line, taking keys (the shell draws it as the bar).
     host.panels.open({ name: "bar", view: "zarg", scope: "shell", edge: "bottom", size: 1, input: "onFocus" })
