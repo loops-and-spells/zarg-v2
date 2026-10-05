@@ -121,3 +121,32 @@ describe("persona agenda", () => {
     expect(got.find((i) => i.id === "gherkin:unused-persona:P-0002")).toMatchObject({ title: "Nobody acts as Driver Agent", priority: 3 })
   })
 })
+
+describe("forgiving drafts", () => {
+  test("adding a persona that already exists (same name, same kind) uses it; another kind under that name is refused", async () => {
+    const out = await run(
+      Effect.gen(function* () {
+        yield* setup
+        const again = yield* call("add-persona", { name: "operator", kind: "human", text: "anything" })
+        const clash = yield* Effect.flip(call("add-persona", { name: "Operator", kind: "agent", text: "x" }))
+        return { again: again.message, added: again.added, clash: (clash as { message: string }).message }
+      }),
+    )
+    expect(out.again).toBe("P-0001 is already Operator: no change")
+    expect(out.added).toEqual([])
+    expect(out.clash).toContain("P-0001 is already called \"Operator\"")
+  })
+
+  test("a journey given as a plain string (its id or its name) is that journey", async () => {
+    const out = await run(
+      Effect.gen(function* () {
+        yield* setup
+        yield* call("add-scenario", { title: "Operator answers", when: "the operator picks an option", by: [{ name: "Operator" }], arrives: { id: "ST-0001" }, then: [{ text: "the answer is recorded" }] })
+        yield* call("add-journey", { name: "Answering" })
+        const byId = (yield* call("link", { scenario: "S-0001", edge: "in", journey: "J-0001" })).message
+        return byId
+      }),
+    )
+    expect(out).toContain("S-0001")
+  })
+})

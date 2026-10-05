@@ -14,12 +14,15 @@ const EdgeName = Schema.Literals(["arrives", "given", "then", "by", "in", "serve
 const edgeType = { arrives: ARRIVES, given: GIVEN, then: THEN, by: BY, in: IN, serves: SERVES, bounds: BOUNDS, for: FOR } as const
 
 /** A journey by {id} or by {name} (case does not matter). */
-const JourneyRef = Schema.Union([Schema.Struct({ id: Schema.String }), Schema.Struct({ name: Schema.NonEmptyString })]).annotate({
-  description: "A journey by {id}, or by {name}.",
+const JourneyRef = Schema.Union([Schema.Struct({ id: Schema.String }), Schema.Struct({ name: Schema.NonEmptyString }), Schema.NonEmptyString]).annotate({
+  description: "A journey by {id}, or by {name} (a plain string is either: J-0001, or the name).",
 })
 type JourneyRef = typeof JourneyRef.Type
+/** A plain string names a journey by id (J-0001) or by name: what a draft means, said either way. */
+const journeyRefOf = (ref: JourneyRef): { readonly id: string } | { readonly name: string } => (typeof ref !== "string" ? ref : /^J-\d+$/.test(ref) ? { id: ref } : { name: ref })
 const knownJourneys = (snap: Snapshot.Snapshot) => journeys(snap).map((j) => `${j.id} ${journeyName(j)}`).join(", ") || "none yet (add one with add-journey)"
-const journeyOf = (snap: Snapshot.Snapshot, ref: JourneyRef): Effect.Effect<string, ToolError> => {
+const journeyOf = (snap: Snapshot.Snapshot, raw: JourneyRef): Effect.Effect<string, ToolError> => {
+  const ref = journeyRefOf(raw)
   const n = findJourney(snap, ref)
   return n !== undefined ? Effect.succeed(n.id) : Effect.fail(new ToolError({ message: `${"id" in ref ? ref.id : `"${ref.name}"`} is not a journey; known: ${knownJourneys(snap)}` }))
 }
@@ -109,6 +112,8 @@ export const addPersona = tool({
   run: (p, snap) =>
     Effect.gen(function* () {
       const existing = findPersona(snap, { name: p.name })
+      // The same persona again (a draft that did not see it was there): it is used, nothing changes.
+      if (existing !== undefined && existing.props.kind === p.kind) return { changes: [], message: `${existing.id} is already ${personaName(existing)}: no change` }
       if (existing !== undefined) return yield* new ToolError({ message: `${existing.id} is already called "${personaName(existing)}"; use it` })
       const id = Snapshot.nextId(snap, "P")
       return { changes: [Put({ id, type: PERSONA, props: { ...p }, edges: [] })], message: `created ${id}` }
