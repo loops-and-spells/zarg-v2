@@ -52,7 +52,7 @@ const commitOf = (root: string) => Bun.spawnSync(["git", "rev-parse", "--short",
 
 /** A journey of the graph, walked in a fresh world: each `proves` step proves one of its scenarios and writes that scenario's evidence. */
 // @scenario S-0114
-export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?: Readonly<Record<string, string>> }, body: (proves: Proves) => void) => {
+export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?: Readonly<Record<string, string>>; readonly env?: Readonly<Record<string, string>> }, body: (proves: Proves) => void) => {
   const root = evidenceRoot()
   const graph = graphOf(root)
   const skip = process.env.E2E_TIER === "fast" && opts.tier === "full"
@@ -96,7 +96,7 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
             if (staged !== undefined) rmSync(staged.dir, { recursive: true, force: true })
             staged = mine
             // A world that cannot start fails the step, with its reason as evidence.
-            w ??= world(opts.seed)
+            w ??= world(opts.seed, opts.env)
             // Where this step begins on the session's clock (a terminal opened by the step itself begins at 0).
             const stepAt = term?.elapsed() ?? 0
             if (term !== undefined) mine.attach(frame("the screen before", term.xterm))

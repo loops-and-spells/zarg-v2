@@ -1,0 +1,173 @@
+import { expect } from "bun:test"
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { answerLoads, journey, quit, type Term, type World } from "../src"
+
+// zarg on scripted cells (the core's stub mode): each model turn runs the next cell, the last one repeats.
+// Only zarg's driver asks the model here: the plugins that would (rehearse, triage, intent) are not loaded.
+const CELLS = [
+  // 1: a question with options, then the change it leads to, shown and written.
+  [
+    'const a = yield* Inquire.ask({ question: "Who uses the chore tracker first?", options: [{ id: "parent", label: "A parent", recommended: true, why: "they assign the chores" }, { id: "child", label: "A child" }] })',
+    'const c = yield* Inquire.confirm({ change: "Add persona Parent (human): a parent who assigns chores." })',
+    'if (c.choice === "add") yield* Gherkin.addPersona({ name: "Parent", kind: "human", text: "a parent who assigns chores." })',
+    'yield* Rlm.done({ value: `You picked ${a.choice}.` })',
+  ].join("\n"),
+  // 2: the next question, answered in the operator's own words; a reply in Markdown.
+  [
+    'const a = yield* Inquire.ask({ question: "Where does the parent start?", options: [{ id: "list", label: "The family list", recommended: true }, { id: "child", label: "The child page" }] })',
+    'const where = String(a.other ?? a.choice)',
+    'const c = yield* Inquire.confirm({ change: `Add entry state: ${where}` })',
+    'if (c.choice === "add") yield* Gherkin.addState({ text: where, entry: true })',
+    'yield* Rlm.done({ value: "## Saved\\n\\n- **Parent** starts at: " + where + "\\n\\n| step | state |\\n|---|---|\\n| 1 | saved |\\n\\n`zarg` keeps it." })',
+  ].join("\n"),
+  // 3: a slow turn (the working line), then a diagram.
+  'yield* Effect.sleep("6 seconds")\nyield* Rlm.done({ value: "The flow so far:\\n\\n```mermaid\\nflowchart LR\\n  A[Parent] --> B[Family list]\\n```\\n\\nThat is all for now." })',
+  // 4: a question the operator talks about; the driver then chooses for them, saying why.
+  [
+    'const a = yield* Inquire.ask({ question: "Which chore comes first?", options: [{ id: "dishes", label: "The dishes", recommended: true }, { id: "trash", label: "The trash" }] })',
+    'if (a.interjected === true && a.question !== undefined) {',
+    '  const c = yield* Inquire.choose({ question: a.question, choice: "dishes", why: "you said the dishes pile up" })',
+    // A diagram too wide for the window: its source shows as code, the text around it formatted.
+    `  yield* Rlm.done({ value: "Chose " + c.choice + " for you. A **wide** flow:\\n\\n\`\`\`mermaid\\nflowchart LR\\n${["Parent opens the list", "Parent picks a chore", "Parent picks a child", "Child sees the chore", "Child does the chore", "Parent sees it done"].map((l, i) => `  N${i}[${l}] --> N${i + 1}`).slice(0, 5).join("\\n")}\\n\`\`\`\\n\\nToo wide to draw." })`,
+    '} else yield* Rlm.done({ value: `You picked ${a.choice}.` })',
+  ].join("\n"),
+  // Then, the agenda empty, what next (from the gaps the item names).
+  'const a = yield* Inquire.ask({ question: "What should we work on next?", options: [{ id: "fail", label: "A failure case", recommended: true }, { id: "journey", label: "Another journey" }] })\nyield* Rlm.done({ value: `Next: ${a.choice ?? a.other}` })',
+]
+const STUB = join(mkdtempSync(join(tmpdir(), "zarg-e2e-stub-")), "cells.json")
+writeFileSync(STUB, JSON.stringify({ cells: CELLS }))
+
+const nodes = (w: World, prefix: string) => {
+  const dir = join(w.project, ".zarg/graph/nodes")
+  return existsSync(dir) ? readdirSync(dir).filter((f) => f.startsWith(prefix)).map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")) as { id: string; props: Record<string, unknown> }) : []
+}
+const git = (w: World, ...args: Array<string>) => Bun.spawnSync(["git", ...args], { cwd: w.project, env: w.env }).stdout.toString().trim()
+journey("J-0001", { tier: "fast", env: { ZARG_CORE_STUB: STUB } }, (proves) => {
+  // zarg's questions come up in its sheet, the picker under them (the sheet opens when zarg asks).
+  proves("S-0008", async (s) => {
+    const t = await s.open()
+    await answerLoads(t)
+    await t.waitFor("Who uses the chore tracker first?", 30_000)
+    s.note("buffer", "the question", t.screen())
+    expect(t.screen()).toMatch(/›\s*A parent \(recommended\)/)
+    expect(t.screen()).toContain("A child")
+  })
+
+  proves("S-0009", async (s) => {
+    const t = s.term!
+    await t.choose("A parent", "down", "Who uses the chore tracker first?")
+    // The change it leads to: shown whole, then added.
+    await t.waitFor("Add persona Parent (human)", 30_000)
+    await t.choose("Add it", "down", "Add persona Parent (human)")
+    expect(await waitFor(() => nodes(s.w, "P-").some((p) => p.props.name === "Parent"))).toBe(true)
+    // Committed once the change is written and the item ends.
+    expect(await waitFor(() => git(s.w, "log", "--format=%s").includes("req: P-0001"))).toBe(true)
+    s.note("buffer", "git log", git(s.w, "log", "--format=%s"))
+  })
+
+  proves("S-0010", async (s) => {
+    const t = s.term!
+    await t.waitFor("Where does the parent start?", 30_000)
+    s.note("buffer", "the next question", t.screen())
+    expect(t.screen()).toMatch(/›\s*The family list \(recommended\)/)
+  })
+
+  proves("S-0011", async (s) => {
+    const t = s.term!
+    // Their own words: Something else…, typed in the bar.
+    await t.choose("Something else", "down", "Where does the parent start?")
+    t.type("the chores board")
+    await t.waitFor("the chores board", 5_000)
+    t.press("enter")
+    await t.waitFor("Add entry state: the chores board", 30_000)
+    await t.choose("Add it", "down", "Add entry state: the chores board")
+    expect(await waitFor(() => nodes(s.w, "ST-").some((n) => n.props.text === "the chores board"))).toBe(true)
+  })
+
+  proves("S-0075", async (s) => {
+    const t = s.term!
+    await t.waitFor("keeps it", 30_000)
+    s.note("buffer", "zarg's reply", t.screen())
+    // Markdown, formatted: no raw markers.
+    expect(t.screen()).not.toContain("## Saved")
+    expect(t.screen()).not.toContain("**Parent**")
+    expect(t.screen()).toMatch(/step\s+│?\s*state/)
+  })
+
+  proves("S-0072", async (s) => {
+    const t = s.term!
+    await t.waitFor(/preparing a reply · 0:0\d · turn \d+\/25/, 30_000)
+    s.note("buffer", "the working line", t.screen())
+  })
+
+  proves("S-0077", async (s) => {
+    const t = s.term!
+    await t.waitFor("That is all for now", 30_000)
+    s.note("buffer", "the diagram", t.screen())
+    expect(t.screen()).not.toContain("```mermaid")
+    expect(t.screen()).toMatch(/Parent[\s\S]*Family list/)
+  })
+
+  proves("S-0012", async (s) => {
+    const t = s.term!
+    await t.waitFor("Which chore comes first?", 30_000)
+    await t.choose("Chat about this", "down", "answer zarg above")
+    t.type("the dishes pile up every night")
+    await t.waitFor("pile up every night", 5_000)
+    t.press("enter")
+    s.note("buffer", "the question under discussion", t.screen())
+  })
+
+  proves("S-0071", async (s) => {
+    const t = s.term!
+    await t.waitFor("zarg chose The dishes for you", 30_000)
+    s.note("buffer", "zarg's choice", t.screen())
+    expect(t.screen()).toContain("you said the dishes pile up")
+  })
+
+  proves("S-0078", async (s) => {
+    const t = s.term!
+    await openSheet(t)
+    await t.waitFor("Too wide to draw", 30_000)
+    s.note("buffer", "the wide diagram", t.screen())
+    // Its source as code, the text around it formatted.
+    expect(t.screen()).toContain("flowchart LR")
+    expect(t.screen()).not.toContain("**wide**")
+  })
+
+  proves("S-0014", async (s) => {
+    const t = s.term!
+    // Nothing on the agenda: the item asks what next, with the gaps found in the graph to choose from.
+    await t.waitFor("What should we work on next?", 120_000)
+    s.note("buffer", "what next", t.screen())
+    expect(starts(s.w).at(-1)).toContain("The agenda is empty")
+  })
+
+  proves("S-0015", async (s) => {
+    const t = s.term!
+    // The recommended topic: it is the driver's next word.
+    await t.choose("A failure case", "down", "What should we work on next?")
+    expect(await waitFor(() => readFileSync(join(s.w.project, ".zarg/threads/main.rlm.jsonl"), "utf8").includes('"choice":"fail"'))).toBe(true)
+    await quit(t)
+  })
+})
+
+/** zarg's sheet over the view, where its replies are. */
+const openSheet = async (t: Term) => {
+  t.press("esc")
+  await Bun.sleep(300)
+  t.press("alt+m")
+  await Bun.sleep(300)
+  if (!t.screen().includes("esc closes")) t.press("alt+m")
+  await t.waitFor("esc closes", 5_000)
+}
+const starts = (w: World) =>
+  readFileSync(join(w.project, ".zarg/threads/main.rlm.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l) as { type: string; task?: string; parent?: string | null }).filter((e) => e.type === "start" && e.parent === "zarg").map((e) => String(e.task))
+
+async function waitFor(check: () => boolean, ms = 30_000) {
+  const end = Date.now() + ms
+  while (!check() && Date.now() < end) await Bun.sleep(500)
+  return check()
+}

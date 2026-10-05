@@ -191,9 +191,28 @@ journey("J-0004", { tier: "fast", seed: SEED }, (proves) => {
   proves(
     "S-0025",
     async (s) => {
-      // The Driver Agent takes up the finding first: its item is the finding, and it asks.
+      // The Driver Agent takes up the finding once the question it already asked is answered (that one keeps its turn).
       const rlm = () => lines(s.w, ".zarg/threads/main.rlm.jsonl").filter((e) => e.type === "start").map((e) => String(e.task))
-      const taken = await until(300_000, () => rlm().some((task) => task.includes("verify still fails")))
+      const t = s.term!
+      for (let round = 0; round < 6 && !rlm().some((task) => task.includes("verify still fails")); round++) {
+        const asking = topics(s.w).find((x) => x.from.agent === "zarg" && x.kind === "question" && x.state === "open")
+        if (asking !== undefined) {
+          // From the inbox: its row, then its first answer.
+          t.press("esc")
+          await Bun.sleep(300)
+          t.press("esc")
+          await Bun.sleep(500)
+          for (let k = 0; k < 10 && !/▍◆ zarg/.test(t.screen()); k++) {
+            t.press("down")
+            await Bun.sleep(150)
+          }
+          t.press("enter")
+          await Bun.sleep(800)
+          t.press("1")
+        }
+        await until(60_000, () => rlm().some((task) => task.includes("verify still fails")))
+      }
+      const taken = rlm().some((task) => task.includes("verify still fails"))
       s.note("log", "the driver's items", rlm().join("\n---\n"))
       expect(taken).toBe(true)
       const asked = await until(300_000, () => topics(s.w).some((t) => t.from.agent === "zarg" && t.kind === "question" && t.state === "open"))
