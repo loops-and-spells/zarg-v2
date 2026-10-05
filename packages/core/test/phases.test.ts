@@ -126,6 +126,20 @@ describe("when reconcile runs", () => {
     expect(await gate({ reconcile: {} }, roles, sub)).toMatchObject({ on: false, reason: expect.stringContaining("top of a git repository") })
     expect(await gate({ reconcile: { quiet_ms: 500 } }, roles)).toMatchObject({ on: true, settings: { quietMs: 500 } })
   })
+
+  test("only where git knows who commits: without an author it says how to set one", async () => {
+    const r = project([])
+    sh(r, "git config --unset user.email && git config --unset user.name && git config user.useConfigOnly true")
+    const saved = { ...process.env }
+    for (const k of ["GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL", "EMAIL"]) delete process.env[k]
+    process.env.GIT_CONFIG_GLOBAL = "/dev/null"
+    process.env.GIT_CONFIG_NOSYSTEM = "1"
+    try {
+      expect(await Effect.runPromise(reconcileGate(r, { reconcile: {} }, roles))).toMatchObject({ on: false, reason: expect.stringContaining("git config user.name") })
+    } finally {
+      process.env = saved
+    }
+  })
 })
 
 describe("reasons sent to the client", () => {

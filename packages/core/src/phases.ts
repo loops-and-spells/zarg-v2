@@ -64,6 +64,10 @@ export const reconcileGate = (root: string, extra: Readonly<Record<string, unkno
     if (top.code !== 0 || realpathSync(top.stdout.trim()) !== realpathSync(root)) {
       return { on: false, reason: `plan and implement are off: ${root} is not the top of a git repository` } as const
     }
+    // A pass commits; without an author it would only fail at its end.
+    if ((yield* gitRun(root, ["var", "GIT_AUTHOR_IDENT"])).code !== 0) {
+      return { on: false, reason: "plan and implement are off: git does not know who commits here: set git config user.name and user.email (--global for every project), then /reconcile" } as const
+    }
     return { on: true, settings } as const
   })
 
