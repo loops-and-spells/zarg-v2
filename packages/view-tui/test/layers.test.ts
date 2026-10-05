@@ -152,6 +152,14 @@ describe("surfaces in the shell", () => {
     const menu = { ...ui, view: { ...startUi(views["two:t1"] as never), menu: { path: "x", col: 0, pick: 0 } } } as never
     expect(onKey(menu, s, key("escape"), 0).ui.closedPanels).toEqual([])
   })
+  test("a drawer's own keys work while the view keeps the keys (its buttons need no Alt+arrow first); the view's keys stay the view's", () => {
+    const item = { agent: "two:t1@item", layout: { name: "item", sections: [{ id: "body", kind: "text" as const, role: "primary" as const }], actions: [{ id: "drop", label: "Drop", key: "X", on: "none" as const }] }, data: {} }
+    const drawer = { ...panel("onFocus", "right"), id: "two:item:two:t1", view: "two:t1@item", overlay: true }
+    const s = with_({ panels: [drawer], views: { ...views, "two:t1@item": item } as never })
+    const ui = at({ main: "agent", focus: "tile", viewing: "two:t1" })
+    expect(onKey(ui, s, key("x", { shift: true }), 0).action).toMatchObject({ type: "act", action: "drop", view: "two:t1@item" })
+    expect(onKey(ui, s, key("a"), 0).action).toMatchObject({ type: "act", action: "apply", view: "two:t1" })
+  })
   test("a plugin's sheet takes its view's keys; Esc closes it", () => {
     const ui = at({ main: "agent", focus: "tile", sheet: true, sheetOf: "two:t1", viewing: "two:t1" })
     expect(onKey(ui, with_({}), key("a"), 0).action).toMatchObject({ type: "act", action: "apply", agent: "two:t1" })

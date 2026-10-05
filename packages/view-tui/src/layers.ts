@@ -1,7 +1,7 @@
 import { openTopics } from "@zarg/client"
 import { inboxKey } from "./inbox-keys"
 import type { SessionState } from "@zarg/client"
-import { closeMenu, dispatch, focused, type InputKey, type InputLayer, keyFor, type KeyHint, leafOf, printable, startUi, typed, type ViewState, type ViewUi } from "@zarg/view"
+import { actionFor, closeMenu, dispatch, focused, type InputKey, type InputLayer, keyFor, type KeyHint, leafOf, printable, startUi, typed, type ViewState, type ViewUi } from "@zarg/view"
 import { gridCards, gridCursor } from "./grid"
 import { SLASH_COMMANDS } from "./commands"
 import { paletteEntries } from "./palette"
@@ -343,6 +343,13 @@ export const SHELL: ReadonlyArray<Layer> = [
       if (c !== undefined) return c
       const v = ui.viewing === undefined ? undefined : w.s.thread.views?.[ui.viewing]
       if (v === undefined) return { ui }
+      // A drawer over the view: its action keys (Drop, Move) work while the view keeps the keys, unless the view has the key.
+      const drawer = panelsShown(ui, w.s).right.find((p) => p.overlay === true)
+      const dv = drawer === undefined ? undefined : w.s.thread.views?.[drawer.view]
+      if (drawer !== undefined && dv !== undefined && actionFor(v, ui.view ?? startUi(v), typed(k)) === undefined && actionFor(dv, ui.panelView ?? startUi(dv), typed(k)) !== undefined) {
+        const d = surfaceKey(dv, ui.panelView ?? startUi(dv), k, drawer.agent)
+        return { ui: { ...ui, panelView: d.view }, ...(d.action !== undefined ? { action: d.action } : {}) }
+      }
       const r = viewKeys(v, ui.view ?? startUi(v), k)
       return {
         ui: { ...ui, view: r.ui },
