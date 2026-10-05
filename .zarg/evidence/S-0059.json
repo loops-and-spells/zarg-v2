@@ -1,0 +1,38 @@
+{
+  "scenario": "S-0059",
+  "version": "db67e9d3a989",
+  "commit": "9945b74",
+  "run": "e2e-2026-10-05T06-10-23.160Z",
+  "journey": "J-0004",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-05T06:10:31.536Z",
+  "ms": 8374,
+  "media": [
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "screen",
+      "path": "media/S-0059/1-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0059/2-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0059/3-step.cast",
+      "meta": {
+        "startAt": 0
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/core/src/live.ts": "0adca1883e7e7fccadd481e7ccc5db74b3d7d264"
+  }
+}
