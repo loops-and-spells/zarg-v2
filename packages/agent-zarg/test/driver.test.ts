@@ -50,6 +50,23 @@ describe("ask before writing", () => {
     expect(await Effect.runPromise(gated.handlers.addOutcome!({ intent: "I-0001", text: "a reader marks a book read" }))).toMatchObject({ changed: ["I-0001"] })
   })
 
+  // @scenario S-0016
+  test("a node the change adds is never a newer edit: shown about before it existed, the change's next part still saves", async () => {
+    const nodes: Record<string, string | undefined> = {}
+    const parts: Bound = {
+      def: { name: "Gherkin" } as never,
+      handlers: {
+        addScenario: () => Effect.sync(() => ((nodes["S-0004"] = "v1"), { added: ["S-0004"], changed: [], removed: [] })),
+        link: () => Effect.sync(() => ((nodes["S-0004"] = "v2"), { added: [], changed: ["S-0004"], removed: [] })),
+      },
+    }
+    const guard = askFirst({ ask: () => Effect.succeed({ choice: "add" }) }, (ids) => Effect.succeed(Object.fromEntries(ids.map((id) => [id, nodes[id]]))))
+    const gated = guard.gate(parts)!
+    await Effect.runPromise(guard.asker.confirm!({ change: "Scenario S-0004 Reader removes a book, in journey J-0001", about: ["S-0004"] }))
+    await Effect.runPromise(gated.handlers.addScenario!({ title: "Reader removes a book" }))
+    expect(await Effect.runPromise(gated.handlers.link!({ scenario: "S-0004", journey: { id: "J-0001" } }))).toMatchObject({ changed: ["S-0004"] })
+  })
+
   // @scenario S-0009
   test("an option that is a change adds it when picked: the question shows its exact change, and writes open for that wording only", async () => {
     let shown = ""

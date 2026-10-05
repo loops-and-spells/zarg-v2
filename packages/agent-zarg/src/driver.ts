@@ -5,7 +5,7 @@ import { type Asker, confirmQuestion } from "@zarg/rlm"
 const ASK_FIRST: ServiceFailure = {
   _tag: "AskFirst",
   message:
-    "Requirements change only with the developer's say: show the exact change with Inquire.confirm({ change }) (each scenario as By / Given / When / Then lines; every scenario names who acts in it with by, a persona), then write it once they add it. An Inquire.ask option that is itself a change carries it as its `change`: picking it adds it. Any other question closes writes again.",
+    "Requirements change only with the developer's say: show the exact change with Inquire.confirm({ change }) (each scenario as its title, then By / Given / When / Then lines; every scenario names who acts in it with by, a persona), then write it once they add it. An Inquire.ask option that is itself a change carries it as its `change`: picking it adds it. Any other question closes writes again.",
 }
 
 const PICKED_HINT = "They picked an option that is a change: it is added. Write it now, as shown; no Inquire.confirm."
@@ -74,8 +74,8 @@ export const askFirst = (
       Effect.gen(function* () {
         const c = r as { added?: ReadonlyArray<string>; changed?: ReadonlyArray<string>; removed?: ReadonlyArray<string> }
         const ids = [...(c?.added ?? []), ...(c?.changed ?? []), ...(c?.removed ?? [])]
-        // What this change itself changed is no newer edit: the nodes it was shown about move on with it.
-        const mine = (c?.changed ?? []).filter((id) => id in shown)
+        // What this change itself added or changed is no newer edit: the nodes it was shown about move on with it.
+        const mine = [...(c?.added ?? []), ...(c?.changed ?? [])].filter((id) => id in shown)
         if (mine.length > 0 && versions !== undefined) shown = { ...shown, ...(yield* versions(mine)) }
         for (const id of ids) (touched.add(id), unsaved.add(id))
         if (ids.length > 0 && unsaved.size === ids.length) saving = (added?.split("\n")[0] ?? "a fix for a rehearse finding").slice(0, 72)
