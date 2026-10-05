@@ -45,7 +45,9 @@ export interface RunRecord {
 }
 /** Gherkin tool calls, in order (gherkin's `Draft`). */
 export type Draft = ReadonlyArray<{ readonly tool: string; readonly params: unknown }>
-export interface Started { readonly run: string; readonly stories: number; readonly scenes: number; readonly personas: ReadonlyArray<string>; readonly notes?: ReadonlyArray<string> }
+export interface Started { readonly run: string; readonly stories: number; readonly scenes: number; readonly personas: ReadonlyArray<string>; readonly notes?: ReadonlyArray<string>; readonly next: string }
+/** What a started run's caller does next (a model reads it in the result). */
+const NEXT = "It runs in the background: finish now and say it runs. When it ends, what it files (or a report) reaches you; never wait for it or poll it."
 
 /** A tester's own scenario: one its persona acts in (a record from before personas: every scenario). */
 export const ownScenario = (p: Persona, scenario: string) => p.scenarios === undefined || p.scenarios.includes(scenario)
@@ -375,8 +377,15 @@ export const makeRehearse = (deps: RunDeps) =>
         // Filed with the scenarios it walked (even with nothing to file): the backlog closes their feedback this run no longer reports.
         const walked = [...new Set(rec.stories.flat())]
         // @scenario S-0106
-        const filed = rec.file === false ? { ids: [] as ReadonlyArray<string> } : yield* deps.file(toFile.map((x) => x.entry), { walked, run: rec.run }).pipe(Effect.orElseSucceed(() => ({ ids: [] as ReadonlyArray<string> })))
-        yield* update((r) => ({ ...r, status: "done", findings, report: text, filed: Object.fromEntries(toFile.flatMap((x, i) => (filed.ids[i] !== undefined && filed.ids[i] !== "" ? [[x.id, filed.ids[i]!]] : []))) }))
+        // A filing that fails is said in the run's notes (never dropped in silence).
+        let failedFiling: string | undefined
+        const filed =
+          rec.file === false
+            ? { ids: [] as ReadonlyArray<string> }
+            : yield* deps.file(toFile.map((x) => x.entry), { walked, run: rec.run }).pipe(
+                Effect.catch((e) => Effect.sync(() => ((failedFiling = `filing with the backlog failed: ${(e as { readonly message?: string } | undefined)?.message ?? String(e)}`), { ids: [] as ReadonlyArray<string> }))),
+              )
+        yield* update((r) => ({ ...r, status: "done", ...(failedFiling !== undefined ? { infra: [...r.infra, failedFiling] } : {}), findings, report: text, filed: Object.fromEntries(toFile.flatMap((x, i) => (filed.ids[i] !== undefined && filed.ids[i] !== "" ? [[x.id, filed.ids[i]!]] : []))) }))
         const unreached = rec.unreachable > 0 ? ` · ${rec.unreachable} unreachable` : ""
         yield* quiet(deps.agents.status({ id: "run", progress: { done: all, total: all }, text: `${plural(filed.ids.filter((x) => x !== "").length, "feedback entry")} filed · triage in Feedback${unreached}` }))
         yield* quiet(deps.views.set("run", RunView, "report", { markdown: text }))
@@ -444,7 +453,7 @@ export const makeRehearse = (deps: RunDeps) =>
           const rec: RunRecord = { run, startedAt, status: "running", strategy, focus: focus ?? [], personas, stories: planned.stories, unreachable: planned.unreachable, screened: {}, raw: [], infra: notes, findings: [], ...(opts.draft !== undefined && opts.draft.length > 0 ? { draft: opts.draft } : {}), ...(opts.file === false ? { file: false } : {}) }
           yield* save(rec)
           yield* launch(rec)
-          return { run, stories: planned.stories.length, scenes: planned.stories.reduce((n, s) => n + s.length, 0), personas: personas.map((p) => p.name), ...(notes.length > 0 ? { notes } : {}) } satisfies Started
+          return { run, stories: planned.stories.length, scenes: planned.stories.reduce((n, s) => n + s.length, 0), personas: personas.map((p) => p.name), ...(notes.length > 0 ? { notes } : {}), next: NEXT } satisfies Started
         }),
       )
 

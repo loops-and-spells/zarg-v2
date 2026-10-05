@@ -7,7 +7,7 @@ import { FEEDBACK_COLUMNS, RunView, TesterView } from "../src/views"
 
 const noul = (p: number): Answer => ({ type: "noul", answer: p >= 0.5, probability: p, confidence: 0 })
 
-type Opts = { noStories?: boolean; statusDown?: boolean; fileSome?: boolean; inFlight?: number; slowWrite?: number; down?: boolean; slowDecide?: number; gone?: ReadonlyArray<string>; state?: string; on?: boolean; unreachable?: number; personas?: ReadonlyArray<{ name: string; text: string; scenarios: ReadonlyArray<string> }>; files?: Map<string, string>; scenarioText?: (scenario: string) => string; built?: Record<string, "planned" | "untagged">; prompts?: Array<string>; codeDown?: boolean }
+type Opts = { fileDown?: boolean; noStories?: boolean; statusDown?: boolean; fileSome?: boolean; inFlight?: number; slowWrite?: number; down?: boolean; slowDecide?: number; gone?: ReadonlyArray<string>; state?: string; on?: boolean; unreachable?: number; personas?: ReadonlyArray<{ name: string; text: string; scenarios: ReadonlyArray<string> }>; files?: Map<string, string>; scenarioText?: (scenario: string) => string; built?: Record<string, "planned" | "untagged">; prompts?: Array<string>; codeDown?: boolean }
 const setup = (o: Opts = {}) =>
   Effect.gen(function* () {
     const files = o.files ?? new Map<string, string>()
@@ -71,7 +71,7 @@ const setup = (o: Opts = {}) =>
       version: (scenario) => Effect.succeed(gone.has(scenario) ? null : `v${scenario.toLowerCase()}00000000000`.slice(0, 12)),
       walking: (run, journeys) => Effect.sync(() => void walking.push([run, journeys])),
       journeysOf: (scenarios) => Effect.succeed(scenarios.length > 0 ? ["Checkout"] : []),
-      file: (entries, opts) => Effect.sync(() => (filedCalls.push(entries), filedWith.push(opts ?? {}), { ids: entries.map((_, i) => (o.fileSome === true ? "" : `F-${i}`)) })),
+      file: (entries, opts) => (o.fileDown === true ? Effect.fail({ message: "backlog: the call timed out" }) : Effect.sync(() => (filedCalls.push(entries), filedWith.push(opts ?? {}), { ids: entries.map((_, i) => (o.fileSome === true ? "" : `F-${i}`)) }))),
       status: (ids) => (o.statusDown === true ? Effect.fail("down") : Effect.succeed(ids.map((id) => ({ id, state: o.state ?? "open", on: o.on ?? true })))),
       views: {
         set: (agent, v, path, data) => Effect.sync(() => void pushes.push({ agent, path, data, view: v.name })),
@@ -203,6 +203,19 @@ describe("rehearse runs in the plugin", () => {
     const t = await finish({ fileSome: true })
     expect(t.r.record(t.run)!.filed).toEqual({})
     expect(rowsNow(t.pushes, "tester-1", "review.feedback").map((r) => r.cells.now)).toEqual(["not filed"])
+  })
+
+  test("a started run tells its caller to go on: it runs in the background, never waited on or polled", async () => {
+    const started = await Effect.runPromise(Effect.gen(function* () {
+      const t = yield* setup()
+      return (yield* t.r.start({})) as { next?: string }
+    }))
+    expect(started.next).toContain("never wait for it or poll it")
+  })
+
+  test("filing that fails is said in the run's notes, never dropped in silence", async () => {
+    const t = await finish({ fileDown: true })
+    expect(t.r.record(t.run)!.infra).toContainEqual("filing with the backlog failed: backlog: the call timed out")
   })
 
   test("the run shows its feedback by journey and severity, and has no actions", async () => {
