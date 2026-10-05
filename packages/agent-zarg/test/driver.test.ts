@@ -229,6 +229,15 @@ describe("ask before writing", () => {
     expect(await Effect.runPromise(guard.asker.confirm!({ change: "Edit persona Tracker: a person who tracks habits." }))).toEqual({ choice: "add" })
   })
 
+  test("a change added but not written yet is owed: the item that ends there hands it on", async () => {
+    const guard = askFirst({ ask: () => Effect.succeed({ choice: "add" }) })
+    expect(guard.owed()).toBeUndefined()
+    await Effect.runPromise(guard.asker.confirm!({ change: "Journey: Agent chat memory lifecycle" }))
+    expect(guard.owed()).toBe("Journey: Agent chat memory lifecycle")
+    await Effect.runPromise(guard.gate(writes)!.handlers.addScenario!({ name: "Agent chat memory lifecycle" }))
+    expect(guard.owed()).toBeUndefined()
+  })
+
   test("Add with words of the operator's (a reason) is what to change, not a yes: nothing is written, and the words come back", async () => {
     const guard = askFirst({ ask: () => Effect.succeed({ choice: "add", other: "drop 'or an unknown id'" }) })
     const gated = guard.gate(writes)!

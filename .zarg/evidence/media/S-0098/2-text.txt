@@ -1,3 +1,1 @@
-This product has no requirements yet, and I cannot read its project files to ground a first statement. What is it for — where does a user start, and what is their first action?
-
-Say what it is for, then the first action: Intent: add Intent {Int-A-1: title}. Outcome: Intent wants for its users {state/scenario}. Persona: add Persona {name}, kind human. Scenario: add scenario {title}, By {persona} Given {arrival} When {first action} Then {result}
+There are no requirements yet and no personas yet in this project, and no project files describe a start point. What can you tell me first: where a user starts and the first thing they do, and who this product is for (the tester, a command-line actor, or the product's own agents)?

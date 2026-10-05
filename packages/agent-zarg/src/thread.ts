@@ -245,6 +245,12 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
         )
       },
       choose,
+      // A change added but not written when the item ended: the next item writes it as shown (never asked again).
+      owed: (change) =>
+        Effect.sync(() => {
+          approvedBefore = change
+          inbox.push(`(you added this change; zarg's last item ended before writing it: write it as shown, without showing it again:\n${change})`)
+        }),
       // What the gate says (a merge with another thread's edit): in the conversation, as zarg.
       note: (text) => note("assistant", text),
       approved: () => {

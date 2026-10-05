@@ -63,7 +63,14 @@ export const makeZarg = (host: AgentHost) =>
       }
       return Rlm.make({ settings: rlmSettings, services: factory, roles: host.roles, decisions, observe, unknownIds }).pipe(
         Effect.provideService(Model.Model, model),
-        Effect.map((rlm) => ({ rlm, flush: guard.flush })),
+        Effect.map((rlm) => ({
+          rlm,
+          // The item's end: commit what it wrote, and hand on a change the operator added that it never wrote.
+          flush: Effect.andThen(guard.flush, Effect.suspend(() => {
+            const owed = guard.owed()
+            return owed !== undefined && asker.owed !== undefined ? asker.owed(owed) : Effect.void
+          })),
+        })),
       )
     }
     // The same scope filter the driver's Graph.render applies.

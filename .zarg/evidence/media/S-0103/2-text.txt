@@ -1,37 +1,60 @@
 {
-  "title": "Family member checks their chores",
+  "title": "Parent assigns a chore",
   "journey": "",
   "scenarios": [],
   "changes": [
     {
       "tool": "add-persona",
       "params": {
-        "name": "Family member",
+        "name": "Parent",
         "kind": "human",
-        "text": "A person in a family, reaching the todo app as a web or mobile client."
+        "text": "A parent who sets chores for the family and reaches the app at home"
       }
     },
     {
       "tool": "add-scenario",
       "params": {
-        "title": "Family member checks their chores",
-        "when": "the family member opens the chore list",
+        "title": "Parent assigns a chore",
+        "when": "the parent assigns a chore to a family member",
+        "by": [
+          {
+            "name": "Parent"
+          }
+        ],
+        "arrives": {
+          "text": "Chore assignment screen"
+        },
+        "then": [
+          {
+            "text": "the member's own list shows the assigned chore"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-persona",
+      "params": {
+        "name": "Family member",
+        "kind": "human",
+        "text": "A family member who receives and performs chores and reaches the app at home"
+      }
+    },
+    {
+      "tool": "add-scenario",
+      "params": {
+        "title": "Family member opens their list",
+        "when": "the family member opens their list",
         "by": [
           {
             "name": "Family member"
           }
         ],
         "arrives": {
-          "text": "an account home screen"
+          "text": "Their list"
         },
-        "given": [
-          {
-            "text": "chores assigned to others"
-          }
-        ],
         "then": [
           {
-            "text": "the app hides chores assigned to other members"
+            "text": "the chores assigned to them are listed"
           }
         ]
       }
@@ -39,13 +62,23 @@
     {
       "tool": "add-journey",
       "params": {
-        "name": "See my chores"
+        "name": "Chores reach each member"
       }
     },
     {
       "tool": "link",
       "params": {
         "scenario": "S-0001",
+        "edge": "in",
+        "journey": {
+          "id": "J-0001"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "scenario": "S-0002",
         "edge": "in",
         "journey": {
           "id": "J-0001"
@@ -65,10 +98,8 @@
   ],
   "feedback": [],
   "steps": [
-    "Add the Family member persona.",
-    "Add the scenario: opening the chore list shows only this member's chores and hides other members' chores.",
-    "Add the journey See my chores and put the scenario in it.",
-    "Link the journey to the outcome so it delivers O-0001."
+    "Parent assigns a chore to a family member",
+    "Member opens their list and sees the chores assigned to them"
   ],
   "serves": "gherkin/outcome:O-0001@f5ebc0ef2fe2",
   "id": "B-01",

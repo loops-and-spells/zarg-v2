@@ -62,6 +62,8 @@ export const askFirst = (
 ) => {
   // The nodes the change was shown about, as they were: a newer edit to other parts of them merges.
   let shownNodes: Readonly<Record<string, NodeView | undefined>> = {}
+  // Something was written since the operator added the change (an added change not written yet is owed).
+  let wrote = false
   let open = false
   // What the developer added, once written, is committed (at the next question, or when the item ends): the
   // Planner and reconcile only build on a committed graph.
@@ -108,6 +110,7 @@ export const askFirst = (
     }
     return Effect.tap(h(params), (r) =>
       Effect.gen(function* () {
+        wrote = true
         const c = r as { added?: ReadonlyArray<string>; changed?: ReadonlyArray<string>; removed?: ReadonlyArray<string> }
         const ids = [...(c?.added ?? []), ...(c?.changed ?? []), ...(c?.removed ?? [])]
         // What this change itself added or changed is no newer edit: the nodes it was shown about move on with it.
@@ -163,6 +166,7 @@ export const askFirst = (
               if (picked === undefined) return a
               open = true
               added = picked.change
+              wrote = false
               return { ...a, hint: PICKED_HINT }
             })
           }),
@@ -187,6 +191,8 @@ export const askFirst = (
       added = undefined
       scope = finding === undefined ? undefined : { allowed: new Set(finding.allowed), onTouched: finding.onTouched }
     },
+    /** The change the operator added that nothing has written yet: the next item writes it (as shown). */
+    owed: (): string | undefined => (open && scope === undefined && added !== undefined && !wrote ? added : undefined),
     /** Commit what was written since the last question (the item's end calls it). */
     flush,
     /** Node ids the gated writes added, changed or removed in this item. */

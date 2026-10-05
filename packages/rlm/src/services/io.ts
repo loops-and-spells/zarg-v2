@@ -113,6 +113,8 @@ export interface Asker {
   readonly confirm?: (c: Confirm) => Effect.Effect<Answer, ServiceFailure>
   /** A change the operator already added (shown before a restart): the item may write it without showing it again. Taken once. */
   readonly approved?: () => string | undefined
+  /** The item ends owing a change the operator added (nothing wrote it): the next item writes it, as shown. */
+  readonly owed?: (change: string) => Effect.Effect<void>
   /** Something the gate says in the conversation (a merge with another thread's edit). */
   readonly note?: (text: string) => Effect.Effect<void>
 }

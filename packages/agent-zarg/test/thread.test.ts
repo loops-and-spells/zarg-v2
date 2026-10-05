@@ -198,6 +198,29 @@ describe("thread runs", () => {
     expect(out.log.all().some((e) => e.type === "TEXT_MESSAGE_CONTENT" && String(e.delta).includes("Reconcile is on"))).toBe(true)
   })
 
+  test("a change the operator added but the item did not write is the next item's to write: as shown, not asked again", async () => {
+    const tasks: Array<string> = []
+    const approved: Array<string | undefined> = []
+    let n = 0
+    const driver: Driver = (spec, asker) =>
+      Effect.gen(function* () {
+        tasks.push(spec.task)
+        approved.push(asker.approved?.())
+        if (n++ === 0) yield* asker.owed!("Journey: Agent chat memory lifecycle")
+        return outcome("ok")
+      }) as never
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zarg-thread-")), (t) => t)
+        const thread = yield* makeThread({ id: "main", focus: [], log, agenda: () => Effect.succeed([{ id: "x", title: "T", detail: "D", about: [], priority: 1 }]), driver, suggest: () => Effect.succeed([]) })
+        yield* Effect.forkChild(collect(thread.run({ runId: "r1" })))
+        yield* Effect.sleep(80)
+      }),
+    )
+    expect(tasks[1]).toContain("Journey: Agent chat memory lifecycle")
+    expect(approved[1]).toBe("Journey: Agent chat memory lifecycle")
+  })
+
   test("wake: a thread parked on zarg's what-next question takes up new agenda items; a real question keeps its turn", async () => {
     const tasks: Array<string> = []
     const driver: Driver = (spec) => Effect.sync(() => (tasks.push(spec.task), outcome("ok")))
