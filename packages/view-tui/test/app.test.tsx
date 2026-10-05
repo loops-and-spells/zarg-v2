@@ -712,6 +712,17 @@ const viewState: SessionState = {
   },
 }
 
+describe("grant popovers", () => {
+  test("a grant's scopes wrap between scopes: a path never breaks across lines", async () => {
+    const long = { ...grantPrompt("backlog"), question: "Plugin backlog wants to load, to read .zarg/feedback/**, read .zarg/backlog/**, write .zarg/feedback/**, write .zarg/backlog/**, show agents, use gherkin (and read what it serves)." }
+    const t = await render({ ...idleState, thread: { ...idleState.thread, prompts: [long] } }, { width: 130, height: 30 })
+    const f = t.captureCharFrame()
+    expect(f).toContain("Plugin backlog wants to load:")
+    // Every scope whole on one line (none split across two).
+    for (const scope of ["read .zarg/feedback/**", "write .zarg/backlog/**", "use gherkin (and read what it serves)"]) expect(f).toContain(scope)
+  })
+})
+
 describe("the shell", () => {
   const wide = { width: 130, height: 22 }
   test("the agents list runs full height on the left; the bar sits under the tile area only", async () => {

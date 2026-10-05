@@ -278,3 +278,15 @@ test("the rail's arrows reach the Inbox above the views; Enter there goes home",
   // Down from the Inbox: the first view.
   expect(onKey(up.ui, navved, key("down"), 0).ui.agents.cursor).toBe("nav:gherkin")
 })
+
+test("grants waiting together: the first offers Allow all, which answers every waiting grant at once", () => {
+  const topic = (id: string, created: number) => ({ id, kind: "grant", state: "open", blocking: true, created, updated: created, title: `Plugin ${id} wants to load.`, why: "grant", about: [], messages: [], from: { plugin: id }, answers: [{ id: "always", label: "Allow", recommended: true }, { id: "deny", label: "Not now" }] })
+  const s: SessionState = { ...idle, thread: { ...idle.thread, inbox: { "T-1": topic("T-1", 1), "T-2": topic("T-2", 2), "T-3": topic("T-3", 3) } } as never }
+  const head = queueOf(initialUi, s)[0]!
+  expect(head.options.map((o) => o.label)).toEqual(["Allow", "Not now", "Allow all 3"])
+  const r = onKey(at({ popover: { pick: 2, since: 0 } }), s, key("return"), 10_000)
+  expect(r.action).toEqual({ type: "answer-topics", ids: ["T-1", "T-2", "T-3"], answer: "always" })
+  // One grant alone: no Allow all.
+  const one: SessionState = { ...idle, thread: { ...idle.thread, inbox: { "T-1": topic("T-1", 1) } } as never }
+  expect(queueOf(initialUi, one)[0]!.options.map((o) => o.label)).toEqual(["Allow", "Not now"])
+})

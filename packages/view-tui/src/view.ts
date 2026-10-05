@@ -267,6 +267,29 @@ export const typing = (ui: Ui, s: SessionState) => {
   const q = question(s)
   return ui.focus === "bar" && zargLoaded(s) && (q === undefined || ui.chatting === q.id || answeringOther(ui, s))
 }
+/** A grant's question as lines of `width`: what wants what, then its scopes packed into lines, never broken inside one (a path stays whole). */
+export const grantLines = (question: string, width: number): ReadonlyArray<string> => {
+  const m = /^(.+? wants to [^,]+), to (.+)\.$/.exec(question)
+  if (m === null) return [question]
+  const lines: Array<string> = []
+  let line = ""
+  for (const scope of m[2]!.split(", ")) {
+    const next = line === "" ? scope : `${line}, ${scope}`
+    if (line !== "" && next.length + 1 > width) {
+      lines.push(`${line},`)
+      line = scope
+    } else line = next
+  }
+  return [`${m[1]}:`, ...lines, `${line}.`]
+}
+/** What answering a popover's option does: Allow all answers every waiting grant at once. */
+export const promptAction = (ui: Ui, s: SessionState, head: Prompt, choice: string): Action => {
+  if (choice !== ALL_GRANTS) return { type: "answer-prompt", id: head.id, choice }
+  const allow = head.options.find((o) => o.recommended === true) ?? head.options[0]!
+  return { type: "answer-topics", ids: queueOf(ui, s).filter((p) => p.kind === "grant").map((p) => p.id), answer: allow.id }
+}
+/** A grant popover's "Allow all n" option: every waiting grant answered with the head's allow. */
+export const ALL_GRANTS = "grants:all"
 /** The shared popover queue, in the order the core asked: nothing on the client reorders it. */
 // A stopped core cannot take an answer, and a prompt without options cannot be answered: neither holds the keys.
 export const queueOf = (_ui: Ui, s: SessionState): ReadonlyArray<Prompt> => {
@@ -276,7 +299,9 @@ export const queueOf = (_ui: Ui, s: SessionState): ReadonlyArray<Prompt> => {
     .filter((t) => t.kind === "grant" && t.state === "open" && t.blocking)
     .sort((a, b) => a.created - b.created)
     .map((t): Prompt => ({ id: t.id, question: t.title, options: (t.answers ?? []).map((a) => ({ id: a.id, label: a.label, ...(a.recommended === true ? { recommended: true } : {}) })), kind: "grant" }))
-  return [...(s.thread.prompts ?? []).filter((p) => p.kind === "surface" || p.options.length > 0), ...grants]
+  // Grants waiting together: the first offers to allow them all at once (a fresh project asks for several).
+  const all = grants.length > 1 ? [{ ...grants[0]!, options: [...grants[0]!.options, { id: ALL_GRANTS, label: `Allow all ${grants.length}` }] }, ...grants.slice(1)] : grants
+  return [...(s.thread.prompts ?? []).filter((p) => p.kind === "surface" || p.options.length > 0), ...all]
 }
 /** The bar's input has the keys: it takes text and no popover is up. */
 export const inputFocused = (ui: Ui, s: SessionState) => typing(ui, s) && queueOf(ui, s).length === 0 && ui.palette === undefined

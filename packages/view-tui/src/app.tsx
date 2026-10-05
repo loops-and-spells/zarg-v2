@@ -37,7 +37,9 @@ import {
   inputFocused,
   type Meta,
   onSubmit,
+  grantLines,
   INBOX_ROW,
+  promptAction,
   OTHER,
   CHAT,
   pickerRows,
@@ -619,13 +621,15 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           </span>
           <span fg={C.dim}>{queue.length > 1 ? `  1 of ${queue.length} · next: ${fit(queue[1]!.question, 30)}` : ""}</span>
         </text>
-        <text fg={C.text}>{head.question}</text>
+        {grantLines(head.question, popWidth - 4).map((l, i) => (
+          <text key={i} fg={C.text}>{l}</text>
+        ))}
         <text> </text>
         <box style={{ flexDirection: "row", height: 1 }}>
           {head.options.map((o, i) => {
             const on = i === Math.min(ui.popover.pick, head.options.length - 1)
             return (
-              <text key={o.id} fg={on ? C.text : C.dim} onMouseDown={() => act({ type: "answer-prompt", id: head.id, choice: o.id })} {...(on ? { bg: C.selection } : {})}>
+              <text key={o.id} fg={on ? C.text : C.dim} onMouseDown={() => act(promptAction(latest(), props.session.state(), head, o.id))} {...(on ? { bg: C.selection } : {})}>
                 {`${on ? "› " : "  "}${o.label}   `}
               </text>
             )
