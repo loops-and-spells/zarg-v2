@@ -41,7 +41,10 @@ export const makeZarg = (host: AgentHost) =>
       // The nodes as they are (props and edges): a newer edit merges when it changed other parts.
       const nodesOf = (ids: ReadonlyArray<string>) =>
         Effect.map(store.snapshot, (snap) => Object.fromEntries(ids.map((id) => { const n = snap.nodes.get(id); return [id, n === undefined ? undefined : { props: n.props, edges: n.edges }] }))).pipe(Effect.orElseSucceed(() => ({})))
-      const guard = askFirst(asker, versions, (ids, message) => commitGraph(root, ids, message), nodesOf)
+      // A change shown with its draft: checked as a write would be (gherkin's dry run) before the operator sees it.
+      const dryRun = (draft: ReadonlyArray<{ readonly tool: string; readonly params: unknown }>) =>
+        Effect.map(plugins.invoke("gherkin", "dryRun", { draft }), (r) => r as { readonly ok: boolean; readonly problems: ReadonlyArray<string> }).pipe(Effect.orElseSucceed(() => ({ ok: true, problems: [] as ReadonlyArray<string> })))
+      const guard = askFirst(asker, versions, (ids, message) => commitGraph(root, ids, message), nodesOf, dryRun)
       const outside = host.outsideReads as never
       const factory = (name: string, scope: Scope): Bound | undefined => {
         const ctx = { host: plugins, snapshot, scope }
@@ -120,7 +123,10 @@ export const makeZarg = (host: AgentHost) =>
             ).pipe(Effect.orElseSucceed(() => false)),
           ...(host.inbox !== undefined ? { inbox: host.inbox } : {}),
           // What the item wrote is committed when it ends, however it ends.
-          driver: (spec, asker, observe) => Effect.flatMap(makeRlm(asker, observe), ({ rlm, flush }) => rlm.exec(spec).pipe(Effect.ensuring(flush))),
+          // @scenario S-0038
+          // The first turn waits for the driver's model to be warm.
+          driver: (spec, asker, observe) =>
+            Effect.andThen(host.modelReady ?? Effect.void, Effect.flatMap(makeRlm(asker, observe), ({ rlm, flush }) => rlm.exec(spec).pipe(Effect.ensuring(flush)))),
         }),
     }
   })

@@ -16,6 +16,7 @@ import { decisionsService, type Question, Rlm, settings } from "@zarg/rlm"
 import type { AgentHost, Thread } from "@zarg/agent-host"
 import { closeStale, makeActivity } from "./activity"
 import { newWork } from "./agenda-wake"
+import { makeWarmup } from "./warmup"
 import { type Archive, makeArchive, parseTtl } from "./archive"
 import { threadViews } from "./views"
 import { notLoaded } from "./not-loaded"
@@ -166,6 +167,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     const agenda = (focus: ReadonlySet<string> | undefined) =>
       Effect.map(host.agenda(focus), (items): ReadonlyArray<AgendaItem> => [...(reconcile?.agenda(focus) ?? []), ...forDriver(items)])
     // zarg, the conversational agent, is a trusted agent plugin: it gets what it needs from the core as a host.
+    let warmup: ReturnType<typeof makeWarmup> | undefined
     const agentHost: AgentHost = {
       root,
       roles,
@@ -177,6 +179,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       log,
       sensitive,
       agenda,
+      // zarg's turns wait for the driver's model to be warm (warmup is set below; read when called).
+      modelReady: Effect.suspend(() => (warmup === undefined ? Effect.succeed(true) : warmup.ready)),
       // Turning reconcile on, as /reconcile does (turnOn is defined below; read when called).
       reconcile: { on: () => reconcile !== undefined, turnOn: Effect.suspend(() => turnOn) },
       outsideReads: outsideReads({ grants: agentGrants, userDir: USER_DIR, ask: ((q: Question) => grantAsk(inbox)("agents", q)) as never, yolo: () => yoloControl.on("zarg:agents") }),
@@ -304,8 +308,19 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       model,
       agentEvents,
       secretsChanged: Effect.map(env.sensitive, (s) => void (sensitive = s)),
+      onDefault: Effect.suspend(() => warmNow),
     })
     if (!opts.stub) yield* Effect.forkDetach(setup.openIfNeeded)
+    // @scenario S-0037 S-0039
+    // The driver's model warm before zarg's first turn (a cold one is started, shown as an agent); a pick warms the new one.
+    const newWarmup = () => makeWarmup({ driver: () => config.roles.driver ?? config.roles.default, model, agentEvents, onFailed: (reason) => setup.failed(reason) })
+    warmup = opts.stub ? undefined : newWarmup()
+    const warmNow = Effect.suspend(() => {
+      if (opts.stub) return Effect.void
+      warmup = newWarmup()
+      return Effect.asVoid(warmup.ensure)
+    })
+    if (warmup !== undefined) yield* Effect.forkDetach(warmup.ensure)
 
     // @scenario S-0058 @scenario S-0059
     /** `/reconcile`: turn plan and implement on for this session (the config's section and `enabled` are overridden). */

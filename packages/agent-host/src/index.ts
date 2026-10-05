@@ -84,6 +84,8 @@ export interface AgentHost {
   readonly outsideReads: unknown
   /** The operator's inbox, for this agent's own questions. */
   readonly inbox?: AgentInbox
+  /** Whether the driver's model is warm: waits while it is warmed (false: it did not start). */
+  readonly modelReady?: Effect.Effect<boolean>
   /** Reconcile (plan and implement): whether it runs, and turning it on as /reconcile does. */
   readonly reconcile?: { readonly on: () => boolean; readonly turnOn: Effect.Effect<{ readonly on: boolean; readonly reason?: string; readonly pending?: number }> }
   /** Panels this agent opens (its message bar): shown by every client until closed. */

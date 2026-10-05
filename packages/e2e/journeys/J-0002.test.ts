@@ -1,7 +1,7 @@
 import { expect } from "bun:test"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { answerLoads, command, fakeProvider, journey, PROBE, type Term, termOf } from "../src"
+import { answerLoads, command, fakeProvider, fakeRouter, journey, PROBE, type Term, termOf } from "../src"
 
 // A provider on the OpenRouter wire, with a key made up for this run: never a real one.
 const KEY = `sk-or-e2e-${crypto.randomUUID()}`
@@ -376,3 +376,47 @@ journey("J-0002", { tier: "fast", seed: SEED }, (proves) => {
     expect(readFileSync(join(s.w.userDir, ".env.local"), "utf8")).not.toMatch(/^OPENROUTER_API_KEY=/m)
   })
 })
+
+// The driver's model on a zarg-router stand-in: cold at first, so zarg warms it before its first turn.
+const routerConfig = (url: string, model: string) => `[providers.zarg-router]\nbase_url = ${JSON.stringify(url)}\n\n[roles]\ndefault = "zarg-router:${model}"\n`
+const warming = fakeRouter({
+  model: "e2e-cold",
+  warmMs: 10_000,
+  cells: ['const a = yield* Inquire.ask({ question: "Who uses the tally first?", options: [{ id: "me", label: "Me", recommended: true }, { id: "family", label: "My family" }] })\nyield* Rlm.done({ value: `You: ${a.choice}` })'],
+})
+journey("J-0002", { tier: "fast", seed: { ".zarg/config.toml": routerConfig(warming.url, "e2e-cold") } }, (proves) => {
+  proves("S-0037", async (s) => {
+    const t = await s.open()
+    await answerLoads(t)
+    // The warm-up shows while it runs: an agent, with how long it has taken.
+    await t.waitFor(/warmup/, 15_000)
+    s.note("buffer", "warming", t.screen())
+    const log = () => readFileSync(join(s.w.project, ".zarg/threads/main.jsonl"), "utf8")
+    expect(log()).toMatch(/warming zarg-router:e2e-cold · \d+s/)
+    const until = Date.now() + 20_000
+    while (Date.now() < until && warming.state() !== "running") await Bun.sleep(200)
+    expect(warming.state()).toBe("running")
+  })
+
+  proves("S-0038", async (s) => {
+    const t = termOf(s.term, "S-0038")
+    // zarg's first turn, once warm: its question with options.
+    await t.waitFor("Who uses the tally first?", 30_000)
+    s.note("buffer", "the first question", t.screen())
+    expect(warming.coldTurns()).toBe(0)
+  })
+})
+
+// A model that fails to start: setup says why and lists the models to pick another.
+const failing = fakeRouter({ model: "e2e-bad", warmMs: 500, failWarm: "out of memory", cells: [] })
+journey("J-0002", { tier: "fast", seed: { ".zarg/config.toml": routerConfig(failing.url, "e2e-bad") } }, (proves) => {
+  proves("S-0039", async (s) => {
+    const t = await s.open()
+    await answerLoads(t)
+    await t.waitFor("zarg-router:e2e-bad did not start", 20_000)
+    s.note("buffer", "setup, saying why", t.screen())
+    expect(t.screen()).toContain("out of memory")
+    expect(t.screen()).toContain("Default model")
+  })
+})
+

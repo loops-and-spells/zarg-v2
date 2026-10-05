@@ -23,7 +23,6 @@
   ],
   "id": "S-0037",
   "props": {
-    "planned": true,
     "title": "A cold model warms up",
     "when": "the chosen model is cold"
   },

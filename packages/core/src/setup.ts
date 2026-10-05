@@ -51,6 +51,8 @@ export interface SetupDeps {
   readonly agentEvents: (plugin: string, event: unknown) => void
   /** A secret was saved: the log's redactor learns it. */
   readonly secretsChanged: Effect.Effect<void>
+  /** A default model was picked: warm it before zarg's first turn. */
+  readonly onDefault?: Effect.Effect<void>
 }
 
 /** Why a provider does not answer, in the operator's words. */
@@ -68,6 +70,8 @@ export const makeSetup = (d: SetupDeps) => {
   const AGENT = "setup"
   let started = false
   let selected: string | undefined
+  // Why the default model did not start, until another is picked: said at the top of the sheet.
+  let failure: string | undefined
   /** A provider's state: not set up, reachable with its models, or why not. */
   const status = (p: Provider) =>
     Effect.gen(function* () {
@@ -89,7 +93,8 @@ export const makeSetup = (d: SetupDeps) => {
     if (unchecked.length > 0) yield* check(unchecked)
     const states = d.providers.map((p) => ({ p, s: known.get(p.name)! }))
     const ready = states.filter((x) => x.s.ok)
-    set("summary", { markdown: `${ready.length} provider${ready.length === 1 ? "" : "s"} ready · default: ${d.config.roles.default ?? "none"}${ready.length === 0 ? "\n\nLog in to a provider (⏎ on it), then pick the default model every agent uses." : ""}` })
+    // @scenario S-0039
+    set("summary", { markdown: `${failure !== undefined ? `✗ ${failure}: pick another model below.\n\n` : ""}${ready.length} provider${ready.length === 1 ? "" : "s"} ready · default: ${d.config.roles.default ?? "none"}${ready.length === 0 ? "\n\nLog in to a provider (⏎ on it), then pick the default model every agent uses." : ""}` })
     set("providers", { rows: states.map(({ p, s }) => ({ id: p.name, cells: { provider: p.name, state: s.text } })) })
     const sel = d.providers.find((p) => p.name === selected)
     const fields = sel === undefined ? [] : yield* d.env.fields(sel.envKeys).pipe(Effect.orElseSucceed(() => []))
@@ -194,8 +199,10 @@ export const makeSetup = (d: SetupDeps) => {
         const judge = judges.find((j) => j.split(":")[0] === ref.split(":")[0]) ?? judges[0]
         const before = yield* d.writeUserConfig({ default: ref, ...(judge !== undefined ? { decisionIfUnset: judge } : {}) })
         yield* d.reloadConfig.pipe(Effect.catch((e) => Effect.andThen(Effect.andThen(d.restoreUserConfig(before), Effect.ignore(d.reloadConfig)), Effect.fail(e))))
+        failure = undefined
         yield* render
         if (!(yield* needed)) d.agentEvents("core", { event: "close", surface: "setup", id: AGENT })
+        if (d.onDefault !== undefined) yield* Effect.forkDetach(d.onDefault)
         return { notice: `default model: ${ref}${judge !== undefined ? ` · decisions: ${judge}` : ""}` }
       }
       return { notice: `setup has no action ${action}` }
@@ -203,5 +210,8 @@ export const makeSetup = (d: SetupDeps) => {
   // @scenario S-0084
   /** Open only while setup is needed (a client joining a core that started earlier). */
   const openIfNeeded = Effect.flatMap(needed, (n) => (n ? open("providers") : Effect.void))
-  return { needed, open, openIfNeeded, act }
+  // @scenario S-0039
+  /** The default model did not start: setup opens on its models, saying why. */
+  const failed = (reason: string) => Effect.andThen(Effect.sync(() => void (failure = reason)), open("models"))
+  return { needed, open, openIfNeeded, act, failed }
 }
