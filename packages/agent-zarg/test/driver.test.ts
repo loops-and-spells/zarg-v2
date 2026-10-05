@@ -32,6 +32,18 @@ describe("ask before writing", () => {
     expect(await Effect.runPromise(Effect.flip(gated.handlers.addScenario!({ id: "ST-0002", text: "x" })))).toMatchObject({ _tag: "AskFirst" })
   })
 
+  // @scenario S-0009
+  test("what is written is what the developer added: wording not in the change shown is refused", async () => {
+    const guard = askFirst({ ask: () => Effect.succeed({ choice: "add" }) })
+    const gated = guard.gate(writes)!
+    await Effect.runPromise(guard.asker.confirm!({ change: "Add outcome to I-0001: Parents award points for finished chores." }))
+    const drifted = await Effect.runPromise(Effect.flip(gated.handlers.addScenario!({ intent: "I-0001", text: "Parents award points to family members for finished chores." })))
+    expect(drifted).toMatchObject({ _tag: "NotShown" })
+    expect((drifted as { message: string }).message).toContain("Parents award points to family members for finished chores.")
+    // As shown (case and the closing period aside): written.
+    expect(await Effect.runPromise(gated.handlers.addScenario!({ intent: "I-0001", text: "parents award points for finished chores" }))).toBe("created S-0001")
+  })
+
   test("each driver item starts without an answer", async () => {
     const first = askFirst({ ask: () => Effect.succeed({ choice: "add" }) })
     await Effect.runPromise(first.asker.confirm!({ change: "Given a\nWhen b\nThen c" }))

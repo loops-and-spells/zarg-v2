@@ -8,6 +8,11 @@ const ASK_FIRST: ServiceFailure = {
     "Requirements change only with the developer's say: show the exact change with Inquire.confirm({ change }) (each scenario as By / Given / When / Then lines; every scenario names who acts in it with by, a persona), then write it once they add it. Any other question closes writes again.",
 }
 
+const norm = (t: string) => t.toLowerCase().replace(/\s+/g, " ").trim().replace(/[.!]$/, "")
+/** The words a write puts in the graph (titles, Whens, state and statement texts, names): what the developer must have seen. */
+const wording = (v: unknown): ReadonlyArray<string> =>
+  Array.isArray(v) ? v.flatMap(wording) : v !== null && typeof v === "object" ? Object.entries(v).flatMap(([k, x]) => (typeof x === "string" ? (["text", "title", "when", "name", "answer"].includes(k) ? [x] : []) : wording(x))) : []
+
 /**
  * The driver's rule for the graph: nothing is written that the operator did not see. One guard per driver
  * item: graph writes open when the operator adds a change shown with Inquire.confirm (or the driver adds a
@@ -20,12 +25,21 @@ export const askFirst = (asker: Asker, versions?: (ids: ReadonlyArray<string>) =
   // The versions of the nodes the change was shown about, as the developer saw them: a newer edit by another thread
   // makes the save stale (the change is shown again).
   let shown: Readonly<Record<string, string | undefined>> = {}
+  // @scenario S-0009
+  // The change the developer added, as shown: a write's wording must be in it (a model rewording after the yes is refused).
+  let added: string | undefined
+  const changes = new Map<string, string>()
   const touched = new Set<string>()
   // A fix opens writes only for its finding: these ids (and what the writes add), reported to onTouched.
   let scope: { readonly allowed: Set<string>; readonly onTouched: (ids: ReadonlyArray<string>) => void } | undefined
   // Confirm questions under discussion: choosing "add" on one of them opens writes.
   const confirms = new Set<string>()
   const write = (h: (params: unknown) => Effect.Effect<unknown, ServiceFailure>, params: unknown, named: ReadonlyArray<string>): Effect.Effect<unknown, ServiceFailure> => {
+    if (added !== undefined) {
+      const shownText = norm(added)
+      const off = wording(params).find((w) => !shownText.includes(norm(w)))
+      if (off !== undefined) return Effect.fail({ _tag: "NotShown", message: `"${off}" is not in the change the developer added: write the wording they saw, or show the new wording with Inquire.confirm` })
+    }
     const s = scope
     // Opened for a finding: every node the write names must be the finding's (or one this fix added).
     const outside = s === undefined ? [] : named.filter((id) => !s.allowed.has(id))
@@ -50,21 +64,26 @@ export const askFirst = (asker: Asker, versions?: (ids: ReadonlyArray<string>) =
           open = false
           scope = undefined
           shown = {}
+          added = undefined
           const seen = versions === undefined || (c.about ?? []).length === 0 ? Effect.succeed({}) : versions(c.about ?? [])
           return Effect.tap(Effect.tap(seen, (v) => Effect.sync(() => void (shown = v))).pipe(Effect.andThen(asker.ask(confirmQuestion(c)))), (a) =>
             Effect.sync(() => {
-              if (a.interjected === true && a.question !== undefined) confirms.add(a.question)
-              else open = a.choice === "add"
+              if (a.interjected === true && a.question !== undefined) (confirms.add(a.question), changes.set(a.question, c.change))
+              else {
+                open = a.choice === "add"
+                added = open ? c.change : undefined
+              }
             }),
           )
         }),
       ...(asker.choose !== undefined
-        ? { choose: (c) => Effect.tap(asker.choose!(c), () => Effect.sync(() => void ((scope = undefined), (open = confirms.has(c.question) && c.choice === "add")))) }
+        ? { choose: (c) => Effect.tap(asker.choose!(c), () => Effect.sync(() => void ((scope = undefined), (open = confirms.has(c.question) && c.choice === "add"), (added = open ? changes.get(c.question) : undefined)))) }
         : {}),
     } satisfies Asker,
     /** Open graph writes for one rehearse finding (the core checked it), until the next question. */
     openFor: (finding?: { readonly allowed: ReadonlyArray<string>; readonly onTouched: (ids: ReadonlyArray<string>) => void }) => {
       open = true
+      added = undefined
       scope = finding === undefined ? undefined : { allowed: new Set(finding.allowed), onTouched: finding.onTouched }
     },
     /** Node ids the gated writes added, changed or removed in this item. */
