@@ -30,7 +30,7 @@ Open agenda (3):
 
 Before any graph write, show the developer the exact change with Inquire.confirm({ change }) (each scenario as By / Given / When / Then lines; every scenario names who acts in it with by, a persona) and write only what they add. When the developer says what the product is for, even while a question of yours is open, keep it in the intent first: an outcome it must reach (add-outcome) or a rule it must keep (add-constraint), shown with Inquire.confirm like any write. Ground what you propose: read the project first (its README, docs and code, with Fs) rather than ask the developer what it already says; every statement you propose comes from their words or a project file (say which), never anything from neither. Once written, never ask again what the developer settled: go on to what is still open. In questions and options, name states and scenarios by their words, not by ids alone. Finish with `yield* Rlm.done({ value })`, where value is one or two sentences to the developer about what you did or found. No scenario renders, no ids-only lists.
 ---
-The developer said: "(you answered \"A scenario starts where the child sees the new chore now, or this state marks the end of the child's chore work. Which way do you want it?\": Add a scenario starting from it)"
+The developer said: "(you answered \"What can the child do once \"the child sees the new chore\"? Today no scenario starts there: it is only the end of \"Parent assigns a chore\". Should I add a scenario that starts from it, or is it the end of the flow?\": add a scenario that starts there)"
 Answer them directly. If a choice is needed, ask with Inquire.ask (options, one recommended).
 
 The graph now (no need to read it again):
@@ -42,53 +42,31 @@ Graph ids are bare (I-0001); Entities refs (gherkin/intent:I-0001@…) name the 
 Project files: README.md, test, src, package.json
 
 Recent conversation:
-developer: (you answered "A scenario starts where the child sees the new chore now, or this state marks the end of the child's chore work. Which way do you want it?": Add a scenario starting from it)
+developer: (you answered "What can the child do once "the child sees the new chore"? Today no scenario starts there: it is only the end of "Parent assigns a chore". Should I add a scenario that starts from it, or is it the end of the flow?": add a scenario that starts there)
 
 Before any graph write, show the developer the exact change with Inquire.confirm({ change }) (each scenario as By / Given / When / Then lines; every scenario names who acts in it with by, a persona) and write only what they add. When the developer says what the product is for, even while a question of yours is open, keep it in the intent first: an outcome it must reach (add-outcome) or a rule it must keep (add-constraint), shown with Inquire.confirm like any write. Ground what you propose: read the project first (its README, docs and code, with Fs) rather than ask the developer what it already says; every statement you propose comes from their words or a project file (say which), never anything from neither. Once written, never ask again what the developer settled: go on to what is still open. In questions and options, name states and scenarios by their words, not by ids alone. Finish with `yield* Rlm.done({ value })`, where value is one or two sentences to the developer about what you did or found. No scenario renders, no ids-only lists.
 ---
-The developer said: "The requirements are complete for now: start a rehearsal with Rehearse.run (testers walk the journeys and file feedback), then tell the developer it runs and where its feedback will show (Feedback)."
-Answer them directly. If a choice is needed, ask with Inquire.ask (options, one recommended).
+verify still fails after the fix attempts
+verify-failing: 
+Propose how to resolve it: ask the developer with Inquire.ask when there is a choice, and show the exact change with Inquire.confirm before writing it.
 
 The graph now (no need to read it again):
 Intents (0):
-Personas (1): Parent
+Personas (2): Parent, Child
 Journeys (1): J-0001 Assign chores
-Scenarios: 3; states: 3.
+Scenarios: 3; states: 4.
 Graph ids are bare (I-0001); Entities refs (gherkin/intent:I-0001@…) name the same nodes.
 Project files: README.md, test, src, package.json
 
+Open agenda (4):
+- verify still fails after the fix attempts
+- What can the user do when "the chore leaves every list"? [ST-0003]
+- What can the user do when "the child sees the chore assigned to them"? [ST-0004]
+- How does the user reach "the parent sees the family's chores"? [ST-0001]
+
 Recent conversation:
+developer: (you answered "What can the child do once "the child sees the new chore"? Today no scenario starts there: it is only the end of "Parent assigns a chore". Should I add a scenario that starts from it, or is it the end of the flow?": add a scenario that starts there)
 developer: Add it
-developer: Add it
-developer: Mark it the end
-developer: Add it
-developer: Let the user start there
-developer: Add it
-driver: I added the scenario Child acts on the new chore: Parent starts where "the child sees the new chore" (your choice, from README.md and src/chores.ts), the child finishes the chore it sees, and the removed chore then leaves both lists; it is in J-0001 Assign chores. I also marked "the chore leaves every list" as its end (terminal) and let the user start where "the parent sees the family's chores" (entry), both grounded in README.md, so no state is now unreached or a dead end.
-developer: Rehearse the journeys
+driver: Wrote the change you added: a Child persona (P-0002) and scenario "Child checks the chore", starting from "the child sees the new chore" (today only the end of "Parent assigns a chore"), By Child, In Assign chores, When the child checks their own new-chore view, Then the child sees the chore assigned to them. The persona and the "checks their own new-chore view" wording are grounded in the README (each child has its own new-chore view) and the src test code (childView reading the same store).
 
 Before any graph write, show the developer the exact change with Inquire.confirm({ change }) (each scenario as By / Given / When / Then lines; every scenario names who acts in it with by, a persona) and write only what they add. When the developer says what the product is for, even while a question of yours is open, keep it in the intent first: an outcome it must reach (add-outcome) or a rule it must keep (add-constraint), shown with Inquire.confirm like any write. Ground what you propose: read the project first (its README, docs and code, with Fs) rather than ask the developer what it already says; every statement you propose comes from their words or a project file (say which), never anything from neither. Once written, never ask again what the developer settled: go on to what is still open. In questions and options, name states and scenarios by their words, not by ids alone. Finish with `yield* Rlm.done({ value })`, where value is one or two sentences to the developer about what you did or found. No scenario renders, no ids-only lists.
----
-Start a rehearsal and find where its feedback will show, for the developer instruction: "The requirements are complete for now: start a rehearsal with Rehearse.run (testers walk the journeys and file feedback), then tell the developer it runs and where its feedback will show (Feedback)."
-
-GRAPH IN SCOPE (whole graph): one persona P-0001 Parent (a human parent who acts; parent-wide view of family chores); one journey J-0001 "Assign chores"; scenarios S-0001 Parent assigns a chore / S-0002 Parent removes a chore / S-0003 Child acts on the new chore. States ST-0001 parent sees the family's chores (entry), ST-0002 child sees the new chore, ST-0003 the chore leaves every list (terminal).
-
-Read project first: README.md says a family chore tracker, parents assign chores, children see them; src/chores.ts implements assign/remove/parentChores/childChores over one chores list; test/chores.test.ts units tagged @scenario S-0001/S-0002.
-
-TASK: (1) find the plugin service for rehearsal — Rehearse.run — read its doc/commands and run it so testers walk journey J-0001 (scenarios S-0001..S-0003); report its result. (2) find the feedback mechanism named Feedback: which entity/file holds feedback (its type, ref/kind, and version), where feedback shows. Return findings + sources (e.g., Rehearse plugin doc, Feedback entity type/ref, project files used).
----
-Find the plugin service Rehearse.run and the Feedback mechanism, for the developer instruction: "The requirements are complete for now: start a rehearsal with Rehearse.run (testers walk the journeys and file feedback), then tell the developer it runs and where its feedback will show (Feedback)."
-Project already read: README.md says a family chore tracker, parents assign chores, children see them; src/chores.ts implements assign/remove/parentChores/childChores over one chores list; test/chores.test.ts units tagged @scenario S-0001/S-0002. Gherkin in scope: persona P-0001 Parent; journey J-0001 "Assign chores" with scenarios S-0001 Parent assigns a chore / S-0002 Parent removes a chore / S-0003 Child acts on the new chore; states ST-0001 parent sees the family's chores (entry), ST-0002 child sees the new chore, ST-0003 the chore leaves every list (terminal).
-
-Do these, return findings and sources (and embed the actual run result in findings):
-1. Locate the Rehearse plugin: read its plugin doc/commands (Entities.types output or the plugin entity/its doc, .zarg/rehearse/** files). Find the Rehearse.run method, its parameters and what it returns.
-2. RUN it: Rehearse.run to start a rehearsal where testers walk journey J-0001 and its scenarios S-0001..S-0003. Report the exact run result (run id/state, tester assignments, scenarios walked).
-3. Locate Feedback: which entity type / file (ref/kind, e.g. .zarg/feedback/... or a Feedback entity type) holds feedback filed by testers; give its ref and current version. Say WHERE feedback will show — the surface/entity the developer is told about (e.g. a Feedback feed/entity or file path), with the exact location string.
-Note any grants needed (plugin-grant:rehearse); if a call fails OutOfScope or Permission, say so and what to fix.
-Sources: rehearse plugin doc, feedback entity type/ref, project files read (.zarg/** paths, README.md, src/chores.ts, test/chores.test.ts as relevant).
-You may explore the whole requirements graph (no focus needed) plus these paths.
----
-START a rehearsal using the Rehearse plugin's run method, so testers walk journey J-0001 "Assign chores" and its scenarios S-0001 Parent assigns a chore / S-0002 Parent removes a chore / S-0003 Child acts on the new chore (states ST-0001 entry, ST-0002 child sees the new chore, ST-0003 terminal; persona P-0001 Parent).
-
-Steps: (a) read .zarg/rehearse/** (its doc/files) and the rehearse plugin's commands/doc via Entities.types to find Rehearse.run and its exact parameters; (b) call Rehearse.run with the journey/scenarios above; (c) report the exact result object — run id/state, tester assignments (who walks what), which scenarios are walked/opened. If a call fails (OutOfScope/Permission/Unknown method), report the failure tag and message, and what to fix (e.g. /yolo or grant plugin-grant:rehearse).
-Sources: rehearse plugin doc files read (list them), result of Rehearse.run.

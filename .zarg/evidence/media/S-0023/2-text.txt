@@ -1,3 +1,4 @@
-Landed S-0001 in fa78edc. S-0002 need your attention (see the driver's agenda).
-Landed S-0002 in 38ab0b6.
-Landed S-0001 in 4ef28c1.
+Landed S-0001, S-0002 in 371a39e.
+Landed S-0002 in dedba51.
+Landing waits on your uncommitted edits in .zarg/plans/S-0001.md: commit or stash them (try 1 of 2, again in 3s).
+Nothing landed. S-0001 need your attention (see the driver's agenda).

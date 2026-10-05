@@ -1,13 +1,13 @@
 {
   "scenario": "S-0049",
   "version": "a5eafd24b89b",
-  "commit": "5f5c8eb",
-  "run": "e2e-2026-10-05T08-03-01.447Z",
+  "commit": "33e645c",
+  "run": "e2e-2026-10-05T09-10-28.063Z",
   "journey": "J-0004",
-  "passed": false,
+  "passed": true,
   "flaky": false,
-  "at": "2026-10-05T08:12:42.675Z",
-  "ms": 10,
+  "at": "2026-10-05T09:15:17.094Z",
+  "ms": 6,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -32,14 +32,11 @@
       "caption": "the step as it played",
       "path": "media/S-0049/4-step.cast",
       "meta": {
-        "startAt": 479.5
+        "startAt": 281.3
       }
     }
   ],
-  "failure": {
-    "expected": "\u001b[2mexpect(\u001b[0m\u001b[31mreceived\u001b[0m\u001b[2m).\u001b[0mtoMatch\u001b[2m(\u001b[0m\u001b[32mexpected\u001b[0m\u001b[2m)\u001b[0m\n\nExpected substring or pattern: \u001b[32m/^feat: implement S-0001, S-0002/\u001b[0m\nReceived: \u001b[31m\"feat: implement S-0001\"\u001b[0m\n",
-    "saw": "                       │  inbox   2 open                                                                                \n ◆ zarg                │                                                                                                \n   project · main      │  ▍◆ zarg          A scenario starts where the child s…  question · waiting · 2 options  7m     \n                       │   · zarg          S-0002 conflicts with other scenarios in this pass  finding  now             \n VIEWS               3 │                                                                                                \n▍ ◇ Inbox            2 │                                                                                                \n  ▤ Journeys           │                                                                                                \n  ▤ Intents            │                                                                                                \n                       │                                                                                                \n AGENTS             ◆1 │                                                                                                \n  ◇ zarg          asks │                                                                                                \n  └ ⠼ driver 1    5/25 │                                                                                                \n                       │                                                                                                \n  ▸ archived         1 │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │ ◆ zarg asks A scenario starts where the child sees the new chore now, or t…   ⏎ answer   / chat\n                       │ ◆ zarg asks: A scenario starts where the child sees the new c…   ↑↓ pick   ⏎ answer   esc leave"
-  },
+  "failure": null,
   "code": {
     "packages/reconcile/src/land.ts": "6bf1e7563d506a43b325574e165992ebd91b8bc2",
     "packages/reconcile/test/land.test.ts": "c9a46f90999bbb451cf7724822d554f4d058f2a4"

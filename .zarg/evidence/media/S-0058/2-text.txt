@@ -9,7 +9,7 @@
                        │                                                                                                
  AGENTS              2 │                                                                                                
   ▾ zarg           0/0 │                                                                                                
-  └ ⠙ driver 1    2/25 │                                                                                                
+  └ ⠧ driver 1    3/25 │                                                                                                
                        │                                                                                                
   ▸ archived         1 │                                                                                                
                        │                                                                                                

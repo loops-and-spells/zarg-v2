@@ -1,13 +1,33 @@
 [
   {
-    "kind": "verify-failing",
-    "title": "verify still fails after the fix attempts",
-    "detail": "",
+    "kind": "blocked-scenario",
+    "title": "S-0001 cannot be implemented as written",
+    "detail": "Verify.run can never pass in this workspace: .zarg/config.toml sets the [reconcile] gate command to literally `verify = \"exit 1\"` while `enabled = false`, so the gate is a dormant always-failing setting, not a typecheck/tests gate. No tsconfig, tsc binary, CI config, Makefile, or reconcile-gate script exists anywhere; package.json's sole script is `test: bun test`. Scenario coverage was therefore confirmed directly by bun test (all green), which is the project's intended runner.",
+    "about": [
+      "S-0001"
+    ],
+    "pass": "729bf7d5bf35",
+    "id": "F-024262c1",
+    "at": "2026-10-05T09:30:12.795Z"
+  },
+  {
+    "kind": "pass-error",
+    "title": "implement failed for S-0002",
+    "detail": "Cause([Fail(RlmError: implement-scenario did not finish within its budget (25 turns))])",
     "about": [
       "S-0002"
     ],
-    "pass": "281815cc0756",
-    "id": "F-ac29fcd2",
-    "at": "2026-10-05T08:52:49.695Z"
+    "pass": "729bf7d5bf35",
+    "id": "F-614f2bdd",
+    "at": "2026-10-05T09:30:12.796Z"
+  },
+  {
+    "kind": "verify-failing",
+    "title": "verify still fails after the fix attempts",
+    "detail": "",
+    "about": [],
+    "pass": "729bf7d5bf35",
+    "id": "F-a6ec0e36",
+    "at": "2026-10-05T09:30:12.796Z"
   }
 ]

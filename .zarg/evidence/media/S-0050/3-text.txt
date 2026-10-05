@@ -1,9 +1,9 @@
-                       │  inbox   1 open                                                                                
+                       │  inbox   2 open                                                                                
  ◆ zarg                │                                                                                                
-   project · main      │  ▍◆ zarg          A scenario starts where the child …  question · waiting · 2 options  39m     
-                       │                                                                                                
+   project · main      │  ▍◆ zarg          What can the child do once "the chi…  question · waiting · 3 options  7m     
+                       │   · zarg          Landing waits on your uncommitted edits in .zarg/plans/S-0…  report  now     
  VIEWS               3 │                                                                                                
-▍ ◇ Inbox            1 │                                                                                                
+▍ ◆ Inbox            2 │                                                                                                
   ▤ Journeys           │                                                                                                
   ▤ Intents            │                                                                                                
                        │                                                                                                
@@ -37,4 +37,4 @@
                        │                                                                                                
                        │                                                                                                
                        │ › type a message, Enter to send                                                                
-                       │ core child · ◆ 1 blocking · 1 open · idle · thread main · zarg-router:dee…   ⏎ send   esc leave
+                       │ core child · ◆ 1 blocking · 2 open · idle · thread main · zarg-router:dee…   ⏎ send   esc leave

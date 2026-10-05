@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "kind": "landing-blocked",
+    "title": "the implementation commit cannot land",
+    "detail": "waiting on your uncommitted edits in .zarg/plans/S-0001.md",
+    "about": [
+      "S-0001"
+    ],
+    "pass": "f4083e99b106",
+    "id": "F-527136d3",
+    "at": "2026-10-05T09:18:20.880Z"
+  }
+]

@@ -1,95 +1,89 @@
 diff --git a/src/chores.ts b/src/chores.ts
-index 8e78d42..75a7872 100644
+index 8e78d42..5283654 100644
 --- a/src/chores.ts
 +++ b/src/chores.ts
-@@ -1 +1,49 @@
+@@ -1 +1,28 @@
 -export const assign = (chores: ReadonlyArray<string>, chore: string) => [...chores, chore]
++export type Chore = { readonly chore: string; readonly child: string }
++
 +// @scenario S-0001
-+
-+export type ChildId = string
-+
-+/** A chore record carries its text and the child who owns it. */
-+export type Chore = { readonly text: string; readonly childId: ChildId }
-+
-+/** The parent persona. */
-+export type Parent = { readonly name?: string }
-+
-+/** In-memory family store, keyed by how it is read: parent-wide vs per-child. */
-+export type FamilyStore = { readonly chores: ReadonlyArray<Chore> }
-+
-+const store = (chores: ReadonlyArray<Chore>): FamilyStore => ({ chores })
-+
-+// Default in-memory family store, hydrated from whatever the parent already sees.
-+let family: FamilyStore = store([])
-+
-+/**
-+ * Parent action: create a chore owned by the child.
-+ * Returns the updated family store; persists it into the default store when no store is given.
-+ */
 +export const assign = (
-+  parent: Parent,
-+  childId: ChildId,
++  chores: ReadonlyArray<Chore> | ReadonlyArray<string>,
 +  chore: string,
-+  into: FamilyStore = family,
-+): FamilyStore => {
-+  const next: FamilyStore = { chores: [...into.chores, { text: chore, childId }] }
-+  if (into === family) family = next
-+  return next
++  child?: string,
++): ReadonlyArray<Chore | string> => {
++  if (child === undefined) {
++    return [...chores, chore]
++  }
++  return [...chores, { chore, child }]
 +}
 +
-+/** ST-0001: the parent sees the family's chores — every chore regardless of owner. */
-+export const parentChores = (into: FamilyStore = family): ReadonlyArray<Chore> => into.chores
++/** The parent's view: the family's chores, i.e. every chore in the store. */
++// @scenario S-0001
++export const parentView = (chores: ReadonlyArray<Chore>): ReadonlyArray<Chore> => chores
 +
-+export const parentVisible = parentChores
++/** The child's view: only the chores assigned to that child. */
++// @scenario S-0001
++export const childView = (
++  chores: ReadonlyArray<Chore>,
++  child: string,
++): ReadonlyArray<Chore> => chores.filter((c) => c.child === child)
 +
-+/** ST-0002: the child sees the new chore — only chores owned by that child. */
-+export const childChores = (
-+  childId: ChildId,
-+  into: FamilyStore = family,
-+): ReadonlyArray<Chore> => into.chores.filter((c) => c.childId === childId)
-+
-+/** Hydrate a family store from a parent's current chore list (strings or records). */
-+export const hydrateFromParent = (parentSees: ReadonlyArray<string | Chore>): FamilyStore =>
-+  store(parentSees.map((entry) =>
-+    typeof entry === "string" ? { text: entry, childId: "" } : entry,
-+  ))
++// @scenario S-0002
++export const remove = (chores: ReadonlyArray<string>, chore: string) =>
++  chores.filter((c) => c !== chore)
 diff --git a/test/chores.test.ts b/test/chores.test.ts
-index 1596ebe..babdd62 100644
+index 1596ebe..30e3788 100644
 --- a/test/chores.test.ts
 +++ b/test/chores.test.ts
-@@ -1,6 +1,33 @@
-+// @scenario S-0001
-+
+@@ -1,6 +1,48 @@
++// @scenario S-0002
  import { expect, test } from "bun:test"
 -import { assign } from "../src/chores"
-+import { assign, childChores, hydrateFromParent, parentChores } from "../src/chores"
-+
-+const parent = { name: "Parent" }
++import { assign, parentView, childView, remove } from "../src/chores"
  
++// @scenario S-0001
  test("a chore is assigned", () => {
 -  expect(assign([], "dishes")).toEqual(["dishes"])
-+  const fam = hydrateFromParent([])
-+  const next = assign(parent, "kid", "dishes", fam)
-+  expect(parentChores(next)).toEqual([{ text: "dishes", childId: "kid" }])
-+})
-+
-+test("parent assigns a chore to a child", () => {
-+  const next = assign(parent, "lee", "dishes", hydrateFromParent([]))
-+  expect(next.chores).toContainEqual({ text: "dishes", childId: "lee" })
-+})
-+
-+test("child sees the new chore", () => {
-+  const next = assign(parent, "lee", "dishes", hydrateFromParent([]))
-+  expect(childChores("lee", next)).toEqual([{ text: "dishes", childId: "lee" }])
-+})
-+
-+test("parent sees the family's chores", () => {
-+  const fam = hydrateFromParent([])
-+  const afterA = assign(parent, "kid-a", "dishes", fam)
-+  const afterB = assign(parent, "kid-b", "trash", afterA)
-+  expect(parentChores(afterB)).toEqual([
-+    { text: "dishes", childId: "kid-a" },
-+    { text: "trash", childId: "kid-b" },
++  expect(assign([], "dishes", "alice")).toEqual([
++    { chore: "dishes", child: "alice" },
 +  ])
-+  expect(childChores("kid-a", afterB)).toEqual([{ text: "dishes", childId: "kid-a" }])
++})
++
++// @scenario S-0001
++test("the child sees the new chore", () => {
++  const chores = assign([], "dishes", "alice")
++  expect(childView(chores, "alice")).toEqual([
++    { chore: "dishes", child: "alice" },
++  ])
++})
++
++// @scenario S-0001
++test("a chore assigned to another child is not seen", () => {
++  const chores = assign([], "dishes", "bob")
++  expect(childView(chores, "alice")).toEqual([])
++})
++
++// @scenario S-0001
++test("the parent sees the family's chores", () => {
++  const chores = assign(assign([], "trash", "bob"), "dishes", "alice")
++  expect(parentView(chores)).toEqual([
++    { chore: "trash", child: "bob" },
++    { chore: "dishes", child: "alice" },
++  ])
++})
++
++// proves ST-0003: the chore leaves every list
++test("a chore is removed from every list", () => {
++  const familyChores = ["dishes", "laundry", "trash"]
++  const childList = ["dishes", "homework"]
++  const family = remove(familyChores, "dishes")
++  const child = remove(childList, "dishes")
++  expect(family).not.toContain("dishes")
++  expect(child).not.toContain("dishes")
++})
++
++// proves removal only drops the named chore
++test("removing keeps other chores", () => {
++  expect(remove(["dishes", "laundry", "trash"], "dishes")).toEqual(["laundry", "trash"])
  })

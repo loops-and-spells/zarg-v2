@@ -9,7 +9,7 @@
                        │                                                                                                
  AGENTS              2 │                                                                                                
   ● zarg           0/0 │                                                                                                
-  ⠼ setup          0/1 │                                                                                                
+  ⠙ setup          0/1 │                                                                                                
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                
@@ -34,7 +34,7 @@
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                
-                       │ › type a message, Enter to send                                                                
                        │ · Reconcile stays off: plan and implement are off: set a default model with /models (or roles. 
                        │ plan and roles.implement)                                                                      
+                       │ › type a message, Enter to send                                                                
                        │ core child · error · thread main · driver model unknown   ⏎ send   esc leave                   

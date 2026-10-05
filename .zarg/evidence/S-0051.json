@@ -1,13 +1,13 @@
 {
   "scenario": "S-0051",
   "version": "ec07a2e59528",
-  "commit": "5f5c8eb",
-  "run": "e2e-2026-10-05T08-03-01.447Z",
+  "commit": "33e645c",
+  "run": "e2e-2026-10-05T09-10-28.063Z",
   "journey": "J-0004",
-  "passed": false,
+  "passed": true,
   "flaky": false,
-  "at": "2026-10-05T08:48:27.129Z",
-  "ms": 240039,
+  "at": "2026-10-05T09:18:21.041Z",
+  "ms": 2006,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -32,14 +32,11 @@
       "caption": "the step as it played",
       "path": "media/S-0051/4-step.cast",
       "meta": {
-        "startAt": 1027.8
+        "startAt": 67.3
       }
     }
   ],
-  "failure": {
-    "expected": "\u001b[2mexpect(\u001b[0m\u001b[31mreceived\u001b[0m\u001b[2m).\u001b[0mtoBe\u001b[2m(\u001b[0m\u001b[32mexpected\u001b[0m\u001b[2m)\u001b[0m\n\nExpected: \u001b[32mtrue\u001b[0m\nReceived: \u001b[31mfalse\u001b[0m\n",
-    "saw": "                       │  inbox   1 open                                                                                \n ◆ zarg                │                                                                                                \n   project · main      │  ▍◆ zarg          A scenario starts where the child …  question · waiting · 2 options  43m     \n                       │                                                                                                \n VIEWS               3 │                                                                                                \n▍ ◆ Inbox            1 │                                                                                                \n  ▤ Journeys           │                                                                                                \n  ▤ Intents            │                                                                                                \n                       │                                                                                                \n AGENTS              1 │                                                                                                \n  ● zarg           0/0 │                                                                                                \n                       │                                                                                                \n  ▸ archived         1 │                                                                                                \n                       │                                                                                                \n                       │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   \n                       │     zarg   esc closes                                                                          \n                       │     ·  Reconcile is on; nothing to reconcile.                                                  \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │                                                                                                \n                       │ › type a message, Enter to send                                                                \n                       │ core child · ◆ 1 blocking · 1 open · idle · thread main · zarg-router:dee…   ⏎ send   esc leave"
-  },
+  "failure": null,
   "code": {
     "packages/reconcile/src/pass.ts": "ada0d6523e5efb61cb57d1d4e1db27cfb1095341",
     "packages/reconcile/test/pass.test.ts": "24ebf2698dd5989c6c163047fde20cdf71bc5d25"
