@@ -35,9 +35,11 @@ export const applyDraft = (snap: Snapshot.Snapshot, draft: Draft, tools: Readonl
     const messages: Array<string> = []
     const problems: Array<string> = []
     for (const c of draft) {
-      const t = tools.find((x) => x.name === c.tool)
+      // As the tool is named, or as an RLM calls it: Gherkin.addScenario is add-scenario.
+      const name = c.tool.replace(/^Gherkin\./, "").replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
+      const t = tools.find((x) => x.name === name)
       if (t === undefined) {
-        problems.push(`${c.tool} is not a gherkin tool`)
+        problems.push(`${c.tool} is not a gherkin tool (they are: ${tools.map((x) => x.name).join(", ")})`)
         continue
       }
       const params = Schema.decodeUnknownExit(t.params)(bareIds(c.params))

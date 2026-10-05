@@ -72,7 +72,7 @@ const Confirm = Schema.Struct({
   }),
   about: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Scenario or state ids the change touches." }),
   draft: Schema.optionalKey(Schema.Array(Schema.Struct({ tool: Schema.String, params: Schema.Unknown }))).annotate({
-    description: "The change as the graph tool calls that write it (gherkin tool names, e.g. add-scenario, and their params), in order: checked as a write would be before the operator sees it; what the checks refuse comes back as `problems` to fix.",
+    description: "The change as the Gherkin calls that write it, in order, each { tool, params } as you would call it (Gherkin.addScenario(p) is { tool: \"addScenario\", params: p }): checked as a write would be before the operator sees it; what the checks refuse comes back as `problems` to fix.",
   }),
 })
 export type Confirm = typeof Confirm.Type

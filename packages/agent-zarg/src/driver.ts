@@ -9,7 +9,7 @@ const ASK_FIRST: ServiceFailure = {
 }
 
 const JUDGED = "(Fix it, or show the same change again if it holds as it is: the operator then decides.)"
-const NO_DRAFT = "Show a scenario change with its draft too: Inquire.confirm({ change, draft }), the draft being the gherkin tool calls that write it (add-scenario, link, …), so the checks run before the operator sees it."
+const NO_DRAFT = "Show a scenario change with its draft too: Inquire.confirm({ change, draft }), the draft being the Gherkin calls that write it ({ tool: 'addScenario', params } for Gherkin.addScenario, …), so the checks run before the operator sees it."
 const PICKED_HINT = "They picked an option that is a change: it is added. Write it now, as shown; no Inquire.confirm."
 
 /** The change's first line; one that only heads it (ends with a colon) takes the next line too. */

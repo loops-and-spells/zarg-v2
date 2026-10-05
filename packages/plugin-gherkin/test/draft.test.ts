@@ -82,12 +82,15 @@ describe("drafts", () => {
         return {
           lint: (yield* h.invoke("gherkin", "dryRun", { draft: [{ tool: "edit-state", params: { id: "ST-0002", text: "if the visitor wants, the picker is shown" } }] })) as { ok: boolean; problems: string[] },
           tool: (yield* h.invoke("gherkin", "dryRun", { draft: [{ tool: "nope", params: {} }] })) as { ok: boolean; problems: string[] },
+          camel: (yield* h.invoke("gherkin", "dryRun", { draft: [{ tool: "Gherkin.editState", params: { id: "ST-0002", text: "The picker is shown" } }] })) as { ok: boolean; problems: string[] },
         }
       }),
     )
     expect(out.lint.ok).toBe(false)
     expect(out.lint.problems.join(" ")).toMatch(/if/)
-    expect(out.tool.problems).toEqual(["nope is not a gherkin tool"])
+    expect(out.tool.problems[0]).toStartWith("nope is not a gherkin tool (they are: ")
+    expect(out.tool.problems[0]).toContain("add-scenario")
+    expect(out.camel).toMatchObject({ ok: true, problems: [] })
   })
   test("scenes and stories over a draft show the drafted scenarios; journeys list their scenarios", async () => {
     const out = await run(
