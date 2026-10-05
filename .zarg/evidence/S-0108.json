@@ -1,12 +1,12 @@
 {
   "scenario": "S-0108",
   "version": "54504fb8b42e",
-  "commit": "679c1007",
-  "run": "e2e-2026-10-05T16-10-53.408Z",
+  "commit": "ca09b1cb",
+  "run": "e2e-2026-10-05T16-26-00.285Z",
   "journey": "J-0008",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T16:11:04.271Z",
+  "at": "2026-10-05T16:29:01.224Z",
   "ms": 2008,
   "media": [
     {

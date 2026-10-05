@@ -1,5 +1,5 @@
 {
-  "title": "Parent browses assigned chores",
+  "title": "Parent sets a chore to repeat weekly",
   "journey": "",
   "scenarios": [],
   "changes": [
@@ -8,132 +8,44 @@
       "params": {
         "name": "Parent",
         "kind": "human",
-        "text": "A parent who uses the app to see the chores assigned to them."
+        "text": "a family member who sets chores and checks them done"
       }
     },
     {
       "tool": "add-scenario",
       "params": {
-        "title": "Parent browses assigned chores",
-        "when": "The parent opens the family chore list",
+        "title": "Parent sets a chore to repeat weekly",
+        "when": "Parent marks a chore to repeat every week",
         "by": [
           {
             "name": "Parent"
           }
         ],
         "arrives": {
-          "text": "The parent is viewing their assigned chores"
+          "text": "an active todo list"
         },
         "then": [
           {
-            "text": "The parent sees chores assigned to them"
+            "text": "the chore is due weekly"
+          },
+          {
+            "text": "next week it appears automatically"
+          },
+          {
+            "text": "Parent never retypes it"
           }
         ],
-        "given": [
-          {
-            "text": "The parent is a member of a family using the app"
-          }
-        ]
-      }
-    },
-    {
-      "tool": "add-journey",
-      "params": {
-        "name": "Parent sees their chores"
-      }
-    },
-    {
-      "tool": "link",
-      "params": {
-        "edge": "in",
-        "journey": {
-          "id": "J-0001"
-        },
-        "scenario": "S-0001"
-      }
-    },
-    {
-      "tool": "link",
-      "params": {
-        "edge": "serves",
-        "journey": {
-          "id": "J-0001"
-        },
-        "outcome": "O-0001"
-      }
-    },
-    {
-      "tool": "add-persona",
-      "params": {
-        "name": "Child",
-        "kind": "human",
-        "text": "A child in the family who uses the app to see the chores assigned to them."
-      }
-    },
-    {
-      "tool": "add-scenario",
-      "params": {
-        "title": "Child browses assigned chores",
-        "when": "The child opens the family chore list",
-        "by": [
-          {
-            "name": "Child"
-          }
-        ],
-        "arrives": {
-          "text": "The child is viewing their assigned chores"
-        },
-        "then": [
-          {
-            "text": "The child sees chores assigned to them"
-          }
-        ],
-        "given": [
-          {
-            "text": "The child is a member of a family using the app"
-          }
-        ]
-      }
-    },
-    {
-      "tool": "add-journey",
-      "params": {
-        "name": "Child sees their chores"
-      }
-    },
-    {
-      "tool": "link",
-      "params": {
-        "edge": "in",
-        "journey": {
-          "id": "J-0002"
-        },
-        "scenario": "S-0002"
-      }
-    },
-    {
-      "tool": "link",
-      "params": {
-        "edge": "serves",
-        "journey": {
-          "id": "J-0002"
-        },
-        "outcome": "O-0001"
+        "given": []
       }
     }
   ],
   "feedback": [],
   "steps": [
-    "Add Parent as a persona before their scenario",
-    "Add a scenario where Parent opens the app to see their chores",
-    "Add a journey and link the Parent scenario into it",
-    "Mark the journey as serving the outcome Each family member sees chores assigned to them",
-    "Add Child as a persona",
-    "Add a scenario where Child opens the app and sees their assigned chores",
-    "Add a journey for the Child and link the scenario into it",
-    "Mark that journey as serving the same outcome"
+    "Add the Parent persona",
+    "Add the scenario where Parent sets weekly repeat",
+    "Link that scenario into a journey serving O-0002"
   ],
-  "serves": "gherkin/outcome:O-0001@f5ebc0ef2fe2",
+  "serves": "gherkin/outcome:O-0002@bf62f6842034",
   "id": "B-01",
   "status": "backlog",
   "events": [

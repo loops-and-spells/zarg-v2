@@ -23,7 +23,6 @@
   ],
   "id": "S-0017",
   "props": {
-    "planned": true,
     "title": "Driver Agent merges compatible edits",
     "when": "the Driver Agent finds both edits compatible"
   },

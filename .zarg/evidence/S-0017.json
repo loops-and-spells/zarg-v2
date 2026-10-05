@@ -1,0 +1,45 @@
+{
+  "scenario": "S-0017",
+  "version": "a38f67b89edf",
+  "commit": "ca09b1cb",
+  "run": "e2e-2026-10-05T16-26-00.285Z",
+  "journey": "J-0001",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-05T16:26:19.649Z",
+  "ms": 266,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0017/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "the merge, said",
+      "path": "media/S-0017/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0017/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0017/4-step.cast",
+      "meta": {
+        "startAt": 18.4
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/agent-zarg/src/driver.ts": "e0e6bc4a0fe1232571b2701d4e7b1b48f57dcc58",
+    "packages/agent-zarg/test/driver.test.ts": "ca7f3adcf65e4639456f74ffd51bf79ceaaca31f",
+    "packages/e2e/journeys/J-0001.test.ts": "5ee1d99de53f0e73f4ab81e9335bc13ad211119b"
+  }
+}

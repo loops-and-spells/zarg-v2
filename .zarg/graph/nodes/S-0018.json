@@ -19,7 +19,6 @@
   ],
   "id": "S-0018",
   "props": {
-    "planned": true,
     "title": "Driver Agent asks about conflicting edits",
     "when": "the Driver Agent finds the edits conflicting"
   },

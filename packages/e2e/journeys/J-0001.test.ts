@@ -41,6 +41,23 @@ const CELLS = [
     // Said, and the item goes on (the next cell asks what next).
     'return `The edit: ${said.includes("refused") ? "refused " + said : "saved"}`',
   ].join("\n"),
+  // 5b: a rename shown about P-0001; another hand rewords its text meanwhile: other parts, so both hold (merged, said).
+  [
+    'const c = yield* Inquire.confirm({ change: "Rename persona Parent to Guardian", about: ["P-0001"] })',
+    'const r: unknown = c.choice === "add" ? yield* Effect.catch(Gherkin.editPersona({ id: "P-0001", name: "Guardian" }), (e) => Effect.succeed({ refused: e })) : "skipped"',
+    'return `The rename: ${JSON.stringify(r).includes("refused") ? "refused" : "saved"}`',
+  ].join("\n"),
+  // 5c: a text edit shown; another hand rewords the same text: refused, and the merge question asks which version stays.
+  [
+    'const c = yield* Inquire.confirm({ change: "Edit persona Guardian: a guardian who checks every chore.", about: ["P-0001"] })',
+    'const r: unknown = c.choice === "add" ? yield* Effect.catch(Gherkin.editPersona({ id: "P-0001", text: "a guardian who checks every chore." }), (e) => Effect.succeed({ refused: e })) : "skipped"',
+    'if (JSON.stringify(r).includes("StaleNode")) {',
+    '  const q = yield* Inquire.ask({ question: "Another edit changed the guardian\'s text: which version stays?", options: [{ id: "theirs", label: "Keep theirs", change: "Keep persona Guardian\'s text as the other edit set it" }, { id: "mine", label: "Use mine", recommended: true, change: "Edit persona Guardian: a guardian who checks every chore." }] })',
+    '  if (q.choice === "mine") yield* Gherkin.editPersona({ id: "P-0001", text: "a guardian who checks every chore." })',
+    '  return `Kept: ${q.choice}`',
+    '}',
+    'return "saved"',
+  ].join("\n"),
   // 6: a question the operator answers with a message: the driver weighs it and asks again.
   [
     'const a = yield* Inquire.ask({ question: "How often are chores due?", options: [{ id: "daily", label: "Every day", recommended: true }, { id: "weekly", label: "Every week" }] })',
@@ -171,6 +188,37 @@ journey("J-0001", { tier: "fast", env: { ZARG_CORE_STUB: STUB } }, (proves) => {
     expect(await waitFor(() => /The edit: refused[^\n]*StaleNode/.test(rlm()))).toBe(true)
     s.note("log", "what the driver got back", rlm().split("\n").filter((l) => l.includes("The edit:")).join("\n"))
     expect(nodes(s.w, "P-").find((p) => p.id === "P-0001")?.props.text).toBe("a parent who sets the chores.")
+  })
+
+  // @scenario S-0017
+  proves("S-0017", async (s) => {
+    const t = s.term!
+    await t.waitFor("Rename persona Parent to Guardian", 60_000)
+    // Another hand rewords the persona's text: not the part this change renames.
+    expect((await s.cli(["tool", "call", "gherkin/edit-persona", JSON.stringify({ id: "P-0001", text: "a parent who checks the chores." })])).code).toBe(0)
+    await t.choose("Add it", "down", "Rename persona Parent to Guardian")
+    await t.waitFor("Merged with another edit to P-0001", 30_000)
+    s.note("buffer", "the merge, said", t.screen())
+    expect(nodes(s.w, "P-").find((p) => p.id === "P-0001")?.props).toMatchObject({ name: "Guardian", text: "a parent who checks the chores." })
+  })
+
+  proves("S-0018", async (s) => {
+    const t = s.term!
+    await t.waitFor("Edit persona Guardian: a guardian who checks every chore.", 60_000)
+    // Another hand rewords the same text: the two edits conflict.
+    expect((await s.cli(["tool", "call", "gherkin/edit-persona", JSON.stringify({ id: "P-0001", text: "a guardian who sets the chores." })])).code).toBe(0)
+    // Gone once the confirm is: the merge question shows the same words (as an option's change).
+    await t.choose("Add it", "down", "Add this to the requirements?")
+    await t.waitFor("which version stays?", 30_000)
+    s.note("buffer", "the merge question", t.screen())
+    expect(t.screen()).toContain("Keep theirs")
+    expect(t.screen()).toContain("Use mine")
+  })
+
+  proves("S-0019", async (s) => {
+    const t = s.term!
+    await t.choose("Use mine", "down", "which version stays?")
+    expect(await waitFor(() => nodes(s.w, "P-").find((p) => p.id === "P-0001")?.props.text === "a guardian who checks every chore.")).toBe(true)
   })
 
   proves("S-0013", async (s) => {

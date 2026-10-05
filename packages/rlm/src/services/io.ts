@@ -109,6 +109,8 @@ export interface Asker {
   readonly confirm?: (c: Confirm) => Effect.Effect<Answer, ServiceFailure>
   /** A change the operator already added (shown before a restart): the item may write it without showing it again. Taken once. */
   readonly approved?: () => string | undefined
+  /** Something the gate says in the conversation (a merge with another thread's edit). */
+  readonly note?: (text: string) => Effect.Effect<void>
 }
 
 export const inquire = (asker: Asker): Bound =>

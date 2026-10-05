@@ -245,6 +245,8 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
         )
       },
       choose,
+      // What the gate says (a merge with another thread's edit): in the conversation, as zarg.
+      note: (text) => note("assistant", text),
       approved: () => {
         const a = approvedBefore
         approvedBefore = undefined

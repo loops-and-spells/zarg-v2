@@ -1,3 +1,1 @@
-This product has no requirements yet. To describe where a user starts and their first action, first I need to know who meets it. Who, in your words, meets the product and how do they reach it?
-
-A person at the app: persona: name and text still unknown — I will draft it from what you write, then show the exact persona with confirm
+Who uses this product? Pick who acts in its scenarios — a tester roleplays them. If it is a person using an app, a coding agent at the command line, or the product's own agent, that is the kind; otherwise say in your words who it is.

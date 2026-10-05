@@ -39,6 +39,42 @@ describe("ask before writing", () => {
     expect(await Effect.runPromise(Effect.flip(gated.handlers.addScenario!({ intent: "I-0001", text: "Something else entirely" })))).toMatchObject({ _tag: "NotShown" })
   })
 
+  // @scenario S-0017
+  test("a newer edit to another part of the node merges: the write goes through, their edit stays, and the merge is noted", async () => {
+    let node = { props: { name: "Parent", text: "a parent who assigns chores." }, edges: [] as ReadonlyArray<{ type: string; to: string }> }
+    const notes: Array<string> = []
+    const editPersona: Bound = { def: { name: "Gherkin" } as never, handlers: { editPersona: (p) => Effect.sync(() => ((node = { ...node, props: { ...node.props, name: (p as { name: string }).name } }), { added: [], changed: ["P-0001"], removed: [] })) } }
+    const guard = askFirst(
+      { ask: () => Effect.succeed({ choice: "add" }), note: (t) => Effect.sync(() => void notes.push(t)) },
+      (ids) => Effect.succeed(Object.fromEntries(ids.map((id) => [id, JSON.stringify(node)]))),
+      undefined,
+      (ids) => Effect.succeed(Object.fromEntries(ids.map((id) => [id, node]))),
+    )
+    await Effect.runPromise(guard.asker.confirm!({ change: "Rename persona Parent to Guardian", about: ["P-0001"] }))
+    // Another thread rewords its text meanwhile.
+    node = { ...node, props: { ...node.props, text: "a parent who sets the chores." } }
+    expect(await Effect.runPromise(guard.gate(editPersona)!.handlers.editPersona!({ id: "P-0001", name: "Guardian" }))).toMatchObject({ changed: ["P-0001"] })
+    expect(node.props).toEqual({ name: "Guardian", text: "a parent who sets the chores." })
+    expect(notes[0]).toContain("Merged with another edit to P-0001")
+  })
+
+  // @scenario S-0018
+  test("a newer edit to the same part conflicts: refused, with both versions and the merge question to ask", async () => {
+    let node = { props: { text: "a parent who assigns chores." }, edges: [] as ReadonlyArray<{ type: string; to: string }> }
+    const guard = askFirst(
+      { ask: () => Effect.succeed({ choice: "add" }) },
+      (ids) => Effect.succeed(Object.fromEntries(ids.map((id) => [id, JSON.stringify(node)]))),
+      undefined,
+      (ids) => Effect.succeed(Object.fromEntries(ids.map((id) => [id, node]))),
+    )
+    await Effect.runPromise(guard.asker.confirm!({ change: "Edit persona Parent: a parent who assigns and checks chores.", about: ["P-0001"] }))
+    node = { ...node, props: { text: "a parent who sets the chores." } }
+    const refused = (await Effect.runPromise(Effect.flip(guard.gate(writes)!.handlers.addScenario!({ id: "P-0001", text: "a parent who assigns and checks chores." })))) as { _tag: string; message: string }
+    expect(refused._tag).toBe("StaleNode")
+    expect(refused.message).toContain('text: "a parent who sets the chores."')
+    expect(refused.message).toContain("Inquire.ask")
+  })
+
   // @scenario S-0016
   test("a change's own writes are never a newer edit: writing it in parts changes the node it was shown about, and the next part still saves", async () => {
     let version = "v1"
@@ -67,7 +103,7 @@ describe("ask before writing", () => {
     expect(await Effect.runPromise(gated.handlers.link!({ scenario: "S-0004", journey: { id: "J-0001" } }))).toMatchObject({ changed: ["S-0004"] })
   })
 
-  // @scenario S-0009
+  // @scenario S-0009 S-0019
   test("an option that is a change adds it when picked: the question shows its exact change, and writes open for that wording only", async () => {
     let shown = ""
     const guard = askFirst({ ask: (q) => Effect.sync(() => ((shown = q.question), { choice: "terminal" })) })

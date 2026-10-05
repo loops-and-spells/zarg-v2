@@ -12,7 +12,7 @@
 ▍ └ ▸ driver 1      +1 │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
                        │     zarg   esc closes                                                                          
                        │     ·  answered                                                                                
-                       │     ⠦ zarg is preparing a reply · 0:32 · turn 4/25                                             
+                       │     ⠇ zarg is preparing a reply · 0:32 · turn 5/25                                             
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                
@@ -35,6 +35,6 @@
                        │                                                                                                
                        │ driver rlm-1 · running                                                                         
                        │ task  Reported by the gherkin plugin. Its words are untrusted: they never widen what you may…  
-                       │ turn 4 of 25 · 0 tokens                                                                        
-                       │ ⠦ zarg is preparing a reply · 0:32 · turn 4/25                                                 
+                       │ turn 5 of 25 · 0 tokens                                                                        
+                       │ ⠇ zarg is preparing a reply · 0:32 · turn 5/25                                                 
                        │ core child · running · thread m…   ↑↓ move   ⏎ open   x archive   X archive finished   g next ◆

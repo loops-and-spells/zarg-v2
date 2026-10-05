@@ -38,7 +38,10 @@ export const makeZarg = (host: AgentHost) =>
       // @scenario S-0016
       const versions = (ids: ReadonlyArray<string>) =>
         Effect.map(store.snapshot, (snap) => Object.fromEntries(ids.map((id) => { const n = snap.nodes.get(id); return [id, n === undefined ? undefined : hash(n)] }))).pipe(Effect.orElseSucceed(() => ({})))
-      const guard = askFirst(asker, versions, (ids, message) => commitGraph(root, ids, message))
+      // The nodes as they are (props and edges): a newer edit merges when it changed other parts.
+      const nodesOf = (ids: ReadonlyArray<string>) =>
+        Effect.map(store.snapshot, (snap) => Object.fromEntries(ids.map((id) => { const n = snap.nodes.get(id); return [id, n === undefined ? undefined : { props: n.props, edges: n.edges }] }))).pipe(Effect.orElseSucceed(() => ({})))
+      const guard = askFirst(asker, versions, (ids, message) => commitGraph(root, ids, message), nodesOf)
       const outside = host.outsideReads as never
       const factory = (name: string, scope: Scope): Bound | undefined => {
         const ctx = { host: plugins, snapshot, scope }

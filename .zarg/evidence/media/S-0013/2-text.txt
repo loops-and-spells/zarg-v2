@@ -9,25 +9,25 @@
                        │                                                                                                
  AGENTS             ◆1 │                                                                                                
   ◆ zarg          asks │                                                                                                
-  └ ⠼ driver 1    2/25 │                                                                                                
+  └ ⠼ driver 1    4/25 │                                                                                                
                        │                                                                                                
                        │                                                                                                
                        │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
                        │     zarg   esc closes                                                                          
-                       │     you  the dishes pile up every night                                                        
-                       │     zarg  (discussing: Which chore comes first?)                                               
-                       │     zarg  zarg chose The dishes for you: you said the dishes pile up                           
-                       │     zarg  Chose dishes for you. A wide flow:                                                   
                        │                                                                                                
                        │           flowchart LR                                                                         
                        │             N0[Parent opens the list] --> N1                                                   
                        │             N1[Parent picks a chore] --> N2                                                    
                        │             N2[Parent picks a child] --> N3                                                    
                        │             N3[Child sees the chore] --> N4                                                    
-                       │             N4[Child does the chore] --> N5                                                ▄   
-                       │                                                                                            █   
-                       │           Too wide to draw.                                                                █   
+                       │             N4[Child does the chore] --> N5                                                    
+                       │                                                                                                
+                       │           Too wide to draw.                                                                    
+                       │     you  Add it                                                                                
                        │     you  Add it                                                                            █   
+                       │     zarg  Merged with another edit to P-0001 (text changed there meanwhile): both kept.    █   
+                       │     you  Add it                                                                            █   
+                       │     you  Use mine                                                                          █   
                        │     you  it depends on the chore                                                           █   
                        │     zarg  (discussing: How often are chores due?)                                          █   
                        │     ·  answered                                                                            █   

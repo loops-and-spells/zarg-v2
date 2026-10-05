@@ -1,13 +1,13 @@
 {
   "scenario": "S-0010",
   "version": "85c3b867b47e",
-  "commit": "679c1007",
-  "run": "e2e-2026-10-05T16-07-46.657Z",
+  "commit": "ca09b1cb",
+  "run": "e2e-2026-10-05T16-26-00.285Z",
   "journey": "J-0001",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T16:07:53.396Z",
-  "ms": 105,
+  "at": "2026-10-05T16:26:07.022Z",
+  "ms": 106,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -38,6 +38,6 @@
   ],
   "failure": null,
   "code": {
-    "packages/agent-zarg/src/thread.ts": "5544637dede9767ca0bb7ecfc8cf33abeedaa2e8"
+    "packages/agent-zarg/src/thread.ts": "bf03a1c9b5d3ba854af152d014fa1b05c52b79d1"
   }
 }

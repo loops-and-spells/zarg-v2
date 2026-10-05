@@ -34,11 +34,32 @@ const wording = (v: unknown): ReadonlyArray<string> =>
  * discussed one for them), and close at the next question.
  */
 // @scenario S-0009
+/** A node as the gate compares it: its props and edges. */
+export type NodeView = { readonly props: Readonly<Record<string, unknown>>; readonly edges: ReadonlyArray<{ readonly type: string; readonly to: string }> }
+/** What another thread changed in a node: its prop names, and `edge:<type>` for edges added or removed. */
+const changedParts = (a: NodeView, b: NodeView) => {
+  const keys = new Set([...Object.keys(a.props), ...Object.keys(b.props)])
+  const props = [...keys].filter((k) => JSON.stringify(a.props[k]) !== JSON.stringify(b.props[k]))
+  const edge = (n: NodeView) => new Set(n.edges.map((e) => `edge:${e.type.split("/").at(-1)}>${e.to}`))
+  const ea = edge(a)
+  const eb = edge(b)
+  const edges = [...new Set([...[...ea].filter((x) => !eb.has(x)), ...[...eb].filter((x) => !ea.has(x))].map((x) => x.split(">")[0]!))]
+  return [...props, ...edges]
+}
+/** The parts a write sets: its params but the id (an edge's by its type). */
+const touchedParts = (params: unknown) => {
+  const p = (params ?? {}) as Record<string, unknown>
+  return Object.keys(p).flatMap((k) => (k === "id" ? [] : k === "edge" ? [`edge:${String(p.edge)}`] : [k]))
+}
+
 export const askFirst = (
   asker: Asker,
   versions?: (ids: ReadonlyArray<string>) => Effect.Effect<Readonly<Record<string, string | undefined>>>,
   commit?: (ids: ReadonlyArray<string>, message: string) => Effect.Effect<unknown, unknown>,
+  nodes?: (ids: ReadonlyArray<string>) => Effect.Effect<Readonly<Record<string, NodeView | undefined>>>,
 ) => {
+  // The nodes the change was shown about, as they were: a newer edit to other parts of them merges.
+  let shownNodes: Readonly<Record<string, NodeView | undefined>> = {}
   let open = false
   // What the developer added, once written, is committed (at the next question, or when the item ends): the
   // Planner and reconcile only build on a committed graph.
@@ -99,6 +120,7 @@ export const askFirst = (
   }
   return {
     asker: {
+      // @scenario S-0019
       // An option that is a change shows its exact wording with the question; picking it adds it.
       ask: (question) =>
         Effect.andThen(
@@ -128,9 +150,11 @@ export const askFirst = (
           shown = {}
           added = undefined
           const seen = versions === undefined || (c.about ?? []).length === 0 ? Effect.succeed({}) : versions(c.about ?? [])
+          shownNodes = {}
+          const seenNodes = nodes === undefined || (c.about ?? []).length === 0 ? Effect.succeed({}) : nodes(c.about ?? [])
           // Add with the operator's words (a reason) is what to change, not a yes.
           const asked = Effect.map(asker.ask(confirmQuestion(c)), (a) => (a.choice === "add" && (a.other ?? "").trim() !== "" ? { other: a.other! } : a))
-          return Effect.tap(Effect.tap(seen, (v) => Effect.sync(() => void (shown = v))).pipe(Effect.andThen(asked)), (a) =>
+          return Effect.tap(Effect.tap(Effect.tap(seenNodes, (n) => Effect.sync(() => void (shownNodes = n))).pipe(Effect.andThen(seen)), (v) => Effect.sync(() => void (shown = v))).pipe(Effect.andThen(asked)), (a) =>
             Effect.sync(() => {
               if (a.interjected === true && a.question !== undefined) (confirms.add(a.question), changes.set(a.question, c.change))
               else {
@@ -171,8 +195,33 @@ export const askFirst = (
                   return Effect.flatMap(versions(watched), (now) => {
                     const moved = watched.find((id) => now[id] !== shown[id])
                     if (moved === undefined) return write(h, params, named)
-                    open = false
-                    return Effect.fail({ _tag: "StaleNode", message: `${moved} changed since you showed the change (another thread edited it): read it again, then show the change again with Inquire.confirm` })
+                    const before = shownNodes[moved]
+                    if (nodes === undefined || before === undefined) {
+                      open = false
+                      return Effect.fail({ _tag: "StaleNode", message: `${moved} changed since you showed the change (another thread edited it): read it again, then show the change again with Inquire.confirm` })
+                    }
+                    return Effect.flatMap(nodes([moved]), (got) => {
+                      const after = got[moved]
+                      const theirs = after === undefined ? ["the whole node"] : changedParts(before, after)
+                      const mine = touchedParts(params)
+                      const both = after === undefined ? theirs : theirs.filter((k) => mine.includes(k))
+                      // @scenario S-0017
+                      // Their edit touched other parts: both hold. Written over theirs, and said.
+                      if (both.length === 0) {
+                        shown = { ...shown, [moved]: now[moved] }
+                        shownNodes = { ...shownNodes, [moved]: after }
+                        const said = `Merged with another edit to ${moved} (${theirs.join(", ")} changed there meanwhile): both kept.`
+                        return Effect.tap(write(h, params, named), () => (asker.note === undefined ? Effect.void : asker.note(said)))
+                      }
+                      // @scenario S-0018
+                      open = false
+                      const value = (n: NodeView | undefined, k: string) => (k.startsWith("edge:") ? `its ${k.slice(5)} edges changed` : `${k}: ${JSON.stringify(n?.props[k])}`)
+                      const p = (params ?? {}) as Record<string, unknown>
+                      return Effect.fail({
+                        _tag: "StaleNode",
+                        message: `${moved} changed since you showed the change: another thread set ${both.map((k) => value(after, k)).join("; ")}; yours: ${both.map((k) => (k.startsWith("edge:") ? k : `${k}: ${JSON.stringify(p[k])}`)).join("; ")}. Ask the developer which to keep with Inquire.ask: one option per version (theirs, yours, and a merge when one fits), each option's change the exact edit it writes.`,
+                      })
+                    })
                   })
                 },
               ]),
