@@ -167,11 +167,15 @@ export const makeSetup = (d: SetupDeps) => {
       if (action === "default") {
         const ref = rows[0]
         if (ref === undefined) return { notice: "pick a model" }
-        const before = yield* d.writeUserConfig({ default: ref })
+        // A model of the providers' that answers decisions natively (its own provider's first): decisions use it,
+        // unless the operator set one. Without it they fall back to the default model, slow and less sure.
+        const judges = [...known.entries()].flatMap(([p, st]) => (st.ok ? st.models.filter((m) => m.capabilities.includes("decision")).map((m) => `${p}:${m.id}`) : []))
+        const judge = judges.find((j) => j.split(":")[0] === ref.split(":")[0]) ?? judges[0]
+        const before = yield* d.writeUserConfig({ default: ref, ...(judge !== undefined ? { decisionIfUnset: judge } : {}) })
         yield* d.reloadConfig.pipe(Effect.catch((e) => Effect.andThen(Effect.andThen(d.restoreUserConfig(before), Effect.ignore(d.reloadConfig)), Effect.fail(e))))
         yield* render
         if (!(yield* needed)) d.agentEvents("core", { event: "close", surface: "setup", id: AGENT })
-        return { notice: `default model: ${ref}` }
+        return { notice: `default model: ${ref}${judge !== undefined ? ` · decisions: ${judge}` : ""}` }
       }
       return { notice: `setup has no action ${action}` }
     }).pipe(Semaphore.withPermits(lock, 1), Effect.catch((e: unknown) => Effect.succeed({ notice: e instanceof ModelError ? why(e) : String((e as { message?: unknown })?.message ?? e) })))

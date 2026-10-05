@@ -129,6 +129,15 @@ describe("the user config writer", () => {
       '# my zarg\n[providers.zarg-router]\nbase_url = "${ZARG_ROUTER_URL}"  # local\n\n[roles]\ndefault = "openrouter:x"\nplan = "zarg-router:p"\n\n[providers.openrouter]\nbase_url = "${OPENROUTER_URL}"\napi_key = "${OPENROUTER_API_KEY}"\n',
     )
   })
+  test("a decision model is set only where none is: the operator's own choice stays", async () => {
+    const d = dirs()
+    const file = join(d.userDir, "config.toml")
+    await run(Config.setUserConfig(file, { default: "zarg-router:big", decisionIfUnset: "zarg-router:judge" }))
+    expect(readFileSync(file, "utf8")).toBe('[roles]\ndecision = "zarg-router:judge"\ndefault = "zarg-router:big"\n')
+    await run(Config.setUserConfig(file, { decisionIfUnset: "zarg-router:other" }))
+    expect(readFileSync(file, "utf8")).toContain('decision = "zarg-router:judge"')
+    expect(readFileSync(file, "utf8")).not.toContain("other")
+  })
   test("a missing file gets a [roles] section", async () => {
     const d = dirs()
     const file = join(d.userDir, "sub", "config.toml")

@@ -62,7 +62,7 @@ const setupIn = async (w: ReturnType<typeof world>) => {
   })
   const model = {
     client: (name: string) => (name === "fake" ? Effect.map(verifyFake, () => ({ verify: verifyFake, models: Effect.succeed([]) }) as never) : Effect.fail(new ModelError({ kind: "config", message: `no provider "${name}"` }))),
-    list: (name: string) => (name === "fake" ? Effect.flatMap(verifyFake, () => Effect.succeed([{ id: "big", contextLength: 131072, maxOutputTokens: undefined, supportsTools: true, reasoningEfforts: [], capabilities: ["tools"], state: undefined }])) : Effect.succeed([])),
+    list: (name: string) => (name === "fake" ? Effect.flatMap(verifyFake, () => Effect.succeed([{ id: "big", contextLength: 131072, maxOutputTokens: undefined, supportsTools: true, reasoningEfforts: [], capabilities: ["tools"], state: undefined }, ...(judge ? [{ id: "judge", contextLength: 8192, maxOutputTokens: undefined, supportsTools: false, reasoningEfforts: [], capabilities: ["decision"], state: undefined }] : [])])) : Effect.succeed([])),
     reconnect: Effect.void,
     stream: () => Effect.die("unused"),
     info: () => Effect.die("unused"),
@@ -87,6 +87,8 @@ const setupIn = async (w: ReturnType<typeof world>) => {
 const run = <A>(e: Effect.Effect<A, unknown>) => Effect.runPromise(e as Effect.Effect<A>)
 const sectionData = (events: ReadonlyArray<Record<string, unknown>>, section: string) => events.filter((e) => e.event === "set" && e.section === section).at(-1)?.data as { rows?: ReadonlyArray<{ id: string; cells: Record<string, string>; secret?: boolean }>; markdown?: string } | undefined
 
+// A provider that also offers a decision model: setup sets it beside the default.
+let judge = false
 describe("first-run setup", () => {
   // @scenario S-0084
   test("not set up: needed, and open starts the core:setup agent, fills its sections and opens its sheet", async () => {
@@ -139,6 +141,21 @@ describe("first-run setup", () => {
     expect(config.roles.driver).toBe("fake:big")
     expect(await run(s.needed)).toBe(false)
     expect(events.find((e) => e.event === "close")).toMatchObject({ plugin: "core", surface: "setup", id: "setup" })
+  })
+
+  test("default, where the provider offers a decision model: decisions use it (unless one is set)", async () => {
+    judge = true
+    try {
+      const w = world({ values: { [KEY]: "good", [URL]: "http://fake.invalid" } })
+      const { s, userConfig } = await setupIn(w)
+      await run(s.open())
+      await run(s.act("login", ["fake"], undefined))
+      await run(s.act("done", [], undefined))
+      expect((await run(s.act("default", ["fake:big"], undefined))).notice).toBe("default model: fake:big · decisions: fake:judge")
+      expect(readFileSync(userConfig, "utf8")).toContain('decision = "fake:judge"')
+    } finally {
+      judge = false
+    }
   })
 
   // @scenario S-0027
