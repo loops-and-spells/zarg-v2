@@ -141,18 +141,33 @@ const TURN_TEXT = 4000
 const TURN_TOKENS = 16384
 const clipText = (t: string) => (t.length <= TURN_TEXT ? t : `${t.slice(0, TURN_TEXT / 2)}\n… [${t.length - TURN_TEXT} characters of a runaway reply cut] …\n${t.slice(-TURN_TEXT / 2)}`)
 
-const trimOld = (messages: Array<ChatMessage>, keep: number) => {
+/** A result's lists of strings as text, one per line (tried only when the result as given does not decode). */
+export const joinLines = (v: unknown) =>
+  v !== null && typeof v === "object" && !Array.isArray(v)
+    ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, Array.isArray(x) && x.every((s) => typeof s === "string") ? x.join("\n") : x]))
+    : v
+
+// What reads stay whole: an implementer re-read the same file for 24 turns when only the last 4 outputs did.
+const KEEP_CHARS = 120_000
+export const trimOld = (messages: Array<ChatMessage>, keep: number) => {
   const folded = new Set<string>()
   for (const m of messages) for (const c of m.toolCalls ?? []) if (c.function.arguments.includes("Rlm.exec")) folded.add(c.id)
   const toolIdx = messages.flatMap((m, i) => (m.role === "tool" ? [i] : []))
-  const old = new Set(toolIdx.slice(0, Math.max(0, toolIdx.length - keep)))
+  // Newest first: outputs stay whole while they fit KEEP_CHARS, and the latest `keep` always do.
+  const old = new Set<number>()
+  let total = 0
+  for (const [n, i] of [...toolIdx].reverse().entries()) {
+    total += (messages[i]!.content ?? "").length
+    if (n >= keep && total > KEEP_CHARS) old.add(i)
+  }
   for (const i of old) {
     const m = messages[i]!
     const c = m.content ?? ""
     if (m.toolCallId !== undefined && folded.has(m.toolCallId)) continue
     if (c.length > 600) messages[i] = { ...m, content: `${c.slice(0, 400)}\n… [older output trimmed] …` }
   }
-  const oldCalls = new Set([...old].map((i) => messages[i]!.toolCallId))
+  // A cell's own code (a file written in full) is a copy of what it wrote: shortened past the latest `keep`.
+  const oldCalls = new Set(toolIdx.slice(0, Math.max(0, toolIdx.length - keep)).map((i) => messages[i]!.toolCallId))
   for (const [i, m] of messages.entries()) {
     if (m.role !== "assistant" || m.toolCalls === undefined) continue
     if (!m.toolCalls.some((c) => oldCalls.has(c.id) && c.function.arguments.length > 600 && !folded.has(c.id))) continue
@@ -229,6 +244,8 @@ export const make = (deps: RlmDeps) =>
           const rlmService = bind(RlmDef, {
             done: ({ value }) =>
               Schema.decodeUnknownEffect(Schema.toCodecJson(resultSchema))(value).pipe(
+                // A text given as its lines (`plan: [..]` for `plan: string`) is that text: a plan run spent its last turns on it.
+                Effect.catch((e) => Effect.mapError(Schema.decodeUnknownEffect(Schema.toCodecJson(resultSchema))(joinLines(value)), () => e)),
                 Effect.mapError((e): ServiceFailure => ({ _tag: "InvalidResult", message: `the result does not match ${resultType(resultSchema)}: ${e.message}` })),
                 Effect.flatMap((decoded) => Ref.set(finished, { value: decoded })),
                 Effect.as("done: stop now"),

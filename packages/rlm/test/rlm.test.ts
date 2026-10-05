@@ -75,6 +75,15 @@ describe("Rlm.exec", () => {
     expect(r.seen[1]!.messages.at(-1)?.content).toContain("InvalidResult")
   })
 
+  test("a text result given as its lines is that text, one per line: the run finishes instead of spending turns on the shape", async () => {
+    const r = await run(
+      { planner: [{ cell: 'yield* Rlm.done({ value: { plan: ["## Approach", "Tag it."] } })' }] },
+      { task: "t", preset: "planner", scope },
+      { presets: { planner: { layer: ["Rlm"], spawns: [], role: "implement", budget: { turns: 3 }, result: "plan", verify: "none" } } },
+    )
+    expect(ok(r)).toMatchObject({ value: { plan: "## Approach\nTag it." }, turns: 1 })
+  })
+
   test("a runaway reply (a model looping on its own text) stays out of the conversation, and a turn's tokens are capped", async () => {
     const r = await run({ research: [{ text: `planning ${"дддкк".repeat(20000)} stop` }, { cell: 'yield* Rlm.done({ value: { findings: [], sources: [] } })' }] }, { task: "t", preset: "research", scope })
     expect(ok(r).turns).toBe(2)
