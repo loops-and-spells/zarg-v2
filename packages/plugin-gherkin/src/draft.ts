@@ -2,6 +2,7 @@ import { Effect, Schema } from "effect"
 import { type Change, diff, Snapshot } from "@zarg/graph/pure"
 import { affectedScenarios } from "./affected"
 import { bareIds, type Finding, type Lint, type Tool } from "./kit"
+import { STATE } from "./model"
 
 /** Edge limits per edge type (the plugin's graph spec): the host checks them on every write. */
 export type EdgeLimits = Readonly<Record<string, { readonly from: string; readonly min?: number; readonly max?: number }>>
@@ -69,7 +70,11 @@ export const dryRun = (snap: Snapshot.Snapshot, draft: Draft, tools: ReadonlyArr
   Effect.map(applyDraft(snap, draft, tools, limits), (a) => {
     const d = diff(snap, a.snapshot)
     const findings = [...validate(a.changes), ...lints.flatMap((l) => l({ before: snap, after: a.snapshot, diff: d }))].filter((f) => f.severity === "error")
-    const problems = [...a.problems, ...findings.map((f) => f.message)]
+    // A state the draft adds and leaves unused: a scenario should take it (Given, And or Then), or it goes.
+    const unused = d.added
+      .filter((n) => n.type === STATE && Snapshot.inbound(a.snapshot, n.id).length === 0)
+      .map((n) => `${n.id} "${String(n.props.text ?? "")}" is added but no scenario uses it: drop it, or use it as a Given, And or Then`)
+    const problems = [...a.problems, ...findings.map((f) => f.message), ...unused]
     // What the draft changes, not what it puts: a call that puts a node as it is touches nothing.
     const touched = [...d.added, ...d.changed, ...d.removed].map((n) => n.id).sort()
     // The scenarios to re-implement: added or changed, or using a reworded state (as the reconcile loop will see it).

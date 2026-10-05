@@ -27,6 +27,26 @@ describe("drafts", () => {
     expect(out.r.touched).toEqual(expect.arrayContaining(["ST-0002", "S-0006"]))
     expect(out.after).toBe(out.before)
   })
+  test("a draft that adds a state nothing uses is refused: drop it, or give it to a scenario", async () => {
+    const r = await run(
+      Effect.gen(function* () {
+        yield* pricing
+        const h = yield* PluginHost
+        return (yield* h.invoke("gherkin", "dryRun", { draft: [{ tool: "add-state", params: { text: "the visitor closes the plan picker" } }] })) as { ok: boolean; problems: string[] }
+      }),
+    )
+    expect(r.ok).toBe(false)
+    expect(r.problems.join("\n")).toContain("no scenario uses it")
+    // Used by a scenario in the same draft: fine.
+    const ok = await run(
+      Effect.gen(function* () {
+        yield* pricing
+        const h = yield* PluginHost
+        return (yield* h.invoke("gherkin", "dryRun", { draft: [{ tool: "add-state", params: { text: "the plan picker is gone" } }, { tool: "add-scenario", params: { title: "Visitor closes it", when: "the visitor closes the picker", by: [{ id: "P-0001" }], arrives: { id: "ST-0002" }, then: [{ text: "the plan picker is gone" }] } }] })) as { ok: boolean; problems: string[] }
+      }),
+    )
+    expect(ok.problems).toEqual([])
+  })
   test("a draft that puts what is already there touches nothing: a plan of it changes nothing", async () => {
     const r = await run(
       Effect.gen(function* () {

@@ -1,60 +1,32 @@
 {
-  "title": "Parent assigns a chore",
+  "title": "Family Admin assigns a chore",
   "journey": "",
   "scenarios": [],
   "changes": [
     {
       "tool": "add-persona",
       "params": {
-        "name": "Parent",
+        "name": "Family Admin",
         "kind": "human",
-        "text": "A parent who sets chores for the family and reaches the app at home"
+        "text": "Elder who sets up chores for the household"
       }
     },
     {
       "tool": "add-scenario",
       "params": {
-        "title": "Parent assigns a chore",
-        "when": "the parent assigns a chore to a family member",
+        "title": "Family Admin assigns a chore",
+        "when": "picks a chore and a family member",
         "by": [
           {
-            "name": "Parent"
+            "name": "Family Admin"
           }
         ],
         "arrives": {
-          "text": "Chore assignment screen"
+          "text": "Chore list open with chore chosen"
         },
         "then": [
           {
-            "text": "the member's own list shows the assigned chore"
-          }
-        ]
-      }
-    },
-    {
-      "tool": "add-persona",
-      "params": {
-        "name": "Family member",
-        "kind": "human",
-        "text": "A family member who receives and performs chores and reaches the app at home"
-      }
-    },
-    {
-      "tool": "add-scenario",
-      "params": {
-        "title": "Family member opens their list",
-        "when": "the family member opens their list",
-        "by": [
-          {
-            "name": "Family member"
-          }
-        ],
-        "arrives": {
-          "text": "Their list"
-        },
-        "then": [
-          {
-            "text": "the chores assigned to them are listed"
+            "text": "Each member sees chores assigned to them"
           }
         ]
       }
@@ -62,7 +34,41 @@
     {
       "tool": "add-journey",
       "params": {
-        "name": "Chores reach each member"
+        "name": "Assign chores"
+      }
+    },
+    {
+      "tool": "add-persona",
+      "params": {
+        "name": "Family Member",
+        "kind": "human",
+        "text": "Who reads and does their assigned chores"
+      }
+    },
+    {
+      "tool": "add-scenario",
+      "params": {
+        "title": "Family Member views own chores",
+        "when": "opens the todo app",
+        "by": [
+          {
+            "name": "Family Member"
+          }
+        ],
+        "arrives": {
+          "text": "Chore board open"
+        },
+        "then": [
+          {
+            "text": "Chores assigned others stay hidden"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-journey",
+      "params": {
+        "name": "See own chores"
       }
     },
     {
@@ -81,7 +87,7 @@
         "scenario": "S-0002",
         "edge": "in",
         "journey": {
-          "id": "J-0001"
+          "id": "J-0002"
         }
       }
     },
@@ -90,7 +96,7 @@
       "params": {
         "edge": "serves",
         "journey": {
-          "id": "J-0001"
+          "id": "J-0002"
         },
         "outcome": "O-0001"
       }
@@ -98,8 +104,10 @@
   ],
   "feedback": [],
   "steps": [
-    "Parent assigns a chore to a family member",
-    "Member opens their list and sees the chores assigned to them"
+    "add Family Admin persona, assign-a-chore scenario, Assign chores journey",
+    "add Family Member persona, view-own-chores scenario, See own chores journey",
+    "link assignment scenario to Assign chores journey; view scenario to See own chores journey",
+    "link See own chores journey to O-0001"
   ],
   "serves": "gherkin/outcome:O-0001@f5ebc0ef2fe2",
   "id": "B-01",
