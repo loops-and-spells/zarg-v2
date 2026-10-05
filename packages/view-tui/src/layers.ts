@@ -348,7 +348,8 @@ export const SHELL: ReadonlyArray<Layer> = [
       const dv = drawer === undefined ? undefined : w.s.thread.views?.[drawer.view]
       if (drawer !== undefined && dv !== undefined && actionFor(v, ui.view ?? startUi(v), typed(k)) === undefined && actionFor(dv, ui.panelView ?? startUi(dv), typed(k)) !== undefined) {
         const d = surfaceKey(dv, ui.panelView ?? startUi(dv), k, drawer.agent)
-        return { ui: { ...ui, panelView: d.view }, ...(d.action !== undefined ? { action: d.action } : {}) }
+        // A key that opens a menu (Move ▾) takes the drawer's focus, as a click on its button does.
+        return d.action !== undefined ? { ui: { ...ui, panelView: d.view }, action: d.action } : { ui: { ...ui, focus: "panel", panel: drawer.id, panelView: d.view } }
       }
       const r = viewKeys(v, ui.view ?? startUi(v), k)
       return {
