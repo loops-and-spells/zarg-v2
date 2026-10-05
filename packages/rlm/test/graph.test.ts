@@ -37,6 +37,14 @@ describe("Graph service", () => {
     expect(out.output).not.toContain("ST-0003")
   })
 
+  test("a node named by its entity ref (as Entities gives it) is the same node: show and neighbors take both", async () => {
+    const out = await withGraph({}, (k) =>
+      Effect.all([k.run('return (yield* Graph.show({ id: "gherkin/state:ST-0002@0123456789ab" })).id'), k.run('return yield* Graph.neighbors({ id: "gherkin/scenario:S-0001", k: 1 })')]),
+    )
+    expect(out[0].output).toBe("ST-0002")
+    expect(out[1].output).toContain("ST-0002")
+  })
+
   test("show returns the node with its hash; nodes outside the scope are refused", async () => {
     const out = await withGraph({ graph: { focus: ["S-0001"], k: 1 } }, (k) =>
       Effect.all([k.run('return (yield* Graph.show({ id: "ST-0002" })).hash'), k.run('return yield* Graph.show({ id: "ST-0003" })')]),

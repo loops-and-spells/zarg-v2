@@ -33,6 +33,9 @@ export interface GraphContext {
 export const scopeSet = (snap: Snapshot.Snapshot, scope: Scope): ReadonlySet<string> | undefined =>
   scope.graph === undefined ? undefined : new Set(scope.graph.focus.flatMap((id) => Snapshot.neighbors(snap, id, scope.graph!.k)))
 
+/** A node named by its entity ref (`gherkin/state:ST-0002`, with or without `@version`) is that node's id. */
+const bare = (id: string) => /^[a-z][a-z0-9-]*\/[a-z]+:([^@]+)(@[0-9a-f]+)?$/.exec(id)?.[1] ?? id
+
 export const graph = (ctx: GraphContext): Bound =>
   bind(GraphDef, {
     render: ({ focus }) =>
@@ -46,8 +49,9 @@ export const graph = (ctx: GraphContext): Bound =>
         const visible = scopeSet(yield* ctx.snapshot, ctx.scope)
         return yield* ctx.host.agenda(visible).pipe(Effect.mapError((e): ServiceFailure => ({ _tag: e._tag, message: e.message })))
       }),
-    show: ({ id }) =>
+    show: ({ id: raw }) =>
       Effect.gen(function* () {
+        const id = bare(raw)
         const snap = yield* ctx.snapshot
         const visible = scopeSet(snap, ctx.scope)
         if (visible !== undefined && !visible.has(id)) return yield* Effect.fail(outOfScope(id))
@@ -62,8 +66,9 @@ export const graph = (ctx: GraphContext): Bound =>
           inbound: Snapshot.inbound(snap, id).map((e) => ({ from: e.from, type: e.edge.type })),
         }
       }),
-    neighbors: ({ id, k }) =>
+    neighbors: ({ id: raw, k }) =>
       Effect.gen(function* () {
+        const id = bare(raw)
         const snap = yield* ctx.snapshot
         const visible = scopeSet(snap, ctx.scope)
         if (visible !== undefined && !visible.has(id)) return yield* Effect.fail(outOfScope(id))
