@@ -204,6 +204,12 @@ describe("gherkin rules", () => {
     expect(ok.warnings.map((w) => w.code)).not.toContain("then-echoes-when")
   })
 
+  test("a scenario titled like another is refused, pointing at the one to change", async () => {
+    const add = call("add-scenario", { title: "Visitor drops a plan", when: "the visitor drops a plan", by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ text: "the plan is off the list" }] })
+    const err = await run(Effect.flip(Effect.andThen(pricing, Effect.andThen(add, add))))
+    expect(err._tag === "LintFailed" && err.findings.map((f) => f.code)).toContain("duplicate-scenario")
+  })
+
   test("adding a state with existing text points at the existing one", async () => {
     const err = await run(
       Effect.andThen(call("add-state", { text: "the home page" }), Effect.flip(call("add-state", { text: "The home page." }))),

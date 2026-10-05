@@ -1,6 +1,6 @@
 import { type Node, Snapshot } from "@zarg/graph/pure"
 import type { Finding, Lint } from "./kit"
-import { HAS, INTENT, isStatement, JOURNEY, journeyName, journeys, normalize, PERSONA, personaName, personas, SCENARIO, similarity, STATE, states, text, THEN } from "./model"
+import { HAS, INTENT, isStatement, JOURNEY, journeyName, journeys, normalize, PERSONA, personaName, personas, SCENARIO, scenarios, similarity, STATE, states, text, THEN } from "./model"
 
 const MAX_WORDS = 15
 /** A statement (outcome, constraint, question) is one sentence of at most 20 words. */
@@ -83,6 +83,16 @@ export const journeyShape: Lint = (ctx) =>
         .map((o) => ({ severity: "error" as const, code: "duplicate-journey", message: `${n.id} has the name of ${o.id} ("${journeyName(o)}"); use ${o.id}`, about: [n.id, o.id] })),
     )
 
+/** A scenario title is unique (case does not matter): a driver once wrote the same scenario twice. */
+export const scenarioTitle: Lint = (ctx) =>
+  touched(ctx)
+    .filter((n) => n.type === SCENARIO)
+    .flatMap((n): ReadonlyArray<Finding> =>
+      scenarios(ctx.after)
+        .filter((o) => o.id !== n.id && normalize(String(o.props.title ?? "")) === normalize(String(n.props.title ?? "")))
+        .map((o) => ({ severity: "error" as const, code: "duplicate-scenario", message: `${n.id} has the title of ${o.id} ("${String(o.props.title)}"); change ${o.id} instead`, about: [n.id, o.id] })),
+    )
+
 /** An intent's title: at most 10 words. */
 export const intentShape: Lint = (ctx) =>
   touched(ctx)
@@ -132,4 +142,4 @@ export const thenEchoesWhen: Lint = (ctx) =>
         })
     })
 
-export const LINTS: ReadonlyArray<Lint> = [clauseShape, stateText, personaShape, journeyShape, intentShape, statementOwner, thenEchoesWhen]
+export const LINTS: ReadonlyArray<Lint> = [clauseShape, stateText, personaShape, journeyShape, scenarioTitle, intentShape, statementOwner, thenEchoesWhen]
