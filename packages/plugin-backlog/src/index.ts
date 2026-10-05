@@ -205,6 +205,7 @@ export default definePlugin({
       const on = shown.filter((e) => e.triage.on).length
       // The journey and its counts; how far its triage got is triage's to show (its rows say where they stand).
       yield* views.set("feedback", FeedbackView, "stage", {
+        actions: st === undefined ? [] : [...stageActions(st)].filter((a) => a !== "note"),
         markdown: journey === undefined ? "No open feedback. Testers file it when they rehearse." : `**${journey}** · ${plural(shown.length, "entry")} · ${on} on${walkedBy([journey]) !== undefined ? ` · being rehearsed (run ${walkedBy([journey])})` : st !== undefined && inTriage(st) ? " · in triage" : ""}`,
       })
       yield* views.set("feedback", FeedbackView, "journeys", { rows: names.map((j) => ({ id: j, cells: { journey: j, open: String(byJourney.get(j)?.length ?? 0) } })) })
@@ -213,7 +214,7 @@ export default definePlugin({
       const sorted = [...shown].sort((a, b) => sev[a.severity] - sev[b.severity] || a.id.localeCompare(b.id))
       yield* views.set("feedback", FeedbackView, "feedback", {
         // The round's entries are read-only in triage (the plugin refuses them); the rest take notes as ever.
-        actions: st === undefined ? ["note"] : [...stageActions(st), "note"],
+        actions: ["note"],
         rows: sorted.map((e) => ({
           id: e.id,
           on: e.triage.on,

@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { FeedbackView } from "../src/views"
 import { readdirSync } from "node:fs"
 import { join } from "node:path"
 import { Effect } from "effect"
@@ -21,10 +22,19 @@ const work = (seen: Seen) => (seen.get("feedback/work") as { markdown: string } 
 const stage = (seen: Seen) => (seen.get("feedback/stage") as { markdown: string } | undefined)?.markdown ?? ""
 
 const rows = (seen: Seen) => (seen.get("feedback/feedback") as { rows: Array<{ id: string; tone?: string; readonly?: boolean; cells?: Record<string, string> }> } | undefined)?.rows ?? []
-const buttons = (seen: Seen) => (seen.get("feedback/feedback") as { actions?: string[] } | undefined)?.actions
+// The view's own buttons (Refine) the stage offers, then the table's (Note).
+const buttons = (seen: Seen) => {
+  const own = (seen.get("feedback/stage") as { actions?: string[] } | undefined)?.actions ?? []
+  const table = (seen.get("feedback/feedback") as { actions?: string[] } | undefined)?.actions ?? []
+  return [...own, ...table]
+}
 const note = (id: string, text: string) => PluginHost.use((h) => h.invoke("backlog", "act", { agent: "feedback", action: "note", section: "feedback", rows: [id], text })) as Effect.Effect<{ notice: string }, unknown, PluginHost>
 
 describe("the triage hub's stages", () => {
+  test("Refine is the view's own action: its key works whichever table has the cursor", () => {
+    expect(FeedbackView.actions?.map((a) => [a.id, a.key])).toContainEqual(["refine", "r"])
+    expect((FeedbackView.sections.feedback as { actions?: ReadonlyArray<{ id: string }> }).actions?.map((a) => a.id)).toEqual(["note"])
+  })
   test("Triage offers Refine only; Refine with nothing on is refused", async () => {
     const out = await run((seen) => Effect.gen(function* () {
       yield* setUp(false)
