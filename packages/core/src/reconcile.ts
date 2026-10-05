@@ -1,7 +1,7 @@
 import { join } from "node:path"
 import { Cause, Effect, Layer, ManagedRuntime, Stream } from "effect"
 import type { AgendaItem } from "@zarg/plugin/server"
-import { baseTree, engineLayer, gcPasses, makeFindings, Pass, type PassResult, passLayer, snapshotAtTree, startReconciler, workingGraphTree } from "@zarg/reconcile"
+import { baseTree, engineLayer, gcPasses, makeFindings, Pass, type PassResult, passLayer, pendingAt, snapshotAtTree, startReconciler, workingGraphTree } from "@zarg/reconcile"
 import { makeActivity } from "./activity"
 import { threadViews } from "./views"
 import * as E from "./events"
@@ -160,7 +160,9 @@ export const makeReconcile = (deps: ReconcileDeps) =>
         Effect.flatMap(workingGraphTree(deps.repo), (t) => snapshotAtTree(deps.repo, t)),
       ])
       const a = yield* deps.affected(before, after)
-      return a.scenarios.length + a.removed.length
+      // Scenarios the last pass could not reconcile are taken up again too.
+      const failed = (yield* pendingAt(deps.repo)).filter((id) => after.nodes.has(id) && !a.scenarios.includes(id) && !a.removed.includes(id))
+      return a.scenarios.length + a.removed.length + failed.length
     }).pipe(Effect.orElseSucceed(() => 0))
 
     return { threads: [view("plan"), view("implement")], agenda, notify: reconciler.notify, findings, pending }

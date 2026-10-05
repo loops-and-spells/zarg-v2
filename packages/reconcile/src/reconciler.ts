@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, watch, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { Cause, Effect } from "effect"
-import { baseTree, GRAPH, workingGraphTree } from "./checkpoint"
+import { baseTree, GRAPH, pendingAt, workingGraphTree } from "./checkpoint"
 import type { Findings } from "./findings"
 import { git } from "./git"
 import { checkoutProblem } from "./land"
@@ -45,7 +45,7 @@ export const startReconciler = (opts: ReconcilerOptions) => {
     }
     const graph = yield* workingGraphTree(opts.repo)
     const base = yield* git(opts.repo, ["rev-parse", "HEAD"])
-    if ((yield* baseTree(opts.repo, base)) === graph) return { status: "skipped", reason: "already reconciled" } as const
+    if ((yield* baseTree(opts.repo, base)) === graph && (yield* pendingAt(opts.repo, base)).length === 0) return { status: "skipped", reason: "already reconciled" } as const
     const branch = yield* git(opts.repo, ["symbolic-ref", "--short", "HEAD"])
     const key = `${graph}:${branch}@${base}`
     const attempt = attempts.get(key) ?? 0

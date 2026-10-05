@@ -162,6 +162,17 @@ describe("reconcile pass", () => {
     expect(spec.findings.list().map((f) => [f.kind, f.about])).toEqual([["pass-error", ["S-0002"]]])
   })
 
+  test("a scenario that failed while others landed stays pending: the next pass takes it up with no graph change", async () => {
+    const r = repo()
+    graph(r, ["S-0001", "S-0002"])
+    expect(await runPass(stubSpec(r, { implementDies: ["S-0002"] }), db())).toMatchObject({ status: "landed", landed: ["S-0001"], failed: ["S-0002"] })
+    expect(JSON.parse(sh(r, "git show HEAD:.zarg/reconciled.json")).failed).toEqual(["S-0002"])
+    // Nothing in the graph changed: S-0002 still lands, and nothing is pending after.
+    expect(await runPass(stubSpec(r), db())).toMatchObject({ status: "landed", landed: ["S-0002"] })
+    expect(JSON.parse(sh(r, "git show HEAD:.zarg/reconciled.json")).failed).toBeUndefined()
+    expect(await runPass(stubSpec(r), db())).toMatchObject({ status: "nothing" })
+  })
+
   test("a pass that dies ends as failed with a finding; the next attempt runs it again", async () => {
     const r = repo()
     graph(r, ["S-0001"])

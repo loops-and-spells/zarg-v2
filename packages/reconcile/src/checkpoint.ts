@@ -53,6 +53,14 @@ export const baseTree = (repo: string, ref = "HEAD") =>
     return EMPTY_TREE
   })
 
+/** Scenarios the last landed pass could not reconcile (they failed while others landed): still pending. */
+export const pendingAt = (repo: string, ref = "HEAD") =>
+  Effect.map(readAt(repo, ref, CHECKPOINT), (text): ReadonlyArray<string> => {
+    if (text === undefined) return []
+    const failed = (JSON.parse(text) as { failed?: unknown }).failed
+    return Array.isArray(failed) ? failed.filter((x): x is string => typeof x === "string") : []
+  })
+
 const decode = Schema.decodeUnknownEffect(Schema.fromJsonString(Node))
 
 /** The graph stored in git as tree `tree` (the contents of `.zarg/graph`). Undecodable nodes are skipped. */

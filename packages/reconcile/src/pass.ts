@@ -3,7 +3,7 @@ import { join } from "node:path"
 import { type Duration, Effect, Schema, Semaphore } from "effect"
 import type { Snapshot } from "@zarg/graph"
 import { Activity, DurableClock, Workflow } from "effect/unstable/workflow"
-import { baseTree, CHECKPOINT, GRAPH, LEGACY_CHECKPOINT, snapshotAtTree } from "./checkpoint"
+import { baseTree, CHECKPOINT, GRAPH, LEGACY_CHECKPOINT, pendingAt, snapshotAtTree } from "./checkpoint"
 import type { FindingKind, Findings } from "./findings"
 import { git, gitRun, zPaths } from "./git"
 import { land, rebaseOnto } from "./land"
@@ -146,10 +146,13 @@ const body = (
         Effect.gen(function* () {
           // A pass that waited for another (or resumed after a restart) may find its graph already reconciled.
           const tip = yield* gitRun(spec.repo, ["rev-parse", "-q", "--verify", `refs/heads/${payload.branch}`])
-          if (tip.code === 0 && (yield* baseTree(spec.repo, tip.stdout.trim())) === payload.graph) return { items: [], removed: [] }
+          if (tip.code === 0 && (yield* baseTree(spec.repo, tip.stdout.trim())) === payload.graph && (yield* pendingAt(spec.repo, tip.stdout.trim())).length === 0) return { items: [], removed: [] }
           const baseGraph = yield* baseTree(spec.repo, payload.base)
           const [before, after] = yield* Effect.all([snapshotAtTree(spec.repo, baseGraph), snapshotAtTree(spec.repo, payload.graph)])
-          const affected = yield* spec.affected(before, after).pipe(Effect.orDie)
+          const changed = yield* spec.affected(before, after).pipe(Effect.orDie)
+          // Scenarios the last pass could not reconcile are still pending: taken up again, while they exist.
+          const pending = (yield* pendingAt(spec.repo, payload.base)).filter((id) => after.nodes.has(id) && !changed.removed.includes(id))
+          const affected = { items: [...new Set([...changed.items, ...pending])], removed: changed.removed }
           // Findings about scenarios that changed are stale: this pass takes them up again.
           spec.findings.clearFor([...affected.items, ...affected.removed])
           return affected
@@ -261,7 +264,9 @@ const body = (
           yield* gitRun(main, ["rm", "-r", "-q", "--cached", "--ignore-unmatch", GRAPH])
           rmSync(join(main, GRAPH), { recursive: true, force: true })
           yield* git(main, ["read-tree", `--prefix=${GRAPH}/`, "-u", graph])
-          yield* Effect.sync(() => Bun.write(join(main, CHECKPOINT), `${JSON.stringify({ graph }, null, 2)}\n`))
+          // What failed while the rest landed stays pending for the next pass.
+          const still = failed()
+          yield* Effect.sync(() => Bun.write(join(main, CHECKPOINT), `${JSON.stringify({ graph, ...(still.length > 0 ? { failed: [...still].sort() } : {}) }, null, 2)}\n`))
           yield* gitRun(main, ["rm", "-q", "--cached", "--ignore-unmatch", LEGACY_CHECKPOINT])
           rmSync(join(main, LEGACY_CHECKPOINT), { force: true })
           return yield* commitAll(main, spec.message(live))
