@@ -34,6 +34,20 @@ describe("the backlog's plans", () => {
     expect(out.lanes.ready).toEqual([])
     expect(Object.keys(out.lanes)).toEqual(["backlog", "ready", "running", "review", "done"])
   })
+  test("the board follows a plan the Planner and reconcile move: open, it shows the lane the plan is in now", async () => {
+    const out = await run((seen) => Effect.gen(function* () {
+      const { scenario, feedback } = yield* setUp
+      const h = yield* PluginHost
+      yield* h.invoke("backlog", "plan", planOf(scenario.ref, feedback))
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "open", rows: [] })
+      yield* h.invoke("backlog", "moved", { id: "B-01", to: "ready", by: "operator" })
+      yield* h.invoke("backlog", "moved", { id: "B-01", to: "running", by: "Planner" })
+      yield* h.invoke("backlog", "moved", { id: "B-01", to: "review", by: "reconcile" })
+      return lanes(seen)
+    }))
+    expect(out.review!.map((c) => c.id)).toEqual(["B-01"])
+    expect(out.ready).toEqual([])
+  })
   test("next: the oldest Ready plan it can take; not one after an unfinished plan, not one whose scenario changed (unless a plan it waits on changed it)", async () => {
     const out = await run((seen) => Effect.gen(function* () {
       const { scenario, feedback } = yield* setUp

@@ -92,7 +92,8 @@ export default definePlugin({
     const agendaPower = yield* Agenda
     const inbox = yield* Inbox
     // Whatever changed: what waits on the operator is posted or settled in the inbox, then the agenda is told.
-    const ready = Effect.suspend(() => Effect.andThen(Effect.ignore(syncTopics), Effect.ignore(agendaPower.changed)))
+    // After any change to the plans: the inbox's topics, the board (whoever moved a plan: the Planner, reconcile), the agenda.
+    const ready = Effect.suspend(() => Effect.andThen(Effect.andThen(Effect.ignore(syncTopics), Effect.ignore(refreshBoard)), Effect.ignore(agendaPower.changed)))
     const entities = yield* Entities
     const gherkin = yield* Gherkin
     yield* Config
@@ -339,7 +340,7 @@ export default definePlugin({
         yield* saveItem(needs !== undefined ? { ...withScenarios, needs } : withScenarios)
         if (to === "done") yield* markFeedback(i.feedback, "closed")
         return `${id} → ${LANE_TITLES[to]}`
-      }).pipe(writing.withPermits(1), Effect.tap(() => (to === "ready" ? ready : Effect.ignore(syncTopics))))
+      }).pipe(writing.withPermits(1), Effect.tap(() => (to === "ready" ? ready : Effect.andThen(Effect.ignore(syncTopics), Effect.ignore(refreshBoard)))))
     // @scenario S-0112
     const drop = (id: string, by = "operator") =>
       Effect.gen(function* () {
