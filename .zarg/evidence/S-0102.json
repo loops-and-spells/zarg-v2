@@ -1,0 +1,58 @@
+{
+  "scenario": "S-0102",
+  "version": "abf18b33d67e",
+  "commit": "e91f7c4",
+  "run": "e2e-2026-10-05T02-14-58.327Z",
+  "journey": "J-0007",
+  "passed": true,
+  "flaky": true,
+  "at": "2026-10-05T02:20:09.082Z",
+  "ms": 300480,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0102/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "zarg shows the outcome before keeping it",
+      "path": "media/S-0102/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "zarg render --focus I-0001",
+      "path": "media/S-0102/3-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0102/4-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0102/5-step.cast",
+      "meta": {
+        "startAt": 277.5
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/agent-zarg/src/thread.ts": "a75ae98adf4b8f0cfa7106dbc54d613e56f808d9",
+    "packages/agent-zarg/src/zarg.ts": "6edd6fd340a7da9062179c234564e6c0a1044a8b",
+    "packages/agent-zarg/test/thread.test.ts": "6332b8e2eab182a5e4678e9da46b6579e20a88a9",
+    "packages/plugin-gherkin/src/intent-tools.ts": "d92952d86ec2e39d4e7733abc70eab60c1d87887",
+    "packages/plugin-gherkin/test/intents.test.ts": "e95226ab10cc180c8e2366fcf1cbeaa0c86e9eb3",
+    "packages/rlm/src/presets.ts": "d32ba80309f74cb198d80c7e40282780dfb42525",
+    "packages/rlm/src/services/io.ts": "29e331557ea4157f6d0e64d04876d53e278c1c75",
+    "packages/rlm/test/graph.test.ts": "200d5be753166d57a288ef81b0c7096a61ac6398"
+  }
+}

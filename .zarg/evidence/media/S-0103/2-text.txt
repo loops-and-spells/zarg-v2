@@ -1,0 +1,78 @@
+{
+  "title": "Parent sets a chore",
+  "journey": "",
+  "scenarios": [],
+  "changes": [
+    {
+      "tool": "add-persona",
+      "params": {
+        "name": "Parent",
+        "kind": "human",
+        "text": "A parent who manages the family's shared household tasks"
+      }
+    },
+    {
+      "tool": "add-scenario",
+      "params": {
+        "title": "Parent sets a chore",
+        "when": "Parent saves a chore with a weekly repeat",
+        "by": [
+          {
+            "name": "Parent"
+          }
+        ],
+        "arrives": {
+          "text": "Chore list for the family"
+        },
+        "then": [
+          {
+            "text": "A weekly repeating chore appears on the family list"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "add-journey",
+      "params": {
+        "name": "Reusable chore setup"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "scenario": "S-0001",
+        "edge": "in",
+        "journey": {
+          "id": "J-0001"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "edge": "serves",
+        "journey": {
+          "id": "J-0001"
+        },
+        "outcome": "O-0002"
+      }
+    }
+  ],
+  "feedback": [],
+  "steps": [
+    "Add the Parent persona",
+    "Add scenario S-0001: Parent sets a chore",
+    "Create journey J-0001: Reusable chore setup",
+    "Put S-0001 in journey J-0001",
+    "Serve outcome O-0002 with journey J-0001"
+  ],
+  "serves": "gherkin/outcome:O-0002@bf62f6842034",
+  "id": "B-02",
+  "status": "backlog",
+  "events": [
+    {
+      "what": "planned",
+      "by": "Intent Agent"
+    }
+  ]
+}
