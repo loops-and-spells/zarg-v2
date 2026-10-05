@@ -175,6 +175,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         settle: (id, why) => inbox.settle("zarg", id, why),
         message: (id, by, text) => inbox.message(id, by, text),
         find: (key) => Effect.sync(() => inbox.list().find((t) => t.from.plugin === "zarg" && t.from.agent === "zarg" && t.key === key)),
+        open: () => Effect.sync(() => inbox.list().filter((t) => t.from.plugin === "zarg" && t.from.agent === "zarg" && t.state === "open").map((t) => ({ id: t.id, title: t.title, ...(t.key !== undefined ? { key: t.key } : {}) }))),
       },
     }
     const zarg = yield* trustedAgents(ZARG_ROOT).pipe(

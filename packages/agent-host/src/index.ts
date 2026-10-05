@@ -49,6 +49,8 @@ export interface AgentInbox {
   readonly answer: (id: string, reply: { readonly answer?: string; readonly text?: string }, by: string) => Effect.Effect<unknown, unknown>
   readonly settle: (id: string, why: string) => Effect.Effect<unknown, unknown>
   readonly message: (id: string, by: string, text: string) => Effect.Effect<unknown, unknown>
+  /** This agent's open topics (after a restart, the questions still waiting from before). */
+  readonly open?: () => Effect.Effect<ReadonlyArray<{ readonly id: string; readonly key?: string; readonly title: string }>, unknown>
   /** One of this agent's topics by its key (after a restart, the question an old answer is for). */
   readonly find: (key: string) => Effect.Effect<{ readonly id: string; readonly title: string; readonly state: string; readonly answers?: ReadonlyArray<{ readonly id: string; readonly label: string }> } | undefined, unknown>
 }

@@ -558,6 +558,12 @@ test("the driver shows every scenario with who acts in it (By), and names by whe
   expect(REPLY_RULE).toContain("every scenario names who acts in it with by")
 })
 
+// @scenario S-0008
+test("the driver reads the project before asking what it says, and proposes nothing from neither the developer nor the project", () => {
+  expect(REPLY_RULE).toContain("read the project first")
+  expect(REPLY_RULE).toContain("never anything from neither")
+})
+
 // @scenario S-0102
 test("what the operator says the product is for goes into the intent, even mid-question: shown first, then added", () => {
   expect(REPLY_RULE).toContain("add-outcome")
@@ -585,6 +591,21 @@ describe("zarg's questions as inbox topics", () => {
       const thread = yield* makeThread({ id: "main", focus: [], log, agenda: () => Effect.succeed([]), driver, inbox })
       return { log, thread }
     })
+  // @scenario S-0098
+  test("after a restart, zarg's question still open from before is the one waiting: no new question until it is answered", async () => {
+    const { inbox } = fakeInbox()
+    let drove = 0
+    const driver: Driver = (_spec, asker) => Effect.suspend(() => (drove++, asker.ask(question))) as never
+    const events = await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setupWith(driver, { ...inbox, open: () => Effect.succeed([{ id: "T-00000099", key: "main|inq-old", title: "Old question?" }]) })
+        return yield* collect(thread.run({ runId: "r1" }).pipe(Stream.takeUntil((e) => e.type === "RUN_FINISHED")))
+      }),
+    )
+    expect(drove).toBe(0)
+    expect(events.map((e) => String(e.type))).toContain("RUN_FINISHED")
+  })
+
   const askOnce = (answers: Array<unknown>): Driver => {
     let calls = 0
     return (_spec, asker) =>

@@ -1,3 +1,4 @@
+import { readdirSync } from "node:fs"
 import { Effect } from "effect"
 import type { AgentHost } from "@zarg/agent-host"
 import type { ThreadLog } from "@zarg/core"
@@ -95,6 +96,8 @@ export const makeZarg = (host: AgentHost) =>
                 `Journeys (${journeys.length}): ${journeys.slice(0, 12).join("; ") || "none yet"}`,
                 `Scenarios: ${of("gherkin/scenario").length}; states: ${of("gherkin/state").length}.`,
                 "Graph ids are bare (I-0001); Entities refs (gherkin/intent:I-0001@…) name the same nodes.",
+                // What the project has to read before asking the developer what it says.
+                `Project files: ${(() => { try { return readdirSync(root).filter((f) => !f.startsWith(".") && f !== "node_modules").slice(0, 20).join(", ") || "none" } catch { return "unknown" } })()}`,
               ].join("\n")
             }).pipe(Effect.orElseSucceed(() => "")),
           // @scenario S-0102
