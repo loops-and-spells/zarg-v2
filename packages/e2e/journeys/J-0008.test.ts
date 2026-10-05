@@ -142,6 +142,9 @@ journey("J-0008", { tier: "fast" }, (proves) => {
       filedBefore = new Map(filesOf<{ id: string; runs?: ReadonlyArray<string> }>(s.w, "feedback").map((f) => [f.id, f.runs?.length ?? 1]))
       const t = await s.open()
       await command(t, "/yolo on")
+      // Out of /yolo's line before the next command.
+      t.press("esc")
+      await Bun.sleep(300)
       await command(t, "/rehearse journey")
       // A run walks the journey with a tester for its one persona (Parent).
       const run = await eventually(180_000, () => {

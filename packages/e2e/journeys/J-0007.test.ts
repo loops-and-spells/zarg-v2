@@ -1,7 +1,7 @@
 import { expect } from "bun:test"
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
-import { answerLoads, command, journey, liveModel, MAIN, openNav, quit, termOf, type World } from "../src"
+import { answerLoads, command, say, journey, liveModel, MAIN, openNav, quit, termOf, type World } from "../src"
 
 /** Waits up to `ms` for `check` to hold. */
 const eventually = async <A>(ms: number, check: () => A | undefined): Promise<A | undefined> => {
@@ -87,9 +87,7 @@ journey("J-0007", { tier: "fast" }, (proves) => {
       const t = await s.open()
       // YOLO: every plugin (the Intent Agent, the backlog) loads without asking.
       await command(t, "/yolo on")
-      t.press("alt+m")
-      await Bun.sleep(300)
-      await command(t, "The app also lets parents reward finished chores with points. Keep that as an outcome.")
+      await say(t, "The app also lets parents reward finished chores with points. Keep that as an outcome.")
       // One more outcome on the intent, however the model words it.
       const kept = await eventually(240_000, () => (outcomes().n > before ? outcomes().r : undefined))
       s.note("buffer", "zarg render --focus I-0001", kept ?? outcomes().r)
