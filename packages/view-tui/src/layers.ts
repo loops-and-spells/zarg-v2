@@ -26,7 +26,9 @@ import {
   onAgentsKey,
   onSlashKey,
   openAgent,
+  OTHER,
   pickerKey,
+  pickerRows,
   preselect,
   queueOf,
   sheetShown,
@@ -269,7 +271,15 @@ export const SHELL: ReadonlyArray<Layer> = [
       return q !== undefined && ui.answered !== q.id && ui.chatting !== q.id && (ui.focus === "bar" || (ui.focus === "tile" && sheetShown(ui) && ui.sheetOf === undefined))
     },
     hints: () => [{ keys: "↑↓", does: "pick" }, { keys: "Enter", does: "answer" }],
-    handle: (ui, w, k) => pickerKey(ui, w.s, k),
+    handle: (ui, w, k) => {
+      // A letter typed at the question starts Say it in your own words with it: none of it runs another key (g, x, …).
+      const q = w.s.thread.pendingInquiry!
+      if (q.allowOther !== false && printable(k) && k.name.length === 1 && !/[0-9/]/.test(k.name)) {
+        const other = pickerRows(q, ui.pick).findIndex((r) => r.id === OTHER)
+        if (other >= 0) return { ui: { ...ui, pick: other, other: true, focus: "bar" }, draft: w.draft + typed(k) }
+      }
+      return pickerKey(ui, w.s, k)
+    },
   },
   {
     // The bar with focus but not typing (zarg's question is in the picker): Esc leaves it, g and / as anywhere.

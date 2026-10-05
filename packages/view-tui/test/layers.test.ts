@@ -247,3 +247,15 @@ test("a focused toggle table says on the status line that space flips a row; a b
   expect(hints(withToggle("toggle"))).toEqual(expect.arrayContaining([{ keys: "Space", does: "flip" }]))
   expect(hints(withToggle("board"))).toEqual(expect.arrayContaining([{ keys: "z Z", does: "fold" }, { keys: "⇧←→", does: "move" }]))
 })
+
+test("typing a letter at zarg's question starts Say it in your own words with it: nothing typed goes to other keys", () => {
+  const r = onKey(at({ focus: "bar" }), asking, { name: "i", sequence: "I", shift: true } as never, 0, "")
+  expect(r.by).toBe("picker")
+  expect(r.ui.other).toBe(true)
+  expect(r.ui.focus).toBe("bar")
+  expect(r.draft).toBe("I")
+  // g (go to attention elsewhere) is a letter too while zarg asks.
+  expect(onKey(at({ focus: "bar" }), asking, { name: "g", sequence: "g" } as never, 0, "").draft).toBe("g")
+  // Digits still pick an answer; arrows still move.
+  expect(onKey(at({ focus: "bar" }), asking, key("down"), 0, "").ui.other).not.toBe(true)
+})
