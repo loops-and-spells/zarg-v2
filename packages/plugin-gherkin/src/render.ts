@@ -38,6 +38,11 @@ export const render = (snap: Snapshot.Snapshot, focus?: ReadonlySet<string>): st
   const shownIntents = focus === undefined ? [] : intents(snap).filter((i) => focus.has(i.id) || statementsOf(snap, i.id).some((s) => focus.has(s.id)))
   const parts = [...shownIntents.map((i) => renderIntent(snap, i)), ...shown.map((c) => renderScenario(snap, c))]
   if (unused.length > 0) parts.push(["States without scenarios:", ...unused.map((s) => `  ${s.id} ${text(s)}`)].join("\n"))
+  // Nothing to render is said, never an empty string (a reader took it for an empty graph, intents and all).
+  if (parts.length === 0 && focus === undefined) {
+    const all = intents(snap)
+    return ["No scenarios yet.", ...(all.length > 0 ? [`Intents: ${all.map((i) => `${i.id} ${String(i.props.title ?? "")}`).join("; ")} (render with its id in focus for its outcomes, constraints and questions)`] : [])].join("\n")
+  }
   return parts.join("\n\n")
 }
 
