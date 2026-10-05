@@ -1,12 +1,12 @@
 {
   "scenario": "S-0035",
   "version": "8528c392b00c",
-  "commit": "b9aa753",
-  "run": "e2e-2026-10-04T22-49-10.062Z",
+  "commit": "0519397",
+  "run": "e2e-2026-10-05T05-43-14.533Z",
   "journey": "J-0002",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T22:49:19.982Z",
+  "at": "2026-10-05T05:43:27.321Z",
   "ms": 405,
   "media": [
     {
@@ -32,15 +32,15 @@
       "caption": "the step as it played",
       "path": "media/S-0035/4-step.cast",
       "meta": {
-        "startAt": 9
+        "startAt": 11.8
       }
     }
   ],
   "failure": null,
   "code": {
-    "packages/core/src/setup.ts": "58734091e3047abd62e960c6596a46190feb3065",
-    "packages/core/test/setup.test.ts": "bea9ff2f6bb72e961bf63175a4f0c0f954161a6c",
-    "packages/model/src/config.ts": "1c1910d3ee71b0c90b7b92fbbbcc5a3f7b2437e0",
-    "packages/model/test/config.test.ts": "955e47a6bb62a59c8582399a0ea4ee9ff3b881fc"
+    "packages/core/src/setup.ts": "6f0301d7c0a38c0b52b1f77544a37149a66370a2",
+    "packages/core/test/setup.test.ts": "ae22d74b415526691ddd05182715bf0f00c0febc",
+    "packages/model/src/config.ts": "b459390de51e8d262f6d3fed0169a5c39f2fffcd",
+    "packages/model/test/config.test.ts": "612f2f26fe335db7b2dffc4996be849a9bfa8e1e"
   }
 }

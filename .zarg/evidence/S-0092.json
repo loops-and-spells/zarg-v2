@@ -1,13 +1,13 @@
 {
   "scenario": "S-0092",
   "version": "dcd49f10ab93",
-  "commit": "b9aa753",
-  "run": "e2e-2026-10-04T22-49-10.062Z",
+  "commit": "0519397",
+  "run": "e2e-2026-10-05T05-43-14.533Z",
   "journey": "J-0006",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T22:50:08.795Z",
-  "ms": 7222,
+  "at": "2026-10-05T05:44:22.245Z",
+  "ms": 9744,
   "media": [
     {
       "kind": "evidence-terminal/text",
@@ -34,7 +34,7 @@
   "failure": null,
   "code": {
     "packages/client/src/inbox.ts": "13b88a44c212d5fc6af803044e8af770c022489b",
-    "packages/client/src/state.ts": "4573aa9bfa830f98473f9758704f7807862981db",
+    "packages/client/src/state.ts": "086828757e9cb8ad9b95df2a8d74730392553711",
     "packages/client/test/inbox.test.ts": "5dc4ad2182c33e271286f410c7215b3e906a7af2",
     "packages/view-tui/src/inbox-keys.ts": "2640092c93e5d1791f2d79ac44136457ee9a16be",
     "packages/view-tui/test/inbox.test.ts": "f98feaf9ac6294dea82c66ef0ec211179e51a89f"

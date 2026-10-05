@@ -1,6 +1,6 @@
 [
   {
     "kind": "fs-read",
-    "glob": "/tmp/zarg-e2e-8yC3en/project/notes/b.md"
+    "glob": "/tmp/zarg-e2e-o6GCjU/project/notes/b.md"
   }
 ]

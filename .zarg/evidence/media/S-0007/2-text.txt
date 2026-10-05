@@ -1,5 +1,8 @@
 $ zarg tool call gherkin/link {"scenario":"S-0001","edge":"then","state":{"id":"ST-0002"}}
 {
-  "error": "ToolError",
-  "message": "S-0001 already has then ST-0002"
+  "message": "S-0001 already has then ST-0002: no change",
+  "added": [],
+  "changed": [],
+  "removed": [],
+  "warnings": []
 }

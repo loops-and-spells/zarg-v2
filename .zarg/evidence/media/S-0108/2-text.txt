@@ -1,17 +1,19 @@
                        │  Feedback                                                                                      
  ◆ zarg                │                                                                                                
-   project · main      │  Assign chores · 2 entries · 1 on                                                              
+   project · main      │   ▐ Refine  r ▌                                                                                
                        │                                                                                                
- VIEWS               5 │    journey        open                                                                         
-  ▤ Inbox              │    Assign chores  2                                                                            
-  ▤ Journeys           │                                                                                                
-  ▤ Intents            │  r Refine the 1 entry that are on: a triage worker drafts the scenario changes, then the       
-▍ ▤ Feedback           │  plan goes to the Backlog.                                                                     
-  ▤ Backlog            │                                                                                                
-                       │   ⌕ search                                      f │ bug · high · off (your call: real)         
- AGENTS              2 │      scenario             severity  kind  ✎   sta…│ Removing a chore asks nothing, so a        
-  ● zarg           0/0 │  ▍[ ]◇ S-0002 Parent removes…  high        bug    │ slip deletes it.                           
-  ⠇ setup          0/1 │   [●]◇ S-0001 Parent assigns…  high        bug    │ by Parent · in Assign chores · from        
+ VIEWS               5 │  Assign chores · 2 entries · 1 on                                                              
+  ▤ Inbox              │                                                                                                
+  ▤ Journeys           │    journey        open                                                                         
+  ▤ Intents            │    Assign chores  2                                                                            
+▍ ▤ Feedback           │                                                                                                
+  ▤ Backlog            │  r Refine the entry that is on: a triage worker drafts the scenario changes, then the plan     
+                       │  goes to the Backlog.                                                                          
+ AGENTS              2 │                                                                                                
+  ● zarg           0/0 │   ⌕ search                                      f │ bug · high · off (your call: real)         
+  ⠸ setup          0/1 │      scenario             severity  kind  ✎   sta…│ Removing a chore asks nothing, so a        
+                       │  ▍[ ]◇ S-0002 Parent removes…  high        bug    │ slip deletes it.                           
+                       │   [●]◇ S-0001 Parent assigns…  high        bug    │ by Parent · in Assign chores · from        
                        │                                                   │ rehearse r-e2e                             
                        │                                                   │                                            
                        │                                                   │ S-0002 Parent removes a chore              
@@ -22,9 +24,7 @@
                        │                                                   │   When  the parent removes a chore         
                        │                                                   │   Then  the chore leaves every list  #     
                        │                                                   │ ST-0003                                    
-                       │   ▐ Refine  r ▌  ▐ Note  n ▌                      │                                            
-                       │                                                                                                
-                       │                                                                                                
+                       │   ▐ Note  n ▌                                     │                                            
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                

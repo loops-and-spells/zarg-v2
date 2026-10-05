@@ -25,7 +25,7 @@ $ zarg agenda
   },
   {
     "id": "plugin-grant:intent",
-    "title": "Plugin intent asks for: read .zarg/intent/**, write .zarg/intent/**, use the model roles driver, show agents, read gherkin/*, read backlog/item, read the code tagged with scenarios, use gherkin (and read what it serves), use backlog (and read what it serves)",
+    "title": "Plugin intent asks for: read .zarg/intent/**, write .zarg/intent/**, use the decision model, use the model roles driver, show agents, read gherkin/*, read backlog/item, read the code tagged with scenarios, use gherkin (and read what it serves), use backlog (and read what it serves)",
     "detail": "zarg asks you to allow it (or /yolo on loads it).",
     "about": [],
     "priority": 1
