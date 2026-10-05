@@ -49,6 +49,7 @@ const Answer = Schema.Struct({
   question: Schema.optionalKey(Schema.String).annotate({ description: "With interjected: the id of the question still open for Inquire.choose." }),
   hint: Schema.optionalKey(Schema.String).annotate({ description: "With interjected: what to do with what they wrote." }),
   goal: Schema.optionalKey(Schema.Boolean).annotate({ description: "With interjected: zarg judged that what they wrote states a goal or a rule for the product." }),
+  problems: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Inquire.confirm with a draft: what the checks refused; the developer was not asked. Fix them, then confirm again." }),
 })
 export type Answer = typeof Answer.Type
 /** Said when zarg judged the interjection to state a goal for the product: the next call, not a condition to weigh. */
@@ -70,6 +71,9 @@ const Confirm = Schema.Struct({
     description: "The exact change in the operator's words: each scenario as its title, then By / Given / When / Then lines (and any state or persona edits), as it will be written.",
   }),
   about: Schema.optionalKey(Schema.Array(Schema.String)).annotate({ description: "Scenario or state ids the change touches." }),
+  draft: Schema.optionalKey(Schema.Array(Schema.Struct({ tool: Schema.String, params: Schema.Unknown }))).annotate({
+    description: "The change as the graph tool calls that write it (gherkin tool names, e.g. add-scenario, and their params), in order: checked as a write would be before the developer sees it; what the checks refuse comes back as `problems` to fix.",
+  }),
 })
 export type Confirm = typeof Confirm.Type
 

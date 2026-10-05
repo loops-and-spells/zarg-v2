@@ -1,6 +1,6 @@
 import { type Node, Snapshot } from "@zarg/graph/pure"
 import type { Finding, Lint } from "./kit"
-import { HAS, INTENT, isStatement, JOURNEY, journeyName, journeys, normalize, PERSONA, personaName, personas, SCENARIO, similarity, STATE, states, text } from "./model"
+import { HAS, INTENT, isStatement, JOURNEY, journeyName, journeys, normalize, PERSONA, personaName, personas, SCENARIO, similarity, STATE, states, text, THEN } from "./model"
 
 const MAX_WORDS = 15
 /** A statement (outcome, constraint, question) is one sentence of at most 20 words. */
@@ -109,4 +109,27 @@ export const statementOwner: Lint = (ctx) => {
   })
 }
 
-export const LINTS: ReadonlyArray<Lint> = [clauseShape, stateText, personaShape, journeyShape, intentShape, statementOwner]
+/** The words of a clause, lowercased: what two clauses share. */
+const wordSet = (s: string) => new Set(s.toLowerCase().split(/[^a-z0-9']+/).filter((w) => w !== ""))
+
+/** A Then states what the action brought about: one that says the When again (most of its words) is refused. */
+export const thenEchoesWhen: Lint = (ctx) =>
+  touched(ctx)
+    .filter((n) => n.type === SCENARIO)
+    .flatMap((n): ReadonlyArray<Finding> => {
+      const when = wordSet(String(n.props.when ?? ""))
+      if (when.size === 0) return []
+      return n.edges
+        .filter((e) => e.type === THEN)
+        .flatMap((e) => {
+          const st = ctx.after.nodes.get(e.to)
+          if (st === undefined) return []
+          const then = wordSet(text(st))
+          const shared = [...when].filter((w) => then.has(w)).length
+          return shared / when.size >= 0.8
+            ? [{ severity: "error" as const, code: "then-echoes-when", message: `${n.id}: its Then "${text(st)}" says its When again; a Then states what the action brought about (what holds now)`, about: [n.id, st.id] }]
+            : []
+        })
+    })
+
+export const LINTS: ReadonlyArray<Lint> = [clauseShape, stateText, personaShape, journeyShape, intentShape, statementOwner, thenEchoesWhen]

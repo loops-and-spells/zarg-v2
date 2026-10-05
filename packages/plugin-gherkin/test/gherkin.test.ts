@@ -196,6 +196,14 @@ describe("gherkin rules", () => {
     expect(r.warnings.map((w) => w.code)).toContain("alternatives")
   })
 
+  test("a Then that says the When again is refused: a Then states what the action brought about", async () => {
+    const err = await run(Effect.flip(Effect.andThen(pricing, call("add-scenario", { title: "Visitor removes a plan", when: "the visitor removes a plan they no longer want", by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ text: "the visitor removes a plan they no longer want from the list" }] }))))
+    expect(err._tag === "LintFailed" && err.findings[0]?.code).toBe("then-echoes-when")
+    // A Then that says what came of it passes.
+    const ok = await run(Effect.andThen(pricing, call("add-scenario", { title: "Visitor removes a plan", when: "the visitor removes a plan they no longer want", by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ text: "the plan is gone from the visitor's list" }] })))
+    expect(ok.warnings.map((w) => w.code)).not.toContain("then-echoes-when")
+  })
+
   test("adding a state with existing text points at the existing one", async () => {
     const err = await run(
       Effect.andThen(call("add-state", { text: "the home page" }), Effect.flip(call("add-state", { text: "The home page." }))),

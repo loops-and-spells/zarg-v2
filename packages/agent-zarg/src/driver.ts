@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 import type { Bound, ServiceFailure } from "@zarg/kernel"
-import { type Asker, confirmQuestion } from "@zarg/rlm"
+import { type Answer, type Asker, confirmQuestion } from "@zarg/rlm"
 
 const ASK_FIRST: ServiceFailure = {
   _tag: "AskFirst",
@@ -57,6 +57,7 @@ export const askFirst = (
   versions?: (ids: ReadonlyArray<string>) => Effect.Effect<Readonly<Record<string, string | undefined>>>,
   commit?: (ids: ReadonlyArray<string>, message: string) => Effect.Effect<unknown, unknown>,
   nodes?: (ids: ReadonlyArray<string>) => Effect.Effect<Readonly<Record<string, NodeView | undefined>>>,
+  dryRun?: (draft: ReadonlyArray<{ readonly tool: string; readonly params: unknown }>) => Effect.Effect<{ readonly ok: boolean; readonly problems: ReadonlyArray<string> }>,
 ) => {
   // The nodes the change was shown about, as they were: a newer edit to other parts of them merges.
   let shownNodes: Readonly<Record<string, NodeView | undefined>> = {}
@@ -118,6 +119,30 @@ export const askFirst = (
       }),
     )
   }
+  // Showing a change to the operator: add, change or skip.
+  const confirmIt = (c: Parameters<NonNullable<Asker["confirm"]>>[0]) =>
+    Effect.suspend(() => {
+      // The change of the option they just picked (or part of it): already added, never asked again.
+      if (open && scope === undefined && added !== undefined && norm(added).includes(norm(c.change))) return Effect.succeed({ choice: "add" })
+      open = false
+      scope = undefined
+      shown = {}
+      added = undefined
+      const seen = versions === undefined || (c.about ?? []).length === 0 ? Effect.succeed({}) : versions(c.about ?? [])
+      shownNodes = {}
+      const seenNodes = nodes === undefined || (c.about ?? []).length === 0 ? Effect.succeed({}) : nodes(c.about ?? [])
+      // Add with the operator's words (a reason) is what to change, not a yes.
+      const asked = Effect.map(asker.ask(confirmQuestion(c)), (a) => (a.choice === "add" && (a.other ?? "").trim() !== "" ? { other: a.other! } : a))
+      return Effect.tap(Effect.tap(Effect.tap(seenNodes, (n) => Effect.sync(() => void (shownNodes = n))).pipe(Effect.andThen(seen)), (v) => Effect.sync(() => void (shown = v))).pipe(Effect.andThen(asked)), (a) =>
+        Effect.sync(() => {
+          if (a.interjected === true && a.question !== undefined) (confirms.add(a.question), changes.set(a.question, c.change))
+          else {
+            open = a.choice === "add"
+            added = open ? c.change : undefined
+          }
+        }),
+      )
+    })
   return {
     asker: {
       // @scenario S-0019
@@ -143,26 +168,10 @@ export const askFirst = (
         ),
       confirm: (c) =>
         Effect.andThen(flush, Effect.suspend(() => {
-          // The change of the option they just picked (or part of it): already added, never asked again.
-          if (open && scope === undefined && added !== undefined && norm(added).includes(norm(c.change))) return Effect.succeed({ choice: "add" })
-          open = false
-          scope = undefined
-          shown = {}
-          added = undefined
-          const seen = versions === undefined || (c.about ?? []).length === 0 ? Effect.succeed({}) : versions(c.about ?? [])
-          shownNodes = {}
-          const seenNodes = nodes === undefined || (c.about ?? []).length === 0 ? Effect.succeed({}) : nodes(c.about ?? [])
-          // Add with the operator's words (a reason) is what to change, not a yes.
-          const asked = Effect.map(asker.ask(confirmQuestion(c)), (a) => (a.choice === "add" && (a.other ?? "").trim() !== "" ? { other: a.other! } : a))
-          return Effect.tap(Effect.tap(Effect.tap(seenNodes, (n) => Effect.sync(() => void (shownNodes = n))).pipe(Effect.andThen(seen)), (v) => Effect.sync(() => void (shown = v))).pipe(Effect.andThen(asked)), (a) =>
-            Effect.sync(() => {
-              if (a.interjected === true && a.question !== undefined) (confirms.add(a.question), changes.set(a.question, c.change))
-              else {
-                open = a.choice === "add"
-                added = open ? c.change : undefined
-              }
-            }),
-          )
+          // A change shown with its draft is checked first: what the checks refuse goes back to the driver, unasked.
+          if (c.draft !== undefined && c.draft.length > 0 && dryRun !== undefined)
+            return Effect.flatMap(dryRun(c.draft), (r) => (r.ok ? confirmIt(c) : Effect.succeed({ problems: [...r.problems] } as Answer)))
+          return confirmIt(c)
         })),
       ...(asker.choose !== undefined
         ? { choose: (c) => Effect.tap(asker.choose!(c), () => Effect.sync(() => void ((scope = undefined), (open = confirms.has(c.question) && c.choice === "add"), (added = open ? changes.get(c.question) : undefined)))) }

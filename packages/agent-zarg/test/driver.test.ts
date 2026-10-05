@@ -206,6 +206,19 @@ describe("ask before writing", () => {
     expect(commits[0]).toBe("req: I-0001: Intent: Tally: a tiny habit tally.")
   })
 
+  test("a change shown with its draft is dry-run first: one the checks refuse goes back to the driver, never to the operator", async () => {
+    let asked = 0
+    const guard = askFirst({ ask: () => Effect.sync(() => (asked++, { choice: "add" })) }, undefined, undefined, undefined, (draft) =>
+      Effect.succeed(JSON.stringify(draft).includes("removes a book") ? { ok: false, problems: ['S-0004: its Then "a reader removes a book" says its When again'] } : { ok: true, problems: [] }),
+    )
+    const bad = await Effect.runPromise(guard.asker.confirm!({ change: "Scenario: Reader removes a book", draft: [{ tool: "add-scenario", params: { then: [{ text: "a reader removes a book" }] } }] }))
+    expect(asked).toBe(0)
+    expect(bad).toMatchObject({ problems: ['S-0004: its Then "a reader removes a book" says its When again'] })
+    const good = await Effect.runPromise(guard.asker.confirm!({ change: "Scenario: Reader removes a book", draft: [{ tool: "add-scenario", params: { then: [{ text: "the book is gone" }] } }] }))
+    expect(asked).toBe(1)
+    expect(good).toEqual({ choice: "add" })
+  })
+
   test("Add with words of the operator's (a reason) is what to change, not a yes: nothing is written, and the words come back", async () => {
     const guard = askFirst({ ask: () => Effect.succeed({ choice: "add", other: "drop 'or an unknown id'" }) })
     const gated = guard.gate(writes)!
