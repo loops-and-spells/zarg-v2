@@ -369,6 +369,15 @@ export const make = (deps: RlmDeps) =>
                 cells.push({ code: call.function.arguments, ok: false, output: said, ms: 0 })
                 continue
               }
+              // Past twice its act-by turn with nothing done, a cell that does not act is not run: an implementer read
+              // through seven reminders and its whole budget without one write.
+              const act = preset.actBy
+              if (act !== undefined && turnCount >= act.turn * 2 && !act.calls.some((c) => code.includes(c)) && !history.some((h) => h.ok && act.calls.some((c) => h.code.includes(c)))) {
+                const said = `error: reads are closed until you act. ${act.say} This cell must do it.`
+                messages.push({ role: "tool", name: "exec", toolCallId: call.id, content: said })
+                cells.push({ code, ok: false, output: said, ms: 0 })
+                continue
+              }
               const cellStart = Date.now()
               const r = yield* kernel.run(code)
               cells.push({ code, ok: r.ok, output: r.output, ms: Date.now() - cellStart, ...(r.cell !== undefined ? { cell: r.cell } : {}) })

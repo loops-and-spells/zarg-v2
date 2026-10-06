@@ -86,6 +86,17 @@ describe("Rlm.exec", () => {
     expect(r.seen[2]!.messages.at(-1)?.content).toStartWith("You have read enough: 2 turns. Write the code and its tests now with Fs.write.")
   })
 
+  test("past twice its act-by turn with nothing done, a cell that does not act is not run", async () => {
+    const r = await run(
+      { reader: [{ cell: "return 1" }, { cell: "return 2" }, { cell: "return 3" }, { cell: "return 4" }, { cell: 'yield* Rlm.done({ value: "ok" })' }] },
+      { task: "t", preset: "reader", scope },
+      { presets: { reader: { layer: ["Rlm"], spawns: [], role: "implement", budget: { turns: 8 }, result: "text", verify: "none", actBy: { turn: 2, calls: ["Fs.write(", "Rlm.done("], say: "Write now." } } } },
+    )
+    expect(ok(r).turns).toBe(5)
+    expect(r.seen[3]!.messages.at(-1)?.content).toBe("ok\n3")
+    expect(r.seen[4]!.messages.at(-1)?.content).toBe("error: reads are closed until you act. Write now. This cell must do it.")
+  })
+
   test("an empty cell is an error that says what is missing, not an ok: a driver once sent 24 of them in a row", async () => {
     const r = await run(
       { research: [{ cell: "" }, { cell: 'yield* Rlm.done({ value: { findings: [], sources: [] } })' }] },
