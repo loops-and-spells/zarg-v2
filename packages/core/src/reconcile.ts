@@ -61,7 +61,7 @@ export const makeReconcile = (deps: ReconcileDeps) =>
     const board = makeActivity(deps.log, "main", "main-build")
     const working = new Map<string, string>()
     const tops = new Map<string, string>()
-    // Its progress: scenarios implemented out of those planned.
+    // Its progress: scenarios implemented out of those the pass works on (a kept plan starts no plan agent).
     const planned = new Set<string>()
     const built = new Set<string>()
     const build = (status: string, text: string) =>
@@ -94,7 +94,7 @@ export const makeReconcile = (deps: ReconcileDeps) =>
         if (e.type === "start" && e.parent === undefined) {
           tops.set(key, e.id)
           working.set(item, phase)
-          if (phase === "plan") planned.add(item)
+          planned.add(item)
         } else if (e.type === "end" && tops.get(key) === e.id) {
           tops.delete(key)
           if (working.get(item) === phase) working.delete(item)
