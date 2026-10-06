@@ -467,9 +467,11 @@ export const make = (deps: RlmDeps) =>
               if (!j.extend) break
             }
             yield* turn
-            // Still only reading at its write-by turn: told to write now (an implementer read 25 turns away, twice).
-            if (preset.writeBy !== undefined && n >= preset.writeBy && (n - preset.writeBy) % 3 === 0 && !history.some((h) => h.ok && h.code.includes("Fs.write("))) {
-              messages.push({ role: "user", content: `You have read enough: ${n} turns and nothing written. Write the code and its tests now with Fs.write, in your next cell, from what you have read; read more only if a write needs it.` })
+            // Still only reading at its act-by turn (and every 3 after): told to act now (an implementer read 25 turns away,
+            // twice; a driver read docs for 22 turns before one question).
+            const act = preset.actBy
+            if (act !== undefined && n >= act.turn && (n - act.turn) % 3 === 0 && !history.some((h) => h.ok && act.calls.some((c) => h.code.includes(c)))) {
+              messages.push({ role: "user", content: `You have read enough: ${n} turns. ${act.say} In your next cell, from what you have read; read more only if that needs it.` })
             }
             const done = yield* Ref.get(finished)
             if (done !== undefined) {

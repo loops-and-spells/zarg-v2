@@ -20,8 +20,11 @@ const Preset = Schema.Struct({
   result: Schema.optionalKey(Schema.String),
   verify: Schema.optionalKey(Schema.Literals(["gate", "decision", "none"])),
   stance: Schema.optionalKey(Schema.String),
-  /** By this turn a cell has written a file (Fs.write), or the agent is told to write now: implementers read whole budgets away. */
-  writeBy: Schema.optionalKey(Schema.Number),
+  /**
+   * By `turn` a cell has made one of `calls` (e.g. "Fs.write("), or the agent is told `say` (and again every 3 turns):
+   * agents read whole budgets away before acting.
+   */
+  actBy: Schema.optionalKey(Schema.Struct({ turn: Schema.Number, calls: Schema.Array(Schema.String), say: Schema.String })),
 })
 export type Preset = typeof Preset.Type
 
@@ -54,10 +57,10 @@ export const DEFAULT_PRESETS: Readonly<Record<string, Preset>> = {
   // Its Gherkin tools keep the intents from the conversation.
   // @scenario S-0102
   // Its turns are light (pick options, ask, reply), and thinking was ~80% of each turn's time.
-  driver: { layer: ["Graph", "Entities:read", "Gherkin", "Inquire", "Fs:read", "Decisions", "Rehearse", "Rlm"], spawns: ["research"], atomize: false, reasoning: false, role: "driver", budget: { turns: 25 }, result: "text", verify: "none" },
+  driver: { layer: ["Graph", "Entities:read", "Gherkin", "Inquire", "Fs:read", "Decisions", "Rehearse", "Rlm"], spawns: ["research"], atomize: false, reasoning: false, role: "driver", budget: { turns: 25 }, result: "text", verify: "none", actBy: { turn: 8, calls: ["Inquire.", "Gherkin.", "Rlm.done(", "Rehearse."], say: "Ask the operator, show the change, or reply now." } },
   // Plan and implement phases (the reconcile loop): each runs per scenario in its own worktree.
   plan: { layer: ["Graph", "Entities:read", "Fs:read", "Decisions", "Rlm"], spawns: ["research"], role: "plan", budget: { turns: 30 }, result: "plan", verify: "none" },
-  "implement-scenario": { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: ["research"], role: "implement", budget: { turns: 25 }, result: "implement-scenario", verify: "gate", writeBy: 6 },
+  "implement-scenario": { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: ["research"], role: "implement", budget: { turns: 25 }, result: "implement-scenario", verify: "gate", actBy: { turn: 6, calls: ["Fs.write("], say: "Write the code and its tests now with Fs.write." } },
   fix: { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: [], role: "implement", budget: { turns: 15 }, result: "text", verify: "none" },
   resolve: { layer: ["Fs", "Sh", "Rlm"], spawns: [], role: "implement", budget: { turns: 10 }, result: "resolve", verify: "none" },
   // A child a driver waits on: a question in it took 5 minutes of research at 15 turns.

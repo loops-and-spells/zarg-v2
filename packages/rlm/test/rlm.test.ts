@@ -79,11 +79,11 @@ describe("Rlm.exec", () => {
     const r = await run(
       { reader: [{ cell: "return 1" }, { cell: "return 2" }, { cell: 'yield* Rlm.done({ value: "ok" })' }] },
       { task: "t", preset: "reader", scope },
-      { presets: { reader: { layer: ["Rlm"], spawns: [], role: "implement", budget: { turns: 5 }, result: "text", verify: "none", writeBy: 2 } } },
+      { presets: { reader: { layer: ["Rlm"], spawns: [], role: "implement", budget: { turns: 5 }, result: "text", verify: "none", actBy: { turn: 2, calls: ["Fs.write("], say: "Write the code and its tests now with Fs.write." } } } },
     )
     expect(ok(r).turns).toBe(3)
     expect(r.seen[1]!.messages.some((m) => String(m.content ?? "").includes("You have read enough"))).toBe(false)
-    expect(r.seen[2]!.messages.at(-1)?.content).toStartWith("You have read enough: 2 turns and nothing written.")
+    expect(r.seen[2]!.messages.at(-1)?.content).toStartWith("You have read enough: 2 turns. Write the code and its tests now with Fs.write.")
   })
 
   test("an empty cell is an error that says what is missing, not an ok: a driver once sent 24 of them in a row", async () => {
