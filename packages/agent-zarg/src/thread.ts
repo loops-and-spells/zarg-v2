@@ -271,6 +271,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
     // @scenario S-0008 S-0010
     const body = Effect.gen(function* () {
       let lastItem = ""
+      const tookUp = new Set<string>()
       let passes = 0
       let waitAfter = false
       // @scenario S-0098
@@ -290,7 +291,9 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
       }
       while (true) {
         const said = inbox.splice(0)
-        const items = said.length > 0 ? [] : yield* deps.agenda(focusSet).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<AgendaItem>))
+        // A reconcile finding (F-…) is taken up once: what it needs then is the operator's or the next pass's, and a pass
+        // that raises it again gives it a new id (zarg asked about a stopped database three times).
+        const items = said.length > 0 ? [] : (yield* deps.agenda(focusSet).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<AgendaItem>))).filter((i) => !tookUp.has(i.id))
         const item = items[0]
         passes = item !== undefined && item.id === lastItem ? passes + 1 : 1
         lastItem = item?.id ?? ""
@@ -373,6 +376,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
         zargRow()
         syncAttention()
         const outcome = yield* Effect.exit(deps.driver({ task, preset: "driver", scope }, asker, observe))
+        if (item !== undefined && !stuck && /^F-/.test(item.id)) tookUp.add(item.id)
         if (Exit.isSuccess(outcome)) {
           const reply = String(outcome.value.value)
           yield* note("assistant", reply.length > REPLY_MAX ? `${reply.slice(0, REPLY_MAX)}…` : reply)

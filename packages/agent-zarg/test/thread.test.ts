@@ -563,6 +563,26 @@ describe("thread runs", () => {
     expect(tasks[2]).toContain('"Stuck item" is still open after two passes')
   })
 
+  test("a reconcile finding is taken up once: zarg does not circle it while it stays open", async () => {
+    const tasks: Array<string> = []
+    let calls = 0
+    const driver: Driver = (spec, asker) =>
+      Effect.gen(function* () {
+        tasks.push(spec.task)
+        if (++calls < 2) return outcome("Start the database, then the next pass verifies again.")
+        return (yield* asker.ask(question)) as never
+      }) as never
+    const finding: AgendaItem = { id: "F-55c22a37", title: "verify still fails after the fix attempts", detail: "verify-failing: ECONNREFUSED", about: [], priority: 0 }
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setup(driver, () => [finding])
+        yield* collect(thread.run({ runId: "r1" }))
+      }),
+    )
+    expect(tasks[0]).toContain("verify still fails")
+    expect(tasks.slice(1).some((t) => t.includes("verify still fails"))).toBe(false)
+  })
+
   test("a failing driver ends the run with RUN_ERROR; the next run tries again", async () => {
     let calls = 0
     const driver: Driver = (_spec, asker) =>
