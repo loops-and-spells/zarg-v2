@@ -1,27 +1,27 @@
 {
-  "title": "Parent opens the shared chore list",
+  "title": "Parent repeats chores weekly",
   "journey": "",
   "scenarios": [],
   "changes": [
+    {
+      "tool": "add-journey",
+      "params": {
+        "name": "Weekly chores"
+      }
+    },
     {
       "tool": "add-persona",
       "params": {
         "name": "Parent",
         "kind": "human",
-        "text": "parent who keeps the family schedule; reaches the app from phone"
-      }
-    },
-    {
-      "tool": "add-journey",
-      "params": {
-        "name": "Family chores setup"
+        "text": "A parent who runs the family to-do list from a phone"
       }
     },
     {
       "tool": "add-scenario",
       "params": {
-        "title": "Parent opens the shared chore list",
-        "when": "opens the family chore list",
+        "title": "Parent repeats chores weekly",
+        "when": "Parent marks a chore as weekly",
         "by": [
           {
             "name": "Parent"
@@ -29,46 +29,18 @@
         ],
         "in": [
           {
-            "id": "J-0001"
+            "name": "Weekly chores"
           }
         ],
         "arrives": {
-          "text": "The shared family chore list"
-        },
-        "given": [],
-        "then": [
-          {
-            "text": "The list shows open chores"
-          }
-        ]
-      }
-    },
-    {
-      "tool": "add-scenario",
-      "params": {
-        "title": "Family member opens their chores",
-        "when": "opens their assigned chores",
-        "by": [
-          {
-            "name": "Parent"
-          }
-        ],
-        "in": [
-          {
-            "id": "J-0001"
-          }
-        ],
-        "arrives": {
-          "text": "Their assigned chores"
+          "text": "A chore list with no weekly entry"
         },
         "then": [
           {
-            "text": "Each sees the chores assigned to them"
-          }
-        ],
-        "given": [
+            "text": "That chore appears every week"
+          },
           {
-            "text": "A parent has assigned chores"
+            "text": "No retyping is needed"
           }
         ]
       }
@@ -76,34 +48,22 @@
     {
       "tool": "link",
       "params": {
-        "scenario": "S-0001",
         "edge": "serves",
         "journey": {
           "id": "J-0001"
         },
-        "outcome": "O-0001"
-      }
-    },
-    {
-      "tool": "link",
-      "params": {
-        "scenario": "S-0001",
-        "edge": "in",
-        "journey": {
-          "id": "J-0001"
-        }
+        "outcome": "O-0002"
       }
     }
   ],
   "feedback": [],
   "steps": [
-    "Add Parent",
-    "Add journey Family chores setup",
-    "Add scenario S-0001: parent opens list",
-    "Add scenario S-0002: member opens chores",
-    "Link S-0001 to journey and outcome"
+    "Add the Weekly chores journey",
+    "Add the Parent persona",
+    "Add the scenario where the parent marks a chore as weekly",
+    "Link that journey to outcome O-0002"
   ],
-  "serves": "gherkin/outcome:O-0001@f5ebc0ef2fe2",
+  "serves": "gherkin/outcome:O-0002@bf62f6842034",
   "id": "B-01",
   "status": "backlog",
   "events": [

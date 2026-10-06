@@ -7,28 +7,28 @@
     "persona": "Parent",
     "kind": "drift",
     "severity": "high",
-    "note": "The step says the removed chore leaves every list, but src/chores.ts:3 shows remove returning chores unchanged and its comment says removal only hides it for the parent while every other list still shows it. So when I remove, what zarg does diverges from the outcome this step promises me.",
+    "note": "The step says \"Then the chore leaves every list\", but the shown code remove just returns the same chores array unchanged; every list keeps showing it. Only the code comment hints a parent-only hiding, matching neither the step.",
     "from": {
       "agent": "rehearse",
-      "run": "r-4df6c0a5"
+      "run": "r-d81c990b"
     },
     "triage": {
       "on": true,
       "why": "ask · real 1.00",
       "by": "agent"
     },
-    "id": "F-c3b457d9",
+    "id": "F-9b1335c2",
     "count": 1,
     "runs": [
-      "rehearse:r-4df6c0a5"
+      "rehearse:r-d81c990b"
     ]
   },
   "topic": {
     "kind": "drift",
     "title": "S-0002: the scenario and the code differ",
     "why": "rehearse (high)",
-    "evidence": "The step says the removed chore leaves every list, but src/chores.ts:3 shows remove returning chores unchanged and its comment says removal only hides it for the parent while every other list still shows it. So when I remove, what zarg does diverges from the outcome this step promises me.\n\nWhat zarg does now:\n\nsrc/chores.ts:3\n\n```\n// Removing only marks the chore as hidden for the parent; every other list still shows it.\nexport const remove = (chores: string[], _chore: string) => chores\n\n```",
-    "key": "drift:F-c3b457d9",
+    "evidence": "The step says \"Then the chore leaves every list\", but the shown code remove just returns the same chores array unchanged; every list keeps showing it. Only the code comment hints a parent-only hiding, matching neither the step.\n\nWhat zarg does now:\n\nsrc/chores.ts:3\n\n```\n// Removing only marks the chore as hidden for the parent; every other list still shows it.\nexport const remove = (chores: string[], _chore: string) => chores\n\n```",
+    "key": "drift:F-9b1335c2",
     "about": [
       "S-0002"
     ],
@@ -49,14 +49,14 @@
     "origin": {
       "view": "feedback"
     },
-    "id": "T-e7e3c0e5",
+    "id": "T-d6d43a0d",
     "from": {
       "plugin": "backlog"
     },
     "blocking": false,
     "messages": [],
     "state": "open",
-    "created": 1791216758050,
-    "updated": 1791216758050
+    "created": 1791253747543,
+    "updated": 1791253747543
   }
 }

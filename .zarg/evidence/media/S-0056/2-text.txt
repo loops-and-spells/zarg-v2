@@ -1,1 +1,1 @@
-Landed S-0001 in 76f5f66. S-0002 need your attention (see the driver's agenda).
+Landed S-0001, S-0002 in 203ee66.

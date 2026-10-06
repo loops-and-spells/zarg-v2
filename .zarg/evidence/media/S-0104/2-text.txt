@@ -1,33 +1,33 @@
 {
   "kind": "ask",
-  "title": "O-0004 says the opposite of K-0001: \"Grandparents see every chore the family has.\" against \"Chores are never shown to grandparents.\". Which holds?",
+  "title": "O-0005 says the opposite of K-0001: \"Grandparents see every chore the family has.\" against \"Chores are never shown to grandparents.\". Which holds?",
   "why": "intent I-0001",
-  "key": "decide:O-0004",
+  "key": "decide:O-0005",
   "about": [
-    "O-0004",
+    "O-0005",
     "K-0001"
   ],
   "answers": [
     {
       "id": "outcome",
-      "label": "Keep O-0004; change K-0001"
+      "label": "Keep O-0005; change K-0001"
     },
     {
       "id": "constraint",
-      "label": "Keep K-0001; change O-0004"
+      "label": "Keep K-0001; change O-0005"
     },
     {
       "id": "leave",
       "label": "Leave it"
     }
   ],
-  "id": "T-efa9cc4c",
+  "id": "T-76f2dc68",
   "from": {
     "plugin": "intent"
   },
   "blocking": false,
   "messages": [],
   "state": "open",
-  "created": 1791252973727,
-  "updated": 1791252973727
+  "created": 1791253680583,
+  "updated": 1791253680583
 }
