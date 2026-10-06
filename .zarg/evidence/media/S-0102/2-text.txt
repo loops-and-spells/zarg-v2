@@ -1,3 +1,4 @@
 Write this to the requirements?
 
-Add an outcome to A todo app for families, in the operator's words: Finished chores earn points the parent makes.
+Outcome of A todo app for families:
+Parents reward finished chores with points.

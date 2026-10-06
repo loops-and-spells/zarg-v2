@@ -10,7 +10,8 @@
  AGENTS             ◆1 │                                                                                                
   ◇ zarg          asks │                                                                                                
   └ ⠼ driver 1    1/25 │                                                                                                
-  ✓ build         done │                                                                                                
+  ✗ build       failed │                                                                                                
+                       │                                                                                                
                        │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
                        │     zarg   esc closes                                                                          
                        │     zarg  Noted.                                                                               
@@ -35,6 +36,5 @@
                        │       Drop S-0002                                                                              
                        │       Something else…                                                                          
                        │       Chat about this                                                                          
-                       │ · Reconcile is on; a pass is starting (2 scenarios).                                           
                        │ answer zarg above, or / to chat about it                                                       
                        │ ◆ zarg asks: S-0002 cannot be planned: reword it, or drop it?…   ↑↓ pick   ⏎ answer   esc leave

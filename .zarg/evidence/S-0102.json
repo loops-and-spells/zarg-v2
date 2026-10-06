@@ -1,13 +1,13 @@
 {
   "scenario": "S-0102",
   "version": "abf18b33d67e",
-  "commit": "d242ee5a",
-  "run": "e2e-2026-10-06T04-40-10.120Z",
+  "commit": "97cf6eed",
+  "run": "e2e-2026-10-06T05-44-07.566Z",
   "journey": "J-0007",
   "passed": true,
-  "flaky": false,
-  "at": "2026-10-06T04:40:53.979Z",
-  "ms": 35522,
+  "flaky": true,
+  "at": "2026-10-06T05:50:22.725Z",
+  "ms": 366932,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -40,7 +40,7 @@
       "caption": "the step as it played",
       "path": "media/S-0102/5-step.cast",
       "meta": {
-        "startAt": 7.4
+        "startAt": 278.3
       }
     }
   ],
@@ -51,7 +51,7 @@
     "packages/agent-zarg/test/thread.test.ts": "7ba698c9bee23c8508e114208b3c94b92305b4dc",
     "packages/plugin-gherkin/src/intent-tools.ts": "d92952d86ec2e39d4e7733abc70eab60c1d87887",
     "packages/plugin-gherkin/test/intents.test.ts": "73570ce4568acbce8a1b116ddcd865e405af6f11",
-    "packages/rlm/src/presets.ts": "acfb450fd3c17ff54e32869aaf9a170f8d3038d1",
+    "packages/rlm/src/presets.ts": "26dc0e1ed16f9efe05e992fd5deae3989ea3acc5",
     "packages/rlm/src/services/io.ts": "f12052260254143249db74ee45825524708bb2cc",
     "packages/rlm/test/graph.test.ts": "0e41937e73ef29d9ce61e3545e1dcaea92bdcb7c"
   }
