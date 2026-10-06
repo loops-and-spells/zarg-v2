@@ -352,7 +352,7 @@ export const makeThread = (deps: ThreadDeps): Effect.Effect<Thread> =>
                     .map((g) => `- ${g.title}${g.about.length > 0 ? ` [${g.about.join(", ")}]` : ""}: ${g.detail}`)
                     .join("\n")}`
                 : WHAT_NEXT
-              : `${agendaText(item)}\nPropose how to resolve it: ask the operator with Inquire.ask when there is a choice, and show the exact change with Inquire.confirm before writing it.`,
+              : `${agendaText(item)}\nPropose how to resolve it: ask the operator with Inquire.ask when there is a choice, and show the exact change with Inquire.confirm before writing it. Read the few files you need yourself (Fs); a research child only for a question that needs many.`,
           stuck ? `Note: "${item!.title}" is still open after two passes; mention it among the options.` : "",
           now.length > 0 ? `The graph now (no need to read it again):\n${now}` : "",
           around.length > 0 ? `The scenarios around it (Graph.render of ${item!.about.join(", ")}):\n${around}` : "",
