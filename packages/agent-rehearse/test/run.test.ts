@@ -122,7 +122,7 @@ describe("rehearse runs in the plugin", () => {
     expect(t.events[open]).toEqual({ event: "open", id: "run", text: "status" })
     expect(open).toBeLessThan(t.events.findIndex((e) => e.event === "start" && e.id === "tester-1"))
     const line = t.pushes.filter((p) => p.agent === "run" && p.view === "status" && p.path === "line").at(-1)?.data as { items: ReadonlyArray<{ label: string; value: string }> }
-    expect(line.items.map((i) => i.label)).toEqual(["rehearse", "testers"])
+    expect(line.items.map((i) => i.label)).toEqual(["walked", "testers"])
     expect(line.items[0]!.value).toMatch(/^\d+\/\d+ scenes$/)
   })
 

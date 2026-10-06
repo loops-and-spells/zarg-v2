@@ -223,7 +223,7 @@ export const makeRehearse = (deps: RunDeps) =>
                   yield* quiet(deps.agents.status({ id, progress: { done: checked.size, total: toCheck }, text: `${checked.size}/${toCheck} scenes · ${flagged} flagged` }))
                   yield* quiet(deps.agents.status({ id: "run", progress: { done: allChecked, total: all }, text: `${allChecked}/${all} scenes` }))
                   yield* showProgress
-                  yield* quiet(deps.views.set("run", StatusView, "line", { items: [{ label: "rehearse", value: `${allChecked}/${all} scenes` }, { label: "testers", value: String(rec.personas.length) }] }))
+                  yield* quiet(deps.views.set("run", StatusView, "line", { items: [{ label: "walked", value: `${allChecked}/${all} scenes` }, { label: "testers", value: String(rec.personas.length) }] }))
                   yield* quiet(deps.views.set("run", RunView, "progress", { items: [{ label: "scenes", value: `${allChecked}/${all}` }, { label: "testers", value: String(rec.personas.length) }, { label: "unreachable", value: String(rec.unreachable) }], progress: { done: allChecked, total: all } }))
                 })
               yield* quiet(deps.agents.start({ id, parent: "run", title: "tester", task: persona.text, view: "tester" }))
