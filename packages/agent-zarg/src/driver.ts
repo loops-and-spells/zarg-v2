@@ -13,8 +13,9 @@ const NO_DRAFT = "Show a scenario change with its draft too: Inquire.confirm({ c
 const PICKED_HINT = "They picked an option that is a change: it is added. Write it now, as shown; no Inquire.confirm."
 
 /** The change's first line; one that only heads it (ends with a colon) takes the next line too. */
-const headline = (change: string | undefined) => {
-  const lines = (change ?? "").split("\n").map((l) => l.trim()).filter((l) => l !== "")
+export const headline = (change: string | undefined) => {
+  // A lead-in to the operator ("As you said: …") is not what changed: the commit subject starts after it.
+  const lines = (change ?? "").split("\n").map((l) => l.trim()).filter((l) => l !== "" && !/^(as you (said|asked|wrote)|per your words)\b/i.test(l))
   if (lines.length === 0) return undefined
   return lines[0]!.endsWith(":") && lines[1] !== undefined ? `${lines[0]} ${lines[1]}` : lines[0]
 }
