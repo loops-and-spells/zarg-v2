@@ -55,6 +55,15 @@ describe("ask before writing", () => {
     expect(await Effect.runPromise(guard.asker.confirm!({ change: "Edit ST-0002: the plan picker is shown" }))).toMatchObject({ choice: "add" })
   })
 
+  test("a change naming an id no node has yet (J-0003 before it is added) goes back: a new node is named by its words", async () => {
+    let asked = 0
+    const guard = askFirst({ ask: () => Effect.sync(() => (asked++, { choice: "add" })) }, (ids) => Effect.succeed(Object.fromEntries(ids.map((id) => [id, id === "J-0001" ? "v1" : undefined]))))
+    const back = await Effect.runPromise(guard.asker.confirm!({ change: 'Journey J-0003 "Counting"\nScenario S-0007 in J-0001' }))
+    expect(asked).toBe(0)
+    expect(back.problems?.[0]).toContain("J-0003, S-0007")
+    expect(await Effect.runPromise(guard.asker.confirm!({ change: "Edit J-0001: rename it Counting" }))).toMatchObject({ choice: "add" })
+  })
+
   test("a change added before a restart, shown again reworded, is not asked twice: the driver is told to write it", async () => {
     let asked = 0
     const guard = askFirst({ ask: () => Effect.sync(() => (asked++, { choice: "add" })), approved: () => 'Mark ST-0005 terminal: "The habit keeps its marked days" (ST-0005)' })
@@ -127,7 +136,7 @@ describe("ask before writing", () => {
     }
     const guard = askFirst({ ask: () => Effect.succeed({ choice: "add" }) }, (ids) => Effect.succeed(Object.fromEntries(ids.map((id) => [id, nodes[id]]))))
     const gated = guard.gate(parts)!
-    await Effect.runPromise(guard.asker.confirm!({ change: "Scenario S-0004 Reader removes a book, in journey J-0001", about: ["S-0004"] }))
+    await Effect.runPromise(guard.asker.confirm!({ change: "Scenario \"Reader removes a book\", in journey Reading", about: ["S-0004"] }))
     await Effect.runPromise(gated.handlers.addScenario!({ title: "Reader removes a book" }))
     expect(await Effect.runPromise(gated.handlers.link!({ scenario: "S-0004", journey: { id: "J-0001" } }))).toMatchObject({ changed: ["S-0004"] })
   })

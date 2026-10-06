@@ -158,6 +158,21 @@ export const askFirst = (
         }),
       )
     })
+  // A change shown with its draft is checked first: what the checks refuse goes back to the driver, unasked.
+  // A scenario change (a When line) is shown with its draft: the checks need its tool calls.
+  const checked = (c: Parameters<NonNullable<Asker["confirm"]>>[0]) =>
+    Effect.suspend(() => {
+      if (dryRun !== undefined && (c.draft === undefined || c.draft.length === 0) && /^\s*When\b/im.test(c.change)) return Effect.succeed({ problems: [NO_DRAFT] } as Answer)
+      if (c.draft !== undefined && c.draft.length > 0 && dryRun !== undefined)
+        return Effect.flatMap(dryRun(c.draft), (r) => {
+          if (!r.ok) return Effect.succeed({ problems: [...r.problems] } as Answer)
+          // What the checks cannot see (a Given and an And that cannot both hold): the judge's word, once.
+          if (judge === undefined || judged.has(norm(c.change))) return confirmIt(c)
+          judged.add(norm(c.change))
+          return Effect.flatMap(judge(c.change), (found) => (found.length > 0 ? Effect.succeed({ problems: [...found, JUDGED] } as Answer) : confirmIt(c)))
+        })
+      return confirmIt(c)
+    })
   return {
     asker: {
       // @scenario S-0019
@@ -192,20 +207,16 @@ export const askFirst = (
           owedPre = undefined
           const placeholder = placeholderId(c.change)
           if (placeholder !== undefined) return Effect.succeed({ problems: [`"${placeholder}" is no id: name a new node by its words (its title or text), never an id it does not have yet.`] } as Answer)
-          // A change shown with its draft is checked first: what the checks refuse goes back to the driver, unasked.
-          // A scenario change (a When line) is shown with its draft: the checks need its tool calls.
-          if (dryRun !== undefined && (c.draft === undefined || c.draft.length === 0) && /^\s*When\b/im.test(c.change))
-            return Effect.succeed({ problems: [NO_DRAFT] } as Answer)
-          if (c.draft !== undefined && c.draft.length > 0 && dryRun !== undefined)
-            return Effect.flatMap(dryRun(c.draft), (r) => {
-              if (!r.ok) return Effect.succeed({ problems: [...r.problems] } as Answer)
-              // What the checks cannot see (a Given and an And that cannot both hold): the judge's word, once.
-              if (judge === undefined || judged.has(norm(c.change))) return confirmIt(c)
-              judged.add(norm(c.change))
-              return Effect.flatMap(judge(c.change), (found) => (found.length > 0 ? Effect.succeed({ problems: [...found, JUDGED] } as Answer) : confirmIt(c)))
+          // Ids the change names that no node has yet (a guess at what a new node will get): named by words instead.
+          const named = [...new Set(c.change.match(/\b(?:S|ST|J|O|K|P|Q|I)-\d{4}\b/g) ?? [])]
+          if (versions !== undefined && named.length > 0)
+            return Effect.flatMap(versions(named), (v) => {
+              const unknown = named.filter((id) => v[id] === undefined)
+              return unknown.length > 0 ? Effect.succeed({ problems: [`${unknown.join(", ")}: no node has ${unknown.length === 1 ? "this id" : "these ids"} yet. Name a new node by its words (its title or text), never an id it does not have yet.`] } as Answer) : checked(c)
             })
-          return confirmIt(c)
+          return checked(c)
         })),
+
       ...(asker.choose !== undefined
         ? { choose: (c) => Effect.tap(asker.choose!(c), () => Effect.sync(() => void ((scope = undefined), (open = confirms.has(c.question) && c.choice === "add"), (added = open ? changes.get(c.question) : undefined)))) }
         : {}),
