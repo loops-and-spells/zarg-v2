@@ -25,7 +25,7 @@ const Option = Schema.Struct({
   recommended: Schema.optionalKey(Schema.Boolean).annotate({ description: "Mark exactly one option as your recommendation." }),
   why: Schema.optionalKey(Schema.String).annotate({ description: "One short reason, shown next to the option." }),
   change: Schema.optionalKey(Schema.String).annotate({
-    description: "When picking this option is itself a requirements change: the exact change, as Inquire.confirm would show it. The operator sees it with the question; picking it adds it (write it, no confirm after).",
+    description: "Required when picking this option leads to a requirements change (mark a state terminal, add a scenario, …): the exact change, as Inquire.confirm would show it. The operator sees it with the question; picking it adds it (write it, no confirm after). Never ask an option without it and then confirm the same change: that asks twice.",
   }),
 })
 const Question = Schema.Struct({
