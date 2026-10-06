@@ -39,6 +39,19 @@ describe("ask before writing", () => {
     expect(await Effect.runPromise(Effect.flip(gated.handlers.addScenario!({ intent: "I-0001", text: "Something else entirely" })))).toMatchObject({ _tag: "NotShown" })
   })
 
+  test("a change added before a restart, shown again reworded, is not asked twice: the driver is told to write it", async () => {
+    let asked = 0
+    const guard = askFirst({ ask: () => Effect.sync(() => (asked++, { choice: "add" })), approved: () => 'Mark ST-0005 terminal: "The habit keeps its marked days" (ST-0005)' })
+    const first = await Effect.runPromise(guard.asker.confirm!({ change: 'Mark "The habit keeps its marked days" terminal: the rename outcome' }))
+    expect(asked).toBe(0)
+    expect(first.problems?.[0]).toContain("already added")
+    // Writes stay open for it.
+    expect(await Effect.runPromise(guard.gate(writes)!.handlers.addScenario!({ id: "ST-0005", terminal: true }))).toBe("created S-0001")
+    // A different change after that is shown as usual.
+    await Effect.runPromise(guard.asker.confirm!({ change: "Add outcome: a user archives a habit" }))
+    expect(asked).toBe(1)
+  })
+
   // @scenario S-0017
   test("a newer edit to another part of the node merges: the write goes through, their edit stays, and the merge is noted", async () => {
     let node = { props: { name: "Parent", text: "a parent who assigns chores." }, edges: [] as ReadonlyArray<{ type: string; to: string }> }

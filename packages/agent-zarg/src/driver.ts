@@ -100,6 +100,8 @@ export const askFirst = (
     open = true
     added = pre
   }
+  // Shown again before it is written (often reworded): not asked twice; the driver is told to write it, once.
+  let owedPre = pre
   const write = (h: (params: unknown) => Effect.Effect<unknown, ServiceFailure>, params: unknown, named: ReadonlyArray<string>): Effect.Effect<unknown, ServiceFailure> => {
     if (added !== undefined) {
       const shownText = norm(added)
@@ -177,6 +179,12 @@ export const askFirst = (
         ),
       confirm: (c) =>
         Effect.andThen(flush, Effect.suspend(() => {
+          if (owedPre !== undefined && !wrote) {
+            const change = owedPre
+            owedPre = undefined
+            return Effect.succeed({ problems: [`The operator already added this change before zarg restarted; write it now with its wording, without showing it again:\n${change}\nShow a change only when it is a different one.`] } as Answer)
+          }
+          owedPre = undefined
           // A change shown with its draft is checked first: what the checks refuse goes back to the driver, unasked.
           // A scenario change (a When line) is shown with its draft: the checks need its tool calls.
           if (dryRun !== undefined && (c.draft === undefined || c.draft.length === 0) && /^\s*When\b/im.test(c.change))
