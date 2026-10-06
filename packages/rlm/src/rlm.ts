@@ -148,7 +148,7 @@ export const joinLines = (v: unknown) =>
     : v
 
 // What reads stay whole: an implementer re-read the same file for 24 turns when only the last 4 outputs did.
-const KEEP_CHARS = 120_000
+const KEEP_CHARS = 80_000
 export const trimOld = (messages: Array<ChatMessage>, keep: number) => {
   const folded = new Set<string>()
   for (const m of messages) for (const c of m.toolCalls ?? []) if (c.function.arguments.includes("Rlm.exec")) folded.add(c.id)

@@ -43,7 +43,8 @@ export interface RlmSettings {
   readonly extendMax: number
 }
 
-export const DEFAULT_BUDGET: Budget = { turns: 25, tokens: 400_000, wallMs: 30 * 60_000 }
+// Tokens count each turn's whole prompt: 25 turns that keep up to KEEP_CHARS of reads (an implementer ran out at turn 18 of 25 on 400k).
+export const DEFAULT_BUDGET: Budget = { turns: 25, tokens: 1_000_000, wallMs: 30 * 60_000 }
 
 /** The presets from the spec; `[rlm.presets.*]` in config overrides them by name. */
 export const DEFAULT_PRESETS: Readonly<Record<string, Preset>> = {
