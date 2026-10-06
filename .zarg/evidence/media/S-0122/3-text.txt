@@ -3,14 +3,15 @@
    project · main      │  ▍◆ zarg          S-0002 cannot be planned: reword i…  question · waiting · 2 options  now     
                        │   · zarg          S-0002 cannot be implemented as written  finding  now                        
  VIEWS               3 │                                                                                                
-▍ ◇ Inbox            2 │                                                                                                
+▍ ◆ Inbox            2 │                                                                                                
   ▤ Journeys           │                                                                                                
   ▤ Intents            │                                                                                                
                        │                                                                                                
  AGENTS             ◆1 │                                                                                                
-  ◇ zarg          asks │                                                                                                
+  ◆ zarg          asks │                                                                                                
   └ ⠼ driver 1    1/25 │                                                                                                
   ✓ build         done │                                                                                                
+                       │                                                                                                
                        │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
                        │     zarg   esc closes                                                                          
                        │     zarg  Noted.                                                                               
@@ -35,6 +36,5 @@
                        │       Drop S-0002                                                                              
                        │       Something else…                                                                          
                        │       Chat about this                                                                          
-                       │ · Reconcile is on; a pass is starting (2 scenarios).                                           
                        │ answer zarg above, or / to chat about it                                                       
                        │ ◆ zarg asks: S-0002 cannot be planned: reword it, or drop it?…   ↑↓ pick   ⏎ answer   esc leave

@@ -1,16 +1,15 @@
 diff --git a/src/chores.ts b/src/chores.ts
-index 8e78d42..49b3f47 100644
+index 8e78d42..57603fd 100644
 --- a/src/chores.ts
 +++ b/src/chores.ts
-@@ -1 +1,6 @@
+@@ -1 +1,5 @@
 +// @scenario S-0001
  export const assign = (chores: ReadonlyArray<string>, chore: string) => [...chores, chore]
 +
 +// @scenario S-0002
-+export const remove = (chores: ReadonlyArray<string>, chore: string) =>
-+  chores.filter((c) => c !== chore)
++export const remove = (chores: ReadonlyArray<string>, chore: string) => chores.filter((c) => c !== chore)
 diff --git a/test/chores.test.ts b/test/chores.test.ts
-index 1596ebe..ceb3fbf 100644
+index 1596ebe..91bf33d 100644
 --- a/test/chores.test.ts
 +++ b/test/chores.test.ts
 @@ -1,6 +1,13 @@
@@ -24,7 +23,7 @@ index 1596ebe..ceb3fbf 100644
  })
 +
 +// @scenario S-0002
-+test("a chore is removed", () => {
-+  expect(remove(["dishes", "trash"], "dishes")).toEqual(["trash"])
-+  expect(remove(["dishes", "trash", "dishes"], "dishes")).toEqual(["trash"])
++test("a chore leaves every list", () => {
++  expect(remove(["dishes"], "dishes")).toEqual([])
++  expect(remove(assign(["mop", "laundry"], "dishes"), "dishes")).toEqual(["mop", "laundry"])
 +})

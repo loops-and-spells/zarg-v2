@@ -1,13 +1,13 @@
 {
   "scenario": "S-0025",
   "version": "6d66db3e8f9e",
-  "commit": "fe2a1567",
-  "run": "e2e-2026-10-06T02-17-57.475Z",
+  "commit": "69cf99ec",
+  "run": "e2e-2026-10-06T02-41-43.446Z",
   "journey": "J-0004",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-06T02:18:15.500Z",
-  "ms": 8,
+  "at": "2026-10-06T02:43:57.816Z",
+  "ms": 6,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -39,6 +39,6 @@
   "failure": null,
   "code": {
     "packages/core/src/reconcile.ts": "4afea74f549402b78dcecb6c63975f7480ff1226",
-    "packages/e2e/journeys/J-0004.test.ts": "719eb1672b38c7214affef92846c1a673917a1dc"
+    "packages/e2e/journeys/J-0004.test.ts": "41c2c8b9cddfd3982338d59b868e637ee2a12b4e"
   }
 }

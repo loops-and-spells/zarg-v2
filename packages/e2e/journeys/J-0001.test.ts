@@ -286,6 +286,9 @@ const starts = (w: World) =>
 
 async function waitFor(check: () => boolean, ms = 30_000) {
   const end = Date.now() + ms
-  while (!check() && Date.now() < end) await Bun.sleep(500)
+  while (Date.now() < end) {
+    if (check()) return true
+    await Bun.sleep(500)
+  }
   return check()
 }

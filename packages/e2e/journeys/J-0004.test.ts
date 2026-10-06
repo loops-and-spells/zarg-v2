@@ -24,7 +24,11 @@ const said = (w: World, thread: string) => lines(w, `.zarg/threads/${thread}.jso
 /** Waits up to `ms` for `check` to hold, every 2 s. */
 const until = async (ms: number, check: () => boolean) => {
   const end = Date.now() + ms
-  while (!check() && Date.now() < end) await Bun.sleep(2_000)
+  // True as soon as it holds: checked again after, a finding a new pass clears and raises again could be between the two.
+  while (Date.now() < end) {
+    if (check()) return true
+    await Bun.sleep(2_000)
+  }
   return check()
 }
 /** A fresh session with reconcile turned on by hand (the config keeps it off): the notice it gave. */

@@ -36,7 +36,10 @@ const cells = (w: World) => {
 const raw = (w: World) => (existsSync(join(w.project, ".zarg/threads")) ? ["main.jsonl", "main.rlm.jsonl"].map((f) => (existsSync(join(w.project, ".zarg/threads", f)) ? readFileSync(join(w.project, ".zarg/threads", f), "utf8") : "")).join("\n") : "")
 const until = async (check: () => boolean, ms = 30_000) => {
   const end = Date.now() + ms
-  while (!check() && Date.now() < end) await Bun.sleep(300)
+  while (Date.now() < end) {
+    if (check()) return true
+    await Bun.sleep(300)
+  }
   return check()
 }
 
