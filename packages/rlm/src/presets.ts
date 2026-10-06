@@ -20,6 +20,8 @@ const Preset = Schema.Struct({
   result: Schema.optionalKey(Schema.String),
   verify: Schema.optionalKey(Schema.Literals(["gate", "decision", "none"])),
   stance: Schema.optionalKey(Schema.String),
+  /** By this turn a cell has written a file (Fs.write), or the agent is told to write now: implementers read whole budgets away. */
+  writeBy: Schema.optionalKey(Schema.Number),
 })
 export type Preset = typeof Preset.Type
 
@@ -55,7 +57,7 @@ export const DEFAULT_PRESETS: Readonly<Record<string, Preset>> = {
   driver: { layer: ["Graph", "Entities:read", "Gherkin", "Inquire", "Fs:read", "Decisions", "Rehearse", "Rlm"], spawns: ["research"], atomize: false, reasoning: false, role: "driver", budget: { turns: 25 }, result: "text", verify: "none" },
   // Plan and implement phases (the reconcile loop): each runs per scenario in its own worktree.
   plan: { layer: ["Graph", "Entities:read", "Fs:read", "Decisions", "Rlm"], spawns: ["research"], role: "plan", budget: { turns: 30 }, result: "plan", verify: "none" },
-  "implement-scenario": { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: ["research"], role: "implement", budget: { turns: 25 }, result: "implement-scenario", verify: "gate" },
+  "implement-scenario": { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: ["research"], role: "implement", budget: { turns: 25 }, result: "implement-scenario", verify: "gate", writeBy: 6 },
   fix: { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: [], role: "implement", budget: { turns: 15 }, result: "text", verify: "none" },
   resolve: { layer: ["Fs", "Sh", "Rlm"], spawns: [], role: "implement", budget: { turns: 10 }, result: "resolve", verify: "none" },
   research: { layer: ["Graph", "Entities:read", "Fs:read", "Decisions", "Rlm"], spawns: ["research"], role: "driver", budget: { turns: 15 }, result: "research", verify: "none" },

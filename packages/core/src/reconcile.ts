@@ -148,9 +148,11 @@ export const makeReconcile = (deps: ReconcileDeps) =>
                     : "The pass failed; see the driver's agenda."
               if (text !== undefined) for (const d of E.textMessage(`implement-${crypto.randomUUID()}`, "assistant", text)) emit("implement", d)
               // The build row says how the pass ended: what landed, or that it did not.
-              const end = exit._tag === "Failure" ? (Cause.hasInterruptsOnly(exit.cause) ? "stopped" : "failed") : exit.value.status === "failed" ? "failed" : "done"
               const landed = exit._tag === "Success" ? exit.value.landed : []
-              build(end, landed.length > 0 ? `landed ${landed.join(", ")}` : exit._tag === "Success" && exit.value.status === "nothing" ? "nothing to do" : end === "done" ? "nothing landed" : end)
+              const failed = exit._tag === "Success" ? exit.value.failed : []
+              // A pass that only committed plans built nothing: that is no ✓.
+              const end = exit._tag === "Failure" ? (Cause.hasInterruptsOnly(exit.cause) ? "stopped" : "failed") : exit.value.status === "failed" || (landed.length === 0 && failed.length > 0) ? "failed" : "done"
+              build(end, landed.length > 0 ? `landed ${landed.join(", ")}` : failed.length > 0 ? `not built: ${failed.join(", ")}` : exit._tag === "Success" && exit.value.status === "nothing" ? "nothing to do" : end === "done" ? "nothing landed" : end)
               if (exit._tag === "Success" && exit.value.status === "landed" && exit.value.landed.length > 0) deps.onLanded?.(exit.value.landed)
               if (exit._tag === "Success" && exit.value.failed.length > 0 && !stopRequested) deps.onFailed?.(exit.value.failed)
               for (const t of ["plan", "implement"] as const) emit(t, E.runFinished(t, runId))

@@ -467,6 +467,10 @@ export const make = (deps: RlmDeps) =>
               if (!j.extend) break
             }
             yield* turn
+            // Still only reading at its write-by turn: told to write now (an implementer read 25 turns away, twice).
+            if (preset.writeBy === n && !history.some((h) => h.ok && h.code.includes("Fs.write("))) {
+              messages.push({ role: "user", content: `You have read enough: ${n} turns and nothing written. Write the code and its tests now with Fs.write, in your next cell, from what you have read; read more only if a write needs it.` })
+            }
             const done = yield* Ref.get(finished)
             if (done !== undefined) {
               yield* Effect.logInfo("rlm.end").pipe(Effect.annotateLogs({ rlm: id, turns: n, tokens }))
