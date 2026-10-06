@@ -45,7 +45,7 @@ const summary = passSummary
 
 /** Said with a verify-failing finding: a driver once proposed pointing tests elsewhere because the database was down. */
 export const VERIFY_ENV =
-  "When it fails for the environment, not the code (a database or service not running, connection refused, a missing variable), tell the operator what to start or set: never change code, tests or fixtures to get around it."
+  "When it fails for the environment, not the code (a database or service not running, connection refused, a missing variable), say in your reply what the operator should start or set, and finish: no question (starting it is theirs; the next pass verifies again). Never change code, tests or fixtures to get around it."
 
 /**
  * Plan and implement for the core: the reconciler watching the graph, passes on a durable engine, the
