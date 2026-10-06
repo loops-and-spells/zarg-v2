@@ -76,6 +76,20 @@ export const projectCheck = (root: string): string | undefined => {
   return undefined
 }
 
+/** A pass's commit message: what it built, or (nothing built) the plans it keeps. */
+export const passMessage = (items: ReadonlyArray<string>, failed: ReadonlyArray<string> = []) =>
+  items.length > 0 ? `feat: implement ${items.join(", ")}` : `chore: plan ${failed.join(", ")} (not built yet: see the findings)`
+
+/** What gives a pass's fresh worktree the project's dependencies: an install from its lockfile (none without one). */
+export const projectSetup = (root: string): string | undefined => {
+  const has = (f: string) => existsSync(join(root, f))
+  if (has("bun.lock") || has("bun.lockb")) return "bun install --frozen-lockfile"
+  if (has("pnpm-lock.yaml")) return "pnpm install --frozen-lockfile"
+  if (has("yarn.lock")) return "yarn install --frozen-lockfile"
+  if (has("package-lock.json")) return "npm ci"
+  return undefined
+}
+
 /**
  * Whether plan and implement run for a project: only with a `[reconcile]` section (not `enabled = false`),
  * models for `roles.plan` and `roles.implement`, and the project at the top of a git repository.
@@ -101,7 +115,9 @@ export const reconcileGate = (root: string, extra: Readonly<Record<string, unkno
     if (own === undefined) {
       return { on: false, reason: "plan and implement are off: nothing says the code is right: add a verify or test task (mise.toml or package.json), or set [reconcile] verify in .zarg/config.toml, then /reconcile" } as const
     }
-    return { on: true, settings: { ...settings, verify: own } } as const
+    // Set in [reconcile]: that setup; else an install from the project's lockfile (a worktree has no dependencies).
+    const setup = (extra.reconcile as { setup?: unknown } | undefined)?.setup !== undefined ? settings.setup : projectSetup(root)
+    return { on: true, settings: { ...settings, verify: own, ...(setup !== undefined ? { setup } : {}) } } as const
   })
 
 /** A failure as text a client may see: its message (never "[object Object]"), with secrets redacted. */
@@ -296,7 +312,7 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
     fixAttempts: deps.settings.fixAttempts,
     landRetry: `${deps.settings.landRetryMs} millis`,
     landAttempts: deps.settings.landAttempts,
-    message: (items) => `feat: implement ${items.join(", ")}`,
+    message: passMessage,
     ...(deps.withGraphLock ? { withGraphLock: deps.withGraphLock } : {}),
     ...(deps.stop ? { stop: deps.stop } : {}),
     ...(deps.onLandWait ? { onLandWait: deps.onLandWait } : {}),

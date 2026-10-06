@@ -1,24 +1,11 @@
-[
-  {
-    "kind": "blocked-scenario",
-    "title": "S-0002 cannot be implemented as written",
-    "detail": "Verify.run never passes because .zarg read-only config.toml pins the gate to `exit 1`; that gate setting is outside the implement scope and must not be edited, so the plan's final step `Verify.run until it passes` cannot be satisfied even though the implementation and tests are correct and `bun test` passes.",
-    "about": [
-      "S-0002"
-    ],
-    "pass": "69df6e1f3a68",
-    "id": "F-9ee3fb31",
-    "at": "2026-10-05T19:21:35.978Z"
-  },
-  {
-    "kind": "verify-failing",
-    "title": "verify still fails after the fix attempts",
-    "detail": "",
-    "about": [
-      "S-0001"
-    ],
-    "pass": "69df6e1f3a68",
-    "id": "F-0c0bfa39",
-    "at": "2026-10-05T19:21:35.978Z"
-  }
-]
+{
+  "kind": "verify-failing",
+  "title": "verify still fails after the fix attempts",
+  "detail": "bun test v1.4.2 (744846f84)\n\n\ntest/eight.test.ts:\nerror: expect(received).toBe(expected)\n\nExpected: 9\nReceived: 8\n\n(fail) eight [0.14ms]\n\ntest/chores.test.ts:\n(pass) a chore is assigned [0.07ms]\n\n 1 pass\n 1 fail\n 2 expect() calls\nRan 2 tests across 2 files. [16.00ms]",
+  "about": [
+    "S-0008"
+  ],
+  "pass": "19f9fbead2db",
+  "id": "F-ff763969",
+  "at": "2026-10-06T01:06:25.038Z"
+}

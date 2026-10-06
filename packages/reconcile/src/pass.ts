@@ -52,7 +52,7 @@ export interface ReconcileSpec {
   readonly landAttempts: number
   /** Landing waits on the operator's uncommitted edits in these paths (try `attempt` of `landAttempts`): tell them. */
   readonly onLandWait?: (paths: ReadonlyArray<string>, attempt: number) => Effect.Effect<void>
-  readonly message: (items: ReadonlyArray<string>) => string
+  readonly message: (items: ReadonlyArray<string>, failed?: ReadonlyArray<string>) => string
   /**
    * The operator's stop: `wait` completes when a stop is requested (running scenarios race it and are cut
    * short); `requested` is checked between steps. A stopped pass ends as failed, without findings.
@@ -269,7 +269,7 @@ const body = (
           yield* Effect.sync(() => Bun.write(join(main, CHECKPOINT), `${JSON.stringify({ graph, ...(still.length > 0 ? { failed: [...still].sort() } : {}) }, null, 2)}\n`))
           yield* gitRun(main, ["rm", "-q", "--cached", "--ignore-unmatch", LEGACY_CHECKPOINT])
           rmSync(join(main, LEGACY_CHECKPOINT), { force: true })
-          return yield* commitAll(main, spec.message(live))
+          return yield* commitAll(main, spec.message(live, failed()))
         })
       if (yield* isStopped("stopped:commit")) return stoppedResult
       let commit = yield* act("commit", Schema.String, squash(payload.base, payload.graph))

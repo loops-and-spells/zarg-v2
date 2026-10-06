@@ -1,6 +1,6 @@
                        │  inbox   2 open                                                                                
  ◆ zarg                │                                                                                                
-   project · main      │  ▍◆ zarg          What can the user do when "the chi…  question · waiting · 3 options  11m     
+   project · main      │  ▍◆ zarg          After 'the child sees the new chor…  question · waiting · 2 options  11m     
                        │   · zarg          Landing waits on your uncommitted edits in .zarg/plans/S-0…  report  now     
  VIEWS               3 │                                                                                                
 ▍ ◇ Inbox            2 │                                                                                                

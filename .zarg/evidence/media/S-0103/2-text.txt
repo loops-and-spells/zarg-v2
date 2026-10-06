@@ -1,5 +1,5 @@
 {
-  "title": "Parent opens the family chore list",
+  "title": "Parent sets a chore to repeat weekly and 1 more",
   "journey": "",
   "scenarios": [],
   "changes": [
@@ -8,95 +8,37 @@
       "params": {
         "name": "Parent",
         "kind": "human",
-        "text": "Parent who runs the household and opens the todo app"
+        "text": "A caregiver who manages the family's shared chores from a phone or laptop at home."
+      }
+    },
+    {
+      "tool": "add-journey",
+      "params": {
+        "name": "Weekly chore upkeep"
       }
     },
     {
       "tool": "add-scenario",
       "params": {
-        "title": "Parent opens the family chore list",
-        "when": "Parent opens the family chore list",
+        "title": "Parent sets a chore to repeat weekly",
+        "when": "Parent marks a chore as repeat-weekly",
         "by": [
           {
             "name": "Parent"
           }
         ],
         "arrives": {
-          "text": "App loaded with the family view"
+          "text": "A chore list open at home"
         },
         "then": [
           {
-            "text": "Parent sees each member's assigned chores"
-          }
-        ],
-        "given": []
-      }
-    },
-    {
-      "tool": "add-persona",
-      "params": {
-        "name": "Child",
-        "kind": "human",
-        "text": "Child in the family who checks their chores"
-      }
-    },
-    {
-      "tool": "add-scenario",
-      "params": {
-        "title": "Child checks their assigned chores",
-        "when": "Child opens their own chore view",
-        "by": [
-          {
-            "name": "Child"
-          }
-        ],
-        "arrives": {
-          "text": "Child view loaded"
-        },
-        "then": [
-          {
-            "text": "Child sees the chores assigned to them"
-          }
-        ],
-        "given": []
-      }
-    },
-    {
-      "tool": "add-persona",
-      "params": {
-        "name": "Operator",
-        "kind": "human",
-        "text": "Operator who assigns chores to family members"
-      }
-    },
-    {
-      "tool": "add-scenario",
-      "params": {
-        "title": "Operator assigns a chore to a member",
-        "when": "Operator assigns a chore to a member",
-        "by": [
-          {
-            "name": "Operator"
-          }
-        ],
-        "arrives": {
-          "text": "Chore assignment saved"
-        },
-        "then": [
-          {
-            "text": "Chore is listed for that member"
+            "text": "A weekly recurring chore exists"
           },
           {
-            "text": "Assignment is visible in the family view"
+            "text": "Next week's copy is already created"
           }
         ],
         "given": []
-      }
-    },
-    {
-      "tool": "add-journey",
-      "params": {
-        "name": "Family chore check-ins"
       }
     },
     {
@@ -112,47 +54,63 @@
     {
       "tool": "link",
       "params": {
+        "edge": "serves",
+        "journey": {
+          "id": "J-0001"
+        },
+        "outcome": "O-0002"
+      }
+    },
+    {
+      "tool": "add-scenario",
+      "params": {
+        "title": "Parent sees next week's chores ready",
+        "when": "Parent opens the chore list the following week",
+        "by": [
+          {
+            "name": "Parent"
+          }
+        ],
+        "arrives": {
+          "text": "A chore list open at home"
+        },
+        "then": [
+          {
+            "text": "The recurring chore is present"
+          },
+          {
+            "text": "No entry was retyped this week"
+          }
+        ],
+        "given": [
+          {
+            "text": "A weekly recurring chore exists"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
         "scenario": "S-0002",
         "edge": "in",
         "journey": {
           "id": "J-0001"
         }
       }
-    },
-    {
-      "tool": "link",
-      "params": {
-        "scenario": "S-0003",
-        "edge": "in",
-        "journey": {
-          "id": "J-0001"
-        }
-      }
-    },
-    {
-      "tool": "link",
-      "params": {
-        "edge": "serves",
-        "journey": {
-          "id": "J-0001"
-        },
-        "outcome": "O-0001"
-      }
     }
   ],
   "feedback": [],
   "steps": [
-    "Add the Parent persona",
-    "Create the parent family-view scenario",
-    "Add the Child persona",
-    "Create the child's own-view scenario",
-    "Add the Operator persona",
-    "Create the operator's assignment scenario",
-    "Create the Family chore check-ins journey",
-    "Put the three scenarios in it",
-    "Mark it as serving O-0001"
+    "Add Parent as the human actor named in the new scenarios",
+    "Create the journey 'Weekly chore upkeep'",
+    "Create S-0001: parent marks a chore repeat-weekly and a weekly chore plus next week's copy appear",
+    "Put S-0001 in journey J-0001",
+    "Make journey J-0001 serve outcome O-0002",
+    "Create S-0002: opening the list the following week shows the recurring chore with no retyping that week",
+    "Put S-0002 in journey J-0001"
   ],
-  "serves": "gherkin/outcome:O-0001@f5ebc0ef2fe2",
+  "serves": "gherkin/outcome:O-0002@bf62f6842034",
   "id": "B-01",
   "status": "backlog",
   "events": [
