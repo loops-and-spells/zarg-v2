@@ -119,6 +119,13 @@ describe("plan and implement phases", () => {
     expect(planned).toBe(1)
   }, 60_000)
 
+  test("an implementer that runs out of turns after writing tagged code is judged by what it wrote: it lands", async () => {
+    const r = project(["S-0001"])
+    const endless = (s: string) => `yield* Fs.write({ path: "src/${s}.ts", content: "// @${"scenario"} ${s}\\nexport const ok = true\\n" })\nreturn "still going"`
+    const { out } = await pass(r, stub({ plan: planner, "implement-scenario": endless }), "true")
+    expect(out).toMatchObject({ status: "landed", landed: ["S-0001"] })
+  }, 120_000)
+
   test("the planner starts from what it needs: the scenarios sharing a state with this one, and the project's files", async () => {
     const r = project(["S-0001", "S-0002"])
     const seen: Array<[string, string]> = []

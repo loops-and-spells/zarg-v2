@@ -61,7 +61,7 @@ export const DEFAULT_PRESETS: Readonly<Record<string, Preset>> = {
   // Plan and implement phases (the reconcile loop): each runs per scenario in its own worktree.
   // A planner spawned 13 research agents over half an hour for one scenario: it writes its plan by turn 10.
   plan: { layer: ["Graph", "Entities:read", "Fs:read", "Decisions", "Rlm"], spawns: ["research"], role: "plan", budget: { turns: 30 }, result: "plan", verify: "none", actBy: { turn: 10, calls: ["Rlm.done("], say: "Write the plan now from what you know: finish with Rlm.done({ value: { plan } })." } },
-  "implement-scenario": { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: ["research"], role: "implement", budget: { turns: 25 }, result: "implement-scenario", verify: "gate", actBy: { turn: 6, calls: ["Fs.write(", "Fs.edit("], say: "Write the code and its tests now (Fs.edit changes part of a file, Fs.write a whole one)." } },
+  "implement-scenario": { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: ["research"], role: "implement", budget: { turns: 40, tokens: 1_500_000 }, result: "implement-scenario", verify: "gate", actBy: { turn: 6, calls: ["Fs.write(", "Fs.edit("], say: "Write the code and its tests now (Fs.edit changes part of a file, Fs.write a whole one)." } },
   fix: { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: [], role: "implement", budget: { turns: 15 }, result: "text", verify: "none" },
   resolve: { layer: ["Fs", "Sh", "Rlm"], spawns: [], role: "implement", budget: { turns: 10 }, result: "resolve", verify: "none" },
   // A child an agent waits on: a question in it took 5 minutes of research at 15 turns.

@@ -282,7 +282,11 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
             const c = yield* scenario(cwd, item)
             const planFile = join(cwd, planPath(item))
             const plan = existsSync(planFile) ? readFileSync(planFile, "utf8") : "(no plan)"
-            const out = (yield* run("implement", "implement-scenario", item, implementTask(item, c.text, plan), cwd).pipe(Effect.ensuring(Effect.orDie(keepRequirements(cwd))))) as { blocked?: string }
+            const out = (yield* run("implement", "implement-scenario", item, implementTask(item, c.text, plan), cwd).pipe(
+              // Out of turns after writing: what it wrote is judged like any (its tags, then verify), not thrown away.
+              Effect.catch((e) => ((e as { kind?: unknown }).kind === "budget" ? Effect.succeed({ summary: "ran out of turns; judged by what it wrote" }) : Effect.fail(e))),
+              Effect.ensuring(Effect.orDie(keepRequirements(cwd))),
+            )) as { blocked?: string }
             // @scenario S-0024
             if (out.blocked !== undefined) return { ok: false, kind: "blocked-scenario", title: `${item} cannot be implemented as written`, detail: out.blocked } satisfies ItemOutcome
             // Built means code tagged with it: an implementer that wrote nothing landed as "feat: implement" with no code.
