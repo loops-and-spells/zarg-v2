@@ -24,8 +24,8 @@ export type Warning = { readonly kind: "uncovered"; readonly outcome: string; re
 const MARK = "@" + "scenario"
 /** A tag: the mark, then one or more ids. */
 const TAG_RE = new RegExp(`${MARK}((?:\\s+[A-Z]+-\\d+)+)`, "g")
-/** Paths never searched: docs quote tags as examples, evidence quotes them in transcripts. */
-export const IGNORED = ["docs", ".zarg/evidence"]
+/** Paths never searched: docs quote tags as examples; zarg's own files (plans, evidence, threads) quote them too. */
+export const IGNORED = ["docs", ".zarg"]
 
 /** `git grep -n` output as tags, one per id a line names: `path\0line\0text` (with -z, so a path may hold `:`), or `path:line:text`. */
 export const parseTags = (grep: string): Array<Tag> =>
