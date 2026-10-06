@@ -43,6 +43,10 @@ export const passSummary = (r: PassResult) => {
 }
 const summary = passSummary
 
+/** Said with a verify-failing finding: a driver once proposed pointing tests elsewhere because the database was down. */
+export const VERIFY_ENV =
+  "When it fails for the environment, not the code (a database or service not running, connection refused, a missing variable), tell the operator what to start or set: never change code, tests or fixtures to get around it."
+
 /**
  * Plan and implement for the core: the reconciler watching the graph, passes on a durable engine, the
  * `plan` and `implement` threads showing each pass, and findings as agenda items for the driver.
@@ -156,7 +160,7 @@ export const makeReconcile = (deps: ReconcileDeps) =>
       findings
         .list()
         .filter((f) => focus === undefined || f.about.length === 0 || f.about.some((c) => focus.has(c)))
-        .map((f) => ({ id: f.id, title: f.title, detail: `${f.kind}: ${f.detail}`, about: f.about, priority: 0 }))
+        .map((f) => ({ id: f.id, title: f.title, detail: `${f.kind}: ${f.detail}${f.kind === "verify-failing" ? `\n\n${VERIFY_ENV}` : ""}`, about: f.about, priority: 0 }))
 
     /** Scenarios the next pass would take up (the working graph against the last checkpoint). */
     const pending = Effect.gen(function* () {
