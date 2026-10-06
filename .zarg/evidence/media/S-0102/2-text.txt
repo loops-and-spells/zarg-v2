@@ -1,3 +1,3 @@
 Add this to the requirements?
 
-Keep it in the intent "A todo app for families": parents reward a child's finished chores with points.
+Keep the developer's goal in the intent 'A todo app for families' as an outcome: 'Parents reward finished chores with points.'

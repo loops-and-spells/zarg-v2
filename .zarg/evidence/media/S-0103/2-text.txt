@@ -1,35 +1,27 @@
 {
-  "title": "Parent sets chores for a family member",
+  "title": "Parent opens the household chore list and 1 more",
   "journey": "",
   "scenarios": [],
   "changes": [
+    {
+      "tool": "add-journey",
+      "params": {
+        "name": "Family chores overview"
+      }
+    },
     {
       "tool": "add-persona",
       "params": {
         "name": "Parent",
         "kind": "human",
-        "text": "a parent at home who sets chores for the family"
-      }
-    },
-    {
-      "tool": "add-persona",
-      "params": {
-        "name": "Family member",
-        "kind": "human",
-        "text": "a family member at home who sees chores assigned to them"
-      }
-    },
-    {
-      "tool": "add-journey",
-      "params": {
-        "name": "Family member sees chores assigned to them"
+        "text": "a parent who runs the household and checks chores daily"
       }
     },
     {
       "tool": "add-scenario",
       "params": {
-        "title": "Parent sets chores for a family member",
-        "when": "sets a chore for a family member",
+        "title": "Parent checks the household chore list",
+        "when": "the parent opens the chore list",
         "by": [
           {
             "name": "Parent"
@@ -41,11 +33,59 @@
           }
         ],
         "arrives": {
-          "text": "a chore set for a family member"
+          "text": "the chore list"
         },
+        "given": [],
         "then": [
           {
-            "text": "a family member sees the chore assigned to them"
+            "text": "the parent sees every chore with its assigned family member"
+          },
+          {
+            "text": "chores without an assignee appear unassigned"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "edge": "serves",
+        "journey": {
+          "id": "J-0001"
+        },
+        "outcome": "O-0001"
+      }
+    },
+    {
+      "tool": "add-persona",
+      "params": {
+        "name": "Family member",
+        "kind": "human",
+        "text": "a household member who does the chores assigned to them"
+      }
+    },
+    {
+      "tool": "add-scenario",
+      "params": {
+        "title": "Family member checks their assigned chores",
+        "when": "the family member opens the chore list",
+        "by": [
+          {
+            "name": "Family member"
+          }
+        ],
+        "in": [
+          {
+            "id": "J-0001"
+          }
+        ],
+        "arrives": {
+          "text": "the chore list"
+        },
+        "given": [],
+        "then": [
+          {
+            "text": "the family member sees only the chores assigned to them"
           }
         ]
       }
@@ -63,11 +103,15 @@
   ],
   "feedback": [],
   "steps": [
-    "Add a Parent persona",
-    "Add a Family member persona",
-    "Add journey Family member sees chores assigned to them",
-    "Add scenario Parent sets chores for a family member into J-0001",
-    "Link J-0001 serving O-0001"
+    "add the Family chores overview journey",
+    "add Parent as a persona",
+    "create the scenario Parent checks the household chore list in the Family chores overview journey",
+    "set a chore list where the parent sees every chore with its assignee",
+    "link the journey to the outcome Each family member sees the chores assigned to them",
+    "add Family member as a persona",
+    "create the scenario Family member checks their assigned chores in the Family chores overview journey",
+    "set the chore list where the family member sees only their chores",
+    "link the journey to the outcome Each family member sees the chores assigned to them"
   ],
   "serves": "gherkin/outcome:O-0001@f5ebc0ef2fe2",
   "id": "B-01",
