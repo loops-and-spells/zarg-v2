@@ -134,6 +134,9 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         affected: (before, after) => host.affected(before, after),
         onLanded: (scenarios) => void Effect.runFork(planner.landed(scenarios)),
         onFailed: (scenarios) => void Effect.runFork(planner.failed(scenarios)),
+        // Findings in the operator's inbox as they change, and zarg takes them up: a pass resumed after a restart
+        // raised one that waited unseen until the next pass ended.
+        onFindings: () => void Effect.runFork(Effect.andThen(syncFindings, Effect.suspend(() => wakeMain))),
         // Findings in the operator's inbox: raised when a pass finds them, settled once they clear.
         onPassEnd: () =>
           void Effect.runFork(

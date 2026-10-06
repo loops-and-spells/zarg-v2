@@ -31,13 +31,15 @@ export const findingsPath = (repo: string) => join(repo, ".zarg", "reconcile", "
  * Open findings, kept in `.zarg/reconcile/findings.json` (gitignored; survives restarts). A new finding of
  * the same kind about the same scenarios replaces the old one.
  */
-export const makeFindings = (repo: string) => {
+export const makeFindings = (repo: string, onChange?: () => void) => {
   const file = findingsPath(repo)
   const read = (): ReadonlyArray<Finding> => (existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as ReadonlyArray<Finding>) : [])
   const write = (all: ReadonlyArray<Finding>) => {
     ensureIgnored(repo)
     writeFileSync(`${file}.tmp`, JSON.stringify(all, null, 2))
     renameSync(`${file}.tmp`, file)
+    // Whoever shows findings hears of each change (a pass resumed after a restart ends without a result to report).
+    onChange?.()
   }
   const key = (f: { kind: string; about: ReadonlyArray<string> }) => `${f.kind}:${[...f.about].sort().join(",")}`
   return {

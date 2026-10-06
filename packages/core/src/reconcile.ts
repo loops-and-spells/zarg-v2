@@ -28,6 +28,8 @@ export interface ReconcileDeps {
   readonly onFailed?: (scenarios: ReadonlyArray<string>) => void
   /** A pass's outcome is known (landed, failed, skipped, errored): the findings may have changed. */
   readonly onPassEnd?: () => void
+  /** The findings changed (raised or cleared), in a pass the reconciler started or one resumed after a restart. */
+  readonly onFindings?: () => void
   /** Landing waits on the operator's uncommitted edits: what to tell them (the implement thread says it too). */
   readonly onLandWait?: (text: string) => void
 }
@@ -47,7 +49,7 @@ const summary = passSummary
  */
 export const makeReconcile = (deps: ReconcileDeps) =>
   Effect.gen(function* () {
-    const findings = makeFindings(deps.repo)
+    const findings = makeFindings(deps.repo, () => deps.onFindings?.())
     const activity = { plan: makeActivity(deps.log, "plan", undefined, threadViews(deps.log, "plan")), implement: makeActivity(deps.log, "implement", undefined, threadViews(deps.log, "implement")) }
     const emit = (thread: string, d: E.Draft) => Effect.runSync(deps.log.append(thread, d))
     let active: { readonly payload: typeof Pass.payloadSchema.Type; readonly runId: string } | undefined

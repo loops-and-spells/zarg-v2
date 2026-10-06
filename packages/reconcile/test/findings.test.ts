@@ -27,6 +27,14 @@ describe("findings", () => {
     f.clearGeneral()
     expect(f.list()).toEqual([])
   })
+  test("each raise and clear is heard, so the inbox shows a finding from a pass resumed after a restart", () => {
+    let heard = 0
+    const f = makeFindings(repo(), () => void heard++)
+    f.raise({ kind: "verify-failing", title: "verify fails", detail: "d", about: [], pass: "p1" })
+    f.clearGeneral({ ran: true })
+    f.clearGeneral()
+    expect(heard).toBe(2)
+  })
   test("a failure reads as its message, never the Cause around it", () => {
     class RlmError extends Data.TaggedError("RlmError")<{ readonly message: string }> {}
     expect(causeText(Cause.fail(new RlmError({ message: "plan did not finish within its budget (20 turns)" })))).toBe("plan did not finish within its budget (20 turns)")
