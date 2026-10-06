@@ -56,6 +56,17 @@ export const makeReconcile = (deps: ReconcileDeps) =>
     const findings = makeFindings(deps.repo, () => deps.onFindings?.())
     const activity = { plan: makeActivity(deps.log, "plan", undefined, threadViews(deps.log, "plan")), implement: makeActivity(deps.log, "implement", undefined, threadViews(deps.log, "implement")) }
     const emit = (thread: string, d: E.Draft) => Effect.runSync(deps.log.append(thread, d))
+    // @scenario S-0122
+    // The pass among the operator's agents (zarg's main thread): one build row, naming what it plans or implements now.
+    const board = makeActivity(deps.log, "main", "main-build")
+    const working = new Map<string, string>()
+    const tops = new Map<string, string>()
+    // Its progress: scenarios implemented out of those planned.
+    const planned = new Set<string>()
+    const built = new Set<string>()
+    const build = (status: string, text: string) =>
+      board.row("build", { id: "build", parent: null, preset: "build", task: "the reconcile pass", depth: 0, turns: built.size, budget: planned.size, status, decisions: [], row: { progress: { done: built.size, total: Math.max(planned.size, built.size) }, text } })
+    const doing = () => [...working].map(([item, phase]) => `${phase} ${item}`).join(" · ") || (planned.size > 0 ? "merging and verifying" : "starting")
     let active: { readonly payload: typeof Pass.payloadSchema.Type; readonly runId: string } | undefined
     // Stop: a flag the pass checks between steps, and a signal running scenarios race (reset for each pass).
     let stopRequested = false
@@ -76,7 +87,21 @@ export const makeReconcile = (deps: ReconcileDeps) =>
       affected: deps.affected,
       ...(deps.extra ? { extra: deps.extra } : {}),
       ...(deps.withGraphLock ? { withGraphLock: deps.withGraphLock } : {}),
-      observe: (phase, item, e) => (phase === "plan" ? activity.plan : activity.implement).observe(e, `${item}:`),
+      observe: (phase, item, e) => {
+        (phase === "plan" ? activity.plan : activity.implement).observe(e, `${item}:`)
+        // A scenario's own RLM (not its children) starting or ending moves the build row.
+        const key = `${phase} ${item}`
+        if (e.type === "start" && e.parent === undefined) {
+          tops.set(key, e.id)
+          working.set(item, phase)
+          if (phase === "plan") planned.add(item)
+        } else if (e.type === "end" && tops.get(key) === e.id) {
+          tops.delete(key)
+          if (working.get(item) === phase) working.delete(item)
+          if (phase === "implement" && e.ok && planned.has(item)) built.add(item)
+        } else return
+        build("running", doing())
+      },
       stop: { requested: () => stopRequested, wait: Effect.suspend(() => Effect.promise(() => signal)) },
       // @scenario S-0050
       onLandWait: (paths, attempt) =>
@@ -102,6 +127,11 @@ export const makeReconcile = (deps: ReconcileDeps) =>
           emit(t, E.runStarted(t, runId))
           emit(t, activity[t].reset())
         }
+        working.clear()
+        tops.clear()
+        planned.clear()
+        built.clear()
+        build("running", "starting")
         return yield* Effect.tryPromise(() => runtime.runPromise(Pass.execute(payload))).pipe(
           // Shutting down: the durable pass is not failed, only interrupted; it resumes on the next start.
           Effect.catch((e) => (closing ? Effect.interrupt : Effect.fail(e))),
@@ -117,6 +147,10 @@ export const makeReconcile = (deps: ReconcileDeps) =>
                     ? "The pass was interrupted; zarg resumes it on its next start."
                     : "The pass failed; see the driver's agenda."
               if (text !== undefined) for (const d of E.textMessage(`implement-${crypto.randomUUID()}`, "assistant", text)) emit("implement", d)
+              // The build row says how the pass ended: what landed, or that it did not.
+              const end = exit._tag === "Failure" ? (Cause.hasInterruptsOnly(exit.cause) ? "stopped" : "failed") : exit.value.status === "failed" ? "failed" : "done"
+              const landed = exit._tag === "Success" ? exit.value.landed : []
+              build(end, landed.length > 0 ? `landed ${landed.join(", ")}` : exit._tag === "Success" && exit.value.status === "nothing" ? "nothing to do" : end === "done" ? "nothing landed" : end)
               if (exit._tag === "Success" && exit.value.status === "landed" && exit.value.landed.length > 0) deps.onLanded?.(exit.value.landed)
               if (exit._tag === "Success" && exit.value.failed.length > 0 && !stopRequested) deps.onFailed?.(exit.value.failed)
               for (const t of ["plan", "implement"] as const) emit(t, E.runFinished(t, runId))

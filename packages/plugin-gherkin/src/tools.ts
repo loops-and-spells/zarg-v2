@@ -5,8 +5,8 @@ import { intentTools } from "./intent-tools"
 import { ARRIVES, BOUNDS, BY, CONSTRAINT, findJourney, findPersona, findStateByText, FOR, GIVEN, HAS, IN, INTENT, isStatement, JOURNEY, journeyName, journeys, normalize, OUTCOME, PERSONA, personaName, personas, SCENARIO, scenarios, SERVES, STATE, THEN } from "./model"
 
 /** Point at an existing state by id, or describe one by text (reused if the text already exists). */
-const StateRef = Schema.Union([Schema.Struct({ id: Schema.String }), Schema.Struct({ text: Schema.NonEmptyString })]).annotate({
-  description: "An existing state by {id}, or a sentence by {text} (existing text is reused).",
+const StateRef = Schema.Union([Schema.Struct({ id: Schema.String }), Schema.Struct({ text: Schema.NonEmptyString, terminal: Schema.optionalKey(Schema.Boolean), entry: Schema.optionalKey(Schema.Boolean) })]).annotate({
+  description: "An existing state by {id}, or a sentence by {text} (existing text is reused); a new one may be terminal (nothing needs to follow) or an entry.",
 })
 type StateRef = typeof StateRef.Type
 
@@ -55,7 +55,7 @@ const resolver = (snap: Snapshot.Snapshot) => {
     }
     const existing = findStateByText(working, ref.text)
     if (existing !== undefined) return Effect.succeed(existing.id)
-    const node: Node = { id: Snapshot.nextId(working, "ST"), type: STATE, props: { text: ref.text }, edges: [] }
+    const node: Node = { id: Snapshot.nextId(working, "ST"), type: STATE, props: { text: ref.text, ...(ref.terminal === true ? { terminal: true } : {}), ...(ref.entry === true ? { entry: true } : {}) }, edges: [] }
     created.push(node)
     working = Snapshot.applyChanges(working, [Put(node)])
     return Effect.succeed(node.id)

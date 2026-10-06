@@ -8,7 +8,7 @@ export const displayName = (n: RlmNode) => {
   const at = n.id.indexOf(":")
   if (at >= 0) return n.preset === n.id.slice(0, at) ? n.preset : n.id.slice(at + 1)
   // An RLM by its preset and number: the rail has no room for `rlm-`.
-  return n.id === "zarg" ? "zarg" : `${n.preset} ${n.id.replace(/^rlm-/, "")}`
+  return n.id === "zarg" || n.id === n.preset ? n.preset : `${n.preset} ${n.id.replace(/^rlm-/, "")}`
 }
 /** What is shown dim beside a name: the plugin, and the task's first line. */
 export const contextOf = (n: RlmNode) => {

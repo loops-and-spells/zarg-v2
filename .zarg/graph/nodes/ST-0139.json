@@ -1,0 +1,9 @@
+{
+  "edges": [],
+  "id": "ST-0139",
+  "props": {
+    "terminal": true,
+    "text": "a build row shows which scenarios the pass is working on"
+  },
+  "type": "gherkin/state"
+}

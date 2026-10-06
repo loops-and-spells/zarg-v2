@@ -284,6 +284,18 @@ journey(
       expect(await until(30_000, () => topics(s.w).some((t) => t.kind === "finding" && t.title.includes("S-0002 cannot be implemented")))).toBe(true)
     }, { timeoutMs: 300_000 })
 
+    proves("S-0122", async (s) => {
+      // The passes so far showed among the operator's agents: a build row naming what each planned or implemented, then how it ended.
+      const build = () => lines(s.w, ".zarg/threads/main.jsonl").filter((e) => e.type === "ACTIVITY_DELTA" && e.messageId === "main-build").flatMap((e) => (e.patch as Array<{ value?: { status?: string; row?: { text?: string } } }>).map((p) => p.value))
+      const texts = build().map((v) => `${v?.status}: ${v?.row?.text}`)
+      s.note("buffer", "the build row, as it changed", texts.join("\n"))
+      s.note("buffer", "screen", s.term?.screen() ?? "")
+      expect(texts.some((t) => /^running: .*(plan|implement) S-000\d/.test(t))).toBe(true)
+      expect(texts.some((t) => /^(done|failed): /.test(t))).toBe(true)
+      expect(s.term?.screen() ?? "").toContain("build")
+      expect(s.term?.screen() ?? "").not.toContain("build build")
+    })
+
     proves("S-0053", async (s) => {
       // S-0003 and S-0004 both added src/shared.ts: the resolver kept both sides, verify ran, the pass landed.
       expect(tasksOf(s.w, "implement").some((t) => t.includes("These files have merge conflicts"))).toBe(true)
