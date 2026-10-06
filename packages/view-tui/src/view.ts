@@ -578,7 +578,8 @@ export const agentDetail = (rlms: Readonly<Record<string, RlmNode>>, cursor: str
   return [
     `${n.preset} ${n.id} · ${n.status}`,
     ...(task !== undefined ? [`task  ${task}`] : []),
-    `turn ${n.turns} of ${n.budget}${n.tokens !== undefined ? ` · ${n.tokens.toLocaleString("en-US")} tokens` : ""}`,
+    // A row the agent draws itself (not an RLM) has no turns: its own text says where it stands.
+    n.row?.text !== undefined ? n.row.text : `turn ${n.turns} of ${n.budget}${n.tokens !== undefined ? ` · ${n.tokens.toLocaleString("en-US")} tokens` : ""}`,
     ...n.decisions.flatMap((d) =>
       d.kind === "extend"
         ? [`${(d.extended ? `extended to ${d.turns} turns` : "told to wrap up").padEnd(22)}${d.confidence.toFixed(2)}  ${d.reason}`]

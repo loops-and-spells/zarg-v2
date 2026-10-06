@@ -294,6 +294,9 @@ describe("the agents pane", () => {
     ])
     expect(agentDetail(rlms, "rlm-10")).toEqual(["research rlm-10 · failed", "turn 2 of 10", "error  budget"])
     expect(agentDetail({}, undefined)).toEqual([])
+    // A row an agent draws itself (the build row) has no turns: its text, never "turn 0 of 1".
+    const build = { id: "build", parent: null, preset: "build", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [], row: { progress: { done: 0, total: 1 }, text: "implement S-0006" } }
+    expect(agentDetail({ build }, "build")).toEqual(["build build · running", "implement S-0006"])
   })
 
   test("the detail card shows budget extensions and wrap-ups with their confidence", () => {
