@@ -1,16 +1,10 @@
 bun test v1.4.2 (744846f84)
 
 test/chores.test.ts:
-(pass) a chore is assigned [0.09ms]
-(pass) the parent's list gains the chore [0.02ms]
-(pass) the assigned chore records its child
-(pass) the child sees the new chore [0.10ms]
-(pass) the child sees only its own chores [0.02ms]
-(pass) a chore is removed [0.03ms]
-(pass) a removed chore leaves every list [0.02ms]
-(pass) removing an absent chore is a no-op
+(pass) a chore is assigned [0.07ms]
+(pass) a chore is removed [0.11ms]
 
- 8 pass
+ 2 pass
  0 fail
- 12 expect() calls
-Ran 8 tests across 1 file. [13.00ms]
+ 3 expect() calls
+Ran 2 tests across 1 file. [11.00ms]

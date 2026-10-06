@@ -3,20 +3,20 @@
    project · main      │  ▍◆ zarg          Where does the parent start?  question · waiting · 2 options  now            
                        │                                                                                                
  VIEWS               3 │                                                                                                
-▍ ◆ Inbox            1 │                                                                                                
+▍ ◇ Inbox            1 │                                                                                                
   ▤ Journeys           │                                                                                                
   ▤ Intents            │                                                                                                
                        │                                                                                                
  AGENTS             ◆1 │                                                                                                
-  ◆ zarg          asks │                                                                                                
+  ◇ zarg          asks │                                                                                                
   └ ⠼ driver 1    1/25 │                                                                                                
                        │                                                                                                
                        │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
                        │     zarg   esc closes                                                                          
-                       │     you  A parent                                                                              
-                       │     you  Add it                                                                                
-                       │     zarg  You picked parent.                                                                   
                        │     ·  answered                                                                                
+                       │     you  A parent                                                                              
+                       │     you  Write it                                                                              
+                       │     zarg  You picked parent.                                                                   
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                

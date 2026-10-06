@@ -1,32 +1,38 @@
 {
-  "title": "Parent opens the family chore list",
+  "title": "Member opens their view and 1 more",
   "journey": "",
   "scenarios": [],
   "changes": [
     {
       "tool": "add-persona",
       "params": {
-        "name": "Parent",
+        "name": "Family member",
         "kind": "human",
-        "text": "Parent who runs the household and opens the todo app"
+        "text": "A child or adult member of the family"
       }
     },
     {
       "tool": "add-scenario",
       "params": {
-        "title": "Parent opens the family chore list",
-        "when": "Parent opens the family chore list",
+        "title": "Member opens their view",
+        "when": "Family member opens their chores view",
         "by": [
           {
-            "name": "Parent"
+            "name": "Family member"
           }
         ],
         "arrives": {
-          "text": "App loaded with the family view"
+          "text": "their chores view"
         },
         "then": [
           {
-            "text": "Parent sees each member's assigned chores"
+            "text": "Family member sees the chores assigned to them"
+          },
+          {
+            "text": "Family member sees only their own chores"
+          },
+          {
+            "text": "Family member sees a chore's assignment"
           }
         ],
         "given": []
@@ -37,123 +43,41 @@
       "params": {
         "name": "Child",
         "kind": "human",
-        "text": "Child in the family who checks their chores"
+        "text": "A child family member who uses the todo app"
       }
     },
     {
       "tool": "add-scenario",
       "params": {
-        "title": "Child checks their assigned chores",
-        "when": "Child opens their own chore view",
+        "title": "Child views chores",
+        "when": "Child opens their chores view",
         "by": [
           {
             "name": "Child"
           }
         ],
         "arrives": {
-          "text": "Child view loaded"
+          "text": "their chores view"
         },
         "then": [
           {
             "text": "Child sees the chores assigned to them"
-          }
-        ],
-        "given": []
-      }
-    },
-    {
-      "tool": "add-persona",
-      "params": {
-        "name": "Operator",
-        "kind": "human",
-        "text": "Operator who assigns chores to family members"
-      }
-    },
-    {
-      "tool": "add-scenario",
-      "params": {
-        "title": "Operator assigns a chore to a member",
-        "when": "Operator assigns a chore to a member",
-        "by": [
-          {
-            "name": "Operator"
-          }
-        ],
-        "arrives": {
-          "text": "Chore assignment saved"
-        },
-        "then": [
-          {
-            "text": "Chore is listed for that member"
           },
           {
-            "text": "Assignment is visible in the family view"
+            "text": "Child sees chores assigned to siblings"
           }
         ],
         "given": []
-      }
-    },
-    {
-      "tool": "add-journey",
-      "params": {
-        "name": "Family chore check-ins"
-      }
-    },
-    {
-      "tool": "link",
-      "params": {
-        "scenario": "S-0001",
-        "edge": "in",
-        "journey": {
-          "id": "J-0001"
-        }
-      }
-    },
-    {
-      "tool": "link",
-      "params": {
-        "scenario": "S-0002",
-        "edge": "in",
-        "journey": {
-          "id": "J-0001"
-        }
-      }
-    },
-    {
-      "tool": "link",
-      "params": {
-        "scenario": "S-0003",
-        "edge": "in",
-        "journey": {
-          "id": "J-0001"
-        }
-      }
-    },
-    {
-      "tool": "link",
-      "params": {
-        "edge": "serves",
-        "journey": {
-          "id": "J-0001"
-        },
-        "outcome": "O-0001"
       }
     }
   ],
   "feedback": [],
   "steps": [
-    "Add the Parent persona",
-    "Create the parent family-view scenario",
-    "Add the Child persona",
-    "Create the child's own-view scenario",
-    "Add the Operator persona",
-    "Create the operator's assignment scenario",
-    "Create the Family chore check-ins journey",
-    "Put the three scenarios in it",
-    "Mark it as serving O-0001"
+    "A member sees only their assigned chores.",
+    "A child sees the chores assigned to them."
   ],
   "serves": "gherkin/outcome:O-0001@f5ebc0ef2fe2",
-  "id": "B-01",
+  "id": "B-02",
   "status": "backlog",
   "events": [
     {

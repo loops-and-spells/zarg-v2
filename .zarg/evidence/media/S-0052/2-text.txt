@@ -1,3 +1,3 @@
-6574cec feat: implement S-0007
-679a8bd the operator's commit
-dbec82c feat: implement S-0006
+4ccb1a0 feat: implement S-0007
+1a0dcac the operator's commit
+289f8a8 feat: implement S-0006

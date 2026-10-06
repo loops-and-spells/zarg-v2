@@ -3,22 +3,23 @@
    project · main      │  ▍◆ zarg          Which chore comes first?  question · waiting · 2 options  now                
                        │                                                                                                
  VIEWS               3 │                                                                                                
-▍ ◇ Inbox            1 │                                                                                                
+▍ ◆ Inbox            1 │                                                                                                
   ▤ Journeys           │                                                                                                
   ▤ Intents            │                                                                                                
                        │                                                                                                
  AGENTS             ◆1 │                                                                                                
-  ◇ zarg          asks │                                                                                                
+  ◆ zarg          asks │                                                                                                
   └ ⠼ driver 1    1/25 │                                                                                                
                        │                                                                                                
                        │                                                                                                
                        │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
                        │     zarg   esc closes                                                                          
+                       │     ·  answered                                                                                
                        │     you  A parent                                                                              
-                       │     you  Add it                                                                                
+                       │     you  Write it                                                                              
                        │     zarg  You picked parent.                                                                   
                        │     you  the chores board                                                                      
-                       │     you  Add it                                                                                
+                       │     you  Write it                                                                              
                        │     zarg  Saved                                                                                
                        │           - Parent starts at: the chores board                                                 
                        │                                                                                                
@@ -34,7 +35,6 @@
                        │           │        │  │             │                                                          
                        │           └────────┘  └─────────────┘                                                          
                        │           That is all for now.                                                                 
-                       │     ·  answered                                                                                
                        │                                                                                                
                        │ chat › the dishes pile up every night                                                          
                        │ ◆ zarg asks: Which chore comes first?   core child · ◆ 1 blocking · 1 ope…   ⏎ send   esc leave

@@ -1,13 +1,13 @@
 {
   "scenario": "S-0105",
   "version": "a42d272c91a9",
-  "commit": "679c1007",
-  "run": "e2e-2026-10-05T16-10-53.408Z",
+  "commit": "eb93c9f1",
+  "run": "e2e-2026-10-06T00-50-51.725Z",
   "journey": "J-0008",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-05T16:11:14.585Z",
-  "ms": 7760,
+  "at": "2026-10-06T01:44:41.823Z",
+  "ms": 7776,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -39,8 +39,8 @@
   "failure": null,
   "code": {
     "packages/agent-rehearse/src/index.ts": "ce900225b0c2df5df20d9a959fdcd184954077b8",
-    "packages/agent-rehearse/src/run.ts": "911c1078acd40896773f1bb22a171ace6dc5f867",
+    "packages/agent-rehearse/src/run.ts": "029331c6d90b4801fc5efeebbdab815d1240b768",
     "packages/agent-rehearse/test/plugin.test.ts": "9b58eff34ef7bf4255d1d1dd9d4233e353a00b83",
-    "packages/agent-rehearse/test/run.test.ts": "bfcc36507f2ef95c71cd35b5f32d6e3f9a1acd82"
+    "packages/agent-rehearse/test/run.test.ts": "419c1e3e54084bb330561fa08ee1364754c71d59"
   }
 }

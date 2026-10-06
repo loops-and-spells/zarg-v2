@@ -7,28 +7,28 @@
     "persona": "Parent",
     "kind": "drift",
     "severity": "high",
-    "note": "The step says the removed chore leaves every list, but src/chores.ts:3 shows remove returning chores unchanged and its comment says removal only hides it for the parent while every other list still shows it. So when I remove, what zarg does diverges from the outcome this step promises me.",
+    "note": "This is drift: the step says the chore leaves every list, but the code only hides it for the parent and says every other list still shows it.",
     "from": {
       "agent": "rehearse",
-      "run": "r-4df6c0a5"
+      "run": "r-14408697"
     },
     "triage": {
       "on": true,
       "why": "ask · real 1.00",
       "by": "agent"
     },
-    "id": "F-c3b457d9",
+    "id": "F-07a413a8",
     "count": 1,
     "runs": [
-      "rehearse:r-4df6c0a5"
+      "rehearse:r-14408697"
     ]
   },
   "topic": {
     "kind": "drift",
     "title": "S-0002: the scenario and the code differ",
     "why": "rehearse (high)",
-    "evidence": "The step says the removed chore leaves every list, but src/chores.ts:3 shows remove returning chores unchanged and its comment says removal only hides it for the parent while every other list still shows it. So when I remove, what zarg does diverges from the outcome this step promises me.\n\nWhat zarg does now:\n\nsrc/chores.ts:3\n\n```\n// Removing only marks the chore as hidden for the parent; every other list still shows it.\nexport const remove = (chores: string[], _chore: string) => chores\n\n```",
-    "key": "drift:F-c3b457d9",
+    "evidence": "This is drift: the step says the chore leaves every list, but the code only hides it for the parent and says every other list still shows it.\n\nWhat zarg does now:\n\nsrc/chores.ts:3\n\n```\n// Removing only marks the chore as hidden for the parent; every other list still shows it.\nexport const remove = (chores: string[], _chore: string) => chores\n\n```",
+    "key": "drift:F-07a413a8",
     "about": [
       "S-0002"
     ],
@@ -49,14 +49,14 @@
     "origin": {
       "view": "feedback"
     },
-    "id": "T-e7e3c0e5",
+    "id": "T-17aac70e",
     "from": {
       "plugin": "backlog"
     },
     "blocking": false,
     "messages": [],
     "state": "open",
-    "created": 1791216758050,
-    "updated": 1791216758050
+    "created": 1791251165711,
+    "updated": 1791251165711
   }
 }

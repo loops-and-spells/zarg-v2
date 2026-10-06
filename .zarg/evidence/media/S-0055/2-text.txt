@@ -1,24 +1,14 @@
 [
   {
-    "kind": "blocked-scenario",
-    "title": "S-0002 cannot be implemented as written",
-    "detail": "Verify.run never passes because .zarg read-only config.toml pins the gate to `exit 1`; that gate setting is outside the implement scope and must not be edited, so the plan's final step `Verify.run until it passes` cannot be satisfied even though the implementation and tests are correct and `bun test` passes.",
-    "about": [
-      "S-0002"
-    ],
-    "pass": "69df6e1f3a68",
-    "id": "F-9ee3fb31",
-    "at": "2026-10-05T19:21:35.978Z"
-  },
-  {
     "kind": "verify-failing",
     "title": "verify still fails after the fix attempts",
     "detail": "",
     "about": [
-      "S-0001"
+      "S-0001",
+      "S-0002"
     ],
-    "pass": "69df6e1f3a68",
-    "id": "F-0c0bfa39",
-    "at": "2026-10-05T19:21:35.978Z"
+    "pass": "65a6fec5f359",
+    "id": "F-64ccf244",
+    "at": "2026-10-06T02:06:10.471Z"
   }
 ]

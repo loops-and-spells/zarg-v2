@@ -2,12 +2,12 @@
   {
     "kind": "landing-blocked",
     "title": "the implementation commit cannot land",
-    "detail": "waiting on your uncommitted edits in .zarg/plans/S-0001.md",
+    "detail": "waiting on your uncommitted edits in .zarg/plans/S-0001.md, src/chores.ts",
     "about": [
       "S-0001"
     ],
-    "pass": "24d4465719fc",
-    "id": "F-91a6a6ea",
-    "at": "2026-10-05T19:14:45.239Z"
+    "pass": "1e1f1d42c300",
+    "id": "F-1cf7b3d8",
+    "at": "2026-10-06T01:54:31.025Z"
   }
 ]

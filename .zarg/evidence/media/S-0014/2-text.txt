@@ -3,17 +3,18 @@
    project · main      │  ▍◆ zarg          What should we work on next?  question · waiting · 2 options  now            
                        │                                                                                                
  VIEWS               3 │                                                                                                
-▍ ◇ Inbox            1 │                                                                                                
+▍ ◆ Inbox            1 │                                                                                                
   ▤ Journeys           │                                                                                                
   ▤ Intents            │                                                                                                
                        │                                                                                                
  AGENTS             ◆1 │                                                                                                
-  ◇ zarg          asks │                                                                                                
+  ◆ zarg          asks │                                                                                                
   └ ⠼ driver 1    5/25 │                                                                                                
                        │                                                                                                
                        │                                                                                                
                        │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
                        │     zarg   esc closes                                                                          
+                       │                                                                                                
                        │           flowchart LR                                                                         
                        │             N0[Parent opens the list] --> N1                                                   
                        │             N1[Parent picks a chore] --> N2                                                    
@@ -22,15 +23,14 @@
                        │             N4[Child does the chore] --> N5                                                    
                        │                                                                                                
                        │           Too wide to draw.                                                                    
-                       │     you  Add it                                                                                
-                       │     you  Add it                                                                                
-                       │     zarg  Merged with another edit to P-0001 (text changed there meanwhile): both kept.    ▄   
-                       │     you  Add it                                                                            █   
+                       │     you  Write it                                                                              
+                       │     you  Write it                                                                          ▄   
+                       │     zarg  Merged with another edit to P-0001 (text changed there meanwhile): both kept.    █   
+                       │     you  Write it                                                                          █   
                        │     you  Use mine                                                                          █   
                        │     you  it depends on the chore                                                           █   
                        │     zarg  (discussing: How often are chores due?)                                          █   
                        │     you  Yes, per chore                                                                    █   
-                       │     ·  answered                                                                            █   
                        │     What should we work on next?                                                               
                        │     › A failure case (recommended)                                                             
                        │       Another journey                                                                          

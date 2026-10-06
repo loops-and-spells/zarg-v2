@@ -1,1 +1,1 @@
-There are no requirements yet and no personas yet in this project, and no project files describe a start point. What can you tell me first: where a user starts and the first thing they do, and who this product is for (the tester, a command-line actor, or the product's own agents)?
+No requirement says where a user starts, their first action, or who uses this product — nothing in the project or the graph defines it. Who meets the product first, and in your words: where are they before their first action, and what is that first action?

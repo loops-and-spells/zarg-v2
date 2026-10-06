@@ -1,19 +1,20 @@
                        │  inbox   1 open                                                                                
  ◆ zarg                │                                                                                                
-   project · main      │  ▍◆ zarg          Add this to the requirements? Edit…  question · waiting · 2 options  now     
+   project · main      │  ▍◆ zarg          Write this to the requirements? Ed…  question · waiting · 2 options  now     
                        │                                                                                                
  VIEWS               3 │                                                                                                
-▍ ◇ Inbox            1 │                                                                                                
+▍ ◆ Inbox            1 │                                                                                                
   ▤ Journeys           │                                                                                                
   ▤ Intents            │                                                                                                
                        │                                                                                                
  AGENTS             ◆1 │                                                                                                
-  ◇ zarg          asks │                                                                                                
+  ◆ zarg          asks │                                                                                                
   └ ⠼ driver 1    3/25 │                                                                                                
                        │                                                                                                
                        │                                                                                                
                        │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
                        │     zarg   esc closes                                                                          
+                       │     zarg  (discussing: Which chore comes first?)                                               
                        │     zarg  zarg chose The dishes for you: you said the dishes pile up                           
                        │     zarg  Chose dishes for you. A wide flow:                                                   
                        │                                                                                                
@@ -22,19 +23,18 @@
                        │             N1[Parent picks a chore] --> N2                                                    
                        │             N2[Parent picks a child] --> N3                                                    
                        │             N3[Child sees the chore] --> N4                                                    
-                       │             N4[Child does the chore] --> N5                                                    
+                       │             N4[Child does the chore] --> N5                                                █   
                        │                                                                                            █   
                        │           Too wide to draw.                                                                █   
-                       │     you  Add it                                                                            █   
-                       │     you  Add it                                                                            █   
+                       │     you  Write it                                                                          █   
+                       │     you  Write it                                                                          █   
                        │     zarg  Merged with another edit to P-0001 (text changed there meanwhile): both kept.    █   
-                       │     ·  answered                                                                            █   
-                       │     Add this to the requirements?                                                              
+                       │     Write this to the requirements?                                                            
                        │                                                                                                
                        │     Edit persona Guardian: a guardian who checks every chore.                                  
-                       │     › Add it (recommended) — as written                                                        
+                       │     › Write it (recommended) — as shown                                                        
                        │       Skip                                                                                     
                        │       Change it…                                                                               
                        │       Chat about this                                                                          
                        │ answer zarg above, or / to chat about it                                                       
-                       │ ◆ zarg asks: Add this to the requirements? Edit persona Guard…   ↑↓ pick   ⏎ answer   esc leave
+                       │ ◆ zarg asks: Write this to the requirements? Edit persona Gua…   ↑↓ pick   ⏎ answer   esc leave
