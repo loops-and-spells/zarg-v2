@@ -202,7 +202,8 @@ const SECRET = "zt-e2e-reconcile-hush-5521"
 const PLAN = 'return yield* Rlm.done({ value: { plan: "## Approach\\nWrite it.\\n## Files\\n- src — it\\n## Tests\\n- the project test — it\\n## Depends on\\nnone" } })'
 const done = (files: ReadonlyArray<string>) => `return yield* Rlm.done({ value: { files: ${JSON.stringify(files)}, summary: "written" } })`
 const write = (path: string, content: string) => `yield* Fs.write({ path: ${JSON.stringify(path)}, content: ${JSON.stringify(content)} })`
-const implement = (id: string, path: string, content: string, before = "") => ({ when: `Implement scenario ${id} by`, cells: [`${before}${write(path, content)}\n${done([path])}`] })
+// A stub implementer tags what it writes, as a real one must (a pass counts a scenario built only by its tagged code).
+const implement = (id: string, path: string, content: string, before = "") => ({ when: `Implement scenario ${id} by`, cells: [`${before}${write(path, `// ${"@"}scenario ${id}\n${content}`)}\n${done([path])}`] })
 const STUB_FILE = join(mkdtempSync(join(tmpdir(), "zarg-e2e-stub-")), "cells.json")
 writeFileSync(
   STUB_FILE,
@@ -217,7 +218,7 @@ writeFileSync(
       { when: "implementation plan for scenario S-0002:", cells: ['return yield* Rlm.done({ value: { blocked: "S-0002 contradicts S-0001: a chore cannot leave every list while it stays assigned" } })', PLAN] },
       { when: "implementation plan for scenario", cells: [PLAN] },
       // S-0001 runs a command first: its environment, with the project's secret in the core's.
-      { when: "Implement scenario S-0001 by", cells: ['const r = yield* Sh.run({ command: "env" })\nreturn r', `${write("src/assign.ts", "export const assignTo = (child: string) => child\n")}\n${done(["src/assign.ts"])}`] },
+      { when: "Implement scenario S-0001 by", cells: ['const r = yield* Sh.run({ command: "env" })\nreturn r', `${write("src/assign.ts", `// ${"@"}scenario S-0001\nexport const assignTo = (child: string) => child\n`)}\n${done(["src/assign.ts"])}`] },
       { when: "Implement scenario S-0002 by", cells: ['return yield* Rlm.done({ value: { files: [], summary: "", blocked: "S-0002 contradicts S-0001: removing leaves the chore assigned" } })'] },
       // Two scenarios adding the same file: an obvious conflict (resolved), then one beyond an obvious fix (not).
       implement("S-0003", "src/shared.ts", "export const three = 3\n"),

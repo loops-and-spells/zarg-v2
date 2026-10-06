@@ -164,7 +164,7 @@ describe("zarg-core process", () => {
     writeFileSync(join(project, ".zarg/graph/nodes/S-0001.json"), `${JSON.stringify({ id: "S-0001", type: "gherkin/scenario", props: { title: "Open", when: "the user opens it" }, edges: [{ type: "gherkin/arrives", to: "ST-0001" }, { type: "gherkin/then", to: "ST-0001" }] })}\n`)
     git("git add -A && git commit -qm init")
     const stub = join(project, "..", `${project.split("/").pop()}-stub.json`)
-    writeFileSync(stub, JSON.stringify({ cells: ['yield* Rlm.done({ value: { plan: "## Approach\\nx" } })', 'yield* Rlm.done({ value: { files: [], summary: "nothing to write" } })'] }))
+    writeFileSync(stub, JSON.stringify({ cells: ['yield* Rlm.done({ value: { plan: "## Approach\\nx" } })', 'yield* Fs.write({ path: "src/S-0001.ts", content: "// @" + "scenario S-0001\\n" })\nyield* Rlm.done({ value: { files: ["src/S-0001.ts"], summary: "tagged" } })'] }))
     const proc = Bun.spawn([process.execPath, main, "--root", project, "--mode", "child"], { stdin: "pipe", stdout: "pipe", stderr: "pipe", env: { ...process.env, ZARG_CORE_STUB: stub } })
     await proc.stdout.getReader().read()
     const client = makeClient(readInfo(project)!)

@@ -285,6 +285,9 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
             const out = (yield* run("implement", "implement-scenario", item, implementTask(item, c.text, plan), cwd).pipe(Effect.ensuring(Effect.orDie(keepRequirements(cwd))))) as { blocked?: string }
             // @scenario S-0024
             if (out.blocked !== undefined) return { ok: false, kind: "blocked-scenario", title: `${item} cannot be implemented as written`, detail: out.blocked } satisfies ItemOutcome
+            // Built means code tagged with it: an implementer that wrote nothing landed as "feat: implement" with no code.
+            const tagged = yield* gitRun(cwd, ["grep", "-qE", "--untracked", `@scenario .*${item}([^0-9]|$)`, "--", ".", ":!.zarg", ":!docs"])
+            if (tagged.code !== 0) return { ok: false, kind: "pass-error", title: `implement wrote nothing for ${item}`, detail: `No code is tagged \`// @scenario ${item}\`. ${String((out as { summary?: unknown }).summary ?? "")}`.trim() } satisfies ItemOutcome
             return { ok: true } satisfies ItemOutcome
           }),
       },

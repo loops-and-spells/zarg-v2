@@ -64,7 +64,7 @@ const implementer = (scenario: string) =>
     `yield* Rlm.done({ value: { files: ["src/${scenario}.ts"], summary: "added" } })`,
   ].join("\n")
 
-const pass = (repo: string, model: Layer.Layer<Model.Model>) =>
+const pass = (repo: string, model: Layer.Layer<Model.Model>, verify = "test -f src/S-0001.ts") =>
   Effect.runPromise(
     Effect.gen(function* () {
       const m = yield* Model.Model
@@ -72,7 +72,7 @@ const pass = (repo: string, model: Layer.Layer<Model.Model>) =>
       const findings = makeFindings(repo)
       const spec = reconcileSpec({
         repo,
-        settings: yield* reconcileSettings({ verify: "test -f src/S-0001.ts", land_retry_ms: 50, land_attempts: 2 }),
+        settings: yield* reconcileSettings({ verify, land_retry_ms: 50, land_attempts: 2 }),
         sensitive: [],
         findings,
         pluginHost: testPlugins(repo),
@@ -103,6 +103,20 @@ describe("plan and implement phases", () => {
     expect(readFileSync(join(r, "src/S-0001.ts"), "utf8")).toContain(`// ${"@" + "scenario"} S-0001`)
     expect(readFileSync(join(r, ".zarg/graph/nodes/ST-0001.json"), "utf8")).toBe(before)
     expect(sh(r, "git log -1 --format=%s")).toBe("feat: implement S-0001")
+  }, 60_000)
+
+  test("an implementer that writes nothing tagged builds nothing: the scenario fails, its plan is kept and not planned again", async () => {
+    const r = project(["S-0001"])
+    let planned = 0
+    const idle = () => 'yield* Rlm.done({ value: { files: [], summary: "read the code; nothing written" } })'
+    const first = await pass(r, stub({ plan: (s) => (planned++, planner(s)), "implement-scenario": idle }), "true")
+    expect(first.out).toMatchObject({ landed: [], failed: ["S-0001"] })
+    expect(first.findings.map((f) => [f.kind, (f as { title?: string }).title])).toContainEqual(["pass-error", "implement wrote nothing for S-0001"])
+    expect(sh(r, "git log -1 --format=%s")).toBe("chore: plan S-0001 (not built yet: see the findings)")
+    // The next pass keeps the plan written for this version of S-0001 and implements it.
+    const second = await pass(r, stub({ plan: (s) => (planned++, planner(s)), "implement-scenario": implementer }), "true")
+    expect(second.out).toMatchObject({ status: "landed", landed: ["S-0001"] })
+    expect(planned).toBe(1)
   }, 60_000)
 
   test("the planner starts from what it needs: the scenarios sharing a state with this one, and the project's files", async () => {
