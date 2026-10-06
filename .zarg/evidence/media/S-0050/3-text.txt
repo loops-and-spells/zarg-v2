@@ -1,18 +1,18 @@
                        │  inbox   2 open                                                                                
  ◆ zarg                │                                                                                                
-   project · main      │  ▍◆ zarg          When "the child sees the new chore"…  question · waiting · 2 options  7m     
+   project · main      │  ▍◆ zarg          What can the child do once "the chi…  question · waiting · 3 options  8m     
                        │   · zarg          Landing waits on your uncommitted edits in .zarg/plans/S-0…  report  now     
  VIEWS               3 │                                                                                                
 ▍ ◆ Inbox            2 │                                                                                                
   ▤ Journeys           │                                                                                                
   ▤ Intents            │                                                                                                
                        │                                                                                                
- AGENTS              2 │                                                                                                
+ AGENTS              1 │                                                                                                
   ● zarg           0/0 │                                                                                                
-  ⠸ build          1/1 │                                                                                                
-   ━━━━━━━━━━━━━━━━━━━ │                                                                                                
                        │                                                                                                
-  ▸ archived         1 │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+  ▸ archived         1 │                                                                                                
+                       │                                                                                                
+                       │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
                        │     zarg   esc closes                                                                          
                        │     ·  Reconcile is on; nothing to reconcile.                                                  
                        │                                                                                                

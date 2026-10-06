@@ -27,6 +27,23 @@ describe("drafts", () => {
     expect(out.r.touched).toEqual(expect.arrayContaining(["ST-0002", "S-0006"]))
     expect(out.after).toBe(out.before)
   })
+  test("an id given as {id} where a tool takes the bare id is that id (a drafting model writes either)", async () => {
+    const r = await run(
+      Effect.gen(function* () {
+        yield* pricing
+        const h = yield* PluginHost
+        yield* h.invoke("gherkin", "dryRun", { draft: [] })
+        return (yield* h.invoke("gherkin", "dryRun", {
+          draft: [
+            { tool: "add-journey", params: { name: "Upgrading" } },
+            { tool: "link", params: { scenario: { id: "S-0003" }, edge: "in", journey: { name: "Upgrading" } } },
+          ],
+        })) as { ok: boolean; problems: string[] }
+      }),
+    )
+    expect(r.problems).toEqual([])
+    expect(r.ok).toBe(true)
+  })
   test("a draft that adds a state nothing uses is refused: drop it, or give it to a scenario", async () => {
     const r = await run(
       Effect.gen(function* () {

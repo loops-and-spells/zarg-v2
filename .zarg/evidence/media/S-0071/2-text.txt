@@ -8,13 +8,12 @@
   ▤ Intents            │                                                                                                
                        │                                                                                                
  AGENTS              1 │                                                                                                
-  ⠼ zarg           0/0 │                                                                                                
+  ⠇ zarg           0/0 │                                                                                                
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                
                        │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
                        │     zarg   esc closes                                                                          
-                       │     zarg  The flow so far:                                                                     
                        │                                                                                                
                        │           ┌────────┐  ┌─────────────┐                                                          
                        │           │        │  │             │                                                          
@@ -31,10 +30,11 @@
                        │             N0[Parent opens the list] --> N1                                                   
                        │             N1[Parent picks a chore] --> N2                                                    
                        │             N2[Parent picks a child] --> N3                                                    
-                       │             N3[Child sees the chore] --> N4                                                █   
+                       │             N3[Child sees the chore] --> N4                                                    
                        │             N4[Child does the chore] --> N5                                                █   
                        │                                                                                            █   
                        │           Too wide to draw.                                                                █   
-                       │     ⠼ zarg is preparing a reply · 0:00                                                     █   
+                       │     ·  answered                                                                            █   
+                       │     ⠇ zarg is preparing a reply · 0:00                                                     █   
                        │ › type a message, Enter to send                                                                
                        │ core child · running · thread main · stub:scripted   answered   ⏎ send   esc leave             

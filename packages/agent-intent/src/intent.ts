@@ -1,6 +1,6 @@
 import { Effect, Semaphore } from "effect"
 import { dependencies, fold, type Folded, jsonIn, merge, type Unit } from "@zarg/fold"
-import { type Checkpoint, due, type Entry, type JourneyInfo, moved, type Statement } from "./checkpoint"
+import { type Checkpoint, due, type Entry, fingerprint, type JourneyInfo, moved, type Statement } from "./checkpoint"
 
 type Draft = ReadonlyArray<{ readonly tool: string; readonly params: unknown }>
 type Option = { readonly id: string; readonly label: string; readonly recommended?: boolean }
@@ -36,16 +36,39 @@ export interface IntentDeps {
   readonly personas: () => Effect.Effect<ReadonlyArray<{ readonly name: string; readonly kind: string }>, unknown>
 }
 
+const DELIVERS =
+  'You check whether a product\'s journeys already deliver an outcome. Read their scenarios. Delivered: some scenario already does what the outcome says, as it is worded; a missing detail the outcome does not ask for does not count. Answer JSON only: {"delivered": true} or {"delivered": false}.'
+
+/**
+ * Whether the journeys serving an outcome already deliver it: the driver model, without reasoning (the decision model
+ * cannot judge prose; it answered "no" to every outcome, so each served one was drafted again). No clear yes is a no.
+ */
+export const deliversBy =
+  (complete: IntentDeps["complete"]) =>
+  (outcome: Statement, journeys: string): Effect.Effect<boolean, unknown> =>
+    Effect.map(
+      complete({
+        messages: [
+          { role: "system", content: DELIVERS },
+          { role: "user", content: `Outcome ${outcome.id}: ${outcome.text}\n\n${journeys}` },
+        ],
+        reasoning: { enabled: false },
+        maxTokens: 100,
+        outputSchema: { type: "object", properties: { delivered: { type: "boolean" } }, required: ["delivered"] },
+      }),
+      (r) => (jsonIn(r.text) as { delivered?: unknown } | undefined)?.delivered === true,
+    )
+
 export type RoundView = { readonly id: string; readonly title: string; readonly state: "drafting" | "planned" | "asked" | "left" | "nothing" | "waiting"; readonly detail: string; readonly plans: ReadonlyArray<string> }
 
 const TOOLS = [
   'add-persona {"name":"Parent","kind":"human","text":"who they are, how they reach the product"}: someone who acts in scenarios (kind human, cli or agent); add one before a scenario names it in by',
-  'add-scenario {"title":"Who does what","when":"the one action","by":[{"name":"Operator"}],"arrives":{"id":"ST-0001"},"then":[{"text":"…"}],"given":[]}: a new scenario (1-5 thens)',
+  'add-scenario {"title":"Who does what","when":"the one action","by":[{"name":"Operator"}],"in":[{"name":"Checkout"}],"arrives":{"id":"ST-0001"},"then":[{"text":"…"}],"given":[]}: a new scenario (1-5 thens), in its journeys (a new scenario has no id yet: never guess one)',
   'edit-scenario {"id":"S-0001","title":"…","when":"…"}: change a scenario\'s title or When',
   'edit-state {"id":"ST-0002","text":"…"}: reword a Given/Then sentence (every scenario using it changes)',
   'link {"scenario":"S-0001","edge":"then","state":{"text":"…"}}: add a then (given, arrives likewise); {"scenario":"S-0001","edge":"in","journey":{"id":"J-0001"}} puts it in a journey',
   'unlink {"scenario":"S-0001","edge":"then","state":"ST-0002"}: remove one',
-  'add-journey {"name":"…"}: a new journey (then link its scenarios with in)',
+  'add-journey {"name":"…"}: a new journey, before any call that names it; name it by {"name":"…"} (it has no id yet)',
   'link {"edge":"serves","journey":{"id":"J-0001"},"outcome":"O-0001"}: the journey delivers the outcome',
   'link {"edge":"bounds","constraint":"K-0001","journey":{"id":"J-0001"}}: the constraint applies to a journey (or "scenario":"S-0001")',
 ].join("\n")
@@ -233,6 +256,13 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
           problems = dry.problems
           continue
         }
+        // An outcome no journey serves stays uncovered unless the draft links one to it.
+        const unserved = s.kind === "outcome" && s.journeys.length === 0 && !journeys.some((j) => j.serves.includes(s.id))
+        const links = r.units.some((u) => u.changes.some((c) => c.tool === "link" && (c.params as { edge?: unknown; outcome?: unknown })?.edge === "serves" && JSON.stringify((c.params as { outcome?: unknown }).outcome).includes(s.id)))
+        if (unserved && !links) {
+          problems = [`No journey serves ${s.id} yet: link a journey to serve ${s.id} (link {"edge":"serves","journey":{"name":"…"},"outcome":"${s.id}"}).`]
+          continue
+        }
         // The statement as it is now: changed meanwhile, nothing is filed and the next tick drafts it again.
         const now = (yield* d.statements()).find((x) => x.id === s.id)
         if (now === undefined || now.version !== s.version) {
@@ -258,7 +288,7 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
       // @scenario S-0104
       const options = [{ id: "again", label: "Draft again", recommended: true }, LEAVE]
       const topic = yield* d.post({ kind: "ask", key: `left:${s.id}`, title: `${s.id} could not be drafted: ${s.text}`, why: `intent ${s.intent.id}`, about: [s.id], answers: options, evidence: problems.join("\n") })
-      yield* setStatement(s.id, { version: s.version, state: "left", topic, options, ...served(s) })
+      yield* setStatement(s.id, { version: s.version, state: "left", topic, options, seen: fingerprint(journeys), ...served(s) })
       return yield* show({ id: s.id, title: s.text, state: "left", detail: problems.join("\n"), plans: [] })
     })
 
@@ -323,7 +353,7 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
     for (const x of due(statements, journeys, cp.c, statements.some((s) => s.kind === "outcome"), gone)) {
       // A topic still open about something that changed or went no longer matters: settle it.
       const prev = x.kind === "journey" ? undefined : (yield* d.load).statements[x.kind === "removed" ? x.id : x.statement.id]
-      if (prev?.topic !== undefined && prev.decision === undefined) yield* quiet(d.settle(prev.topic, x.kind === "removed" ? "its statement was removed" : "its statement changed: a new round"))
+      if (prev?.topic !== undefined && prev.decision === undefined) yield* quiet(d.settle(prev.topic, x.kind === "removed" ? "its statement was removed" : x.kind === "statement" && prev.version === x.statement.version && prev.state === "left" ? "the journeys changed: drafting it again" : "its statement changed: a new round"))
       if (x.kind === "removed") {
         const { ids } = yield* d.dropServing(x.id).pipe(Effect.orElseSucceed(() => ({ ids: [] as ReadonlyArray<string> })))
         yield* setStatement(x.id, undefined)

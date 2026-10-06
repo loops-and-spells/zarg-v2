@@ -24,7 +24,7 @@ const knownJourneys = (snap: Snapshot.Snapshot) => journeys(snap).map((j) => `${
 const journeyOf = (snap: Snapshot.Snapshot, raw: JourneyRef): Effect.Effect<string, ToolError> => {
   const ref = journeyRefOf(raw)
   const n = findJourney(snap, ref)
-  return n !== undefined ? Effect.succeed(n.id) : Effect.fail(new ToolError({ message: `${"id" in ref ? ref.id : `"${ref.name}"`} is not a journey; known: ${knownJourneys(snap)}` }))
+  return n !== undefined ? Effect.succeed(n.id) : Effect.fail(new ToolError({ message: `${"id" in ref ? ref.id : `"${ref.name}"`} is not a journey; known: ${knownJourneys(snap)}${"id" in ref ? " (a journey this change adds: add-journey before it, then name it by {name})" : ""}` }))
 }
 const JourneyName = Schema.NonEmptyString.annotate({ description: "Unique (case does not matter)." })
 
@@ -163,10 +163,10 @@ export const addScenario = tool({
     title: Schema.NonEmptyString.annotate({ description: "Short: who does what." }),
     when: Schema.NonEmptyString.annotate({ description: "The one user action." }),
     by: Schema.optionalKey(Schema.Array(PersonaRef)).annotate({ description: "Who acts in the When: one or more personas (required)." }),
+    in: Schema.optionalKey(Schema.Array(JourneyRef)).annotate({ description: "The journeys it is in (existing ones), so a draft need not link it after." }),
     arrives: StateRef.annotate({ description: "The state the user is in before the action (the Given). In a journey it is where the scenario before it leads: that scenario's Then, by id." }),
     given: Schema.optionalKey(Schema.Array(StateRef)).annotate({ description: "Up to 3 extra context states (And) that also hold. Never the state the user arrives from: that is arrives." }),
     then: Schema.Array(StateRef).annotate({ description: "1-5 states the action leads to." }),
-    in: Schema.optionalKey(Schema.Array(JourneyRef)).annotate({ description: "Journeys it is in (as link in would do)." }),
   }),
   run: (p, snap) =>
     Effect.gen(function* () {
@@ -184,10 +184,10 @@ export const addScenario = tool({
         props: { title: p.title, when: p.when },
         edges: [
           ...by.map((to) => ({ type: BY, to })),
+          ...[...new Set(inJourneys)].map((to) => ({ type: IN, to })),
           { type: ARRIVES, to: arrives },
           ...given.map((to) => ({ type: GIVEN, to })),
           ...then.map((to) => ({ type: THEN, to })),
-          ...inJourneys.map((to) => ({ type: IN, to })),
         ],
       }
       return { changes: [...r.created.map(Put), Put(scenario)], message: `created ${id}${createdNote(r.created)}` }

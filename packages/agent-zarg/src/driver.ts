@@ -9,8 +9,11 @@ const ASK_FIRST: ServiceFailure = {
 }
 
 const JUDGED = "(Fix it, or show the same change again if it holds as it is: the operator then decides.)"
+// An id no node has yet, written as a pattern (S-000N, ST-XXXX): the operator sees a new node by its words.
+const placeholderId = (change: string) => change.match(/\b(?:S|ST|J|O|K|P|Q|I)-\d*[A-Z?]+\b/)?.[0]
 const NO_DRAFT = "Show a scenario change with its draft too: Inquire.confirm({ change, draft }), the draft being the Gherkin calls that write it ({ tool: 'addScenario', params } for Gherkin.addScenario, …), so the checks run before the operator sees it."
 const PICKED_HINT = "They picked an option that is a change: it is added. Write it now, as shown; no Inquire.confirm."
+const ADDED_HINT = "They added it: it is not written yet. Write it now, as shown (the draft's tool calls, in order); no Inquire.confirm."
 
 /** The change's first line; one that only heads it (ends with a colon) takes the next line too. */
 export const headline = (change: string | undefined) => {
@@ -101,6 +104,8 @@ export const askFirst = (
     open = true
     added = pre
   }
+  // Shown again before it is written (often reworded): not asked twice; the driver is told to write it, once.
+  let owedPre = pre
   const write = (h: (params: unknown) => Effect.Effect<unknown, ServiceFailure>, params: unknown, named: ReadonlyArray<string>): Effect.Effect<unknown, ServiceFailure> => {
     if (added !== undefined) {
       const shownText = norm(added)
@@ -141,7 +146,9 @@ export const askFirst = (
       shownNodes = {}
       const seenNodes = nodes === undefined || (c.about ?? []).length === 0 ? Effect.succeed({}) : nodes(c.about ?? [])
       // Add with the operator's words (a reason) is what to change, not a yes.
-      const asked = Effect.map(asker.ask(confirmQuestion(c)), (a) => (a.choice === "add" && (a.other ?? "").trim() !== "" ? { other: a.other! } : a))
+      const asked = Effect.map(asker.ask(confirmQuestion(c)), (a) =>
+        a.choice !== "add" || a.interjected === true ? a : (a.other ?? "").trim() !== "" ? { other: a.other! } : { ...a, hint: ADDED_HINT },
+      )
       return Effect.tap(Effect.tap(Effect.tap(seenNodes, (n) => Effect.sync(() => void (shownNodes = n))).pipe(Effect.andThen(seen)), (v) => Effect.sync(() => void (shown = v))).pipe(Effect.andThen(asked)), (a) =>
         Effect.sync(() => {
           if (a.interjected === true && a.question !== undefined) (confirms.add(a.question), changes.set(a.question, c.change))
@@ -151,6 +158,21 @@ export const askFirst = (
           }
         }),
       )
+    })
+  // A change shown with its draft is checked first: what the checks refuse goes back to the driver, unasked.
+  // A scenario change (a When line) is shown with its draft: the checks need its tool calls.
+  const checked = (c: Parameters<NonNullable<Asker["confirm"]>>[0]) =>
+    Effect.suspend(() => {
+      if (dryRun !== undefined && (c.draft === undefined || c.draft.length === 0) && /^\s*When\b/im.test(c.change)) return Effect.succeed({ problems: [NO_DRAFT] } as Answer)
+      if (c.draft !== undefined && c.draft.length > 0 && dryRun !== undefined)
+        return Effect.flatMap(dryRun(c.draft), (r) => {
+          if (!r.ok) return Effect.succeed({ problems: [...r.problems] } as Answer)
+          // What the checks cannot see (a Given and an And that cannot both hold): the judge's word, once.
+          if (judge === undefined || judged.has(norm(c.change))) return confirmIt(c)
+          judged.add(norm(c.change))
+          return Effect.flatMap(judge(c.change), (found) => (found.length > 0 ? Effect.succeed({ problems: [...found, JUDGED] } as Answer) : confirmIt(c)))
+        })
+      return confirmIt(c)
     })
   return {
     asker: {
@@ -178,20 +200,24 @@ export const askFirst = (
         ),
       confirm: (c) =>
         Effect.andThen(flush, Effect.suspend(() => {
-          // A change shown with its draft is checked first: what the checks refuse goes back to the driver, unasked.
-          // A scenario change (a When line) is shown with its draft: the checks need its tool calls.
-          if (dryRun !== undefined && (c.draft === undefined || c.draft.length === 0) && /^\s*When\b/im.test(c.change))
-            return Effect.succeed({ problems: [NO_DRAFT] } as Answer)
-          if (c.draft !== undefined && c.draft.length > 0 && dryRun !== undefined)
-            return Effect.flatMap(dryRun(c.draft), (r) => {
-              if (!r.ok) return Effect.succeed({ problems: [...r.problems] } as Answer)
-              // What the checks cannot see (a Given and an And that cannot both hold): the judge's word, once.
-              if (judge === undefined || judged.has(norm(c.change))) return confirmIt(c)
-              judged.add(norm(c.change))
-              return Effect.flatMap(judge(c.change), (found) => (found.length > 0 ? Effect.succeed({ problems: [...found, JUDGED] } as Answer) : confirmIt(c)))
+          if (owedPre !== undefined && !wrote) {
+            const change = owedPre
+            owedPre = undefined
+            return Effect.succeed({ problems: [`The operator already added this change before zarg restarted; write it now with its wording, without showing it again:\n${change}\nShow a change only when it is a different one.`] } as Answer)
+          }
+          owedPre = undefined
+          const placeholder = placeholderId(c.change)
+          if (placeholder !== undefined) return Effect.succeed({ problems: [`"${placeholder}" is no id: name a new node by its words (its title or text), never an id it does not have yet.`] } as Answer)
+          // Ids the change names that no node has yet (a guess at what a new node will get): named by words instead.
+          const named = [...new Set(c.change.match(/\b(?:S|ST|J|O|K|P|Q|I)-\d{4}\b/g) ?? [])]
+          if (versions !== undefined && named.length > 0)
+            return Effect.flatMap(versions(named), (v) => {
+              const unknown = named.filter((id) => v[id] === undefined)
+              return unknown.length > 0 ? Effect.succeed({ problems: [`${unknown.join(", ")}: no node has ${unknown.length === 1 ? "this id" : "these ids"} yet. Name a new node by its words (its title or text), never an id it does not have yet.`] } as Answer) : checked(c)
             })
-          return confirmIt(c)
+          return checked(c)
         })),
+
       ...(asker.choose !== undefined
         ? { choose: (c) => Effect.tap(asker.choose!(c), () => Effect.sync(() => void ((scope = undefined), (open = confirms.has(c.question) && c.choice === "add"), (added = open ? changes.get(c.question) : undefined)))) }
         : {}),

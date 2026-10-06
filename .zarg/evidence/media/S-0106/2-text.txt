@@ -6,19 +6,19 @@
   "persona": "Parent",
   "kind": "drift",
   "severity": "high",
-  "note": "This is drift: the step says the chore leaves every list, but the code only hides it for the parent and says every other list still shows it.",
+  "note": "The step says \"Then the chore leaves every list\", but the shown code remove just returns the same chores array unchanged; every list keeps showing it. Only the code comment hints a parent-only hiding, matching neither the step.",
   "from": {
     "agent": "rehearse",
-    "run": "r-14408697"
+    "run": "r-d81c990b"
   },
   "triage": {
     "on": true,
     "why": "ask · real 1.00",
     "by": "agent"
   },
-  "id": "F-07a413a8",
+  "id": "F-9b1335c2",
   "count": 1,
   "runs": [
-    "rehearse:r-14408697"
+    "rehearse:r-d81c990b"
   ]
 }

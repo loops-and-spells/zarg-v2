@@ -1,13 +1,13 @@
 {
   "scenario": "S-0070",
   "version": "a6c22da77a4f",
-  "commit": "282f2677",
-  "run": "e2e-2026-10-06T08-35-09.417Z",
+  "commit": "d6cd9fbf",
+  "run": "e2e-2026-10-05T22-41-41.149Z",
   "journey": "J-0002",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-06T08:35:17.813Z",
-  "ms": 4662,
+  "at": "2026-10-05T22:42:10.936Z",
+  "ms": 4661,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -32,16 +32,16 @@
       "caption": "the step as it played",
       "path": "media/S-0070/4-step.cast",
       "meta": {
-        "startAt": 3.5
+        "startAt": 3.6
       }
     }
   ],
   "failure": null,
   "code": {
-    "packages/client/src/session.ts": "78a7f6bb95cd03a8441f0ece7a27f7edd9cc8435",
-    "packages/client/test/session.test.ts": "030ac1ca7a5f3827472412dd7e3979801a46c916",
-    "packages/core/test/yolo.test.ts": "1a8a8ce7d800e635bad1edba788bdf3c3e31660f",
+    "packages/client/src/session.ts": "835d271da75de2c15d93bbfa50b3344acb93fd69",
+    "packages/client/test/session.test.ts": "e1ea13e5faac8f0fe8cef41ffd8f60c0cada5620",
+    "packages/core/test/yolo.test.ts": "33987002434e4ead223f8cc2d71e256aa4a12a91",
     "packages/plugin/src/runtime/powers.ts": "5f2696731d331d8d311938c54ca555d921290289",
-    "packages/view-tui/src/view.ts": "9285f1fdf5fa13077d39e615198ba195e11bce5d"
+    "packages/view-tui/src/view.ts": "ecdb1c1ab4ca8f6d15a342d0c95641caf07c7dde"
   }
 }

@@ -139,7 +139,7 @@ describe("reconcile pass", () => {
   })
 
   // @scenario S-0052
-  test("requirements committed during the pass stay when it lands on top: its graph never reverts them", async () => {
+  test("requirements committed during the pass stay: the landed commit keeps them, the next pass takes them up", async () => {
     const r = repo()
     graph(r, ["S-0001"])
     sh(r, "git add -A && git commit -qm req")
@@ -149,12 +149,14 @@ describe("reconcile pass", () => {
         if (committed) return
         committed = true
         writeNode(r, scenario("S-0002", "ST-0001", "ST-0001"))
-        sh(r, "git add -A .zarg/graph && git commit -qm 'req: S-0002'")
+        sh(r, "git add -A && git commit -qm 'req: S-0002'")
       },
     })
-    expect(await runPass(spec, db())).toMatchObject({ status: "landed" })
-    expect(sh(r, "git ls-files .zarg/graph")).toContain("S-0002.json")
+    expect(await runPass(spec, db())).toMatchObject({ status: "landed", landed: ["S-0001"] })
+    expect(existsSync(join(r, ".zarg/graph/nodes/S-0002.json"))).toBe(true)
+    expect(sh(r, "git show --name-only --format= HEAD")).not.toContain("S-0002")
     expect(sh(r, "git status --porcelain")).toBe("")
+    expect(await runPass(spec, db())).toMatchObject({ status: "landed", landed: ["S-0002"] })
   })
 
   test("a scenario asked to be built again is pending: the next pass builds it, then it is no longer asked", async () => {

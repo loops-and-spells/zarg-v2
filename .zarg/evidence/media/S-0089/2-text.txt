@@ -1,2 +1,2 @@
-left behind: 3473462
-now: 3474435
+left behind: 578601
+now: 579685

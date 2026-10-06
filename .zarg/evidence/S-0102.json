@@ -1,13 +1,13 @@
 {
   "scenario": "S-0102",
   "version": "abf18b33d67e",
-  "commit": "2582d654",
-  "run": "e2e-2026-10-06T08-14-30.341Z",
+  "commit": "794bd67d",
+  "run": "e2e-2026-10-06T02-24-13.267Z",
   "journey": "J-0007",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-06T08:15:42.632Z",
-  "ms": 64042,
+  "at": "2026-10-06T02:26:48.116Z",
+  "ms": 146541,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -40,19 +40,19 @@
       "caption": "the step as it played",
       "path": "media/S-0102/5-step.cast",
       "meta": {
-        "startAt": 7.3
+        "startAt": 7.4
       }
     }
   ],
   "failure": null,
   "code": {
-    "packages/agent-zarg/src/thread.ts": "28e2c53862e1c8b547adf24ef82fa2d5dde4e2ed",
-    "packages/agent-zarg/src/zarg.ts": "83d8b01720d599ffaa218733c770e03a52188b82",
-    "packages/agent-zarg/test/thread.test.ts": "7ba698c9bee23c8508e114208b3c94b92305b4dc",
+    "packages/agent-zarg/src/thread.ts": "68edebbaf0cb28f8f13825ead696af6cb6e75877",
+    "packages/agent-zarg/src/zarg.ts": "d38b0d4c99998249606366779b92722efd74c8ae",
+    "packages/agent-zarg/test/thread.test.ts": "b3e70a330c1d2ae877eeb56366a30d3f2471a7d2",
     "packages/plugin-gherkin/src/intent-tools.ts": "d92952d86ec2e39d4e7733abc70eab60c1d87887",
     "packages/plugin-gherkin/test/intents.test.ts": "73570ce4568acbce8a1b116ddcd865e405af6f11",
-    "packages/rlm/src/presets.ts": "07b856790e4018ee0fe6b072d88e3fc53db68d11",
-    "packages/rlm/src/services/io.ts": "f12052260254143249db74ee45825524708bb2cc",
-    "packages/rlm/test/graph.test.ts": "0e41937e73ef29d9ce61e3545e1dcaea92bdcb7c"
+    "packages/rlm/src/presets.ts": "7d2e3cf90a9eed9c242f8e4cb7147c4472176274",
+    "packages/rlm/src/services/io.ts": "9d62687e9e624cfb525b99f62ca6ebd330583fff",
+    "packages/rlm/test/graph.test.ts": "a6d03549c7fd706b1bdc0faa1561b9b66fb613fd"
   }
 }

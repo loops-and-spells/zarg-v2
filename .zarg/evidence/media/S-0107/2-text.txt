@@ -7,28 +7,28 @@
     "persona": "Parent",
     "kind": "drift",
     "severity": "high",
-    "note": "This is drift: the step says the chore leaves every list, but the code only hides it for the parent and says every other list still shows it.",
+    "note": "The step says \"Then the chore leaves every list\", but the shown code remove just returns the same chores array unchanged; every list keeps showing it. Only the code comment hints a parent-only hiding, matching neither the step.",
     "from": {
       "agent": "rehearse",
-      "run": "r-14408697"
+      "run": "r-d81c990b"
     },
     "triage": {
       "on": true,
       "why": "ask · real 1.00",
       "by": "agent"
     },
-    "id": "F-07a413a8",
+    "id": "F-9b1335c2",
     "count": 1,
     "runs": [
-      "rehearse:r-14408697"
+      "rehearse:r-d81c990b"
     ]
   },
   "topic": {
     "kind": "drift",
     "title": "S-0002: the scenario and the code differ",
     "why": "rehearse (high)",
-    "evidence": "This is drift: the step says the chore leaves every list, but the code only hides it for the parent and says every other list still shows it.\n\nWhat zarg does now:\n\nsrc/chores.ts:3\n\n```\n// Removing only marks the chore as hidden for the parent; every other list still shows it.\nexport const remove = (chores: string[], _chore: string) => chores\n\n```",
-    "key": "drift:F-07a413a8",
+    "evidence": "The step says \"Then the chore leaves every list\", but the shown code remove just returns the same chores array unchanged; every list keeps showing it. Only the code comment hints a parent-only hiding, matching neither the step.\n\nWhat zarg does now:\n\nsrc/chores.ts:3\n\n```\n// Removing only marks the chore as hidden for the parent; every other list still shows it.\nexport const remove = (chores: string[], _chore: string) => chores\n\n```",
+    "key": "drift:F-9b1335c2",
     "about": [
       "S-0002"
     ],
@@ -49,14 +49,14 @@
     "origin": {
       "view": "feedback"
     },
-    "id": "T-17aac70e",
+    "id": "T-d6d43a0d",
     "from": {
       "plugin": "backlog"
     },
     "blocking": false,
     "messages": [],
     "state": "open",
-    "created": 1791251165711,
-    "updated": 1791251165711
+    "created": 1791253747543,
+    "updated": 1791253747543
   }
 }

@@ -183,17 +183,6 @@ journey("J-0004", { tier: "fast", seed: SEED }, (proves) => {
     { model: true, timeoutMs: 950_000 },
   )
 
-  proves(
-    "S-0055",
-    async (s) => {
-      const failing = await until(900_000, () => findings(s.w).some((f) => f.kind === "verify-failing"))
-      s.note("buffer", "findings", JSON.stringify(findings(s.w), null, 2))
-      expect(failing).toBe(true)
-      // The finding reaches the operator's inbox.
-      expect(await until(30_000, () => topics(s.w).some((t) => t.kind === "finding" && t.title.includes("verify still fails")))).toBe(true)
-    },
-    { model: true, timeoutMs: 950_000 },
-  )
 
 })
 
@@ -226,6 +215,9 @@ writeFileSync(
       implement("S-0005", "src/other.ts", "export const five = 5\n"),
       implement("S-0006", "src/other.ts", "export const five = 6\n"),
       { when: "These files have merge conflicts", cells: [`${write("src/shared.ts", "export const three = 3\nexport const four = 4\n")}\nreturn yield* Rlm.done({ value: { resolved: true } })`, "return yield* Rlm.done({ value: { resolved: false } })"] },
+      // S-0008 writes a test that fails; the fixes change nothing: verify keeps failing.
+      implement("S-0008", "test/eight.test.ts", 'import { expect, test } from "bun:test"\ntest("eight", () => expect(8).toBe(9))\n'),
+      { when: "Verify fails after merging", cells: ['return yield* Rlm.done({ value: "nothing to change" })'] },
       // S-0007 takes a while: the operator commits meanwhile.
       implement("S-0007", "src/seven.ts", "export const seven = 7\n", 'yield* Effect.sleep("15 seconds")\n'),
     ],
@@ -355,5 +347,13 @@ journey(
       expect(await until(180_000, () => git(s.w, "log", "-1", "--format=%s") === "feat: implement S-0003")).toBe(true)
       s.note("buffer", "git log", git(s.w, "log", "-3", "--format=%h %s"))
     }, { timeoutMs: 400_000 })
+    proves("S-0055", async (s) => {
+      // S-0008's test fails; the fix attempts change nothing: verify still fails, and the operator hears it.
+      await scenario(s, 8, "weight")
+      const raised = () => topics(s.w).find((t) => t.kind === "finding" && t.title.includes("verify still fails"))
+      expect(await until(240_000, () => raised() !== undefined)).toBe(true)
+      s.note("buffer", "the finding", JSON.stringify(findings(s.w).find((f) => f.kind === "verify-failing") ?? raised(), null, 2))
+      expect(tasksOf(s.w, "implement").filter((t) => t.includes("Verify fails after merging")).length).toBeGreaterThanOrEqual(1)
+    }, { timeoutMs: 300_000 })
   },
 )

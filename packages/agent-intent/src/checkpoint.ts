@@ -11,6 +11,8 @@ export type Entry = {
   readonly decision?: string
   /** The answers the topic offered (an answer's label is what the model reads). */
   readonly options?: ReadonlyArray<{ readonly id: string; readonly label: string }>
+  /** Left: the journeys as its drafts read them (`fingerprint`); other journeys now, it is due again. */
+  readonly seen?: string
 }
 export type Checkpoint = { readonly statements: Readonly<Record<string, Entry>>; readonly journeys: Readonly<Record<string, Entry>> }
 export const EMPTY: Checkpoint = { statements: {}, journeys: {} }
@@ -26,6 +28,10 @@ export type Statement = {
 }
 export type JourneyInfo = { readonly id: string; readonly name: string; readonly version: string; readonly scenarios: ReadonlyArray<string>; readonly serves: ReadonlyArray<string> }
 export type Due = { readonly kind: "statement"; readonly statement: Statement } | { readonly kind: "journey"; readonly journey: JourneyInfo } | { readonly kind: "removed"; readonly id: string }
+
+/** The journeys and their scenarios, as one string: a left statement's drafts read these. */
+export const fingerprint = (journeys: ReadonlyArray<JourneyInfo>) =>
+  [...journeys].sort((a, b) => a.id.localeCompare(b.id)).map((j) => `${j.id}@${j.version}:${[...j.scenarios].sort().join(",")}`).join(";")
 
 /** The journeys serving it changed since its round: what it drafted (or found delivered) was against other journeys. */
 export const moved = (e: Entry, s: Statement) => [...(e.journeys ?? [])].sort().join() !== [...s.journeys].sort().join()
@@ -46,7 +52,7 @@ export const due = (statements: ReadonlyArray<Statement>, journeys: ReadonlyArra
   const changed: Array<Due> = statements
     .filter((s) => {
       const e = cp.statements[s.id]
-      return e === undefined || e.version !== s.version || e.decision !== undefined || (abandoned(e, gone) && s.journeys.length === 0) || moved(e, s)
+      return e === undefined || e.version !== s.version || e.decision !== undefined || (abandoned(e, gone) && s.journeys.length === 0) || moved(e, s) || (e.state === "left" && e.seen !== undefined && e.seen !== fingerprint(journeys))
     })
     .map((statement) => ({ kind: "statement", statement }))
   const waiting = removed.length > 0 || changed.length > 0 || Object.values(cp.statements).some((e) => pending(e, gone))

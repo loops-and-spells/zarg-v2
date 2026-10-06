@@ -26,6 +26,7 @@ import {
   onAgentsKey,
   onSlashKey,
   openAgent,
+  openNav,
   OTHER,
   pickerKey,
   pickerRows,
@@ -238,6 +239,7 @@ export const SHELL: ReadonlyArray<Layer> = [
         const e = entries[pick]
         if (e === undefined) return { ui }
         if ("command" in e.go) return { ui: close(), action: { type: "command", text: e.go.command } }
+        if ("nav" in e.go) return openNav(close(), w.s, e.go.nav)
         const to = e.go.main === "agent" && e.go.viewing !== undefined ? openAgent(close(), w.s, e.go.viewing) : goTo(close(), e.go.main)
         return { ui: { ...to, sheet: false, focus: "tile" } }
       }

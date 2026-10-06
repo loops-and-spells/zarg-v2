@@ -47,9 +47,12 @@ export interface AgendaItem {
 }
 
 /** A node named by its entity ref (`gherkin/intent:I-0001`, with or without `@version`, as Entities gives it) is that node's id. */
+// Params that take a bare id: {id: "S-0001"} there is that id.
+const BARE = new Set(["scenario", "outcome", "constraint", "intent"])
+const idOf = (x: unknown) => (x !== null && typeof x === "object" && !Array.isArray(x) && typeof (x as { id?: unknown }).id === "string" && Object.keys(x).length === 1 ? (x as { id: string }).id : x)
 export const bareIds = (v: unknown): unknown => {
   if (typeof v === "string") return /^gherkin\/[a-z]+:([A-Z]+-\d+)(@[0-9a-f]+)?$/.exec(v)?.[1] ?? v
   if (Array.isArray(v)) return v.map(bareIds)
-  if (v !== null && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, bareIds(x)]))
+  if (v !== null && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, bareIds(BARE.has(k) ? idOf(x) : x)]))
   return v
 }

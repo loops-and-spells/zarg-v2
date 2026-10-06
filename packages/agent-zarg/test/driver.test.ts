@@ -39,6 +39,44 @@ describe("ask before writing", () => {
     expect(await Effect.runPromise(Effect.flip(gated.handlers.addScenario!({ intent: "I-0001", text: "Something else entirely" })))).toMatchObject({ _tag: "NotShown" })
   })
 
+  test("an added change comes back saying it is not written yet: the driver writes it next", async () => {
+    const guard = askFirst({ ask: () => Effect.succeed({ choice: "add" }) })
+    const a = await Effect.runPromise(guard.asker.confirm!({ change: "Add outcome to I-0001: A user deletes a habit" }))
+    expect(a.choice).toBe("add")
+    expect(a.hint).toContain("not written yet")
+  })
+
+  test("a change naming a placeholder id (S-000N) goes back: a new node is named by its words", async () => {
+    let asked = 0
+    const guard = askFirst({ ask: () => Effect.sync(() => (asked++, { choice: "add" })) })
+    const back = await Effect.runPromise(guard.asker.confirm!({ change: "Scenario S-000N 'Tracker checks the habit'\nBy Tracker" }))
+    expect(asked).toBe(0)
+    expect(back.problems?.[0]).toContain("S-000N")
+    expect(await Effect.runPromise(guard.asker.confirm!({ change: "Edit ST-0002: the plan picker is shown" }))).toMatchObject({ choice: "add" })
+  })
+
+  test("a change naming an id no node has yet (J-0003 before it is added) goes back: a new node is named by its words", async () => {
+    let asked = 0
+    const guard = askFirst({ ask: () => Effect.sync(() => (asked++, { choice: "add" })) }, (ids) => Effect.succeed(Object.fromEntries(ids.map((id) => [id, id === "J-0001" ? "v1" : undefined]))))
+    const back = await Effect.runPromise(guard.asker.confirm!({ change: 'Journey J-0003 "Counting"\nScenario S-0007 in J-0001' }))
+    expect(asked).toBe(0)
+    expect(back.problems?.[0]).toContain("J-0003, S-0007")
+    expect(await Effect.runPromise(guard.asker.confirm!({ change: "Edit J-0001: rename it Counting" }))).toMatchObject({ choice: "add" })
+  })
+
+  test("a change added before a restart, shown again reworded, is not asked twice: the driver is told to write it", async () => {
+    let asked = 0
+    const guard = askFirst({ ask: () => Effect.sync(() => (asked++, { choice: "add" })), approved: () => 'Mark ST-0005 terminal: "The habit keeps its marked days" (ST-0005)' })
+    const first = await Effect.runPromise(guard.asker.confirm!({ change: 'Mark "The habit keeps its marked days" terminal: the rename outcome' }))
+    expect(asked).toBe(0)
+    expect(first.problems?.[0]).toContain("already added")
+    // Writes stay open for it.
+    expect(await Effect.runPromise(guard.gate(writes)!.handlers.addScenario!({ id: "ST-0005", terminal: true }))).toBe("created S-0001")
+    // A different change after that is shown as usual.
+    await Effect.runPromise(guard.asker.confirm!({ change: "Add outcome: a user archives a habit" }))
+    expect(asked).toBe(1)
+  })
+
   // @scenario S-0017
   test("a newer edit to another part of the node merges: the write goes through, their edit stays, and the merge is noted", async () => {
     let node = { props: { name: "Parent", text: "a parent who assigns chores." }, edges: [] as ReadonlyArray<{ type: string; to: string }> }
@@ -98,7 +136,7 @@ describe("ask before writing", () => {
     }
     const guard = askFirst({ ask: () => Effect.succeed({ choice: "add" }) }, (ids) => Effect.succeed(Object.fromEntries(ids.map((id) => [id, nodes[id]]))))
     const gated = guard.gate(parts)!
-    await Effect.runPromise(guard.asker.confirm!({ change: "Scenario S-0004 Reader removes a book, in journey J-0001", about: ["S-0004"] }))
+    await Effect.runPromise(guard.asker.confirm!({ change: "Scenario \"Reader removes a book\", in journey Reading", about: ["S-0004"] }))
     await Effect.runPromise(gated.handlers.addScenario!({ title: "Reader removes a book" }))
     expect(await Effect.runPromise(gated.handlers.link!({ scenario: "S-0004", journey: { id: "J-0001" } }))).toMatchObject({ changed: ["S-0004"] })
   })
@@ -127,7 +165,7 @@ describe("ask before writing", () => {
     const guard = askFirst({ ask: () => Effect.sync(() => (asked++, { choice: "terminal" })) })
     const a = await Effect.runPromise(guard.asker.ask({ question: "Which?", options: [{ id: "root", label: "Root" }, { id: "terminal", label: "Terminal", change: "Make ST-0005 terminal." }] }))
     expect(a.hint).toContain("Write it now")
-    expect(await Effect.runPromise(guard.asker.confirm!({ change: "make ST-0005 terminal" }))).toEqual({ choice: "add" })
+    expect(await Effect.runPromise(guard.asker.confirm!({ change: "make ST-0005 terminal" }))).toMatchObject({ choice: "add" })
     expect(asked).toBe(1)
     expect(await Effect.runPromise(guard.gate(writes)!.handlers.addScenario!({ id: "ST-0005" }))).toBe("created S-0001")
   })
@@ -216,7 +254,7 @@ describe("ask before writing", () => {
     expect(bad).toMatchObject({ problems: ['S-0004: its Then "a reader removes a book" says its When again'] })
     const good = await Effect.runPromise(guard.asker.confirm!({ change: "Scenario: Reader removes a book", draft: [{ tool: "add-scenario", params: { then: [{ text: "the book is gone" }] } }] }))
     expect(asked).toBe(1)
-    expect(good).toEqual({ choice: "add" })
+    expect(good).toMatchObject({ choice: "add" })
   })
 
   test("a scenario change shown without its draft goes back for it: the checks need the tool calls", async () => {
@@ -226,7 +264,7 @@ describe("ask before writing", () => {
     expect(asked).toBe(0)
     expect(back.problems?.[0]).toContain("draft")
     // A change with no scenario in it (a persona's text) needs none.
-    expect(await Effect.runPromise(guard.asker.confirm!({ change: "Edit persona Tracker: a person who tracks habits." }))).toEqual({ choice: "add" })
+    expect(await Effect.runPromise(guard.asker.confirm!({ change: "Edit persona Tracker: a person who tracks habits." }))).toMatchObject({ choice: "add" })
   })
 
   test("a change added but not written yet is owed: the item that ends there hands it on", async () => {
@@ -254,7 +292,7 @@ describe("ask before writing", () => {
     expect(asked).toBe(0)
     expect(first.problems?.[0]).toContain("cannot both hold")
     // The driver insists (the same change): the operator sees it.
-    expect(await Effect.runPromise(guard.asker.confirm!({ change, draft }))).toEqual({ choice: "add" })
+    expect(await Effect.runPromise(guard.asker.confirm!({ change, draft }))).toMatchObject({ choice: "add" })
     expect(asked).toBe(1)
   })
 

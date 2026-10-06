@@ -1,5 +1,7 @@
-Write this to the requirements?
+Add this to the requirements?
 
-Intent: A todo app for families — add one outcome
-Outcome: Parents reward finished chores with points.
-(the result the intent must reach for its users, in your words)
+Intents
+- I-0001 A todo app for families: add two outcomes it must reach:
+  - A parent gives points for a chore once it is finished. (their words: "reward finished chores with points")
+  - Points are the reward a parent gives for a finished chore. (their words: same sentence, split because it joins two ideas)
+Outcomes: none removed or reworded; Q-0001 stays answered (No, a parent's login covers them.)
