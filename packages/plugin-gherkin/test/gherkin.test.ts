@@ -38,6 +38,24 @@ describe("pricing example", () => {
     expect(text).not.toContain("plan picker")
   })
 
+  test("agenda: a journey that skips a step (a scenario outside it leads from its own to one of its own) asks whether that one is part of it", async () => {
+    const items = await run(
+      Effect.gen(function* () {
+        yield* pricing
+        yield* call("add-journey", { name: "Buying" })
+        yield* call("link", { scenario: "S-0001", edge: "in", journey: "Buying" })
+        yield* call("link", { scenario: "S-0004", edge: "in", journey: "Buying" })
+        const before = (yield* PluginHost.use((h) => h.agenda())).filter((i) => i.id.startsWith("gherkin:journey-apart"))
+        yield* call("link", { scenario: "S-0003", edge: "in", journey: "Buying" })
+        const after = (yield* PluginHost.use((h) => h.agenda())).filter((i) => i.id.startsWith("gherkin:journey-apart"))
+        return { before, after }
+      }),
+    )
+    expect(items.before.map((i) => i.id)).toEqual(["gherkin:journey-apart:J-0001"])
+    expect(items.before[0]).toMatchObject({ title: `Is "Visitor picks Pro" part of "Buying"?`, about: ["J-0001", "S-0004", "S-0003"] })
+    expect(items.after).toEqual([])
+  })
+
   test("agenda: receipt and decline message are dead ends until marked terminal", async () => {
     const ids = await run(
       Effect.gen(function* () {
