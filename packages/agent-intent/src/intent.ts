@@ -63,12 +63,12 @@ export type RoundView = { readonly id: string; readonly title: string; readonly 
 
 const TOOLS = [
   'add-persona {"name":"Parent","kind":"human","text":"who they are, how they reach the product"}: someone who acts in scenarios (kind human, cli or agent); add one before a scenario names it in by',
-  'add-scenario {"title":"Who does what","when":"the one action","by":[{"name":"Operator"}],"in":[{"id":"J-0001"}],"arrives":{"id":"ST-0001"},"then":[{"text":"…"}],"given":[]}: a new scenario (1-5 thens), in its journeys (a new scenario has no id yet: never guess one)',
+  'add-scenario {"title":"Who does what","when":"the one action","by":[{"name":"Operator"}],"in":[{"name":"Checkout"}],"arrives":{"id":"ST-0001"},"then":[{"text":"…"}],"given":[]}: a new scenario (1-5 thens), in its journeys (a new scenario has no id yet: never guess one)',
   'edit-scenario {"id":"S-0001","title":"…","when":"…"}: change a scenario\'s title or When',
   'edit-state {"id":"ST-0002","text":"…"}: reword a Given/Then sentence (every scenario using it changes)',
   'link {"scenario":"S-0001","edge":"then","state":{"text":"…"}}: add a then (given, arrives likewise); {"scenario":"S-0001","edge":"in","journey":{"id":"J-0001"}} puts it in a journey',
   'unlink {"scenario":"S-0001","edge":"then","state":"ST-0002"}: remove one',
-  'add-journey {"name":"…"}: a new journey (name it by {"name":"…"} in the calls after it: it has no id yet)',
+  'add-journey {"name":"…"}: a new journey, before any call that names it; name it by {"name":"…"} (it has no id yet)',
   'link {"edge":"serves","journey":{"id":"J-0001"},"outcome":"O-0001"}: the journey delivers the outcome',
   'link {"edge":"bounds","constraint":"K-0001","journey":{"id":"J-0001"}}: the constraint applies to a journey (or "scenario":"S-0001")',
 ].join("\n")

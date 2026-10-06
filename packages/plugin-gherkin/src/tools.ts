@@ -24,7 +24,7 @@ const knownJourneys = (snap: Snapshot.Snapshot) => journeys(snap).map((j) => `${
 const journeyOf = (snap: Snapshot.Snapshot, raw: JourneyRef): Effect.Effect<string, ToolError> => {
   const ref = journeyRefOf(raw)
   const n = findJourney(snap, ref)
-  return n !== undefined ? Effect.succeed(n.id) : Effect.fail(new ToolError({ message: `${"id" in ref ? ref.id : `"${ref.name}"`} is not a journey; known: ${knownJourneys(snap)}` }))
+  return n !== undefined ? Effect.succeed(n.id) : Effect.fail(new ToolError({ message: `${"id" in ref ? ref.id : `"${ref.name}"`} is not a journey; known: ${knownJourneys(snap)}${"id" in ref ? " (a journey this change adds: add-journey before it, then name it by {name})" : ""}` }))
 }
 const JourneyName = Schema.NonEmptyString.annotate({ description: "Unique (case does not matter)." })
 
