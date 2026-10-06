@@ -68,6 +68,11 @@ describe("Sh deadlines", () => {
     expect(Date.now() - started).toBeLessThan(2500)
     expect(out).toContain('"timedOut": true')
   })
+  test("a command's colour codes are stripped: a model and a finding read plain text", async () => {
+    const r = await Effect.runPromise(runCommand({ root: mkdtempSync(join(tmpdir(), "zarg-ansi-")), scope: {}, sensitive: [] }, ["bash", "-c", "printf '\\033[31m✗\\033[0m fail\\n' >&2; printf '\\033[1mok\\033[0m'"], 10_000))
+    expect(r.stdout).toBe("ok")
+    expect(r.stderr.trim()).toBe("✗ fail")
+  })
   test("a command that kills itself is not reported as a timeout", async () => {
     const [out] = await run(['return yield* Sh.run({ command: "kill -9 $$", timeoutMs: 5000 })'])
     expect(out).toContain('"timedOut": false')

@@ -18,6 +18,8 @@ export interface CoreContext {
 
 const fail = (_tag: string, message: string): ServiceFailure => ({ _tag, message })
 const clip = (text: string, max = 32_768) => (text.length <= max ? text : `${text.slice(0, max / 2)}\n… [${text.length - max} characters cut] …\n${text.slice(-max / 2)}`)
+/** Terminal colour and cursor codes: noise to a model and to the operator reading a finding. */
+export const stripAnsi = (text: string) => text.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "")
 
 /**
  * The real path of `rel`, following symlinks. For a path that does not exist yet (a write),
@@ -190,8 +192,8 @@ export const runCommand = (ctx: CoreContext, argv: ReadonlyArray<string>, timeou
       return {
         exitCode,
         timedOut,
-        stdout: clip(redact(stdout, ctx.sensitive)),
-        stderr: clip(redact(stderr, ctx.sensitive)),
+        stdout: clip(redact(stripAnsi(stdout), ctx.sensitive)),
+        stderr: clip(redact(stripAnsi(stderr), ctx.sensitive)),
       }
     },
     catch: (e) => fail("CommandFailed", e instanceof Error ? e.message : String(e)),
