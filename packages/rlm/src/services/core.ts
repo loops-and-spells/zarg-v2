@@ -18,6 +18,30 @@ export interface CoreContext {
 
 const fail = (_tag: string, message: string): ServiceFailure => ({ _tag, message })
 const clip = (text: string, max = 32_768) => (text.length <= max ? text : `${text.slice(0, max / 2)}\n… [${text.length - max} characters cut] …\n${text.slice(-max / 2)}`)
+/**
+ * A check's output as an agent reads it: whole when short; else the failing lines (with a little context) and the end
+ * (the summary). Its plain tail was all Postgres notices, and a fix agent never saw what failed.
+ */
+export const failureFocus = (text: string, max = 8000) => {
+  if (text.length <= max) return text
+  const lines = text.split("\n")
+  const hit = (l: string) => /✗|\(fail\)|\bFAIL\b|\bfail(ed|s|ure)?\b|\berror\b|Error|Expected|Received/.test(l)
+  const keep = new Set<number>()
+  lines.forEach((l, i) => {
+    if (hit(l)) for (let k = Math.max(0, i - 2); k <= Math.min(lines.length - 1, i + 6); k++) keep.add(k)
+  })
+  for (let k = Math.max(0, lines.length - 40); k < lines.length; k++) keep.add(k)
+  const out: Array<string> = []
+  let last = -2
+  for (const i of [...keep].sort((a, b) => a - b)) {
+    if (i !== last + 1) out.push("…")
+    out.push(lines[i]!)
+    last = i
+  }
+  const s = out.join("\n")
+  return s.length <= max ? s : s.slice(-max)
+}
+
 /** Terminal colour and cursor codes: noise to a model and to the operator reading a finding. */
 export const stripAnsi = (text: string) => text.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "")
 
@@ -187,7 +211,8 @@ export const fs = (ctx: CoreContext): Bound =>
 
 /** Run a command with a deadline, a scrubbed env and redacted, capped output. */
 // @scenario S-0045 S-0047
-export const runCommand = (ctx: CoreContext, argv: ReadonlyArray<string>, timeoutMs: number) =>
+// `shape` keeps what matters of a long output (default: its start and end; a check: its failures and summary).
+export const runCommand = (ctx: CoreContext, argv: ReadonlyArray<string>, timeoutMs: number, shape: (text: string) => string = clip) =>
   Effect.tryPromise({
     try: async (signal) => {
       // setsid puts the command in its own process group, so a timeout kills everything it started;
@@ -219,8 +244,8 @@ export const runCommand = (ctx: CoreContext, argv: ReadonlyArray<string>, timeou
       return {
         exitCode,
         timedOut,
-        stdout: clip(redact(stripAnsi(stdout), ctx.sensitive)),
-        stderr: clip(redact(stripAnsi(stderr), ctx.sensitive)),
+        stdout: shape(redact(stripAnsi(stdout), ctx.sensitive)),
+        stderr: shape(redact(stripAnsi(stderr), ctx.sensitive)),
       }
     },
     catch: (e) => fail("CommandFailed", e instanceof Error ? e.message : String(e)),
@@ -265,8 +290,8 @@ export const VerifyDef = defineService("Verify", "The repository's verify gate."
 export const verify = (ctx: CoreContext, command: ReadonlyArray<string> = ["mise", "run", "verify"], timeoutMs = 600_000): Bound =>
   bind(VerifyDef, {
     run: () =>
-      Effect.map(runCommand(ctx, command, timeoutMs), (r) => ({
+      Effect.map(runCommand(ctx, command, timeoutMs, (t) => failureFocus(t, 16_000)), (r) => ({
         passed: r.exitCode === 0,
-        output: `${r.stdout}\n${r.stderr}`.trim().slice(-8000),
+        output: failureFocus(`${r.stdout}\n${r.stderr}`.trim()),
       })),
   })

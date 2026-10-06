@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Fiber } from "effect"
 import { Kernel } from "@zarg/kernel"
-import { editOnce, fs, fsRead, runCommand, servicesRefusal, sh } from "../src"
+import { editOnce, failureFocus, fs, fsRead, runCommand, servicesRefusal, sh } from "../src"
 
 let base = ""
 let root = ""
@@ -67,6 +67,16 @@ describe("Sh deadlines", () => {
     const [out] = await run(['return yield* Sh.run({ command: "sleep 5; echo x", timeoutMs: 500 })'])
     expect(Date.now() - started).toBeLessThan(2500)
     expect(out).toContain('"timedOut": true')
+  })
+  test("a long check output keeps its failures and its summary, not pages of notices", () => {
+    const notice = "{\n  severity: \"NOTICE\",\n  message: \"relation already exists, skipping\",\n}\n"
+    const text = `${notice.repeat(300)}✗ lists open sessions newest first\nExpected: 2\nReceived: 1\n${notice.repeat(300)} 53 pass\n 1 fail\n`
+    const out = failureFocus(text, 4000)
+    expect(out.length).toBeLessThanOrEqual(4000)
+    expect(out).toContain("✗ lists open sessions newest first")
+    expect(out).toContain("Received: 1")
+    expect(out).toContain(" 1 fail")
+    expect(failureFocus("short")).toBe("short")
   })
   test("an edit changes the one place its old text is, or says why it cannot", async () => {
     expect(editOnce("a\nb\nc\n", "b\n", "B\n")).toEqual({ text: "a\nB\nc\n" })

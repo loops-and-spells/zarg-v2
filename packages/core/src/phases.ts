@@ -8,7 +8,7 @@ import type { Bound } from "@zarg/kernel"
 import { ConfigError, redact, type SensitiveValue } from "@zarg/model"
 import { PluginHost } from "@zarg/plugin/server"
 import { type Findings, GRAPH, gitRun, type ItemOutcome, type ReconcileSpec } from "@zarg/reconcile"
-import { entitiesService, fs, fsRead, graph, type Rlm, runCommand, type Scope, sh, verify } from "@zarg/rlm"
+import { entitiesService, failureFocus, fs, fsRead, graph, type Rlm, runCommand, type Scope, sh, verify } from "@zarg/rlm"
 
 /** `[reconcile]` in `.zarg/config.toml`. */
 export const ReconcileConfig = Schema.Struct({
@@ -240,7 +240,7 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
         return { text: yield* host.render(new Set([item])), around, title: String(node?.props.title ?? item), hash: node ? hash(node) : "" }
       }),
     )
-  const command = (cwd: string, script: string) => runCommand({ root: cwd, scope: {}, sensitive: deps.sensitive }, ["bash", "-c", script], 1_800_000)
+  const command = (cwd: string, script: string, shape?: (text: string) => string) => runCommand({ root: cwd, scope: {}, sensitive: deps.sensitive }, ["bash", "-c", script], 1_800_000, shape)
 
   return {
     repo: deps.repo,
@@ -295,7 +295,7 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
     ...(deps.settings.setup !== undefined ? { setup: (cwd: string) => Effect.asVoid(Effect.orDie(command(cwd, deps.settings.setup!))) } : {}),
     onRemoved: (items, cwd) => Effect.sync(() => items.forEach((i) => rmSync(join(cwd, planPath(i)), { force: true }))),
     verify: (cwd) =>
-      Effect.map(Effect.orDie(command(cwd, deps.settings.verify)), (r) => ({ passed: r.exitCode === 0, output: `${r.stdout}\n${r.stderr}`.trim().slice(-8000) })),
+      Effect.map(Effect.orDie(command(cwd, deps.settings.verify, (t) => failureFocus(t, 16_000))), (r) => ({ passed: r.exitCode === 0, output: failureFocus(`${r.stdout}\n${r.stderr}`.trim()) })),
     // @scenario S-0023
     fix: (cwd, output, attempt) =>
       run(
