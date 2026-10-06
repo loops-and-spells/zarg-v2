@@ -75,6 +75,15 @@ describe("Rlm.exec", () => {
     expect(r.seen[1]!.messages.at(-1)?.content).toContain("InvalidResult")
   })
 
+  test("an empty cell is an error that says what is missing, not an ok: a driver once sent 24 of them in a row", async () => {
+    const r = await run(
+      { research: [{ cell: "" }, { cell: 'yield* Rlm.done({ value: { findings: [], sources: [] } })' }] },
+      { task: "t", preset: "research", scope },
+    )
+    expect(ok(r).turns).toBe(2)
+    expect(r.seen[1]!.messages.at(-1)?.content).toStartWith('error: the cell is empty: exec takes {"code": "<TypeScript>"}')
+  })
+
   test("a text result given as its lines is that text, one per line: the run finishes instead of spending turns on the shape", async () => {
     const r = await run(
       { planner: [{ cell: 'yield* Rlm.done({ value: { plan: ["## Approach", "Tag it."] } })' }] },

@@ -352,11 +352,21 @@ export const make = (deps: RlmDeps) =>
             }
             for (const call of calls) {
               let code = ""
+              let args: unknown
               try {
-                code = String((JSON.parse(call.function.arguments) as { code?: unknown }).code ?? "")
+                args = JSON.parse(call.function.arguments)
               } catch {
                 messages.push({ role: "tool", name: "exec", toolCallId: call.id, content: "error: exec arguments must be JSON {\"code\": string}" })
                 cells.push({ code: call.function.arguments, ok: false, output: "exec arguments must be JSON", ms: 0 })
+                continue
+              }
+              code = String((args as { code?: unknown } | null)?.code ?? "")
+              // An empty cell ran as "ok" and a driver sent 24 of them in a row: say what is missing instead.
+              if (code.trim() === "") {
+                const keys = args !== null && typeof args === "object" ? Object.keys(args) : []
+                const said = `error: the cell is empty: exec takes {"code": "<TypeScript>"}${keys.length > 0 ? `, and it got ${keys.map((k) => `"${k}"`).join(", ")}` : ""}. Put your cell's code in "code".`
+                messages.push({ role: "tool", name: "exec", toolCallId: call.id, content: said })
+                cells.push({ code: call.function.arguments, ok: false, output: said, ms: 0 })
                 continue
               }
               const cellStart = Date.now()
