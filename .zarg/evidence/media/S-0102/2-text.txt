@@ -1,3 +1,4 @@
 Add this to the requirements?
 
-O-0003 Parents can give points for finished chores.
+I-0001 A todo app for families
+- add outcome: Parents give points as a reward when a chore is finished.

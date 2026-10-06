@@ -1,1 +1,1 @@
-There are no requirements yet and no personas yet in this project, and no project files describe a start point. What can you tell me first: where a user starts and the first thing they do, and who this product is for (the tester, a command-line actor, or the product's own agents)?
+What is this product for, and who uses it? I have no project files or requirements to read, so what you say is what I write.

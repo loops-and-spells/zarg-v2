@@ -150,6 +150,20 @@ describe("forgiving drafts", () => {
     expect(out).toContain("S-0001")
   })
 
+  test("a new scenario joins its journeys as it is added (a draft cannot know its id to link it after)", async () => {
+    const out = await run(
+      Effect.gen(function* () {
+        yield* setup
+        yield* call("add-journey", { name: "Answering" })
+        yield* call("add-scenario", { title: "Operator answers", when: "the operator picks an option", by: [{ name: "Operator" }], in: ["Answering"], arrives: { id: "ST-0001" }, then: [{ text: "the answer is recorded" }] })
+        const missing = yield* Effect.flip(call("add-scenario", { title: "Operator skips", when: "the operator skips", by: [{ name: "Operator" }], in: ["Nowhere"], arrives: { id: "ST-0001" }, then: [{ text: "the answer is recorded" }] }))
+        return { edges: (yield* (yield* GraphStore).snapshot).nodes.get("S-0001")?.edges, missing: String((missing as { message?: string }).message) }
+      }),
+    )
+    expect(out.edges).toEqual(expect.arrayContaining([{ type: "gherkin/in", to: "J-0001" }]))
+    expect(out.missing).toContain('"Nowhere" is not a journey')
+  })
+
   test("linking what is already linked changes nothing and says so", async () => {
     const out = await run(
       Effect.gen(function* () {

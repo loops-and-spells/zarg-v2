@@ -1,117 +1,14 @@
 {
-  "title": "Parent sets a chore to repeat weekly and 1 more",
+  "title": "Parent sees the family chore list",
   "journey": "",
   "scenarios": [],
-  "changes": [
-    {
-      "tool": "add-persona",
-      "params": {
-        "name": "Parent",
-        "kind": "human",
-        "text": "A caregiver who manages the family's shared chores from a phone or laptop at home."
-      }
-    },
-    {
-      "tool": "add-journey",
-      "params": {
-        "name": "Weekly chore upkeep"
-      }
-    },
-    {
-      "tool": "add-scenario",
-      "params": {
-        "title": "Parent sets a chore to repeat weekly",
-        "when": "Parent marks a chore as repeat-weekly",
-        "by": [
-          {
-            "name": "Parent"
-          }
-        ],
-        "arrives": {
-          "text": "A chore list open at home"
-        },
-        "then": [
-          {
-            "text": "A weekly recurring chore exists"
-          },
-          {
-            "text": "Next week's copy is already created"
-          }
-        ],
-        "given": []
-      }
-    },
-    {
-      "tool": "link",
-      "params": {
-        "scenario": "S-0001",
-        "edge": "in",
-        "journey": {
-          "id": "J-0001"
-        }
-      }
-    },
-    {
-      "tool": "link",
-      "params": {
-        "edge": "serves",
-        "journey": {
-          "id": "J-0001"
-        },
-        "outcome": "O-0002"
-      }
-    },
-    {
-      "tool": "add-scenario",
-      "params": {
-        "title": "Parent sees next week's chores ready",
-        "when": "Parent opens the chore list the following week",
-        "by": [
-          {
-            "name": "Parent"
-          }
-        ],
-        "arrives": {
-          "text": "A chore list open at home"
-        },
-        "then": [
-          {
-            "text": "The recurring chore is present"
-          },
-          {
-            "text": "No entry was retyped this week"
-          }
-        ],
-        "given": [
-          {
-            "text": "A weekly recurring chore exists"
-          }
-        ]
-      }
-    },
-    {
-      "tool": "link",
-      "params": {
-        "scenario": "S-0002",
-        "edge": "in",
-        "journey": {
-          "id": "J-0001"
-        }
-      }
-    }
-  ],
+  "changes": [],
   "feedback": [],
   "steps": [
-    "Add Parent as the human actor named in the new scenarios",
-    "Create the journey 'Weekly chore upkeep'",
-    "Create S-0001: parent marks a chore repeat-weekly and a weekly chore plus next week's copy appear",
-    "Put S-0001 in journey J-0001",
-    "Make journey J-0001 serve outcome O-0002",
-    "Create S-0002: opening the list the following week shows the recurring chore with no retyping that week",
-    "Put S-0002 in journey J-0001"
+    "Separately, the parent checks the same family list for status. Not needed for the outcome but maybe the intent covers it?"
   ],
-  "serves": "gherkin/outcome:O-0002@bf62f6842034",
-  "id": "B-01",
+  "serves": "gherkin/outcome:O-0001@f5ebc0ef2fe2",
+  "id": "B-02",
   "status": "backlog",
   "events": [
     {

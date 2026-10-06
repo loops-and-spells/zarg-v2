@@ -162,6 +162,7 @@ export const addScenario = tool({
     title: Schema.NonEmptyString.annotate({ description: "Short: who does what." }),
     when: Schema.NonEmptyString.annotate({ description: "The one user action." }),
     by: Schema.optionalKey(Schema.Array(PersonaRef)).annotate({ description: "Who acts in the When: one or more personas (required)." }),
+    in: Schema.optionalKey(Schema.Array(JourneyRef)).annotate({ description: "The journeys it is in (existing ones), so a draft need not link it after." }),
     arrives: StateRef.annotate({ description: "The state the user is in before the action (the Given). In a journey it is where the scenario before it leads: that scenario's Then, by id." }),
     given: Schema.optionalKey(Schema.Array(StateRef)).annotate({ description: "Up to 3 extra context states (And) that also hold. Never the state the user arrives from: that is arrives." }),
     then: Schema.Array(StateRef).annotate({ description: "1-5 states the action leads to." }),
@@ -170,6 +171,7 @@ export const addScenario = tool({
     Effect.gen(function* () {
       if (p.by === undefined || p.by.length === 0) return yield* new ToolError({ message: `a scenario needs at least one persona in by; known: ${known(snap)}` })
       const by = yield* Effect.forEach(p.by, (ref) => personaOf(snap, ref))
+      const inJourneys = yield* Effect.forEach(p.in ?? [], (ref) => journeyOf(snap, ref))
       const r = resolver(snap)
       const arrives = yield* r.resolve(p.arrives)
       const given = yield* Effect.forEach(p.given ?? [], r.resolve)
@@ -181,6 +183,7 @@ export const addScenario = tool({
         props: { title: p.title, when: p.when },
         edges: [
           ...by.map((to) => ({ type: BY, to })),
+          ...[...new Set(inJourneys)].map((to) => ({ type: IN, to })),
           { type: ARRIVES, to: arrives },
           ...given.map((to) => ({ type: GIVEN, to })),
           ...then.map((to) => ({ type: THEN, to })),

@@ -11,6 +11,7 @@ const ASK_FIRST: ServiceFailure = {
 const JUDGED = "(Fix it, or show the same change again if it holds as it is: the developer then decides.)"
 const NO_DRAFT = "Show a scenario change with its draft too: Inquire.confirm({ change, draft }), the draft being the gherkin tool calls that write it (add-scenario, link, …), so the checks run before the developer sees it."
 const PICKED_HINT = "They picked an option that is a change: it is added. Write it now, as shown; no Inquire.confirm."
+const ADDED_HINT = "They added it: it is not written yet. Write it now, as shown (the draft's tool calls, in order); no Inquire.confirm."
 
 /** The change's first line; one that only heads it (ends with a colon) takes the next line too. */
 const headline = (change: string | undefined) => {
@@ -142,7 +143,9 @@ export const askFirst = (
       shownNodes = {}
       const seenNodes = nodes === undefined || (c.about ?? []).length === 0 ? Effect.succeed({}) : nodes(c.about ?? [])
       // Add with the operator's words (a reason) is what to change, not a yes.
-      const asked = Effect.map(asker.ask(confirmQuestion(c)), (a) => (a.choice === "add" && (a.other ?? "").trim() !== "" ? { other: a.other! } : a))
+      const asked = Effect.map(asker.ask(confirmQuestion(c)), (a) =>
+        a.choice !== "add" || a.interjected === true ? a : (a.other ?? "").trim() !== "" ? { other: a.other! } : { ...a, hint: ADDED_HINT },
+      )
       return Effect.tap(Effect.tap(Effect.tap(seenNodes, (n) => Effect.sync(() => void (shownNodes = n))).pipe(Effect.andThen(seen)), (v) => Effect.sync(() => void (shown = v))).pipe(Effect.andThen(asked)), (a) =>
         Effect.sync(() => {
           if (a.interjected === true && a.question !== undefined) (confirms.add(a.question), changes.set(a.question, c.change))
