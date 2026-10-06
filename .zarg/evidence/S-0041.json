@@ -1,13 +1,13 @@
 {
   "scenario": "S-0041",
   "version": "85196d3ea738",
-  "commit": "2582d654",
-  "run": "e2e-2026-10-06T07-58-10.399Z",
+  "commit": "282f2677",
+  "run": "e2e-2026-10-06T08-36-10.116Z",
   "journey": "J-0003",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-06T07:58:17.187Z",
-  "ms": 1108,
+  "at": "2026-10-06T08:36:16.885Z",
+  "ms": 1107,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -38,6 +38,6 @@
   ],
   "failure": null,
   "code": {
-    "packages/view-tui/src/view.ts": "4af88d413b986c56dd6c60f808f290a945dd143b"
+    "packages/view-tui/src/view.ts": "9285f1fdf5fa13077d39e615198ba195e11bce5d"
   }
 }

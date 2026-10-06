@@ -1,5 +1,5 @@
 {
   "installed": "probe",
-  "dir": "/tmp/zarg-e2e-N2jwOj/user/plugins/probe/f1471064d575600ce028f39f6412ded4b6b78636ba4b062b27bc3f026abb7bce",
+  "dir": "/tmp/zarg-e2e-Qlpzk0/user/plugins/probe/f1471064d575600ce028f39f6412ded4b6b78636ba4b062b27bc3f026abb7bce",
   "next": "list it in .zarg/config.toml as [plugins.probe] source = \"/home/demiurge/Git/zarg-v2/.claude/worktrees/operate/packages/e2e/fixtures/probe/dist\", then approve it with `zarg plugin grant probe`"
 }
