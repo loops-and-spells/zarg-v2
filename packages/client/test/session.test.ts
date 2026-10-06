@@ -113,7 +113,7 @@ describe("session", () => {
     const s = makeSession({ client: f.client, threadId: "main" })
     s.start()
     await tick(1500)
-    expect(s.state()).toMatchObject({ core: "down", notice: "core stopped: core is not reachable" })
+    expect(s.state()).toMatchObject({ core: "down", notice: "core stopped: core is not reachable (what it said last: .zarg/run/core.log)" })
     s.close()
   })
 

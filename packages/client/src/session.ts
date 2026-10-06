@@ -97,7 +97,7 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
         if (received) attempt = 0
         return attempt < RETRIES
           ? Effect.andThen(Effect.sleep(200 * (attempt + 1)), follow(attempt + 1))
-          : Effect.sync(() => set({ ...state, core: "down", notice: `core stopped${typeof problem === "string" ? `: ${problem}` : ""}` }))
+          : Effect.sync(() => set({ ...state, core: "down", notice: `core stopped${typeof problem === "string" ? `: ${problem}` : ""} (what it said last: .zarg/run/core.log)` }))
       }),
     )
   }
