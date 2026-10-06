@@ -50,7 +50,9 @@ export const startReconciler = (opts: ReconcilerOptions) => {
     const key = `${graph}:${branch}@${base}`
     const attempt = attempts.get(key) ?? 0
     const result = yield* opts.execute({ graph, branch, base, attempt })
-    if (result.status === "failed") {
+    // Any scenario left failed is tried again next time: the same key would replay this result (a pass that built
+    // nothing moves no HEAD, and S-0006 was "not built" from the cache forever).
+    if (result.status === "failed" || (result.failed?.length ?? 0) > 0) {
       attempts.set(key, attempt + 1)
       ensureIgnored(opts.repo)
       writeFileSync(file, JSON.stringify(Object.fromEntries(attempts)))

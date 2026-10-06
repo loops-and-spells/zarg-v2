@@ -88,6 +88,22 @@ describe("reconciler", () => {
     expect(seen).toEqual([0, 1])
   })
 
+  test("a pass that built nothing (a scenario left failed, HEAD unmoved) is tried again under a new attempt, not replayed", async () => {
+    const r = repo()
+    writeNode(r, state("ST-0001", "home"))
+    const seen: Array<number> = []
+    const run = async () => {
+      const done: Array<string> = []
+      const rec = startReconciler({ repo: r, quietMs: 20, findings: stubSpec(r).findings, execute: (p) => Effect.sync(() => (seen.push(p.attempt), { status: "landed", landed: [], failed: ["S-0006"] }) as never), onResult: (x) => done.push(x.status) })
+      rec.notify()
+      await until(() => done.length > 0)
+      rec.close()
+    }
+    await run()
+    await run()
+    expect(seen).toEqual([0, 1])
+  })
+
   test("a checkout it cannot land on (detached HEAD) raises a finding instead of running", async () => {
     const r = repo()
     sh(r, "git checkout -q --detach")
