@@ -137,6 +137,15 @@ describe("conversation, agents and status", () => {
     ])
     expect(statusLine(s, { threadId: "main", driver: "zarg-router:deepseek", mode: "child" })).toBe("core stopped · error · thread main · zarg-router:deepseek")
   })
+  test("a notice stays where it came: messages after it go below it", () => {
+    const s: SessionState = {
+      thread: { ...initial("main"), messages: [{ id: "1", role: "user", text: "drop it" }, { id: "2", role: "user", text: "next" }] },
+      core: "up",
+      notice: "B-03 dropped",
+      noticeAt: 1,
+    }
+    expect(conversation(s).map((l) => l.text)).toEqual(["drop it", "B-03 dropped", "next"])
+  })
 })
 
 describe("the agents pane", () => {

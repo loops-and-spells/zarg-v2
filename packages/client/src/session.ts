@@ -2,6 +2,9 @@ import { Effect, Fiber, Stream } from "effect"
 import type { Client, CoreError, PluginCommandInfo, RunRequest } from "./client"
 import type { Answer } from "./events"
 import { initial, reduce, type ThreadState } from "./state"
+import { zargConversation } from "./zarg-view"
+
+const talkLength = (t: ThreadState) => (zargConversation(t).data.talk as { messages?: ReadonlyArray<unknown> } | undefined)?.messages?.length ?? 0
 
 /** Commands the session handles itself. */
 const BUILT_IN = new Set(["/reconcile", "/yolo"])
@@ -12,6 +15,8 @@ export interface SessionState {
   readonly core: "up" | "down"
   /** The last transport problem (a refused run, a lost stream), shown to the operator. */
   readonly notice?: string
+  /** How many of zarg's messages there were when the notice came: it shows there, not after every later message. */
+  readonly noticeAt?: number
 }
 
 export interface Session {
@@ -65,7 +70,8 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
   let pluginCommands: ReadonlyArray<PluginCommandInfo> = []
   const listeners = new Set<() => void>()
   const set = (next: SessionState) => {
-    state = next
+    // A new notice is pinned where the conversation is now.
+    state = next.notice !== undefined && next.notice !== state.notice ? { ...next, noticeAt: talkLength(next.thread) } : next
     for (const l of listeners) l()
   }
   const fibers = new Set<Fiber.Fiber<unknown, unknown>>()

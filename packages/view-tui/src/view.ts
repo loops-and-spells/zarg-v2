@@ -392,11 +392,14 @@ export interface Line {
 }
 
 /** zarg's conversation: its section's messages, then the run error and any transport notice. */
-export const conversation = (s: SessionState): ReadonlyArray<Line> => [
-  ...(zargConversation(s.thread).data.talk as { messages: ReadonlyArray<{ role: string; text: string }> }).messages.map((m): Line => ({ kind: m.role === "user" ? "you" : "zarg", text: m.text })),
-  ...(s.thread.error !== undefined ? [{ kind: "error" as const, text: `${s.thread.error.code ?? "error"}: ${s.thread.error.message}` }] : []),
-  ...(s.notice !== undefined ? [{ kind: "notice" as const, text: s.notice }] : []),
-]
+export const conversation = (s: SessionState): ReadonlyArray<Line> => {
+  const talk = (zargConversation(s.thread).data.talk as { messages: ReadonlyArray<{ role: string; text: string }> }).messages.map((m): Line => ({ kind: m.role === "user" ? "you" : "zarg", text: m.text }))
+  const error = s.thread.error !== undefined ? [{ kind: "error" as const, text: `${s.thread.error.code ?? "error"}: ${s.thread.error.message}` }] : []
+  const notice = s.notice !== undefined ? [{ kind: "notice" as const, text: s.notice }] : []
+  // The notice where it came: messages after it go after it, not under it every time.
+  const at = s.noticeAt ?? talk.length
+  return at < talk.length ? [...talk.slice(0, at), ...notice, ...talk.slice(at), ...error] : [...talk, ...error, ...notice]
+}
 
 const idNumber = (id: string) => Number(/(\d+)$/.exec(id)?.[1] ?? 0)
 
