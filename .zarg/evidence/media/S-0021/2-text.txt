@@ -1,66 +1,36 @@
 diff --git a/src/chores.ts b/src/chores.ts
-index 8e78d42..7f6f738 100644
+index 8e78d42..144bb52 100644
 --- a/src/chores.ts
 +++ b/src/chores.ts
-@@ -1 +1,13 @@
+@@ -1 +1,7 @@
++// @scenario S-0001
  export const assign = (chores: ReadonlyArray<string>, chore: string) => [...chores, chore]
 +
-+// @scenario S-0001 — after an assignment, the child sees the new chore (ST-0002)
-+export const childView = (chores: ReadonlyArray<string>) => [...chores]
++// @scenario S-0002
++export const remove = (chores: ReadonlyArray<string>, chore: string) =>
++  chores.filter((current) => current !== chore)
 +
-+// @scenario S-0001 — the parent sees the family's chores; this shared list is the entry state (ST-0001)
-+export const parentView = (chores: ReadonlyArray<string>) => [...chores]
-+
-+// @scenario S-0002 — Parent removes a chore
-+// the chore leaves every list, including the child view (ST-0003)
-+export function remove(chores: ReadonlyArray<string>, chore: string): ReadonlyArray<string> {
-+  return chores.filter((c) => c !== chore)
-+}
-\ No newline at end of file
 diff --git a/test/chores.test.ts b/test/chores.test.ts
-index 1596ebe..7772e62 100644
+index 1596ebe..479e188 100644
 --- a/test/chores.test.ts
 +++ b/test/chores.test.ts
-@@ -1,6 +1,40 @@
+@@ -1,6 +1,18 @@
  import { expect, test } from "bun:test"
 -import { assign } from "../src/chores"
-+import { assign, childView, parentView, remove } from "../src/chores"
++import { assign, remove } from "../src/chores"
  
++// @scenario S-0001
  test("a chore is assigned", () => {
    expect(assign([], "dishes")).toEqual(["dishes"])
  })
 +
-+// @scenario S-0001 — the parent sees the family's chores (ST-0001)
-+test("the parent sees the family's chores", () => {
-+  expect(parentView(["dishes", "trash"])).toEqual(["dishes", "trash"])
-+})
-+
-+// @scenario S-0001 — the child sees the new chore (ST-0002)
-+test("the child sees the new chore", () => {
-+  const chores = assign([], "dishes")
-+  expect(childView(chores)).toEqual(["dishes"])
-+})
-+
-+// @scenario S-0001 / S-0002 — the chore leaves every list (ST-0003)
-+test("the chore leaves every list", () => {
-+  const chores = assign(["dishes", "trash"], "dishes")
-+  const after = remove(chores, "dishes")
-+  expect(parentView(after)).toEqual(["trash"])
-+  expect(childView(after)).toEqual(["trash"])
-+})
-+
-+// @scenario S-0002 — Then the chore leaves every list
++// @scenario S-0002
 +test("a chore is removed from every list", () => {
-+  expect(remove(assign([], "dishes"), "dishes")).toEqual([])
++  const lists: ReadonlyArray<ReadonlyArray<string>> = [
++    ["dishes", "trash"],
++    ["dishes", "laundry"],
++  ]
++  for (const list of lists) {
++    expect(remove(list, "dishes")).not.toContain("dishes")
++  }
 +})
-+
-+// @scenario S-0002 — Only the named chore departs
-+test("removing a chore keeps the others", () => {
-+  expect(remove(["dishes", "trash"], "dishes")).toEqual(["trash"])
-+})
-+
-+// @scenario S-0002 — Safe on lists that never held it
-+test("removing an absent chore changes nothing", () => {
-+  expect(remove(["trash"], "dishes")).toEqual(["trash"])
-+})
-\ No newline at end of file

@@ -1,1 +1,1 @@
-This graph has no requirements yet. What is this product for, and who uses it?
+No requirements yet and no personas, journeys, scenarios or states: what is this product for, and where does a user start with their first action? Write it in your words (one idea for what it is for; the Given, the When, the Thens of the first scenario). Who meets the product: name them too.

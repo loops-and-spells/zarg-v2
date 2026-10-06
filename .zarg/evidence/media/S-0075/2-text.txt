@@ -8,16 +8,17 @@
   ▤ Intents            │                                                                                                
                        │                                                                                                
  AGENTS              1 │                                                                                                
-  ⠙ zarg           0/0 │                                                                                                
+  ⠇ zarg           0/0 │                                                                                                
                        │                                                                                                
                        │                                                                                                
                        │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
                        │     zarg   esc closes                                                                          
+                       │     ·  answered                                                                                
                        │     you  A parent                                                                              
-                       │     you  Add it                                                                                
+                       │     you  Write it                                                                              
                        │     zarg  You picked parent.                                                                   
                        │     you  the chores board                                                                      
-                       │     you  Add it                                                                                
+                       │     you  Write it                                                                              
                        │     zarg  Saved                                                                                
                        │                                                                                                
                        │                                                                                                
@@ -27,8 +28,7 @@
                        │           1     saved                                                                          
                        │                                                                                                
                        │           zarg keeps it.                                                                       
-                       │     ·  answered                                                                                
-                       │     ⠙ zarg is preparing a reply · 0:00                                                         
+                       │     ⠇ zarg is preparing a reply · 0:00                                                         
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                

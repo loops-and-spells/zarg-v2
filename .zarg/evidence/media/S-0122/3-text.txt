@@ -3,12 +3,12 @@
    project · main      │  ▍◆ zarg          S-0002 cannot be planned: reword i…  question · waiting · 2 options  now     
                        │   · zarg          S-0002 cannot be implemented as written  finding  now                        
  VIEWS               3 │                                                                                                
-▍ ◆ Inbox            2 │                                                                                                
+▍ ◇ Inbox            2 │                                                                                                
   ▤ Journeys           │                                                                                                
   ▤ Intents            │                                                                                                
                        │                                                                                                
  AGENTS             ◆1 │                                                                                                
-  ◆ zarg          asks │                                                                                                
+  ◇ zarg          asks │                                                                                                
   └ ⠼ driver 1    1/25 │                                                                                                
   ✗ build       failed │                                                                                                
                        │                                                                                                

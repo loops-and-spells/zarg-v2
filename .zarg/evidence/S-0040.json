@@ -1,13 +1,13 @@
 {
   "scenario": "S-0040",
   "version": "6f02dbbcaac5",
-  "commit": "794bd67d",
-  "run": "e2e-2026-10-06T02-23-01.922Z",
+  "commit": "5f6a732d",
+  "run": "e2e-2026-10-06T09-34-57.055Z",
   "journey": "J-0003",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-06T02:23:08.708Z",
-  "ms": 6,
+  "at": "2026-10-06T09:35:03.835Z",
+  "ms": 4,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -39,6 +39,6 @@
   "failure": null,
   "code": {
     "packages/core/src/activity.ts": "091cebada58d39331922b481831f3375ef001347",
-    "packages/view-tui/src/rail.ts": "17d0ab9638c362dc6d26ab93247ce4117d30c361"
+    "packages/view-tui/src/rail.ts": "d4338dde444e7cd1f212d664d5d019162bc012f9"
   }
 }

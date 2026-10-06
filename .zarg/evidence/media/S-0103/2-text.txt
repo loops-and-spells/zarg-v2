@@ -1,8 +1,16 @@
 {
-  "title": "Parent repeats chores weekly",
+  "title": "Parent sets a chore to repeat weekly and 1 more",
   "journey": "",
   "scenarios": [],
   "changes": [
+    {
+      "tool": "add-persona",
+      "params": {
+        "name": "Parent",
+        "kind": "human",
+        "text": "A parent of the family who reaches the todo app from a phone at home"
+      }
+    },
     {
       "tool": "add-journey",
       "params": {
@@ -10,18 +18,10 @@
       }
     },
     {
-      "tool": "add-persona",
-      "params": {
-        "name": "Parent",
-        "kind": "human",
-        "text": "A parent who runs the family to-do list from a phone"
-      }
-    },
-    {
       "tool": "add-scenario",
       "params": {
-        "title": "Parent repeats chores weekly",
-        "when": "Parent marks a chore as weekly",
+        "title": "Parent sets a chore to repeat weekly",
+        "when": "marks one chore to repeat weekly",
         "by": [
           {
             "name": "Parent"
@@ -33,11 +33,11 @@
           }
         ],
         "arrives": {
-          "text": "A chore list with no weekly entry"
+          "text": "A chore list"
         },
         "then": [
           {
-            "text": "That chore appears every week"
+            "text": "The same chore appears next week"
           },
           {
             "text": "No retyping is needed"
@@ -54,14 +54,25 @@
         },
         "outcome": "O-0002"
       }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "scenario": "S-0001",
+        "edge": "then",
+        "state": {
+          "text": "The same chore appears next week"
+        }
+      }
     }
   ],
   "feedback": [],
   "steps": [
-    "Add the Weekly chores journey",
-    "Add the Parent persona",
-    "Add the scenario where the parent marks a chore as weekly",
-    "Link that journey to outcome O-0002"
+    "Add Parent persona",
+    "Add Weekly chores journey",
+    "Add Parent sets a chore to repeat weekly scenario",
+    "Link Weekly chores journey to O-0002",
+    "Link The same chore appears next week then"
   ],
   "serves": "gherkin/outcome:O-0002@bf62f6842034",
   "id": "B-01",

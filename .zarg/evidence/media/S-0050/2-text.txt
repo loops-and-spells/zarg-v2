@@ -1,3 +1,3 @@
-Landed S-0001, S-0002 in 203ee66.
-Landed S-0002 in 924328e.
-Landing waits on your uncommitted edits in .zarg/plans/S-0001.md, src/chores.ts: commit or stash them (try 1 of 2, again in 3s).
+Landed S-0001, S-0002 in 92f64b8.
+Landed S-0002 in 759ffb5.
+Landing waits on your uncommitted edits in .zarg/plans/S-0001.md: commit or stash them (try 1 of 2, again in 3s).
