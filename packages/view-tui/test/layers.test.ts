@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { initial, type Inquiry, type SessionState } from "@zarg/client"
 import { onKey, SHELL } from "../src/layers"
 import { hintsOf, startUi } from "@zarg/view"
-import { barLine, closeOverlays, initialUi, panelsShown, POPOVER_GUARD_MS, queueOf, syncUi, type Ui } from "../src/view"
+import { barLine, closeOverlays, INBOX_ROW, initialUi, panelsShown, POPOVER_GUARD_MS, queueOf, syncUi, type Ui } from "../src/view"
 
 const inquiry: Inquiry = { id: "inq-1", question: "Which card first?", options: [{ id: "a", label: "Login" }, { id: "b", label: "Checkout", recommended: true }], allowOther: true, about: [] }
 const grant = (id: string) => ({ id, question: `Plugin ${id} wants to load.`, options: [{ id: "always", label: "Allow" }, { id: "deny", label: "Not now" }], kind: "grant" as const })
@@ -152,6 +152,30 @@ describe("surfaces in the shell", () => {
     const menu = { ...ui, view: { ...startUi(views["two:t1"] as never), menu: { path: "x", col: 0, pick: 0 } } } as never
     expect(onKey(menu, s, key("escape"), 0).ui.closedPanels).toEqual([])
   })
+  test("a drawer's own keys work while the view keeps the keys (its buttons need no Alt+arrow first); the view's keys stay the view's", () => {
+    const item = { agent: "two:t1@item", layout: { name: "item", sections: [{ id: "body", kind: "text" as const, role: "primary" as const }], actions: [{ id: "drop", label: "Drop", key: "X", on: "none" as const }, { id: "move", label: "Move ▾", key: "m", on: "none" as const, choices: [{ id: "ready", label: "Ready" }] }] }, data: {} }
+    const drawer = { ...panel("onFocus", "right"), id: "two:item:two:t1", view: "two:t1@item", overlay: true }
+    const s = with_({ panels: [drawer], views: { ...views, "two:t1@item": item } as never })
+    const ui = at({ main: "agent", focus: "tile", viewing: "two:t1" })
+    expect(onKey(ui, s, key("x", { shift: true }), 0).action).toMatchObject({ type: "act", action: "drop", view: "two:t1@item" })
+    expect(onKey(ui, s, key("a"), 0).action).toMatchObject({ type: "act", action: "apply", view: "two:t1" })
+    // Move ▾ opens its menu in the drawer, which takes the keys (as a click on the button does).
+    const moved = onKey(ui, s, key("m"), 0).ui
+    expect(moved).toMatchObject({ focus: "panel", panel: "two:item:two:t1" })
+    expect(moved.panelView?.choose).toBeDefined()
+  })
+  test("Esc in a plugin's sheet or panel first leaves a search, a line being typed or a dropdown; only then closes it", () => {
+    const searching = { ...startUi(views["two:t1"] as never), searching: "rows" }
+    const sheet = at({ main: "agent", focus: "tile", sheet: true, sheetOf: "two:t1", viewing: "two:t1", sheetView: searching } as never)
+    const r = onKey(sheet, with_({}), key("escape"), 0).ui
+    expect(r.sheet).toBe(true)
+    expect(r.sheetView?.searching).toBeUndefined()
+    const s = with_({ panels: [panel("onFocus")] })
+    const inPanel = at({ main: "agent", focus: "panel", panel: "two:status:two:t1", viewing: "two:t1", panelView: { ...startUi(views["two:t1"] as never), input: { action: "x", section: "rows", rows: [], text: "" } } } as never)
+    const p = onKey(inPanel, s, key("escape"), 0).ui
+    expect(p.focus).toBe("panel")
+    expect(p.panelView?.input).toBeUndefined()
+  })
   test("a plugin's sheet takes its view's keys; Esc closes it", () => {
     const ui = at({ main: "agent", focus: "tile", sheet: true, sheetOf: "two:t1", viewing: "two:t1" })
     expect(onKey(ui, with_({}), key("a"), 0).action).toMatchObject({ type: "act", action: "apply", agent: "two:t1" })
@@ -199,6 +223,14 @@ describe("focus review fixes (keys)", () => {
     const keys = hintsOf(SHELL, ui, { s: withView, now: 0, draft: "" }).map((h) => `${h.keys} ${h.does}`)
     expect(keys).toEqual(["Esc back"])
   })
+  test("a view of several sections hints [ ] between them, in the tile and in a plugin's sheet", () => {
+    const two = { agent: "p:t1", layout: { name: "t", sections: [{ id: "a", kind: "table" as const, role: "primary" as const, columns: [] }, { id: "b", kind: "table" as const, role: "primary" as const, columns: [] }] }, data: {} }
+    const s: SessionState = { ...idle, thread: { ...idle.thread, views: { "p:t1": two } } }
+    const tile = hintsOf(SHELL, at({ main: "agent", focus: "tile", viewing: "p:t1" }), { s, now: 0, draft: "" }).map((h) => `${h.keys} ${h.does}`)
+    expect(tile).toContain("[ ] section")
+    const sheet = hintsOf(SHELL, at({ focus: "tile", sheet: true, sheetOf: "p:t1" }), { s, now: 0, draft: "" }).map((h) => `${h.keys} ${h.does}`)
+    expect(sheet).toContain("[ ] section")
+  })
   test("the palette's highlight stays on the ten entries it shows", () => {
     const many = { ...idle, thread: { ...idle.thread, rlms: Object.fromEntries(Array.from({ length: 14 }, (_, i) => [`p:t${i}`, { id: `p:t${i}`, parent: null, preset: "tester", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }])) } }
     let ui = at({ palette: { query: "", pick: 0 } })
@@ -214,4 +246,55 @@ test("a focused toggle table says on the status line that space flips a row; a b
   const hints = (s: SessionState) => hintsOf(SHELL, at as never, { s, now: 0, draft: "" }, 6)
   expect(hints(withToggle("toggle"))).toEqual(expect.arrayContaining([{ keys: "Space", does: "flip" }]))
   expect(hints(withToggle("board"))).toEqual(expect.arrayContaining([{ keys: "z Z", does: "fold" }, { keys: "⇧←→", does: "move" }]))
+})
+
+test("typing a letter at zarg's question starts Say it in your own words with it: nothing typed goes to other keys", () => {
+  const r = onKey(at({ focus: "bar" }), asking, { name: "i", sequence: "I", shift: true } as never, 0, "")
+  expect(r.by).toBe("picker")
+  expect(r.ui.other).toBe(true)
+  expect(r.ui.focus).toBe("bar")
+  expect(r.draft).toBe("I")
+  // g (go to attention elsewhere) is a letter too while zarg asks.
+  expect(onKey(at({ focus: "bar" }), asking, { name: "g", sequence: "g" } as never, 0, "").draft).toBe("g")
+  // Digits still pick an answer; arrows still move.
+  expect(onKey(at({ focus: "bar" }), asking, key("down"), 0, "").ui.other).not.toBe(true)
+})
+
+test("a number at zarg's question answers that option, as in the inbox", () => {
+  const r = onKey(at({ focus: "bar" }), asking, key("2"), 0, "")
+  expect(r.action).toEqual({ type: "answer", answer: { choice: "b" } })
+  // No option 9: nothing happens.
+  expect(onKey(at({ focus: "bar" }), asking, key("9"), 0, "").action).toBeUndefined()
+})
+
+test("the rail's arrows reach the Inbox above the views; Enter there goes home", () => {
+  const navved: SessionState = { ...idle, thread: { ...idle.thread, nav: [{ id: "gherkin", label: "Journeys", view: "gherkin:journeys" }] } as never }
+  const atJourneys = at({ focus: "agents", main: "agent", viewing: "gherkin:journeys", agents: { toggled: {}, tree: 0, cursor: "nav:gherkin" } })
+  const up = onKey(atJourneys, navved, key("up"), 0)
+  expect(up.ui.agents.cursor).toBe(INBOX_ROW)
+  const home = onKey(up.ui, navved, key("return"), 0)
+  expect(home.ui.main).toBe("inbox")
+  expect(home.ui.focus).toBe("tile")
+  // Down from the Inbox: the first view.
+  expect(onKey(up.ui, navved, key("down"), 0).ui.agents.cursor).toBe("nav:gherkin")
+})
+
+test("grants waiting together: the first offers Allow all, which answers every waiting grant at once", () => {
+  const topic = (id: string, created: number) => ({ id, kind: "grant", state: "open", blocking: true, created, updated: created, title: `Plugin ${id} wants to load.`, why: "grant", about: [], messages: [], from: { plugin: id }, answers: [{ id: "always", label: "Allow", recommended: true }, { id: "deny", label: "Not now" }] })
+  const s: SessionState = { ...idle, thread: { ...idle.thread, inbox: { "T-1": topic("T-1", 1), "T-2": topic("T-2", 2), "T-3": topic("T-3", 3) } } as never }
+  const head = queueOf(initialUi, s)[0]!
+  expect(head.options.map((o) => o.label)).toEqual(["Allow", "Not now", "Allow all 3"])
+  const r = onKey(at({ popover: { pick: 2, since: 0 } }), s, key("return"), 10_000)
+  expect(r.action).toEqual({ type: "answer-topics", ids: ["T-1", "T-2", "T-3"], answer: "always" })
+  // One grant alone: no Allow all.
+  const one: SessionState = { ...idle, thread: { ...idle.thread, inbox: { "T-1": topic("T-1", 1) } } as never }
+  expect(queueOf(initialUi, one)[0]!.options.map((o) => o.label)).toEqual(["Allow", "Not now"])
+})
+
+test("a grant that arrives while the operator types waits: the bar keeps the keys until the draft is sent or cleared", () => {
+  const topic = { id: "T-1", kind: "grant", state: "open", blocking: true, created: 1, updated: 1, title: "Plugin p wants to load.", why: "grant", about: [], messages: [], from: { plugin: "p" }, answers: [{ id: "always", label: "Allow", recommended: true }, { id: "deny", label: "Not now" }] }
+  const s: SessionState = { ...idle, thread: { ...idle.thread, inbox: { "T-1": topic } } as never }
+  expect(onKey(at({ focus: "bar" }), s, key("return"), 10_000, "half a sentence").by).not.toBe("popover")
+  // Nothing typed: the grant has the keys.
+  expect(onKey(at({ focus: "bar" }), s, key("return"), 10_000, "").by).toBe("popover")
 })

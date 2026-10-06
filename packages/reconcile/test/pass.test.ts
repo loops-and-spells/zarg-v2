@@ -5,6 +5,7 @@ import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { Effect } from "effect"
 import { scenario, cleanup, repo, sh, state, write, writeNode } from "./repo"
+import { addAgain, pendingAt, readAgain } from "../src"
 import { runPass, runPasses, stubSpec } from "./stub-spec"
 
 afterAll(cleanup)
@@ -109,9 +110,12 @@ describe("reconcile pass", () => {
     const r = repo()
     graph(r, ["S-0001"])
     write(r, "src/S-0001.ts", "mine\n")
-    const spec = stubSpec(r, { landAttempts: 3 })
+    const waits: Array<[ReadonlyArray<string>, number]> = []
+    const spec = { ...stubSpec(r, { landAttempts: 3 }), onLandWait: (paths: ReadonlyArray<string>, attempt: number) => Effect.sync(() => void waits.push([paths, attempt])) }
     expect(await runPass(spec, db())).toMatchObject({ status: "failed" })
     expect(spec.findings.list().map((f) => [f.kind, f.detail])).toEqual([["landing-blocked", "waiting on your uncommitted edits in src/S-0001.ts"]])
+    // While it waits, the operator is told which edits hold it, each try.
+    expect(waits).toEqual([[["src/S-0001.ts"], 1], [["src/S-0001.ts"], 2]])
     expect(readFileSync(join(r, "src/S-0001.ts"), "utf8")).toBe("mine\n")
   })
 
@@ -132,6 +136,37 @@ describe("reconcile pass", () => {
     expect(sh(r, "git log --format=%s")).toBe("feat: implement S-0001\nyours\ninit")
     expect(spec.calls.filter((c) => c === "verify")).toHaveLength(2)
     expect(sh(r, "git status --porcelain")).toBe("")
+  })
+
+  // @scenario S-0052
+  test("requirements committed during the pass stay: the landed commit keeps them, the next pass takes them up", async () => {
+    const r = repo()
+    graph(r, ["S-0001"])
+    sh(r, "git add -A && git commit -qm req")
+    let committed = false
+    const spec = stubSpec(r, {
+      during: () => {
+        if (committed) return
+        committed = true
+        writeNode(r, scenario("S-0002", "ST-0001", "ST-0001"))
+        sh(r, "git add -A && git commit -qm 'req: S-0002'")
+      },
+    })
+    expect(await runPass(spec, db())).toMatchObject({ status: "landed", landed: ["S-0001"] })
+    expect(existsSync(join(r, ".zarg/graph/nodes/S-0002.json"))).toBe(true)
+    expect(sh(r, "git show --name-only --format= HEAD")).not.toContain("S-0002")
+    expect(sh(r, "git status --porcelain")).toBe("")
+    expect(await runPass(spec, db())).toMatchObject({ status: "landed", landed: ["S-0002"] })
+  })
+
+  test("a scenario asked to be built again is pending: the next pass builds it, then it is no longer asked", async () => {
+    const r = repo()
+    graph(r, ["S-0001"])
+    expect(await runPass(stubSpec(r), db())).toMatchObject({ status: "landed", landed: ["S-0001"] })
+    addAgain(r, ["S-0001"])
+    expect(await Effect.runPromise(pendingAt(r))).toEqual(["S-0001"])
+    expect(await runPass(stubSpec(r), db())).toMatchObject({ status: "landed", landed: ["S-0001"] })
+    expect(readAgain(r)).toEqual([])
   })
 
   test("a pass killed mid-way resumes after the last finished step", async () => {
@@ -157,6 +192,17 @@ describe("reconcile pass", () => {
     const spec = stubSpec(r, { implementDies: ["S-0002"] })
     expect(await runPass(spec, db())).toMatchObject({ status: "landed", landed: ["S-0001"], failed: ["S-0002"] })
     expect(spec.findings.list().map((f) => [f.kind, f.about])).toEqual([["pass-error", ["S-0002"]]])
+  })
+
+  test("a scenario that failed while others landed stays pending: the next pass takes it up with no graph change", async () => {
+    const r = repo()
+    graph(r, ["S-0001", "S-0002"])
+    expect(await runPass(stubSpec(r, { implementDies: ["S-0002"] }), db())).toMatchObject({ status: "landed", landed: ["S-0001"], failed: ["S-0002"] })
+    expect(JSON.parse(sh(r, "git show HEAD:.zarg/reconciled.json")).failed).toEqual(["S-0002"])
+    // Nothing in the graph changed: S-0002 still lands, and nothing is pending after.
+    expect(await runPass(stubSpec(r), db())).toMatchObject({ status: "landed", landed: ["S-0002"] })
+    expect(JSON.parse(sh(r, "git show HEAD:.zarg/reconciled.json")).failed).toBeUndefined()
+    expect(await runPass(stubSpec(r), db())).toMatchObject({ status: "nothing" })
   })
 
   test("a pass that dies ends as failed with a finding; the next attempt runs it again", async () => {

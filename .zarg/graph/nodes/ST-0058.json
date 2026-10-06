@@ -3,7 +3,7 @@
   "id": "ST-0058",
   "props": {
     "terminal": true,
-    "text": "reconcile runs for this session"
+    "text": "reconcile runs from now on"
   },
   "type": "gherkin/state"
 }

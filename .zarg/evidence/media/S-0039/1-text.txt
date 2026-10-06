@@ -1,0 +1,40 @@
+                       │  inbox   0 open                                                                                
+ ◆ zarg                │  Nothing needs you.                                                                            
+   project · main      │                                                                                                
+                       │                                                                                                
+ VIEWS               3 │                                                                                                
+▍ ▤ Inbox              │                                                                                                
+  ▤ Journeys           │                                                                                                
+  ▤ Intents            │                                                                                                
+                       │                                                                                                
+ AGENTS              4 │                                                                                                
+  ▾ zarg           0/0 │                                                                                                
+  └ ✓ driver 1    done │                                                                                                
+  ✗ warmup      failed │                                                                                                
+  ⠇ setup          0/1 │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+                       │     setup  setup   esc closes                                                                  
+                       │     ✗ zarg-router:e2e-bad did not start: 500 out of memory: pick another model below.          
+                       │     1 provider ready · default: zarg-router:e2e-bad                                            
+                       │                                                                                                
+                       │     Providers ────────────────────────────────────────────────────────────────────────────     
+                       │      provider     state                                                                        
+                       │     ▍zarg-router  ✓ reachable · 1 model                                                        
+                       │      openrouter   ◇ not set up                                                                 
+                       │                                                                                                
+                       │      ▐ Log in ▌                                                                                
+                       │                                                                                                
+                       │     ┃ zarg-router  state ✓ reachable · 1 model                                                 
+                       │     Log in ───────────────────────────────────────────────────────────────────────────────     
+                       │      nothing yet                                                                               
+                       │                                                                                                
+                       │      ▐ Set ▌  ▐ Clear  d ▌  ▐ Check and save  c ▌                                              
+                       │                                                                                                
+                       │     Default model ────────────────────────────────────────────────────────────────────────     
+                       │      ⌕ search                                                                                  
+                       │      model                                                                                     
+                       │      zarg-router:e2e-bad  32k                                                                  
+                       │                                                                                                
+                       │      ▐ Use as default ▌                                                                        
+                       │ · answered                                                                                     
+                       │ › message zarg… (alt+m or /)                                                                   
+                       │ core child · idle · thread main · …   [ ] section   esc close   PgUp PgDn scroll   esc collapse

@@ -1,0 +1,40 @@
+                       │  inbox   1 open                                                                                
+ ◆ zarg                │                                                                                                
+   project · main      │  ▍· zarg          Plugin probe was disabled after 3 restarts  plugin  now                      
+                       │                                                                                                
+ VIEWS               3 │                                                                                                
+▍ ▤ Inbox            1 │                                                                                                
+  ▤ Journeys           │                                                                                                
+  ▤ Intents            │                                                                                                
+                       │                                                                                                
+ AGENTS              3 │                                                                                                
+  ▾ zarg           0/0 │                                                                                                
+  └ ✗ driver 1  failed │                                                                                                
+  ⠋ setup          0/1 │                                                                                                
+                       │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+                       │     setup  setup   esc closes                                                                  
+                       │     0 providers ready · default: openrouter:e2e/one                                            
+                       │     Log in to a provider (⏎ on it), then pick the default model every agent uses.              
+                       │                                                                                                
+                       │     Providers ────────────────────────────────────────────────────────────────────────────     
+                       │      provider     state                                                                        
+                       │      zarg-router  ◇ not set up                                                                 
+                       │      openrouter   ✗ is it running?                                                             
+                       │                                                                                                
+                       │      ▐ Log in ▌                                                                                
+                       │                                                                                                
+                       │     Log in ───────────────────────────────────────────────────────────────────────────────     
+                       │      setting                                                                                   
+                       │     ▍OPENROUTER_API_KEY  OpenRouter API key (https://openrouter.ai/keys) (required) · set      
+                       │      OPENROUTER_URL      OpenRouter API base URL (required)                                    
+                       │                                                                                                
+                       │      ▐ Set ▌  ▐ Clear  d ▌  ▐ Check and save  c ▌                                              
+                       │                                                                                                
+                       │     ┃ OPENROUTER_API_KEY   OpenRouter API key (https://openrouter.ai/keys) (required) · s      
+                       │     Default model ────────────────────────────────────────────────────────────────────────     
+                       │      ⌕ search                                                                                  
+                       │      nothing yet                                                                               
+                       │                                                                                                
+                       │ · OPENROUTER_API_KEY cleared                                                                   
+                       │ › message zarg… (alt+m or /)                                                                   
+                       │ core child · 1 open · error · thre…   [ ] section   esc close   PgUp PgDn scroll   esc collapse

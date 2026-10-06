@@ -1,7 +1,7 @@
 import { expect } from "bun:test"
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { answerLoads, command, journey, liveModel, PROBE, quit, termOf, type Term, type World } from "../src"
+import { answerLoads, command, say, journey, liveModel, PROBE, quit, termOf, type Term, type World } from "../src"
 
 /** The inbox's topics as the core keeps them (one file each). */
 const topics = (w: World) =>
@@ -134,10 +134,7 @@ journey("J-0006", { tier: "fast" }, (proves) => {
       await quit(s.term)
       let t = await s.open()
       await answerLoads(t, "probe")
-      // The message bar, then a message to zarg.
-      t.press("alt+m")
-      await Bun.sleep(300)
-      await command(t, "I want to build a todo app. Ask me one question about who it is for.")
+      await say(t, "I want to build a todo app. Ask me one question about who it is for.")
       // zarg's question, kept in the inbox.
       const until = Date.now() + 240_000
       let asked: ReturnType<typeof topics>[number] | undefined

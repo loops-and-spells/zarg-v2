@@ -19,6 +19,7 @@ const SetupView = defineView("setup", {
     columns: [{ id: "name", label: "setting", filter: "none" }, { id: "about", label: "", filter: "none" }],
     actions: [
       { id: "set", label: "Set", on: "row", default: true, input: "the value" },
+      { id: "clear", label: "Clear", key: "d", on: "row" },
       { id: "done", label: "Check and save", key: "c", on: "none" },
     ],
   },
@@ -50,6 +51,8 @@ export interface SetupDeps {
   readonly agentEvents: (plugin: string, event: unknown) => void
   /** A secret was saved: the log's redactor learns it. */
   readonly secretsChanged: Effect.Effect<void>
+  /** A default model was picked: warm it before zarg's first turn. */
+  readonly onDefault?: Effect.Effect<void>
 }
 
 /** Why a provider does not answer, in the operator's words. */
@@ -67,6 +70,8 @@ export const makeSetup = (d: SetupDeps) => {
   const AGENT = "setup"
   let started = false
   let selected: string | undefined
+  // Why the default model did not start, until another is picked: said at the top of the sheet.
+  let failure: string | undefined
   /** A provider's state: not set up, reachable with its models, or why not. */
   const status = (p: Provider) =>
     Effect.gen(function* () {
@@ -88,14 +93,16 @@ export const makeSetup = (d: SetupDeps) => {
     if (unchecked.length > 0) yield* check(unchecked)
     const states = d.providers.map((p) => ({ p, s: known.get(p.name)! }))
     const ready = states.filter((x) => x.s.ok)
-    set("summary", { markdown: `${ready.length} provider${ready.length === 1 ? "" : "s"} ready · default: ${d.config.roles.default ?? "none"}${ready.length === 0 ? "\n\nLog in to a provider (⏎ on it), then pick the default model every agent uses." : ""}` })
+    // @scenario S-0039
+    set("summary", { markdown: `${failure !== undefined ? `✗ ${failure}: pick another model below.\n\n` : ""}${ready.length} provider${ready.length === 1 ? "" : "s"} ready · default: ${d.config.roles.default ?? "none"}${ready.length === 0 ? "\n\nLog in to a provider (⏎ on it), then pick the default model every agent uses." : ""}` })
     set("providers", { rows: states.map(({ p, s }) => ({ id: p.name, cells: { provider: p.name, state: s.text } })) })
     const sel = d.providers.find((p) => p.name === selected)
     const fields = sel === undefined ? [] : yield* d.env.fields(sel.envKeys).pipe(Effect.orElseSucceed(() => []))
     const rows = yield* Effect.forEach(fields, (f) =>
       Effect.map(d.env.lookup(f.name), (v) => ({
         id: f.name,
-        cells: { name: f.name, about: `${f.description ?? ""}${f.required ? " (required)" : ""}${v === undefined ? "" : f.sensitive ? " · set" : ""}`.trim() },
+        // @scenario S-0029
+        cells: { name: f.name, about: `${f.description ?? ""}${f.required ? " (required)" : ""}${v === undefined ? "" : f.sensitive ? " · set" : ""}${f.errors.length > 0 ? ` · ✗ ${f.errors[0]}` : ""}`.trim() },
         ...(f.sensitive ? { secret: true } : v !== undefined && !Redacted.isRedacted(v) ? { text: v } : {}),
       })),
     )
@@ -145,10 +152,23 @@ export const makeSetup = (d: SetupDeps) => {
         yield* field?.sensitive === true ? d.secrets.set(name, Redacted.make(text)) : d.secrets.setPlain(name, text)
         yield* d.secretsChanged
         yield* render
+        // @scenario S-0029
+        // A value its schema's type refuses: the field says why (the value stays, to be typed again).
+        const [after] = yield* d.env.fields([name])
+        if (after !== undefined && after.errors.length > 0) return { notice: `${name}: ${after.errors[0]}` }
         // A project whose own .env.schema sets this variable keeps its value: say so, never fail quietly.
         const now = yield* d.env.lookup(name)
         const inEffect = now === undefined ? undefined : Redacted.isRedacted(now) ? Redacted.value(now) : now
         return { notice: inEffect !== undefined && inEffect !== text ? `${name} saved, but this project's own .env.schema sets it: its value wins here` : `${name} saved` }
+      }
+      // @scenario S-0032
+      if (action === "clear") {
+        const name = rows[0]
+        if (name === undefined) return { notice: "pick a setting" }
+        yield* d.secrets.remove(name)
+        yield* d.secretsChanged
+        yield* render
+        return { notice: `${name} cleared` }
       }
       // @scenario S-0027 S-0028
       if (action === "done") {
@@ -167,16 +187,31 @@ export const makeSetup = (d: SetupDeps) => {
       if (action === "default") {
         const ref = rows[0]
         if (ref === undefined) return { notice: "pick a model" }
-        const before = yield* d.writeUserConfig({ default: ref })
+        // @scenario S-0036
+        // Every agent works through tool calls: a model without them cannot be the default (the list stays to pick again).
+        const [provider, ...rest] = ref.split(":")
+        const st = known.get(provider ?? "")
+        const m = st?.ok === true ? st.models.find((x) => x.id === rest.join(":")) : undefined
+        if (m !== undefined && !m.supportsTools && !m.capabilities.includes("tools")) return { notice: `${ref} cannot be the default: it has no tool calls, and every agent works through them` }
+        // A model of the providers' that answers decisions natively (its own provider's first): decisions use it,
+        // unless the operator set one. Without it they fall back to the default model, slow and less sure.
+        const judges = [...known.entries()].flatMap(([p, st]) => (st.ok ? st.models.filter((m) => m.capabilities.includes("decision")).map((m) => `${p}:${m.id}`) : []))
+        const judge = judges.find((j) => j.split(":")[0] === ref.split(":")[0]) ?? judges[0]
+        const before = yield* d.writeUserConfig({ default: ref, ...(judge !== undefined ? { decisionIfUnset: judge } : {}) })
         yield* d.reloadConfig.pipe(Effect.catch((e) => Effect.andThen(Effect.andThen(d.restoreUserConfig(before), Effect.ignore(d.reloadConfig)), Effect.fail(e))))
+        failure = undefined
         yield* render
         if (!(yield* needed)) d.agentEvents("core", { event: "close", surface: "setup", id: AGENT })
-        return { notice: `default model: ${ref}` }
+        if (d.onDefault !== undefined) yield* Effect.forkDetach(d.onDefault)
+        return { notice: `default model: ${ref}${judge !== undefined ? ` · decisions: ${judge}` : ""}` }
       }
       return { notice: `setup has no action ${action}` }
     }).pipe(Semaphore.withPermits(lock, 1), Effect.catch((e: unknown) => Effect.succeed({ notice: e instanceof ModelError ? why(e) : String((e as { message?: unknown })?.message ?? e) })))
   // @scenario S-0084
   /** Open only while setup is needed (a client joining a core that started earlier). */
   const openIfNeeded = Effect.flatMap(needed, (n) => (n ? open("providers") : Effect.void))
-  return { needed, open, openIfNeeded, act }
+  // @scenario S-0039
+  /** The default model did not start: setup opens on its models, saying why. */
+  const failed = (reason: string) => Effect.andThen(Effect.sync(() => void (failure = reason)), open("models"))
+  return { needed, open, openIfNeeded, act, failed }
 }

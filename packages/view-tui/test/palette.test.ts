@@ -27,6 +27,14 @@ describe("the palette", () => {
     expect(r.ui.palette?.query).toBe("g/x")
     expect(onKey(r.ui, s, { name: "escape" }, 0).ui.palette).toBeUndefined()
   })
+  test("a plugin's view (a nav item) is found by its name and opens as its rail row does", () => {
+    const withNav: SessionState = { ...s, thread: { ...s.thread, nav: [{ id: "backlog", label: "Feedback", view: "feedback" }] as never } }
+    expect(paletteEntries(withNav, "feed", commands).map((e) => e.label)).toEqual(["Feedback"])
+    const r = onKey({ ...syncUi(initialUi, withNav), palette: { query: "feed", pick: 0 } }, withNav, { name: "return" }, 0)
+    expect(r.ui).toMatchObject({ main: "agent", viewing: "feedback" })
+    expect(r.ui.palette).toBeUndefined()
+    expect(r.action).toMatchObject({ type: "act", agent: "backlog", action: "open", view: "feedback" })
+  })
   test("⏎ goes: an agent opens, a command runs", () => {
     let ui: Ui = { ...syncUi(initialUi, s), palette: { query: "tester-2", pick: 0 } }
     const went = onKey(ui, s, { name: "return" }, 0).ui

@@ -137,6 +137,15 @@ describe("conversation, agents and status", () => {
     ])
     expect(statusLine(s, { threadId: "main", driver: "zarg-router:deepseek", mode: "child" })).toBe("core stopped · error · thread main · zarg-router:deepseek")
   })
+  test("a notice stays where it came: messages after it go below it", () => {
+    const s: SessionState = {
+      thread: { ...initial("main"), messages: [{ id: "1", role: "user", text: "drop it" }, { id: "2", role: "user", text: "next" }] },
+      core: "up",
+      notice: "B-03 dropped",
+      noticeAt: 1,
+    }
+    expect(conversation(s).map((l) => l.text)).toEqual(["drop it", "B-03 dropped", "next"])
+  })
 })
 
 describe("the agents pane", () => {
@@ -203,8 +212,9 @@ describe("the agents pane", () => {
     expect(ui.agents.cursor).toBe("rlm-2")
     expect(text(agentRows(rlms, ui.agents))).toHaveLength(3)
     ui = press(ui, "up").ui
-    ui = press(ui, "up").ui
     expect(ui.agents.cursor).toBe("rlm-1")
+    // Above the first agent: the Inbox's row.
+    expect(press(ui, "up").ui.agents.cursor).toBe("home:inbox")
     ui = press(ui, "left").ui
     expect(text(agentRows(rlms, ui.agents))).toEqual(["▸ ● driver rlm-1  ▰▱▱▱▱▱  2/10  +4"])
   })
@@ -284,6 +294,9 @@ describe("the agents pane", () => {
     ])
     expect(agentDetail(rlms, "rlm-10")).toEqual(["research rlm-10 · failed", "turn 2 of 10", "error  budget"])
     expect(agentDetail({}, undefined)).toEqual([])
+    // A row an agent draws itself (the build row) has no turns: its text, never "turn 0 of 1".
+    const build = { id: "build", parent: null, preset: "build", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [], row: { progress: { done: 0, total: 1 }, text: "implement S-0006" } }
+    expect(agentDetail({ build }, "build")).toEqual(["build build · running", "implement S-0006"])
   })
 
   test("the detail card shows budget extensions and wrap-ups with their confidence", () => {
@@ -309,9 +322,9 @@ describe("slash commands in the input", () => {
   const press = (ui: typeof initialUi, draft: string, name: string) => onKey(ui, idle, { name }, 0, draft)
 
   test("typing / shows the commands; Tab completes; Esc clears", () => {
-    expect(slashBox("/", initialUi)).toMatchObject({ title: "commands", rows: [{ label: "/reconcile", desc: "turn plan and implement on for this session", selected: false }, { label: "/login" }, { label: "/models" }, { label: "/yolo" }] })
+    expect(slashBox("/", initialUi)).toMatchObject({ title: "commands", rows: [{ label: "/reconcile", desc: "turn plan and implement on (it stays on); with scenario ids, build those again", selected: false }, { label: "/login" }, { label: "/models" }, { label: "/yolo" }] })
     const tab = press(initialUi, "/re", "tab")
-    expect(tab.draft).toBe("/reconcile")
+    expect(tab.draft).toBe("/reconcile ")
     expect(press(initialUi, "/re", "escape").draft).toBe("")
     expect(slashBox("hello", initialUi)).toBeUndefined()
     expect(slashBox("/api/v2 is slow", initialUi)).toBeUndefined()
@@ -333,7 +346,7 @@ describe("slash commands in the input", () => {
   })
 
   test("a lint error shows in the box and Enter keeps the draft instead of running", () => {
-    expect(slashBox("/reconcile now", initialUi)?.lint).toBe("/reconcile takes no arguments")
+    expect(slashBox("/login now", initialUi)?.lint).toBe("/login takes no arguments")
     expect(slashBox("/nope", initialUi)?.lint).toBe("unknown command /nope")
     expect(onSubmit(initialUi, idle, "/nope")).toEqual({ ui: initialUi })
     expect(onSubmit(initialUi, idle, "/rec").action).toEqual({ type: "command", text: "/reconcile" })

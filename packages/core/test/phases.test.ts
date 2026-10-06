@@ -7,7 +7,7 @@ import { Effect, Layer, Redacted, Stream } from "effect"
 import { Model, type StreamEvent } from "@zarg/model"
 import { engineLayer, makeFindings, Pass, passLayer, workingGraphTree } from "@zarg/reconcile"
 import { Rlm, settings } from "@zarg/rlm"
-import { reasonOf, reconcileGate, reconcileSettings, reconcileSpec } from "../src/phases"
+import { reasonOf, reconcileGate, reconcileSettings, reconcileSpec, rememberReconcile } from "../src/phases"
 import { testAffected, testPlugins } from "./plugins-helper"
 
 const roots: Array<string> = []
@@ -34,7 +34,7 @@ const project = (scenarios: ReadonlyArray<string>) => {
 }
 
 /** A model that answers by preset (from the system prompt) with the scenario id substituted into the cell. */
-const stub = (cells: Record<string, (scenario: string) => string>) =>
+const stub = (cells: Record<string, (scenario: string) => string>, seen?: Array<[string, string]>) =>
   Layer.succeed(Model.Model, {
     client: () => Effect.die("unused"),
     list: () => Effect.succeed([]),
@@ -43,6 +43,7 @@ const stub = (cells: Record<string, (scenario: string) => string>) =>
     stream: (req) => {
       const preset = /zarg (\S+) agent/.exec(String(req.messages[0]?.content))?.[1] ?? "?"
       const scenario = /scenario (S-\d+)/.exec(String(req.messages[1]?.content))?.[1] ?? ""
+      seen?.push([preset, String(req.messages[1]?.content)])
       const code = cells[preset]?.(scenario) ?? 'yield* Rlm.done({ value: "?" })'
       const events: ReadonlyArray<StreamEvent> = [
         { type: "toolCall", call: { id: `c${Math.random()}`, type: "function", function: { name: "exec", arguments: JSON.stringify({ code }) } } },
@@ -63,7 +64,7 @@ const implementer = (scenario: string) =>
     `yield* Rlm.done({ value: { files: ["src/${scenario}.ts"], summary: "added" } })`,
   ].join("\n")
 
-const pass = (repo: string, model: Layer.Layer<Model.Model>) =>
+const pass = (repo: string, model: Layer.Layer<Model.Model>, verify = "test -f src/S-0001.ts") =>
   Effect.runPromise(
     Effect.gen(function* () {
       const m = yield* Model.Model
@@ -71,7 +72,7 @@ const pass = (repo: string, model: Layer.Layer<Model.Model>) =>
       const findings = makeFindings(repo)
       const spec = reconcileSpec({
         repo,
-        settings: yield* reconcileSettings({ verify: "test -f src/S-0001.ts", land_retry_ms: 50, land_attempts: 2 }),
+        settings: yield* reconcileSettings({ verify, land_retry_ms: 50, land_attempts: 2 }),
         sensitive: [],
         findings,
         pluginHost: testPlugins(repo),
@@ -104,6 +105,37 @@ describe("plan and implement phases", () => {
     expect(sh(r, "git log -1 --format=%s")).toBe("feat: implement S-0001")
   }, 60_000)
 
+  test("an implementer that writes nothing tagged builds nothing: the scenario fails, its plan is kept and not planned again", async () => {
+    const r = project(["S-0001"])
+    let planned = 0
+    const idle = () => 'yield* Rlm.done({ value: { files: [], summary: "read the code; nothing written" } })'
+    const first = await pass(r, stub({ plan: (s) => (planned++, planner(s)), "implement-scenario": idle }), "true")
+    expect(first.out).toMatchObject({ landed: [], failed: ["S-0001"] })
+    expect(first.findings.map((f) => [f.kind, (f as { title?: string }).title])).toContainEqual(["pass-error", "implement wrote nothing for S-0001"])
+    expect(sh(r, "git log -1 --format=%s")).toBe("chore: plan S-0001 (not built yet: see the findings)")
+    // The next pass keeps the plan written for this version of S-0001 and implements it.
+    const second = await pass(r, stub({ plan: (s) => (planned++, planner(s)), "implement-scenario": implementer }), "true")
+    expect(second.out).toMatchObject({ status: "landed", landed: ["S-0001"] })
+    expect(planned).toBe(1)
+  }, 60_000)
+
+  test("an implementer that runs out of turns after writing tagged code is judged by what it wrote: it lands", async () => {
+    const r = project(["S-0001"])
+    const endless = (s: string) => `yield* Fs.write({ path: "src/${s}.ts", content: "// @${"scenario"} ${s}\\nexport const ok = true\\n" })\nreturn "still going"`
+    const { out } = await pass(r, stub({ plan: planner, "implement-scenario": endless }), "true")
+    expect(out).toMatchObject({ status: "landed", landed: ["S-0001"] })
+  }, 120_000)
+
+  test("the planner starts from what it needs: the scenarios sharing a state with this one, and the project's files", async () => {
+    const r = project(["S-0001", "S-0002"])
+    const seen: Array<[string, string]> = []
+    await pass(r, stub({ plan: () => `yield* Rlm.done({ value: { plan: "${PLAN}" } })`, "implement-scenario": implementer }, seen))
+    const task = seen.find(([p, t]) => p === "plan" && t.includes("plan for scenario S-0001"))![1]
+    expect(task).toContain("S-0002 Scenario S-0002")
+    expect(task).toContain("README.md")
+    expect(task).toContain("never the backlog or feedback")
+  }, 60_000)
+
   test("a scenario the planner calls contradictory becomes an unplannable finding; the other scenario lands", async () => {
     const r = project(["S-0001", "S-0002"])
     const { out, findings } = await pass(r, stub({ plan: planner, "implement-scenario": implementer }))
@@ -124,7 +156,51 @@ describe("when reconcile runs", () => {
     const sub = join(r, "app")
     mkdirSync(sub)
     expect(await gate({ reconcile: {} }, roles, sub)).toMatchObject({ on: false, reason: expect.stringContaining("top of a git repository") })
-    expect(await gate({ reconcile: { quiet_ms: 500 } }, roles)).toMatchObject({ on: true, settings: { quietMs: 500 } })
+    expect(await gate({ reconcile: { quiet_ms: 500, verify: "true" } }, roles)).toMatchObject({ on: true, settings: { quietMs: 500 } })
+  })
+
+  test("verify is the project's own check, found where it keeps it; with none it says what to add", async () => {
+    const r = project([])
+    const gate = () => Effect.runPromise(reconcileGate(r, { reconcile: {} }, roles))
+    expect(await gate()).toMatchObject({ on: false, reason: expect.stringContaining("[reconcile] verify") })
+    write(r, "package.json", JSON.stringify({ scripts: { test: "bun test" } }))
+    expect(await gate()).toMatchObject({ on: true, settings: { verify: "npm test" } })
+    write(r, "bun.lock", "")
+    expect(await gate()).toMatchObject({ on: true, settings: { verify: "bun run test" } })
+    write(r, "mise.toml", "[tasks]\ntest = \"bun test\"\n")
+    expect(await gate()).toMatchObject({ on: true, settings: { verify: "mise run test" } })
+    write(r, "mise.toml", "[tasks.verify]\nrun = \"bun test\"\n")
+    expect(await gate()).toMatchObject({ on: true, settings: { verify: "mise run verify" } })
+    // Set in [reconcile]: that command, whatever the project has.
+    expect(await Effect.runPromise(reconcileGate(r, { reconcile: { verify: "make check" } }, roles))).toMatchObject({ on: true, settings: { verify: "make check" } })
+  })
+
+  test("only where git knows who commits: without an author it says how to set one", async () => {
+    const r = project([])
+    sh(r, "git config --unset user.email && git config --unset user.name && git config user.useConfigOnly true")
+    const saved = { ...process.env }
+    for (const k of ["GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL", "EMAIL"]) delete process.env[k]
+    process.env.GIT_CONFIG_GLOBAL = "/dev/null"
+    process.env.GIT_CONFIG_NOSYSTEM = "1"
+    try {
+      expect(await Effect.runPromise(reconcileGate(r, { reconcile: {} }, roles))).toMatchObject({ on: false, reason: expect.stringContaining("git config user.name") })
+    } finally {
+      process.env = saved
+    }
+  })
+})
+
+describe("/reconcile remembers", () => {
+  test("it adds a [reconcile] section where the project has none, so plan and implement stay on after a restart; others are left alone", () => {
+    const r = project([])
+    rememberReconcile(r)
+    expect(readFileSync(join(r, ".zarg/config.toml"), "utf8")).toBe("[reconcile]\n")
+    write(r, ".zarg/config.toml", '# mine\n[plugins]\nx = 1\n')
+    rememberReconcile(r)
+    expect(readFileSync(join(r, ".zarg/config.toml"), "utf8")).toBe('# mine\n[plugins]\nx = 1\n\n[reconcile]\n')
+    write(r, ".zarg/config.toml", "[reconcile]\nenabled = false\n")
+    rememberReconcile(r)
+    expect(readFileSync(join(r, ".zarg/config.toml"), "utf8")).toBe("[reconcile]\nenabled = false\n")
   })
 })
 

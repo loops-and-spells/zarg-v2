@@ -27,10 +27,12 @@ const model = (implementMs: number) =>
     warm: () => Effect.void,
     stream: (req) => {
       const preset = /zarg (\S+) agent/.exec(String(req.messages[0]?.content))?.[1]
+      // The scenario it implements, tagged as a real implementer must (a pass counts it built only by its tagged code).
+      const item = /Implement scenario (S-\d+)/.exec(req.messages.map((m) => String(m.content ?? "")).join("\n"))?.[1] ?? "S-0001"
       const code =
         preset === "plan"
           ? 'yield* Rlm.done({ value: { plan: "## Approach\\nx\\n## Files\\n- a — b\\n## Tests\\n- t — t\\n## Depends on\\nnone" } })'
-          : `yield* Sh.run({ command: "sleep ${implementMs / 1000}" })\nyield* Fs.write({ path: "src/a.ts", content: "ok" })\nyield* Rlm.done({ value: { files: ["src/a.ts"], summary: "s" } })`
+          : `yield* Sh.run({ command: "sleep ${implementMs / 1000}" })\nyield* Fs.write({ path: "src/a.ts", content: ${JSON.stringify(`// ${"@"}scenario ${item}\nok\n`)} })\nyield* Rlm.done({ value: { files: ["src/a.ts"], summary: "s" } })`
       const events: ReadonlyArray<StreamEvent> = [
         { type: "toolCall", call: { id: `c${Math.random()}`, type: "function", function: { name: "exec", arguments: JSON.stringify({ code }) } } },
         { type: "done", finishReason: "tool_calls" },

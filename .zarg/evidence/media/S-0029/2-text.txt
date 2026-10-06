@@ -1,0 +1,40 @@
+                       │  inbox   0 open                                                                                
+ ◆ zarg                │  Nothing needs you.                                                                            
+   project · main      │                                                                                                
+                       │                                                                                                
+ VIEWS               5 │                                                                                                
+▍ ▤ Inbox              │                                                                                                
+  ▤ Journeys           │                                                                                                
+  ▤ Intents            │                                                                                                
+  ▤ Feedback           │                                                                                                
+  ▤ Backlog            │                                                                                                
+                       │                                                                                                
+ AGENTS              2 │                                                                                                
+  ● zarg           0/0 │                                                                                                
+  ⠹ setup          0/1 │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+                       │     setup  setup   esc closes                                                                  
+                       │     0 providers ready · default: none                                                          
+                       │     Log in to a provider (⏎ on it), then pick the default model every agent uses.              
+                       │                                                                                                
+                       │     Providers ────────────────────────────────────────────────────────────────────────────     
+                       │      provider     state                                                                        
+                       │      zarg-router  ◇ not set up                                                                 
+                       │      openrouter   ◇ not set up                                                                 
+                       │                                                                                                
+                       │      ▐ Log in ▌                                                                                
+                       │                                                                                                
+                       │     Log in ───────────────────────────────────────────────────────────────────────────────     
+                       │      setting                                                                                   
+                       │      OPENROUTER_API_KEY  OpenRouter API key (https://openrouter.ai/keys) (required) · set      
+                       │     ▍OPENROUTER_URL      OpenRouter API base URL (required) · ✗ Invalid URL                    
+                       │                                                                                                
+                       │      ▐ Set ▌  ▐ Clear  d ▌  ▐ Check and save  c ▌                                              
+                       │                                                                                                
+                       │     ┃ OPENROUTER_URL   OpenRouter API base URL (required) · ✗ Invalid URL                      
+                       │     Default model ────────────────────────────────────────────────────────────────────────     
+                       │      ⌕ search                                                                                  
+                       │      nothing yet                                                                               
+                       │                                                                                                
+                       │ · OPENROUTER_URL: Invalid URL                                                                  
+                       │ › message zarg… (alt+m or /)                                                                   
+                       │ core child · error · thread main ·…   [ ] section   esc close   PgUp PgDn scroll   esc collapse

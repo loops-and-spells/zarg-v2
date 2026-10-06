@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { due, EMPTY, type JourneyInfo, type Statement } from "../src/checkpoint"
+import { due, EMPTY, fingerprint, type JourneyInfo, type Statement } from "../src/checkpoint"
 
 const intent = { id: "I-0001", title: "Plans" }
 const o = (id: string, version: string, journeys: ReadonlyArray<string> = []): Statement => ({ id, kind: "outcome", text: `text ${id}`, version, intent, journeys })
@@ -27,4 +27,22 @@ test("removed statements come first; journeys wait while any statement is due or
   expect(kinds({ statements: { "O-0001": { version: "v1", state: "planned", plans: ["B-1"] } }, journeys: {} }, new Set(["B-1"]))).toEqual(["statement"])
   // Settled (nothing to change): the journey's turn.
   expect(kinds({ statements: { "O-0001": { version: "v1", state: "nothing" } }, journeys: {} })).toEqual(["journey"])
+})
+test("a statement whose serving journeys changed since its round is due again: its plans were drafted against other journeys", () => {
+  const cp = { statements: { "O-0001": { version: "v1", state: "planned" as const, plans: ["B-2"] }, "O-0002": { version: "v2", state: "nothing" as const, journeys: ["J-0001"] } }, journeys: {} }
+  const ids = due([o("O-0001", "v1", ["J-0001"]), o("O-0002", "v2", ["J-0001"])], [], cp, true).map((d) => (d.kind === "statement" ? d.statement.id : d.kind))
+  expect(ids).toEqual(["O-0001"])
+})
+test("an outcome a journey serves whose plans were all dropped is settled, not drafted again: the operator turned the change down", () => {
+  const cp = { statements: { "O-0001": { version: "v1", state: "planned" as const, plans: ["B-1"], journeys: ["J-0001"] }, "O-0002": { version: "v2", state: "planned" as const, plans: ["B-2"] } }, journeys: {} }
+  const ids = due([o("O-0001", "v1", ["J-0001"]), o("O-0002", "v2")], [], cp, true, new Set(["B-1", "B-2"])).map((d) => (d.kind === "statement" ? d.statement.id : d.kind))
+  // O-0002, served by nothing, still needs a round.
+  expect(ids).toEqual(["O-0002"])
+})
+test("a statement left after failed drafts is due again once the journeys change: its drafts may have met a graph still being written", () => {
+  const before = [{ ...j("J-0001", "v1", ["O-0001"]), scenarios: ["S-0001"] }]
+  const after = [{ ...j("J-0001", "v1", ["O-0001"]), scenarios: ["S-0001", "S-0006"] }]
+  const cp = { statements: { "O-0005": { version: "v5", state: "left" as const, topic: "T-1", seen: fingerprint(before) } }, journeys: {} }
+  expect(due([o("O-0005", "v5")], before, cp, true)).toEqual([])
+  expect(due([o("O-0005", "v5")], after, cp, true).map((d) => d.kind)).toEqual(["statement"])
 })

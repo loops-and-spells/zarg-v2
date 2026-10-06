@@ -122,13 +122,14 @@ const cellText = (v: string, ref: boolean, labels: Readonly<Record<string, RefLa
   return l === undefined ? v : `${l.glyph} ${l.text}`
 }
 const labelsOf = (view: ViewState, path: string) => (view.data[path] as { labels?: Readonly<Record<string, RefLabel>> } | undefined)?.labels
-/** A table's column widths and where each starts (after the gutter): as wide as their widest cell or label with its sort mark (at most 24); the last one takes what is left. */
+/** A table's column widths and where each starts (after the gutter): as wide as their widest cell or label with its sort mark (at most 24, or two fifths of a wide view); the last one takes what is left. */
 const tableLayout = (view: ViewState, path: string, leaf: LayoutLeaf, width: number) => {
   const cols = leaf.columns ?? []
   const rows = ((view.data[path] as { rows?: ReadonlyArray<TableRow> } | undefined)?.rows ?? [])
   const gutter = leaf.toggle === true ? 5 : leaf.selectable === true ? 3 : 2
   const labels = labelsOf(view, path)
-  const fixedWidths = cols.map((c, ci) => (ci === cols.length - 1 ? 0 : Math.min(24, Math.max(c.label.length + 2, ...rows.map((r) => cellText(r.cells[c.id] ?? "", c.ref === true, labels).replace(/\s*\n\s*/g, " ").length)))))
+  const cap = Math.max(24, Math.floor(width * 0.4))
+  const fixedWidths = cols.map((c, ci) => (ci === cols.length - 1 ? 0 : Math.min(cap, Math.max(c.label.length + 2, ...rows.map((r) => cellText(r.cells[c.id] ?? "", c.ref === true, labels).replace(/\s*\n\s*/g, " ").length)))))
   const fixed = fixedWidths.reduce((a, w) => a + w + 2, 0)
   const widths = fixedWidths.map((w) => (w === 0 ? Math.max(4, width - gutter - fixed) : w))
   const starts = widths.map((_, i) => gutter + widths.slice(0, i).reduce((a, w) => a + w + 2, 0))
@@ -341,12 +342,13 @@ type ButtonSpec = { readonly id: string; readonly label: string; readonly key?: 
 export const Buttons = (p: { readonly actions: ReadonlyArray<ButtonSpec>; readonly count: number; readonly onPress: (id: string) => void; readonly onClear?: () => void }) => {
   const C = useColors()
   return (
-    <box style={{ flexDirection: "row", height: 1, flexShrink: 0 }}>
+    // Wider than the pane: the buttons wrap to another line, never cut.
+    <box style={{ flexDirection: "row", flexWrap: "wrap", flexShrink: 0 }}>
       {p.actions.map((a, i) => {
         const fill = i === 0 ? C.accent : C.line
         const key = keyFor(a, "terminal")
         return (
-          <text key={a.id} wrapMode="none" onMouseDown={() => p.onPress(a.id)} style={{ marginRight: 2 }}>
+          <text key={a.id} wrapMode="none" onMouseDown={() => p.onPress(a.id)} style={{ marginRight: 2, flexShrink: 0 }}>
             <span fg={fill}>▐</span>
             <span fg={i === 0 ? C.bg : C.text} bg={fill}>{i === 0 && p.count > 0 ? ` ${a.label} · ${p.count} ` : ` ${a.label} `}</span>
             {key !== undefined ? <span fg={i === 0 ? C.raised : C.dim} bg={fill}>{` ${key} `}</span> : null}
@@ -603,7 +605,8 @@ export const AgentView = (props: { readonly view: ViewState; readonly ui: ViewUi
             <scrollbox
               focusable={false}
               ref={(r: ScrollBoxRenderable | null) => void (r === null ? boxes.current.delete(s.id) : boxes.current.set(s.id, r))}
-              style={{ flexGrow: 1, flexShrink: 1, minHeight: 1 }}
+              // A table keeps its header and a few rows in a short window: what is under it (buttons, the row card) gives way first.
+              style={{ flexGrow: 1, flexShrink: 1, minHeight: leaf.leaf.kind === "table" ? Math.min(4, 1 + shownRows(props.view, props.ui, leaf.path).length) : 1 }}
               {...(leaf.leaf.kind === "log" ? { stickyScroll: true, stickyStart: "bottom" as const } : {})}
             >
               <Draw

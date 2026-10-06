@@ -23,7 +23,6 @@
   ],
   "id": "S-0039",
   "props": {
-    "planned": true,
     "title": "A model fails to warm up",
     "when": "the chosen model fails to start"
   },

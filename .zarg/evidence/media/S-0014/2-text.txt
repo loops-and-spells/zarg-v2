@@ -1,0 +1,40 @@
+                       │  inbox   1 open                                                                                
+ ◆ zarg                │                                                                                                
+   project · main      │  ▍◆ zarg          What should we work on next?  question · waiting · 2 options  now            
+                       │                                                                                                
+ VIEWS               3 │                                                                                                
+▍ ◆ Inbox            1 │                                                                                                
+  ▤ Journeys           │                                                                                                
+  ▤ Intents            │                                                                                                
+                       │                                                                                                
+ AGENTS             ◆1 │                                                                                                
+  ◆ zarg          asks │                                                                                                
+  └ ⠼ driver 1    5/25 │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+                       │     zarg   esc closes                                                                          
+                       │                                                                                                
+                       │           flowchart LR                                                                         
+                       │             N0[Parent opens the list] --> N1                                                   
+                       │             N1[Parent picks a chore] --> N2                                                    
+                       │             N2[Parent picks a child] --> N3                                                    
+                       │             N3[Child sees the chore] --> N4                                                    
+                       │             N4[Child does the chore] --> N5                                                    
+                       │                                                                                                
+                       │           Too wide to draw.                                                                    
+                       │     you  Write it                                                                              
+                       │     you  Write it                                                                          ▄   
+                       │     zarg  Merged with another edit to P-0001 (text changed there meanwhile): both kept.    █   
+                       │     you  Write it                                                                          █   
+                       │     you  Use mine                                                                          █   
+                       │     you  it depends on the chore                                                           █   
+                       │     zarg  (discussing: How often are chores due?)                                          █   
+                       │     you  Yes, per chore                                                                    █   
+                       │     What should we work on next?                                                               
+                       │     › A failure case (recommended)                                                             
+                       │       Another journey                                                                          
+                       │       Something else…                                                                          
+                       │       Chat about this                                                                          
+                       │ answer zarg above, or / to chat about it                                                       
+                       │ ◆ zarg asks: What should we work on next?   core child · ◆ 1 …   ↑↓ pick   ⏎ answer   esc leave

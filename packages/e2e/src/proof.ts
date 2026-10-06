@@ -52,7 +52,7 @@ const commitOf = (root: string) => Bun.spawnSync(["git", "rev-parse", "--short",
 
 /** A journey of the graph, walked in a fresh world: each `proves` step proves one of its scenarios and writes that scenario's evidence. */
 // @scenario S-0114
-export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?: Readonly<Record<string, string>> }, body: (proves: Proves) => void) => {
+export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?: Readonly<Record<string, string>>; readonly env?: Readonly<Record<string, string>> }, body: (proves: Proves) => void) => {
   const root = evidenceRoot()
   const graph = graphOf(root)
   const skip = process.env.E2E_TIER === "fast" && opts.tier === "full"
@@ -87,7 +87,6 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
         async () => {
           const evidenceDir = join(evidenceOut(), EVIDENCE_DIR)
           const started = performance.now()
-          const deadline = started + timeout
           clearStale(evidenceDir, scenario)
           let staged: Staged | undefined
           let lastNote = ""
@@ -97,7 +96,7 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
             if (staged !== undefined) rmSync(staged.dir, { recursive: true, force: true })
             staged = mine
             // A world that cannot start fails the step, with its reason as evidence.
-            w ??= world(opts.seed)
+            w ??= world(opts.seed, opts.env)
             // Where this step begins on the session's clock (a terminal opened by the step itself begins at 0).
             const stepAt = term?.elapsed() ?? 0
             if (term !== undefined) mine.attach(frame("the screen before", term.xterm))
@@ -146,7 +145,8 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
               run.catch(() => undefined)
               let timer: ReturnType<typeof setTimeout> | undefined
               const late = new Promise<never>((_, reject) => {
-                timer = setTimeout(() => reject(new Error(`timed out after ${timeout} ms`)), Math.max(0, deadline - performance.now()))
+                // Each try has the step's whole time: a retry after a slow first try is not left with what remains.
+                timer = setTimeout(() => reject(new Error(`timed out after ${timeout} ms`)), timeout)
               })
               await Promise.race([run, late]).finally(() => clearTimeout(timer))
               passed = true
@@ -174,8 +174,8 @@ export const journey = (id: string, opts: { readonly tier: Tier; readonly seed?:
           commitEvidence(evidenceDir, staged, evidence)
           if (!passed) throw error
         },
-        // Bun's own timeout only backs up the step's deadline, which writes the evidence first.
-        timeout + 10_000,
+        // Bun's own timeout only backs up the step's deadline (per try), which writes the evidence first.
+        timeout * (o.model === true ? 2 : 1) + 10_000,
       )
     }
     body(proves)

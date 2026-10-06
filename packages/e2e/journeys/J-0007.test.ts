@@ -1,8 +1,20 @@
 import { expect } from "bun:test"
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
-import { answerLoads, command, journey, liveModel, MAIN, openNav, quit, termOf, type World } from "../src"
+import { answerLoads, command, say, journey, liveModel, MAIN, openNav, quit, type Term, termOf, type World } from "../src"
 
+/** Answers zarg's open proposal from the inbox (home): its row, then 1, its first answer (Write it). */
+const addFromInbox = async (t: Term) => {
+  t.press("esc")
+  await Bun.sleep(300)
+  t.press("esc")
+  await t.waitFor("1-9 answer", 10_000)
+  for (let k = 0; k < 8 && !/▍.*Write this to the requirements/.test(t.screen()); k++) {
+    t.press("down")
+    await Bun.sleep(150)
+  }
+  t.press("1")
+}
 /** Waits up to `ms` for `check` to hold. */
 const eventually = async <A>(ms: number, check: () => A | undefined): Promise<A | undefined> => {
   const until = Date.now() + ms
@@ -85,17 +97,33 @@ journey("J-0007", { tier: "fast" }, (proves) => {
       }
       const before = outcomes().n
       const t = await s.open()
+      // The plugins never approved ask first (YOLO, next, loads them all).
+      await answerLoads(t)
       // YOLO: every plugin (the Intent Agent, the backlog) loads without asking.
       await command(t, "/yolo on")
-      t.press("alt+m")
-      await Bun.sleep(300)
-      await command(t, "The app also lets parents reward finished chores with points. Keep that as an outcome.")
-      // One more outcome on the intent, however the model words it.
-      const kept = await eventually(240_000, () => (outcomes().n > before ? outcomes().r : undefined))
+      await say(t, "The app also lets parents reward finished chores with points. Keep that as an outcome.")
+      // zarg shows the change first (Inquire.confirm, also a topic in the inbox): the operator adds it from the inbox,
+      // its first answer (Write it). Then one more outcome on the intent, however the model words it.
+      const proposal = () =>
+        readdirSync(join(s.w.project, ".zarg", "inbox"))
+          .filter((f) => f.endsWith(".json"))
+          .map((f) => JSON.parse(readFileSync(join(s.w.project, ".zarg", "inbox", f), "utf8")) as { title: string; state: string; from: { plugin: string } })
+          .find((x) => x.from.plugin === "zarg" && x.state === "open" && x.title.startsWith("Write this to the requirements?") && /point/i.test(x.title))
+      let added = false
+      const kept = await eventually(270_000, () => {
+        if (outcomes().n > before) return outcomes().r
+        const p = proposal()
+        if (!added && p !== undefined) {
+          added = true
+          s.note("buffer", "zarg shows the outcome before keeping it", p.title)
+          void addFromInbox(t)
+        }
+        return undefined
+      })
       s.note("buffer", "zarg render --focus I-0001", kept ?? outcomes().r)
       expect(kept).toBeDefined()
     },
-    { model: true },
+    { model: true, timeoutMs: 330_000 },
   )
 
   proves(
@@ -112,16 +140,18 @@ journey("J-0007", { tier: "fast" }, (proves) => {
   proves(
     "S-0104",
     async (s) => {
-      // An outcome against a constraint of the same intent: nothing can serve both.
-      await s.cli(["tool", "call", "gherkin/add-constraint", JSON.stringify({ intent: "I-0001", text: "Chores never leave the family's own phone." })])
-      await s.cli(["tool", "call", "gherkin/add-outcome", JSON.stringify({ intent: "I-0001", text: "Grandparents see every chore from any web browser." })])
+      // An outcome that says the opposite of a constraint of the same intent: nothing can serve both.
+      await s.cli(["tool", "call", "gherkin/add-constraint", JSON.stringify({ intent: "I-0001", text: "Chores are never shown to grandparents." })])
+      const added = await s.cli(["tool", "call", "gherkin/add-outcome", JSON.stringify({ intent: "I-0001", text: "Grandparents see every chore the family has." })])
+      const id = /created (O-\d+)/.exec(added.out)?.[1] ?? "none"
       const asked = await eventually(300_000, () => {
         const dir = join(s.w.project, ".zarg", "inbox")
         if (!existsSync(dir)) return undefined
         return readdirSync(dir)
           .filter((f) => f.endsWith(".json"))
-          .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")) as { title: string; state: string; from: { plugin: string } })
-          .find((x) => x.from.plugin === "intent" && x.state === "open")
+          .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")) as { title: string; state: string; about?: ReadonlyArray<string>; from: { plugin: string } })
+          // About the outcome seeded here, not another the agent could not draft.
+          .find((x) => x.from.plugin === "intent" && x.state === "open" && (x.about ?? []).includes(id))
       })
       s.note("buffer", "the inbox topic", JSON.stringify(asked ?? null, null, 2))
       expect(asked).toBeDefined()

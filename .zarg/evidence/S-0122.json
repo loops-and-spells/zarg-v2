@@ -1,0 +1,59 @@
+{
+  "scenario": "S-0122",
+  "version": "1e92f99ba3dc",
+  "commit": "5f6a732d",
+  "run": "e2e-2026-10-06T09-35-20.805Z",
+  "journey": "J-0004",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-06T09:49:31.619Z",
+  "ms": 5,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0122/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "the build row, as it changed",
+      "path": "media/S-0122/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "screen",
+      "path": "media/S-0122/3-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "the build row's view",
+      "path": "media/S-0122/4-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0122/5-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0122/6-step.cast",
+      "meta": {
+        "startAt": 16.4
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/core/src/reconcile.ts": "4372ff19ee2af6eea55097fd8b921ee95d9a0ba9"
+  }
+}

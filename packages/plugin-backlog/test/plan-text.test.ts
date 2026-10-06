@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { planText } from "../src/plan-text"
+import { planText, plural } from "../src/plan-text"
 
 const item = {
   id: "B-02", title: "Fix zarg journey feedback", journey: "Talk with zarg", persona: "Driver Agent", severity: "high" as const, status: "backlog" as const,
@@ -54,4 +54,8 @@ describe("a plan for reading", () => {
     expect(text.match(/- Given the CLI actor works in a repo/g)?.length).toBe(1)
     expect(text).toContain("⚠ 2 scenarios changed since this plan was drafted (S-0001, S-0002): **s** Resync")
   })
+})
+
+test("plurals: entries, journeys, stories", () => {
+  expect([plural(1, "entry"), plural(2, "entry"), plural(2, "journey"), plural(2, "plan")]).toEqual(["1 entry", "2 entries", "2 journeys", "2 plans"])
 })

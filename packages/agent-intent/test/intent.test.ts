@@ -1,15 +1,16 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 import type { Checkpoint, JourneyInfo, Statement } from "../src/checkpoint"
-import { type IntentDeps, makeIntent } from "../src/intent"
+import { deliversBy, type IntentDeps, makeIntent, SYSTEM } from "../src/intent"
 
 const intent = { id: "I-0001", title: "Plans", problem: "Visitors leave." }
 const outcome: Statement = { id: "O-0001", kind: "outcome", text: "A visitor picks a plan in one minute", version: "v1", intent, journeys: [] }
 const checkout: JourneyInfo = { id: "J-0001", name: "Checkout", version: "jv", scenarios: ["S-0001"], serves: ["O-0001"] }
 const unit = (scenario: string, changes: ReadonlyArray<unknown>) => ({ scenario, title: `t ${scenario}`, summary: `s ${scenario}`, changes })
 
-const setup = (o: { statements?: ReadonlyArray<Statement>; journeys?: ReadonlyArray<JourneyInfo>; answers?: ReadonlyArray<string>; cp?: Checkpoint; down?: boolean; dry?: (n: number) => { ok: boolean; problems: string[] }; versionAfter?: string; slow?: number; broken?: boolean; dropped?: ReadonlyArray<string> }) => {
+const setup = (o: { delivered?: boolean; conflicts?: ReadonlyArray<string>; personas?: ReadonlyArray<{ name: string; kind: string }>; statements?: ReadonlyArray<Statement>; journeys?: ReadonlyArray<JourneyInfo>; answers?: ReadonlyArray<string>; cp?: Checkpoint; down?: boolean; dry?: (n: number) => { ok: boolean; problems: string[]; touched?: string[] }; versionAfter?: string; slow?: number; broken?: boolean; dropped?: ReadonlyArray<string> }) => {
   const calls: Array<[string, unknown]> = []
+  const schemas: Array<unknown> = []
   const answers = [...(o.answers ?? [])]
   let cp: Checkpoint = o.cp ?? { statements: {}, journeys: {} }
   let dries = 0
@@ -17,11 +18,14 @@ const setup = (o: { statements?: ReadonlyArray<Statement>; journeys?: ReadonlyAr
   const deps: IntentDeps = {
     statements: () => Effect.sync(() => (reads++, (o.statements ?? [outcome]).map((s) => (o.versionAfter !== undefined && reads > 1 ? { ...s, version: o.versionAfter } : s)))),
     journeys: () => Effect.succeed(o.journeys ?? []),
+    personas: () => Effect.succeed(o.personas ?? []),
+    ...(o.delivered !== undefined ? { delivers: () => Effect.sync(() => (calls.push(["delivers", null]), o.delivered!)) } : {}),
+    contradicts: (statement, rules) => Effect.sync(() => (calls.push(["contradicts", [statement.id, rules.map((r) => r.id)]]), rules.find((r) => (o.conflicts ?? []).includes(r.id))?.id)),
     scene: (scenario) => Effect.succeed(`${scenario} title\nGiven a\nWhen b\nThen c`),
     code: () => Effect.succeed([]),
-    dryRun: (draft) => Effect.sync(() => ({ scenarios: draft.length > 0 ? ["S-0001"] : [], ...(o.dry?.(dries++) ?? { ok: true, problems: [] }) })),
+    dryRun: (draft) => (draft.length === 0 ? Effect.succeed({ scenarios: [], ok: true, problems: [], next: { scenario: "S-0002", state: "ST-0004", journey: "J-0002", persona: "P-0001" } }) : Effect.sync(() => ({ scenarios: ["S-0001"], ...(o.dry?.(dries++) ?? { ok: true, problems: [] }) }))),
     complete: (req) =>
-      o.down === true
+      (schemas.push(req.outputSchema), o.down === true)
         ? Effect.andThen(Effect.sync(() => void calls.push(["down", null])), Effect.fail("down"))
         : Effect.andThen(Effect.sleep(o.slow ?? 0), Effect.sync(() => (calls.push(["complete", req.messages.at(-1)?.content]), { text: answers.shift() ?? "no json" }))),
     version: (ref) => Effect.succeed(`${ref.split(":")[1]}-ver`),
@@ -35,7 +39,7 @@ const setup = (o: { statements?: ReadonlyArray<Statement>; journeys?: ReadonlyAr
     log: (text) => Effect.sync(() => void calls.push(["log", text])),
     render: Effect.void,
   }
-  return { a: makeIntent(deps), calls, cp: () => cp }
+  return { a: makeIntent(deps), calls, cp: () => cp, schemas }
 }
 
 describe("the Intent Agent", () => {
@@ -47,6 +51,83 @@ describe("the Intent Agent", () => {
     expect(String(calls.find(([k]) => k === "complete")![1])).toContain("O-0001 (outcome): A visitor picks a plan in one minute")
     expect(calls.find(([k]) => k === "plan")![1]).toMatchObject({ title: "t S-0001", journey: "Checkout", serves: "gherkin/outcome:O-0001@v1", scenarios: [{ ref: "gherkin/scenario:S-0001@S-0001-ver" }], steps: ["Shorten the pricing scenario"], feedback: [] })
     expect(cp().statements["O-0001"]).toEqual({ version: "v1", state: "planned", plans: ["B-1"] })
+  })
+
+  test("an outcome no journey serves: a draft that links no journey to it is tried again", async () => {
+    const add = { tool: "add-journey", params: { name: "Counting" } }
+    const bare = JSON.stringify({ units: [unit("new", [add])], steps: [], ask: null })
+    const linked = JSON.stringify({ units: [unit("new", [add, { tool: "link", params: { edge: "serves", journey: { name: "Counting" }, outcome: "O-0001" } }])], steps: [], ask: null })
+    const { a, calls } = setup({ answers: [bare, linked] })
+    await Effect.runPromise(a.tick)
+    const asked = calls.filter(([k]) => k === "complete").map(([, t]) => String(t))
+    expect(asked).toHaveLength(2)
+    expect(asked[1]).toContain("link a journey to serve O-0001")
+    expect(calls.filter(([k]) => k === "plan")).toHaveLength(1)
+  })
+
+  test("the log says why a round got nothing: the model call failed, or its answer was not JSON (how it began)", async () => {
+    const down = setup({ down: true })
+    await Effect.runPromise(down.a.tick)
+    expect(down.calls.filter(([k]) => k === "log").map(([, t]) => String(t))).toContainEqual(expect.stringContaining("O-0001: the driver model failed: down"))
+    const prose = setup({ answers: ["Sure! Here is my plan for the outcome"] })
+    await Effect.runPromise(prose.a.tick)
+    expect(prose.calls.filter(([k]) => k === "log").map(([, t]) => String(t))).toContainEqual(expect.stringMatching(/O-0001: the driver model did not answer with JSON \(\d+ chars; it began: "Sure! Here is my plan.*ended: /))
+  })
+
+  // @scenario S-0103
+  test("the model answers in the plan's JSON shape: units, steps and ask are its output schema", async () => {
+    const answer = JSON.stringify({ units: [unit("S-0001", [{ tool: "edit-scenario", params: { id: "S-0001", title: "Visitor picks a plan" } }])], steps: ["Shorten"], ask: null })
+    const { a, schemas } = setup({ journeys: [checkout], answers: [answer] })
+    await Effect.runPromise(a.tick)
+    expect(schemas[0]).toMatchObject({ type: "object", required: ["units", "steps", "ask"] })
+  })
+
+  // @scenario S-0103
+  test("the model knows who can act: the personas there are (or none yet), and add-persona to add one", async () => {
+    const none = setup({ journeys: [checkout], answers: [] })
+    await Effect.runPromise(none.a.tick)
+    expect(String(none.calls.find(([k]) => k === "complete")![1])).toContain("Personas: none yet (add one with add-persona before a scenario names it)")
+    const some = setup({ journeys: [checkout], answers: [], personas: [{ name: "Parent", kind: "human" }] })
+    await Effect.runPromise(some.a.tick)
+    expect(String(some.calls.find(([k]) => k === "complete")![1])).toContain("Personas: Parent (human)")
+    expect(SYSTEM).toContain('add-persona {"name":')
+  })
+
+  // @scenario S-0104
+  test("the model sees the intent's constraints beside the outcome it drafts, so a conflict can come back as an ask", async () => {
+    const rule: Statement = { id: "K-0001", kind: "constraint", text: "Data never leaves the phone", version: "k1", intent, journeys: [] }
+    const { a, calls } = setup({ statements: [outcome, rule], journeys: [checkout], answers: [], cp: { statements: { "K-0001": { version: "k1", state: "planned" } }, journeys: {} } })
+    await Effect.runPromise(a.tick)
+    expect(String(calls.find(([k]) => k === "complete")![1])).toContain("The intent's constraints:\n- K-0001: Data never leaves the phone")
+  })
+
+  // @scenario S-0103
+  test("the model knows the ids its new nodes will take, so a draft refers to what it adds", async () => {
+    const { a, calls } = setup({ journeys: [checkout], answers: [] })
+    await Effect.runPromise(a.tick)
+    expect(String(calls.find(([k]) => k === "complete")![1])).toContain("New nodes take the next ids, in order: scenarios S-0002, S-0003, …; journeys J-0002, …; personas P-0001, …")
+  })
+
+  // @scenario S-0104
+  test("an outcome that says the opposite of a constraint is asked about, never drafted: which of the two holds", async () => {
+    const rule: Statement = { id: "K-0001", kind: "constraint", text: "Chores are never shown to grandparents", version: "k1", intent, journeys: [] }
+    const wants: Statement = { ...outcome, text: "Grandparents see every chore" }
+    const { a, calls, cp } = setup({ statements: [wants, rule], journeys: [checkout], conflicts: ["K-0001"], cp: { statements: { "K-0001": { version: "k1", state: "planned" } }, journeys: {} } })
+    await Effect.runPromise(a.tick)
+    expect(calls.filter(([k]) => k === "complete")).toEqual([])
+    const posted = calls.find(([k]) => k === "post")![1] as { title: string; about: ReadonlyArray<string>; answers: ReadonlyArray<{ id: string }> }
+    expect(posted.title).toBe('O-0001 says the opposite of K-0001: "Grandparents see every chore" against "Chores are never shown to grandparents". Which holds?')
+    expect(posted.about).toEqual(["O-0001", "K-0001"])
+    expect(posted.answers.map((x) => x.id)).toEqual(["outcome", "constraint", "leave"])
+    expect(cp().statements["O-0001"]).toMatchObject({ state: "asked" })
+  })
+
+  test("a new state is named by its text, never by an id it would take", async () => {
+    const { a, calls } = setup({ journeys: [checkout], answers: [] })
+    await Effect.runPromise(a.tick)
+    const prompt = String(calls.find(([k]) => k === "complete")![1])
+    expect(prompt).not.toContain("ST-0004")
+    expect(prompt).toContain('A state that does not exist yet is always named by its text ({"text":"…"}), never by an id')
   })
 
   test("nothing due: no model call, nothing filed", async () => {
@@ -110,6 +191,47 @@ describe("the Intent Agent", () => {
     expect(cp().statements).toEqual({})
   })
 
+  test("a reworded statement: the plans drafted for its old wording leave the Backlog before the new round", async () => {
+    const answer = JSON.stringify({ units: [unit("S-0001", [{ tool: "edit-scenario", params: { id: "S-0001", title: "Visitor picks a plan" } }])], steps: ["s"], ask: null })
+    const { a, calls } = setup({ cp: { statements: { "O-0001": { version: "v0", state: "planned", plans: ["B-9"] } }, journeys: {} }, journeys: [checkout], answers: [answer] })
+    await Effect.runPromise(a.tick)
+    const kinds = calls.map(([k]) => k)
+    expect(calls.find(([k]) => k === "dropServing")![1]).toBe("O-0001")
+    expect(kinds.indexOf("dropServing")).toBeLessThan(kinds.indexOf("plan"))
+  })
+
+  test("a journey came to serve a planned statement: its old plans leave the Backlog, and a round that finds it delivered files nothing", async () => {
+    const served = { ...outcome, journeys: ["J-0001"] }
+    const { a, calls, cp } = setup({ statements: [served], cp: { statements: { "O-0001": { version: "v1", state: "planned", plans: ["B-9"] } }, journeys: {} }, journeys: [checkout], answers: [JSON.stringify({ units: [], steps: [], ask: null })] })
+    await Effect.runPromise(a.tick)
+    expect(calls.find(([k]) => k === "dropServing")![1]).toBe("O-0001")
+    expect(calls.some(([k]) => k === "plan")).toBe(false)
+    expect(cp().statements["O-0001"]).toEqual({ version: "v1", state: "nothing", journeys: ["J-0001"] })
+  })
+
+  test("a draft that changes nothing (it puts what is there) files no plan: the journeys already deliver it", async () => {
+    const answer = JSON.stringify({ units: [unit("S-0001", [{ tool: "edit-scenario", params: { id: "S-0001", title: "Visitor picks a plan" } }])], steps: ["s"], ask: null })
+    const { a, calls, cp } = setup({ journeys: [checkout], answers: [answer], dry: () => ({ ok: true, problems: [], touched: [] }) })
+    await Effect.runPromise(a.tick)
+    expect(calls.some(([k]) => k === "plan")).toBe(false)
+    expect(cp().statements["O-0001"]?.state).toBe("nothing")
+  })
+
+  test("an outcome its journeys already deliver (the decision model judges) is settled without drafting", async () => {
+    const served = { ...outcome, journeys: ["J-0001"] }
+    const { a, calls, cp } = setup({ statements: [served], journeys: [checkout], delivered: true })
+    await Effect.runPromise(a.tick)
+    expect(calls.some(([k]) => k === "delivers")).toBe(true)
+    expect(calls.some(([k]) => k === "complete")).toBe(false)
+    expect(cp().statements["O-0001"]).toEqual({ version: "v1", state: "nothing", journeys: ["J-0001"] })
+  })
+
+  test("after a restart, the rounds already reconciled show as they ended", async () => {
+    const { a } = setup({ cp: { statements: { "O-0001": { version: "v1", state: "planned", plans: ["B-2"] } }, journeys: {} }, journeys: [checkout] })
+    await Effect.runPromise(a.tick)
+    expect(a.rounds()).toEqual([{ id: "O-0001", title: "A visitor picks a plan in one minute", state: "planned", detail: "", plans: ["B-2"] }])
+  })
+
   test("an unserving journey: the model names the outcomes it serves; a plan links them", async () => {
     const browse: JourneyInfo = { id: "J-0002", name: "Browse", version: "bv", scenarios: ["S-0002"], serves: [] }
     const { a, calls, cp } = setup({ cp: { statements: { "O-0001": { version: "v1", state: "nothing" } }, journeys: {} }, journeys: [checkout, browse], answers: [JSON.stringify({ serves: ["O-0001"], ask: null })] })
@@ -123,7 +245,7 @@ describe("the Intent Agent under load", () => {
   const three = ["O-0001", "O-0002", "O-0003"].map((id): Statement => ({ ...outcome, id }))
   const answer = (id: string) => JSON.stringify({ units: [unit("S-0001", [{ tool: "edit-scenario", params: { id: "S-0001", title: id } }])], steps: [], ask: null })
   test("ticks that overlap run one at a time: each statement planned once", async () => {
-    const { a, calls } = setup({ statements: three, answers: three.map((s) => answer(s.id)).concat(three.map((s) => answer(s.id))), slow: 20 })
+    const { a, calls } = setup({ statements: three, journeys: [{ ...checkout, serves: three.map((s) => s.id) }], answers: three.map((s) => answer(s.id)).concat(three.map((s) => answer(s.id))), slow: 20 })
     await Effect.runPromise(Effect.all([a.tick, a.tick, a.tick], { concurrency: "unbounded" }))
     expect(calls.filter(([k]) => k === "plan").length).toBe(3)
   })
@@ -140,7 +262,7 @@ describe("the Intent Agent under load", () => {
     expect(calls.filter(([k]) => k === "log").map(([, t]) => String(t))).toEqual(["the checkpoint could not be read (the checkpoint is not JSON): the Intent Agent waits until it is fixed"])
   })
   test("a planned statement whose plans were all dropped is due again", async () => {
-    const { a, calls } = setup({ cp: { statements: { "O-0001": { version: "v1", state: "planned", plans: ["B-1"] } }, journeys: {} }, dropped: ["B-1"], answers: [answer("O-0001")] })
+    const { a, calls } = setup({ cp: { statements: { "O-0001": { version: "v1", state: "planned", plans: ["B-1"] } }, journeys: {} }, dropped: ["B-1"], journeys: [checkout], answers: [answer("O-0001")] })
     await Effect.runPromise(a.tick)
     expect(calls.filter(([k]) => k === "plan").length).toBe(1)
   })
@@ -164,5 +286,18 @@ describe("a journey serving nothing, asked", () => {
     const { a, calls } = setup({ cp: { ...settled, journeys: { "J-0009": { version: "x", state: "asked", topic: "T-1" } } }, journeys: [checkout] })
     expect(await Effect.runPromise(a.answered("serve:J-0009", "O-0001", undefined))).toBe("J-0009 is gone")
     expect(calls.filter(([k]) => k === "plan")).toEqual([])
+  })
+})
+
+describe("delivered already", () => {
+  const outcome: Statement = { id: "O-0001", kind: "outcome", text: "A user marks a habit done today", version: "v1", intent: { id: "I-0001", title: "Tally" }, journeys: ["J-0001"] }
+  test("the driver model reads the journeys without reasoning and answers JSON; anything else is not delivered", async () => {
+    const asked: Array<unknown> = []
+    const judge = (text: string) => deliversBy((req) => Effect.sync(() => (asked.push(req), { text })))
+    expect(await Effect.runPromise(judge('{"delivered": true}')(outcome, "Scenario: Tracker marks a habit done today"))).toBe(true)
+    expect(asked[0]).toMatchObject({ reasoning: { enabled: false } })
+    expect(JSON.stringify(asked[0])).toContain("A user marks a habit done today")
+    expect(await Effect.runPromise(judge('{"delivered": false}')(outcome, ""))).toBe(false)
+    expect(await Effect.runPromise(judge("no json")(outcome, ""))).toBe(false)
   })
 })

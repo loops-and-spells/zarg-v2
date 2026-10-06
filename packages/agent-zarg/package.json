@@ -11,6 +11,7 @@
   "dependencies": {
     "@ag-ui/core": "1.0.0",
     "@zarg/agent-host": "workspace:*",
+    "@zarg/audit": "workspace:*",
     "@zarg/core": "workspace:*",
     "@zarg/decisions": "workspace:*",
     "@zarg/frontmatter": "workspace:*",

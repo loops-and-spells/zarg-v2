@@ -15,6 +15,8 @@ import { zargRouter } from "@zarg/provider-zarg-router"
 import { decisionsService, type Question, Rlm, settings } from "@zarg/rlm"
 import type { AgentHost, Thread } from "@zarg/agent-host"
 import { closeStale, makeActivity } from "./activity"
+import { newWork } from "./agenda-wake"
+import { makeWarmup } from "./warmup"
 import { type Archive, makeArchive, parseTtl } from "./archive"
 import { threadViews } from "./views"
 import { notLoaded } from "./not-loaded"
@@ -30,8 +32,8 @@ import { makeLog } from "./log"
 import { pluginAgents } from "./plugin-agents"
 import { forDriver, makeYolo, PluginControl, pluginHostLayer, trustedAgents, USER_DIR, vaultFrom, ZARG_ROOT } from "./plugins"
 import { STUB_MODEL, stubLayer } from "./stub"
-import { reasonOf, reconcileGate, type ReconcileSettings } from "./phases"
-import { checkoutProblem, commitGraph, gitRun, graphFiles } from "@zarg/reconcile"
+import { reasonOf, reconcileGate, type ReconcileSettings, rememberReconcile } from "./phases"
+import { addAgain, checkoutProblem, commitGraph, gitRun, graphFiles } from "@zarg/reconcile"
 import { makePlanner } from "./planner"
 import { makeReconcile } from "./reconcile"
 import type { ReconcileAnswer } from "./server"
@@ -114,6 +116,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // The core's own scope: reconcile started later (by /reconcile) closes with the core.
     const scope = yield* Effect.scope
     // Reconcile's findings, as inbox topics (none while reconcile is off).
+    // zarg wakes for work it has not seen on its agenda (reconcile's findings, plugins' items); set once main exists.
+    let wakeMain: Effect.Effect<void> = Effect.void
     const syncFindings = Effect.suspend(() => Effect.ignore(syncFindingTopics(inbox, reconcile?.findings.list() ?? [], reconcile === undefined ? "reconcile is off" : "the finding cleared")))
     const startReconcile = (settings: ReconcileSettings) =>
       makeReconcile({
@@ -130,8 +134,20 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         affected: (before, after) => host.affected(before, after),
         onLanded: (scenarios) => void Effect.runFork(planner.landed(scenarios)),
         onFailed: (scenarios) => void Effect.runFork(planner.failed(scenarios)),
+        // Findings in the operator's inbox as they change, and zarg takes them up: a pass resumed after a restart
+        // raised one that waited unseen until the next pass ended.
+        onFindings: () => void Effect.runFork(Effect.andThen(syncFindings, Effect.suspend(() => wakeMain))),
         // Findings in the operator's inbox: raised when a pass finds them, settled once they clear.
-        onPassEnd: () => void Effect.runFork(syncFindings),
+        onPassEnd: () =>
+          void Effect.runFork(
+            Effect.andThen(
+              Effect.andThen(syncFindings, Effect.suspend(() => wakeMain)),
+              // The pass is over: its landing no longer waits.
+              Effect.forEach(inbox.list().filter((t) => t.from.plugin === "zarg" && t.key === "land-wait" && t.state === "open"), (t) => Effect.ignore(inbox.settle("zarg", t.id, "the pass ended")), { discard: true }),
+            ),
+          ),
+        // @scenario S-0050
+        onLandWait: (text) => void Effect.runFork(Effect.ignore(inbox.post({ plugin: "zarg" }, { kind: "report", key: "land-wait", title: text, why: "reconcile", about: [] }))),
       }).pipe(Effect.provideService(EffectScope.Scope, scope))
     // The Planner Agent: Ready plans on the Backlog are applied to the graph, then reconcile implements them.
     const planner = makePlanner({
@@ -154,6 +170,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     const agenda = (focus: ReadonlySet<string> | undefined) =>
       Effect.map(host.agenda(focus), (items): ReadonlyArray<AgendaItem> => [...(reconcile?.agenda(focus) ?? []), ...forDriver(items)])
     // zarg, the conversational agent, is a trusted agent plugin: it gets what it needs from the core as a host.
+    let warmup: ReturnType<typeof makeWarmup> | undefined
     const agentHost: AgentHost = {
       root,
       roles,
@@ -165,6 +182,10 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       log,
       sensitive,
       agenda,
+      // zarg's turns wait for the driver's model to be warm (warmup is set below; read when called).
+      modelReady: Effect.suspend(() => (warmup === undefined ? Effect.succeed(true) : warmup.ready)),
+      // Turning reconcile on, as /reconcile does (turnOn is defined below; read when called).
+      reconcile: { on: () => reconcile !== undefined, turnOn: Effect.suspend(() => turnOn) },
       outsideReads: outsideReads({ grants: agentGrants, userDir: USER_DIR, ask: ((q: Question) => grantAsk(inbox)("agents", q)) as never, yolo: () => yoloControl.on("zarg:agents") }),
       panels: { open: (p) => surfaces.openPanel({ ...p, id: `zarg:${p.name}:zarg`, plugin: "zarg", agent: "zarg" }) },
       // zarg's questions: blocking topics that survive a restart (the answer reaches zarg whenever it comes).
@@ -175,6 +196,7 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
         settle: (id, why) => inbox.settle("zarg", id, why),
         message: (id, by, text) => inbox.message(id, by, text),
         find: (key) => Effect.sync(() => inbox.list().find((t) => t.from.plugin === "zarg" && t.from.agent === "zarg" && t.key === key)),
+        open: () => Effect.sync(() => inbox.list().filter((t) => t.from.plugin === "zarg" && t.from.agent === "zarg" && t.state === "open").map((t) => ({ id: t.id, title: t.title, ...(t.key !== undefined ? { key: t.key } : {}) }))),
       },
     }
     const zarg = yield* trustedAgents(ZARG_ROOT).pipe(
@@ -216,9 +238,12 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
     // The backlog's or rehearse's agenda changing wakes the Triage Agent (a stage's turn, a re-rehearse done).
     // The host's plugin problems in the operator's inbox, whenever an agenda changes (and once plugins load, below).
     const syncPlugins = Effect.ignore(Effect.flatMap(host.agenda(), (items) => syncPluginTopics(inbox, items)))
+    // zarg wakes for agenda items it has not seen: a dropped plan or an item settled is no work for it.
+    const fresh = newWork()
+    wakeMain = Effect.ignore(Effect.flatMap(agenda(undefined), (items) => (fresh(items.map((i) => i.id)) ? main.wake : Effect.void)))
     control.setAgendaChanged((plugin) => {
       if (plugin === "host") return void Effect.runFork(syncPlugins)
-      Effect.runFork(main.wake)
+      Effect.runFork(wakeMain)
       if (plugin === "backlog") Effect.runFork(planner.tick)
       if (plugin === "backlog" || plugin === "rehearse") Effect.runFork(triageTick)
       if (plugin === "backlog") Effect.runFork(intentTick)
@@ -286,8 +311,19 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       model,
       agentEvents,
       secretsChanged: Effect.map(env.sensitive, (s) => void (sensitive = s)),
+      onDefault: Effect.suspend(() => warmNow),
     })
     if (!opts.stub) yield* Effect.forkDetach(setup.openIfNeeded)
+    // @scenario S-0037 S-0039
+    // The driver's model warm before zarg's first turn (a cold one is started, shown as an agent); a pick warms the new one.
+    const newWarmup = () => makeWarmup({ driver: () => config.roles.driver ?? config.roles.default, model, agentEvents, onFailed: (reason) => setup.failed(reason) })
+    warmup = opts.stub ? undefined : newWarmup()
+    const warmNow = Effect.suspend(() => {
+      if (opts.stub) return Effect.void
+      warmup = newWarmup()
+      return Effect.asVoid(warmup.ensure)
+    })
+    if (warmup !== undefined) yield* Effect.forkDetach(warmup.ensure)
 
     // @scenario S-0058 @scenario S-0059
     /** `/reconcile`: turn plan and implement on for this session (the config's section and `enabled` are overridden). */
@@ -300,6 +336,8 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
       const problem = yield* checkoutProblem(root).pipe(Effect.orElseSucceed(() => undefined))
       if (problem !== undefined) return { on: false, reason: `no pass can run: ${problem}` } satisfies ReconcileAnswer
       if (reconcile === undefined && forced?.on) {
+        // Turned on by hand where the config said nothing: it stays on (enabled = false is kept as written).
+        if (config.extra.reconcile === undefined) yield* Effect.sync(() => rememberReconcile(root))
         reconcile = yield* startReconcile(forced.settings)
         yield* syncFindings
         for (const t of reconcile.threads) threads.add(t)
@@ -356,7 +394,9 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
           return { notice: change.delete !== undefined ? `deleted ${n}` : change.restore !== undefined ? `restored ${n}` : `archived ${n}` }
         }),
     }
-    return { log, threads, driver: roles.driver, turnOn, yolo, actions, commands, prompts, archive, inbox, setup }
+    // `/reconcile S-0006`: build these again (a scenario recorded as built with no code had no way back).
+    const again = (ids: ReadonlyArray<string>) => Effect.sync(() => addAgain(root, ids))
+    return { log, threads, driver: roles.driver, turnOn, again, yolo, actions, commands, prompts, archive, inbox, setup }
   })
 
 /** The project's plugin host options from its environment and config (`[plugins.<name>]` tables). */

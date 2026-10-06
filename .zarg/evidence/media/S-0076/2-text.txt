@@ -1,0 +1,40 @@
+                       │  report  probe · a report in Markdown                                                          
+ ◆ zarg                │  done · turn 1 of 1 · 0 tokens                                                                 
+   project · main      │                                                                                                
+                       │  What the probe found                                                                          
+ VIEWS               3 │                                                                                                
+  ▤ Inbox              │                                                                                                
+  ▤ Journeys           │  - two notes read                                                                              
+  ▤ Intents            │  - one file it may not read                                                                    
+                       │                                                                                                
+ AGENTS              3 │  note  state                                                                                   
+  ▾ zarg           0/0 │  a     read                                                                                    
+  └ ✓ driver 1    done │                                                                                                
+▍ ✓ report        done │  probe is done.                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │ · report written                                                                               
+                       │ › message zarg… (alt+m or /)                                                                   
+                       │ core child · idle · thread main · stub:scripted   esc back                                     

@@ -73,6 +73,8 @@ export const SYSTEM = [
   "You refine a product's requirements: Gherkin scenarios (Given, When, Then) that testers found problems with.",
   "Propose the smallest change to the graph that answers the feedback, as gherkin tool calls in order. Clauses at most 15 words; never 'if' (one scenario per case).",
   "The operator's notes say how they want the feedback answered: follow them over the tester's words.",
+  "Feedback that is on was judged real: answer it with a change. Feedback about a scenario's words (a Then that repeats its When, two names for one actor) is answered in its words, whatever the code does. Propose no change only when the scenario as shown already says what the feedback asks; then the summary quotes the line that does.",
+  "A scenario whose When covers several cases (\"or\", two outcomes) splits: edit it to one case (edit-scenario) and add one scenario per other case, moving its thens where they belong; never leave it covering them all beside the new ones.",
   `Tools:\n${TOOLS}`,
   "Refer to states that exist by id; name every new state by text (its id is made when the plan is applied, so never guess one).",
   [

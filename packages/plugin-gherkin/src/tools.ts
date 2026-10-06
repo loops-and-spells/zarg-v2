@@ -2,11 +2,11 @@ import { Effect, Schema } from "effect"
 import { type Change, type Node, Put, Remove, Snapshot } from "@zarg/graph/pure"
 import { tool, ToolError } from "./kit"
 import { intentTools } from "./intent-tools"
-import { ARRIVES, BOUNDS, BY, CONSTRAINT, findJourney, findPersona, findStateByText, FOR, GIVEN, HAS, IN, INTENT, isStatement, JOURNEY, journeyName, journeys, OUTCOME, PERSONA, personaName, personas, SCENARIO, SERVES, STATE, THEN } from "./model"
+import { ARRIVES, BOUNDS, BY, CONSTRAINT, findJourney, findPersona, findStateByText, FOR, GIVEN, HAS, IN, INTENT, isStatement, JOURNEY, journeyName, journeys, normalize, OUTCOME, PERSONA, personaName, personas, SCENARIO, scenarios, SERVES, STATE, THEN } from "./model"
 
 /** Point at an existing state by id, or describe one by text (reused if the text already exists). */
-const StateRef = Schema.Union([Schema.Struct({ id: Schema.String }), Schema.Struct({ text: Schema.NonEmptyString })]).annotate({
-  description: "An existing state by {id}, or a sentence by {text} (existing text is reused).",
+const StateRef = Schema.Union([Schema.Struct({ id: Schema.String }), Schema.Struct({ text: Schema.NonEmptyString, terminal: Schema.optionalKey(Schema.Boolean), entry: Schema.optionalKey(Schema.Boolean) })]).annotate({
+  description: "An existing state by {id}, or a sentence by {text} (existing text is reused); a new one may be terminal (nothing needs to follow) or an entry.",
 })
 type StateRef = typeof StateRef.Type
 
@@ -14,14 +14,17 @@ const EdgeName = Schema.Literals(["arrives", "given", "then", "by", "in", "serve
 const edgeType = { arrives: ARRIVES, given: GIVEN, then: THEN, by: BY, in: IN, serves: SERVES, bounds: BOUNDS, for: FOR } as const
 
 /** A journey by {id} or by {name} (case does not matter). */
-const JourneyRef = Schema.Union([Schema.Struct({ id: Schema.String }), Schema.Struct({ name: Schema.NonEmptyString })]).annotate({
-  description: "A journey by {id}, or by {name}.",
+const JourneyRef = Schema.Union([Schema.Struct({ id: Schema.String }), Schema.Struct({ name: Schema.NonEmptyString }), Schema.NonEmptyString]).annotate({
+  description: "A journey by {id}, or by {name} (a plain string is either: J-0001, or the name).",
 })
 type JourneyRef = typeof JourneyRef.Type
+/** A plain string names a journey by id (J-0001) or by name: what a draft means, said either way. */
+const journeyRefOf = (ref: JourneyRef): { readonly id: string } | { readonly name: string } => (typeof ref !== "string" ? ref : /^J-\d+$/.test(ref) ? { id: ref } : { name: ref })
 const knownJourneys = (snap: Snapshot.Snapshot) => journeys(snap).map((j) => `${j.id} ${journeyName(j)}`).join(", ") || "none yet (add one with add-journey)"
-const journeyOf = (snap: Snapshot.Snapshot, ref: JourneyRef): Effect.Effect<string, ToolError> => {
+const journeyOf = (snap: Snapshot.Snapshot, raw: JourneyRef): Effect.Effect<string, ToolError> => {
+  const ref = journeyRefOf(raw)
   const n = findJourney(snap, ref)
-  return n !== undefined ? Effect.succeed(n.id) : Effect.fail(new ToolError({ message: `${"id" in ref ? ref.id : `"${ref.name}"`} is not a journey; known: ${knownJourneys(snap)}` }))
+  return n !== undefined ? Effect.succeed(n.id) : Effect.fail(new ToolError({ message: `${"id" in ref ? ref.id : `"${ref.name}"`} is not a journey; known: ${knownJourneys(snap)}${"id" in ref ? " (a journey this change adds: add-journey before it, then name it by {name})" : ""}` }))
 }
 const JourneyName = Schema.NonEmptyString.annotate({ description: "Unique (case does not matter)." })
 
@@ -48,11 +51,11 @@ const resolver = (snap: Snapshot.Snapshot) => {
   const resolve = (ref: StateRef): Effect.Effect<string, ToolError> => {
     if ("id" in ref) {
       const n = working.nodes.get(ref.id)
-      return n?.type === STATE ? Effect.succeed(ref.id) : Effect.fail(new ToolError({ message: `${ref.id} is not a state` }))
+      return n?.type === STATE ? Effect.succeed(ref.id) : Effect.fail(new ToolError({ message: notA(working, ref.id, STATE) }))
     }
     const existing = findStateByText(working, ref.text)
     if (existing !== undefined) return Effect.succeed(existing.id)
-    const node: Node = { id: Snapshot.nextId(working, "ST"), type: STATE, props: { text: ref.text }, edges: [] }
+    const node: Node = { id: Snapshot.nextId(working, "ST"), type: STATE, props: { text: ref.text, ...(ref.terminal === true ? { terminal: true } : {}), ...(ref.entry === true ? { entry: true } : {}) }, edges: [] }
     created.push(node)
     working = Snapshot.applyChanges(working, [Put(node)])
     return Effect.succeed(node.id)
@@ -60,9 +63,17 @@ const resolver = (snap: Snapshot.Snapshot) => {
   return { resolve, created, next: (prefix: string) => Snapshot.nextId(working, prefix) }
 }
 
-const getNode = (snap: Snapshot.Snapshot, id: string, type: string) => {
+/** Why `id` is not a `type`: it is another kind of node, or it does not exist (then the ones there, so a guessed id can be fixed). */
+const notA = (snap: Snapshot.Snapshot, id: string, type: string) => {
   const n = snap.nodes.get(id)
-  return n?.type === type ? Effect.succeed(n) : Effect.fail(new ToolError({ message: `${id} is not a ${type}` }))
+  if (n !== undefined) return `${id} is a ${n.type}, not a ${type}`
+  const there = [...snap.nodes.values()].filter((x) => x.type === type).map((x) => x.id)
+  return `${id} does not exist (not in the graph, nor added before it in this change); the ${type.split("/").pop()}s there: ${there.length > 0 ? there.slice(0, 12).join(", ") : "none"}`
+}
+const getNode = (snap: Snapshot.Snapshot, id: string, type: string) => {
+  // A scenario by its title too (titles are unique): a draft links the scenario it adds before knowing its id.
+  const n = snap.nodes.get(id) ?? (type === SCENARIO ? scenarios(snap).find((s) => normalize(String(s.props.title ?? "")) === normalize(id)) : undefined)
+  return n?.type === type ? Effect.succeed(n) : Effect.fail(new ToolError({ message: notA(snap, id, type) }))
 }
 
 const createdNote = (created: ReadonlyArray<Node>) =>
@@ -109,6 +120,8 @@ export const addPersona = tool({
   run: (p, snap) =>
     Effect.gen(function* () {
       const existing = findPersona(snap, { name: p.name })
+      // The same persona again (a draft that did not see it was there): it is used, nothing changes.
+      if (existing !== undefined && existing.props.kind === p.kind) return { changes: [], message: `${existing.id} is already ${personaName(existing)}: no change` }
       if (existing !== undefined) return yield* new ToolError({ message: `${existing.id} is already called "${personaName(existing)}"; use it` })
       const id = Snapshot.nextId(snap, "P")
       return { changes: [Put({ id, type: PERSONA, props: { ...p }, edges: [] })], message: `created ${id}` }
@@ -150,14 +163,16 @@ export const addScenario = tool({
     title: Schema.NonEmptyString.annotate({ description: "Short: who does what." }),
     when: Schema.NonEmptyString.annotate({ description: "The one user action." }),
     by: Schema.optionalKey(Schema.Array(PersonaRef)).annotate({ description: "Who acts in the When: one or more personas (required)." }),
-    arrives: StateRef.annotate({ description: "The state the user is in before the action (the Given)." }),
-    given: Schema.optionalKey(Schema.Array(StateRef)).annotate({ description: "Up to 3 extra context states (And)." }),
+    in: Schema.optionalKey(Schema.Array(JourneyRef)).annotate({ description: "The journeys it is in (existing ones), so a draft need not link it after." }),
+    arrives: StateRef.annotate({ description: "The state the user is in before the action (the Given). In a journey it is where the scenario before it leads: that scenario's Then, by id." }),
+    given: Schema.optionalKey(Schema.Array(StateRef)).annotate({ description: "Up to 3 extra context states (And) that also hold. Never the state the user arrives from: that is arrives." }),
     then: Schema.Array(StateRef).annotate({ description: "1-5 states the action leads to." }),
   }),
   run: (p, snap) =>
     Effect.gen(function* () {
       if (p.by === undefined || p.by.length === 0) return yield* new ToolError({ message: `a scenario needs at least one persona in by; known: ${known(snap)}` })
       const by = yield* Effect.forEach(p.by, (ref) => personaOf(snap, ref))
+      const inJourneys = yield* Effect.forEach(p.in ?? [], (ref) => journeyOf(snap, ref))
       const r = resolver(snap)
       const arrives = yield* r.resolve(p.arrives)
       const given = yield* Effect.forEach(p.given ?? [], r.resolve)
@@ -169,6 +184,7 @@ export const addScenario = tool({
         props: { title: p.title, when: p.when },
         edges: [
           ...by.map((to) => ({ type: BY, to })),
+          ...[...new Set(inJourneys)].map((to) => ({ type: IN, to })),
           { type: ARRIVES, to: arrives },
           ...given.map((to) => ({ type: GIVEN, to })),
           ...then.map((to) => ({ type: THEN, to })),
@@ -199,7 +215,7 @@ export const editScenario = tool({
 export const link = tool({
   name: "link",
   description:
-    'Connect a scenario to a state as arrives (replaces the current one), given or then; to a persona as by; or to a journey as in. Also: a journey serves an outcome {edge: "serves", journey, outcome}; a constraint bounds a journey or a scenario {edge: "bounds", constraint, journey or scenario}; an intent is for a persona {edge: "for", intent, persona}.',
+    'Connect a scenario (its id, or its exact title: one added earlier in the same change) to a state as arrives (replaces the current one), given or then; to a persona as by; or to a journey as in. Also: a journey serves an outcome {edge: "serves", journey, outcome}; a constraint bounds a journey or a scenario {edge: "bounds", constraint, journey or scenario}; an intent is for a persona {edge: "for", intent, persona}.',
   params: Schema.Struct({
     scenario: Schema.optionalKey(Schema.String),
     edge: EdgeName,
@@ -216,7 +232,7 @@ export const link = tool({
       // The source owns the edge: the journey (serves), the constraint (bounds), the intent (for), else the scenario.
       const linkFrom = (source: Node, to: string, created: ReadonlyArray<Node> = []) =>
         source.edges.some((e) => e.type === type && e.to === to)
-          ? Effect.fail(new ToolError({ message: `${source.id} already has ${p.edge} ${to}` }))
+          ? Effect.succeed({ changes: [] as Array<Change>, message: `${source.id} already has ${p.edge} ${to}: no change` })
           : Effect.succeed({
               changes: [...created.map(Put), Put({ ...source, edges: [...(p.edge === "arrives" ? source.edges.filter((e) => e.type !== ARRIVES) : source.edges), { type, to }] })] as Array<Change>,
               message: `linked ${source.id} ${p.edge} ${to}${createdNote(created)}`,

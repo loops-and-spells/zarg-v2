@@ -25,7 +25,8 @@ const world = (seed: { readonly userConfig?: string; readonly values?: Readonly<
   const env: Env["Service"] = {
     lookup: (n) => Effect.succeed(values.has(n) ? (sensitiveNames.includes(n) ? Redacted.make(values.get(n)!) : values.get(n)!) : undefined),
     get: (n) => (values.has(n) ? Effect.succeed(values.get(n)!) : Effect.die(`${n} unset`)) as never,
-    fields: (names) => Effect.succeed(names.map((name) => ({ name, type: undefined, description: name === KEY ? "the API key" : "the base URL", sensitive: sensitiveNames.includes(name), required: name === KEY, errors: [] }))),
+    // The URL's schema type: a value that is no URL fails it.
+    fields: (names) => Effect.succeed(names.map((name) => ({ name, type: name === URL ? "url" : undefined, description: name === KEY ? "the API key" : "the base URL", sensitive: sensitiveNames.includes(name), required: name === KEY, errors: name === URL && values.has(URL) && !/^https?:\/\//.test(values.get(URL)!) ? ["must be a valid URL"] : [] }))),
     sensitive: Effect.sync(() => (values.has(KEY) ? [{ name: KEY, value: Redacted.make(values.get(KEY)!) }] : [])),
     reload: Effect.void,
   }
@@ -62,7 +63,7 @@ const setupIn = async (w: ReturnType<typeof world>) => {
   })
   const model = {
     client: (name: string) => (name === "fake" ? Effect.map(verifyFake, () => ({ verify: verifyFake, models: Effect.succeed([]) }) as never) : Effect.fail(new ModelError({ kind: "config", message: `no provider "${name}"` }))),
-    list: (name: string) => (name === "fake" ? Effect.flatMap(verifyFake, () => Effect.succeed([{ id: "big", contextLength: 131072, maxOutputTokens: undefined, supportsTools: true, reasoningEfforts: [], capabilities: ["tools"], state: undefined }])) : Effect.succeed([])),
+    list: (name: string) => (name === "fake" ? Effect.flatMap(verifyFake, () => Effect.succeed([{ id: "big", contextLength: 131072, maxOutputTokens: undefined, supportsTools: true, reasoningEfforts: [], capabilities: ["tools"], state: undefined }, ...(judge ? [{ id: "judge", contextLength: 8192, maxOutputTokens: undefined, supportsTools: false, reasoningEfforts: [], capabilities: ["decision"], state: undefined }] : [])])) : Effect.succeed([])),
     reconnect: Effect.void,
     stream: () => Effect.die("unused"),
     info: () => Effect.die("unused"),
@@ -87,6 +88,8 @@ const setupIn = async (w: ReturnType<typeof world>) => {
 const run = <A>(e: Effect.Effect<A, unknown>) => Effect.runPromise(e as Effect.Effect<A>)
 const sectionData = (events: ReadonlyArray<Record<string, unknown>>, section: string) => events.filter((e) => e.event === "set" && e.section === section).at(-1)?.data as { rows?: ReadonlyArray<{ id: string; cells: Record<string, string>; secret?: boolean }>; markdown?: string } | undefined
 
+// A provider that also offers a decision model: setup sets it beside the default.
+let judge = false
 describe("first-run setup", () => {
   // @scenario S-0084
   test("not set up: needed, and open starts the core:setup agent, fills its sections and opens its sheet", async () => {
@@ -111,6 +114,45 @@ describe("first-run setup", () => {
     expect(w.secretCalls).toEqual([`set ${KEY}`, `plain ${URL}`])
     expect(refreshed()).toBe(2)
     expect(JSON.stringify(events)).not.toContain(SECRET)
+  })
+
+  // @scenario S-0029
+  test("a value that fails its schema type: the field shows the schema's error, and the settings stay listed to fill in", async () => {
+    const w = world()
+    const { s, events } = await setupIn(w)
+    await run(s.open())
+    await run(s.act("login", ["fake"], undefined))
+    expect((await run(s.act("set", [URL], "not a url"))).notice).toBe(`${URL}: must be a valid URL`)
+    const rows = sectionData(events, "fields")?.rows ?? []
+    expect(rows.map((r) => r.id)).toEqual([KEY, URL])
+    expect(rows.find((r) => r.id === URL)?.cells.about).toContain("✗ must be a valid URL")
+  })
+
+  // @scenario S-0032
+  test("clearing a provider's secret deletes the stored key; the field no longer says set", async () => {
+    const w = world({ values: { [KEY]: "good", [URL]: "http://fake.invalid" } })
+    const { s, events, refreshed } = await setupIn(w)
+    await run(s.open())
+    await run(s.act("login", ["fake"], undefined))
+    expect(sectionData(events, "fields")?.rows?.find((r) => r.id === KEY)?.cells.about).toContain("· set")
+    expect((await run(s.act("clear", [KEY], undefined))).notice).toBe(`${KEY} cleared`)
+    expect(w.values.has(KEY)).toBe(false)
+    expect(refreshed()).toBe(1)
+    expect(sectionData(events, "fields")?.rows?.find((r) => r.id === KEY)?.cells.about).not.toContain("· set")
+  })
+
+  // @scenario S-0036
+  test("a default model without tool calls is refused with a reason; the models stay listed", async () => {
+    judge = true
+    const w = world({ values: { [KEY]: "good", [URL]: "http://fake.invalid" } })
+    const { s, events, config } = await setupIn(w)
+    await run(s.open())
+    await run(s.act("login", ["fake"], undefined))
+    await run(s.act("done", [], undefined))
+    expect((await run(s.act("default", ["fake:judge"], undefined))).notice).toBe("fake:judge cannot be the default: it has no tool calls, and every agent works through them")
+    expect(config.roles.default).toBeUndefined()
+    expect(sectionData(events, "models")?.rows?.map((r) => r.id)).toContain("fake:big")
+    judge = false
   })
 
   // @scenario S-0028
@@ -139,6 +181,21 @@ describe("first-run setup", () => {
     expect(config.roles.driver).toBe("fake:big")
     expect(await run(s.needed)).toBe(false)
     expect(events.find((e) => e.event === "close")).toMatchObject({ plugin: "core", surface: "setup", id: "setup" })
+  })
+
+  test("default, where the provider offers a decision model: decisions use it (unless one is set)", async () => {
+    judge = true
+    try {
+      const w = world({ values: { [KEY]: "good", [URL]: "http://fake.invalid" } })
+      const { s, userConfig } = await setupIn(w)
+      await run(s.open())
+      await run(s.act("login", ["fake"], undefined))
+      await run(s.act("done", [], undefined))
+      expect((await run(s.act("default", ["fake:big"], undefined))).notice).toBe("default model: fake:big · decisions: fake:judge")
+      expect(readFileSync(userConfig, "utf8")).toContain('decision = "fake:judge"')
+    } finally {
+      judge = false
+    }
   })
 
   // @scenario S-0027

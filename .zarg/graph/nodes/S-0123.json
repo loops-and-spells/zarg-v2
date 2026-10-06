@@ -1,0 +1,26 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0054",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0140",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0004",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0123",
+  "props": {
+    "title": "Operator builds a scenario again",
+    "when": "the operator types /reconcile with a scenario id"
+  },
+  "type": "gherkin/scenario"
+}

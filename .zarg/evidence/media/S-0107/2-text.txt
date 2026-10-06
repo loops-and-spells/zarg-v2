@@ -1,0 +1,62 @@
+{
+  "drift": {
+    "ref": "gherkin/scenario:S-0002@e4fe18f8c172",
+    "journeys": [
+      "Assign chores"
+    ],
+    "persona": "Parent",
+    "kind": "drift",
+    "severity": "high",
+    "note": "The step says the chore leaves every list, but the code says removal only marks it hidden for the parent while every other list still shows it. The written step and shown code diverge, so this is drift, not contradiction.",
+    "from": {
+      "agent": "rehearse",
+      "run": "r-bf820330"
+    },
+    "triage": {
+      "on": true,
+      "why": "ask · real 1.00",
+      "by": "agent"
+    },
+    "id": "F-4f05f287",
+    "count": 1,
+    "runs": [
+      "rehearse:r-bf820330"
+    ]
+  },
+  "topic": {
+    "kind": "drift",
+    "title": "S-0002: the scenario and the code differ",
+    "why": "rehearse (high)",
+    "evidence": "The step says the chore leaves every list, but the code says removal only marks it hidden for the parent while every other list still shows it. The written step and shown code diverge, so this is drift, not contradiction.\n\nWhat zarg does now:\n\nsrc/chores.ts:3\n\n```\n// Removing only marks the chore as hidden for the parent; every other list still shows it.\nexport const remove = (chores: string[], _chore: string) => chores\n\n```",
+    "key": "drift:F-4f05f287",
+    "about": [
+      "S-0002"
+    ],
+    "severity": "high",
+    "answers": [
+      {
+        "id": "scenario",
+        "label": "Reword the scenario",
+        "why": "the code is right"
+      },
+      {
+        "id": "code",
+        "label": "Change the code",
+        "recommended": true,
+        "why": "the scenario is right"
+      }
+    ],
+    "origin": {
+      "view": "feedback"
+    },
+    "id": "T-8f347a37",
+    "from": {
+      "plugin": "backlog"
+    },
+    "blocking": false,
+    "messages": [],
+    "state": "open",
+    "created": 1791280361767,
+    "updated": 1791280361767
+  }
+}

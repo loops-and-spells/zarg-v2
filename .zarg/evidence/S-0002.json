@@ -1,13 +1,13 @@
 {
   "scenario": "S-0002",
   "version": "e7a780fe3f4b",
-  "commit": "b9aa753",
-  "run": "e2e-2026-10-04T22-49-10.062Z",
+  "commit": "5f6a732d",
+  "run": "e2e-2026-10-06T09-50-00.784Z",
   "journey": "J-0005",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T22:49:55.421Z",
-  "ms": 1436,
+  "at": "2026-10-06T09:50:01.703Z",
+  "ms": 625,
   "media": [
     {
       "kind": "evidence-terminal/text",
@@ -36,12 +36,12 @@
   ],
   "failure": null,
   "code": {
-    "packages/cli/test/cli.test.ts": "56b6cfac8208bfa88a3987e69d2f667eaae17327",
-    "packages/e2e/journeys/J-0008.test.ts": "11ef200f6ab2f42fb4b00bf9e16dc26b3dc64244",
+    "packages/cli/test/cli.test.ts": "33681500bdb42de851e9e8a737c7fcd2a56148e1",
+    "packages/e2e/journeys/J-0008.test.ts": "6224f2d97ef1f017734052429932d56b5f25984f",
     "packages/graph/src/store.ts": "6a7add2b82604519e018a0e9508e5fed285f2f34",
     "packages/graph/test/store.test.ts": "b8a5211bd6fdc93752fa43bbe3750fef19fc6314",
-    "packages/plugin-gherkin/src/render.ts": "b8c02986de3ac8c605f033110c55e0f8bb792fb2",
-    "packages/plugin-gherkin/src/tools.ts": "3af1f21c0b50322d471deb2915be3c610d676bbf",
-    "packages/plugin-gherkin/test/gherkin.test.ts": "19d5b1a72bd76570c06ccd47346472c38833b952"
+    "packages/plugin-gherkin/src/render.ts": "7aa271555c7ca158124a45724125d672d41dabd2",
+    "packages/plugin-gherkin/src/tools.ts": "152e1358ed5093250d4b6c782252261814ae31fc",
+    "packages/plugin-gherkin/test/gherkin.test.ts": "a7a17028461c565cfc0ed4bfc66d7358eef57773"
   }
 }

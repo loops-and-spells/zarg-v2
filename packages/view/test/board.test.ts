@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { boardKey, checkSet, pickCard, defineView, initialViewUi, layoutOf, type ViewState, type ViewUi } from "../src"
+import { boardKey, boardUi, checkSet, pickCard, defineView, initialViewUi, layoutOf, type ViewState, type ViewUi } from "../src"
 
 const layout = layoutOf(defineView("backlog", { board: { kind: "board", role: "primary", title: "" } }))
 const card = (id: string) => ({ id, title: `item ${id}` })
@@ -40,6 +40,16 @@ describe("boards", () => {
     expect(press(at(1, 0), "right", true).act).toEqual({ section: "board", action: "move-right", rows: ["B-3"] })
     expect(press(at(1, 0), "left", true).act).toEqual({ section: "board", action: "move-left", rows: ["B-3"] })
     expect(press(at(2, 0), "return").act).toBeUndefined()
+  })
+  test("a board not moved through yet starts on the first lane that has cards", () => {
+    const empty = view([{ id: "backlog", cards: [] }, { id: "ready", cards: [] }, { id: "review", cards: ["B-9"] }])
+    expect(boardUi(empty, initialViewUi, "board")).toMatchObject({ lane: 2, card: 0 })
+    expect(boardKey(empty, initialViewUi, { name: "right", shift: true })!.act).toEqual({ section: "board", action: "move-right", rows: ["B-9"] })
+  })
+  test("a card moved with shift+arrows keeps the cursor: it follows the card into its new lane", () => {
+    const moved = press(at(1, 0), "right", true).ui
+    const after = view([{ id: "backlog", cards: ["B-1", "B-2"] }, { id: "ready", cards: [] }, { id: "running", cards: ["B-3"] }])
+    expect(boardUi(after, moved, "board")).toMatchObject({ lane: 2, card: 0 })
   })
   test("a cursor past a lane that emptied comes back to its last card", () => {
     expect(press(at(0, 9), "down").ui.board!.board).toEqual({ lane: 0, card: 1, folded: [] })

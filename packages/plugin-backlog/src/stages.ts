@@ -126,7 +126,12 @@ export const settle = (s: Stage, p: { readonly scenario: string; readonly title?
   if (current(next) !== undefined) return next
   const { note: _n, ...rest } = next
   // Every scenario decided: the plan is drafted and goes to the Backlog; nothing drafted: back to Triage.
-  return draft.length > 0 ? { ...rest, stage: "plan" } : { ...rest, stage: "triage", note: "Nothing drafted: every scenario was left out. Refine to try again." }
+  if (draft.length > 0) return { ...rest, stage: "plan" }
+  // Accepted with no change: the worker found nothing to change; the operator may disagree with a note.
+  const unchanged = proposals.find((x) => x.status === "accepted")
+  return unchanged !== undefined
+    ? { ...rest, stage: "triage", note: `Nothing to change, the triage worker found: ${unchanged.summary.trim() || "the scenarios already do it."} Disagree? Note what you see (n), then Refine again.` }
+    : { ...rest, stage: "triage", note: "Nothing drafted: every scenario was left out. Refine to try again." }
 }
 
 /** The buttons a stage offers (a note is always there). */

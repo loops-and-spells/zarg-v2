@@ -34,6 +34,20 @@ describe("the backlog's plans", () => {
     expect(out.lanes.ready).toEqual([])
     expect(Object.keys(out.lanes)).toEqual(["backlog", "ready", "running", "review", "done"])
   })
+  test("the board follows a plan the Planner and reconcile move: open, it shows the lane the plan is in now", async () => {
+    const out = await run((seen) => Effect.gen(function* () {
+      const { scenario, feedback } = yield* setUp
+      const h = yield* PluginHost
+      yield* h.invoke("backlog", "plan", planOf(scenario.ref, feedback))
+      yield* h.invoke("backlog", "act", { agent: "backlog", action: "open", rows: [] })
+      yield* h.invoke("backlog", "moved", { id: "B-01", to: "ready", by: "operator" })
+      yield* h.invoke("backlog", "moved", { id: "B-01", to: "running", by: "Planner" })
+      yield* h.invoke("backlog", "moved", { id: "B-01", to: "review", by: "reconcile" })
+      return lanes(seen)
+    }))
+    expect(out.review!.map((c) => c.id)).toEqual(["B-01"])
+    expect(out.ready).toEqual([])
+  })
   test("next: the oldest Ready plan it can take; not one after an unfinished plan, not one whose scenario changed (unless a plan it waits on changed it)", async () => {
     const out = await run((seen) => Effect.gen(function* () {
       const { scenario, feedback } = yield* setUp
@@ -209,6 +223,15 @@ describe("the backlog's plans", () => {
     expect(out.closed).toEqual(["item"])
     expect(out.notice).toBe("B-01 dropped; its feedback is open again")
   })
+  test("a plan with no feedback dropped says only that: no feedback to open again", async () => {
+    const notice = await run(() => Effect.gen(function* () {
+      const { scenario } = yield* setUp
+      const h = yield* PluginHost
+      yield* h.invoke("backlog", "plan", planOf(scenario.ref, []))
+      return ((yield* h.invoke("backlog", "drop-item", { id: "B-01" })) as { notice: string }).notice
+    }))
+    expect(notice).toBe("B-01 dropped")
+  })
   // @scenario S-0112
   test("dropping a triaged plan leaves its journey as if never planned (nothing says Planned for a plan that is gone)", async () => {
     const out = await run(() => Effect.gen(function* () {
@@ -337,6 +360,8 @@ describe("plans serving an intent statement", () => {
     expect(out.dropped).toEqual({ ids: ["B-01"] })
     expect(out.a.dropped).toBe(true)
     expect(out.a.events[0]!.by).toBe("Intent Agent")
+    // Its statement's agent dropped it, not the operator.
+    expect(out.a.events.at(-1)).toMatchObject({ by: "Intent Agent" })
     expect(out.b.dropped).toBeUndefined()
     expect(out.c.dropped).toBeUndefined()
   })

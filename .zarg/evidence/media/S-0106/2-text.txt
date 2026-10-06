@@ -1,0 +1,24 @@
+{
+  "ref": "gherkin/scenario:S-0002@e4fe18f8c172",
+  "journeys": [
+    "Assign chores"
+  ],
+  "persona": "Parent",
+  "kind": "contradiction",
+  "severity": "low",
+  "note": "Only one step is shown; there is no other step asserting the opposite, so this cannot be contradiction. It stays drift because the step differs from the code shown.",
+  "from": {
+    "agent": "rehearse",
+    "run": "r-bf820330"
+  },
+  "triage": {
+    "on": true,
+    "why": "ask · real 0.42",
+    "by": "agent"
+  },
+  "id": "F-6218ddeb",
+  "count": 1,
+  "runs": [
+    "rehearse:r-bf820330"
+  ]
+}

@@ -75,6 +75,56 @@ describe("Rlm.exec", () => {
     expect(r.seen[1]!.messages.at(-1)?.content).toContain("InvalidResult")
   })
 
+  test("an agent that has written nothing by its write-by turn is told to write now", async () => {
+    const r = await run(
+      { reader: [{ cell: "return 1" }, { cell: "return 2" }, { cell: 'yield* Rlm.done({ value: "ok" })' }] },
+      { task: "t", preset: "reader", scope },
+      { presets: { reader: { layer: ["Rlm"], spawns: [], role: "implement", budget: { turns: 5 }, result: "text", verify: "none", actBy: { turn: 2, calls: ["Fs.write("], say: "Write the code and its tests now with Fs.write." } } } },
+    )
+    expect(ok(r).turns).toBe(3)
+    expect(r.seen[1]!.messages.some((m) => String(m.content ?? "").includes("You have read enough"))).toBe(false)
+    expect(r.seen[2]!.messages.at(-1)?.content).toStartWith("You have read enough: 2 turns. Write the code and its tests now with Fs.write.")
+  })
+
+  test("past twice its act-by turn with nothing done, a cell that does not act is not run", async () => {
+    const r = await run(
+      { reader: [{ cell: "return 1" }, { cell: "return 2" }, { cell: "return 3" }, { cell: "return 4" }, { cell: 'yield* Rlm.done({ value: "ok" })' }] },
+      { task: "t", preset: "reader", scope },
+      { presets: { reader: { layer: ["Rlm"], spawns: [], role: "implement", budget: { turns: 8 }, result: "text", verify: "none", actBy: { turn: 2, calls: ["Fs.write(", "Rlm.done("], say: "Write now." } } } },
+    )
+    expect(ok(r).turns).toBe(5)
+    expect(r.seen[3]!.messages.at(-1)?.content).toBe("ok\n3")
+    expect(r.seen[4]!.messages.at(-1)?.content).toBe("error: reads are closed until you act. Write now. This cell must do it.")
+  })
+
+  test("an empty cell is an error that says what is missing, not an ok: a driver once sent 24 of them in a row", async () => {
+    const r = await run(
+      { research: [{ cell: "" }, { cell: 'yield* Rlm.done({ value: { findings: [], sources: [] } })' }] },
+      { task: "t", preset: "research", scope },
+    )
+    expect(ok(r).turns).toBe(2)
+    expect(r.seen[1]!.messages.at(-1)?.content).toStartWith('error: the cell is empty: exec takes {"code": "<TypeScript>"}')
+  })
+
+  test("a text result given as its lines is that text, one per line: the run finishes instead of spending turns on the shape", async () => {
+    const r = await run(
+      { planner: [{ cell: 'yield* Rlm.done({ value: { plan: ["## Approach", "Tag it."] } })' }] },
+      { task: "t", preset: "planner", scope },
+      { presets: { planner: { layer: ["Rlm"], spawns: [], role: "implement", budget: { turns: 3 }, result: "plan", verify: "none" } } },
+    )
+    expect(ok(r)).toMatchObject({ value: { plan: "## Approach\nTag it." }, turns: 1 })
+  })
+
+  test("a runaway reply (a model looping on its own text) stays out of the conversation, and a turn's tokens are capped", async () => {
+    const r = await run({ research: [{ text: `planning ${"дддкк".repeat(20000)} stop` }, { cell: 'yield* Rlm.done({ value: { findings: [], sources: [] } })' }] }, { task: "t", preset: "research", scope })
+    expect(ok(r).turns).toBe(2)
+    const kept = r.seen[1]!.messages.find((m) => m.role === "assistant")!.content ?? ""
+    expect(kept.length).toBeLessThan(5000)
+    expect(kept).toStartWith("planning")
+    expect(kept).toEndWith("stop")
+    expect(r.seen[0]!.maxTokens).toBeGreaterThan(0)
+  })
+
   test("a reply without a tool call gets a nudge", async () => {
     const r = await run({ research: [{ text: "thinking out loud" }, { cell: 'yield* Rlm.done({ value: { findings: [], sources: [] } })' }] }, { task: "t", preset: "research", scope })
     expect(ok(r).turns).toBe(2)
@@ -146,7 +196,7 @@ describe("observe", () => {
   })
 
 
-  test("the model's timing is reported as soon as the call returns, before a cell that may wait on the developer", async () => {
+  test("the model's timing is reported as soon as the call returns, before a cell that may wait on the operator", async () => {
     const events: Array<Rlm.RlmEvent> = []
     const stub = stubModel({ driver: [{ cell: 'yield* Rlm.done({ value: "ok" })' }] })
     await Effect.runPromise(

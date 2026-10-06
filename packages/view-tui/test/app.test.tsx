@@ -94,6 +94,12 @@ const settle = async (t: { renderOnce: () => Promise<void>; waitForVisualIdle: (
   await t.waitForVisualIdle()
 }
 
+/** The frame once it shows `text` (up to 2s: under a busy machine, a key's frame can take longer than settle). */
+const shows = async (t: Parameters<typeof settle>[0] & { captureCharFrame: () => string }, text: string) => {
+  for (let i = 0; i < 40 && !t.captureCharFrame().includes(text); i++) await settle(t)
+  return t.captureCharFrame()
+}
+
 // Home is the inbox: go to the grid the way the operator does, ^k "agents" ⏎.
 const toGrid = async <T extends { mockInput: { pressKey: (k: string, m?: { ctrl?: boolean }) => void; typeText: (s: string) => Promise<void>; pressEnter: () => void }; renderOnce: () => Promise<void>; waitForVisualIdle: () => Promise<unknown> }>(t: T) => {
   t.mockInput.pressKey("k", { ctrl: true })
@@ -333,6 +339,25 @@ describe("tui frames", () => {
     expect(t.captureCharFrame()).toContain("research 40")
   })
 
+  // @scenario S-0073 S-0042
+  test("the highlighted agent's detail shows while the agents list has the keys: its task, turns and decisions with their confidence", async () => {
+    const rlms = {
+      "rlm-1": { id: "rlm-1", parent: null, preset: "driver", depth: 0, turns: 4, budget: 25, status: "running" as const, decisions: [] },
+      "rlm-2": { id: "rlm-2", parent: "rlm-1", preset: "research", depth: 1, turns: 3, budget: 15, status: "running" as const, task: "Read the README and say what it is", decisions: [{ kind: "atomize" as const, atomic: true, criteria: [{ name: "single goal", answer: true, confidence: 0.87 }] }] },
+    }
+    const t = await render({ thread: { ...initial("main"), status: "running", rlms }, core: "up" }, { width: 120, height: 32 })
+    t.mockInput.pressKey("a", { meta: true })
+    await settle(t)
+    for (let i = 0; i < 3 && !/▍.*research/.test(t.captureCharFrame()); i++) {
+      t.mockInput.pressArrow("down")
+      await settle(t)
+    }
+    const f = t.captureCharFrame()
+    expect(f).toContain("task  Read the README and say what it is")
+    expect(f).toContain("turn 3 of 15")
+    expect(f).toMatch(/single goal\s+yes\s+0\.87/)
+  })
+
   test("while the driver works, the conversation ends with the animated working line", async () => {
     const root = { id: "rlm-1", parent: null, preset: "driver", depth: 0, turns: 4, budget: 25, status: "running" as const, decisions: [] }
     const t = await render({ thread: { ...initial("main"), status: "running", rlms: { "rlm-1": root } }, core: "up" })
@@ -430,6 +455,61 @@ describe("tui frames", () => {
     expect(t.captureCharFrame()).not.toContain("Show")
   })
 
+  test("a plugin sheet opened by a command takes the keys: ] moves to the next section, f searches it", async () => {
+    const agent = { id: "core:setup", parent: null, preset: "view", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
+    const view = {
+      agent: "core:setup",
+      layout: { name: "setup", sections: [
+        { id: "summary", kind: "text" as const, role: "summary" as const, title: "" },
+        { id: "providers", kind: "table" as const, role: "primary" as const, title: "Providers", columns: [{ id: "provider", label: "provider" }], actions: [{ id: "login", label: "Log in", on: "row" as const, default: true }] },
+        { id: "fields", kind: "table" as const, role: "primary" as const, title: "Log in", columns: [{ id: "name", label: "setting" }], actions: [{ id: "set", label: "Set", on: "row" as const, default: true, input: "the value" }, { id: "done", label: "Check and save", key: "c", on: "none" as const }] },
+        { id: "models", kind: "table" as const, role: "primary" as const, title: "Default model", search: true, columns: [{ id: "model", label: "model" }], actions: [{ id: "default", label: "Use as default", on: "row" as const, default: true }] },
+      ] },
+      data: { summary: { markdown: "1 provider ready" }, providers: { rows: [{ id: "r", cells: { provider: "router" } }] }, fields: { rows: [{ id: "URL", cells: { name: "URL" } }] }, models: { rows: [{ id: "m1", cells: { model: "alpha-model" } }, { id: "m2", cells: { model: "jevk5-judge" } }] } },
+    }
+    // As live: zarg's bar is loaded and zarg asks a question while the operator types /models.
+    const zargBar = { id: "zarg:bar:zarg", plugin: "zarg", agent: "zarg", view: "zarg", name: "bar", scope: "shell" as const, edge: "bottom" as const, size: 1, input: "onFocus" as const }
+    const before = { thread: { ...initial("main"), status: "waiting" as const, pendingInquiry: inquiry, panels: [zargBar], rlms: { "core:setup": agent } }, core: "up" as const }
+    const t = await render(before, { width: 120, height: 40 })
+    t.mockInput.pressKey("/")
+    await settle(t)
+    await t.mockInput.typeText("models")
+    await settle(t)
+    t.mockInput.pressEnter()
+    await settle(t)
+    t.update({ ...before, thread: { ...before.thread, seq: 2, views: { "core:setup": view }, navigate: { seq: 1, kind: "sheet", view: "core:setup", at: Date.now() } } })
+    await settle(t)
+    t.mockInput.pressKey("]")
+    t.mockInput.pressKey("]")
+    await settle(t)
+    // Focused, the table still shows its rows.
+    expect(t.captureCharFrame()).toMatch(/alpha-model[\s\S]*jevk5-judge[\s\S]*Use as default/)
+    t.mockInput.pressKey("f")
+    await settle(t)
+    for (const c of "jevk") t.mockInput.pressKey(c)
+    await settle(t)
+    const frame = t.captureCharFrame()
+    expect(frame).toContain("jevk5-judge")
+    expect(frame).not.toContain("alpha-model")
+  })
+
+  test("a wide view shows a long first column whole (model names that differ only at their end)", async () => {
+    const agent = { id: "core:setup", parent: null, preset: "view", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
+    const view = {
+      agent: "core:setup",
+      layout: { name: "setup", sections: [{ id: "models", kind: "table" as const, role: "primary" as const, title: "", columns: [{ id: "model", label: "model" }, { id: "about", label: "" }] }] },
+      data: { models: { rows: [{ id: "a", cells: { model: "zarg-router:deepseek-v4.1-flash-exl3", about: "256k" } }, { id: "b", cells: { model: "zarg-router:deepseek-v4.1-pro-exl3", about: "192k" } }] } },
+    }
+    const t = await render({ thread: { ...initial("main"), status: "running", rlms: { "core:setup": agent }, views: { "core:setup": view } }, core: "up" }, { width: 140, height: 24 })
+    t.mockInput.pressKey("a", { meta: true })
+    await settle(t)
+    t.mockInput.pressEnter()
+    await settle(t)
+    // The rows themselves (the highlighted one's line under the table is whole anyway).
+    expect(t.captureCharFrame()).toMatch(/▍ zarg-router:deepseek-v4\.1-flash-exl3 +256k/)
+    expect(t.captureCharFrame()).toContain("  zarg-router:deepseek-v4.1-pro-exl3 ")
+  })
+
   test("a table offers only the actions its data names; one that asks for text takes a line, prefilled, and sends it", async () => {
     const agent = { id: "backlog:feedback", parent: null, preset: "view", depth: 0, turns: 0, budget: 1, status: "running" as const, decisions: [] }
     const view = {
@@ -483,7 +563,7 @@ describe("tui frames", () => {
     await t.waitForVisualIdle()
     const frame = t.captureCharFrame()
     expect(frame).toContain("commands")
-    expect(frame).toContain("/reconcile  turn plan and implement on for this session")
+    expect(frame).toContain("/reconcile  turn plan and implement on (it stays on);")
     // Tab writes the completion into the input itself (the box row alone would not prove it).
     t.mockInput.pressTab()
     await t.waitForVisualIdle()
@@ -492,6 +572,21 @@ describe("tui frames", () => {
     t.mockInput.pressEnter()
     await t.waitForVisualIdle()
     expect(t.calls).toEqual(["command /reconcile"])
+  })
+
+  test("a command that ran leaves the bar empty, also when its notice arrives", async () => {
+    const st = { thread: { ...initial("main"), status: "idle" as const }, core: "up" as const }
+    const t = await render(st)
+    await t.mockInput.typeText("/yolo off")
+    await t.waitForVisualIdle()
+    t.mockInput.pressEnter()
+    await settle(t)
+    t.update({ ...st, notice: "YOLO is off: plugins ask before using a scope." } as never)
+    await settle(t)
+    await Bun.sleep(50)
+    await settle(t)
+    expect(t.calls).toContain("command /yolo off")
+    expect(t.captureCharFrame()).not.toContain("› /yolo off")
   })
 
   test("keys typed in the same burst as / (from the inbox, before the bar renders) land in the bar, never as the panel's hotkeys", async () => {
@@ -522,7 +617,7 @@ describe("tui frames", () => {
     await t.mockInput.typeText("x")
     await t.waitForVisualIdle()
     const line = t.captureCharFrame().split("\n").find((l) => l.includes("› /")) ?? ""
-    expect(line).toContain("/reconcilex")
+    expect(line).toContain("/reconcile x")
   })
 
   test("while answering Something else…, no command box is shown", async () => {
@@ -617,6 +712,17 @@ const viewState: SessionState = {
   },
 }
 
+describe("grant popovers", () => {
+  test("a grant's scopes wrap between scopes: a path never breaks across lines", async () => {
+    const long = { ...grantPrompt("backlog"), question: "Plugin backlog wants to load, to read .zarg/feedback/**, read .zarg/backlog/**, write .zarg/feedback/**, write .zarg/backlog/**, show agents, use gherkin (and read what it serves)." }
+    const t = await render({ ...idleState, thread: { ...idleState.thread, prompts: [long] } }, { width: 130, height: 30 })
+    const f = t.captureCharFrame()
+    expect(f).toContain("Plugin backlog wants to load:")
+    // Every scope whole on one line (none split across two).
+    for (const scope of ["read .zarg/feedback/**", "write .zarg/backlog/**", "use gherkin (and read what it serves)"]) expect(f).toContain(scope)
+  })
+})
+
 describe("the shell", () => {
   const wide = { width: 130, height: 22 }
   test("the agents list runs full height on the left; the bar sits under the tile area only", async () => {
@@ -657,18 +763,20 @@ describe("the shell", () => {
     await settle(t)
     expect(t.calls).toContain("prompt p1 always")
   })
-  test("a grant popover blurs the bar; answering it gives the bar back", async () => {
+  test("a grant arriving mid-message waits: the typing goes on into the message; once it is sent, the grant has the keys", async () => {
     const t = await render(idleState, wide)
     await t.mockInput.typeText("hel")
     t.update({ ...idleState, thread: { ...idleState.thread, prompts: [grantPrompt("p1")] } })
-    await settle(t)
-    await t.mockInput.typeText("xx")
-    t.update(idleState)
     await settle(t)
     await t.mockInput.typeText("lo")
     t.mockInput.pressEnter()
     await settle(t)
     expect(t.calls).toContain("send hello")
+    // Nothing typed now: the grant takes Enter.
+    await Bun.sleep(600)
+    t.mockInput.pressEnter()
+    await settle(t)
+    expect(t.calls.some((c) => c.startsWith("prompt p1"))).toBe(true)
   })
   test("hotkey letters show in the panels' names", async () => {
     const t = await render(viewState, wide)
@@ -883,6 +991,13 @@ describe("focuses", () => {
     expect(f).toContain("Nothing needs you.")
     expect(f).not.toContain("zarg  Hello.")
   })
+  test("a long notice (why reconcile stays off) is shown whole on its own line, not cut on the status line", async () => {
+    const notice = "Reconcile stays off: plan and implement are off: set a default model with /models (or roles.plan and roles.implement)"
+    const t = await render({ ...viewState, notice } as never, { width: 110, height: 24 })
+    const f = t.captureCharFrame().replace(/\s*\n\s*│?\s*/g, " ")
+    expect(f).toContain("set a default model with /models")
+    expect(f).toContain("roles.implement)")
+  })
   test("the inbox: blocking first with ◆, a report with ·; the status line counts; Enter opens a topic and a number answers it", async () => {
     const topic = (id: string, over: Record<string, unknown>) => ({ id, kind: "grant", from: { plugin: "backlog" }, title: `title ${id}`, why: "fs write", about: [], blocking: false, messages: [], state: "open", created: Date.now(), updated: 0, ...over })
     const inbox = {
@@ -908,6 +1023,93 @@ describe("focuses", () => {
     expect(lines.some((l) => l.includes("← Inbox") && l.includes("Set up: 80 feedback entries want your call"))).toBe(true)
     expect(lines.some((l) => l.includes("backlog · question · rehearse asks"))).toBe(true)
   })
+  test("a question whose title holds the whole change shows all of it in the topic, so nothing is approved unseen", async () => {
+    const change = "Add this to the requirements?\n\nAdd an intent for this product:\nIntent: Family chore tracker\nOutcomes:\n  - A parent adds a chore for a family member\n  - A family member marks a chore done\nConstraints:\n  - A member sees only their own chores"
+    const t0 = { id: "T-8", kind: "question", from: { plugin: "zarg", agent: "zarg" }, title: change, why: "zarg asks", about: [], blocking: true, messages: [], state: "open", created: Date.now(), updated: 0, answers: [{ id: "add", label: "Add it", recommended: true }, { id: "skip", label: "Skip" }] }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-8": t0 } } as never }, big)
+    t.mockInput.pressEnter(); await settle(t)
+    const f = t.captureCharFrame()
+    expect(f).toContain("A family member marks a chore done")
+    expect(f).toContain("A member sees only their own chores")
+  })
+  test("an answer's reason is shown whole, however long: it wraps, never cut at the edge", async () => {
+    const why = "Add a scenario starting from What is left is the books not read, so the reader can go on to add another book to read"
+    const t0 = { id: "T-10", kind: "question", from: { plugin: "zarg", agent: "zarg" }, title: "Root it or mark it terminal?", why: "zarg asks", about: [], blocking: true, messages: [], state: "open", created: Date.now(), updated: 0, answers: [{ id: "root", label: "Root a scenario from it", recommended: true, why }, { id: "end", label: "Mark it terminal" }] }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-10": t0 } } as never }, big)
+    t.mockInput.pressEnter(); await settle(t)
+    expect(t.captureCharFrame().replace(/[\s│]+/g, " ")).toContain("add another book to read")
+  })
+  test("an answer typed in one burst at zarg's question reaches it whole (Say it in your own words)", async () => {
+    const t = await render(waiting, big)
+    t.renderer.stdin.emit("data", Buffer.from("A new feature: renaming a habit."))
+    await settle(t)
+    t.mockInput.pressEnter(); await settle(t)
+    expect(t.calls.some((c) => c.startsWith("answer ") && c.includes("A new feature: renaming a habit."))).toBe(true)
+  })
+  test("a message typed in one burst right after alt+m reaches zarg whole", async () => {
+    const t = await render(idleState, big)
+    // Elsewhere first: the tile has the keys.
+    t.mockInput.pressEscape(); await settle(t)
+    t.mockInput.pressKey("m", { meta: true })
+    t.renderer.stdin.emit("data", Buffer.from("I want to rename a habit."))
+    await settle(t)
+    t.mockInput.pressEnter(); await settle(t)
+    expect(t.calls).toContain("send I want to rename a habit.")
+  })
+  test("a reply typed in one burst (as a fast typist or a paste) is sent whole, its r and t letters too", async () => {
+    const t0 = { id: "T-9", kind: "question", from: { plugin: "zarg", agent: "zarg" }, title: "Which?", why: "zarg asks", about: [], blocking: true, messages: [], state: "open", created: Date.now(), updated: 0, answers: [{ id: "a", label: "A", recommended: true }, { id: "b", label: "B" }] }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-9": t0 } } as never }, big)
+    t.mockInput.pressEnter(); await settle(t)
+    t.mockInput.pressKey("r"); await settle(t)
+    t.renderer.stdin.emit("data", Buffer.from("Nothing follows a refused mark"))
+    await settle(t)
+    t.mockInput.pressEnter(); await settle(t)
+    expect(t.calls).toContain("reply T-9 Nothing follows a refused mark")
+  })
+  test("a read report says Read, never an empty Answered; its header does not repeat its kind; an answer is named by its label", async () => {
+    const report = { id: "T-5", kind: "report", from: { plugin: "backlog" }, title: "chores folded into 1 plan: B-07", why: "report", about: [], blocking: false, messages: [], state: "read", created: Date.now(), updated: 0 }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-5": report } } as never }, big)
+    t.mockInput.pressKey("a"); await settle(t)
+    t.mockInput.pressEnter(); await settle(t)
+    const f = t.captureCharFrame()
+    expect(f).not.toContain("report · report")
+    expect(f).not.toContain("Answered:")
+    expect(f).toContain("Read.")
+    const asked = { ...report, id: "T-6", kind: "question", why: "zarg asks", state: "answered", answers: [{ id: "add", label: "Add it" }], answer: { id: "add" } }
+    const t2 = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-6": asked } } as never }, big)
+    t2.mockInput.pressKey("a"); await settle(t2)
+    t2.mockInput.pressEnter(); await settle(t2)
+    expect(t2.captureCharFrame()).toContain("Answered: Add it")
+  })
+  test("an answered topic does not say it is waiting", async () => {
+    const done = { id: "T-6", kind: "question", from: { plugin: "zarg", agent: "zarg" }, title: "Who uses it?", why: "zarg asks", about: [], blocking: true, messages: [], state: "answered", answer: { id: "a", by: "operator", at: 1 }, created: 1, updated: 1, answers: [{ id: "a", label: "A" }, { id: "b", label: "B" }] }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-6": done } } as never }, big)
+    t.mockInput.pressKey("a"); await settle(t)
+    const row = t.captureCharFrame().split("\n").find((l) => l.includes("Who uses it?")) ?? ""
+    expect(row).not.toContain("waiting")
+  })
+  test("from the inbox, ^k opens the palette and its zarg entry opens zarg's conversation", async () => {
+    const t0 = { id: "T-5", kind: "report", from: { plugin: "rehearse" }, title: "Run done", why: "r", about: [], blocking: false, messages: [], state: "open", created: Date.now(), updated: 0 }
+    const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-5": t0 } } as never }, big)
+    t.mockInput.pressKey("k", { ctrl: true }); await settle(t)
+    expect(t.captureCharFrame()).toContain("the conversation")
+    for (const ch of "zarg") t.mockInput.pressKey(ch)
+    await settle(t)
+    t.mockInput.pressEnter(); await settle(t)
+    expect(t.captureCharFrame()).toContain("zarg  Hello.")
+  })
+  test("^k opens the palette from the message bar too (it is not the line's)", async () => {
+    const t = await render(viewState, big)
+    t.mockInput.pressKey("m", { meta: true }); await settle(t)
+    t.mockInput.pressKey("k", { ctrl: true }); await settle(t)
+    expect(t.captureCharFrame()).toContain("the conversation")
+  })
+  test("^k opens the palette while zarg asks something (a question pending, its topic blocking)", async () => {
+    const q = { id: "T-4", kind: "question", from: { plugin: "zarg", agent: "zarg" }, title: "Who uses it?", why: "zarg asks", about: [], blocking: true, messages: [], state: "open", created: Date.now(), updated: 0, answers: [{ id: "a", label: "A" }, { id: "b", label: "B" }] }
+    const t = await render({ ...waiting, thread: { ...waiting.thread, inbox: { "T-4": q } } as never }, big)
+    t.mockInput.pressKey("k", { ctrl: true }); await settle(t)
+    expect(t.captureCharFrame()).toContain("the conversation")
+  })
   test("a grant topic shows as the popover; its Enter answers the topic", async () => {
     const grant = { id: "T-9", kind: "grant", from: { plugin: "tracker" }, title: "Plugin tracker wants to reach a.test.", why: "grant", about: [], blocking: true, messages: [], state: "open", created: 1, updated: 1, answers: [{ id: "once", label: "Allow once", recommended: true }, { id: "deny", label: "Deny" }] }
     const t = await render({ ...viewState, thread: { ...viewState.thread, inbox: { "T-9": grant } } as never }, big)
@@ -923,11 +1125,9 @@ describe("focuses", () => {
   test("⏎ on a card opens its view; Esc comes back to the grid", async () => {
     const t = await toGrid(await render(two(), big))
     t.mockInput.pressEnter()
-    await settle(t)
-    expect(t.captureCharFrame()).toContain("note R-1")
+    expect(await shows(t, "note R-1")).toContain("note R-1")
     t.mockInput.pressEscape()
-    await settle(t)
-    expect(t.captureCharFrame()).toContain("all agents")
+    expect(await shows(t, "all agents")).toContain("all agents")
   })
   test("a click on a card opens its view", async () => {
     const t = await toGrid(await render(two(), big))

@@ -11,7 +11,7 @@
                        │                                                                                                
  AGENTS              2 │                                                                                                
   ● zarg           0/0 │                                                                                                
-  ⠦ setup          0/1 │                                                                                                
+  ⠏ setup          0/1 │                                                                                                
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                
@@ -35,6 +35,6 @@
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                
-                       │                                                                                                
+                       │ · B-02 dropped                                                                                 
                        │ › message zarg… (alt+m or /)                                                                   
                        │ core child · error · thread main · driver model unkn…   ⏎ open   ⇧←→ move   z Z fold   esc back

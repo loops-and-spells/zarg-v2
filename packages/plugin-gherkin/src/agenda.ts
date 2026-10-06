@@ -1,6 +1,7 @@
 import { Snapshot } from "@zarg/graph/pure"
 import type { AgendaItem } from "./kit"
-import { ARRIVES, BY, intents, JOURNEY, journeyName, OUTCOME, personaName, personas, QUESTION, scenarios, SERVES, similarity, statementsOf, states, text, THEN } from "./model"
+import { flowOf } from "@zarg/audit/flow"
+import { ARRIVES, BY, GIVEN, IN, intents, JOURNEY, journeyName, OUTCOME, personaName, personas, QUESTION, scenarios, SERVES, similarity, statementsOf, states, text, THEN } from "./model"
 
 export const agenda = (snap: Snapshot.Snapshot): ReadonlyArray<AgendaItem> => {
   const all = states(snap)
@@ -13,11 +14,23 @@ export const agenda = (snap: Snapshot.Snapshot): ReadonlyArray<AgendaItem> => {
   }
   const items: Array<AgendaItem> = []
   for (const s of all) {
-    if (s.props.terminal !== true && Snapshot.inbound(snap, s.id, ARRIVES).length === 0) {
+    // A state no scenario uses (no Given, And or Then): one question, not a dead end and unreached both.
+    if ([ARRIVES, GIVEN, THEN].every((e) => Snapshot.inbound(snap, s.id, e).length === 0)) {
+      items.push({
+        id: `gherkin:unused-state:${s.id}`,
+        title: `Nothing uses "${text(s)}"`,
+        detail: `No scenario has ${s.id} as its Given, an And or a Then. Use it in a scenario, or remove it (remove {id: "${s.id}"}).`,
+        about: [s.id],
+        priority: 2,
+      })
+      continue
+    }
+    // A state some scenario starts from, or uses as its context (a Given), has something happening while it holds.
+    if (s.props.terminal !== true && Snapshot.inbound(snap, s.id, ARRIVES).length === 0 && Snapshot.inbound(snap, s.id, GIVEN).length === 0) {
       items.push({
         id: `gherkin:dead-end:${s.id}`,
         title: `What can the user do when "${text(s)}"?`,
-        detail: `No scenario continues from ${s.id}. Add a scenario that arrives there, or mark it terminal.`,
+        detail: `No scenario starts from ${s.id} (none has it as its Given). Add one that starts from ${s.id}, or mark it terminal when nothing needs to follow (any Then may be terminal, the scenario's other Thens too).`,
         about: [s.id],
         priority: 2,
       })
@@ -45,10 +58,40 @@ export const agenda = (snap: Snapshot.Snapshot): ReadonlyArray<AgendaItem> => {
       }
     }
   }
+  items.push(...journeyItems(snap))
   items.push(...personaItems(snap))
   items.push(...intentItems(snap))
   return items
 }
+
+/**
+ * A journey that skips a step: a scenario in it that none of its others leads to (its view lists it apart) while a
+ * scenario outside it, coming from one of its own, does. A journey may group scenarios that never connect; only a
+ * bridge left out is asked about.
+ */
+const journeyItems = (snap: Snapshot.Snapshot): ReadonlyArray<AgendaItem> =>
+  Snapshot.byType(snap, JOURNEY).flatMap((j): ReadonlyArray<AgendaItem> => {
+    const members = Snapshot.inbound(snap, j.id, IN).map((e) => e.from)
+    const { apart } = flowOf(snap, j.id)
+    if (members.length < 2 || apart.length === 0) return []
+    const arrivesOf = (id: string) => snap.nodes.get(id)?.edges.find((e) => e.type === ARRIVES)?.to
+    const thens = (id: string) => (snap.nodes.get(id)?.edges ?? []).filter((e) => e.type === THEN).map((e) => e.to)
+    const memberThens = new Set(members.flatMap(thens))
+    // Outside the journey, starting where one of its scenarios ends, leading where one of its apart scenarios starts.
+    const bridges = scenarios(snap).filter((s) => !members.includes(s.id) && memberThens.has(arrivesOf(s.id) ?? "") && apart.some((a) => thens(s.id).includes(arrivesOf(a) ?? "")))
+    if (bridges.length === 0) return []
+    const reached = apart.filter((a) => bridges.some((b) => thens(b.id).includes(arrivesOf(a) ?? "")))
+    const ids = bridges.map((b) => b.id)
+    return [
+      {
+        id: `gherkin:journey-apart:${j.id}`,
+        title: `Is ${bridges.map((b) => `"${String(b.props.title ?? b.id)}"`).join(", ")} part of "${journeyName(j)}"?`,
+        detail: `${reached.join(", ")} ${reached.length === 1 ? "is" : "are"} in ${j.id}, but none of its scenarios leads there; ${ids.join(", ")} ${ids.length === 1 ? "does" : "do"}, from where the journey goes. Put ${ids.length === 1 ? "it" : "them"} in the journey (link {edge: "in"}), or take ${reached.join(", ")} out of it (unlink {edge: "in"}).`,
+        about: [j.id, ...reached, ...ids],
+        priority: 2,
+      },
+    ]
+  })
 
 /** Who acts: no personas yet, scenarios that name none (one item for all of them), personas no scenario names. */
 const personaItems = (snap: Snapshot.Snapshot): ReadonlyArray<AgendaItem> => {

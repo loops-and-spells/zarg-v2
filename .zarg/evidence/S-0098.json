@@ -1,0 +1,47 @@
+{
+  "scenario": "S-0098",
+  "version": "69ca15af7c0e",
+  "commit": "5f6a732d",
+  "run": "e2e-2026-10-06T09-50-04.492Z",
+  "journey": "J-0006",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-06T09:50:52.371Z",
+  "ms": 34602,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0098/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "zarg's question",
+      "path": "media/S-0098/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0098/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0098/4-step.cast",
+      "meta": {
+        "startAt": 12.6
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/agent-zarg/src/thread.ts": "1a283a37650133b2e617dc97442e2d7497348585",
+    "packages/agent-zarg/test/thread.test.ts": "7ba698c9bee23c8508e114208b3c94b92305b4dc",
+    "packages/core/src/inbox.ts": "54ae1741107fe2bed0358ce51addf3a256a48a25",
+    "packages/core/src/live.ts": "fcb299d249ca5a59361e4aaa18618dc8bdaa73cd",
+    "packages/core/test/inbox.test.ts": "c34bbdbcef749fbcff0599e96a00e60983766ca7"
+  }
+}

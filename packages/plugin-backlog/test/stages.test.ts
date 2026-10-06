@@ -28,6 +28,12 @@ describe("a journey's stages", () => {
     const back = settle(s, { scenario: "S-0001", changes: [], answers: [], summary: "", problems: ["no proposal"] })
     expect([back.stage, back.note]).toEqual(["triage", "Nothing drafted: every scenario was left out. Refine to try again."])
   })
+  test("a worker that finds nothing to change says so and why, not that scenarios were left out", () => {
+    const s = startRefine(fresh("Set up"), [on("F-1", "S-0001")]) as Stage
+    const back = settle(s, { scenario: "S-0001", changes: [], answers: ["F-1"], summary: "The step already gives a distinct result." })
+    expect(back.stage).toBe("triage")
+    expect(back.note).toBe("Nothing to change, the triage worker found: The step already gives a distinct result. Disagree? Note what you see (n), then Refine again.")
+  })
   test("the buttons each stage offers", () => {
     const at = (stage: Stage["stage"], extra: Partial<Stage> = {}) => stageActions({ ...fresh("x"), stage, ...extra })
     expect([at("triage"), at("refine"), at("rehearse"), at("plan"), at("planned")]).toEqual([["refine"], [], [], [], ["refine"]])

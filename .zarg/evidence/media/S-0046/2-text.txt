@@ -1,0 +1,1 @@
+error: OutOfScope: .env.local holds secrets; agents cannot read it

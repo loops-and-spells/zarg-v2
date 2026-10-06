@@ -127,3 +127,10 @@ test("E2E_TIER=fast skips a model step (no evidence written) and runs the fast s
   expect(() => evidence(root, "S-0001")).toThrow()
   expect(evidence(root, "S-0002")).toMatchObject({ passed: true })
 }, 60_000)
+
+test("a model step's retry gets its own deadline: a slow first try leaves the retry its full time", () => {
+  const root = repo()
+  runJourney(root, `let n = 0
+journey("J-0001", { tier: "fast" }, (proves) => { proves("S-0001", async () => { if (n++ === 0) { await Bun.sleep(450); throw new Error("bad answer") } await Bun.sleep(300) }, { model: true, timeoutMs: 600 }) })`)
+  expect(evidence(root, "S-0001")).toMatchObject({ passed: true, flaky: true })
+}, 60_000)

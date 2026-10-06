@@ -52,6 +52,9 @@ describe("the Triage Agent", () => {
     expect(SYSTEM_TEXT()).toContain("operator's notes")
     expect(calls.find(([k]) => k === "propose")?.[1]).toMatchObject({ journey: "Set up", scenario: "S-0001", changes: [{ tool: "edit-state", params: { id: "ST-0002", text: "the operator sees: once, always, deny" } }], answers: ["F-00000001"], summary: "Name the choices." })
   })
+  test("a scenario covering several cases splits: it is edited to one case and a scenario is added per other case, never kept covering them all", () => {
+    expect(SYSTEM_TEXT()).toContain("edit it to one case (edit-scenario) and add one scenario per other case")
+  })
   test("a proposal that fails its dry-run is retried once with the problems; still failing, it is shown with them", async () => {
     const { t, calls } = setup({ stages: [stage({ proposals: [{ scenario: "S-0001", changes: [], answers: [], summary: "", status: "waiting" }] })], answers: [proposalJson, proposalJson], dry: () => ({ ok: false, problems: ["a clause has if"], touched: [] }) })
     await Effect.runPromise(t.tick)

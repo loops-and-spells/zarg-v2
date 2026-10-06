@@ -75,7 +75,7 @@ describe("the Planner", () => {
   test("with reconcile off the plan goes to Review, to be implemented by hand", async () => {
     const { p, log } = setup({ reconcile: false })
     await Effect.runPromise(p.tick)
-    expect(log.at(-1)).toEqual(["backlog", "moved", { id: "B-01", to: "review", by: "Planner", what: "applied in abcdef0; reconcile is off: implement by hand", scenarios: ["S-0001", "S-0009"] }])
+    expect(log.at(-1)).toEqual(["backlog", "moved", { id: "B-01", to: "review", by: "Planner", what: "applied in abcdef0; reconcile is off: /reconcile implements it, or implement by hand", scenarios: ["S-0001", "S-0009"] }])
   })
   test("nothing Ready: nothing happens", async () => {
     const { p, log } = setup({ next: null })

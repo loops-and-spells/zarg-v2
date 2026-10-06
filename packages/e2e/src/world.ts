@@ -19,7 +19,7 @@ const IDENTITY = { GIT_AUTHOR_NAME: "e2e", GIT_AUTHOR_EMAIL: "e2e@zarg.invalid",
 
 /** A brand-new project: a git repo with the seed files in its first commit, its own user dir and home, and nothing else from this machine's environment. */
 // @scenario S-0114
-export const world = (seed: Readonly<Record<string, string>> = {}): World => {
+export const world = (seed: Readonly<Record<string, string>> = {}, extraEnv: Readonly<Record<string, string>> = {}): World => {
   const base = mkdtempSync(join(tmpdir(), "zarg-e2e-"))
   const project = join(base, "project")
   const userDir = join(base, "user")
@@ -27,7 +27,7 @@ export const world = (seed: Readonly<Record<string, string>> = {}): World => {
   for (const d of [project, userDir, home]) mkdirSync(d)
   // No session bus and a runtime dir of its own: varlock would otherwise keep a world's key in this machine's keyring,
   // under the same id as the real one (replacing it).
-  const env = { PATH: process.env.PATH ?? "", HOME: home, ZARG_USER_DIR: userDir, TERM: "xterm-256color", DBUS_SESSION_BUS_ADDRESS: "disabled:", XDG_RUNTIME_DIR: home, ...IDENTITY }
+  const env = { PATH: process.env.PATH ?? "", HOME: home, ZARG_USER_DIR: userDir, TERM: "xterm-256color", DBUS_SESSION_BUS_ADDRESS: "disabled:", XDG_RUNTIME_DIR: home, ...IDENTITY, ...extraEnv }
   const git = (...args: Array<string>) => {
     const p = Bun.spawnSync(["git", ...args], { cwd: project, env })
     if (p.exitCode !== 0) throw new Error(`git ${args.join(" ")}: ${p.stderr.toString()}`)

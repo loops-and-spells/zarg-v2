@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Schema } from "effect"
@@ -52,6 +52,38 @@ export const baseTree = (repo: string, ref = "HEAD") =>
     }
     return EMPTY_TREE
   })
+
+/** Scenarios the last landed pass could not reconcile (they failed while others landed): still pending. */
+export const pendingAt = (repo: string, ref = "HEAD") =>
+  Effect.map(readAt(repo, ref, CHECKPOINT), (text): ReadonlyArray<string> => {
+    const failed = text === undefined ? [] : (JSON.parse(text) as { failed?: unknown }).failed
+    const left = Array.isArray(failed) ? failed.filter((x): x is string => typeof x === "string") : []
+    return [...new Set([...left, ...readAgain(repo)])]
+  })
+
+/**
+ * Scenarios the operator asked to build again (`/reconcile S-0006`): pending like the ones a pass left, until a pass
+ * lands them. Kept beside the findings (gitignored): a scenario recorded as built with no code had no way back.
+ */
+// @scenario S-0123
+const againPath = (repo: string) => join(repo, ".zarg", "reconcile", "again.json")
+export const readAgain = (repo: string): ReadonlyArray<string> => {
+  try {
+    const ids = JSON.parse(readFileSync(againPath(repo), "utf8")) as unknown
+    return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === "string") : []
+  } catch {
+    return []
+  }
+}
+const writeAgain = (repo: string, ids: ReadonlyArray<string>) => {
+  mkdirSync(join(repo, ".zarg", "reconcile"), { recursive: true })
+  writeFileSync(againPath(repo), `${JSON.stringify([...new Set(ids)].sort())}\n`)
+}
+export const addAgain = (repo: string, ids: ReadonlyArray<string>) => writeAgain(repo, [...readAgain(repo), ...ids])
+export const clearAgain = (repo: string, landed: ReadonlyArray<string>) => {
+  const left = readAgain(repo).filter((id) => !landed.includes(id))
+  if (left.length !== readAgain(repo).length) writeAgain(repo, left)
+}
 
 const decode = Schema.decodeUnknownEffect(Schema.fromJsonString(Node))
 

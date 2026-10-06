@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { Effect, Fiber, Stream } from "effect"
+import { Deferred, Effect, Fiber, Stream } from "effect"
 import type { AgendaItem } from "@zarg/plugin/server"
 import type { Asker, Rlm } from "@zarg/rlm"
 import { makeLog } from "@zarg/core"
@@ -27,6 +27,20 @@ const texts = (events: ReadonlyArray<WireEvent>) => events.filter((e) => e.type 
 const question = { question: "Which?", options: [{ id: "a", label: "Option A", recommended: true, why: "simpler" }, { id: "b", label: "Option B" }] }
 
 describe("thread runs", () => {
+  test("the driver's task starts with the graph as it is now (an overview), so its first turns need not rediscover it", async () => {
+    const tasks: Array<string> = []
+    let calls = 0
+    const driver: Driver = (spec) => Effect.suspend(() => (calls++ > 0 ? Effect.never : (tasks.push(spec.task), Effect.succeed(outcome("ok"))))) as never
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zt-overview-")), (t) => t)
+        const thread = yield* makeThread({ id: "main", focus: [], log, agenda: () => Effect.succeed([{ id: "gherkin:empty", title: "No requirements yet", detail: "d", about: [], priority: 1 }]), driver, overview: () => Effect.succeed("1 intent, 0 personas, 0 journeys, 0 scenarios") })
+        return yield* collect(thread.run({ runId: "r1" }).pipe(Stream.take(3)))
+      }),
+    )
+    expect(tasks[0]).toContain("The graph now (no need to read it again):\n1 intent, 0 personas, 0 journeys, 0 scenarios")
+  })
+
   test("the driver's task already holds the agenda and the item's scenarios, so its first turn need not fetch them", async () => {
     const tasks: Array<string> = []
     const driver: Driver = (spec, asker) =>
@@ -83,7 +97,7 @@ describe("thread runs", () => {
     expect(tasks[0]).toContain("Gaps zarg found:\n- Only one thing happens from ST-3 [ST-3, S-6]: Add a failure case?\n- Only one thing happens from ST-1 [ST-1, S-1]: Add a failure case?")
   })
 
-  test("after a what-next item, the driver waits for the developer instead of asking what next again", async () => {
+  test("after a what-next item, the driver waits for the operator instead of asking what next again", async () => {
     const tasks: Array<string> = []
     const driver: Driver = (spec) => Effect.sync(() => (tasks.push(spec.task), outcome("I added the scenario you chose.")))
     const events = await Effect.runPromise(
@@ -98,10 +112,10 @@ describe("thread runs", () => {
       }),
     )
     expect(last(events)).toMatchObject({ type: "RUN_FINISHED", runId: "r1" })
-    expect(tasks[1]).toStartWith('The developer said: "now the login journey"')
+    expect(tasks[1]).toStartWith('The operator said: "now the login journey"')
   })
 
-  test("the what-next task offers the developer's own idea, never a journey the driver makes up", () => {
+  test("the what-next task offers the operator's own idea, never a journey the driver makes up", () => {
     expect(WHAT_NEXT_GAPS).toContain("allowOther")
     expect(WHAT_NEXT_GAPS).not.toContain("new journey")
     expect(WHAT_NEXT).not.toContain("the next journey")
@@ -133,7 +147,78 @@ describe("thread runs", () => {
       { id: "capture", label: "Capture", why: "the driver keeps intent/*.md" },
     ])
     expect(out.asked.metadata.allowOther).toBe(true)
-    expect(tasks[0]).toStartWith('The developer said: "Work on the intent\'s next goal: Rehearse: roleplay testers over the graph."')
+    expect(tasks[0]).toStartWith('The operator said: "Work on the intent\'s next goal: Rehearse: roleplay testers over the graph."')
+  })
+
+  test("a what-next option that starts work elsewhere (a rehearsal) waits for it: no what-next asked again until new work wakes zarg", async () => {
+    const tasks: Array<string> = []
+    // A real item takes a while (model turns): the answer's run is over before it ends.
+    const driver: Driver = (spec) => Effect.andThen(Effect.sleep(20), Effect.sync(() => (tasks.push(spec.task), outcome("started"))))
+    let items: ReadonlyArray<AgendaItem> = []
+    let asked = 0
+    const whatNext: ThreadDeps["whatNext"] = () => Effect.sync(() => (asked++, [{ id: "rehearse", label: "Rehearse", task: "Start a rehearsal.", waits: true }]))
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zarg-thread-")), (t) => t)
+        const thread = yield* makeThread({ id: "main", focus: [], log, agenda: () => Effect.succeed(items), driver, suggest: () => Effect.succeed([]), whatNext })
+        const first = yield* collect(thread.run({ runId: "r1" }))
+        const q = (last(first) as any).outcome.interrupts[0]
+        yield* Effect.forkChild(collect(thread.run({ runId: "r2", resume: [{ interruptId: q.id, payload: { choice: "rehearse" } }] })))
+        yield* Effect.sleep(80)
+        expect(asked).toBe(1)
+        items = [{ id: "rehearse:r-1", title: "Rehearse run r-1: 1 finding", detail: "d", about: [], priority: 0 }]
+        yield* thread.wake
+        yield* Effect.sleep(80)
+      }),
+    )
+    // What the run filed, taken up (the test's agenda never empties: it comes back until it counts as stuck).
+    expect(tasks[1]).toStartWith("Rehearse run r-1: 1 finding")
+  })
+
+  test("a what-next option that zarg does itself (turning reconcile on) runs when picked: its words said, no driver item, then zarg waits", async () => {
+    const tasks: Array<string> = []
+    const driver: Driver = (spec) => Effect.sync(() => (tasks.push(spec.task), outcome("ok")))
+    let ran = 0
+    let asked = 0
+    const whatNext: ThreadDeps["whatNext"] = () => Effect.sync(() => (asked++, [{ id: "build", label: "Build the scenarios", task: "", run: Effect.sync(() => (ran++, "Reconcile is on; a pass is starting (2 scenarios).")) }]))
+    const out = await Effect.runPromise(
+      Effect.gen(function* () {
+        const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zarg-thread-")), (t) => t)
+        const thread = yield* makeThread({ id: "main", focus: [], log, agenda: () => Effect.succeed([]), driver, suggest: () => Effect.succeed([]), whatNext })
+        const first = yield* collect(thread.run({ runId: "r1" }))
+        const q = (last(first) as any).outcome.interrupts[0]
+        yield* Effect.forkChild(collect(thread.run({ runId: "r2", resume: [{ interruptId: q.id, payload: { choice: "build" } }] })))
+        yield* Effect.sleep(80)
+        return { log }
+      }),
+    )
+    expect(ran).toBe(1)
+    expect(tasks).toEqual([])
+    expect(asked).toBe(1)
+    expect(out.log.all().some((e) => e.type === "TEXT_MESSAGE_CONTENT" && String(e.delta).includes("Reconcile is on"))).toBe(true)
+  })
+
+  test("a change the operator added but the item did not write is the next item's to write: as shown, not asked again", async () => {
+    const tasks: Array<string> = []
+    const approved: Array<string | undefined> = []
+    let n = 0
+    const driver: Driver = (spec, asker) =>
+      Effect.gen(function* () {
+        tasks.push(spec.task)
+        approved.push(asker.approved?.())
+        if (n++ === 0) yield* asker.owed!("Journey: Agent chat memory lifecycle")
+        return outcome("ok")
+      }) as never
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zarg-thread-")), (t) => t)
+        const thread = yield* makeThread({ id: "main", focus: [], log, agenda: () => Effect.succeed([{ id: "x", title: "T", detail: "D", about: [], priority: 1 }]), driver, suggest: () => Effect.succeed([]) })
+        yield* Effect.forkChild(collect(thread.run({ runId: "r1" })))
+        yield* Effect.sleep(80)
+      }),
+    )
+    expect(tasks[1]).toContain("Journey: Agent chat memory lifecycle")
+    expect(approved[1]).toBe("Journey: Agent chat memory lifecycle")
   })
 
   test("wake: a thread parked on zarg's what-next question takes up new agenda items; a real question keeps its turn", async () => {
@@ -242,8 +327,80 @@ describe("thread runs", () => {
     expect(texts(second)).toEqual(["actually, do payments first", "(discussing: Which?)", "adapted"])
   })
 
+  // @scenario S-0012 S-0102
+  test("a message sent while the driver works reaches its next question as discussion: the operator spoke first", async () => {
+    const answers: Array<unknown> = []
+    let calls = 0
+    const out = await Effect.runPromise(
+      Effect.gen(function* () {
+        const gate = yield* Deferred.make<void>()
+        const driver: Driver = (_spec, asker) =>
+          Effect.gen(function* () {
+            if (calls++ > 0) return yield* Effect.never
+            yield* Deferred.await(gate)
+            answers.push(yield* asker.ask(question))
+            return outcome("adapted")
+          }) as never
+        const { thread } = yield* setup(driver)
+        const first = yield* Effect.forkChild(collect(thread.run({ runId: "r1" }).pipe(Stream.take(4))))
+        yield* Effect.sleep("50 millis")
+        const second = yield* Effect.forkChild(collect(thread.run({ runId: "r2", message: "parents reward chores with points" }).pipe(Stream.take(3))))
+        yield* Effect.sleep("50 millis")
+        yield* Deferred.succeed(gate, undefined)
+        yield* Fiber.join(second)
+        yield* Effect.sleep("100 millis")
+        return yield* Fiber.join(first).pipe(Effect.timeout("1 second"), Effect.option)
+      }),
+    )
+    expect(answers).toEqual([{ other: "parents reward chores with points", interjected: true, question: expect.stringMatching(/^inq-/) }])
+    void out
+  })
+
+  // @scenario S-0102
+  test("an interjection the decision model judges to state a goal for the product is marked so (goal)", async () => {
+    const answers: Array<unknown> = []
+    let calls = 0
+    const driver: Driver = (_spec, asker) =>
+      Effect.gen(function* () {
+        if (calls++ > 0) return yield* Effect.never
+        answers.push(yield* asker.ask(question))
+        return outcome("adapted")
+      }) as never
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zt-goal-")), (t) => t)
+        const thread = yield* makeThread({ id: "main", focus: [], log, agenda: () => Effect.succeed([]), driver, isGoal: (text) => Effect.succeed(text.includes("points")) })
+        yield* collect(thread.run({ runId: "r1" }))
+        return yield* collect(thread.run({ runId: "r2", message: "parents reward chores with points" }).pipe(Stream.take(11)))
+      }),
+    )
+    expect(answers).toEqual([{ other: "parents reward chores with points", interjected: true, question: expect.stringMatching(/^inq-/), goal: true }])
+  })
+
+  // @scenario S-0043
+  test("a driver item that runs out of turns says so and goes on to the next, never leaving the operator at a dead end", async () => {
+    let calls = 0
+    const asked: Array<string> = []
+    const driver: Driver = (spec, asker) =>
+      Effect.gen(function* () {
+        calls++
+        if (calls === 1) return yield* Effect.fail({ kind: "budget", message: "driver did not finish within its budget (25 turns)" })
+        asked.push(spec.task)
+        return (yield* asker.ask(question)) as never
+      }) as never
+    const events = await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setup(driver, () => [{ id: "gherkin:empty", title: "No requirements yet", detail: "d", about: [], priority: 1 }])
+        return yield* collect(thread.run({ runId: "r1" }))
+      }),
+    )
+    expect(calls).toBe(2)
+    expect(texts(events).join("\n")).toContain("ran out of turns")
+    expect(last(events)).toMatchObject({ type: "RUN_FINISHED", outcome: { type: "interrupt" } })
+  })
+
   // @scenario S-0071
-  test("the driver can choose an option of the question under discussion for the developer, once", async () => {
+  test("the driver can choose an option of the question under discussion for the operator, once", async () => {
     const out: Record<string, unknown> = {}
     let calls = 0
     const driver: Driver = (_spec, asker) =>
@@ -316,7 +473,7 @@ describe("thread runs", () => {
     )
     expect(last(out.first)).toMatchObject({ type: "RUN_FINISHED", runId: "r1" })
     expect(last(out.second)).toMatchObject({ type: "RUN_FINISHED", runId: "r2", outcome: { type: "interrupt" } })
-    expect(tasks[1]).toContain("developer: also add a logout scenario")
+    expect(tasks[1]).toContain("operator: also add a logout scenario")
   })
 
   test("your message comes before the agenda: the next driver item answers you", async () => {
@@ -342,7 +499,7 @@ describe("thread runs", () => {
       }),
     )
     expect(tasks[0]).toContain("An agenda item")
-    expect(tasks[1]).toStartWith('The developer said: "hi, what can we do?"')
+    expect(tasks[1]).toStartWith('The operator said: "hi, what can we do?"')
   })
 
   test("the driver's reply is kept short, and every task says so", async () => {
@@ -378,10 +535,10 @@ describe("thread runs", () => {
         yield* collect(thread.run({ runId: "r1", message: "hello" }))
       }),
     )
-    expect(tasks[0]).toStartWith('The developer said: "hello"')
+    expect(tasks[0]).toStartWith('The operator said: "hello"')
     expect(tasks[1]).toContain("What happens after payment?\nNo scenario continues from ST-0004.")
     expect(tasks[1]).toContain("show the exact change with Inquire.confirm before writing it")
-    expect(tasks[1]).toContain("Recent conversation:\ndeveloper: hello\ndriver: Hello! Let's look at the agenda.")
+    expect(tasks[1]).toContain("Recent conversation:\noperator: hello\ndriver: Hello! Let's look at the agenda.")
   })
 
   test("an item still open after two passes turns into a what-next question", async () => {
@@ -404,6 +561,26 @@ describe("thread runs", () => {
     expect(tasks[1]).toContain("Stuck item")
     expect(tasks[2]).toContain(WHAT_NEXT)
     expect(tasks[2]).toContain('"Stuck item" is still open after two passes')
+  })
+
+  test("a reconcile finding is taken up once: zarg does not circle it while it stays open", async () => {
+    const tasks: Array<string> = []
+    let calls = 0
+    const driver: Driver = (spec, asker) =>
+      Effect.gen(function* () {
+        tasks.push(spec.task)
+        if (++calls < 2) return outcome("Start the database, then the next pass verifies again.")
+        return (yield* asker.ask(question)) as never
+      }) as never
+    const finding: AgendaItem = { id: "F-55c22a37", title: "verify still fails after the fix attempts", detail: "verify-failing: ECONNREFUSED", about: [], priority: 0 }
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setup(driver, () => [finding])
+        yield* collect(thread.run({ runId: "r1" }))
+      }),
+    )
+    expect(tasks[0]).toContain("verify still fails")
+    expect(tasks.slice(1).some((t) => t.includes("verify still fails"))).toBe(false)
   })
 
   test("a failing driver ends the run with RUN_ERROR; the next run tries again", async () => {
@@ -472,6 +649,30 @@ test("the driver shows every scenario with who acts in it (By), and names by whe
   expect(REPLY_RULE).toContain("every scenario names who acts in it with by")
 })
 
+// @scenario S-0008
+test("the driver shows statements already split: one idea each, never two joined by and", () => {
+  expect(REPLY_RULE).toContain("one idea each: split two joined by \"and\" before you show them")
+})
+
+// @scenario S-0008
+test("the driver never asks again what the operator settled, and names what it asks about by its words", () => {
+  expect(REPLY_RULE).toContain("never ask again what the operator settled")
+  expect(REPLY_RULE).toContain("by their words, not by ids alone")
+})
+
+// @scenario S-0008
+test("the driver reads the project before asking what it says, and proposes nothing from neither the operator nor the project", () => {
+  expect(REPLY_RULE).toContain("read the project first")
+  expect(REPLY_RULE).toContain("never anything from neither")
+})
+
+// @scenario S-0102
+test("what the operator says the product is for goes into the intent, even mid-question: shown first, then added", () => {
+  expect(REPLY_RULE).toContain("add-outcome")
+  expect(REPLY_RULE).toContain("add-constraint")
+  expect(REPLY_RULE).toMatch(/even while a question of yours is open/)
+})
+
 describe("zarg's questions as inbox topics", () => {
   /** A recording inbox: topics raised by the thread, and what it answered, settled and noted. */
   const fakeInbox = () => {
@@ -492,6 +693,169 @@ describe("zarg's questions as inbox topics", () => {
       const thread = yield* makeThread({ id: "main", focus: [], log, agenda: () => Effect.succeed([]), driver, inbox })
       return { log, thread }
     })
+  // @scenario S-0098
+  test("after a restart, zarg's question still open from before is the one waiting: no new question until it is answered", async () => {
+    const { inbox } = fakeInbox()
+    let drove = 0
+    const driver: Driver = (_spec, asker) => Effect.suspend(() => (drove++, asker.ask(question))) as never
+    const events = await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setupWith(driver, { ...inbox, open: () => Effect.succeed([{ id: "T-00000099", key: "main|inq-old", title: "Old question?" }]) })
+        return yield* collect(thread.run({ runId: "r1" }).pipe(Stream.takeUntil((e) => e.type === "RUN_FINISHED")))
+      }),
+    )
+    expect(drove).toBe(0)
+    expect(events.map((e) => String(e.type))).toContain("RUN_FINISHED")
+  })
+
+  // @scenario S-0098
+  test("after a restart, an old what-next question is settled and asked afresh: its options are this core's", async () => {
+    const { inbox, calls } = fakeInbox()
+    let asked = 0
+    const whatNext: ThreadDeps["whatNext"] = () => Effect.sync(() => (asked++, [{ id: "build", label: "Build the scenarios", task: "t" }]))
+    const events = await Effect.runPromise(
+      Effect.gen(function* () {
+        const log = yield* makeLog(mkdtempSync(join(tmpdir(), "zarg-thread-")), (t) => t)
+        const thread = yield* makeThread({ id: "main", focus: [], log, agenda: () => Effect.succeed([]), driver: () => Effect.succeed(outcome("ok")) as never, suggest: () => Effect.succeed([]), whatNext, inbox: { ...inbox, open: () => Effect.succeed([{ id: "T-00000099", key: "main|inq-old", title: OPEN_QUESTION }]) } })
+        return yield* collect(thread.run({ runId: "r1" }).pipe(Stream.takeUntil((e) => e.type === "RUN_FINISHED")))
+      }),
+    )
+    expect(calls).toContainEqual(["settle", "T-00000099", expect.any(String)])
+    expect(asked).toBe(1)
+    expect(JSON.stringify(events)).toContain("Build the scenarios")
+  })
+
+  // @scenario S-0098
+  test("after a restart, new work wakes zarg past its old what-next question (settled), never past a real one", async () => {
+    const wakeWith = (title: string) => {
+      const { inbox, calls } = fakeInbox()
+      let drove = 0
+      const driver: Driver = () => Effect.sync(() => (drove++, outcome("ok")))
+      return Effect.runPromise(
+        Effect.gen(function* () {
+          const { thread } = yield* setupWith(driver, { ...inbox, open: () => Effect.succeed([{ id: "T-00000099", key: "main|inq-old", title }]) })
+          yield* collect(thread.run({ runId: "r1" }).pipe(Stream.takeUntil((e) => e.type === "RUN_FINISHED")))
+          yield* thread.wake
+          yield* Effect.sleep(50)
+          return { drove, calls }
+        }),
+      )
+    }
+    const real = await wakeWith("Old question?")
+    expect(real.drove).toBe(0)
+    // Once answered, the next wake is free to go on.
+    const answered = await (() => {
+      const { inbox } = fakeInbox()
+      let drove = 0
+      const driver: Driver = () => Effect.sync(() => (drove++, outcome("ok")))
+      return Effect.runPromise(
+        Effect.gen(function* () {
+          const { thread } = yield* setupWith(driver, { ...inbox, open: () => Effect.succeed([{ id: "T-00000099", key: "main|inq-old", title: "Old question?" }]) })
+          yield* collect(thread.run({ runId: "r1" }).pipe(Stream.takeUntil((e) => e.type === "RUN_FINISHED")))
+          yield* thread.inbox!.answered({ id: "T-00000099", title: "Old question?" }, { answer: "a" })
+          yield* Effect.sleep(50)
+          const after = drove
+          yield* thread.wake
+          yield* Effect.sleep(50)
+          return { after, drove }
+        }),
+      )
+    })()
+    expect(answered.drove).toBeGreaterThan(answered.after)
+    const open = await wakeWith(OPEN_QUESTION)
+    expect(open.drove).toBeGreaterThan(0)
+    expect(open.calls).toContainEqual(["settle", "T-00000099", expect.any(String)])
+  })
+
+  // @scenario S-0098
+  test("after a restart, answering one of zarg's old questions settles the others: zarg moved on", async () => {
+    const { inbox, calls } = fakeInbox()
+    const driver: Driver = () => Effect.succeed(outcome("ok"))
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setupWith(driver, { ...inbox, open: () => Effect.succeed([{ id: "T-00000098", key: "main|inq-a", title: "First?" }, { id: "T-00000099", key: "main|inq-old", title: "Old question?" }]) })
+        yield* collect(thread.run({ runId: "r1" }).pipe(Stream.takeUntil((e) => e.type === "RUN_FINISHED")))
+        yield* thread.inbox!.answered({ id: "T-00000099", title: "Old question?" }, { answer: "a" })
+        yield* Effect.sleep(50)
+      }),
+    )
+    expect(calls).toContainEqual(["settle", "T-00000098", expect.any(String)])
+    expect(calls).not.toContainEqual(["settle", "T-00000099", expect.any(String)])
+  })
+
+  test("a reply to a question zarg no longer holds (from before a restart) reaches it as a message, and that topic closes", async () => {
+    const { inbox, calls } = fakeInbox()
+    const said: Array<string> = []
+    const driver: Driver = (spec) => Effect.sync(() => (said.push(spec.task), outcome("ok")))
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setupWith(driver, inbox)
+        yield* thread.inbox!.replied({ id: "T-00000097", title: "Old question?" }, "make them terminal")
+        yield* Effect.sleep(50)
+      }),
+    )
+    expect(said.some((t) => t.includes("make them terminal"))).toBe(true)
+    expect(calls).toContainEqual(["settle", "T-00000097", expect.any(String)])
+  })
+
+  // @scenario S-0098
+  test("after a restart, an answer to zarg's old question counts when it asks that same question again: the operator answers once", async () => {
+    const { inbox, calls } = fakeInbox()
+    const got: Array<unknown> = []
+    let asked = 0
+    const driver: Driver = (_spec, asker) =>
+      Effect.gen(function* () {
+        if (asked++ > 0) return yield* Effect.never
+        got.push(yield* asker.ask({ question: "Old question?", options: [{ id: "a", label: "Old A" }, { id: "b", label: "B" }] }))
+        return outcome("done")
+      }) as never
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setupWith(driver, { ...inbox, open: () => Effect.succeed([{ id: "T-00000099", key: "main|inq-old", title: "Old question?" }]) })
+        yield* collect(thread.run({ runId: "r1" }).pipe(Stream.takeUntil((e) => e.type === "RUN_FINISHED")))
+        yield* thread.inbox!.answered({ id: "T-00000099", title: "Old question?", answers: [{ id: "a", label: "Old A" }, { id: "b", label: "B" }] }, { answer: "a" })
+        yield* Effect.sleep(80)
+      }),
+    )
+    expect(got).toEqual([{ choice: "a" }])
+    expect(calls.filter((c) => (c as Array<unknown>)[0] === "post")).toEqual([])
+  })
+
+  // @scenario S-0098
+  test("after a restart, Add it on zarg's old proposal hands the change to the next item as added: it writes it without showing it again", async () => {
+    const { inbox } = fakeInbox()
+    const approvals: Array<string | undefined> = []
+    let calls = 0
+    const driver: Driver = (_spec, asker) => Effect.sync(() => (calls++ > 0 ? void approvals.push(asker.approved?.()) : undefined, outcome("ok")))
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setupWith(driver, { ...inbox, open: () => Effect.succeed([{ id: "T-00000099", key: "main|inq-old", title: "Add this to the requirements?\n\nAdd outcome: A reader sees what is left" }]) })
+        yield* collect(thread.run({ runId: "r1" }).pipe(Stream.takeUntil((e) => e.type === "RUN_FINISHED")))
+        yield* thread.inbox!.answered({ id: "T-00000099", title: "Add this to the requirements?\n\nAdd outcome: A reader sees what is left", answers: [{ id: "add", label: "Add it" }, { id: "skip", label: "Skip" }] }, { answer: "add" })
+        yield* Effect.sleep(80)
+      }),
+    )
+    expect(approvals[0]).toBe("Add outcome: A reader sees what is left")
+  })
+
+  test("after a restart, picking an option of zarg's old question that is itself a change adds it: the next item writes it without asking again", async () => {
+    const { inbox } = fakeInbox()
+    const approvals: Array<string | undefined> = []
+    let calls = 0
+    const driver: Driver = (_spec, asker) => Effect.sync(() => (calls++ > 0 ? void approvals.push(asker.approved?.()) : undefined, outcome("ok")))
+    const title = "Which journey?\n\nOne journey: Add journey “In and out”.\n\nTwo journeys: Add journey “In”. Add journey “Out”."
+    const answers = [{ id: "one", label: "One journey" }, { id: "two", label: "Two journeys" }]
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { thread } = yield* setupWith(driver, { ...inbox, open: () => Effect.succeed([{ id: "T-00000099", key: "main|inq-old", title }]) })
+        yield* collect(thread.run({ runId: "r1" }).pipe(Stream.takeUntil((e) => e.type === "RUN_FINISHED")))
+        yield* thread.inbox!.answered({ id: "T-00000099", title, answers }, { answer: "one" })
+        yield* Effect.sleep(80)
+      }),
+    )
+    expect(approvals[0]).toBe("Add journey “In and out”.")
+  })
+
   const askOnce = (answers: Array<unknown>): Driver => {
     let calls = 0
     return (_spec, asker) =>
@@ -517,6 +881,16 @@ describe("zarg's questions as inbox topics", () => {
       yield* Effect.sleep(50)
     }))
     expect(viaInbox).toEqual([{ choice: "b" }])
+    // Answered with a reason: the reason comes along.
+    const withReason: Array<unknown> = []
+    const c = fakeInbox()
+    await Effect.runPromise(Effect.gen(function* () {
+      const { thread } = yield* setupWith(askOnce(withReason), c.inbox)
+      yield* collect(thread.run({ runId: "r1" }))
+      yield* thread.inbox!.answered({ id: "T-00000001", title: "Which?", answers: question.options }, { answer: "b", text: "only on weekdays" })
+      yield* Effect.sleep(50)
+    }))
+    expect(withReason).toEqual([{ choice: "b", other: "only on weekdays" }])
     const viaBar: Array<unknown> = []
     const b = fakeInbox()
     await Effect.runPromise(Effect.gen(function* () {
@@ -587,7 +961,7 @@ describe("zarg's questions as inbox topics", () => {
       yield* Effect.sleep(100)
     }))
     expect(answers).toEqual([{ choice: "b" }])
-    expect(tasks.some((t) => t.includes("The developer said"))).toBe(false)
+    expect(tasks.some((t) => t.includes("The operator said"))).toBe(false)
   })
   test("after a restart the bar's answer to an old question answers its topic and reaches zarg by its label", async () => {
     const tasks: Array<string> = []

@@ -2,6 +2,9 @@ import { Effect, Fiber, Stream } from "effect"
 import type { Client, CoreError, PluginCommandInfo, RunRequest } from "./client"
 import type { Answer } from "./events"
 import { initial, reduce, type ThreadState } from "./state"
+import { zargConversation } from "./zarg-view"
+
+const talkLength = (t: ThreadState) => (zargConversation(t).data.talk as { messages?: ReadonlyArray<unknown> } | undefined)?.messages?.length ?? 0
 
 /** Commands the session handles itself. */
 const BUILT_IN = new Set(["/reconcile", "/yolo"])
@@ -12,6 +15,8 @@ export interface SessionState {
   readonly core: "up" | "down"
   /** The last transport problem (a refused run, a lost stream), shown to the operator. */
   readonly notice?: string
+  /** How many of zarg's messages there were when the notice came: it shows there, not after every later message. */
+  readonly noticeAt?: number
 }
 
 export interface Session {
@@ -65,7 +70,8 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
   let pluginCommands: ReadonlyArray<PluginCommandInfo> = []
   const listeners = new Set<() => void>()
   const set = (next: SessionState) => {
-    state = next
+    // A new notice is pinned where the conversation is now.
+    state = next.notice !== undefined && next.notice !== state.notice ? { ...next, noticeAt: talkLength(next.thread) } : next
     for (const l of listeners) l()
   }
   const fibers = new Set<Fiber.Fiber<unknown, unknown>>()
@@ -91,7 +97,7 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
         if (received) attempt = 0
         return attempt < RETRIES
           ? Effect.andThen(Effect.sleep(200 * (attempt + 1)), follow(attempt + 1))
-          : Effect.sync(() => set({ ...state, core: "down", notice: `core stopped${typeof problem === "string" ? `: ${problem}` : ""}` }))
+          : Effect.sync(() => set({ ...state, core: "down", notice: `core stopped${typeof problem === "string" ? `: ${problem}` : ""} (what it said last: .zarg/run/core.log)` }))
       }),
     )
   }
@@ -190,14 +196,17 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
         set({ ...state, notice: `unknown command: ${name} (try /reconcile, /yolo, /login or /models)` })
         return
       }
+      // @scenario S-0123
+      // `/reconcile S-0006 …`: those scenarios are built again (one recorded as built with no code had no way back).
+      const again = args.map((a) => a.toUpperCase()).filter((a) => /^S-\d+$/.test(a))
       fork(
-        opts.client.reconcile().pipe(
+        opts.client.reconcile(again).pipe(
           Effect.map((a) =>
             !a.on
               ? `Reconcile stays off: ${a.reason ?? "unknown reason"}`
               : (a.pending ?? 0) > 0
-                ? `Reconcile is on for this session; a pass is starting (${a.pending} card${a.pending === 1 ? "" : "s"}).`
-                : "Reconcile is on for this session; nothing to reconcile.",
+                ? `Reconcile is on; a pass is starting (${a.pending} scenario${a.pending === 1 ? "" : "s"}${again.length > 0 ? `, building ${again.join(", ")} again` : ""}).`
+                : "Reconcile is on; nothing to reconcile.",
           ),
           Effect.catch((e) => Effect.succeed(e.message)),
           Effect.flatMap((notice) => Effect.sync(() => set({ ...state, notice }))),

@@ -1,0 +1,36 @@
+diff --git a/src/chores.ts b/src/chores.ts
+index 8e78d42..144bb52 100644
+--- a/src/chores.ts
++++ b/src/chores.ts
+@@ -1 +1,7 @@
++// @scenario S-0001
+ export const assign = (chores: ReadonlyArray<string>, chore: string) => [...chores, chore]
++
++// @scenario S-0002
++export const remove = (chores: ReadonlyArray<string>, chore: string) =>
++  chores.filter((current) => current !== chore)
++
+diff --git a/test/chores.test.ts b/test/chores.test.ts
+index 1596ebe..479e188 100644
+--- a/test/chores.test.ts
++++ b/test/chores.test.ts
+@@ -1,6 +1,18 @@
+ import { expect, test } from "bun:test"
+-import { assign } from "../src/chores"
++import { assign, remove } from "../src/chores"
+ 
++// @scenario S-0001
+ test("a chore is assigned", () => {
+   expect(assign([], "dishes")).toEqual(["dishes"])
+ })
++
++// @scenario S-0002
++test("a chore is removed from every list", () => {
++  const lists: ReadonlyArray<ReadonlyArray<string>> = [
++    ["dishes", "trash"],
++    ["dishes", "laundry"],
++  ]
++  for (const list of lists) {
++    expect(remove(list, "dishes")).not.toContain("dishes")
++  }
++})

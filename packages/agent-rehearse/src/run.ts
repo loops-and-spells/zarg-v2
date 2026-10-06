@@ -45,7 +45,9 @@ export interface RunRecord {
 }
 /** Gherkin tool calls, in order (gherkin's `Draft`). */
 export type Draft = ReadonlyArray<{ readonly tool: string; readonly params: unknown }>
-export interface Started { readonly run: string; readonly stories: number; readonly scenes: number; readonly personas: ReadonlyArray<string>; readonly notes?: ReadonlyArray<string> }
+export interface Started { readonly run: string; readonly stories: number; readonly scenes: number; readonly personas: ReadonlyArray<string>; readonly notes?: ReadonlyArray<string>; readonly next: string }
+/** What a started run's caller does next (a model reads it in the result). */
+const NEXT = "It runs in the background: finish now and say it runs. When it ends, what it files (or a report) reaches you; never wait for it or poll it."
 
 /** A tester's own scenario: one its persona acts in (a record from before personas: every scenario). */
 export const ownScenario = (p: Persona, scenario: string) => p.scenarios === undefined || p.scenarios.includes(scenario)
@@ -116,7 +118,7 @@ const findingDetail = (x: { readonly id: string; readonly scenario: string; read
 
 const DIR = ".zarg/rehearse"
 const INDEX = `${DIR}/index.json`
-const plural = (n: number, s: string) => `${n} ${s}${n === 1 ? "" : "s"}`
+const plural = (n: number, s: string) => `${n} ${n === 1 ? s : /[^aeiou]y$/.test(s) ? `${s.slice(0, -1)}ies` : `${s}s`}`
 
 /** Rehearse runs: one at a time, in the background, recorded scene by scene so a restart resumes them. */
 export const makeRehearse = (deps: RunDeps) =>
@@ -140,6 +142,8 @@ export const makeRehearse = (deps: RunDeps) =>
         records.set(r.run, r)
         yield* quiet(deps.write(`${DIR}/${r.run}.json`, JSON.stringify(r, null, 2)))
         if (isNew) yield* quiet(deps.write(INDEX, JSON.stringify([...records.keys()])))
+        // Runs are this machine's record, never the project's: the folder ignores itself.
+        if (isNew) yield* quiet(deps.write(`${DIR}/.gitignore`, "*\n"))
       }).pipe(writing.withPermits(1))
     const lock = yield* Semaphore.make(1)
     let active: { run: string; fiber: Fiber.Fiber<void, unknown> } | undefined
@@ -219,7 +223,7 @@ export const makeRehearse = (deps: RunDeps) =>
                   yield* quiet(deps.agents.status({ id, progress: { done: checked.size, total: toCheck }, text: `${checked.size}/${toCheck} scenes · ${flagged} flagged` }))
                   yield* quiet(deps.agents.status({ id: "run", progress: { done: allChecked, total: all }, text: `${allChecked}/${all} scenes` }))
                   yield* showProgress
-                  yield* quiet(deps.views.set("run", StatusView, "line", { items: [{ label: "rehearse", value: `${allChecked}/${all} scenes` }, { label: "testers", value: String(rec.personas.length) }] }))
+                  yield* quiet(deps.views.set("run", StatusView, "line", { items: [{ label: "walked", value: `${allChecked}/${all} scenes` }, { label: "testers", value: String(rec.personas.length) }] }))
                   yield* quiet(deps.views.set("run", RunView, "progress", { items: [{ label: "scenes", value: `${allChecked}/${all}` }, { label: "testers", value: String(rec.personas.length) }, { label: "unreachable", value: String(rec.unreachable) }], progress: { done: allChecked, total: all } }))
                 })
               yield* quiet(deps.agents.start({ id, parent: "run", title: "tester", task: persona.text, view: "tester" }))
@@ -277,12 +281,14 @@ export const makeRehearse = (deps: RunDeps) =>
                               ),
                             ),
                           )
-                        const screened = yield* inSlot("screening", screenScene(deps.decide, persona, prior, scene, deps.settings))
+                        // The scene's code goes to screening too: a step whose code does not do what it says is flagged drift.
+                        const code = yield* codeText(scene.scenario)
+                        const screened = yield* inSlot("screening", screenScene(deps.decide, persona, prior, scene, deps.settings, code))
                         if (screened !== undefined && screened.flags.length > 0) {
                           walking.set(n, { path: pathAt(i), state: "waiting", detail: "queued" })
                           yield* showWorkers
                         }
-                        const d = screened !== undefined && screened.flags.length > 0 ? yield* inSlot(`diagnosing ${screened.flags.join(", ")}`, Effect.flatMap(codeText(scene.scenario), (code) => diagnose(deps.complete, persona, prior, scene, screened.flags, code))) : undefined
+                        const d = screened !== undefined && screened.flags.length > 0 ? yield* inSlot(`diagnosing ${screened.flags.join(", ")}`, diagnose(deps.complete, persona, prior, scene, screened.flags, code)) : undefined
                         // One write, after the diagnosis: a restart before it screens and diagnoses the scene again.
                         yield* update((r) => ({
                           ...r,
@@ -371,8 +377,15 @@ export const makeRehearse = (deps: RunDeps) =>
         // Filed with the scenarios it walked (even with nothing to file): the backlog closes their feedback this run no longer reports.
         const walked = [...new Set(rec.stories.flat())]
         // @scenario S-0106
-        const filed = rec.file === false ? { ids: [] as ReadonlyArray<string> } : yield* deps.file(toFile.map((x) => x.entry), { walked, run: rec.run }).pipe(Effect.orElseSucceed(() => ({ ids: [] as ReadonlyArray<string> })))
-        yield* update((r) => ({ ...r, status: "done", findings, report: text, filed: Object.fromEntries(toFile.flatMap((x, i) => (filed.ids[i] !== undefined && filed.ids[i] !== "" ? [[x.id, filed.ids[i]!]] : []))) }))
+        // A filing that fails is said in the run's notes (never dropped in silence).
+        let failedFiling: string | undefined
+        const filed =
+          rec.file === false
+            ? { ids: [] as ReadonlyArray<string> }
+            : yield* deps.file(toFile.map((x) => x.entry), { walked, run: rec.run }).pipe(
+                Effect.catch((e) => Effect.sync(() => ((failedFiling = `filing with the backlog failed: ${(e as { readonly message?: string } | undefined)?.message ?? String(e)}`), { ids: [] as ReadonlyArray<string> }))),
+              )
+        yield* update((r) => ({ ...r, status: "done", ...(failedFiling !== undefined ? { infra: [...r.infra, failedFiling] } : {}), findings, report: text, filed: Object.fromEntries(toFile.flatMap((x, i) => (filed.ids[i] !== undefined && filed.ids[i] !== "" ? [[x.id, filed.ids[i]!]] : []))) }))
         const unreached = rec.unreachable > 0 ? ` · ${rec.unreachable} unreachable` : ""
         yield* quiet(deps.agents.status({ id: "run", progress: { done: all, total: all }, text: `${plural(filed.ids.filter((x) => x !== "").length, "feedback entry")} filed · triage in Feedback${unreached}` }))
         yield* quiet(deps.views.set("run", RunView, "report", { markdown: text }))
@@ -409,6 +422,7 @@ export const makeRehearse = (deps: RunDeps) =>
           // No focus, or an empty one, is every story.
           const focus = opts.focus !== undefined && opts.focus.length > 0 ? opts.focus : undefined
           const all = yield* deps.stories(strategy, focus, opts.draft).pipe(Effect.orElseSucceed(() => ({ stories: [], unreachable: 0 })))
+          if (all.stories.length === 0) return { refused: focus !== undefined ? `nothing to walk in ${focus.join(", ")}: no story goes through it` : "nothing to walk: no scenarios yet" }
           // Only what is built is walked: a story stops before a planned scenario, or one whose code is not tagged.
           const builtOf = new Map<string, Built>()
           let unreadable = false
@@ -432,14 +446,14 @@ export const makeRehearse = (deps: RunDeps) =>
           if (graph.length === 0) return { refused: "no personas yet: the Driver Agent asks about them" }
           const acting = graph.filter((p) => p.scenarios.length > 0)
           if (acting.length === 0) return { refused: "no persona acts in any scenario" }
-          const personas = opts.personas !== undefined ? acting.filter((p) => opts.personas!.includes(p.name)) : acting
+          const personas = opts.personas !== undefined && opts.personas.length > 0 ? acting.filter((p) => opts.personas!.includes(p.name)) : acting
           if (personas.length === 0) return { refused: `no such personas: ${opts.personas!.join(", ")}` }
           const startedAt = yield* deps.now.pipe(Effect.orElseSucceed(() => 0))
           const run = `r-${(yield* deps.uuid.pipe(Effect.orElseSucceed(() => String(startedAt)))).slice(0, 8)}`
           const rec: RunRecord = { run, startedAt, status: "running", strategy, focus: focus ?? [], personas, stories: planned.stories, unreachable: planned.unreachable, screened: {}, raw: [], infra: notes, findings: [], ...(opts.draft !== undefined && opts.draft.length > 0 ? { draft: opts.draft } : {}), ...(opts.file === false ? { file: false } : {}) }
           yield* save(rec)
           yield* launch(rec)
-          return { run, stories: planned.stories.length, scenes: planned.stories.reduce((n, s) => n + s.length, 0), personas: personas.map((p) => p.name), ...(notes.length > 0 ? { notes } : {}) } satisfies Started
+          return { run, stories: planned.stories.length, scenes: planned.stories.reduce((n, s) => n + s.length, 0), personas: personas.map((p) => p.name), ...(notes.length > 0 ? { notes } : {}), next: NEXT } satisfies Started
         }),
       )
 

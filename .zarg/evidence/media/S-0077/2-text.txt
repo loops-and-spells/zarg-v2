@@ -1,0 +1,40 @@
+                       │  inbox   0 open                                                                                
+ ◆ zarg                │  Nothing needs you.                                                                            
+   project · main      │                                                                                                
+                       │                                                                                                
+ VIEWS               3 │                                                                                                
+▍ ▤ Inbox              │                                                                                                
+  ▤ Journeys           │                                                                                                
+  ▤ Intents            │                                                                                                
+                       │                                                                                                
+ AGENTS              1 │                                                                                                
+  ⠏ zarg           0/0 │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+                       │     zarg   esc closes                                                                          
+                       │     you  Write it                                                                              
+                       │     zarg  You picked parent.                                                                   
+                       │     you  the chores board                                                                      
+                       │     you  Write it                                                                              
+                       │     zarg  Saved                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │           - Parent starts at: the chores board                                                 
+                       │                                                                                                
+                       │           step  state                                                                          
+                       │           1     saved                                                                          
+                       │                                                                                                
+                       │           zarg keeps it.                                                                       
+                       │     zarg  The flow so far:                                                                     
+                       │                                                                                                
+                       │           ┌────────┐  ┌─────────────┐                                                      █   
+                       │           │        │  │             │                                                      █   
+                       │           │ Parent ├─►│ Family list │                                                      █   
+                       │           │        │  │             │                                                      █   
+                       │           └────────┘  └─────────────┘                                                      █   
+                       │           That is all for now.                                                             █   
+                       │     ⠏ zarg is preparing a reply · 0:06                                                     █   
+                       │ › type a message, Enter to send                                                                
+                       │ core child · running · thread main · stub:scripted   answered   ⏎ send   esc leave             

@@ -1,0 +1,40 @@
+                       │  inbox   2 open                                                                                
+ ◆ zarg                │                                                                                                
+   project · main      │  ▍◆ zarg          What can the child do once it sees …  question · waiting · 2 options  4m     
+                       │   · zarg          Landing waits on your uncommitted edits in .zarg/plans/S-0…  report  now     
+ VIEWS               3 │                                                                                                
+▍ ◇ Inbox            2 │                                                                                                
+  ▤ Journeys           │                                                                                                
+  ▤ Intents            │                                                                                                
+                       │                                                                                                
+ AGENTS              3 │                                                                                                
+  ● zarg           0/0 │                                                                                                
+  ✓ warmup        done │                                                                                                
+  ⠏ build          1/1 │                                                                                                
+   ━━━━━━━━━━━━━━━━━━━ │                                                                                                
+                       │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+  ▸ archived         1 │     zarg   esc closes                                                                          
+                       │     ·  Reconcile is on; nothing to reconcile.                                                  
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │ › type a message, Enter to send                                                                
+                       │ core child · ◆ 1 blocking · 2 open · idle · thread main · zarg-router:dee…   ⏎ send   esc leave

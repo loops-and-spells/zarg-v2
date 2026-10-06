@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { initial, type SessionState } from "@zarg/client"
-import { inboxKey, inboxRows, openTopicUi, unseenBlocking } from "../src/inbox-keys"
+import { inboxCursor, inboxKey, inboxRows, openTopicUi, unseenBlocking } from "../src/inbox-keys"
 import { goHome, goTo, initialUi, queueOf, statusLine, type Ui } from "../src/view"
 
 const topic = (id: string, over: Record<string, unknown> = {}) => ({ id, kind: "grant", from: { plugin: "backlog" }, title: `t ${id}`, why: "fs write", about: [], blocking: false, messages: [], state: "open", created: Number(id.slice(2)), updated: 0, answers: [{ id: "once", label: "Allow once" }, { id: "deny", label: "Deny", reason: "optional" }], ...over })
@@ -101,4 +101,16 @@ test("r replies only where someone hears it (zarg's questions); a plugin's topic
   const st = s(topic("T-1", { kind: "plan", from: { plugin: "backlog" } }))
   const opened = inboxKey(home, st, key("return")).ui
   expect(inboxKey(opened, st, key("r")).ui.inbox.typing).toBeUndefined()
+})
+
+test("the highlight follows its topic when the list changes (a topic settles, one arrives): a number never answers another", () => {
+  const st = s(topic("T-1"), topic("T-2"), topic("T-3"))
+  // Down twice: T-3 is highlighted.
+  let ui = inboxKey(home, st, key("down")).ui
+  ui = inboxKey(ui, st, key("down")).ui
+  expect(inboxRows(ui, st)[inboxCursor(ui, inboxRows(ui, st))]!.id).toBe("T-3")
+  // T-1 settles and a blocking T-0 arrives first: T-3 is still the one highlighted, and 1 answers it.
+  const later = s(topic("T-0", { blocking: true }), topic("T-2"), topic("T-3"))
+  expect(inboxRows(ui, later)[inboxCursor(ui, inboxRows(ui, later))]!.id).toBe("T-3")
+  expect(inboxKey(ui, later, key("1")).action).toMatchObject({ id: "T-3" })
 })

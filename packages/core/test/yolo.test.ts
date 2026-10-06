@@ -45,7 +45,7 @@ describe("YOLO control", () => {
     expect(loads).toEqual(["load"])
   })
 
-  test("the driver never gets the host's plugin items: only the developer can act on them", () => {
+  test("the driver never gets the host's plugin items: only the operator can act on them", () => {
     const item = (id: string) => ({ id, title: id, detail: "", about: [], priority: 1 })
     expect(forDriver([item("plugin-grant:rehearse"), item("gherkin:dead-end:ST-1"), item("plugin-failed:x"), item("plugin-disabled:y"), item("plugin-needs:a:b")]).map((i) => i.id)).toEqual(["gherkin:dead-end:ST-1"])
   })

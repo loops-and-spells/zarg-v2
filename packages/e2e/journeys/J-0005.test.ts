@@ -66,10 +66,10 @@ journey("J-0005", { tier: "fast" }, (proves) => {
     const twice = await call(s, "gherkin/add-scenario", { title: "CLI actor closes pricing", when: "the CLI actor closes pricing", by: [{ name: "CLI actor" }], arrives: { id: "ST-0002" }, then: [{ id: "ST-0001" }, { id: "ST-0001" }] })
     expect(twice.code).toBe(1)
     expect(twice.err).toContain("twice; remove the duplicate")
-    // Linking an edge a scenario already has: refused, naming the link that is there.
+    // Linking an edge a scenario already has: nothing changes, and it says so (the graph never holds it twice).
     const again = await call(s, "gherkin/link", { scenario: "S-0001", edge: "then", state: { id: "ST-0002" } })
-    expect(again.code).toBe(1)
-    expect(again.err).toContain("S-0001 already has then ST-0002")
+    expect(again.code).toBe(0)
+    expect(again.out).toContain("S-0001 already has then ST-0002: no change")
   })
 
   proves("S-0005", async (s) => {

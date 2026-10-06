@@ -1,0 +1,46 @@
+{
+  "scenario": "S-0110",
+  "version": "43e0a0748119",
+  "commit": "5f6a732d",
+  "run": "e2e-2026-10-06T09-51-52.808Z",
+  "journey": "J-0008",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-06T09:52:42.006Z",
+  "ms": 7,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0110/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "the plan triage drafted",
+      "path": "media/S-0110/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0110/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0110/4-step.cast",
+      "meta": {
+        "startAt": 35.5
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/agent-triage/src/triage.ts": "0d744def4cfd9aa1e818e17b3f75487ef8634228",
+    "packages/agent-triage/test/triage.test.ts": "1a09bf3765d8b81cc066011cb3ad95e5fe713105",
+    "packages/plugin-backlog/src/index.ts": "843a1450ff48d766d3815adf0fa1c56c26cbf93b",
+    "packages/plugin-backlog/test/triage.test.ts": "2af65a563e2d53e0797d87b2b10ee617ed947510"
+  }
+}

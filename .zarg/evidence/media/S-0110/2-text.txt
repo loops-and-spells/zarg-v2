@@ -1,0 +1,25 @@
+{
+  "id": "B-03",
+  "status": "backlog",
+  "title": "Undo a removal",
+  "journey": "Assign chores",
+  "scenarios": [
+    {
+      "ref": "gherkin/scenario:S-0002@000000000000"
+    }
+  ],
+  "changes": [
+    {
+      "tool": "edit-scenario",
+      "params": {
+        "id": "S-0002",
+        "title": "Parent removes a chore and can undo it"
+      }
+    }
+  ],
+  "feedback": [],
+  "steps": [
+    "Retitle S-0002"
+  ],
+  "events": []
+}

@@ -1,13 +1,13 @@
 {
   "scenario": "S-0027",
   "version": "ad5534d3e098",
-  "commit": "b9aa753",
-  "run": "e2e-2026-10-04T22-49-10.062Z",
+  "commit": "5f6a732d",
+  "run": "e2e-2026-10-06T09-33-56.521Z",
   "journey": "J-0002",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T22:49:19.569Z",
-  "ms": 510,
+  "at": "2026-10-06T09:34:06.801Z",
+  "ms": 357,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -32,14 +32,14 @@
       "caption": "the step as it played",
       "path": "media/S-0027/4-step.cast",
       "meta": {
-        "startAt": 8.4
+        "startAt": 9.7
       }
     }
   ],
   "failure": null,
   "code": {
-    "packages/core/src/setup.ts": "58734091e3047abd62e960c6596a46190feb3065",
-    "packages/core/test/setup.test.ts": "bea9ff2f6bb72e961bf63175a4f0c0f954161a6c",
+    "packages/core/src/setup.ts": "c3bc9691d4ea53ca74dcd5108bfad7fbca63ec6b",
+    "packages/core/test/setup.test.ts": "fcfa91e0878b9fc9af0c85df72fe38941031b35b",
     "packages/model/src/secrets.ts": "696a096dbeffa5e9e5fd2167590140966d2e53f2",
     "packages/model/test/secrets.test.ts": "863c47d452bc45631881247025c6020aa8583365"
   }

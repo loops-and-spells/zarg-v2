@@ -8,7 +8,7 @@ import { BunHttpServer, BunRuntime } from "@effect/platform-bun"
 import { Cause, Effect, Exit, Layer, Runtime } from "effect"
 import { HttpRouter } from "effect/unstable/http"
 import { runDir } from "@zarg/client"
-import { claim, markReady, release } from "./lifecycle"
+import { claim, claimLost, markReady, release } from "./lifecycle"
 import { liveCore, liveLayer } from "./live"
 import { Actions, api, ArchiveControl, InboxControl, Log, PluginCommands, Prompts, ReconcileControl, SetupControl, Threads, Token, YoloControl } from "./server"
 
@@ -47,7 +47,7 @@ const program = Effect.gen(function* () {
   rmSync(socket, { force: true })
   yield* Layer.build(
     HttpRouter.serve(api, { disableListenLog: true, disableLogger: true }).pipe(
-      Layer.provide([BunHttpServer.layer({ unix: socket }), Layer.succeed(Threads, core.threads), Layer.succeed(Log, core.log), Layer.succeed(Token, token), Layer.succeed(ReconcileControl, { turnOn: core.turnOn }), Layer.succeed(YoloControl, core.yolo), Layer.succeed(Actions, core.actions), Layer.succeed(PluginCommands, core.commands), Layer.succeed(Prompts, core.prompts), Layer.succeed(InboxControl, core.inbox), Layer.succeed(ArchiveControl, core.archive), Layer.succeed(SetupControl, { open: core.setup.open, openIfNeeded: core.setup.openIfNeeded })]),
+      Layer.provide([BunHttpServer.layer({ unix: socket }), Layer.succeed(Threads, core.threads), Layer.succeed(Log, core.log), Layer.succeed(Token, token), Layer.succeed(ReconcileControl, { turnOn: core.turnOn, again: core.again }), Layer.succeed(YoloControl, core.yolo), Layer.succeed(Actions, core.actions), Layer.succeed(PluginCommands, core.commands), Layer.succeed(Prompts, core.prompts), Layer.succeed(InboxControl, core.inbox), Layer.succeed(ArchiveControl, core.archive), Layer.succeed(SetupControl, { open: core.setup.open, openIfNeeded: core.setup.openIfNeeded })]),
     ),
   )
   // Finalizers run in reverse: live streams end first, so the server's graceful stop does not wait on them.
@@ -55,7 +55,8 @@ const program = Effect.gen(function* () {
   markReady(root, { ...info, ...(core.driver !== undefined ? { driver: core.driver } : {}) })
   console.log(`ready ${socket}`)
   // SIGINT and SIGTERM interrupt this fiber (runMain); finalizers stop the server and release core.json.
-  yield* mode === "child" ? parentGone : Effect.never
+  // Also when its claim is gone (the project deleted) or taken: a core never outlives its project.
+  yield* Effect.raceFirst(mode === "child" ? parentGone : Effect.never, claimLost(root, process.pid))
 }).pipe(Effect.scoped, Effect.provide(liveLayer(root, stubFile, { yolo: values.yolo === true })))
 
 // Exit once finalizers ran, on success too: open handles (stdin, workers) would otherwise keep the process alive.

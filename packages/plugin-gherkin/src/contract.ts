@@ -34,7 +34,15 @@ export const CompareResult = Schema.Struct({
   problems: Schema.Array(Schema.String),
   scenarios: Schema.Array(Schema.Struct({ id: Schema.String, before: SceneView, after: SceneView, text: Schema.String })),
 })
-export const DryRunResult = Schema.Struct({ ok: Schema.Boolean, problems: Schema.Array(Schema.String), touched: Schema.Array(Schema.String), scenarios: Schema.Array(Schema.String), messages: Schema.Array(Schema.String) })
+export const DryRunResult = Schema.Struct({
+  ok: Schema.Boolean,
+  problems: Schema.Array(Schema.String),
+  touched: Schema.Array(Schema.String),
+  scenarios: Schema.Array(Schema.String),
+  messages: Schema.Array(Schema.String),
+  /** The ids the next new nodes take once the draft is applied (ids are given in order): a draft refers to what it adds. */
+  next: Schema.optionalKey(Schema.Struct({ scenario: Schema.String, state: Schema.String, journey: Schema.String, persona: Schema.String })),
+})
 export const PersonaView = Schema.Struct({
   id: Schema.String,
   name: Schema.String,

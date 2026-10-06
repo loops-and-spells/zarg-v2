@@ -1,0 +1,5 @@
+.zarg/plans/S-0001.md
+.zarg/plans/S-0002.md
+.zarg/reconciled.json
+src/chores.ts
+test/chores.test.ts

@@ -1,12 +1,13 @@
-import { existsSync, mkdirSync, watch } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, watch, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { Cause, Effect } from "effect"
-import { baseTree, GRAPH, workingGraphTree } from "./checkpoint"
-import type { Findings } from "./findings"
+import { baseTree, GRAPH, pendingAt, workingGraphTree } from "./checkpoint"
+import { causeText, type Findings } from "./findings"
 import { git } from "./git"
 import { checkoutProblem } from "./land"
 import type { PassResult } from "./pass"
 import { makeTrigger } from "./trigger"
+import { ensureIgnored } from "./worktree"
 
 export interface ReconcilerOptions {
   readonly repo: string
@@ -23,8 +24,19 @@ export interface ReconcilerOptions {
  * writes). A pass starts only when the working graph differs from the last reconciled one.
  */
 export const startReconciler = (opts: ReconcilerOptions) => {
-  // A pass that failed for a state is tried again (under a new key) the next time the trigger fires.
-  const attempts = new Map<string, number>()
+  // A pass that failed for a state is tried again (under a new key) the next time the trigger fires. Kept on disk:
+  // after a restart the old key would only replay the failed pass from the engine.
+  // ponytail: every failed state's count is kept; prune when the file grows.
+  const file = join(opts.repo, ".zarg", "reconcile", "attempts.json")
+  const attempts = new Map<string, number>(
+    (() => {
+      try {
+        return Object.entries(JSON.parse(readFileSync(file, "utf8")) as Record<string, number>)
+      } catch {
+        return []
+      }
+    })(),
+  )
   const once = Effect.gen(function* () {
     const problem = yield* checkoutProblem(opts.repo)
     if (problem !== undefined) {
@@ -33,12 +45,18 @@ export const startReconciler = (opts: ReconcilerOptions) => {
     }
     const graph = yield* workingGraphTree(opts.repo)
     const base = yield* git(opts.repo, ["rev-parse", "HEAD"])
-    if ((yield* baseTree(opts.repo, base)) === graph) return { status: "skipped", reason: "already reconciled" } as const
+    if ((yield* baseTree(opts.repo, base)) === graph && (yield* pendingAt(opts.repo, base)).length === 0) return { status: "skipped", reason: "already reconciled" } as const
     const branch = yield* git(opts.repo, ["symbolic-ref", "--short", "HEAD"])
     const key = `${graph}:${branch}@${base}`
     const attempt = attempts.get(key) ?? 0
     const result = yield* opts.execute({ graph, branch, base, attempt })
-    if (result.status === "failed") attempts.set(key, attempt + 1)
+    // Any scenario left failed is tried again next time: the same key would replay this result (a pass that built
+    // nothing moves no HEAD, and S-0006 was "not built" from the cache forever).
+    if (result.status === "failed" || (result.failed?.length ?? 0) > 0) {
+      attempts.set(key, attempt + 1)
+      ensureIgnored(opts.repo)
+      writeFileSync(file, JSON.stringify(Object.fromEntries(attempts)))
+    }
     return result
   })
   // @scenario S-0020
@@ -48,12 +66,13 @@ export const startReconciler = (opts: ReconcilerOptions) => {
         Effect.catchCause((cause) => {
           // Interrupted (the core is shutting down): the durable pass resumes on the next start.
           if (Cause.hasInterruptsOnly(cause)) return Effect.succeed({ status: "skipped" as const, reason: "interrupted" })
-          opts.findings.raise({ kind: "pass-error", title: "a reconcile pass failed", detail: String(cause).slice(0, 4000), about: [], pass: "" })
+          opts.findings.raise({ kind: "pass-error", title: "a reconcile pass failed", detail: causeText(cause), about: [], pass: "" })
           return Effect.succeed({ status: "skipped" as const, reason: "error" })
         }),
         Effect.tap((r) =>
           Effect.sync(() => {
-            if (r.status === "landed" || r.status === "nothing" || (r.status === "skipped" && r.reason === "already reconciled")) opts.findings.clearGeneral()
+            if (r.status === "landed") opts.findings.clearGeneral()
+            else if (r.status === "nothing" || (r.status === "skipped" && r.reason === "already reconciled")) opts.findings.clearGeneral({ ran: true })
             opts.onResult?.(r)
           }),
         ),

@@ -103,7 +103,7 @@ export const pluginAgents = (
       // A nav item is the operator's to open, from above the agents.
       if (s.kind === "nav") throw new Error(`${s.name} is a nav item: the operator opens it`)
       // Panels open any time; the rest take the screen or the keys, so only the operator's call opens them.
-      if (s.kind !== "panel" && e.gesture !== true) throw new Error(`${s.name} is a ${s.kind}: it opens only while you handle the developer's call; ask for attention instead`)
+      if (s.kind !== "panel" && e.gesture !== true) throw new Error(`${s.name} is a ${s.kind}: it opens only while you handle the operator's call; ask for attention instead`)
       const id = `${plugin}:${o.agent}`
       // Only for its own agents that exist (or its nav items' views): no surfaces for ids it made up.
       const nav = surfacesOf(plugin).some((n) => n.kind === "nav" && n.name === o.agent)

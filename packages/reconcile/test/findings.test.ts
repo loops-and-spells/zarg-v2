@@ -1,5 +1,7 @@
 import { afterAll, describe, expect, test } from "bun:test"
+import { Cause, Data } from "effect"
 import { makeFindings } from "../src"
+import { causeText, failureTail } from "../src/findings"
 import { cleanup, repo } from "./repo"
 
 afterAll(cleanup)
@@ -14,5 +16,31 @@ describe("findings", () => {
     expect(makeFindings(r).list().map((x) => [x.kind, x.detail])).toEqual([["verify-failing", "d"], ["blocked-scenario", "d2"]])
     expect(f.clearFor(["S-2"])).toBe(1)
     expect(f.list().map((x) => x.kind)).toEqual(["verify-failing"])
+  })
+  test("a pass with nothing to do clears only that reconcile could not run; verify failing stays until a pass lands", () => {
+    const r = repo()
+    const f = makeFindings(r)
+    f.raise({ kind: "pass-error", title: "reconcile cannot start", detail: "detached", about: [], pass: "" })
+    f.raise({ kind: "verify-failing", title: "verify still fails after the fix attempts", detail: "exit 1", about: [], pass: "p1" })
+    f.clearGeneral({ ran: true })
+    expect(f.list().map((x) => x.kind)).toEqual(["verify-failing"])
+    f.clearGeneral()
+    expect(f.list()).toEqual([])
+  })
+  test("each raise and clear is heard, so the inbox shows a finding from a pass resumed after a restart", () => {
+    let heard = 0
+    const f = makeFindings(repo(), () => void heard++)
+    f.raise({ kind: "verify-failing", title: "verify fails", detail: "d", about: [], pass: "p1" })
+    f.clearGeneral({ ran: true })
+    f.clearGeneral()
+    expect(heard).toBe(2)
+  })
+  test("a failing verify's output in a finding keeps the failures and the summary, not the stack frames", () => {
+    expect(failureTail("✗ appends a message\nError: ECONNREFUSED\n    at connect (net:1)\n    at run (x.js:2)\n\n\n\n 20 pass\n 34 fail")).toBe("✗ appends a message\nError: ECONNREFUSED\n\n 20 pass\n 34 fail")
+  })
+  test("a failure reads as its message, never the Cause around it", () => {
+    class RlmError extends Data.TaggedError("RlmError")<{ readonly message: string }> {}
+    expect(causeText(Cause.fail(new RlmError({ message: "plan did not finish within its budget (20 turns)" })))).toBe("plan did not finish within its budget (20 turns)")
+    expect(causeText(Cause.die("boom"))).toBe("boom")
   })
 })

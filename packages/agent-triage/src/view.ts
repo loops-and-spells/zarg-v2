@@ -21,7 +21,7 @@ const think = (ts: ReadonlyArray<Try>) => {
   const n = Number.isFinite(f) ? Math.max(0, Math.min(6, Math.round(f * 6))) : 0
   return `${"▮".repeat(n)}${"▯".repeat(6 - n)}`
 }
-const plural = (n: number, s: string) => `${n} ${n === 1 ? s : s.endsWith("y") ? `${s.slice(0, -1)}ies` : `${s}s`}`
+const plural = (n: number, s: string) => `${n} ${n === 1 ? s : /[^aeiou]y$/.test(s) ? `${s.slice(0, -1)}ies` : `${s}s`}`
 const decided = (st: StageView) => st.proposals.filter((p) => p.status === "accepted" || p.status === "skipped")
 const glyph = (p: P, inFlight: boolean) => (p.status === "accepted" ? (triesOf(p).length > 1 ? "↻" : "✓") : p.status === "skipped" ? "✗" : inFlight ? "⠋" : "·")
 const STAGE = { triage: "Triage", refine: "Refine", rehearse: "Re-rehearse", plan: "Plan", planned: "Planned" } as const

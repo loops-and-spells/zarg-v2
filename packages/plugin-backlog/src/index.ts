@@ -7,7 +7,7 @@ import { parseRef } from "@zarg/entities"
 import { ENTRY_ID, type Entry, entryId, stateOf, target, upsert } from "./feedback"
 import { boardCard, type Item, ITEM_ID, LANE_TITLES, LANES, moved, neighbour, nextId, pickNext, stale } from "./items"
 import { BacklogView, FeedbackView, ItemView } from "./views"
-import { planText } from "./plan-text"
+import { planText, plural } from "./plan-text"
 
 const DIR = ".zarg/feedback"
 const ITEMS = ".zarg/backlog"
@@ -26,7 +26,7 @@ const EntryData = Schema.Struct({
 })
 const isEntry = Schema.is(EntryData)
 const NO_JOURNEY = "—"
-const plural = (n: number, s: string) => `${n} ${n === 1 ? s : s.endsWith("y") ? `${s.slice(0, -1)}ies` : `${s}s`}`
+
 const fail = (e: unknown) => new PluginFailure({ tag: "BacklogError", message: String((e as { message?: unknown })?.message ?? e) })
 
 /** The backlog: feedback per scenario version (triaged in the Feedback view), later the plans built from it. */
@@ -80,7 +80,7 @@ export default definePlugin({
     rehearsing: { doc: "The Triage Agent started (or waits for) a re-rehearse.", params: Rehearsing, success: Schema.Null },
     rehearsed: { doc: "A re-rehearse's results: on to Plan, or back to Refine with fresh feedback.", params: Rehearsed, success: Schema.Null },
     drafted: { doc: "The Triage Agent's drafted plan.", params: Drafted, success: Schema.Null },
-    dropServing: { doc: "Drop the Backlog-lane plans serving a statement (it was removed): the Intent Agent's call.", params: Schema.Struct({ statement: Schema.String }), success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
+    dropServing: { doc: "Drop the Backlog-lane plans serving a statement (it was removed or reworded): the Intent Agent's call.", params: Schema.Struct({ statement: Schema.String }), success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
     plans: { doc: "A folded triage round's plans, in order, to the Backlog lane: each waits on the plans it names by index; the journey is planned until the last is dropped.", params: PlansParams, success: Schema.Struct({ ids: Schema.Array(Schema.String) }) },
     agenda: { doc: "Feedback files the backlog could not read, and plans that need the operator.", params: Schema.Struct({}), success: Schema.Array(Schema.Struct({ id: Schema.String, title: Schema.String, detail: Schema.String, about: Schema.Array(Schema.String), priority: Schema.Number })) },
   },
@@ -92,7 +92,8 @@ export default definePlugin({
     const agendaPower = yield* Agenda
     const inbox = yield* Inbox
     // Whatever changed: what waits on the operator is posted or settled in the inbox, then the agenda is told.
-    const ready = Effect.suspend(() => Effect.andThen(Effect.ignore(syncTopics), Effect.ignore(agendaPower.changed)))
+    // After any change to the plans: the inbox's topics, the board (whoever moved a plan: the Planner, reconcile), the agenda.
+    const ready = Effect.suspend(() => Effect.andThen(Effect.andThen(Effect.ignore(syncTopics), boardAgain), Effect.ignore(agendaPower.changed)))
     const entities = yield* Entities
     const gherkin = yield* Gherkin
     yield* Config
@@ -160,7 +161,7 @@ export default definePlugin({
       const leftOut = st.proposals.filter((p) => p.status === "skipped" && (p.problems ?? []).length > 0)
       const leftLines = leftOut.length > 0 ? ["", `Left out: ${leftOut.map((p) => `${p.scenario} (${p.problems!.join("; ")})`).join(", ")}`] : []
       const noteLine = st.note !== undefined ? ["", st.note] : []
-      if (st.stage === "triage") return [on === 0 ? "Turn feedback on (space) to refine it; **n** adds your note." : `**r** Refine the ${plural(on, "entry")} that are on: a triage worker drafts the scenario changes, then the plan goes to the Backlog.`, ...noteLine].join("\n")
+      if (st.stage === "triage") return [on === 0 ? "Turn feedback on (space) to refine it; **n** adds your note." : `**r** Refine ${on === 1 ? "the entry that is on" : `the ${on} entries that are on`}: a triage worker drafts the scenario changes, then the plan goes to the Backlog.`, ...noteLine].join("\n")
       if (st.stage === "refine") {
         const p = current(st)
         const done = st.proposals.filter((x) => x.status === "accepted" || x.status === "skipped").length
@@ -205,6 +206,7 @@ export default definePlugin({
       const on = shown.filter((e) => e.triage.on).length
       // The journey and its counts; how far its triage got is triage's to show (its rows say where they stand).
       yield* views.set("feedback", FeedbackView, "stage", {
+        actions: st === undefined ? [] : [...stageActions(st)].filter((a) => a !== "note"),
         markdown: journey === undefined ? "No open feedback. Testers file it when they rehearse." : `**${journey}** · ${plural(shown.length, "entry")} · ${on} on${walkedBy([journey]) !== undefined ? ` · being rehearsed (run ${walkedBy([journey])})` : st !== undefined && inTriage(st) ? " · in triage" : ""}`,
       })
       yield* views.set("feedback", FeedbackView, "journeys", { rows: names.map((j) => ({ id: j, cells: { journey: j, open: String(byJourney.get(j)?.length ?? 0) } })) })
@@ -213,7 +215,7 @@ export default definePlugin({
       const sorted = [...shown].sort((a, b) => sev[a.severity] - sev[b.severity] || a.id.localeCompare(b.id))
       yield* views.set("feedback", FeedbackView, "feedback", {
         // The round's entries are read-only in triage (the plugin refuses them); the rest take notes as ever.
-        actions: st === undefined ? ["note"] : [...stageActions(st), "note"],
+        actions: ["note"],
         rows: sorted.map((e) => ({
           id: e.id,
           on: e.triage.on,
@@ -275,7 +277,11 @@ export default definePlugin({
         const now = new Set(got.entities.map((e) => e.ref))
         return new Set(refs.filter((r) => !now.has(r)))
       })
+    // Once the board was shown, every plan change draws it again; never drawn before it is opened.
+    let boardShown = false
+    const boardAgain = Effect.suspend(() => (boardShown ? Effect.ignore(refreshBoard) : Effect.void))
     const refreshBoard = Effect.gen(function* () {
+      boardShown = true
       const all = yield* loadItems
       const items = all.filter((i) => i.dropped !== true)
       const changed = yield* changedRefs(items)
@@ -338,27 +344,27 @@ export default definePlugin({
         yield* saveItem(needs !== undefined ? { ...withScenarios, needs } : withScenarios)
         if (to === "done") yield* markFeedback(i.feedback, "closed")
         return `${id} → ${LANE_TITLES[to]}`
-      }).pipe(writing.withPermits(1), Effect.tap(() => (to === "ready" ? ready : Effect.ignore(syncTopics))))
+      }).pipe(writing.withPermits(1), Effect.tap(() => (to === "ready" ? ready : Effect.andThen(Effect.ignore(syncTopics), boardAgain))))
     // @scenario S-0112
-    const drop = (id: string) =>
+    const drop = (id: string, by = "operator") =>
       Effect.gen(function* () {
         const i = (yield* loadItems).find((x) => x.id === id)
         if (i === undefined) return `no plan ${id}`
         // Dropped already: nothing to do again (its feedback may be another plan's by now).
         if (i.dropped === true) return `${id} is already dropped`
-        yield* saveItem({ ...i, dropped: true, events: [...i.events, { what: "dropped", by: "operator" }] })
+        yield* saveItem({ ...i, dropped: true, events: [...i.events, { what: "dropped", by }] })
         yield* markFeedback(i.feedback, undefined)
         // Its journey is as if never planned once its round's last plan is gone: nothing says Planned for plans that are gone.
         const st = (yield* loadStages).find((s) => s.journey === i.journey && (s.items ?? (s.item !== undefined ? [s.item] : [])).includes(id))
         const all = yield* loadItems
         if (st !== undefined && (st.items ?? [id]).every((x) => x === id || all.find((y) => y.id === x)?.dropped === true)) yield* saveStage(fresh(st.journey))
-        return `${id} dropped; its feedback is open again`
+        return i.feedback.length > 0 ? `${id} dropped; its feedback is open again` : `${id} dropped`
       }).pipe(writing.withPermits(1), Effect.tap(() => ready))
     /** A removed statement's plans still in Backlog are dropped; one the operator moved on stays theirs. */
     const dropServing = ({ statement }: { statement: string }) =>
       Effect.gen(function* () {
         const mine = (yield* loadItems).filter((i) => i.status === "backlog" && i.dropped !== true && i.serves !== undefined && parseRef(i.serves)?.id === statement)
-        for (const i of mine) yield* drop(i.id)
+        for (const i of mine) yield* drop(i.id, "Intent Agent")
         return { ids: mine.map((i) => i.id) }
       }).pipe(Effect.mapError(fail))
     const plan = (p: PlanParams) =>
@@ -419,10 +425,16 @@ export default definePlugin({
         // A run's filing is news: a report, and whatever now waits on the operator (asks) in the inbox.
         Effect.tap(({ ids }) =>
           Effect.gen(function* () {
+            // The latest run's report stands for the runs before it.
+            if (run !== undefined) for (const t of yield* inbox.list().pipe(Effect.orElseSucceed(() => []))) if (t.key?.startsWith("run:") === true && t.key !== `run:${run}`) yield* Effect.ignore(inbox.settle(t.id, `a later run (${run}) reported`))
             if (run !== undefined && ids.some((x) => x !== "")) {
               const filed = (yield* load).filter((e) => ids.includes(e.id))
               const journeys = [...new Set(filed.flatMap((e) => e.journeys))]
-              yield* report(`run:${run}`, `Rehearse run ${run}: ${plural_(filed.length, "entry")}${journeys.length > 0 ? ` on ${journeys.join(", ")}` : ""}`, "feedback")
+              yield* report(`run:${run}`, `Rehearse run ${run}: ${plural(filed.length, "entry")}${journeys.length > 0 ? ` on ${journeys.join(", ")}` : ""}`, "feedback")
+            } else if (run !== undefined) {
+              // Nothing filed still says what was walked: the operator reads it as a pass, not an empty report.
+              const seen = walked ?? []
+              yield* report(`run:${run}`, `Rehearse run ${run}: nothing found${seen.length > 0 ? ` on ${plural(seen.length, "scenario")}` : ""}`, "feedback", seen.length > 0 ? `The testers walked ${seen.join(", ")} and filed nothing.` : undefined)
             }
             yield* ready
           }),
@@ -521,7 +533,7 @@ export default definePlugin({
           const { item: _, ...rest } = st
           return { ...rest, stage: "planned", items: ids }
         })
-        yield* report(`plans:${p.journey}:${ids.join(",")}`, `${p.journey} folded into ${plural_(ids.length, "plan")}: ${ids.join(", ")}`, "backlog")
+        yield* report(`plans:${p.journey}:${ids.join(",")}`, `${p.journey} folded into ${plural(ids.length, "plan")}: ${ids.join(", ")}`, "backlog")
         yield* ready
         return { ids }
       }).pipe(planning.withPermits(1), Effect.tap(() => Effect.ignore(Effect.suspend(() => (feedbackOpened ? refresh : Effect.void)))), Effect.mapError(fail))
@@ -731,10 +743,13 @@ export default definePlugin({
       for (const t of want.values()) yield* inbox.post(t)
       const isMine = (key: string | undefined) => key !== undefined && /^(needs|ask|left|drift|code):/.test(key)
       for (const t of yield* inbox.list()) if (isMine(t.key) && !want.has(t.key!) && !keepOpen.has(t.key!)) yield* inbox.settle(t.id, "it no longer waits on you")
+      // A folded round's report names its plans: once they are all dropped, it reports nothing.
+      const dropped = new Set((yield* loadItems).filter((i) => i.dropped === true).map((i) => i.id))
+      for (const t of yield* inbox.list())
+        if (t.key?.startsWith("plans:") === true && (t.key.split(":").at(-1) ?? "").split(",").every((id) => dropped.has(id))) yield* inbox.settle(t.id, "its plans were dropped")
     }))
-    const plural_ = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`
     /** A report for the inbox: read once opened. */
-    const report = (key: string, title: string, view: string) => Effect.ignore(inbox.post({ kind: "report", key, title, why: "report", origin: { view } }))
+    const report = (key: string, title: string, view: string, evidence?: string) => Effect.ignore(inbox.post({ kind: "report", key, title, why: "report", origin: { view }, ...(evidence !== undefined ? { evidence } : {}) }))
     /** The operator's answer to one of the backlog's topics: the same as the matching action in its views. */
     const answered = ({ key, answer }: { id: string; key?: string; answer?: string }) =>
       Effect.gen(function* () {
@@ -757,7 +772,7 @@ export default definePlugin({
           }).pipe(writing.withPermits(1))
           yield* ready
           if (feedbackOpened) yield* Effect.ignore(refresh)
-          return { notice: `${j}: ${plural_(es.length, "entry")} ${answer === "off" ? "turned off" : "kept on"}` }
+          return { notice: `${j}: ${plural(es.length, "entry")} ${answer === "off" ? "turned off" : "kept on"}` }
         }
         // @scenario S-0107
         if (kind === "drift" && rest[0] !== undefined) {

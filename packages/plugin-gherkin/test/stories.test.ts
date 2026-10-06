@@ -23,6 +23,11 @@ const pairs = (stories: ReadonlyArray<ReadonlyArray<string>>) =>
   new Set(stories.flatMap((s) => s.flatMap((c, i) => [...(i > 0 ? [`${s[i - 1]}>${c}`] : []), ...(i > 1 ? [`${s[i - 2]}>${s[i - 1]}>${c}`] : [])])))
 
 describe("stories", () => {
+  test("a focused journey means its scenarios: teleport walks each of them alone", () => {
+    const withJourney = Snapshot.make([...graph.nodes.values(), { id: "J-1", type: JOURNEY, props: { name: "Checkout" }, edges: [] }].map((n) => (n.id === "A" || n.id === "B" ? { ...n, edges: [...n.edges, { type: IN, to: "J-1" }] } : n)) as never)
+    expect(planStories(withJourney, "teleport", new Set(["J-1"])).stories).toEqual([["A"], ["B"]])
+    expect(planStories(withJourney, "edge-pair", new Set(["J-1"])).stories.length).toBeGreaterThan(0)
+  })
   test("edge-pair stories run root to leaf and cover every step and every consecutive pair", () => {
     const { stories, unreachable } = planStories(graph, "edge-pair")
     expect(unreachable).toBe(0)

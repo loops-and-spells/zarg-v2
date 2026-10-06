@@ -1,0 +1,109 @@
+[
+  {
+    "type": "ACTIVITY_DELTA",
+    "messageId": "main:view:build",
+    "activityType": "zarg.view",
+    "patch": [
+      {
+        "op": "add",
+        "path": "/data/history/lines/-",
+        "value": {
+          "text": "09:49:27  implement resolve"
+        }
+      },
+      {
+        "op": "add",
+        "path": "/data/history/lines/-",
+        "value": {
+          "text": "09:49:27  merging and verifying"
+        }
+      },
+      {
+        "op": "replace",
+        "path": "/data/now",
+        "value": {
+          "markdown": "**done** · landed S-0003, S-0004"
+        }
+      },
+      {
+        "op": "add",
+        "path": "/data/history/lines/-",
+        "value": {
+          "text": "09:49:27  landed S-0003, S-0004"
+        }
+      }
+    ],
+    "content": {
+      "agent": "build"
+    },
+    "threadId": "main",
+    "seq": 172
+  },
+  {
+    "type": "ACTIVITY_DELTA",
+    "messageId": "main:view:build",
+    "activityType": "zarg.view",
+    "patch": [
+      {
+        "op": "replace",
+        "path": "/data/now",
+        "value": {
+          "markdown": "**running** · starting"
+        }
+      },
+      {
+        "op": "add",
+        "path": "/data/history/lines/-",
+        "value": {
+          "text": "09:49:29  starting"
+        }
+      }
+    ],
+    "content": {
+      "agent": "build"
+    },
+    "threadId": "main",
+    "seq": 179
+  },
+  {
+    "type": "ACTIVITY_DELTA",
+    "messageId": "main:view:build",
+    "activityType": "zarg.view",
+    "patch": [
+      {
+        "op": "add",
+        "path": "/data/history/lines/-",
+        "value": {
+          "text": "09:49:29  implement S-0002"
+        }
+      },
+      {
+        "op": "add",
+        "path": "/data/history/lines/-",
+        "value": {
+          "text": "09:49:29  merging and verifying"
+        }
+      },
+      {
+        "op": "replace",
+        "path": "/data/now",
+        "value": {
+          "markdown": "**failed** · not built: S-0002"
+        }
+      },
+      {
+        "op": "add",
+        "path": "/data/history/lines/-",
+        "value": {
+          "text": "09:49:29  not built: S-0002",
+          "tone": "error"
+        }
+      }
+    ],
+    "content": {
+      "agent": "build"
+    },
+    "threadId": "main",
+    "seq": 195
+  }
+]

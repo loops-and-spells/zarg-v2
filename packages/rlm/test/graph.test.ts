@@ -37,6 +37,14 @@ describe("Graph service", () => {
     expect(out.output).not.toContain("ST-0003")
   })
 
+  test("a node named by its entity ref (as Entities gives it) is the same node: show and neighbors take both", async () => {
+    const out = await withGraph({}, (k) =>
+      Effect.all([k.run('return (yield* Graph.show({ id: "gherkin/state:ST-0002@0123456789ab" })).id'), k.run('return yield* Graph.neighbors({ id: "gherkin/scenario:S-0001", k: 1 })')]),
+    )
+    expect(out[0].output).toBe("ST-0002")
+    expect(out[1].output).toContain("ST-0002")
+  })
+
   test("show returns the node with its hash; nodes outside the scope are refused", async () => {
     const out = await withGraph({ graph: { focus: ["S-0001"], k: 1 } }, (k) =>
       Effect.all([k.run('return (yield* Graph.show({ id: "ST-0002" })).hash'), k.run('return yield* Graph.show({ id: "ST-0003" })')]),
@@ -77,7 +85,7 @@ describe("Inquire, Agenda and Verify", () => {
   const kernel = <A>(services: Parameters<typeof Kernel.make>[0]["services"], f: (k: Kernel.Kernel) => Effect.Effect<A>) =>
     Effect.runPromise(Effect.scoped(Effect.flatMap(Kernel.make({ services }), f)))
 
-  test("Inquire.ask returns the developer's answer; bad option counts are refused", async () => {
+  test("Inquire.ask returns the operator's answer; bad option counts are refused", async () => {
     const asked: Array<string> = []
     const svc = inquire({ ask: (q) => Effect.sync(() => (asked.push(q.question), { choice: "b" })) })
     const out = await kernel([svc], (k) =>
@@ -92,7 +100,7 @@ describe("Inquire, Agenda and Verify", () => {
   })
 
   // @scenario S-0071
-  test("Inquire.choose accepts an option of a question under discussion for the developer", async () => {
+  test("Inquire.choose accepts an option of a question under discussion for the operator", async () => {
     const chosen: Array<unknown> = []
     const svc = inquire({
       ask: () => Effect.succeed({ other: "why Checkout?", interjected: true, question: "inq-1" }),
@@ -107,6 +115,28 @@ describe("Inquire, Agenda and Verify", () => {
     expect(out[0].output).toContain("inq-1")
     expect(out[1].output).toContain('"choice": "b"')
     expect(chosen).toEqual([{ question: "inq-1", choice: "b", why: "they said checkout matters most" }])
+  })
+
+  // @scenario S-0102
+  test("an interjected answer tells the driver to keep what the operator says the product is for (shown first)", () => {
+    const text = manifest([InquireDef])
+    expect(text).toContain("add-outcome")
+    expect(text).not.toContain("Never change the graph on a discussion alone")
+  })
+
+  // @scenario S-0012 S-0102
+  test("an interjected answer carries what to do with it: reply, and propose what it says the product is for", async () => {
+    const svc = inquire({ ask: () => Effect.succeed({ other: "parents reward chores with points", interjected: true, question: "inq-1" }) })
+    const out = await kernel([svc], (k) => k.run('return yield* Inquire.ask({ question: "Who?", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }] })'))
+    expect(out.output).toContain('"hint":')
+    expect(out.output).toContain("add-outcome")
+  })
+
+  // @scenario S-0102
+  test("an interjection zarg judged to state a goal for the product says the next call outright: propose it", async () => {
+    const svc = inquire({ ask: () => Effect.succeed({ other: "parents reward chores with points", interjected: true, question: "inq-1", goal: true }) })
+    const out = await kernel([svc], (k) => k.run('return yield* Inquire.ask({ question: "Who?", options: [{ id: "a", label: "A" }, { id: "b", label: "B" }] })'))
+    expect(out.output).toContain("Your next call: Inquire.confirm")
   })
 
   test("Inquire.choose without a question under discussion fails with a hint", async () => {

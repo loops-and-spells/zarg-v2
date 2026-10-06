@@ -1,0 +1,26 @@
+{
+  "edges": [
+    {
+      "to": "P-0001",
+      "type": "gherkin/by"
+    },
+    {
+      "to": "ST-0019",
+      "type": "gherkin/arrives"
+    },
+    {
+      "to": "ST-0139",
+      "type": "gherkin/then"
+    },
+    {
+      "to": "J-0004",
+      "type": "gherkin/in"
+    }
+  ],
+  "id": "S-0122",
+  "props": {
+    "title": "Operator watches a build",
+    "when": "the operator looks at the agents while a pass runs"
+  },
+  "type": "gherkin/scenario"
+}

@@ -1,7 +1,7 @@
 import { openTopics } from "@zarg/client"
 import { inboxKey } from "./inbox-keys"
 import type { SessionState } from "@zarg/client"
-import { closeMenu, dispatch, focused, type InputKey, type InputLayer, keyFor, type KeyHint, leafOf, printable, startUi, typed, type ViewState, type ViewUi } from "@zarg/view"
+import { actionFor, closeMenu, dispatch, focused, type InputKey, type InputLayer, keyFor, type KeyHint, leafOf, printable, startUi, typed, type ViewState, type ViewUi } from "@zarg/view"
 import { gridCards, gridCursor } from "./grid"
 import { SLASH_COMMANDS } from "./commands"
 import { paletteEntries } from "./palette"
@@ -26,8 +26,13 @@ import {
   onAgentsKey,
   onSlashKey,
   openAgent,
+  openNav,
+  OTHER,
   pickerKey,
+  pickerRows,
+  drafting,
   preselect,
+  promptAction,
   queueOf,
   sheetShown,
   typing,
@@ -70,6 +75,9 @@ const moveTile = (ui: Ui, s: SessionState, dir: string): Ui => {
   if (inBottom > 0) return toPanel(bottom[inBottom - 1]!.id)
   return ui.focus === "panel" ? { ...ui, focus: "tile" } : ui
 }
+
+/** The view is in the middle of something Esc ends first (a search, a line being typed, a dropdown). */
+const busyView = (vu: ViewUi | undefined) => vu !== undefined && (vu.searching !== undefined || vu.input !== undefined || vu.choose !== undefined)
 
 /** A key on a view that is not the open agent's: its new state, and its action or answer for `agent`. */
 const surfaceKey = (v: ViewState, vu: ViewUi, k: InputKey, agent: string): { readonly view: ViewUi; readonly action?: Action } => {
@@ -121,6 +129,9 @@ const common = (ui: Ui, w: ShellWorld, k: InputKey) =>
 /** A view keyed `${agent}@${view}` belongs to that agent: its actions and answers go there. */
 const ownerOf = (key: string) => (key.includes("@") ? { agent: key.split("@")[0]! } : {})
 
+/** [ ] move between a view's sections: hinted when it has more than one. */
+const sectionsHint = (v: ViewState | undefined): ReadonlyArray<KeyHint> => ((v?.layout.sections.length ?? 0) > 1 ? [{ keys: "[ ]", does: "section" }] : [])
+
 /** Keys a focused section has of its own (not actions): a toggle table's space, a board's folds and moves. */
 const sectionHints = (ui: Ui, s: SessionState): ReadonlyArray<KeyHint> => {
   const v = ui.viewing === undefined ? undefined : s.thread.views?.[ui.viewing]
@@ -169,7 +180,8 @@ export const SHELL: ReadonlyArray<Layer> = [
   {
     id: "popover",
     exclusive: true,
-    when: (ui, w) => queueOf(ui, w.s).length > 0,
+    // Mid-message, it waits: the operator's typing is never taken (nor answered) by a grant that just arrived.
+    when: (ui, w) => queueOf(ui, w.s).length > 0 && !drafting(ui, w.s, w.draft),
     hints: (ui, w) => {
       const head = queueOf(ui, w.s)[0]
       if (head?.kind !== "surface") return [{ keys: "←→", does: "pick" }, { keys: "Enter", does: "choose" }]
@@ -197,7 +209,7 @@ export const SHELL: ReadonlyArray<Layer> = [
         // A grant is a gate: an answer already on its way, or a head that only just showed, takes no Enter.
         const fresh = ui.popover.since !== undefined && w.now - ui.popover.since < POPOVER_GUARD_MS
         if (option === undefined || ui.popover.answering === head.id || fresh) return { ui }
-        return { ui: { ...ui, popover: { ...ui.popover, answering: head.id } }, action: { type: "answer-prompt", id: head.id, choice: option.id } }
+        return { ui: { ...ui, popover: { ...ui.popover, answering: head.id } }, action: promptAction(ui, w.s, head, option.id) }
       }
       // Strictly first in, first out: a grant stays until answered (Esc included), and nothing jumps the queue.
       return { ui }
@@ -227,6 +239,7 @@ export const SHELL: ReadonlyArray<Layer> = [
         const e = entries[pick]
         if (e === undefined) return { ui }
         if ("command" in e.go) return { ui: close(), action: { type: "command", text: e.go.command } }
+        if ("nav" in e.go) return openNav(close(), w.s, e.go.nav)
         const to = e.go.main === "agent" && e.go.viewing !== undefined ? openAgent(close(), w.s, e.go.viewing) : goTo(close(), e.go.main)
         return { ui: { ...to, sheet: false, focus: "tile" } }
       }
@@ -263,7 +276,15 @@ export const SHELL: ReadonlyArray<Layer> = [
       return q !== undefined && ui.answered !== q.id && ui.chatting !== q.id && (ui.focus === "bar" || (ui.focus === "tile" && sheetShown(ui) && ui.sheetOf === undefined))
     },
     hints: () => [{ keys: "↑↓", does: "pick" }, { keys: "Enter", does: "answer" }],
-    handle: (ui, w, k) => pickerKey(ui, w.s, k),
+    handle: (ui, w, k) => {
+      // A letter typed at the question starts Say it in your own words with it: none of it runs another key (g, x, …).
+      const q = w.s.thread.pendingInquiry!
+      if (q.allowOther !== false && printable(k) && k.name.length === 1 && !/[0-9/]/.test(k.name)) {
+        const other = pickerRows(q, ui.pick).findIndex((r) => r.id === OTHER)
+        if (other >= 0) return { ui: { ...ui, pick: other, other: true, focus: "bar" }, draft: w.draft + typed(k) }
+      }
+      return pickerKey(ui, w.s, k)
+    },
   },
   {
     // The bar with focus but not typing (zarg's question is in the picker): Esc leaves it, g and / as anywhere.
@@ -279,7 +300,7 @@ export const SHELL: ReadonlyArray<Layer> = [
     handle: (ui, w, k) => {
       const p = focusedPanel(ui, w.s)!
       if (k.name === "escape" && ui.panelView?.menu !== undefined) return { ui: { ...ui, panelView: closeMenu(ui.panelView) } }
-      if (k.name === "escape") {
+      if (k.name === "escape" && !busyView(ui.panelView)) {
         const { panel: _, panelView: __, ...rest } = ui
         return { ui: { ...rest, focus: "tile", closedPanels: [...ui.closedPanels, closedKey(p)] } }
       }
@@ -295,10 +316,10 @@ export const SHELL: ReadonlyArray<Layer> = [
     // A plugin's sheet over the tile area: its view takes the keys; Esc closes it.
     id: "plugin-sheet",
     when: (ui) => ui.focus === "tile" && ui.sheet && ui.sheetOf !== undefined,
-    hints: () => [{ keys: "Esc", does: "close" }],
+    hints: (ui, w) => [...sectionsHint(w.s.thread.views?.[ui.sheetOf!]), { keys: "Esc", does: "close" }],
     handle: (ui, w, k) => {
       if (k.name === "escape" && ui.sheetView?.menu !== undefined) return { ui: { ...ui, sheetView: closeMenu(ui.sheetView) } }
-      if (k.name === "escape") {
+      if (k.name === "escape" && !busyView(ui.sheetView)) {
         const { sheetOf: _, sheetView: __, ...rest } = ui
         return { ui: { ...rest, sheet: false } }
       }
@@ -331,7 +352,7 @@ export const SHELL: ReadonlyArray<Layer> = [
         : ui.view?.header !== undefined
           ? [{ keys: "←→", does: "column" }, { keys: "Enter", does: "sort, select" }, { keys: "↓", does: "rows" }, { keys: "Esc", does: "back" }]
           : // The view's actions are buttons in the view: the status line keeps no view keys, but the few keys a section has of its own.
-            [...sectionHints(ui, w.s), { keys: "Esc", does: "back" }],
+            [...sectionHints(ui, w.s), ...sectionsHint(ui.viewing === undefined ? undefined : w.s.thread.views?.[ui.viewing]), { keys: "Esc", does: "back" }],
     handle: (ui, w, k) => {
       // Esc closes an open menu or clears a search being typed (the view's keys handle both); else it goes back.
       // A drawer over the view closes before the view goes back.
@@ -343,6 +364,14 @@ export const SHELL: ReadonlyArray<Layer> = [
       if (c !== undefined) return c
       const v = ui.viewing === undefined ? undefined : w.s.thread.views?.[ui.viewing]
       if (v === undefined) return { ui }
+      // A drawer over the view: its action keys (Drop, Move) work while the view keeps the keys, unless the view has the key.
+      const drawer = panelsShown(ui, w.s).right.find((p) => p.overlay === true)
+      const dv = drawer === undefined ? undefined : w.s.thread.views?.[drawer.view]
+      if (drawer !== undefined && dv !== undefined && actionFor(v, ui.view ?? startUi(v), typed(k)) === undefined && actionFor(dv, ui.panelView ?? startUi(dv), typed(k)) !== undefined) {
+        const d = surfaceKey(dv, ui.panelView ?? startUi(dv), k, drawer.agent)
+        // A key that opens a menu (Move ▾) takes the drawer's focus, as a click on its button does.
+        return d.action !== undefined ? { ui: { ...ui, panelView: d.view }, action: d.action } : { ui: { ...ui, focus: "panel", panel: drawer.id, panelView: d.view } }
+      }
       const r = viewKeys(v, ui.view ?? startUi(v), k)
       return {
         ui: { ...ui, view: r.ui },

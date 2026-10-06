@@ -11,7 +11,7 @@ export interface CalibrationCase {
 
 /** A bad scene raising none of its expected flags is a miss for each; a good scene raising any flag is a `clean` miss. */
 export const scoreCalibration = (cases: ReadonlyArray<CalibrationCase>, results: ReadonlyArray<Screened | undefined>) => {
-  const misses: Record<Reason | "clean", Array<string>> = { feel: [], fail: [], fork: [], seam: [], clean: [] }
+  const misses: Record<Reason | "clean", Array<string>> = { feel: [], fail: [], fork: [], seam: [], drift: [], clean: [] }
   cases.forEach((c, i) => {
     const flags = results[i]?.flags ?? []
     if (c.expect.length === 0) {

@@ -1,13 +1,13 @@
 {
   "scenario": "S-0114",
   "version": "a1fc650f5f11",
-  "commit": "b9aa753",
-  "run": "e2e-2026-10-04T22-49-10.062Z",
+  "commit": "5f6a732d",
+  "run": "e2e-2026-10-06T09-52-42.153Z",
   "journey": "J-0009",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T22:50:42.487Z",
-  "ms": 2207,
+  "at": "2026-10-06T09:52:45.329Z",
+  "ms": 1355,
   "media": [
     {
       "kind": "evidence-terminal/text",
@@ -20,9 +20,9 @@
   ],
   "failure": null,
   "code": {
-    "packages/e2e/src/proof.ts": "4284c31cfc7f81174d5f4a726fd56170cdb57088",
+    "packages/e2e/src/proof.ts": "78cacd00e3cdf320baf6e1d4f7d9f0f8b9fbf19b",
     "packages/e2e/src/run.ts": "5b5219a8ab948ef36cb9ffe459640977c21e510f",
-    "packages/e2e/src/world.ts": "a3a724bc621d70cd45b1cb850db5afc6f19bfd00",
+    "packages/e2e/src/world.ts": "e3166a97ef91ba3d432ad0aac2878ef362b274f2",
     "packages/e2e/test/harness.test.ts": "a82e96379fbc2e1929a6532c1364463eaa139652",
     "packages/e2e/test/run.test.ts": "a8129759e4dccc30679c3d6203a9cbeb654e67ef"
   }

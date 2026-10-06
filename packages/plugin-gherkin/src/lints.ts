@@ -1,6 +1,6 @@
 import { type Node, Snapshot } from "@zarg/graph/pure"
 import type { Finding, Lint } from "./kit"
-import { HAS, INTENT, isStatement, JOURNEY, journeyName, journeys, normalize, PERSONA, personaName, personas, SCENARIO, similarity, STATE, states, text } from "./model"
+import { HAS, INTENT, isStatement, JOURNEY, journeyName, journeys, normalize, PERSONA, personaName, personas, SCENARIO, scenarios, similarity, STATE, states, text, THEN } from "./model"
 
 const MAX_WORDS = 15
 /** A statement (outcome, constraint, question) is one sentence of at most 20 words. */
@@ -27,6 +27,9 @@ export const clauseShape: Lint = (ctx) =>
       }
       if (/\bif\b/i.test(c)) {
         out.push({ severity: "error", code: "conditional", message: `${n.id}: "${c}" contains "if"; make one scenario per case instead`, about: [n.id] })
+      }
+      if (n.type === "gherkin/scenario" && c === n.props.when && /\bor\b/i.test(c)) {
+        out.push({ severity: "warn", code: "alternatives", message: `${n.id}: "${c}" contains "or"; make one scenario per case when the cases lead to different outcomes`, about: [n.id] })
       }
       if (/\band\b/i.test(c)) {
         out.push({ severity: "warn", code: "and-chaining", message: `${n.id}: "${c}" contains "and"; split it if it states two facts`, about: [n.id] })
@@ -80,6 +83,16 @@ export const journeyShape: Lint = (ctx) =>
         .map((o) => ({ severity: "error" as const, code: "duplicate-journey", message: `${n.id} has the name of ${o.id} ("${journeyName(o)}"); use ${o.id}`, about: [n.id, o.id] })),
     )
 
+/** A scenario title is unique (case does not matter): a driver once wrote the same scenario twice. */
+export const scenarioTitle: Lint = (ctx) =>
+  touched(ctx)
+    .filter((n) => n.type === SCENARIO)
+    .flatMap((n): ReadonlyArray<Finding> =>
+      scenarios(ctx.after)
+        .filter((o) => o.id !== n.id && normalize(String(o.props.title ?? "")) === normalize(String(n.props.title ?? "")))
+        .map((o) => ({ severity: "error" as const, code: "duplicate-scenario", message: `${n.id} has the title of ${o.id} ("${String(o.props.title)}"); change ${o.id} instead`, about: [n.id, o.id] })),
+    )
+
 /** An intent's title: at most 10 words. */
 export const intentShape: Lint = (ctx) =>
   touched(ctx)
@@ -106,4 +119,27 @@ export const statementOwner: Lint = (ctx) => {
   })
 }
 
-export const LINTS: ReadonlyArray<Lint> = [clauseShape, stateText, personaShape, journeyShape, intentShape, statementOwner]
+/** The words of a clause, lowercased: what two clauses share. */
+const wordSet = (s: string) => new Set(s.toLowerCase().split(/[^a-z0-9']+/).filter((w) => w !== ""))
+
+/** A Then states what the action brought about: one that says the When again (most of its words) is refused. */
+export const thenEchoesWhen: Lint = (ctx) =>
+  touched(ctx)
+    .filter((n) => n.type === SCENARIO)
+    .flatMap((n): ReadonlyArray<Finding> => {
+      const when = wordSet(String(n.props.when ?? ""))
+      if (when.size === 0) return []
+      return n.edges
+        .filter((e) => e.type === THEN)
+        .flatMap((e) => {
+          const st = ctx.after.nodes.get(e.to)
+          if (st === undefined) return []
+          const then = wordSet(text(st))
+          const shared = [...when].filter((w) => then.has(w)).length
+          return shared / when.size >= 0.8
+            ? [{ severity: "error" as const, code: "then-echoes-when", message: `${n.id}: its Then "${text(st)}" says its When again; a Then states what the action brought about (what holds now)`, about: [n.id, st.id] }]
+            : []
+        })
+    })
+
+export const LINTS: ReadonlyArray<Lint> = [clauseShape, stateText, personaShape, journeyShape, scenarioTitle, intentShape, statementOwner, thenEchoesWhen]

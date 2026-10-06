@@ -1,0 +1,40 @@
+                       │  inbox   1 open                                                                                
+ ◆ zarg                │                                                                                                
+   project · main      │  ▍◆ zarg          Who uses the tally first?  question · waiting · 2 options  now               
+                       │                                                                                                
+ VIEWS               3 │                                                                                                
+▍ ◆ Inbox            1 │                                                                                                
+  ▤ Journeys           │                                                                                                
+  ▤ Intents            │                                                                                                
+                       │                                                                                                
+ AGENTS             ◆1 │                                                                                                
+  ◆ zarg          asks │                                                                                                
+  └ ⠼ driver 1    1/25 │                                                                                                
+  ✓ warmup        done │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │ · answered                                                                                     
+                       │ ◆ zarg asks Who uses the tally first?   ⏎ answer   / chat                                      
+                       │ ◆ zarg asks: Who uses the tally first?   core…   ↑↓ move   ⏎ open   1-9 answer   ␣ mark   a all

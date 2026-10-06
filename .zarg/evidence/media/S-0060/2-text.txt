@@ -1,5 +1,5 @@
 {
   "installed": "probe",
-  "dir": "/tmp/zarg-e2e-8yC3en/user/plugins/probe/91a7c4c299a4240262ee7bf57cc13c61cf6a1b4b9a71de94aa83a6d4da413f29",
-  "next": "list it in .zarg/config.toml as [plugins.probe] source = \"/home/demiurge/Git/zarg-v2/packages/e2e/fixtures/probe/dist\", then approve it with `zarg plugin grant probe`"
+  "dir": "/tmp/zarg-e2e-4AQxYp/user/plugins/probe/f1471064d575600ce028f39f6412ded4b6b78636ba4b062b27bc3f026abb7bce",
+  "next": "list it in .zarg/config.toml as [plugins.probe] source = \"/home/demiurge/Git/zarg-v2/.claude/worktrees/operate/packages/e2e/fixtures/probe/dist\", then approve it with `zarg plugin grant probe`"
 }

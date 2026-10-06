@@ -38,6 +38,24 @@ describe("pricing example", () => {
     expect(text).not.toContain("plan picker")
   })
 
+  test("agenda: a journey that skips a step (a scenario outside it leads from its own to one of its own) asks whether that one is part of it", async () => {
+    const items = await run(
+      Effect.gen(function* () {
+        yield* pricing
+        yield* call("add-journey", { name: "Buying" })
+        yield* call("link", { scenario: "S-0001", edge: "in", journey: "Buying" })
+        yield* call("link", { scenario: "S-0004", edge: "in", journey: "Buying" })
+        const before = (yield* PluginHost.use((h) => h.agenda())).filter((i) => i.id.startsWith("gherkin:journey-apart"))
+        yield* call("link", { scenario: "S-0003", edge: "in", journey: "Buying" })
+        const after = (yield* PluginHost.use((h) => h.agenda())).filter((i) => i.id.startsWith("gherkin:journey-apart"))
+        return { before, after }
+      }),
+    )
+    expect(items.before.map((i) => i.id)).toEqual(["gherkin:journey-apart:J-0001"])
+    expect(items.before[0]).toMatchObject({ title: `Is "Visitor picks Pro" part of "Buying"?`, about: ["J-0001", "S-0004", "S-0003"] })
+    expect(items.after).toEqual([])
+  })
+
   test("agenda: receipt and decline message are dead ends until marked terminal", async () => {
     const ids = await run(
       Effect.gen(function* () {
@@ -54,6 +72,14 @@ describe("pricing example", () => {
       "gherkin:dead-end:ST-0006",
     ])
     expect(ids.after).toEqual(["gherkin:dead-end:ST-0003", "gherkin:dead-end:ST-0006"])
+  })
+
+  test("a dead end says what to do in the graph's terms: a scenario that starts from it, or terminal (any Then may be)", async () => {
+    const detail = await run(Effect.andThen(pricing, PluginHost.use((h) => h.agenda())))
+    const d = detail.find((i) => i.id === "gherkin:dead-end:ST-0005")!.detail
+    expect(d).toContain("starts from ST-0005")
+    expect(d).toContain("any Then may be terminal")
+    expect(d).not.toContain("arrives there")
   })
 
   test("suggest: failure candidates for states with only one way on, busiest first, within focus", async () => {
@@ -112,9 +138,40 @@ describe("gherkin rules", () => {
 
   test("a state nothing leads to is unreached unless it is an entry", async () => {
     const ids = await run(
-      Effect.andThen(call("add-state", { text: "a lonely screen", terminal: true }), PluginHost.use((h) => h.agenda())),
+      Effect.andThen(
+        Effect.andThen(call("add-persona", { name: "Visitor", kind: "human", text: "A visitor." }), call("add-scenario", { title: "Visitor leaves", when: "the visitor leaves", by: [{ name: "Visitor" }], arrives: { text: "a lonely screen" }, then: [{ text: "the visitor is gone", terminal: true }] })),
+        PluginHost.use((h) => h.agenda()),
+      ),
     )
-    expect(ids.map((i) => i.id)).toEqual(["gherkin:no-personas", "gherkin:unreached:ST-0001"])
+    expect(ids.map((i) => i.id)).toContain("gherkin:unreached:ST-0001")
+    expect(ids.map((i) => i.id)).not.toContain("gherkin:unreached:ST-0002")
+  })
+
+  test("a new Then given as terminal is terminal: it asks for no successor", async () => {
+    const ids = await run(
+      Effect.andThen(
+        Effect.andThen(call("add-persona", { name: "Visitor", kind: "human", text: "A visitor." }), call("add-scenario", { title: "Visitor leaves", when: "the visitor leaves", by: [{ name: "Visitor" }], arrives: { text: "a lonely screen", entry: true }, then: [{ text: "the visitor is gone", terminal: true }] })),
+        PluginHost.use((h) => h.agenda()),
+      ),
+    )
+    expect(ids.map((i) => i.id)).toEqual([])
+  })
+
+  test("a state no scenario uses is one item, unused: use it or remove it (not a dead end and unreached both)", async () => {
+    const items = await run(Effect.andThen(call("add-state", { text: "a shelf reader asks what is left" }), PluginHost.use((h) => h.agenda())))
+    expect(items.map((i) => i.id)).toEqual(["gherkin:no-personas", "gherkin:unused-state:ST-0001"])
+    expect(items[1]!.detail).toContain("remove")
+  })
+
+  test("a state a scenario uses as a Given (its context) is no dead end: something happens while it holds", async () => {
+    const ids = await run(
+      Effect.gen(function* () {
+        yield* call("add-persona", { name: "Parent", kind: "human", text: "A parent." })
+        yield* call("add-scenario", { title: "Parent adds a chore", when: "the parent adds a chore", by: [{ name: "Parent" }], arrives: { text: "a parent in a family household", entry: true }, given: [{ text: "the household has no chores yet", entry: true }], then: [{ text: "the chore is listed", terminal: true }] })
+        return (yield* PluginHost.use((h) => h.agenda())).map((i) => i.id)
+      }),
+    )
+    expect(ids).not.toContain("gherkin:dead-end:ST-0002")
   })
 
   test("a scenario needs at least one Then", async () => {
@@ -160,6 +217,25 @@ describe("gherkin rules", () => {
   test("'and' is a warning only", async () => {
     const r = await run(call("add-state", { text: "the cart and the total are shown" }))
     expect(r.warnings.map((w) => w.code)).toEqual(["and-chaining"])
+  })
+
+  test("a When with 'or' warns: one scenario per case when the cases lead to different outcomes", async () => {
+    const r = await run(Effect.andThen(pricing, call("add-scenario", { title: "Visitor leaves", when: "the visitor closes the tab or goes back", by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ id: "ST-0002" }] })))
+    expect(r.warnings.map((w) => w.code)).toContain("alternatives")
+  })
+
+  test("a Then that says the When again is refused: a Then states what the action brought about", async () => {
+    const err = await run(Effect.flip(Effect.andThen(pricing, call("add-scenario", { title: "Visitor removes a plan", when: "the visitor removes a plan they no longer want", by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ text: "the visitor removes a plan they no longer want from the list" }] }))))
+    expect(err._tag === "LintFailed" && err.findings[0]?.code).toBe("then-echoes-when")
+    // A Then that says what came of it passes.
+    const ok = await run(Effect.andThen(pricing, call("add-scenario", { title: "Visitor removes a plan", when: "the visitor removes a plan they no longer want", by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ text: "the plan is gone from the visitor's list" }] })))
+    expect(ok.warnings.map((w) => w.code)).not.toContain("then-echoes-when")
+  })
+
+  test("a scenario titled like another is refused, pointing at the one to change", async () => {
+    const add = call("add-scenario", { title: "Visitor drops a plan", when: "the visitor drops a plan", by: [{ id: "P-0001" }], arrives: { id: "ST-0001" }, then: [{ text: "the plan is off the list" }] })
+    const err = await run(Effect.flip(Effect.andThen(pricing, Effect.andThen(add, add))))
+    expect(err._tag === "LintFailed" && err.findings.map((f) => f.code)).toContain("duplicate-scenario")
   })
 
   test("adding a state with existing text points at the existing one", async () => {

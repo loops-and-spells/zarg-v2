@@ -20,6 +20,11 @@ const Preset = Schema.Struct({
   result: Schema.optionalKey(Schema.String),
   verify: Schema.optionalKey(Schema.Literals(["gate", "decision", "none"])),
   stance: Schema.optionalKey(Schema.String),
+  /**
+   * By `turn` a cell has made one of `calls` (e.g. "Fs.write("), or the agent is told `say` (and again every 3 turns):
+   * agents read whole budgets away before acting.
+   */
+  actBy: Schema.optionalKey(Schema.Struct({ turn: Schema.Number, calls: Schema.Array(Schema.String), say: Schema.String })),
 })
 export type Preset = typeof Preset.Type
 
@@ -43,7 +48,8 @@ export interface RlmSettings {
   readonly extendMax: number
 }
 
-export const DEFAULT_BUDGET: Budget = { turns: 25, tokens: 400_000, wallMs: 30 * 60_000 }
+// Tokens count each turn's whole prompt: 25 turns that keep up to KEEP_CHARS of reads (an implementer ran out at turn 18 of 25 on 400k).
+export const DEFAULT_BUDGET: Budget = { turns: 25, tokens: 1_000_000, wallMs: 30 * 60_000 }
 
 /** The presets from the spec; `[rlm.presets.*]` in config overrides them by name. */
 export const DEFAULT_PRESETS: Readonly<Record<string, Preset>> = {
@@ -51,13 +57,15 @@ export const DEFAULT_PRESETS: Readonly<Record<string, Preset>> = {
   // Its Gherkin tools keep the intents from the conversation.
   // @scenario S-0102
   // Its turns are light (pick options, ask, reply), and thinking was ~80% of each turn's time.
-  driver: { layer: ["Graph", "Entities:read", "Gherkin", "Inquire", "Fs:read", "Decisions", "Rehearse", "Rlm"], spawns: ["research"], atomize: false, reasoning: false, role: "driver", budget: { turns: 25 }, result: "text", verify: "none" },
+  driver: { layer: ["Graph", "Entities:read", "Gherkin", "Inquire", "Fs:read", "Decisions", "Rehearse", "Rlm"], spawns: ["research"], atomize: false, reasoning: false, role: "driver", budget: { turns: 25 }, result: "text", verify: "none", actBy: { turn: 8, calls: ["Inquire.", "Gherkin.", "Rlm.done(", "Rehearse."], say: "Ask the operator, show the change, or reply now." } },
   // Plan and implement phases (the reconcile loop): each runs per scenario in its own worktree.
-  plan: { layer: ["Graph", "Entities:read", "Fs:read", "Decisions", "Rlm"], spawns: ["research"], role: "plan", budget: { turns: 20 }, result: "plan", verify: "none" },
-  "implement-scenario": { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: ["research"], role: "implement", budget: { turns: 25 }, result: "implement-scenario", verify: "gate" },
+  // A planner spawned 13 research agents over half an hour for one scenario: it writes its plan by turn 10.
+  plan: { layer: ["Graph", "Entities:read", "Fs:read", "Decisions", "Rlm"], spawns: ["research"], role: "plan", budget: { turns: 30 }, result: "plan", verify: "none", actBy: { turn: 10, calls: ["Rlm.done("], say: "Write the plan now from what you know: finish with Rlm.done({ value: { plan } })." } },
+  "implement-scenario": { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: ["research"], role: "implement", budget: { turns: 40, tokens: 1_500_000 }, result: "implement-scenario", verify: "gate", actBy: { turn: 6, calls: ["Fs.write(", "Fs.edit("], say: "Write the code and its tests now (Fs.edit changes part of a file, Fs.write a whole one)." } },
   fix: { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: [], role: "implement", budget: { turns: 15 }, result: "text", verify: "none" },
   resolve: { layer: ["Fs", "Sh", "Rlm"], spawns: [], role: "implement", budget: { turns: 10 }, result: "resolve", verify: "none" },
-  research: { layer: ["Graph", "Entities:read", "Fs:read", "Decisions", "Rlm"], spawns: ["research"], role: "driver", budget: { turns: 15 }, result: "research", verify: "none" },
+  // A child an agent waits on: a question in it took 5 minutes of research at 15 turns.
+  research: { layer: ["Graph", "Entities:read", "Fs:read", "Decisions", "Rlm"], spawns: ["research"], role: "driver", budget: { turns: 10 }, result: "research", verify: "none" },
 }
 
 /** `[rlm]` from config (already `${VAR}`-expanded), merged over the defaults. */

@@ -1,11 +1,11 @@
 import { expect } from "bun:test"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { answerLoads, command, fakeProvider, journey, PROBE, type Term, termOf } from "../src"
+import { answerLoads, command, fakeProvider, fakeRouter, journey, PROBE, type Term, termOf } from "../src"
 
 // A provider on the OpenRouter wire, with a key made up for this run: never a real one.
 const KEY = `sk-or-e2e-${crypto.randomUUID()}`
-const provider = fakeProvider({ key: KEY, models: ["e2e/one", "e2e/two"] })
+const provider = fakeProvider({ key: KEY, models: ["e2e/one", "e2e/two"], noTools: ["e2e/two"] })
 
 /** Sets the highlighted setting of the Log in table to `value` (its old value cleared). */
 const setValue = async (t: Term, value: string) => {
@@ -63,8 +63,9 @@ journey("J-0002", { tier: "fast", seed: SEED }, (proves) => {
     const t = termOf(s.term, "S-0067")
     await command(t, "/yolo on")
     await t.waitFor(/·\s*YOLO\s*·/, 10_000)
-    // The status line says so (its notice, "YOLO is on…", is cut to the width).
-    expect(t.screen().split("\n").at(-1)).toMatch(/·\s*YOLO\s*·.*YOLO is/)
+    // The status line says so, and the notice ("YOLO is on…") shows whole on its own line above it.
+    expect(t.screen().split("\n").at(-1)).toMatch(/·\s*YOLO\s*·/)
+    expect(t.screen()).toMatch(/·\s+YOLO is on/)
   })
 
   proves("S-0070", async (s) => {
@@ -114,6 +115,19 @@ journey("J-0002", { tier: "fast", seed: SEED }, (proves) => {
     expect(readFileSync(local, "utf8")).toMatch(/^OPENROUTER_API_KEY=/m)
   })
 
+  proves("S-0029", async (s) => {
+    const t = termOf(s.term, "S-0029")
+    // The URL's schema type is a URL: a value that is none is refused in its field, with the schema's words.
+    t.press("down")
+    await t.waitFor("┃ OPENROUTER_URL", 5_000)
+    await setValue(t, "not a url")
+    await t.waitFor("✗", 10_000)
+    s.note("buffer", "screen", t.screen())
+    expect(t.screen()).toMatch(/OPENROUTER_URL[^\n]*✗/)
+    // The settings stay listed to fill in.
+    expect(t.screen()).toMatch(/Log in ─+[\s\S]*OPENROUTER_API_KEY/)
+  })
+
   proves("S-0028", async (s) => {
     const t = termOf(s.term, "S-0028")
     t.press("down")
@@ -148,10 +162,27 @@ journey("J-0002", { tier: "fast", seed: SEED }, (proves) => {
     await t.waitFor("openrouter:e2e/two", 5_000)
   })
 
-  proves("S-0035", async (s) => {
-    const t = termOf(s.term, "S-0035")
+  proves("S-0036", async (s) => {
+    const t = termOf(s.term, "S-0036")
+    // The models: e2e/two lists no tool calls; picked, it is refused, and the list stays.
     t.press("]")
     await Bun.sleep(300)
+    for (let k = 0; k < 4 && !/[┃▍] ?openrouter:e2e\/two/.test(t.screen()); k++) {
+      t.press("down")
+      await Bun.sleep(200)
+    }
+    t.press("enter")
+    await t.waitFor("cannot be the default: it has no tool calls", 10_000)
+    s.note("buffer", "screen", t.screen())
+    expect(t.screen()).toContain("openrouter:e2e/one")
+  })
+
+  proves("S-0035", async (s) => {
+    const t = termOf(s.term, "S-0035")
+    for (let k = 0; k < 4 && !/[┃▍] ?openrouter:e2e\/one/.test(t.screen()); k++) {
+      t.press("up")
+      await Bun.sleep(200)
+    }
     t.press("enter")
     // The default, in the operator's own config.
     const config = join(s.w.userDir, "config.toml")
@@ -320,4 +351,72 @@ journey("J-0002", { tier: "fast", seed: SEED }, (proves) => {
     // The inbox says it stopped, and why.
     await t.waitFor("Plugin probe was disabled after 3 restarts", 15_000)
   })
+
+  proves("S-0032", async (s) => {
+    const t = termOf(s.term, "S-0032")
+    // /login opens setup again; the key's field, then d clears it.
+    await command(t, "/login")
+    await t.waitFor("Providers", 10_000)
+    for (let k = 0; k < 4 && !/┃ openrouter/.test(t.screen()); k++) {
+      t.press("down")
+      await Bun.sleep(150)
+    }
+    t.press("enter")
+    await t.waitFor("OPENROUTER_API_KEY", 10_000)
+    t.press("]")
+    await Bun.sleep(300)
+    for (let k = 0; k < 4 && !/┃ OPENROUTER_API_KEY/.test(t.screen()); k++) {
+      t.press("up")
+      await Bun.sleep(150)
+    }
+    t.press("d")
+    await t.waitFor("OPENROUTER_API_KEY cleared", 10_000)
+    s.note("buffer", "screen", t.screen())
+    // The stored key is deleted from the operator's own settings.
+    expect(readFileSync(join(s.w.userDir, ".env.local"), "utf8")).not.toMatch(/^OPENROUTER_API_KEY=/m)
+  })
 })
+
+// The driver's model on a zarg-router stand-in: cold at first, so zarg warms it before its first turn.
+const routerConfig = (url: string, model: string) => `[providers.zarg-router]\nbase_url = ${JSON.stringify(url)}\n\n[roles]\ndefault = "zarg-router:${model}"\n`
+const warming = fakeRouter({
+  model: "e2e-cold",
+  warmMs: 10_000,
+  cells: ['const a = yield* Inquire.ask({ question: "Who uses the tally first?", options: [{ id: "me", label: "Me", recommended: true }, { id: "family", label: "My family" }] })\nyield* Rlm.done({ value: `You: ${a.choice}` })'],
+})
+journey("J-0002", { tier: "fast", seed: { ".zarg/config.toml": routerConfig(warming.url, "e2e-cold") } }, (proves) => {
+  proves("S-0037", async (s) => {
+    const t = await s.open()
+    await answerLoads(t)
+    // The warm-up shows while it runs: an agent, with how long it has taken.
+    await t.waitFor(/warmup/, 15_000)
+    s.note("buffer", "warming", t.screen())
+    const log = () => readFileSync(join(s.w.project, ".zarg/threads/main.jsonl"), "utf8")
+    expect(log()).toMatch(/warming zarg-router:e2e-cold · \d+s/)
+    const until = Date.now() + 20_000
+    while (Date.now() < until && warming.state() !== "running") await Bun.sleep(200)
+    expect(warming.state()).toBe("running")
+  })
+
+  proves("S-0038", async (s) => {
+    const t = termOf(s.term, "S-0038")
+    // zarg's first turn, once warm: its question with options.
+    await t.waitFor("Who uses the tally first?", 30_000)
+    s.note("buffer", "the first question", t.screen())
+    expect(warming.coldTurns()).toBe(0)
+  })
+})
+
+// A model that fails to start: setup says why and lists the models to pick another.
+const failing = fakeRouter({ model: "e2e-bad", warmMs: 500, failWarm: "out of memory", cells: [] })
+journey("J-0002", { tier: "fast", seed: { ".zarg/config.toml": routerConfig(failing.url, "e2e-bad") } }, (proves) => {
+  proves("S-0039", async (s) => {
+    const t = await s.open()
+    await answerLoads(t)
+    await t.waitFor("zarg-router:e2e-bad did not start", 20_000)
+    s.note("buffer", "setup, saying why", t.screen())
+    expect(t.screen()).toContain("out of memory")
+    expect(t.screen()).toContain("Default model")
+  })
+})
+

@@ -43,7 +43,8 @@ export const parseModelRow = (m: any): ModelInfo => ({
   id: String(m.id),
   contextLength: Number(m.top_provider?.context_length ?? m.context_length ?? 0),
   maxOutputTokens: m.top_provider?.max_completion_tokens ?? undefined,
-  supportsTools: Array.isArray(m.supported_parameters) && m.supported_parameters.includes("tools"),
+  // A row that lists no parameters says nothing against tool calls.
+  supportsTools: !Array.isArray(m.supported_parameters) || m.supported_parameters.includes("tools"),
   reasoningEfforts: m.reasoning?.supported_efforts ?? [],
   capabilities: m.x_zarg_capabilities ?? [],
   state: typeof m.state === "string" ? m.state : undefined,

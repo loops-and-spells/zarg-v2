@@ -1,0 +1,10 @@
+bun test v1.4.2 (744846f84)
+
+test/chores.test.ts:
+(pass) a chore is assigned [0.06ms]
+(pass) a chore is removed from every list [0.13ms]
+
+ 2 pass
+ 0 fail
+ 3 expect() calls
+Ran 2 tests across 1 file. [10.00ms]

@@ -391,3 +391,19 @@ describe("a secret input", () => {
     expect(f).not.toContain("sk-or-abc")
   })
 })
+
+test("a table's buttons wider than the pane wrap to another line: every label whole", async () => {
+  const labels = ["Refresh", "Outcome", "Constraint", "Question", "Edit", "Answer", "Remove"]
+  const v: ViewState = {
+    agent: "t",
+    layout: layoutOf(defineView("t", { list: { kind: "table", role: "pinned", title: "F", columns: [{ id: "c", label: "c" }], actions: labels.map((l) => ({ id: l.toLowerCase(), label: l, on: "row" as const })) } })),
+    data: { list: { rows: [{ id: "a", cells: { c: "one" } }] } },
+  }
+  const t = await testRender(<AgentView view={v} ui={initialViewUi} height={20} onAct={() => {}} />, { width: 60, height: 20, exitOnCtrlC: false, exitSignals: [] })
+  destroy = () => t.renderer.destroy()
+  await t.renderOnce()
+  await Bun.sleep(5)
+  await t.renderOnce()
+  const f = t.captureCharFrame()
+  for (const l of labels) expect(f).toContain(` ${l} `)
+})

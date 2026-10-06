@@ -110,9 +110,11 @@ journey("J-0008", { tier: "fast" }, (proves) => {
   proves("S-0112", async (s) => {
     const t = termOf(s.term, "S-0112")
     await t.waitFor("B-02 S-0002", 10_000)
-    // B-02 waits in Backlog (the first lane): open its drawer, then Drop (X).
-    t.press("left")
-    await Bun.sleep(300)
+    // B-02 waits in Backlog (the first lane; the cursor followed B-01 on): back to it, open its drawer, then Drop (X).
+    for (let i = 0; i < 4; i++) {
+      t.press("left")
+      await Bun.sleep(150)
+    }
     t.press("enter")
     await t.waitFor("B-02 · Backlog", 10_000)
     // The drawer takes the keys (Alt+→), then Drop.
@@ -136,20 +138,24 @@ journey("J-0008", { tier: "fast" }, (proves) => {
     async (s) => {
       // The live router as the project's model; tagged code for the testers to read.
       liveModel(s.w)
-      write(s.w.project, { "src/chores.ts": `// @scenario S-0001\nexport const assign = (chores: string[], chore: string) => [...chores, chore]\n// @scenario S-0002\nexport const remove = (chores: string[], chore: string) => chores.filter((c) => c !== chore)\n` })
+      // The code of S-0002 does not do what its scenario says (the chore stays): something for the testers to find.
+      write(s.w.project, { "src/chores.ts": `// @scenario S-0001\nexport const assign = (chores: string[], chore: string) => [...chores, chore]\n// @scenario S-0002\n// Removing only marks the chore as hidden for the parent; every other list still shows it.\nexport const remove = (chores: string[], _chore: string) => chores\n` })
       await quit(s.term)
       // What was filed before this run (S-0106 looks for what it adds).
       filedBefore = new Map(filesOf<{ id: string; runs?: ReadonlyArray<string> }>(s.w, "feedback").map((f) => [f.id, f.runs?.length ?? 1]))
       const t = await s.open()
+      // The plugins never approved ask first (YOLO, next, loads them all).
+      await answerLoads(t)
       await command(t, "/yolo on")
+      // Out of /yolo's line before the next command.
+      t.press("esc")
+      await Bun.sleep(300)
       await command(t, "/rehearse journey")
-      // A run walks the journey with a tester for its one persona (Parent).
-      const run = await eventually(180_000, () => {
-        const index = join(s.w.project, ".zarg", "rehearse", "index.json")
-        const text = existsSync(index) ? readFileSync(index, "utf8") : ""
-        return text.includes("Parent") ? text : undefined
-      })
-      s.note("buffer", ".zarg/rehearse/index.json", run ?? "(no run)")
+      // A run walks the journey with a tester for its one persona (Parent), a story per scenario.
+      const run = await eventually(180_000, () =>
+        filesOf<{ run: string; personas: ReadonlyArray<{ name: string }>; stories: ReadonlyArray<ReadonlyArray<string>> }>(s.w, "rehearse").find((r) => Array.isArray(r.personas) && r.personas.some((p) => p.name === "Parent") && r.stories.length > 0),
+      )
+      s.note("buffer", "the rehearse run", JSON.stringify(run ?? null, null, 2).slice(0, 3000))
       expect(run).toBeDefined()
     },
     { model: true },

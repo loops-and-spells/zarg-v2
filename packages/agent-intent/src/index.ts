@@ -1,13 +1,14 @@
 import { Effect, Schema } from "effect"
 import { Backlog } from "@zarg/plugin-backlog/contract"
 import { Gherkin } from "@zarg/plugin-gherkin/contract"
-import { Agents, Config, definePlugin, Entities, Files, Inbox, Models, PluginFailure, Views } from "@zarg/plugin-sdk"
+import { Agents, Config, Decisions, definePlugin, Entities, Files, Inbox, Models, PluginFailure, Views } from "@zarg/plugin-sdk"
 import { type Checkpoint, EMPTY, type JourneyInfo, type Statement } from "./checkpoint"
-import { makeIntent } from "./intent"
+import { deliversBy, makeIntent } from "./intent"
 import { intentView } from "./view"
 import { IntentView } from "./views"
 
 const FILE = ".zarg/intent/checkpoint.json"
+const TASK = "Reconciles the intent's outcomes and constraints into plans on the Backlog."
 type Data = { readonly props: Readonly<Record<string, unknown>>; readonly edges: ReadonlyArray<{ readonly type: string; readonly to: string }> }
 
 /** The Intent Agent: reconciles the intent's outcomes and constraints into plans on the Backlog. */
@@ -18,7 +19,7 @@ export default definePlugin({
   // reasoning: let the model reason before answering (off by default, as triage).
   config: Schema.Struct({ reasoning: Schema.optionalKey(Schema.Boolean) }),
   pluginDependencies: [Gherkin, Backlog],
-  scopes: { models: ["driver"], agents: true, inbox: true, code: true, entities: { read: ["gherkin/*", "backlog/item"] }, fs: { read: [".zarg/intent/**"], write: [".zarg/intent/**"] } },
+  scopes: { models: ["driver"], decisions: true, agents: true, inbox: true, code: true, entities: { read: ["gherkin/*", "backlog/item"] }, fs: { read: [".zarg/intent/**"], write: [".zarg/intent/**"] } },
   views: [IntentView],
   methods: {
     tick: { doc: "Reconcile what is due: changed, new or uncovered statements and journeys serving nothing, one round at a time (the core wakes it when the graph changes).", params: Schema.Struct({}), success: Schema.Null, deadlineMs: 30 * 60_000 },
@@ -30,6 +31,7 @@ export default definePlugin({
     const backlog = yield* Backlog
     const entities = yield* Entities
     const models = yield* Models
+    const decisions = yield* Decisions
     const inbox = yield* Inbox
     const files = yield* Files
     const agents = yield* Agents
@@ -84,7 +86,8 @@ export default definePlugin({
       Effect.gen(function* () {
         if (!started) {
           started = true
-          yield* Effect.ignore(agents.start({ id: "intent", title: "intent", view: "intent", task: "Reconciles the intent's outcomes and constraints into plans on the Backlog." }))
+          yield* Effect.ignore(agents.start({ id: "intent", title: "intent", view: "intent", task: TASK }))
+          if (busy === 0) yield* Effect.ignore(agents.end({ id: "intent", ok: true, message: "idle" }))
         }
         const v = intentView(a.rounds())
         yield* views.set("intent", IntentView, "summary", { markdown: v.summary })
@@ -96,6 +99,17 @@ export default definePlugin({
       {
         statements,
         journeys: journeysOf,
+        // @scenario S-0104
+        contradicts: (outcome, rules) =>
+          Effect.map(
+            decisions.decide({
+              state: `Outcome ${outcome.id}: ${outcome.text}\n\nConstraints of the same intent:\n${rules.map((k) => `- ${k.id}: ${k.text}`).join("\n")}`,
+              questions: Object.fromEntries(rules.map((k) => [k.id, { type: "noul", instructions: `Does the outcome say the opposite of ${k.id}, so both cannot hold at once?` }])),
+            }),
+            (a) => rules.find((k) => (a[k.id] as { answer?: boolean; probability?: number } | undefined)?.answer === true && ((a[k.id] as { probability?: number }).probability ?? 0) >= 0.6)?.id,
+          ),
+        delivers: (outcome, journeys) => deliversBy((req) => models.complete({ role: "driver", ...req }))(outcome, journeys),
+        personas: () => Effect.map(entities.query({ type: "gherkin/persona" }), (es) => es.map((e) => ({ name: String(data(e).props.name ?? e.id), kind: String(data(e).props.kind ?? "human") }))),
         scene: sceneText,
         code: (scenario) => entities.code(`gherkin/scenario:${scenario}`),
         dryRun: (draft) => gherkin.dryRun({ draft }),
@@ -118,14 +132,22 @@ export default definePlugin({
       },
       config?.reasoning === true,
     )
+    // Working only while a tick runs; between ticks it is idle (it does not spin in the rail).
+    let busy = 0
+    const working = <A, E>(e: Effect.Effect<A, E>) =>
+      Effect.suspend(() => {
+        busy++
+        started = true
+        return Effect.andThen(Effect.ignore(agents.start({ id: "intent", title: "intent", view: "intent", task: TASK })), e)
+      }).pipe(Effect.ensuring(Effect.suspend(() => (--busy === 0 ? Effect.ignore(agents.end({ id: "intent", ok: true, message: "idle" })) : Effect.void))))
     const failure = (e: unknown) => new PluginFailure({ tag: "IntentError", message: String((e as { message?: unknown })?.message ?? e) })
     return {
-      tick: () => Effect.as(a.tick, null).pipe(Effect.mapError(failure)),
+      tick: () => Effect.as(working(a.tick), null).pipe(Effect.mapError(failure)),
       answered: ({ key, answer, text }: { id: string; key?: string; answer?: string; text?: string }) =>
         Effect.gen(function* () {
           const notice = key === undefined ? "no key" : yield* a.answered(key, answer, text)
           // A decision makes its statement due: reconcile now, not on the next graph change.
-          yield* Effect.forkDetach(Effect.ignore(a.tick))
+          yield* Effect.forkDetach(Effect.ignore(working(a.tick)))
           return { notice }
         }).pipe(Effect.mapError(failure)),
       act: () => Effect.as(render, { notice: "" }),

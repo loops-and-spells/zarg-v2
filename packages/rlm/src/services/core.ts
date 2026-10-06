@@ -18,6 +18,32 @@ export interface CoreContext {
 
 const fail = (_tag: string, message: string): ServiceFailure => ({ _tag, message })
 const clip = (text: string, max = 32_768) => (text.length <= max ? text : `${text.slice(0, max / 2)}\n… [${text.length - max} characters cut] …\n${text.slice(-max / 2)}`)
+/**
+ * A check's output as an agent reads it: whole when short; else the failing lines (with a little context) and the end
+ * (the summary). Its plain tail was all Postgres notices, and a fix agent never saw what failed.
+ */
+export const failureFocus = (text: string, max = 8000) => {
+  if (text.length <= max) return text
+  const lines = text.split("\n")
+  const hit = (l: string) => /✗|\(fail\)|\bFAIL\b|\bfail(ed|s|ure)?\b|\berror\b|Error|Expected|Received/.test(l)
+  const keep = new Set<number>()
+  lines.forEach((l, i) => {
+    if (hit(l)) for (let k = Math.max(0, i - 2); k <= Math.min(lines.length - 1, i + 6); k++) keep.add(k)
+  })
+  for (let k = Math.max(0, lines.length - 40); k < lines.length; k++) keep.add(k)
+  const out: Array<string> = []
+  let last = -2
+  for (const i of [...keep].sort((a, b) => a - b)) {
+    if (i !== last + 1) out.push("…")
+    out.push(lines[i]!)
+    last = i
+  }
+  const s = out.join("\n")
+  return s.length <= max ? s : s.slice(-max)
+}
+
+/** Terminal colour and cursor codes: noise to a model and to the operator reading a finding. */
+export const stripAnsi = (text: string) => text.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "")
 
 /**
  * The real path of `rel`, following symlinks. For a path that does not exist yet (a write),
@@ -79,9 +105,9 @@ const globBase = (glob: string) => {
 const listFailed = (glob: string) => (e: unknown) => fail("ListFailed", `${glob}: ${e instanceof Error ? e.message : String(e)}; narrow the glob`)
 
 const FsRead = {
-  read: { doc: "Read a text file: a repo-relative path inside your scope, or an absolute or ~/ path outside the repository (the developer is asked first).", params: Schema.Struct({ path: Schema.String }), success: Schema.String },
+  read: { doc: "Read a text file: a repo-relative path inside your scope, or an absolute or ~/ path outside the repository (the operator is asked first).", params: Schema.Struct({ path: Schema.String }), success: Schema.String },
   list: {
-    doc: "List files matching a glob, limited to your scope; an absolute or ~/ glob lists outside the repository (the developer is asked first).",
+    doc: "List files matching a glob, limited to your scope; an absolute or ~/ glob lists outside the repository (the operator is asked first).",
     params: Schema.Struct({ glob: Schema.String }),
     success: Schema.Array(Schema.String),
   },
@@ -95,7 +121,21 @@ export const FsDef = defineService("Fs", "Files in your scope.", {
     params: Schema.Struct({ path: Schema.String, content: Schema.String }),
     success: Schema.Struct({ bytes: Schema.Number }),
   },
+  edit: {
+    doc: "Change part of a text file: `old` (exact text, found exactly once) becomes `new`. Easier than rewriting a large file. Returns bytes written.",
+    params: Schema.Struct({ path: Schema.String, old: Schema.String, new: Schema.String }),
+    success: Schema.Struct({ bytes: Schema.Number }),
+  },
 })
+
+/** `text` with `old` replaced by `next`, when `old` occurs exactly once; else why not. */
+export const editOnce = (text: string, old: string, next: string): { readonly text: string } | { readonly problem: string } => {
+  if (old === "") return { problem: "old is empty: say which text to change (or Fs.write the whole file)" }
+  const count = text.split(old).length - 1
+  if (count === 0) return { problem: "old is not in the file: copy it exactly from Fs.read, whitespace included" }
+  if (count > 1) return { problem: `old occurs ${count} times: include more of its surrounding lines so it is found once` }
+  return { text: text.replace(old, () => next) }
+}
 
 const fsHandlers = (ctx: CoreContext, readOnly = false) => ({
   read: ({ path }: { path: string }) => {
@@ -154,11 +194,25 @@ export const fs = (ctx: CoreContext): Bound =>
           catch: (e) => fail("WriteFailed", `${rel}: ${e instanceof Error ? e.message : String(e)}`),
         }),
       ),
+    // An implementer looked for a way to change part of an 11k file and, finding none, read until its budget ran out.
+    edit: ({ path, old, new: next }) =>
+      Effect.flatMap(resolvePath(ctx, path), (rel) =>
+        Effect.flatMap(
+          Effect.tryPromise({ try: () => Bun.file(`${ctx.root}/${rel}`).text(), catch: () => fail("NotFound", `${rel} does not exist or is not readable`) }),
+          (text) => {
+            const r = editOnce(text, old, next)
+            return "problem" in r
+              ? Effect.fail(fail("EditFailed", `${rel}: ${r.problem}`))
+              : Effect.tryPromise({ try: async () => ({ bytes: await Bun.write(`${ctx.root}/${rel}`, r.text) }), catch: (e) => fail("WriteFailed", `${rel}: ${e instanceof Error ? e.message : String(e)}`) })
+          },
+        ),
+      ),
   })
 
 /** Run a command with a deadline, a scrubbed env and redacted, capped output. */
 // @scenario S-0045 S-0047
-export const runCommand = (ctx: CoreContext, argv: ReadonlyArray<string>, timeoutMs: number) =>
+// `shape` keeps what matters of a long output (default: its start and end; a check: its failures and summary).
+export const runCommand = (ctx: CoreContext, argv: ReadonlyArray<string>, timeoutMs: number, shape: (text: string) => string = clip) =>
   Effect.tryPromise({
     try: async (signal) => {
       // setsid puts the command in its own process group, so a timeout kills everything it started;
@@ -190,8 +244,8 @@ export const runCommand = (ctx: CoreContext, argv: ReadonlyArray<string>, timeou
       return {
         exitCode,
         timedOut,
-        stdout: clip(redact(stdout, ctx.sensitive)),
-        stderr: clip(redact(stderr, ctx.sensitive)),
+        stdout: shape(redact(stripAnsi(stdout), ctx.sensitive)),
+        stderr: shape(redact(stripAnsi(stderr), ctx.sensitive)),
       }
     },
     catch: (e) => fail("CommandFailed", e instanceof Error ? e.message : String(e)),
@@ -207,8 +261,23 @@ export const ShDef = defineService("Sh", "Shell commands in the repository root.
   },
 })
 
+/**
+ * Starting, stopping or removing containers belongs to the operator: an implementer once started a database from its
+ * worktree (a stack named after the worktree, holding the operator's port) after the operator's own was gone.
+ */
+const SERVICES = /\b(docker(-compose)?|podman(-compose)?)\s+(compose\s+)?(up|down|start|stop|restart|kill|rm|run|create)\b/
+export const servicesRefusal = (command: string) =>
+  SERVICES.test(command)
+    ? "Starting, stopping or removing containers is the operator's: say which service must run (and how) in your result, or block on it; never start one yourself."
+    : undefined
+
 export const sh = (ctx: CoreContext): Bound =>
-  bind(ShDef, { run: ({ command, timeoutMs }) => runCommand(ctx, ["bash", "-c", command], Math.min(timeoutMs ?? 120_000, 600_000)) })
+  bind(ShDef, {
+    run: ({ command, timeoutMs }) => {
+      const refused = servicesRefusal(command)
+      return refused !== undefined ? Effect.fail(fail("ServicesAreTheOperators", refused)) : runCommand(ctx, ["bash", "-c", command], Math.min(timeoutMs ?? 120_000, 600_000))
+    },
+  })
 
 export const VerifyDef = defineService("Verify", "The repository's verify gate.", {
   run: {
@@ -221,8 +290,8 @@ export const VerifyDef = defineService("Verify", "The repository's verify gate."
 export const verify = (ctx: CoreContext, command: ReadonlyArray<string> = ["mise", "run", "verify"], timeoutMs = 600_000): Bound =>
   bind(VerifyDef, {
     run: () =>
-      Effect.map(runCommand(ctx, command, timeoutMs), (r) => ({
+      Effect.map(runCommand(ctx, command, timeoutMs, (t) => failureFocus(t, 16_000)), (r) => ({
         passed: r.exitCode === 0,
-        output: `${r.stdout}\n${r.stderr}`.trim().slice(-8000),
+        output: failureFocus(`${r.stdout}\n${r.stderr}`.trim()),
       })),
   })

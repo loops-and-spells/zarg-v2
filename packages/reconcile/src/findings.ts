@@ -1,6 +1,22 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { Cause } from "effect"
 import { ensureIgnored } from "./worktree"
+
+/** A failure as the operator reads it: its message, never the `Cause(Fail(…))` around it. */
+export const causeText = (cause: Cause.Cause<unknown>) => {
+  const e = Cause.squash(cause)
+  return (e instanceof Error && e.message !== "" ? e.message : String(e)).slice(0, 4000)
+}
+
+/** A failing command's output as a finding shows it: its end, without stack frames (the failing tests and the summary stay). */
+export const failureTail = (output: string) =>
+  output
+    .split("\n")
+    .filter((l) => !/^\s*at\s/.test(l))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .slice(-4000)
 
 export type FindingKind = "unplannable" | "blocked-scenario" | "merge-conflict" | "verify-failing" | "landing-blocked" | "pass-error"
 
@@ -24,13 +40,15 @@ export const findingsPath = (repo: string) => join(repo, ".zarg", "reconcile", "
  * Open findings, kept in `.zarg/reconcile/findings.json` (gitignored; survives restarts). A new finding of
  * the same kind about the same scenarios replaces the old one.
  */
-export const makeFindings = (repo: string) => {
+export const makeFindings = (repo: string, onChange?: () => void) => {
   const file = findingsPath(repo)
   const read = (): ReadonlyArray<Finding> => (existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as ReadonlyArray<Finding>) : [])
   const write = (all: ReadonlyArray<Finding>) => {
     ensureIgnored(repo)
     writeFileSync(`${file}.tmp`, JSON.stringify(all, null, 2))
     renameSync(`${file}.tmp`, file)
+    // Whoever shows findings hears of each change (a pass resumed after a restart ends without a result to report).
+    onChange?.()
   }
   const key = (f: { kind: string; about: ReadonlyArray<string> }) => `${f.kind}:${[...f.about].sort().join(",")}`
   return {
@@ -41,9 +59,10 @@ export const makeFindings = (repo: string) => {
       return finding
     },
     /** Close findings about no scenario in particular (a pass that could not start or failed outright): a later pass worked. */
-    clearGeneral: () => {
+    clearGeneral: (o: { readonly ran?: boolean } = {}) => {
       const all = read()
-      const kept = all.filter((f) => f.about.length > 0)
+      // A pass that only ran (nothing to do) proves reconcile can run, not that verify passes.
+      const kept = all.filter((f) => f.about.length > 0 || (o.ran === true && f.kind !== "pass-error"))
       if (kept.length !== all.length) write(kept)
     },
     /** Close every finding about any of these scenarios (they landed, or the driver changed them). */

@@ -1,10 +1,13 @@
-import { chmodSync, linkSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
+import { chmodSync, existsSync, linkSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { Effect } from "effect"
 import { type CoreInfo, infoPath, readClaim, runDir } from "@zarg/client"
 
 /** A complete private copy of `info` next to core.json, to link or rename into place atomically. */
 const staged = (root: string, info: CoreInfo) => {
   mkdirSync(runDir(root), { recursive: true })
+  // The core's token and socket are this machine's, never the project's.
+  if (!existsSync(join(runDir(root), ".gitignore"))) writeFileSync(join(runDir(root), ".gitignore"), "*\n")
   const tmp = `${infoPath(root)}.${info.pid}.tmp`
   writeFileSync(tmp, JSON.stringify(info), { mode: 0o600 })
   chmodSync(tmp, 0o600)
@@ -47,3 +50,12 @@ export const release = (root: string, pid: number) => {
     rmSync(join(runDir(root), "core.sock"), { force: true })
   }
 }
+
+/** Completes once this core's claim is gone or another core's (its project deleted, or replaced): it should stop. */
+export const claimLost = (root: string, pid: number, everyMs = 5000) =>
+  Effect.callback<void>((resume) => {
+    const timer = setInterval(() => {
+      if (readClaim(root)?.pid !== pid) resume(Effect.void)
+    }, everyMs)
+    return Effect.sync(() => clearInterval(timer))
+  })

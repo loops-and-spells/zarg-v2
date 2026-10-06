@@ -1,0 +1,40 @@
+                       │  inbox   0 open                                                                                
+ ◆ zarg                │  Nothing needs you.                                                                            
+   project · main      │                                                                                                
+                       │                                                                                                
+ VIEWS               3 │                                                                                                
+  ▤ Inbox              │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+  ▤ Journeys           │     zarg   esc closes                                                                          
+  ▤ Intents            │     ·  answered                                                                                
+                       │     ⠧ zarg is preparing a reply · 0:05 · turn 4/25                                             
+ AGENTS              3 │                                                                                                
+  ▾ zarg           0/0 │                                                                                                
+  └ ▾ driver 1    4/25 │                                                                                                
+▍   └ ⠧ research… 3/10 │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │ research rlm-2 · running                                                                       
+                       │ task  Read the README and say what the product is                                              
+                       │ turn 3 of 10 · 0 tokens                                                                        
+                       │ atomic (runs directly)                                                                         
+                       │   single          yes  0.83                                                                    
+                       │   oneExecutor     yes  0.83                                                                    
+                       │   noSteps         yes  0.83                                                                    
+                       │   noPackaging     yes  0.83                                                                    
+                       │ · answered                                                                                     
+                       │ ⠧ zarg is preparing a reply · 0:05 · turn 4/25                                                 
+                       │ core child · running · thread m…   ↑↓ move   ⏎ open   x archive   X archive finished   g next ◆

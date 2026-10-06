@@ -1,0 +1,86 @@
+{
+  "title": "Parent sets a chore to repeat weekly and 1 more",
+  "journey": "",
+  "scenarios": [],
+  "changes": [
+    {
+      "tool": "add-persona",
+      "params": {
+        "name": "Parent",
+        "kind": "human",
+        "text": "A parent of the family who reaches the todo app from a phone at home"
+      }
+    },
+    {
+      "tool": "add-journey",
+      "params": {
+        "name": "Weekly chores"
+      }
+    },
+    {
+      "tool": "add-scenario",
+      "params": {
+        "title": "Parent sets a chore to repeat weekly",
+        "when": "marks one chore to repeat weekly",
+        "by": [
+          {
+            "name": "Parent"
+          }
+        ],
+        "in": [
+          {
+            "name": "Weekly chores"
+          }
+        ],
+        "arrives": {
+          "text": "A chore list"
+        },
+        "then": [
+          {
+            "text": "The same chore appears next week"
+          },
+          {
+            "text": "No retyping is needed"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "edge": "serves",
+        "journey": {
+          "id": "J-0001"
+        },
+        "outcome": "O-0002"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "scenario": "S-0001",
+        "edge": "then",
+        "state": {
+          "text": "The same chore appears next week"
+        }
+      }
+    }
+  ],
+  "feedback": [],
+  "steps": [
+    "Add Parent persona",
+    "Add Weekly chores journey",
+    "Add Parent sets a chore to repeat weekly scenario",
+    "Link Weekly chores journey to O-0002",
+    "Link The same chore appears next week then"
+  ],
+  "serves": "gherkin/outcome:O-0002@bf62f6842034",
+  "id": "B-01",
+  "status": "backlog",
+  "events": [
+    {
+      "what": "planned",
+      "by": "Intent Agent"
+    }
+  ]
+}

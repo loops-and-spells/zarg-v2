@@ -1,0 +1,40 @@
+                       │  inbox   0 open                                                                                
+ ◆ zarg                │  Nothing needs you.                                                                            
+   project · main      │                                                                                                
+                       │                                                                                                
+ VIEWS               5 │                                                                                                
+▍ ▤ Inbox              │                                                                                                
+  ▤ Journeys           │                                                                                                
+  ▤ Intents            │                                                                                                
+  ▤ Feedback           │                                                                                                
+  ▤ Backlog            │                                                                                                
+                       │                                                                                                
+ AGENTS              2 │                                                                                                
+  ● zarg           0/0 │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+  ⠸ setup          0/1 │     setup  setup   esc closes                                                                  
+                       │     1 provider ready · default: none                                                           
+                       │                                                                                                
+                       │     Providers ────────────────────────────────────────────────────────────────────────────     
+                       │      provider     state                                                                        
+                       │      zarg-router  ◇ not set up                                                                 
+                       │      openrouter   ✓ reachable · 2 models                                                       
+                       │                                                                                                
+                       │      ▐ Log in ▌                                                                                
+                       │                                                                                                
+                       │     Log in ───────────────────────────────────────────────────────────────────────────────     
+                       │      setting                                                                                   
+                       │      OPENROUTER_API_KEY  OpenRouter API key (https://openrouter.ai/keys) (required) · set      
+                       │      OPENROUTER_URL      OpenRouter API base URL (required)                                    
+                       │                                                                                                
+                       │      ▐ Set ▌  ▐ Clear  d ▌  ▐ Check and save  c ▌                                              
+                       │                                                                                                
+                       │     Default model ────────────────────────────────────────────────────────────────────────     
+                       │      ⌕ search                                                                                  
+                       │      model                                                                                     
+                       │      openrouter:e2e/one  32k                                                                   
+                       │     ▍openrouter:e2e/two  32k                                                                   
+                       │                                                                                                
+                       │ · openrouter:e2e/two cannot be the default: it has no tool calls, and every agent works        
+                       │ through them                                                                                   
+                       │ › message zarg… (alt+m or /)                                                                   
+                       │ core child · error · thread main ·…   [ ] section   esc close   PgUp PgDn scroll   esc collapse

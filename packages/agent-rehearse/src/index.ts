@@ -43,7 +43,7 @@ export default definePlugin({
     },
   ],
   methods: {
-    run: { doc: "Start a rehearsal in the background (when the graph is ready, or the operator asks). What the testers find is filed as feedback, triaged in Feedback.", params: RunParams, success: Schema.Unknown, agents: true, deadlineMs: START_DEADLINE_MS },
+    run: { doc: "Start a rehearsal in the background (when the graph is ready, or the operator asks). What the testers find is filed as feedback, triaged in Feedback. Start it on its defaults (journey stories) unless the developer named a strategy or a focus: never ask which.", params: RunParams, success: Schema.Unknown, agents: true, deadlineMs: START_DEADLINE_MS },
     result: { doc: "What a run found (a run over a draft keeps its findings here).", params: Schema.Struct({ run: Schema.String }), success: RunResult },
     command: { doc: "/rehearse", params: Schema.Struct({ args: Schema.Array(Schema.String) }), success: Notice, deadlineMs: START_DEADLINE_MS },
     act: { doc: "Refresh the run's tables (where its feedback stands now).", params: Schema.Struct({ agent: Schema.String, action: Schema.String, section: Schema.optionalKey(Schema.String), rows: Schema.Array(Schema.String) }), success: Notice },

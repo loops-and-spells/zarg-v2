@@ -227,6 +227,9 @@ export const reduce = (s: ThreadState, e: WireEvent): ThreadState => {
     case "ACTIVITY_DELTA": {
       const id = String(e.messageId)
       const streams = { ...t.streams, [id]: patchRlms(t.streams?.[id] ?? {}, (e.patch as ReadonlyArray<Patch>) ?? []) }
+      // An archived agent that runs again (a plugin's long-lived agent after a restart) is back in the tree.
+      const back = t.archived === undefined ? [] : Object.keys(t.archived).filter((a) => streams[id]?.[a]?.status === "running")
+      if (back.length > 0) return { ...t, streams, rlms: merged(streams), archived: Object.fromEntries(Object.entries(t.archived!).filter(([a]) => !back.includes(a))) }
       return { ...t, streams, rlms: merged(streams) }
     }
     default:

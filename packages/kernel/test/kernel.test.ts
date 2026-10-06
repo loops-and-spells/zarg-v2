@@ -52,6 +52,13 @@ describe("Kernel", () => {
     expect(r.calls).toBe(0)
   })
 
+  test("a method call on an effect (.catch, .pipe) says how to write it instead", async () => {
+    const r = await withKernel((k) => k.run('const x = yield* Notes.add({ text: "a" }).catch(() => Effect.succeed(null))\nreturn x'))
+    expect(r.ok).toBe(false)
+    expect(r.output).toContain("Property 'catch' does not exist")
+    expect(r.output).toContain("Effect.catch(Svc.m(p), (e) => Effect.succeed(null))")
+  })
+
   test("untyped values (from earlier cells, empty objects) do not fail the typecheck", async () => {
     const out = await withKernel((k) =>
       Effect.gen(function* () {
@@ -72,6 +79,24 @@ describe("Kernel", () => {
     )
     expect(out.uncaught).toMatchObject({ ok: false, output: "error: Nope: always fails", restarted: false })
     expect(out.caught.output).toBe("caught Nope")
+  })
+
+  test("a file write that breaks the syntax is told how to pass a file's content", async () => {
+    const out = await withKernel((k) => k.run("// Fs.write({ path: 'a.ts', content: `x ${'${'} y` })\nconst broken = {"))
+    expect(out.ok).toBe(false)
+    expect(out.output).toContain("write it as an array of lines")
+  })
+
+  test("a cell that fails after calls that took effect says which: the model does not repeat them", async () => {
+    const out = await withKernel((k) =>
+      Effect.gen(function* () {
+        const failed = yield* k.run('yield* Notes.add({ text: "x" })\nreturn yield* Notes.fail({})')
+        const next = yield* k.run("return yield* Notes.fail({})")
+        return { failed, next }
+      }),
+    )
+    expect(out.failed.output).toBe('error: Nope: always fails\nBefore it failed, these calls ran and their effects stay (do not repeat them):\n- Notes.add → {"id":"n1"}')
+    expect(out.next.output).toBe("error: Nope: always fails")
   })
 
   test("params that break the schema at runtime are refused by the host", async () => {

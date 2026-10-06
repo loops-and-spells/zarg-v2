@@ -76,6 +76,8 @@ export interface Ui {
   /** The inbox: the highlighted row, the open topic (and its highlighted answer), marked rows, answered ones shown, a reason being typed. */
   readonly inbox: {
     readonly cursor: number
+    /** The topic the highlight is on: it follows the topic as the list changes. */
+    readonly at?: string
     readonly open?: string
     readonly pick?: number
     readonly marked: ReadonlyArray<string>
@@ -265,6 +267,29 @@ export const typing = (ui: Ui, s: SessionState) => {
   const q = question(s)
   return ui.focus === "bar" && zargLoaded(s) && (q === undefined || ui.chatting === q.id || answeringOther(ui, s))
 }
+/** A grant's question as lines of `width`: what wants what, then its scopes packed into lines, never broken inside one (a path stays whole). */
+export const grantLines = (question: string, width: number): ReadonlyArray<string> => {
+  const m = /^(.+? wants to [^,]+), to (.+)\.$/.exec(question)
+  if (m === null) return [question]
+  const lines: Array<string> = []
+  let line = ""
+  for (const scope of m[2]!.split(", ")) {
+    const next = line === "" ? scope : `${line}, ${scope}`
+    if (line !== "" && next.length + 1 > width) {
+      lines.push(`${line},`)
+      line = scope
+    } else line = next
+  }
+  return [`${m[1]}:`, ...lines, `${line}.`]
+}
+/** What answering a popover's option does: Allow all answers every waiting grant at once. */
+export const promptAction = (ui: Ui, s: SessionState, head: Prompt, choice: string): Action => {
+  if (choice !== ALL_GRANTS) return { type: "answer-prompt", id: head.id, choice }
+  const allow = head.options.find((o) => o.recommended === true) ?? head.options[0]!
+  return { type: "answer-topics", ids: queueOf(ui, s).filter((p) => p.kind === "grant").map((p) => p.id), answer: allow.id }
+}
+/** A grant popover's "Allow all n" option: every waiting grant answered with the head's allow. */
+export const ALL_GRANTS = "grants:all"
 /** The shared popover queue, in the order the core asked: nothing on the client reorders it. */
 // A stopped core cannot take an answer, and a prompt without options cannot be answered: neither holds the keys.
 export const queueOf = (_ui: Ui, s: SessionState): ReadonlyArray<Prompt> => {
@@ -274,10 +299,14 @@ export const queueOf = (_ui: Ui, s: SessionState): ReadonlyArray<Prompt> => {
     .filter((t) => t.kind === "grant" && t.state === "open" && t.blocking)
     .sort((a, b) => a.created - b.created)
     .map((t): Prompt => ({ id: t.id, question: t.title, options: (t.answers ?? []).map((a) => ({ id: a.id, label: a.label, ...(a.recommended === true ? { recommended: true } : {}) })), kind: "grant" }))
-  return [...(s.thread.prompts ?? []).filter((p) => p.kind === "surface" || p.options.length > 0), ...grants]
+  // Grants waiting together: the first offers to allow them all at once (a fresh project asks for several).
+  const all = grants.length > 1 ? [{ ...grants[0]!, options: [...grants[0]!.options, { id: ALL_GRANTS, label: `Allow all ${grants.length}` }] }, ...grants.slice(1)] : grants
+  return [...(s.thread.prompts ?? []).filter((p) => p.kind === "surface" || p.options.length > 0), ...all]
 }
 /** The bar's input has the keys: it takes text and no popover is up. */
-export const inputFocused = (ui: Ui, s: SessionState) => typing(ui, s) && queueOf(ui, s).length === 0 && ui.palette === undefined
+/** The operator is mid-message: a popover that arrives waits (the bar keeps the keys) until it is sent or cleared. */
+export const drafting = (ui: Ui, s: SessionState, draft: string) => typing(ui, s) && draft.trim() !== ""
+export const inputFocused = (ui: Ui, s: SessionState, draft = "") => typing(ui, s) && (queueOf(ui, s).length === 0 || drafting(ui, s, draft)) && ui.palette === undefined
 /** The bar takes focus; while zarg asks, the sheet opens with the question. */
 export const focusBar = (ui: Ui, s: SessionState): Ui => {
   // Without zarg there is no bar to type in.
@@ -363,11 +392,14 @@ export interface Line {
 }
 
 /** zarg's conversation: its section's messages, then the run error and any transport notice. */
-export const conversation = (s: SessionState): ReadonlyArray<Line> => [
-  ...(zargConversation(s.thread).data.talk as { messages: ReadonlyArray<{ role: string; text: string }> }).messages.map((m): Line => ({ kind: m.role === "user" ? "you" : "zarg", text: m.text })),
-  ...(s.thread.error !== undefined ? [{ kind: "error" as const, text: `${s.thread.error.code ?? "error"}: ${s.thread.error.message}` }] : []),
-  ...(s.notice !== undefined ? [{ kind: "notice" as const, text: s.notice }] : []),
-]
+export const conversation = (s: SessionState): ReadonlyArray<Line> => {
+  const talk = (zargConversation(s.thread).data.talk as { messages: ReadonlyArray<{ role: string; text: string }> }).messages.map((m): Line => ({ kind: m.role === "user" ? "you" : "zarg", text: m.text }))
+  const error = s.thread.error !== undefined ? [{ kind: "error" as const, text: `${s.thread.error.code ?? "error"}: ${s.thread.error.message}` }] : []
+  const notice = s.notice !== undefined ? [{ kind: "notice" as const, text: s.notice }] : []
+  // The notice where it came: messages after it go after it, not under it every time.
+  const at = s.noticeAt ?? talk.length
+  return at < talk.length ? [...talk.slice(0, at), ...notice, ...talk.slice(at), ...error] : [...talk, ...error, ...notice]
+}
 
 const idNumber = (id: string) => Number(/(\d+)$/.exec(id)?.[1] ?? 0)
 
@@ -546,7 +578,8 @@ export const agentDetail = (rlms: Readonly<Record<string, RlmNode>>, cursor: str
   return [
     `${n.preset} ${n.id} · ${n.status}`,
     ...(task !== undefined ? [`task  ${task}`] : []),
-    `turn ${n.turns} of ${n.budget}${n.tokens !== undefined ? ` · ${n.tokens.toLocaleString("en-US")} tokens` : ""}`,
+    // A row the agent draws itself (not an RLM) has no turns: its own text says where it stands.
+    n.row?.text !== undefined ? n.row.text : `turn ${n.turns} of ${n.budget}${n.tokens !== undefined ? ` · ${n.tokens.toLocaleString("en-US")} tokens` : ""}`,
     ...n.decisions.flatMap((d) =>
       d.kind === "extend"
         ? [`${(d.extended ? `extended to ${d.turns} turns` : "told to wrap up").padEnd(22)}${d.confidence.toFixed(2)}  ${d.reason}`]
@@ -573,6 +606,8 @@ export const activate = (ui: Ui, s: SessionState, id: string): Ui => {
 export const NAV = "nav:"
 /** The nav items' row ids, in the order the rail lists them (above the agents). */
 export const navRows = (s: SessionState) => (s.thread.nav ?? []).map((n) => `${NAV}${n.id}`)
+/** The Inbox's row in the rail, above the plugins' views: the arrows reach it, Enter goes home. */
+export const INBOX_ROW = "home:inbox"
 /** Open a nav item: its view in the focus, and the plugin asked to fill it (its `act` "open"). */
 export const openNav = (ui: Ui, s: SessionState, row: string): { readonly ui: Ui; readonly action?: Action } => {
   const item = (s.thread.nav ?? []).find((n) => `${NAV}${n.id}` === row)
@@ -585,7 +620,7 @@ export const openNav = (ui: Ui, s: SessionState, row: string): { readonly ui: Ui
 export const onAgentsKey = (ui: Ui, s: SessionState, key: Key): { readonly ui: Ui; readonly action?: Action } => {
   const live = liveRlms(s)
   const rows = visible(live, ui.agents)
-  const nav = navRows(s)
+  const nav = [INBOX_ROW, ...navRows(s)]
   const ids = treeRows(ui, s).map((r) => r.id)
   const move = (id: string | undefined): Ui => (id === undefined ? ui : { ...ui, agents: { ...ui.agents, cursor: id } })
   // The nav items sit above the agents: the arrows run through both.
@@ -593,7 +628,7 @@ export const onAgentsKey = (ui: Ui, s: SessionState, key: Key): { readonly ui: U
     const i = nav.indexOf(ui.agents.cursor)
     if (key.name === "down") return { ui: move(nav[i + 1] ?? ids[0]) }
     if (key.name === "up") return { ui: move(nav[Math.max(0, i - 1)]) }
-    if (key.name === "return") return openNav(ui, s, ui.agents.cursor)
+    if (key.name === "return") return ui.agents.cursor === INBOX_ROW ? { ui: { ...goHome(ui, s), sheet: false, focus: "tile" } } : openNav(ui, s, ui.agents.cursor)
     return { ui }
   }
   const cursor = ui.agents.cursor !== undefined && isArchiveRow(ui.agents.cursor) ? ui.agents.cursor : cursorOf(rows, ui.agents)
@@ -763,6 +798,11 @@ export const pickerKey = (ui: Ui, s: SessionState, key: Key): { readonly ui: Ui;
   if (key.name === "up") return { ui: moveTo(Math.max(0, ui.pick - 1)) }
   if (key.name === "down") return { ui: moveTo(Math.min(rows.length - 1, ui.pick + 1)) }
   if (key.name === "escape" && ui.other) return { ui: moveTo(preselect(inquiry)) }
+  // A number answers that option, as in the inbox (when not typing Something else…).
+  if (!ui.other && /^[1-9]$/.test(key.name) && key.ctrl !== true && key.meta !== true) {
+    const option = inquiry.options[Number(key.name) - 1]
+    return option === undefined ? { ui } : { ui: { ...ui, answered: inquiry.id }, action: { type: "answer", answer: { choice: option.id } } }
+  }
   if (key.name === "return") {
     const row = rows[ui.pick]
     if (row === undefined) return { ui }

@@ -1,0 +1,40 @@
+                       │  inbox   1 open                                                                                
+ ◆ zarg                │                                                                                                
+   project · main      │  ▍◆ zarg          Write this to the requirements? Ed…  question · waiting · 2 options  now     
+                       │                                                                                                
+ VIEWS               3 │                                                                                                
+▍ ◆ Inbox            1 │                                                                                                
+  ▤ Journeys           │                                                                                                
+  ▤ Intents            │                                                                                                
+                       │                                                                                                
+ AGENTS             ◆1 │                                                                                                
+  ◆ zarg          asks │                                                                                                
+  └ ⠼ driver 1    1/25 │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+                       │     zarg   esc closes                                                                          
+                       │           └────────┘  └─────────────┘                                                          
+                       │           That is all for now.                                                                 
+                       │     you  the dishes pile up every night                                                        
+                       │     zarg  (discussing: Which chore comes first?)                                               
+                       │     zarg  zarg chose The dishes for you: you said the dishes pile up                           
+                       │     zarg  Chose dishes for you. A wide flow:                                                   
+                       │                                                                                                
+                       │           flowchart LR                                                                         
+                       │             N0[Parent opens the list] --> N1                                                   
+                       │             N1[Parent picks a chore] --> N2                                                █   
+                       │             N2[Parent picks a child] --> N3                                                █   
+                       │             N3[Child sees the chore] --> N4                                                █   
+                       │             N4[Child does the chore] --> N5                                                █   
+                       │                                                                                            █   
+                       │           Too wide to draw.                                                                █   
+                       │     Write this to the requirements?                                                            
+                       │                                                                                                
+                       │     Edit persona Parent: a parent who assigns and checks chores.                               
+                       │     › Write it (recommended) — as shown                                                        
+                       │       Skip                                                                                     
+                       │       Change it…                                                                               
+                       │       Chat about this                                                                          
+                       │ answer zarg above, or / to chat about it                                                       
+                       │ ◆ zarg asks: Write this to the requirements? Edit persona Par…   ↑↓ pick   ⏎ answer   esc leave

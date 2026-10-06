@@ -46,7 +46,8 @@ describe("intent tools", () => {
         const out = [
           m(yield* call("add-intent", { title: "Plans for visitors", problem: "Visitors leave the pricing page." })),
           m(yield* call("add-outcome", { intent: "I-0001", text: "A visitor picks a plan in one minute" })),
-          m(yield* call("add-constraint", { intent: "I-0001", text: "Prices never hide fees" })),
+          // An entity ref (as Entities gives it, with its version) names the same node.
+          m(yield* call("add-constraint", { intent: "gherkin/intent:I-0001@0123456789ab", text: "Prices never hide fees" })),
           m(yield* call("ask-question", { intent: "I-0001", text: "Is there a yearly plan?" })),
           m(yield* call("answer-question", { id: "Q-0001", answer: "Yearly plans cost ten months", as: "outcome" })),
           m(yield* call("link", { intent: "I-0001", edge: "for", persona: { name: "Visitor" } })),
@@ -85,7 +86,7 @@ describe("intent tools", () => {
       }),
     )
     expect(got.linked).toEqual(["linked J-0001 serves O-0001", "linked K-0001 bounds J-0001", "linked K-0001 bounds S-0001"])
-    expect(got.wrong).toContain("K-0001 is not a gherkin/outcome")
+    expect(got.wrong).toContain("K-0001 is a gherkin/constraint, not a gherkin/outcome")
     expect(got.journey).toEqual([])
     expect(got.k).toEqual([{ type: "gherkin/bounds", to: "J-0001" }, { type: "gherkin/bounds", to: "S-0001" }])
   })

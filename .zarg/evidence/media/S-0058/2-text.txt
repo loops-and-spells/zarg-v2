@@ -1,0 +1,40 @@
+                       │  inbox   0 open                                                                                
+ ◆ zarg                │  Nothing needs you.                                                                            
+   project · main      │                                                                                                
+                       │                                                                                                
+ VIEWS               3 │                                                                                                
+▍ ▤ Inbox              │                                                                                                
+  ▤ Journeys           │                                                                                                
+  ▤ Intents            │                                                                                                
+                       │                                                                                                
+ AGENTS              2 │                                                                                                
+  ⠴ zarg           0/0 │                                                                                                
+  ⠴ warmup         0/1 │                                                                                                
+                       │                                                                                                
+  ▸ archived         1 │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │ · Reconcile is on; a pass is starting (2 scenarios).                                           
+                       │ › type a message, Enter to send                                                                
+                       │ core child · running · thread main · zarg-router:deepseek-v4.1-flash-exl3   ⏎ send   esc leave 

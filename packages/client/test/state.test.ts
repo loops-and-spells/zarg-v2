@@ -209,6 +209,15 @@ describe("archive", () => {
     ])
     expect(Object.keys(s.archived ?? {})).toEqual(["rehearse:t1"])
   })
+  test("an archived agent that runs again (a plugin's long-lived agent after a restart) is back in the tree", () => {
+    const node = (status: string) => ({ id: "intent:intent", parent: null, preset: "intent", task: "t", depth: 0, turns: 0, budget: 0, status, decisions: [] })
+    const s = fold([
+      ev("ACTIVITY_DELTA", { messageId: "main-intent-agents", patch: [{ op: "add", path: "/rlms/intent:intent", value: node("stopped") }] }),
+      ev("CUSTOM", { name: "zarg.archive", value: { archive: ["intent:intent", "rehearse:t1"], reason: "zarg restarted", at: 5 } }),
+      ev("ACTIVITY_DELTA", { messageId: "main-intent-agents", patch: [{ op: "add", path: "/rlms/intent:intent", value: node("running") }] }),
+    ])
+    expect(Object.keys(s.archived ?? {})).toEqual(["rehearse:t1"])
+  })
   test("zarg.inbox events fold into inbox by id, whatever thread the session follows", () => {
     const topic = { id: "T-1", kind: "grant", from: { plugin: "p" }, title: "t", why: "", about: [], blocking: true, messages: [], state: "open", created: 1, updated: 1 }
     const s = fold([ev("CUSTOM", { name: "zarg.inbox", value: { topic } }, "main"), ev("CUSTOM", { name: "zarg.inbox", value: { topic: { ...topic, state: "answered" } } }, "main")], initial("other"))

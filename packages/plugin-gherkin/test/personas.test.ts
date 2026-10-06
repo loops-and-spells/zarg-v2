@@ -121,3 +121,74 @@ describe("persona agenda", () => {
     expect(got.find((i) => i.id === "gherkin:unused-persona:P-0002")).toMatchObject({ title: "Nobody acts as Driver Agent", priority: 3 })
   })
 })
+
+describe("forgiving drafts", () => {
+  test("adding a persona that already exists (same name, same kind) uses it; another kind under that name is refused", async () => {
+    const out = await run(
+      Effect.gen(function* () {
+        yield* setup
+        const again = yield* call("add-persona", { name: "operator", kind: "human", text: "anything" })
+        const clash = yield* Effect.flip(call("add-persona", { name: "Operator", kind: "agent", text: "x" }))
+        return { again: again.message, added: again.added, clash: (clash as { message: string }).message }
+      }),
+    )
+    expect(out.again).toBe("P-0001 is already Operator: no change")
+    expect(out.added).toEqual([])
+    expect(out.clash).toContain("P-0001 is already called \"Operator\"")
+  })
+
+  test("a journey given as a plain string (its id or its name) is that journey", async () => {
+    const out = await run(
+      Effect.gen(function* () {
+        yield* setup
+        yield* call("add-scenario", { title: "Operator answers", when: "the operator picks an option", by: [{ name: "Operator" }], arrives: { id: "ST-0001" }, then: [{ text: "the answer is recorded" }] })
+        yield* call("add-journey", { name: "Answering" })
+        const byId = (yield* call("link", { scenario: "S-0001", edge: "in", journey: "J-0001" })).message
+        return byId
+      }),
+    )
+    expect(out).toContain("S-0001")
+  })
+
+  test("a new scenario joins its journeys as it is added (a draft cannot know its id to link it after)", async () => {
+    const out = await run(
+      Effect.gen(function* () {
+        yield* setup
+        yield* call("add-journey", { name: "Answering" })
+        yield* call("add-scenario", { title: "Operator answers", when: "the operator picks an option", by: [{ name: "Operator" }], in: ["Answering"], arrives: { id: "ST-0001" }, then: [{ text: "the answer is recorded" }] })
+        const missing = yield* Effect.flip(call("add-scenario", { title: "Operator skips", when: "the operator skips", by: [{ name: "Operator" }], in: ["Nowhere"], arrives: { id: "ST-0001" }, then: [{ text: "the answer is recorded" }] }))
+        return { edges: (yield* (yield* GraphStore).snapshot).nodes.get("S-0001")?.edges, missing: String((missing as { message?: string }).message) }
+      }),
+    )
+    expect(out.edges).toEqual(expect.arrayContaining([{ type: "gherkin/in", to: "J-0001" }]))
+    expect(out.missing).toContain('"Nowhere" is not a journey')
+  })
+
+  test("linking what is already linked changes nothing and says so", async () => {
+    const out = await run(
+      Effect.gen(function* () {
+        yield* setup
+        yield* call("add-scenario", { title: "Operator answers", when: "the operator picks an option", by: [{ name: "Operator" }], arrives: { id: "ST-0001" }, then: [{ text: "the answer is recorded" }] })
+        const again = yield* call("link", { scenario: "S-0001", edge: "then", state: { id: "ST-0002" } })
+        return { message: again.message, added: again.added }
+      }),
+    )
+    expect(out.message).toBe("S-0001 already has then ST-0002: no change")
+    expect(out.added).toEqual([])
+  })
+
+  test("linking a node that does not exist says so and names those there (a draft that guessed an id fixes it)", async () => {
+    const out = await run(
+      Effect.gen(function* () {
+        yield* setup
+        yield* call("add-scenario", { title: "Operator answers", when: "the operator picks an option", by: [{ name: "Operator" }], arrives: { id: "ST-0001" }, then: [{ text: "the answer is recorded" }] })
+        yield* call("add-journey", { name: "Answering" })
+        const missing = yield* Effect.flip(call("link", { scenario: "S-0002", edge: "in", journey: "J-0001" }))
+        const wrong = yield* Effect.flip(call("link", { scenario: "ST-0001", edge: "in", journey: "J-0001" }))
+        return { missing: (missing as { message: string }).message, wrong: (wrong as { message: string }).message }
+      }),
+    )
+    expect(out.missing).toBe("S-0002 does not exist (not in the graph, nor added before it in this change); the scenarios there: S-0001")
+    expect(out.wrong).toBe("ST-0001 is a gherkin/state, not a gherkin/scenario")
+  })
+})

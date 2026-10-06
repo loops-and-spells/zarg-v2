@@ -87,7 +87,7 @@ export const makePlanner = (d: PlannerDeps) => {
     // The scenarios the plan affected (a reworded state's scenarios, a new scenario): the ones a landed pass must cover.
     const scenarios = applied.value.before.graph === undefined || graph === undefined ? [] : (yield* d.affected(applied.value.before.graph, graph).pipe(Effect.orElseSucceed(() => ({ scenarios: [] as ReadonlyArray<string> })))).scenarios
     const at = sha === undefined ? "applied (nothing to commit)" : `applied in ${sha.slice(0, 7)}`
-    if (!d.reconcileOn()) return yield* Effect.ignore(moved(plan.id, "review", "Planner", `${at}; reconcile is off: implement by hand`, undefined, scenarios))
+    if (!d.reconcileOn()) return yield* Effect.ignore(moved(plan.id, "review", "Planner", `${at}; reconcile is off: /reconcile implements it, or implement by hand`, undefined, scenarios))
     yield* Effect.ignore(moved(plan.id, "running", "Planner", at, undefined, scenarios))
     d.notify()
   }).pipe(lock.withPermits(1))

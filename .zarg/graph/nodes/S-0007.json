@@ -19,8 +19,8 @@
   ],
   "id": "S-0007",
   "props": {
-    "title": "A duplicate link is refused",
-    "when": "the CLI actor links a scenario to the same state twice"
+    "title": "A duplicate Then is refused",
+    "when": "the CLI actor adds a scenario naming one state twice"
   },
   "type": "gherkin/scenario"
 }

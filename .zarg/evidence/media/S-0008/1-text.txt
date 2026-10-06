@@ -1,0 +1,40 @@
+                       │  inbox   1 open                                                                                
+ ◆ zarg                │                                                                                                
+   project · main      │  ▍◆ zarg          Who uses the chore tracker first?  question · waiting · 2 options  now       
+                       │                                                                                                
+ VIEWS               3 │                                                                                                
+▍ ◇ Inbox            1 │                                                                                                
+  ▤ Journeys           │                                                                                                
+  ▤ Intents            │                                                                                                
+                       │                                                                                                
+ AGENTS             ◆1 │                                                                                                
+  ◇ zarg          asks │                                                                                                
+  └ ⠼ driver 1    1/25 │                                                                                                
+                       │                                                                                                
+                       │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+                       │     zarg   esc closes                                                                          
+                       │     ·  answered                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │     Who uses the chore tracker first?                                                          
+                       │     › A parent (recommended) — they assign the chores                                          
+                       │       A child                                                                                  
+                       │       Something else…                                                                          
+                       │       Chat about this                                                                          
+                       │ · answered                                                                                     
+                       │ answer zarg above, or / to chat about it                                                       
+                       │ ◆ zarg asks: Who uses the chore tracker first?   core child ·…   ↑↓ pick   ⏎ answer   esc leave

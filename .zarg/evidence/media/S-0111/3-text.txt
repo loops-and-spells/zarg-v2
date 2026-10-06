@@ -1,9 +1,9 @@
                        │  Backlog                                                                                       
  ◆ zarg                │                                                                                                
-   project · main      │  Backlog 2      ◂  Ready 1        ◂  Running 0      ◂  Review 0       ◂  Done 0         ◂      
-                       │  ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔  ────────────────  ────────────────  ────────────────  ────────────────      
- VIEWS               5 │  ▌B-02 S-0002 ◇0   ▌B-01 S-0001 ◇0                                                             
-  ▤ Inbox              │  ▌Confirm          ▌Tell the child                                                             
+   project · main      │  Backlog 2      ◂  Ready 0        ◂  Running 0      ◂  Review 1       ◂  Done 0         ◂      
+                       │  ────────────────  ────────────────  ────────────────  ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔  ────────────────      
+ VIEWS               5 │  ▌B-02 S-0002 ◇0                                       ▌B-01 S-0001 ◇0                         
+  ▤ Inbox              │  ▌Confirm                                              ▌Tell the child                         
   ▤ Journeys           │  ▌removals                                                                                     
   ▤ Intents            │                                                                                                
   ▤ Feedback           │  ▌B-03 S-0002 ◇0                                                                               
@@ -11,7 +11,7 @@
                        │  ▌⚠ scenario ch…                                                                               
  AGENTS              2 │                                                                                                
   ● zarg           0/0 │                                                                                                
-  ⠧ setup          0/1 │                                                                                                
+  ⠦ setup          0/1 │                                                                                                
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                
@@ -35,6 +35,6 @@
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                
-                       │                                                                                                
+                       │ · B-01 → Ready                                                                                 
                        │ › message zarg… (alt+m or /)                                                                   
                        │ core child · error · thread main · driver model unkn…   ⏎ open   ⇧←→ move   z Z fold   esc back

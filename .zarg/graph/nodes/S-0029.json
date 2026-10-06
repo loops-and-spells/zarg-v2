@@ -23,7 +23,6 @@
   ],
   "id": "S-0029",
   "props": {
-    "planned": true,
     "title": "A value fails its schema type",
     "when": "an entered value fails its schema type"
   },

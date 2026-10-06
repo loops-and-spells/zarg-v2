@@ -23,7 +23,6 @@
   ],
   "id": "S-0036",
   "props": {
-    "planned": true,
     "title": "A model without tool calls is refused",
     "when": "the operator picks a model without tool calling"
   },

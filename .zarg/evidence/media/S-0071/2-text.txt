@@ -1,0 +1,40 @@
+                       │  inbox   0 open                                                                                
+ ◆ zarg                │  Nothing needs you.                                                                            
+   project · main      │                                                                                                
+                       │                                                                                                
+ VIEWS               3 │                                                                                                
+▍ ▤ Inbox              │                                                                                                
+  ▤ Journeys           │                                                                                                
+  ▤ Intents            │                                                                                                
+                       │                                                                                                
+ AGENTS              1 │                                                                                                
+  ⠼ zarg           0/0 │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │                                                                                                
+                       │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
+                       │     zarg   esc closes                                                                          
+                       │     zarg  The flow so far:                                                                     
+                       │                                                                                                
+                       │           ┌────────┐  ┌─────────────┐                                                          
+                       │           │        │  │             │                                                          
+                       │           │ Parent ├─►│ Family list │                                                          
+                       │           │        │  │             │                                                          
+                       │           └────────┘  └─────────────┘                                                          
+                       │           That is all for now.                                                                 
+                       │     you  the dishes pile up every night                                                        
+                       │     zarg  (discussing: Which chore comes first?)                                               
+                       │     zarg  zarg chose The dishes for you: you said the dishes pile up                           
+                       │     zarg  Chose dishes for you. A wide flow:                                                   
+                       │                                                                                                
+                       │           flowchart LR                                                                         
+                       │             N0[Parent opens the list] --> N1                                                   
+                       │             N1[Parent picks a chore] --> N2                                                    
+                       │             N2[Parent picks a child] --> N3                                                    
+                       │             N3[Child sees the chore] --> N4                                                █   
+                       │             N4[Child does the chore] --> N5                                                █   
+                       │                                                                                            █   
+                       │           Too wide to draw.                                                                █   
+                       │     ⠼ zarg is preparing a reply · 0:00                                                     █   
+                       │ › type a message, Enter to send                                                                
+                       │ core child · running · thread main · stub:scripted   answered   ⏎ send   esc leave             

@@ -12,7 +12,7 @@ import { contextOf, displayName, railRows } from "./rail"
 import { reviewActs, reviewGroups } from "./review"
 import { Buttons, Heading } from "./sections"
 import { RichText } from "./markdown"
-import { inboxRows, openTopicUi, unseenBlocking } from "./inbox-keys"
+import { inboxCursor, inboxRows, openTopicUi, unseenBlocking } from "./inbox-keys"
 import { onKey, SHELL } from "./layers"
 import { AgentView, NowContext, type Scroller } from "./sections"
 import {
@@ -37,6 +37,10 @@ import {
   inputFocused,
   type Meta,
   onSubmit,
+  drafting,
+  grantLines,
+  INBOX_ROW,
+  promptAction,
   OTHER,
   CHAT,
   pickerRows,
@@ -59,6 +63,9 @@ const AGENTS_WIDTH = 24
  * The zarg TUI: the agents list on the left, the open agent's view (or zarg's sheet) in the tile area, the message
  * bar under it, grant popovers over everything, and the status line.
  */
+/** How long a new notice shows whole on its own line. */
+const NOTICE_MS = 10_000
+
 export const App = (props: { readonly session: Session; readonly meta: Meta; readonly onExit: () => void; readonly theme?: ThemeService }) => {
   const theme = props.theme ?? DEFAULT_THEME
   // Every scroll box listens to the renderer (a board has one per lane): past Node's default of 10 it would print a
@@ -111,6 +118,14 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
     const timer = setInterval(() => setNow(Date.now()), 100)
     return () => clearInterval(timer)
   }, [moving])
+  // A new notice shows whole on its own line for a while, then keeps to the end of the status line.
+  const [noticeFresh, setNoticeFresh] = useState(false)
+  useEffect(() => {
+    if (s.notice === undefined) return
+    setNoticeFresh(true)
+    const t = setTimeout(() => setNoticeFresh(false), NOTICE_MS)
+    return () => clearTimeout(t)
+  }, [s.notice])
   const scroller = useRef<Scroller | undefined>(undefined)
   // The grid's shape as last drawn: the keys move by its columns and pages.
   const gridRef = useRef({ gridCols: 2, gridPage: 4 })
@@ -147,8 +162,12 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const submit = (value: string) => {
     const r = onSubmit(latest(), props.session.state(), value)
     setUi(r.ui)
-    if (r.draft !== undefined) setDraft(r.draft)
-    else if (r.action !== undefined) setDraft("")
+    // The input keeps a value of its own: write it too, or a later keystroke brings back what was sent.
+    const next = r.draft ?? (r.action !== undefined ? "" : undefined)
+    if (next !== undefined) {
+      if (inputRef.current !== null) inputRef.current.value = next
+      setDraft(next)
+    }
     act(r.action)
   }
   useKeyboard((key) => {
@@ -167,9 +186,11 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
       return
     }
     const before = latest().focus
+    const typedBefore = typing(latest(), props.session.state())
     const r = onKey(latest(), props.session.state(), { name: key.name, ctrl: key.ctrl, shift: key.shift, meta: key.meta || key.option }, Date.now(), draftRef.current, gridRef.current)
     setUi(r.ui)
-    if (before !== "bar" && r.ui.focus === "bar" && r.draft !== undefined) barOpening.current = true
+    // Any key that gives the bar's input the typing (/, alt+m, a letter at zarg's question): the rest of its burst is the bar's.
+    if ((before !== "bar" && r.ui.focus === "bar") || (!typedBefore && typing(r.ui, props.session.state()))) barOpening.current = true
     if (r.draft !== undefined) {
       // Write into the input now, so a key typed right after Tab lands after the completion.
       if (inputRef.current !== null) inputRef.current.value = r.draft
@@ -196,6 +217,9 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const width = Math.max(0, ...(box?.rows ?? []).map((r) => r.label.length))
   // Agents spin only while the clock runs (not while a question waits on you).
   const cursor = railRows(ui, s, undefined, AGENTS_WIDTH - 3).find((a) => a.selected)?.id
+  // @scenario S-0073
+  // The highlighted agent, while the list has the keys: its task, its turns, its decisions with their confidence.
+  const railDetail = ui.focus === "agents" && cursor !== undefined && s.thread.rlms[cursor] !== undefined ? agentDetail(s.thread.rlms, cursor).slice(0, 8) : []
   // Keep the highlighted row on screen as the cursor moves through a tall tree.
   useEffect(() => {
     if (cursor !== undefined) agentsRef.current?.scrollChildIntoView(`agent-${cursor}`)
@@ -321,7 +345,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           name: "Inbox",
           note: inboxOpen > 0 ? String(inboxOpen) : "",
           guide: "",
-          on: ui.main === "inbox" && ui.focus !== "agents",
+          on: (ui.main === "inbox" && ui.focus !== "agents") || (ui.focus === "agents" && ui.agents.cursor === INBOX_ROW),
           dimmed: false,
           onPick: () => setUi({ ...goHome(latest(), props.session.state()), sheet: false, focus: "tile" }),
         })}
@@ -527,7 +551,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           <text fg={C.accent} wrapMode="none">{label === "message ›" ? "› " : `${label} `}</text>
           <input
             ref={inputRef}
-            focused={inputFocused(ui, s)}
+            focused={inputFocused(ui, s, draft)}
             value={draft}
             placeholder={answeringOther(ui, s) ? "your own answer, Enter to send" : chatting ? "ask about the question; Esc goes back to the options" : "type a message, Enter to send"}
             style={{ flexGrow: 1, backgroundColor: C.raised, focusedBackgroundColor: C.raised, textColor: C.text, focusedTextColor: C.text, placeholderColor: C.faint }}
@@ -600,13 +624,15 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           </span>
           <span fg={C.dim}>{queue.length > 1 ? `  1 of ${queue.length} · next: ${fit(queue[1]!.question, 30)}` : ""}</span>
         </text>
-        <text fg={C.text}>{head.question}</text>
-        <text> </text>
+        {grantLines(head.question, popWidth - 4).map((l, i) => (
+          <text key={i} fg={C.text}>{l}</text>
+        ))}
+        {drafting(ui, s, draft) ? <text fg={C.dim}>{"finish your message first (Enter sends it, Esc keeps it): this waits"}</text> : <text> </text>}
         <box style={{ flexDirection: "row", height: 1 }}>
           {head.options.map((o, i) => {
             const on = i === Math.min(ui.popover.pick, head.options.length - 1)
             return (
-              <text key={o.id} fg={on ? C.text : C.dim} onMouseDown={() => act({ type: "answer-prompt", id: head.id, choice: o.id })} {...(on ? { bg: C.selection } : {})}>
+              <text key={o.id} fg={on ? C.text : C.dim} onMouseDown={() => act(promptAction(latest(), props.session.state(), head, o.id))} {...(on ? { bg: C.selection } : {})}>
                 {`${on ? "› " : "  "}${o.label}   `}
               </text>
             )
@@ -848,7 +874,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
 
   // The inbox (home): every topic that wants the operator, most urgent first; Enter opens one, its answers as buttons.
   const topics = inboxRows(ui, s)
-  const inboxAt = Math.min(ui.inbox.cursor, Math.max(0, topics.length - 1))
+  const inboxAt = inboxCursor(ui, topics)
   const ago = (at: number) => {
     const m = Math.max(0, Math.floor((Date.now() - at) / 60_000))
     return m < 1 ? "now" : m < 60 ? `${m}m` : m < 1440 ? `${Math.floor(m / 60)}h` : `${Math.floor(m / 1440)}d`
@@ -856,7 +882,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const topicGlyph = (t: Topic) =>
     t.state === "answered" ? { g: "✓", c: C.dim } : t.state !== "open" ? { g: "–", c: C.dim } : t.blocking ? { g: "◆", c: C.attention } : (t.answers ?? []).length > 0 ? { g: "◇", c: C.accent } : { g: "·", c: C.dim }
   const topicHint = (t: Topic) =>
-    [t.kind, ...(t.blocking ? ["waiting"] : []), ...((t.answers ?? []).length > 1 ? [`${t.answers!.length} options`] : []), ...(t.messages.length > 0 ? [`${t.messages.length} ${t.messages.length === 1 ? "reply" : "replies"}`] : [])].join(" · ")
+    [t.kind, ...(t.blocking && t.state === "open" ? ["waiting"] : []), ...((t.answers ?? []).length > 1 ? [`${t.answers!.length} options`] : []), ...(t.messages.length > 0 ? [`${t.messages.length} ${t.messages.length === 1 ? "reply" : "replies"}`] : [])].join(" · ")
   const openTopic = ui.inbox.open === undefined ? undefined : s.thread.inbox?.[ui.inbox.open]
   const inbox =
     openTopic !== undefined ? (
@@ -865,12 +891,14 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
         <text wrapMode="none" style={{ flexShrink: 0 }}>
           <span fg={C.dim}>{"← Inbox   "}</span>
           <span fg={C.text}>
-            <b>{fit(openTopic.title, focusWidth - 14)}</b>
+            <b>{fit(openTopic.title.split("\n")[0] ?? "", focusWidth - 14)}</b>
           </span>
         </text>
-        <text fg={C.dim} wrapMode="none" style={{ flexShrink: 0 }}>{fit([openTopic.from.agent ?? openTopic.from.plugin, openTopic.kind, openTopic.why, ago(openTopic.created)].filter((x) => x !== "").join(" · "), focusWidth - 4)}</text>
+        <text fg={C.dim} wrapMode="none" style={{ flexShrink: 0 }}>{fit([openTopic.from.agent ?? openTopic.from.plugin, openTopic.kind, openTopic.why === openTopic.kind ? "" : openTopic.why, ago(openTopic.created)].filter((x) => x !== "").join(" · "), focusWidth - 4)}</text>
         <text style={{ flexShrink: 0 }}> </text>
         <scrollbox focusable={false} style={{ flexGrow: 1 }}>
+          {/* A title longer than its header line (zarg's proposal holds the whole change) is shown whole: nothing is approved unseen. */}
+          {openTopic.title.includes("\n") || openTopic.title.length > focusWidth - 14 ? <RichText content={openTopic.title} width={focusWidth - 6} /> : null}
           {openTopic.evidence !== undefined ? <RichText content={openTopic.evidence} width={focusWidth - 6} /> : null}
           {openTopic.messages.map((m, i) => (
             <box key={`m${i}`} style={{ flexDirection: "column", flexShrink: 0, marginTop: 1 }}>
@@ -878,14 +906,14 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
               <RichText content={m.text} width={focusWidth - 8} />
             </box>
           ))}
-          {openTopic.state !== "open" ? <text fg={C.dim}>{openTopic.state === "moot" ? `It stopped mattering: ${openTopic.moot ?? ""}` : `Answered: ${openTopic.answer?.id ?? ""}${openTopic.answer?.text !== undefined ? ` (${openTopic.answer.text})` : ""}`}</text> : null}
+          {openTopic.state !== "open" ? <text fg={C.dim}>{openTopic.state === "moot" ? `It stopped mattering: ${openTopic.moot ?? ""}` : openTopic.state === "read" ? "Read." : `Answered: ${openTopic.answers?.find((a) => a.id === openTopic.answer?.id)?.label ?? openTopic.answer?.id ?? ""}${openTopic.answer?.text !== undefined ? ` (${openTopic.answer.text})` : ""}`}</text> : null}
         </scrollbox>
         {openTopic.state === "open" && (openTopic.answers ?? []).length > 0 ? (
           <box style={{ flexDirection: "column", flexShrink: 0, marginTop: 1 }}>
             {openTopic.answers!.map((a, i) => {
               const on = (ui.inbox.pick ?? 0) === i
               return (
-                <text key={a.id} wrapMode="none" {...(on ? { bg: C.selection } : {})} onMouseDown={() => act({ type: "answer-topic", id: openTopic.id, answer: a.id })}>
+                <text key={a.id} {...(on ? { bg: C.selection } : {})} onMouseDown={() => act({ type: "answer-topic", id: openTopic.id, answer: a.id })}>
                   <span fg={C.accent}>{on ? "▍" : " "}</span>
                   <span fg={C.accent}>{`${i + 1}  `}</span>
                   <span fg={C.text}>{a.label}</span>
@@ -969,7 +997,7 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
   const firstAsking = attentionOf(s.thread.rlms)[0]
   const askingNode = firstAsking === undefined ? undefined : s.thread.rlms[firstAsking.id]
   // Who asks first (it must survive a narrow line), then where things stand.
-  const status = ` ${[...(askingNode !== undefined ? [`◆ ${displayName(askingNode)} ${firstAsking!.reason}`] : []), statusLine(s, props.meta), ...(s.notice !== undefined ? [s.notice] : [])].join("   ")}`
+  const status = ` ${[...(askingNode !== undefined ? [`◆ ${displayName(askingNode)} ${firstAsking!.reason}`] : []), statusLine(s, props.meta), ...(s.notice !== undefined && !noticeFresh ? [s.notice] : [])].join("   ")}`
 
   return (
     <ThemeContext.Provider value={theme}>
@@ -1011,6 +1039,20 @@ export const App = (props: { readonly session: Session; readonly meta: Meta; rea
           </box>
           {shown.bottom.map(panelBox)}
         </box>
+        {railDetail.length > 0 ? (
+          <box style={{ flexShrink: 0, flexDirection: "column", paddingLeft: 1 }}>
+            {railDetail.map((l, i) => (
+              <text key={i} wrapMode="none" fg={i === 0 ? C.text : C.dim}>{fit(l, Math.max(10, dims.width - railWidth - 3))}</text>
+            ))}
+          </box>
+        ) : null}
+        {/* Above the bar: the bar stays where it was. */}
+        {/* A command's outcome (why reconcile stays off): whole, on its own line, until the next one. */}
+        {s.notice !== undefined && noticeFresh ? (
+          <box style={{ flexShrink: 0, paddingLeft: 1, width: Math.max(10, dims.width - railWidth - 1) }}>
+            <text fg={C.attention}>{`· ${s.notice}`}</text>
+          </box>
+        ) : null}
         {slash}
         {bar}
         <box style={{ height: 1, flexShrink: 0 }}>

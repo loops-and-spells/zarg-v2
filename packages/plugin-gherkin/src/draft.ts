@@ -1,7 +1,8 @@
 import { Effect, Schema } from "effect"
 import { type Change, diff, Snapshot } from "@zarg/graph/pure"
 import { affectedScenarios } from "./affected"
-import type { Finding, Lint, Tool } from "./kit"
+import { bareIds, type Finding, type Lint, type Tool } from "./kit"
+import { STATE } from "./model"
 
 /** Edge limits per edge type (the plugin's graph spec): the host checks them on every write. */
 export type EdgeLimits = Readonly<Record<string, { readonly from: string; readonly min?: number; readonly max?: number }>>
@@ -34,12 +35,14 @@ export const applyDraft = (snap: Snapshot.Snapshot, draft: Draft, tools: Readonl
     const messages: Array<string> = []
     const problems: Array<string> = []
     for (const c of draft) {
-      const t = tools.find((x) => x.name === c.tool)
+      // As the tool is named, or as an RLM calls it: Gherkin.addScenario is add-scenario.
+      const name = c.tool.replace(/^Gherkin\./, "").replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)
+      const t = tools.find((x) => x.name === name)
       if (t === undefined) {
-        problems.push(`${c.tool} is not a gherkin tool`)
+        problems.push(`${c.tool} is not a gherkin tool (they are: ${tools.map((x) => x.name).join(", ")})`)
         continue
       }
-      const params = Schema.decodeUnknownExit(t.params)(c.params)
+      const params = Schema.decodeUnknownExit(t.params)(bareIds(c.params))
       if (params._tag === "Failure") {
         problems.push(`${c.tool}: its params do not fit: ${String(params.cause)}`)
         continue
@@ -69,9 +72,17 @@ export const dryRun = (snap: Snapshot.Snapshot, draft: Draft, tools: ReadonlyArr
   Effect.map(applyDraft(snap, draft, tools, limits), (a) => {
     const d = diff(snap, a.snapshot)
     const findings = [...validate(a.changes), ...lints.flatMap((l) => l({ before: snap, after: a.snapshot, diff: d }))].filter((f) => f.severity === "error")
-    const problems = [...a.problems, ...findings.map((f) => f.message)]
-    const touched = [...new Set(a.changes.map((c) => (c._tag === "Put" ? c.node.id : c.id)))]
+    // A state the draft adds and leaves unused: a scenario should take it (Given, And or Then), or it goes.
+    const unused = d.added
+      .filter((n) => n.type === STATE && Snapshot.inbound(a.snapshot, n.id).length === 0)
+      .map((n) => `${n.id} "${String(n.props.text ?? "")}" is added but no scenario uses it: drop it, or use it as a Given, And or Then`)
+    const problems = [...a.problems, ...findings.map((f) => f.message), ...unused]
+    // What the draft changes, not what it puts: a call that puts a node as it is touches nothing.
+    const touched = [...d.added, ...d.changed, ...d.removed].map((n) => n.id).sort()
     // The scenarios to re-implement: added or changed, or using a reworded state (as the reconcile loop will see it).
     const scenarios = affectedScenarios(snap, a.snapshot).scenarios
-    return { ok: problems.length === 0, problems, touched, scenarios, messages: a.messages }
+    const id = (prefix: string) => Snapshot.nextId(a.snapshot, prefix)
+    // @scenario S-0103
+    const next = { scenario: id("S"), state: id("ST"), journey: id("J"), persona: id("P") }
+    return { ok: problems.length === 0, problems, touched, scenarios, messages: a.messages, next }
   })

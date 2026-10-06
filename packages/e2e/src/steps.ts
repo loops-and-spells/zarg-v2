@@ -9,14 +9,21 @@ import type { World } from "./world"
 export const command = async (t: Term, text: string) => {
   t.type(text)
   await t.waitFor(text, 5_000)
-  t.press("enter")
+  // Run, then the line clears; an Enter that lands while its completions draw only completes: Enter again.
+  const line = `› ${text}`
+  for (let k = 0; k < 3; k++) {
+    t.press("enter")
+    if (await t.waitGone(line, 3_000).then(() => true, () => false)) return
+  }
+  throw new Error(`${text} did not run; the screen:\n${t.screen()}`)
 }
 
 /** Answers each plugin's load question: Allow for `allow`, Not now for the rest, until none is left; the plugins that asked. */
 export const answerLoads = async (t: Term, allow?: string) => {
   const asked: Array<string> = []
   const until = Date.now() + 30_000
-  for (let quiet = 0; quiet < 4 && Date.now() < until; ) {
+  // Done after 4 s with no question (plugins ask one after another, some seconds apart).
+  for (let quiet = 0; quiet < 10 && Date.now() < until; ) {
     await Bun.sleep(400)
     const m = /Plugin (\S+) wants to load/.exec(t.screen())
     if (m !== null && t.screen().includes("Not now")) {
@@ -69,10 +76,28 @@ export const liveModel = (w: World) => {
   const file = join(w.project, ".zarg", "config.toml")
   if (existsSync(file) && readFileSync(file, "utf8").includes("[providers.zarg-router]")) return
   mkdirSync(join(w.project, ".zarg"), { recursive: true })
-  appendFileSync(file, `\n[providers.zarg-router]\nbase_url = ${JSON.stringify(process.env.E2E_ZARG_ROUTER_URL ?? "http://localhost:11435/api/v1")}\n\n[roles]\ndefault = "zarg-router:deepseek-v4.1-flash-exl3"\n`)
+  appendFileSync(file, `\n[providers.zarg-router]\nbase_url = ${JSON.stringify(process.env.E2E_ZARG_ROUTER_URL ?? "http://localhost:11435/api/v1")}\n\n[roles]\ndefault = "zarg-router:deepseek-v4.1-flash-exl3"\ndecision = "zarg-router:jevk5"\n`)
 }
 
 /** Quits the session an earlier step opened, when one is still open (a retry finds it gone). */
 export const quit = async (t: Term | undefined) => {
   if (t !== undefined) await t.exit().catch(() => undefined)
+}
+
+/** A message to zarg, as the operator types it: out of whatever the bar held (a slash command), into the message bar; while zarg asks, as chat about its question. */
+export const say = async (t: Term, text: string) => {
+  // A grant question over everything takes the keys: answer it first (answerLoads).
+  if (/wants to load/.test(t.screen()) && t.screen().includes("⏎ choose")) throw new Error(`a grant question takes the keys; answer it before typing:\n${t.screen()}`)
+  t.press("esc")
+  await Bun.sleep(300)
+  t.press("alt+m")
+  await Bun.sleep(500)
+  // zarg asks something: the message is chat about its question.
+  if (t.screen().includes("answer zarg above")) await t.choose("Chat about this", "down", "answer zarg above")
+  await Bun.sleep(300)
+  t.type(text)
+  await t.waitFor(text.slice(-30), 5_000)
+  // Nothing of a slash command left before it.
+  if (/›\s*\//.test(t.screen().split("\n").find((l) => l.includes(text.slice(-30))) ?? "")) throw new Error(`the bar holds more than the message:\n${t.screen()}`)
+  t.press("enter")
 }

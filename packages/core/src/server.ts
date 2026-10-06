@@ -28,8 +28,9 @@ export interface ReconcileAnswer {
   readonly pending?: number
 }
 
-/** Turn plan and implement on for this session (`POST /reconcile`), even when the config leaves them off. */
-export class ReconcileControl extends Context.Service<ReconcileControl, { readonly turnOn: Effect.Effect<ReconcileAnswer> }>()("@zarg/core/ReconcileControl") {}
+/** Turn plan and implement on (`POST /reconcile`), even when the config leaves them off; a project without a [reconcile] section gets one. */
+/** `again`: scenarios to build again (`/reconcile S-0006`), pending until a pass lands them. */
+export class ReconcileControl extends Context.Service<ReconcileControl, { readonly turnOn: Effect.Effect<ReconcileAnswer>; readonly again?: (ids: ReadonlyArray<string>) => Effect.Effect<void> }>()("@zarg/core/ReconcileControl") {}
 
 /** First-run setup: \`POST /setup/open\` opens the Setup view (absent in cores and tests without it). */
 export class SetupControl extends Context.Service<SetupControl, { readonly open: (at?: "providers" | "models") => Effect.Effect<void>; readonly openIfNeeded: Effect.Effect<void> }>()("@zarg/core/SetupControl") {}
@@ -153,7 +154,16 @@ const routes = HttpRouter.addAll(
         "/stream",
         Effect.map(HttpServerRequest.HttpServerRequest, (req) => sse(log.stream(Number(searchParam(req, "since") ?? 0)), heartbeat)),
       ),
-      HttpRouter.route("POST", "/reconcile", Effect.map(control.turnOn, (answer) => HttpServerResponse.jsonUnsafe(answer))),
+      HttpRouter.route(
+        "POST",
+        "/reconcile",
+        Effect.gen(function* () {
+          const body = (yield* HttpServerRequest.HttpServerRequest.pipe(Effect.flatMap((r) => r.json), Effect.orElseSucceed(() => ({})))) as { again?: unknown }
+          const ids = Array.isArray(body.again) ? body.again.filter((x): x is string => typeof x === "string" && /^S-\d+$/.test(x)) : []
+          if (ids.length > 0 && control.again !== undefined) yield* control.again(ids)
+          return HttpServerResponse.jsonUnsafe(yield* control.turnOn)
+        }),
+      ),
       HttpRouter.route(
         "POST",
         "/setup/open",

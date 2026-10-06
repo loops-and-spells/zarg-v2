@@ -16,7 +16,8 @@ const groups = (scenarios: ReadonlyArray<ScenarioDiff>, diff: (c: ScenarioDiff) 
   }
   return [...by.values()]
 }
-const plural = (n: number, s: string) => `${n} ${s}${n === 1 ? "" : "s"}`
+/** "1 entry", "2 entries", "2 journeys". */
+export const plural = (n: number, s: string) => `${n} ${n === 1 ? s : /[^aeiou]y$/.test(s) ? `${s.slice(0, -1)}ies` : `${s}s`}`
 
 /** A plan for reading: what it is, what it changes scenario by scenario (only the lines that change), what feedback it closes. */
 export const planText = (i: Pick<Item, "id" | "title" | "journey" | "persona" | "severity" | "status" | "scenarios" | "changes" | "steps" | "serves">, feedback: ReadonlyArray<Fb>, scenarios: ReadonlyArray<ScenarioDiff>, changed: ReadonlySet<string>, links: { readonly after: ReadonlyArray<string>; readonly before: ReadonlyArray<string> } = { after: [], before: [] }): string => {

@@ -176,7 +176,15 @@ export const reload = (config: ZargConfig, opts: { readonly userDir: string; rea
  * Edit the user config: `roles.default`, and a provider section only when it is missing. Other lines stay as they are; an edit
  * that would not parse is refused (the file untouched); the write is atomic. Answers what was there before (for `restoreUserConfig`).
  */
-export const setUserConfig = (file: string, edit: { readonly default?: string; readonly provider?: { readonly name: string; readonly settings: Readonly<Record<string, string>> } }) =>
+export const setUserConfig = (
+  file: string,
+  edit: {
+    readonly default?: string
+    /** roles.decision, only where none is set (the operator's own choice stays). */
+    readonly decisionIfUnset?: string
+    readonly provider?: { readonly name: string; readonly settings: Readonly<Record<string, string>> }
+  },
+) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem
     const io = (e: { message: string }) => new ConfigError({ message: e.message, file })
@@ -194,17 +202,20 @@ export const setUserConfig = (file: string, edit: { readonly default?: string; r
       const next = lines.findIndex((l, i) => i > start && /^\s*\[/.test(l))
       return next < 0 ? lines.length : next
     }
-    if (edit.default !== undefined) {
-      const line = `default = ${JSON.stringify(edit.default)}`
+    const role = (key: string, ref: string, replace: boolean) => {
+      const line = `${key} = ${JSON.stringify(ref)}`
       const at = header("roles")
       if (at < 0) lines = [...lines, ...(lines.length > 0 ? [""] : []), "[roles]", line]
       else {
         const end = sectionEnd(at)
-        const k = lines.findIndex((l, i) => i > at && i < end && /^\s*default\s*=/.test(l))
-        if (k >= 0) lines[k] = line
-        else lines.splice(at + 1, 0, line)
+        const k = lines.findIndex((l, i) => i > at && i < end && new RegExp(`^\\s*${key}\\s*=`).test(l))
+        if (k >= 0) {
+          if (replace) lines[k] = line
+        } else lines.splice(at + 1, 0, line)
       }
     }
+    if (edit.default !== undefined) role("default", edit.default, true)
+    if (edit.decisionIfUnset !== undefined) role("decision", edit.decisionIfUnset, false)
     if (edit.provider !== undefined && header(`providers.${edit.provider.name}`) < 0) {
       while (lines.length > 0 && lines.at(-1)!.trim() === "") lines.pop()
       lines = [...lines, ...(lines.length > 0 ? [""] : []), `[providers.${edit.provider.name}]`, ...Object.entries(edit.provider.settings).map(([k, v]) => `${k} = ${JSON.stringify(v)}`)]

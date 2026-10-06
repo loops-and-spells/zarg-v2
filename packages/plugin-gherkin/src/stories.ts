@@ -95,9 +95,11 @@ const edgePair = (snap: Snapshot.Snapshot, members?: ReadonlySet<string>) => {
 /**
  * Stories to walk. journey (the default): edge-pair inside each journey, one two-scenario story for each handoff from a
  * journey into another (a seam), and each scenario in no journey alone. edge-pair: the same over the whole graph.
- * teleport: each scenario alone. With focus, only stories through a focused scenario (or, for teleport, focused scenarios).
+ * teleport: each scenario alone. With focus, only stories through a focused scenario (or, for teleport, focused scenarios); a focused journey is its scenarios.
  */
-export const planStories = (snap: Snapshot.Snapshot, strategy: "journey" | "edge-pair" | "teleport", focus?: ReadonlySet<string>) => {
+export const planStories = (snap: Snapshot.Snapshot, strategy: "journey" | "edge-pair" | "teleport", focused?: ReadonlySet<string>) => {
+  // A focused journey means its scenarios.
+  const focus = focused === undefined ? undefined : new Set([...focused].flatMap((id) => (snap.nodes.get(id)?.type === "gherkin/journey" ? Snapshot.inbound(snap, id, IN).map((e) => e.from) : [id])))
   const all = scenarios(snap).map((c) => c.id).sort()
   const through = (stories: ReadonlyArray<ReadonlyArray<string>>) => stories.filter((s) => focus === undefined || s.some((c) => focus.has(c)))
   if (strategy === "teleport") return { stories: all.filter((c) => focus === undefined || focus.has(c)).map((c) => [c]), unreachable: 0 }

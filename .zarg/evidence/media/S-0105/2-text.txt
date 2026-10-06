@@ -1,0 +1,32 @@
+{
+  "run": "r-bf820330",
+  "startedAt": 1791280333946,
+  "status": "running",
+  "strategy": "journey",
+  "focus": [],
+  "personas": [
+    {
+      "id": "P-0001",
+      "name": "Parent",
+      "kind": "human",
+      "text": "A parent who assigns chores to the family.",
+      "scenarios": [
+        "S-0001",
+        "S-0002"
+      ]
+    }
+  ],
+  "stories": [
+    [
+      "S-0001"
+    ],
+    [
+      "S-0002"
+    ]
+  ],
+  "unreachable": 0,
+  "screened": {},
+  "raw": [],
+  "infra": [],
+  "findings": []
+}

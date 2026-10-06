@@ -1,4 +1,4 @@
-import { stringify } from "@zarg/frontmatter"
+import { parse, stringify } from "@zarg/frontmatter"
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { BunServices } from "@effect/platform-bun"
@@ -8,7 +8,7 @@ import type { Bound } from "@zarg/kernel"
 import { ConfigError, redact, type SensitiveValue } from "@zarg/model"
 import { PluginHost } from "@zarg/plugin/server"
 import { type Findings, GRAPH, gitRun, type ItemOutcome, type ReconcileSpec } from "@zarg/reconcile"
-import { entitiesService, fs, fsRead, graph, type Rlm, runCommand, type Scope, sh, verify } from "@zarg/rlm"
+import { entitiesService, failureFocus, fs, fsRead, graph, type Rlm, runCommand, type Scope, sh, verify } from "@zarg/rlm"
 
 /** `[reconcile]` in `.zarg/config.toml`. */
 export const ReconcileConfig = Schema.Struct({
@@ -48,6 +48,48 @@ export const reconcileSettings = (raw: unknown) =>
     }),
   )
 
+/** /reconcile turned plan and implement on: a project without a [reconcile] section gets one, so they stay on. */
+export const rememberReconcile = (root: string) => {
+  const file = join(root, ".zarg", "config.toml")
+  const text = existsSync(file) ? readFileSync(file, "utf8") : ""
+  if (/^\s*\[\s*reconcile\s*\]/m.test(text)) return
+  mkdirSync(dirname(file), { recursive: true })
+  writeFileSync(file, text === "" ? "[reconcile]\n" : `${text.replace(/\n*$/, "\n")}\n[reconcile]\n`)
+}
+
+/** The project's own check: a verify task, else a test task (its mise.toml), else its package.json script. */
+export const projectCheck = (root: string): string | undefined => {
+  const read = (f: string) => (existsSync(join(root, f)) ? readFileSync(join(root, f), "utf8") : undefined)
+  // ponytail: a line match, not a TOML parse; set [reconcile] verify when it guesses wrong.
+  const mise = read("mise.toml") ?? read(".mise.toml") ?? ""
+  const task = (n: string) => new RegExp(`^\\[tasks\\.${n}\\]|^${n}\\s*=`, "m").test(mise)
+  for (const n of ["verify", "test"]) if (task(n)) return `mise run ${n}`
+  const scripts = (() => {
+    try {
+      return (JSON.parse(read("package.json") ?? "{}") as { scripts?: Record<string, unknown> }).scripts ?? {}
+    } catch {
+      return {}
+    }
+  })()
+  const bun = existsSync(join(root, "bun.lock")) || existsSync(join(root, "bun.lockb"))
+  for (const n of ["verify", "test"]) if (typeof scripts[n] === "string") return bun ? `bun run ${n}` : n === "test" ? "npm test" : `npm run ${n}`
+  return undefined
+}
+
+/** A pass's commit message: what it built, or (nothing built) the plans it keeps. */
+export const passMessage = (items: ReadonlyArray<string>, failed: ReadonlyArray<string> = []) =>
+  items.length > 0 ? `feat: implement ${items.join(", ")}` : `chore: plan ${failed.join(", ")} (not built yet: see the findings)`
+
+/** What gives a pass's fresh worktree the project's dependencies: an install from its lockfile (none without one). */
+export const projectSetup = (root: string): string | undefined => {
+  const has = (f: string) => existsSync(join(root, f))
+  if (has("bun.lock") || has("bun.lockb")) return "bun install --frozen-lockfile"
+  if (has("pnpm-lock.yaml")) return "pnpm install --frozen-lockfile"
+  if (has("yarn.lock")) return "yarn install --frozen-lockfile"
+  if (has("package-lock.json")) return "npm ci"
+  return undefined
+}
+
 /**
  * Whether plan and implement run for a project: only with a `[reconcile]` section (not `enabled = false`),
  * models for `roles.plan` and `roles.implement`, and the project at the top of a git repository.
@@ -55,7 +97,7 @@ export const reconcileSettings = (raw: unknown) =>
 export const reconcileGate = (root: string, extra: Readonly<Record<string, unknown>>, roles: Readonly<Record<string, string>>, opts: { readonly force?: boolean } = {}) =>
   Effect.gen(function* () {
     // `force` (the /reconcile command) overrides a missing section and `enabled = false`, nothing else.
-    if (extra.reconcile === undefined && !opts.force) return { on: false, reason: "plan and implement are off: add a [reconcile] section to .zarg/config.toml to turn them on" } as const
+    if (extra.reconcile === undefined && !opts.force) return { on: false, reason: "plan and implement are off: /reconcile turns them on (it adds a [reconcile] section to .zarg/config.toml)" } as const
     const settings = yield* reconcileSettings(extra.reconcile)
     if (!settings.enabled && !opts.force) return { on: false, reason: "plan and implement are off ([reconcile] enabled = false)" } as const
     const missing = ["plan", "implement"].filter((r) => roles[r] === undefined)
@@ -64,7 +106,18 @@ export const reconcileGate = (root: string, extra: Readonly<Record<string, unkno
     if (top.code !== 0 || realpathSync(top.stdout.trim()) !== realpathSync(root)) {
       return { on: false, reason: `plan and implement are off: ${root} is not the top of a git repository` } as const
     }
-    return { on: true, settings } as const
+    // A pass commits; without an author it would only fail at its end.
+    if ((yield* gitRun(root, ["var", "GIT_AUTHOR_IDENT"])).code !== 0) {
+      return { on: false, reason: "plan and implement are off: git does not know who commits here: set git config user.name and user.email (--global for every project), then /reconcile" } as const
+    }
+    // Set in [reconcile]: that command; else the project's own check.
+    const own = (extra.reconcile as { verify?: unknown } | undefined)?.verify !== undefined ? settings.verify : projectCheck(root)
+    if (own === undefined) {
+      return { on: false, reason: "plan and implement are off: nothing says the code is right: add a verify or test task (mise.toml or package.json), or set [reconcile] verify in .zarg/config.toml, then /reconcile" } as const
+    }
+    // Set in [reconcile]: that setup; else an install from the project's lockfile (a worktree has no dependencies).
+    const setup = (extra.reconcile as { setup?: unknown } | undefined)?.setup !== undefined ? settings.setup : projectSetup(root)
+    return { on: true, settings: { ...settings, verify: own, ...(setup !== undefined ? { setup } : {}) } } as const
   })
 
 /** A failure as text a client may see: its message (never "[object Object]"), with secrets redacted. */
@@ -92,6 +145,7 @@ export interface PhaseDeps {
   /** RLM events, tagged with the phase and scenario they work for. */
   readonly observe?: (phase: string, item: string, e: Rlm.RlmEvent) => void
   readonly withGraphLock?: ReconcileSpec["withGraphLock"]
+  readonly onLandWait?: ReconcileSpec["onLandWait"]
   readonly stop?: ReconcileSpec["stop"]
   /** A plugin host over a graph store (the pass's worktree graph); plugins run in their own processes. */
   readonly pluginHost: Layer.Layer<PluginHost, unknown, GraphStore>
@@ -117,18 +171,22 @@ const keepRequirements = (cwd: string) =>
 
 export const planPath = (item: string) => `.zarg/plans/${item}.md`
 
-const planTask = (item: string, scenario: string) =>
+const planTask = (item: string, scenario: string, around: string, files: ReadonlyArray<string>) =>
   [
     `Write the implementation plan for scenario ${item}:`,
     "",
     scenario,
     "",
-    "Read the code you need (Fs.list, Fs.read) and the scenarios around it (Graph.render, Graph.show).",
+    ...(around.trim() !== "" ? ["The scenarios sharing a state with it:", "", around, ""] : []),
+    `The project's files: ${files.length > 0 ? files.join(", ") : "none yet"}.`,
+    "",
+    "Plan from these: read the code you need (Fs.read); look further in the graph only when they leave something out, never the backlog or feedback.",
     "Finish with `yield* Rlm.done({ value: { plan } })`, where `plan` is Markdown with exactly these sections:",
     "## Approach",
     "## Files   (one line each: - path — what changes)",
     "## Tests   (one line each: - test name — what it proves)",
     "## Depends on   (scenario ids, or none)",
+    `When code already does what the scenario says, the plan says so and names, in Files and Tests, each function and test that does it (path and name): the implementer tags those with \`// @scenario ${item}\` instead of writing them again.`,
     "If the scenario contradicts another scenario or cannot be implemented as written, finish with `yield* Rlm.done({ value: { blocked: \"<why>\" } })` instead.",
   ].join("\n")
 
@@ -140,10 +198,12 @@ const implementTask = (item: string, scenario: string, plan: string) =>
     "",
     plan,
     "",
-    `Write the code and its tests with Fs.write; tag the implementation and its tests with a \`// @scenario ${item}\` comment.`,
+    `Write the code and its tests (Fs.edit changes part of a file, Fs.write writes a whole one); tag the implementation and its tests with a \`// @scenario ${item}\` comment, right above the code that does it (the function or test), never at the top of a file: a scenario's tag shows its own code.`,
+    "Read the files the plan names in your first cell, all at once; read others only when a write needs them. Write by your fifth turn: an implementation verify checks beats more reading.",
+    "Code the plan says is already there is not written again: add the tag right above it, and its tests' (Fs.edit with the line it starts at as old, and the tag then that line as new).",
     "Run Verify.run until it passes. Never edit anything under .zarg/ (requirements and plans are read-only here).",
     "Finish with `yield* Rlm.done({ value: { files, summary } })`.",
-    `If the scenario cannot be implemented as written (it contradicts another scenario), finish with \`yield* Rlm.done({ value: { files: [], summary: "", blocked: "<why>" } })\`.`,
+    `If the scenario cannot be implemented as written (it contradicts another scenario), finish with \`yield* Rlm.done({ value: { files: [], summary: "", blocked: "<why>" } })\`. Running short of turns is never a reason to block: write what you have.`,
   ].join("\n")
 
 /** Plan and implement as reconcile phases, backed by RLMs working in each scenario's worktree. */
@@ -173,10 +233,14 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
       Effect.gen(function* () {
         const snap = yield* store.snapshot
         const node = snap.nodes.get(item)
-        return { text: yield* host.render(new Set([item])), title: String(node?.props.title ?? item), hash: node ? hash(node) : "" }
+        // The scenarios that share a state with it (its Given, context or Thens): what the planner reads first.
+        const states = new Set((node?.edges ?? []).map((e) => e.to).filter((id) => snap.nodes.get(id)?.type === "gherkin/state"))
+        const siblings = [...snap.nodes.values()].filter((n) => n.id !== item && n.type === "gherkin/scenario" && n.edges.some((e) => states.has(e.to))).map((n) => n.id).slice(0, 8)
+        const around = siblings.length === 0 ? "" : yield* host.render(new Set(siblings))
+        return { text: yield* host.render(new Set([item])), around, title: String(node?.props.title ?? item), hash: node ? hash(node) : "" }
       }),
     )
-  const command = (cwd: string, script: string) => runCommand({ root: cwd, scope: {}, sensitive: deps.sensitive }, ["bash", "-c", script], 1_800_000)
+  const command = (cwd: string, script: string, shape?: (text: string) => string) => runCommand({ root: cwd, scope: {}, sensitive: deps.sensitive }, ["bash", "-c", script], 1_800_000, shape)
 
   return {
     repo: deps.repo,
@@ -189,7 +253,13 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
         run: (item, cwd) =>
           Effect.gen(function* () {
             const c = yield* scenario(cwd, item)
-            const out = (yield* run("plan", "plan", item, planTask(item, c.text), cwd)) as { plan?: string; blocked?: string }
+            // A plan written for this very version of the scenario stands: a pass taking it up again (it was not built)
+            // does not plan it again (that took a quarter of an hour).
+            const existing = join(cwd, planPath(item))
+            if (c.hash !== "" && existsSync(existing) && parse(readFileSync(existing, "utf8")).data.hash === c.hash) return { ok: true } satisfies ItemOutcome
+            // ponytail: the first 80 tracked files; a project map when projects are larger.
+            const files = (yield* gitRun(cwd, ["ls-files"])).stdout.split("\n").filter((f) => f !== "" && !f.startsWith(".zarg/")).slice(0, 80)
+            const out = (yield* run("plan", "plan", item, planTask(item, c.text, c.around, files), cwd)) as { plan?: string; blocked?: string }
             // @scenario S-0057
             if (out.blocked !== undefined || out.plan === undefined) {
               return { ok: false, kind: "unplannable", title: `${item} cannot be planned`, detail: out.blocked ?? "the planner returned no plan" } satisfies ItemOutcome
@@ -212,9 +282,16 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
             const c = yield* scenario(cwd, item)
             const planFile = join(cwd, planPath(item))
             const plan = existsSync(planFile) ? readFileSync(planFile, "utf8") : "(no plan)"
-            const out = (yield* run("implement", "implement-scenario", item, implementTask(item, c.text, plan), cwd).pipe(Effect.ensuring(Effect.orDie(keepRequirements(cwd))))) as { blocked?: string }
+            const out = (yield* run("implement", "implement-scenario", item, implementTask(item, c.text, plan), cwd).pipe(
+              // Out of turns after writing: what it wrote is judged like any (its tags, then verify), not thrown away.
+              Effect.catch((e) => ((e as { kind?: unknown }).kind === "budget" ? Effect.succeed({ summary: "ran out of turns; judged by what it wrote" }) : Effect.fail(e))),
+              Effect.ensuring(Effect.orDie(keepRequirements(cwd))),
+            )) as { blocked?: string }
             // @scenario S-0024
             if (out.blocked !== undefined) return { ok: false, kind: "blocked-scenario", title: `${item} cannot be implemented as written`, detail: out.blocked } satisfies ItemOutcome
+            // Built means code tagged with it: an implementer that wrote nothing landed as "feat: implement" with no code.
+            const tagged = yield* gitRun(cwd, ["grep", "-qE", "--untracked", `@scenario .*${item}([^0-9]|$)`, "--", ".", ":!.zarg", ":!docs"])
+            if (tagged.code !== 0) return { ok: false, kind: "pass-error", title: `implement wrote nothing for ${item}`, detail: `No code is tagged \`// @scenario ${item}\`. ${String((out as { summary?: unknown }).summary ?? "")}`.trim() } satisfies ItemOutcome
             return { ok: true } satisfies ItemOutcome
           }),
       },
@@ -222,7 +299,7 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
     ...(deps.settings.setup !== undefined ? { setup: (cwd: string) => Effect.asVoid(Effect.orDie(command(cwd, deps.settings.setup!))) } : {}),
     onRemoved: (items, cwd) => Effect.sync(() => items.forEach((i) => rmSync(join(cwd, planPath(i)), { force: true }))),
     verify: (cwd) =>
-      Effect.map(Effect.orDie(command(cwd, deps.settings.verify)), (r) => ({ passed: r.exitCode === 0, output: `${r.stdout}\n${r.stderr}`.trim().slice(-8000) })),
+      Effect.map(Effect.orDie(command(cwd, deps.settings.verify, (t) => failureFocus(t, 16_000))), (r) => ({ passed: r.exitCode === 0, output: failureFocus(`${r.stdout}\n${r.stderr}`.trim()) })),
     // @scenario S-0023
     fix: (cwd, output, attempt) =>
       run(
@@ -249,8 +326,9 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
     fixAttempts: deps.settings.fixAttempts,
     landRetry: `${deps.settings.landRetryMs} millis`,
     landAttempts: deps.settings.landAttempts,
-    message: (items) => `feat: implement ${items.join(", ")}`,
+    message: passMessage,
     ...(deps.withGraphLock ? { withGraphLock: deps.withGraphLock } : {}),
     ...(deps.stop ? { stop: deps.stop } : {}),
+    ...(deps.onLandWait ? { onLandWait: deps.onLandWait } : {}),
   }
 }

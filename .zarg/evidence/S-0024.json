@@ -1,0 +1,44 @@
+{
+  "scenario": "S-0024",
+  "version": "16d41ee6471b",
+  "commit": "5f6a732d",
+  "run": "e2e-2026-10-06T09-35-20.805Z",
+  "journey": "J-0004",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-06T09:49:31.611Z",
+  "ms": 6418,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0024/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "the finding",
+      "path": "media/S-0024/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0024/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0024/4-step.cast",
+      "meta": {
+        "startAt": 10
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/core/src/phases.ts": "e5d79d6adb22df6574d02fee1c9c1437f0307363",
+    "packages/reconcile/test/pass.test.ts": "363c3da8d801fa5cdb92e57dd253d7c9a653499f"
+  }
+}

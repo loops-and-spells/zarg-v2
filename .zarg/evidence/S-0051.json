@@ -1,0 +1,44 @@
+{
+  "scenario": "S-0051",
+  "version": "ec07a2e59528",
+  "commit": "5f6a732d",
+  "run": "e2e-2026-10-06T09-35-20.805Z",
+  "journey": "J-0004",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-06T09:43:47.959Z",
+  "ms": 2007,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0051/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "findings",
+      "path": "media/S-0051/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0051/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0051/4-step.cast",
+      "meta": {
+        "startAt": 35.3
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/reconcile/src/pass.ts": "62b99af6aec2a7a2d596814d4cc8996205fa9a93",
+    "packages/reconcile/test/pass.test.ts": "363c3da8d801fa5cdb92e57dd253d7c9a653499f"
+  }
+}

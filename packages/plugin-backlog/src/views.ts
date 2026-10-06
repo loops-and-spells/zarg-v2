@@ -20,10 +20,7 @@ export const FeedbackView = defineView("feedback", {
     toggle: true,
     search: true,
     // What the journey's stage offers now (the view names them per stage); a note is always there.
-    actions: [
-      { id: "refine", label: "Refine", key: "r", on: "none" },
-      { id: "note", label: "Note", key: "n", on: "row", input: "your note for refinement" },
-    ],
+    actions: [{ id: "note", label: "Note", key: "n", on: "row", input: "your note for refinement" }],
     columns: [
       { id: "scenario", label: "scenario", ref: true, filter: "none" },
       { id: "severity", label: "severity", order: ["high", "medium", "low"], filter: "values", tones: { high: "severity.high", medium: "severity.medium", low: "severity.low" } },
@@ -38,6 +35,9 @@ export const FeedbackView = defineView("feedback", {
   detail: { kind: "text", role: "pinned", title: "", follows: "feedback", beside: "feedback" },
   // The stage's work: the agent drafting, the re-rehearse, the drafted plan and its changes.
   work: { kind: "text", role: "aside", title: "" },
+}, {
+  // The view's own: its key works whichever table has the cursor (the stage offers it when it applies).
+  actions: [{ id: "refine", label: "Refine", key: "r", on: "none" }],
 })
 
 /** The Backlog (the `backlog` nav item): plans on a kanban the agents move; ⏎ opens one in the drawer. */

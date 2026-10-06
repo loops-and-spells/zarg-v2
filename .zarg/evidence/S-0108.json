@@ -1,13 +1,13 @@
 {
   "scenario": "S-0108",
   "version": "54504fb8b42e",
-  "commit": "b9aa753",
-  "run": "e2e-2026-10-04T22-49-10.062Z",
+  "commit": "5f6a732d",
+  "run": "e2e-2026-10-06T09-51-52.808Z",
   "journey": "J-0008",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-04T22:50:33.368Z",
-  "ms": 2009,
+  "at": "2026-10-06T09:52:03.683Z",
+  "ms": 2012,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -32,15 +32,15 @@
       "caption": "the step as it played",
       "path": "media/S-0108/4-step.cast",
       "meta": {
-        "startAt": 6.8
+        "startAt": 7.3
       }
     }
   ],
   "failure": null,
   "code": {
-    "packages/plugin-backlog/src/index.ts": "fd9daa61f0ea9a22c5337e342a21dd8116938286",
-    "packages/plugin-backlog/src/stages.ts": "f574c17c08895ac9a8ff3546595585eb4c0cf312",
+    "packages/plugin-backlog/src/index.ts": "843a1450ff48d766d3815adf0fa1c56c26cbf93b",
+    "packages/plugin-backlog/src/stages.ts": "ee838369aa272a7f192c546b348287ea693c252b",
     "packages/plugin-backlog/test/plugin.test.ts": "4dd05cd9834ded975d756d128b20cf58efa1efd3",
-    "packages/plugin-backlog/test/stages.test.ts": "447021607529a629df28de75cfaf87c1790c8798"
+    "packages/plugin-backlog/test/stages.test.ts": "23193b0696d04132cdc31ae67f1282231872c3ed"
   }
 }

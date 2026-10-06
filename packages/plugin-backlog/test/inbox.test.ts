@@ -78,11 +78,48 @@ describe("the backlog's topics in the inbox", () => {
       Effect.gen(function* () {
         const { scenario, ids, h } = yield* setUp()
         yield* h.invoke("backlog", "plans", { journey: "Set up", plans: [{ title: "First", steps: [], changes: [], scenarios: ["S-0001"], feedback: ids, after: [] }] })
-        yield* h.invoke("backlog", "file", { entries: [{ ref: scenario.ref, journeys: ["Set up"], persona: "Operator", kind: "friction", severity: "low", note: "Wordy.", from: { agent: "rehearse", run: "r-2" }, triage: { on: false, why: "drop · real 0.10" } }], walked: ["S-0001"], run: "r-2" })
+        const two = { ref: scenario.ref, journeys: ["Set up"], persona: "Operator", from: { agent: "rehearse", run: "r-2" }, triage: { on: false, why: "drop · real 0.10" } }
+        yield* h.invoke("backlog", "file", { entries: [{ ...two, kind: "friction", severity: "low", note: "Wordy." }, { ...two, kind: "gap", severity: "low", note: "Missing." }], walked: ["S-0001"], run: "r-2" })
         return (seen.inbox ?? []).filter((t) => t.kind === "report").map((t) => t.title)
       }),
     )
-    expect(out).toEqual(["Set up folded into 1 plan: B-01", "Rehearse run r-2: 1 entry on Set up"])
+    expect(out).toEqual(["Set up folded into 1 plan: B-01", "Rehearse run r-2: 2 entries on Set up"])
+  })
+  test("a rehearse run that files nothing is a report too: the operator hears it ended clean", async () => {
+    const out = await run((seen) =>
+      Effect.gen(function* () {
+        const { h } = yield* setUp()
+        yield* h.invoke("backlog", "file", { entries: [], walked: ["S-0001"], run: "r-3" })
+        return (seen.inbox ?? []).filter((t) => t.kind === "report").map((t) => [t.title, (t as { evidence?: string }).evidence])
+      }),
+    )
+    expect(out).toContainEqual(["Rehearse run r-3: nothing found on 1 scenario", "The testers walked S-0001 and filed nothing."])
+  })
+  test("a new run's report settles the earlier runs' reports: the inbox keeps the latest", async () => {
+    const out = await run((seen) =>
+      Effect.gen(function* () {
+        const { h } = yield* setUp()
+        yield* h.invoke("backlog", "file", { entries: [], walked: ["S-0001"], run: "r-3" })
+        yield* h.invoke("backlog", "file", { entries: [], walked: ["S-0001"], run: "r-4" })
+        return (seen.inbox ?? []).filter((t) => t.kind === "report").map((t) => [t.title, t.state])
+      }),
+    )
+    expect(out).toContainEqual(["Rehearse run r-4: nothing found on 1 scenario", "open"])
+    expect(out).toContainEqual(["Rehearse run r-3: nothing found on 1 scenario", "moot"])
+  })
+  test("a folded round's report settles once all its plans are dropped (it named plans that are gone)", async () => {
+    const out = await run((seen) =>
+      Effect.gen(function* () {
+        const { ids, h } = yield* setUp()
+        yield* h.invoke("backlog", "plans", { journey: "Set up", plans: [{ title: "First", steps: [], changes: [], scenarios: ["S-0001"], feedback: ids, after: [] }] })
+        const before = { ...(seen.inbox ?? []).find((t) => t.kind === "report" && t.title.includes("B-01"))! }
+        yield* h.invoke("backlog", "moved", { id: "B-01", to: "ready", by: "Planner", needs: "x" })
+        const t = { ...topic(seen, "needs:B-01")! }
+        yield* h.invoke("backlog", "answered", { id: t.id, key: "needs:B-01", answer: "drop" })
+        return { before: before.state, after: (seen.inbox ?? []).find((x) => x.id === before.id)?.state }
+      }),
+    )
+    expect(out).toEqual({ before: "open", after: "moot" })
   })
   test("stale answers change nothing and say so: a parked plan's Back to Ready, a dropped plan's Drop", async () => {
     const out = await run((seen) =>

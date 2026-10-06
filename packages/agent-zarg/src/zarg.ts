@@ -1,21 +1,29 @@
-import { Effect } from "effect"
+import { readdirSync } from "node:fs"
+import { Effect, Stream } from "effect"
 import type { AgentHost } from "@zarg/agent-host"
 import type { ThreadLog } from "@zarg/core"
 import type { Decisions } from "@zarg/decisions"
-import type { GraphStore } from "@zarg/graph"
+import { type GraphStore, hash } from "@zarg/graph"
 import type { Bound } from "@zarg/kernel"
 import { Model } from "@zarg/model"
 import type { PluginHost } from "@zarg/plugin/server"
 import { type Asker, decisionsService, entitiesService, fsRead, graph, inquire, pluginService, Rlm, type RlmSettings, type Scope } from "@zarg/rlm"
+import { tags } from "@zarg/audit"
+import { commitGraph } from "@zarg/reconcile"
 import { askFirst } from "./driver"
 import { judgeGaps } from "./gaps"
-import { nextOutcomes, type NextOption } from "./intent"
+import { nextOutcomes, nextWhenServed, type NextOption, rehearsing } from "./intent"
+import { projectMap } from "./project-map"
 import { makeThread } from "./thread"
 
 /**
  * zarg, the conversational agent: the driver loop on a thread, its RLMs and their services, what next when nothing
  * is open. Everything it touches comes from the core through `host`.
  */
+/** The reviewer's instructions: real contradictions only (a false alarm costs the operator nothing but a round). */
+const REVIEW =
+  'You review a requirements change before a person sees it. Find only real contradictions: a scenario whose Given and an And, an And and a Then, or two Thens cannot all be true at once. Answer JSON only: {"problems":["one sentence each"]} (empty when there are none).'
+
 export const makeZarg = (host: AgentHost) =>
   Effect.sync(() => {
     const root = host.root
@@ -32,7 +40,38 @@ export const makeZarg = (host: AgentHost) =>
       Effect.map(store.snapshot, (snap) => ids.filter((id) => !snap.nodes.has(id))).pipe(Effect.orElseSucceed(() => [] as ReadonlyArray<string>))
     const makeRlm = (asker: Asker, observe: (e: Rlm.RlmEvent) => void) => {
       // One driver item: graph writes wait for an answered question.
-      const guard = askFirst(asker)
+      // @scenario S-0016
+      const versions = (ids: ReadonlyArray<string>) =>
+        Effect.map(store.snapshot, (snap) => Object.fromEntries(ids.map((id) => { const n = snap.nodes.get(id); return [id, n === undefined ? undefined : hash(n)] }))).pipe(Effect.orElseSucceed(() => ({})))
+      // The nodes as they are (props and edges): a newer edit merges when it changed other parts.
+      const nodesOf = (ids: ReadonlyArray<string>) =>
+        Effect.map(store.snapshot, (snap) => Object.fromEntries(ids.map((id) => { const n = snap.nodes.get(id); return [id, n === undefined ? undefined : { props: n.props, edges: n.edges }] }))).pipe(Effect.orElseSucceed(() => ({})))
+      // A change shown with its draft: checked as a write would be (gherkin's dry run) before the operator sees it.
+      const dryRun = (draft: ReadonlyArray<{ readonly tool: string; readonly params: unknown }>) =>
+        Effect.map(plugins.invoke("gherkin", "dryRun", { draft }), (r) => r as { readonly ok: boolean; readonly problems: ReadonlyArray<string> }).pipe(Effect.orElseSucceed(() => ({ ok: true, problems: [] as ReadonlyArray<string> })))
+      // @scenario S-0009
+      // What the checks cannot see: a reviewer (the driver's model, reasoning off, a few hundred ms) reads the change
+      // for a scenario whose states cannot all hold at once. Probed: the decision model could not tell; this one can.
+      const judge = (change: string) =>
+        Effect.gen(function* () {
+          const roles = host.roles as Readonly<Record<string, string | undefined>>
+          const ref = roles.driver ?? roles.default
+          if (ref === undefined) return [] as ReadonlyArray<string>
+          const events = yield* Stream.runCollect(
+            model.stream({
+              model: ref as never,
+              messages: [{ role: "system", content: REVIEW }, { role: "user", content: change }],
+              reasoning: { enabled: false },
+              maxTokens: 400,
+              outputSchema: { type: "object", properties: { problems: { type: "array", items: { type: "string" } } }, required: ["problems"] },
+            }),
+          )
+          const text = Model.completion(events).text
+          const json = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)
+          const problems = (JSON.parse(json) as { problems?: unknown }).problems
+          return Array.isArray(problems) ? problems.filter((x): x is string => typeof x === "string" && x.trim() !== "").slice(0, 3) : []
+        }).pipe(Effect.timeout("20 seconds"), Effect.orElseSucceed(() => [] as ReadonlyArray<string>))
+      const guard = askFirst(asker, versions, (ids, message) => commitGraph(root, ids, message), nodesOf, dryRun, judge)
       const outside = host.outsideReads as never
       const factory = (name: string, scope: Scope): Bound | undefined => {
         const ctx = { host: plugins, snapshot, scope }
@@ -49,7 +88,17 @@ export const makeZarg = (host: AgentHost) =>
         if (name === "Decisions") return decisionsService(decisions as never)
         return undefined
       }
-      return Rlm.make({ settings: rlmSettings, services: factory, roles: host.roles, decisions, observe, unknownIds }).pipe(Effect.provideService(Model.Model, model))
+      return Rlm.make({ settings: rlmSettings, services: factory, roles: host.roles, decisions, observe, unknownIds }).pipe(
+        Effect.provideService(Model.Model, model),
+        Effect.map((rlm) => ({
+          rlm,
+          // The item's end: commit what it wrote, and hand on a change the operator added that it never wrote.
+          flush: Effect.andThen(guard.flush, Effect.suspend(() => {
+            const owed = guard.owed()
+            return owed !== undefined && asker.owed !== undefined ? asker.owed(owed) : Effect.void
+          })),
+        })),
+      )
     }
     // The same scope filter the driver's Graph.render applies.
     const render = (ids: ReadonlyArray<string>, scope: Scope) => Effect.map(graph({ host: plugins, snapshot, scope }).handlers.render!({ focus: ids }), String)
@@ -61,9 +110,13 @@ export const makeZarg = (host: AgentHost) =>
         const snap = yield* store.snapshot
         const outcomes = nextOutcomes(snap)
         if (outcomes.length > 0) return outcomes
-        return [...snap.nodes.values()]
-          .filter((n) => n.type === "gherkin/state" && n.props.entry === true && (focus === undefined || focus.has(n.id)))
-          .map((n): NextOption => ({ id: n.id, label: String(n.props.text ?? n.id), task: `Work on the journey that starts at "${String(n.props.text ?? n.id)}" (${n.id}).` }))
+        // What is built: the scenarios with code tagged to them (unknown when the repo cannot be searched).
+        const built = yield* tags(root).pipe(Effect.map((t) => new Set(t.map((x) => x.id))), Effect.orElseSucceed(() => undefined))
+        // Picking Build turns reconcile on here, as /reconcile does: zarg says what it answered.
+        const turnOn = host.reconcile === undefined
+          ? undefined
+          : Effect.map(host.reconcile.turnOn, (a) => (a.on ? `Reconcile is on${a.pending !== undefined && a.pending > 0 ? `; a pass is starting (${a.pending} scenario${a.pending === 1 ? "" : "s"})` : ""}: it implements, verifies and commits each scenario.` : `Reconcile stays off: ${a.reason ?? "it could not start"}.`))
+        return nextWhenServed(snap, focus, built, host.reconcile?.on() ?? false, turnOn, rehearsing(root))
       })
     // zarg's message bar: a shell panel at the bottom, one line, taking keys (the shell draws it as the bar).
     host.panels.open({ name: "bar", view: "zarg", scope: "shell", edge: "bottom", size: 1, input: "onFocus" })
@@ -77,8 +130,42 @@ export const makeZarg = (host: AgentHost) =>
           render,
           suggest,
           whatNext,
+          // What every driver item starts from: the graph in a few lines, so its first turns are not spent rediscovering it.
+          overview: () =>
+            Effect.map(store.snapshot, (snap) => {
+              const all = [...snap.nodes.values()]
+              const of = (type: string) => all.filter((n) => n.type === type)
+              const has = (id: string) => (snap.nodes.get(id)?.edges ?? []).filter((e) => e.type === "gherkin/has").map((e) => e.to)
+              const intents = of("gherkin/intent").map((i) => `- ${i.id} ${String(i.props.title ?? "")}: ${has(i.id).join(", ") || "no statements yet"}`)
+              const personas = of("gherkin/persona").map((p) => String(p.props.name ?? p.id))
+              const journeys = of("gherkin/journey").map((j) => `${j.id} ${String(j.props.name ?? "")}`)
+              return [
+                `Intents (${intents.length}):`, ...intents.slice(0, 10),
+                `Personas (${personas.length}): ${personas.slice(0, 12).join(", ") || "none yet"}`,
+                `Journeys (${journeys.length}): ${journeys.slice(0, 12).join("; ") || "none yet"}`,
+                `Scenarios: ${of("gherkin/scenario").length}; states: ${of("gherkin/state").length}.`,
+                "Graph ids are bare (I-0001); Entities refs (gherkin/intent:I-0001@…) name the same nodes.",
+                // What the project has to read before asking the operator what it says.
+                (() => {
+                  // Tracked and untracked files (git's own ignores apply); without git, the top folder only.
+                  const ls = Bun.spawnSync(["git", "ls-files", "--cached", "--others", "--exclude-standard"], { cwd: root })
+                  if (ls.exitCode === 0) return projectMap(ls.stdout.toString().split("\n").filter((f) => f !== ""))
+                  try { return `Project files: ${readdirSync(root).filter((f) => !f.startsWith(".") && f !== "node_modules").slice(0, 20).join(", ") || "none"}` } catch { return "Project files: unknown" }
+                })(),
+              ].join("\n")
+            }).pipe(Effect.orElseSucceed(() => "")),
+          // @scenario S-0102
+          isGoal: (text) =>
+            Effect.map(
+              decisions.decide({ state: `The operator wrote, instead of answering zarg's question:\n${text}`, questions: { goal: { type: "noul", instructions: "Does it state a goal or a rule for the product (something it should do or must keep), not only a reply to the question?" } } }),
+              (a) => { const g = a.goal as { answer?: boolean; probability?: number } | undefined; return g?.answer === true && (g.probability ?? 0) >= 0.6 },
+            ).pipe(Effect.orElseSucceed(() => false)),
           ...(host.inbox !== undefined ? { inbox: host.inbox } : {}),
-          driver: (spec, asker, observe) => Effect.flatMap(makeRlm(asker, observe), (rlm) => rlm.exec(spec)),
+          // What the item wrote is committed when it ends, however it ends.
+          // @scenario S-0038
+          // The first turn waits for the driver's model to be warm.
+          driver: (spec, asker, observe) =>
+            Effect.andThen(host.modelReady ?? Effect.void, Effect.flatMap(makeRlm(asker, observe), ({ rlm, flush }) => rlm.exec(spec).pipe(Effect.ensuring(flush)))),
         }),
     }
   })

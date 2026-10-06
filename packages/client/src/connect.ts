@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process"
-import { readFileSync } from "node:fs"
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { join } from "node:path"
 import { Data, Effect } from "effect"
 import { type CoreInfo, isAlive, readClaim, readInfo } from "./info"
 
@@ -34,7 +35,19 @@ const start = (root: string, command: ReadonlyArray<string>, mode: "child" | "he
       resume(Effect.fail(new CoreStartError({ message })))
     }
     const timer = setTimeout(() => fail(`core did not start within ${timeoutMs}ms${err ? `:\n${err}` : ""}`), timeoutMs)
-    proc.stderr.on("data", (d: Buffer) => (err += d.toString()))
+    // What the core says on stderr, kept in .zarg/run/core.log (the run dir keeps itself out of git): a core that stops
+    // later leaves a trace, where the session can only say it stopped.
+    const log = join(root, ".zarg", "run", "core.log")
+    try {
+      mkdirSync(join(root, ".zarg", "run"), { recursive: true })
+      writeFileSync(log, "")
+    } catch {}
+    proc.stderr.on("data", (d: Buffer) => {
+      err = (err + d.toString()).slice(-8000)
+      try {
+        appendFileSync(log, d)
+      } catch {}
+    })
     proc.on("error", (e) => fail(`core could not start: ${e.message}`))
     proc.on("exit", (code) => fail(`core exited with code ${code}${err ? `:\n${err.trim()}` : ""}`))
     proc.stdout.on("data", (d: Buffer) => {

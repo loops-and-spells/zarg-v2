@@ -161,6 +161,14 @@ export const make = (opts: KernelOptions) =>
       }),
     )
 
+    // The calls of the running cell that succeeded: a cell that fails after them says they took effect
+    // (a driver re-added a scenario its failed cell had already added). Cells run one at a time.
+    let ran: Array<string> = []
+    const brief = (v: unknown) => {
+      const s = typeof v === "string" ? v : (JSON.stringify(v) ?? "")
+      return s.length > 120 ? `${s.slice(0, 120)}…` : s
+    }
+
     // Serve one service call from the worker; typed failures travel back as { _tag, message }.
     const serve = (m: Extract<FromWorker, { type: "call" }>) => {
       const svc = byName.get(m.service)
@@ -185,6 +193,7 @@ export const make = (opts: KernelOptions) =>
           ...(answer.ok ? { result: answer.value } : { failure: answer.error }),
           ms: Date.now() - started,
         })
+        if (answer.ok) ran.push(`${m.service}.${m.method} → ${brief(answer.value)}`)
         send(answer)
       }
       if (def === undefined || handler === undefined) {
@@ -236,6 +245,7 @@ export const make = (opts: KernelOptions) =>
     const runOnce = (cell: string): Effect.Effect<CellResult> =>
       Effect.gen(function* () {
         let restarted = false
+        ran = []
         if (dead) {
           yield* restart
           restarted = true
@@ -244,7 +254,13 @@ export const make = (opts: KernelOptions) =>
         const checked = checker.check(cell)
         if (!checked.ok) {
           const out = collector(outputCap)
-          out.push(`typecheck failed, the cell did not run:\n${checked.errors.join("\n")}`)
+          // A service call is an Eff, not a promise: a method on it (.catch, .pipe, .then) is the usual slip.
+          const methodOnEff = checked.errors.some((e) => /Property '\w+' does not exist on type 'Eff</.test(e))
+          // A whole file pasted into a cell breaks on its own backticks and ${…}: an implementer lost its last turns to it.
+          const pasted = /Fs\.write\(/.test(cell) && checked.errors.some((e) => /expected|Unterminated|Declaration or statement/.test(e))
+          out.push(
+            `typecheck failed, the cell did not run:\n${checked.errors.join("\n")}${methodOnEff ? "\nAn Eff has no methods: recover with `yield* Effect.catch(Svc.m(p), (e) => Effect.succeed(null))`." : ""}${pasted ? "\nA file's content with backticks or ${ breaks a template literal: write it as an array of lines joined with \"\\n\", one file per cell, or edit it with Sh (sed, a heredoc)." : ""}`,
+          )
           return { ok: false, output: out.text(), restarted }
         }
         const { body, names } = toBody(cell)
@@ -321,6 +337,7 @@ export const make = (opts: KernelOptions) =>
         }
         checker.declare(names)
         if (outcome.text !== undefined) out.push(outcome.ok ? outcome.text : `error: ${outcome.text}`)
+        if (!outcome.ok && ran.length > 0) out.push(`Before it failed, these calls ran and their effects stay (do not repeat them):\n${ran.map((r) => `- ${r}`).join("\n")}`)
         return { ok: outcome.ok, output: out.text(), restarted, cell: id }
       })
 

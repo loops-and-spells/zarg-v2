@@ -25,6 +25,7 @@ test("the Intent Agent loads with gherkin and the backlog; a tick over a graph w
       agents: (_p, e) => {
         const ev = e as { event?: string; id?: string; section?: string; data?: unknown }
         if (ev.event === "set") seen.set(`${ev.id}/${ev.section}`, ev.data)
+        if (ev.event === "start" || ev.event === "end") seen.set(`${ev.id}/last`, ev.event)
       },
       grants,
       vault: () => Effect.succeed(undefined),
@@ -40,10 +41,12 @@ test("the Intent Agent loads with gherkin and the backlog; a tick over a graph w
       const h = yield* PluginHost
       yield* h.loadWaiting
       const tick = yield* h.invoke("intent", "tick", {})
-      return { names: h.manifests.map((m) => m.name), tick, summary: (seen.get("intent/summary") as { markdown?: string } | undefined)?.markdown }
+      return { names: h.manifests.map((m) => m.name), tick, summary: (seen.get("intent/summary") as { markdown?: string } | undefined)?.markdown, last: seen.get("intent/last") }
     }).pipe(Effect.provide(Layer.provideMerge(host, graphLayer(join(root, ".zarg/graph")))))
   }).pipe(Effect.scoped, Effect.provide(BunServices.layer), Effect.runPromise)
   expect(out.names).toEqual(expect.arrayContaining(["gherkin", "backlog", "intent"]))
   expect(out.tick).toBeNull()
   expect(out.summary).toBe("No intents yet: nothing to reconcile.")
+  // Between ticks it is idle: it does not spin in the rail.
+  expect(out.last).toBe("end")
 })

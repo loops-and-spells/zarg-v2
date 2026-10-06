@@ -1,0 +1,44 @@
+{
+  "scenario": "S-0025",
+  "version": "6d66db3e8f9e",
+  "commit": "5f6a732d",
+  "run": "e2e-2026-10-06T09-35-20.805Z",
+  "journey": "J-0004",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-06T09:49:25.192Z",
+  "ms": 5,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0025/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "zarg's item",
+      "path": "media/S-0025/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0025/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0025/4-step.cast",
+      "meta": {
+        "startAt": 10
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/core/src/reconcile.ts": "4372ff19ee2af6eea55097fd8b921ee95d9a0ba9",
+    "packages/e2e/journeys/J-0004.test.ts": "3103119c582da0fd7f5d8a7cecba10ac9d1a0b11"
+  }
+}

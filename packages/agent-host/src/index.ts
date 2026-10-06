@@ -49,6 +49,8 @@ export interface AgentInbox {
   readonly answer: (id: string, reply: { readonly answer?: string; readonly text?: string }, by: string) => Effect.Effect<unknown, unknown>
   readonly settle: (id: string, why: string) => Effect.Effect<unknown, unknown>
   readonly message: (id: string, by: string, text: string) => Effect.Effect<unknown, unknown>
+  /** This agent's open topics (after a restart, the questions still waiting from before). */
+  readonly open?: () => Effect.Effect<ReadonlyArray<{ readonly id: string; readonly key?: string; readonly title: string }>, unknown>
   /** One of this agent's topics by its key (after a restart, the question an old answer is for). */
   readonly find: (key: string) => Effect.Effect<{ readonly id: string; readonly title: string; readonly state: string; readonly answers?: ReadonlyArray<{ readonly id: string; readonly label: string }> } | undefined, unknown>
 }
@@ -82,6 +84,10 @@ export interface AgentHost {
   readonly outsideReads: unknown
   /** The operator's inbox, for this agent's own questions. */
   readonly inbox?: AgentInbox
+  /** Whether the driver's model is warm: waits while it is warmed (false: it did not start). */
+  readonly modelReady?: Effect.Effect<boolean>
+  /** Reconcile (plan and implement): whether it runs, and turning it on as /reconcile does. */
+  readonly reconcile?: { readonly on: () => boolean; readonly turnOn: Effect.Effect<{ readonly on: boolean; readonly reason?: string; readonly pending?: number }> }
   /** Panels this agent opens (its message bar): shown by every client until closed. */
   readonly panels: {
     readonly open: (p: { readonly name: string; readonly view: string; readonly scope: "agent" | "shell"; readonly edge: "top" | "bottom" | "right"; readonly size: number; readonly input: "none" | "onFocus" }) => void

@@ -1,0 +1,45 @@
+{
+  "scenario": "S-0104",
+  "version": "26652fec5464",
+  "commit": "5f6a732d",
+  "run": "e2e-2026-10-06T09-50-52.482Z",
+  "journey": "J-0007",
+  "passed": true,
+  "flaky": false,
+  "at": "2026-10-06T09:51:52.642Z",
+  "ms": 2459,
+  "media": [
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen before",
+      "path": "media/S-0104/1-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/text",
+      "caption": "the inbox topic",
+      "path": "media/S-0104/2-text.txt",
+      "meta": {
+        "fold": false
+      }
+    },
+    {
+      "kind": "evidence-terminal/frame",
+      "caption": "the screen after",
+      "path": "media/S-0104/3-frame.json"
+    },
+    {
+      "kind": "evidence-terminal/cast",
+      "caption": "the step as it played",
+      "path": "media/S-0104/4-step.cast",
+      "meta": {
+        "startAt": 49
+      }
+    }
+  ],
+  "failure": null,
+  "code": {
+    "packages/agent-intent/src/index.ts": "68963b179d191f314808c93af6254196d25b6b02",
+    "packages/agent-intent/src/intent.ts": "e85eec64e0da6aec66201be2ab82f69a0e337a78",
+    "packages/agent-intent/test/intent.test.ts": "be4dbab86c7edbd082a4d7ab15f8101faad161e7"
+  }
+}

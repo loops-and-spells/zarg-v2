@@ -1,10 +1,10 @@
 import { rmSync } from "node:fs"
 import { join } from "node:path"
-import { type Duration, Effect, Schema, Semaphore } from "effect"
+import { Cause, type Duration, Effect, Schema, Semaphore } from "effect"
 import type { Snapshot } from "@zarg/graph"
 import { Activity, DurableClock, Workflow } from "effect/unstable/workflow"
-import { baseTree, CHECKPOINT, GRAPH, LEGACY_CHECKPOINT, snapshotAtTree } from "./checkpoint"
-import type { FindingKind, Findings } from "./findings"
+import { baseTree, CHECKPOINT, clearAgain, GRAPH, LEGACY_CHECKPOINT, pendingAt, snapshotAtTree } from "./checkpoint"
+import { causeText, failureTail, type FindingKind, type Findings } from "./findings"
 import { git, gitRun, zPaths } from "./git"
 import { land, rebaseOnto } from "./land"
 import { mergeBranches } from "./merge"
@@ -50,7 +50,9 @@ export interface ReconcileSpec {
   readonly landRetry: Duration.Input
   /** Landing attempts before a landing-blocked finding (spec: 10, one a minute). */
   readonly landAttempts: number
-  readonly message: (items: ReadonlyArray<string>) => string
+  /** Landing waits on the operator's uncommitted edits in these paths (try `attempt` of `landAttempts`): tell them. */
+  readonly onLandWait?: (paths: ReadonlyArray<string>, attempt: number) => Effect.Effect<void>
+  readonly message: (items: ReadonlyArray<string>, failed?: ReadonlyArray<string>) => string
   /**
    * The operator's stop: `wait` completes when a stop is requested (running scenarios race it and are cut
    * short); `requested` is checked between steps. A stopped pass ends as failed, without findings.
@@ -115,11 +117,11 @@ export const passLayer = (spec: ReconcileSpec) =>
     const act = <A, I>(name: string, success: Schema.Codec<A, I>, execute: Effect.Effect<A, unknown>) =>
       Activity.make({ name, success, execute: Effect.orDie(execute) as Effect.Effect<A> })
     // Anything unexpected ends the pass as failed with a finding (recorded, so a resume does not repeat it).
-    const died = (cause: unknown) =>
+    const died = (cause: Cause.Cause<unknown>) =>
       act(
         "findings:died",
         Schema.Void,
-        Effect.sync(() => void spec.findings.raise({ kind: "pass-error", title: "a reconcile pass failed", detail: String(cause).slice(0, 4000), about: [], pass: id })),
+        Effect.sync(() => void spec.findings.raise({ kind: "pass-error", title: "a reconcile pass failed", detail: causeText(cause), about: [], pass: id })),
       ).pipe(Effect.as({ status: "failed", landed: [], failed: [] } satisfies PassResult))
     return Semaphore.withPermits(passLock(spec.repo), 1)(body(spec, payload, id, act)).pipe(Effect.catchCause(died))
   })
@@ -144,10 +146,13 @@ const body = (
         Effect.gen(function* () {
           // A pass that waited for another (or resumed after a restart) may find its graph already reconciled.
           const tip = yield* gitRun(spec.repo, ["rev-parse", "-q", "--verify", `refs/heads/${payload.branch}`])
-          if (tip.code === 0 && (yield* baseTree(spec.repo, tip.stdout.trim())) === payload.graph) return { items: [], removed: [] }
+          if (tip.code === 0 && (yield* baseTree(spec.repo, tip.stdout.trim())) === payload.graph && (yield* pendingAt(spec.repo, tip.stdout.trim())).length === 0) return { items: [], removed: [] }
           const baseGraph = yield* baseTree(spec.repo, payload.base)
           const [before, after] = yield* Effect.all([snapshotAtTree(spec.repo, baseGraph), snapshotAtTree(spec.repo, payload.graph)])
-          const affected = yield* spec.affected(before, after).pipe(Effect.orDie)
+          const changed = yield* spec.affected(before, after).pipe(Effect.orDie)
+          // Scenarios the last pass could not reconcile are still pending: taken up again, while they exist.
+          const pending = (yield* pendingAt(spec.repo, payload.base)).filter((id) => after.nodes.has(id) && !changed.removed.includes(id))
+          const affected = { items: [...new Set([...changed.items, ...pending])], removed: changed.removed }
           // Findings about scenarios that changed are stale: this pass takes them up again.
           spec.findings.clearFor([...affected.items, ...affected.removed])
           return affected
@@ -183,11 +188,11 @@ const body = (
               const wt = join(root, name(item))
               yield* ensureWorktree(spec.repo, wt, branchOf(name(item)), passHead)
               if (phase.setup && spec.setup) yield* spec.setup(wt)
-              const stopped = { ok: false, kind: "pass-error", title: "stopped", detail: "stopped by the developer" } as ItemOutcome
+              const stopped = { ok: false, kind: "pass-error", title: "stopped", detail: "stopped by the operator" } as ItemOutcome
               const out = yield* phase.run(item, wt).pipe(
                 Effect.raceFirst(spec.stop ? Effect.as(spec.stop.wait, stopped) : Effect.never),
                 Effect.catchCause((cause) =>
-                  Effect.succeed({ ok: false, kind: "pass-error", title: `${phase.name} failed for ${item}`, detail: String(cause).slice(0, 4000) } as ItemOutcome),
+                  Effect.succeed({ ok: false, kind: "pass-error", title: `${phase.name} failed for ${item}`, detail: causeText(cause) } as ItemOutcome),
                 ),
               )
               for (const p of phase.protect ?? []) yield* restorePath(wt, passHead, p)
@@ -246,23 +251,29 @@ const body = (
       if (yield* isStopped("stopped:verified")) return stoppedResult
       // @scenario S-0055
       if (!verified.passed) {
-        yield* report("verify", [{ kind: "verify-failing", title: "verify still fails after the fix attempts", detail: verified.output.slice(-4000), about: live }])
+        yield* report("verify", [{ kind: "verify-failing", title: "verify still fails after the fix attempts", detail: failureTail(verified.output), about: live }])
         return { status: "failed", landed: [], failed: [...live, ...failed()].sort() } satisfies PassResult
       }
 
       // One commit on top of the base: the whole graph tree, plans and code, and the checkpoint.
       // @scenario S-0022
-      const squash = (base: string, graph: string) =>
+      // Rebased onto your newer commits, the graph is the rebase's: requirements committed meanwhile stay (the
+      // checkpoint still names the graph this pass reconciled, so the next pass takes them up).
+      const squash = (base: string, graph: string, rebased = false) =>
         Effect.gen(function* () {
           yield* git(main, ["reset", "-q", "--soft", base])
           // The requirements in the commit are exactly the graph this pass reconciled, whatever a phase did.
-          yield* gitRun(main, ["rm", "-r", "-q", "--cached", "--ignore-unmatch", GRAPH])
-          rmSync(join(main, GRAPH), { recursive: true, force: true })
-          yield* git(main, ["read-tree", `--prefix=${GRAPH}/`, "-u", graph])
-          yield* Effect.sync(() => Bun.write(join(main, CHECKPOINT), `${JSON.stringify({ graph }, null, 2)}\n`))
+          if (!rebased) {
+            yield* gitRun(main, ["rm", "-r", "-q", "--cached", "--ignore-unmatch", GRAPH])
+            rmSync(join(main, GRAPH), { recursive: true, force: true })
+            yield* git(main, ["read-tree", `--prefix=${GRAPH}/`, "-u", graph])
+          }
+          // What failed while the rest landed stays pending for the next pass.
+          const still = failed()
+          yield* Effect.sync(() => Bun.write(join(main, CHECKPOINT), `${JSON.stringify({ graph, ...(still.length > 0 ? { failed: [...still].sort() } : {}) }, null, 2)}\n`))
           yield* gitRun(main, ["rm", "-q", "--cached", "--ignore-unmatch", LEGACY_CHECKPOINT])
           rmSync(join(main, LEGACY_CHECKPOINT), { force: true })
-          return yield* commitAll(main, spec.message(live))
+          return yield* commitAll(main, spec.message(live, failed()))
         })
       if (yield* isStopped("stopped:commit")) return stoppedResult
       let commit = yield* act("commit", Schema.String, squash(payload.base, payload.graph))
@@ -294,11 +305,11 @@ const body = (
           }
           const again = yield* gate(`verify:${attempt}`)
           if (!again.passed) {
-            yield* report(`verify:${attempt}`, [{ kind: "verify-failing", title: "verify fails on top of your new commits", detail: again.output.slice(-4000), about: live }])
+            yield* report(`verify:${attempt}`, [{ kind: "verify-failing", title: "verify fails on top of your new commits", detail: failureTail(again.output), about: live }])
             return { status: "failed", landed: [], failed: [...live, ...failed()].sort() } satisfies PassResult
           }
           base = r.head!
-          commit = yield* act(`rebased:${attempt}`, Schema.String, squash(base, payload.graph))
+          commit = yield* act(`rebased:${attempt}`, Schema.String, squash(base, payload.graph, true))
           continue
         }
         // @scenario S-0051
@@ -309,6 +320,7 @@ const body = (
         }
         if (yield* isStopped(`stopped:land:${attempt}`)) return stoppedResult
         // @scenario S-0050
+        if (spec.onLandWait !== undefined) yield* spec.onLandWait(r.paths ?? [], attempt)
         yield* DurableClock.sleep({ name: `land-wait:${attempt}`, duration: spec.landRetry })
         if (yield* isStopped(`stopped:land-waited:${attempt}`)) return stoppedResult
       }
@@ -318,6 +330,7 @@ const body = (
         Schema.Void,
         Effect.gen(function* () {
           spec.findings.clearFor(live)
+          clearAgain(spec.repo, live)
           for (const [item, f] of failures) spec.findings.raise({ kind: f.kind, title: f.title, detail: f.detail, about: [item], pass: id })
           for (const phase of spec.phases) for (const item of scope.items) yield* removeWorktree(spec.repo, join(root, `${phase.name}-${item}`), branchOf(`${phase.name}-${item}`))
           yield* removeWorktree(spec.repo, main, branchOf("main"))

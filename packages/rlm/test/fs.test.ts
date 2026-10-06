@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Fiber } from "effect"
 import { Kernel } from "@zarg/kernel"
-import { fs, fsRead, runCommand, sh } from "../src"
+import { editOnce, failureFocus, fs, fsRead, runCommand, servicesRefusal, sh } from "../src"
 
 let base = ""
 let root = ""
@@ -67,6 +67,37 @@ describe("Sh deadlines", () => {
     const [out] = await run(['return yield* Sh.run({ command: "sleep 5; echo x", timeoutMs: 500 })'])
     expect(Date.now() - started).toBeLessThan(2500)
     expect(out).toContain('"timedOut": true')
+  })
+  test("a long check output keeps its failures and its summary, not pages of notices", () => {
+    const notice = "{\n  severity: \"NOTICE\",\n  message: \"relation already exists, skipping\",\n}\n"
+    const text = `${notice.repeat(300)}✗ lists open sessions newest first\nExpected: 2\nReceived: 1\n${notice.repeat(300)} 53 pass\n 1 fail\n`
+    const out = failureFocus(text, 4000)
+    expect(out.length).toBeLessThanOrEqual(4000)
+    expect(out).toContain("✗ lists open sessions newest first")
+    expect(out).toContain("Received: 1")
+    expect(out).toContain(" 1 fail")
+    expect(failureFocus("short")).toBe("short")
+  })
+  test("an edit changes the one place its old text is, or says why it cannot", async () => {
+    expect(editOnce("a\nb\nc\n", "b\n", "B\n")).toEqual({ text: "a\nB\nc\n" })
+    expect(editOnce("x $& y", "x", "$1")).toEqual({ text: "$1 $& y" })
+    expect(editOnce("a a", "a", "b")).toMatchObject({ problem: expect.stringContaining("2 times") })
+    expect(editOnce("a", "z", "b")).toMatchObject({ problem: expect.stringContaining("not in the file") })
+    const [out] = await run(['yield* Fs.write({ path: "src/e.ts", content: "const one = 1\\n" })\nyield* Fs.edit({ path: "src/e.ts", old: "one = 1", new: "one = 2" })\nreturn yield* Fs.read({ path: "src/e.ts" })'])
+    expect(out).toBe("const one = 2\n")
+  })
+  test("starting or stopping containers is refused: services are the operator's", () => {
+    expect(servicesRefusal("cd x && docker compose up -d postgres")).toContain("operator's")
+    expect(servicesRefusal("docker-compose down -v")).toContain("operator's")
+    expect(servicesRefusal("docker rm -f main-postgres-1")).toContain("operator's")
+    expect(servicesRefusal("docker compose ps")).toBeUndefined()
+    expect(servicesRefusal("docker ps --format '{{.Names}}'")).toBeUndefined()
+    expect(servicesRefusal("bun test packages/run")).toBeUndefined()
+  })
+  test("a command's colour codes are stripped: a model and a finding read plain text", async () => {
+    const r = await Effect.runPromise(runCommand({ root: mkdtempSync(join(tmpdir(), "zarg-ansi-")), scope: {}, sensitive: [] }, ["bash", "-c", "printf '\\033[31m✗\\033[0m fail\\n' >&2; printf '\\033[1mok\\033[0m'"], 10_000))
+    expect(r.stdout).toBe("ok")
+    expect(r.stderr.trim()).toBe("✗ fail")
   })
   test("a command that kills itself is not reported as a timeout", async () => {
     const [out] = await run(['return yield* Sh.run({ command: "kill -9 $$", timeoutMs: 5000 })'])
