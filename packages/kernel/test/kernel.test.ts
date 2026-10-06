@@ -81,6 +81,12 @@ describe("Kernel", () => {
     expect(out.caught.output).toBe("caught Nope")
   })
 
+  test("a file write that breaks the syntax is told how to pass a file's content", async () => {
+    const out = await withKernel((k) => k.run("// Fs.write({ path: 'a.ts', content: `x ${'${'} y` })\nconst broken = {"))
+    expect(out.ok).toBe(false)
+    expect(out.output).toContain("write it as an array of lines")
+  })
+
   test("a cell that fails after calls that took effect says which: the model does not repeat them", async () => {
     const out = await withKernel((k) =>
       Effect.gen(function* () {

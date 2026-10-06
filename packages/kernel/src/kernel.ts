@@ -256,7 +256,11 @@ export const make = (opts: KernelOptions) =>
           const out = collector(outputCap)
           // A service call is an Eff, not a promise: a method on it (.catch, .pipe, .then) is the usual slip.
           const methodOnEff = checked.errors.some((e) => /Property '\w+' does not exist on type 'Eff</.test(e))
-          out.push(`typecheck failed, the cell did not run:\n${checked.errors.join("\n")}${methodOnEff ? "\nAn Eff has no methods: recover with `yield* Effect.catch(Svc.m(p), (e) => Effect.succeed(null))`." : ""}`)
+          // A whole file pasted into a cell breaks on its own backticks and ${…}: an implementer lost its last turns to it.
+          const pasted = /Fs\.write\(/.test(cell) && checked.errors.some((e) => /expected|Unterminated|Declaration or statement/.test(e))
+          out.push(
+            `typecheck failed, the cell did not run:\n${checked.errors.join("\n")}${methodOnEff ? "\nAn Eff has no methods: recover with `yield* Effect.catch(Svc.m(p), (e) => Effect.succeed(null))`." : ""}${pasted ? "\nA file's content with backticks or ${ breaks a template literal: write it as an array of lines joined with \"\\n\", one file per cell, or edit it with Sh (sed, a heredoc)." : ""}`,
+          )
           return { ok: false, output: out.text(), restarted }
         }
         const { body, names } = toBody(cell)
