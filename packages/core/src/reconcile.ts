@@ -2,6 +2,7 @@ import { join } from "node:path"
 import { Cause, Effect, Layer, ManagedRuntime, Stream } from "effect"
 import type { AgendaItem } from "@zarg/plugin/server"
 import { baseTree, engineLayer, gcPasses, makeFindings, Pass, type PassResult, passLayer, pendingAt, snapshotAtTree, startReconciler, workingGraphTree } from "@zarg/reconcile"
+import type { Layout } from "@zarg/view"
 import { makeActivity } from "./activity"
 import { threadViews } from "./views"
 import * as E from "./events"
@@ -43,6 +44,15 @@ export const passSummary = (r: PassResult) => {
 }
 const summary = passSummary
 
+/** The build row's view: what the pass does now, and what it did. */
+const BUILD_LAYOUT: Layout = {
+  name: "build",
+  sections: [
+    { id: "now", kind: "text", role: "primary", title: "Now" },
+    { id: "history", kind: "log", role: "log", title: "History" },
+  ],
+}
+
 /** Said with a verify-failing finding: a driver once proposed pointing tests elsewhere because the database was down. */
 export const VERIFY_ENV =
   "When it fails for the environment, not the code (a database or service not running, connection refused, a missing variable), it is no requirement: write nothing to the graph and ask nothing. Say in your reply what the operator should start or set, and finish (starting it is theirs; the next pass verifies again). Never change code, tests or fixtures to get around it."
@@ -64,8 +74,16 @@ export const makeReconcile = (deps: ReconcileDeps) =>
     // Its progress: scenarios implemented out of those the pass works on (a kept plan starts no plan agent).
     const planned = new Set<string>()
     const built = new Set<string>()
-    const build = (status: string, text: string) =>
+    // Opened, the build row shows what the pass does now and what it did (it opened to "no view yet").
+    const views = threadViews(deps.log, "main")
+    let said = ""
+    const build = (status: string, text: string) => {
+      if (!views.has("build")) views.start("build", BUILD_LAYOUT)
+      views.set("build", "now", { markdown: `**${status}** · ${text}` })
+      if (text !== said) views.append("build", "history", [{ text: `${new Date().toISOString().slice(11, 19)}  ${text}`, ...(status === "failed" ? { tone: "error" as const } : {}) }])
+      said = text
       board.row("build", { id: "build", parent: null, preset: "build", task: "the reconcile pass", depth: 0, turns: built.size, budget: planned.size, status, decisions: [], row: { progress: { done: built.size, total: Math.max(planned.size, built.size) }, text } })
+    }
     const doing = () => [...working].map(([item, phase]) => `${phase} ${item}`).join(" · ") || (planned.size > 0 ? "merging and verifying" : "starting")
     let active: { readonly payload: typeof Pass.payloadSchema.Type; readonly runId: string } | undefined
     // Stop: a flag the pass checks between steps, and a signal running scenarios race (reset for each pass).

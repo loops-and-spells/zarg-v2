@@ -297,6 +297,11 @@ journey(
       s.note("buffer", "screen", s.term?.screen() ?? "")
       expect(texts.some((t) => /^running: .*(plan|implement) S-000\d/.test(t))).toBe(true)
       expect(texts.some((t) => /^(done|failed): /.test(t))).toBe(true)
+      // Opened, the row has a view: what the pass does now and what it did.
+      const view = lines(s.w, ".zarg/threads/main.jsonl").filter((e) => String(e.messageId) === "main:view:build")
+      s.note("buffer", "the build row's view", JSON.stringify(view.slice(-3), null, 2))
+      expect(view.some((e) => e.type === "ACTIVITY_SNAPSHOT")).toBe(true)
+      expect(JSON.stringify(view)).toMatch(/plan S-000\d|implement S-000\d/)
       expect(s.term?.screen() ?? "").toContain("build")
       expect(s.term?.screen() ?? "").not.toContain("build build")
     })
