@@ -1,12 +1,12 @@
 {
   "scenario": "S-0122",
   "version": "1e92f99ba3dc",
-  "commit": "69cf99ec",
-  "run": "e2e-2026-10-06T02-41-43.446Z",
+  "commit": "2c216e7e",
+  "run": "e2e-2026-10-06T03-44-43.315Z",
   "journey": "J-0004",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-06T02:44:04.298Z",
+  "at": "2026-10-06T03:45:05.723Z",
   "ms": 5,
   "media": [
     {
@@ -40,12 +40,12 @@
       "caption": "the step as it played",
       "path": "media/S-0122/5-step.cast",
       "meta": {
-        "startAt": 16.5
+        "startAt": 14.5
       }
     }
   ],
   "failure": null,
   "code": {
-    "packages/core/src/reconcile.ts": "4afea74f549402b78dcecb6c63975f7480ff1226"
+    "packages/core/src/reconcile.ts": "60d98f7f52922ed06656c17e9ba9c764477c491b"
   }
 }

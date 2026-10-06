@@ -1,4 +1,4 @@
-import { stringify } from "@zarg/frontmatter"
+import { parse, stringify } from "@zarg/frontmatter"
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { BunServices } from "@effect/platform-bun"
@@ -253,6 +253,10 @@ export const reconcileSpec = (deps: PhaseDeps): ReconcileSpec => {
         run: (item, cwd) =>
           Effect.gen(function* () {
             const c = yield* scenario(cwd, item)
+            // A plan written for this very version of the scenario stands: a pass taking it up again (it was not built)
+            // does not plan it again (that took a quarter of an hour).
+            const existing = join(cwd, planPath(item))
+            if (c.hash !== "" && existsSync(existing) && parse(readFileSync(existing, "utf8")).data.hash === c.hash) return { ok: true } satisfies ItemOutcome
             // ponytail: the first 80 tracked files; a project map when projects are larger.
             const files = (yield* gitRun(cwd, ["ls-files"])).stdout.split("\n").filter((f) => f !== "" && !f.startsWith(".zarg/")).slice(0, 80)
             const out = (yield* run("plan", "plan", item, planTask(item, c.text, c.around, files), cwd)) as { plan?: string; blocked?: string }
