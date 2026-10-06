@@ -1,13 +1,13 @@
 {
   "scenario": "S-0057",
   "version": "5f359c88252b",
-  "commit": "2c216e7e",
-  "run": "e2e-2026-10-06T03-44-43.315Z",
+  "commit": "d242ee5a",
+  "run": "e2e-2026-10-06T04-22-03.770Z",
   "journey": "J-0004",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-06T03:45:01.251Z",
-  "ms": 6,
+  "at": "2026-10-06T04:34:52.486Z",
+  "ms": 7,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -38,6 +38,6 @@
   ],
   "failure": null,
   "code": {
-    "packages/core/src/phases.ts": "c784d77680d689b5e4ff618997e61465d3b3689a"
+    "packages/core/src/phases.ts": "e08a828abdd039f4199e8db62062c6859bb19b9f"
   }
 }

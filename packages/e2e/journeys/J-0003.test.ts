@@ -93,7 +93,7 @@ journey("J-0003", { tier: "fast", seed: SEED, env: { ZARG_CORE_STUB: STUB } }, (
     s.note("buffer", "the agents at work", t.screen())
     // Each agent: its preset, its turns against its budget.
     expect(t.screen()).toMatch(/driver 1\s+\d+\/25/)
-    expect(t.screen()).toMatch(/research\S*\s+\d+\/15/)
+    expect(t.screen()).toMatch(/research\S*\s+\d+\/10/)
   })
 
   proves("S-0073", async (s) => {

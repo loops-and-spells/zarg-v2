@@ -1,29 +1,57 @@
 diff --git a/src/chores.ts b/src/chores.ts
-index 8e78d42..57603fd 100644
+index 8e78d42..cfcfdce 100644
 --- a/src/chores.ts
 +++ b/src/chores.ts
-@@ -1 +1,5 @@
+@@ -1 +1,21 @@
++export type AssignedChore = { chore: string; child: string }
++
 +// @scenario S-0001
  export const assign = (chores: ReadonlyArray<string>, chore: string) => [...chores, chore]
 +
++// @scenario S-0001
++export const assignToChild = (
++  assignments: ReadonlyArray<AssignedChore>,
++  child: string,
++  chore: string,
++) => [...assignments, { chore, child }]
++
++// @scenario S-0001
++export const choresSeenByChild = (
++  assignments: ReadonlyArray<AssignedChore>,
++  child: string,
++) => assignments.filter((a) => a.child === child).map((a) => a.chore)
++
 +// @scenario S-0002
-+export const remove = (chores: ReadonlyArray<string>, chore: string) => chores.filter((c) => c !== chore)
++export const remove = (chores: ReadonlyArray<string>, chore: string) =>
++  chores.filter((c) => c !== chore)
 diff --git a/test/chores.test.ts b/test/chores.test.ts
-index 1596ebe..91bf33d 100644
+index 1596ebe..764c24e 100644
 --- a/test/chores.test.ts
 +++ b/test/chores.test.ts
-@@ -1,6 +1,13 @@
+@@ -1,6 +1,25 @@
  import { expect, test } from "bun:test"
 -import { assign } from "../src/chores"
-+import { assign, remove } from "../src/chores"
++import { assign, assignToChild, choresSeenByChild, remove } from "../src/chores"
  
 +// @scenario S-0001
  test("a chore is assigned", () => {
    expect(assign([], "dishes")).toEqual(["dishes"])
  })
 +
++// @scenario S-0001
++test("a chore assigned to a child appears in that child's chores", () => {
++  const assignments = assignToChild([], "ada", "dishes")
++  expect(choresSeenByChild(assignments, "ada")).toEqual(["dishes"])
++})
++
++// @scenario S-0001
++test("a child does not see a chore assigned to another child", () => {
++  const assignments = assignToChild([], "ada", "dishes")
++  expect(choresSeenByChild(assignments, "bo")).toEqual([])
++})
++
 +// @scenario S-0002
-+test("a chore leaves every list", () => {
++test("a chore is removed", () => {
++  expect(remove(["dishes", "vacuuming"], "dishes")).toEqual(["vacuuming"])
 +  expect(remove(["dishes"], "dishes")).toEqual([])
-+  expect(remove(assign(["mop", "laundry"], "dishes"), "dishes")).toEqual(["mop", "laundry"])
 +})

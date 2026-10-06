@@ -1,13 +1,13 @@
 {
   "scenario": "S-0098",
   "version": "69ca15af7c0e",
-  "commit": "eb93c9f1",
-  "run": "e2e-2026-10-06T00-50-51.725Z",
+  "commit": "d242ee5a",
+  "run": "e2e-2026-10-06T04-35-19.967Z",
   "journey": "J-0006",
   "passed": true,
-  "flaky": false,
-  "at": "2026-10-06T01:42:51.847Z",
-  "ms": 89656,
+  "flaky": true,
+  "at": "2026-10-06T04:40:10.001Z",
+  "ms": 276615,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -32,14 +32,14 @@
       "caption": "the step as it played",
       "path": "media/S-0098/4-step.cast",
       "meta": {
-        "startAt": 12.6
+        "startAt": 247.7
       }
     }
   ],
   "failure": null,
   "code": {
-    "packages/agent-zarg/src/thread.ts": "9a7dafab70fe96ecfbe4e961c7d3f48845528523",
-    "packages/agent-zarg/test/thread.test.ts": "8b01895611220b35caa87bb110717d65c8e770d0",
+    "packages/agent-zarg/src/thread.ts": "dcfb53ebe0f0d4eff188aef75278e5b26d4c1b9a",
+    "packages/agent-zarg/test/thread.test.ts": "7ba698c9bee23c8508e114208b3c94b92305b4dc",
     "packages/core/src/inbox.ts": "54ae1741107fe2bed0358ce51addf3a256a48a25",
     "packages/core/src/live.ts": "f5bdc19b49a7d067cd09f4e8369103167171b8d5",
     "packages/core/test/inbox.test.ts": "c34bbdbcef749fbcff0599e96a00e60983766ca7"

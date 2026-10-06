@@ -1,12 +1,12 @@
 {
   "scenario": "S-0067",
   "version": "88a7b53705d3",
-  "commit": "69cf99ec",
-  "run": "e2e-2026-10-06T02-41-43.446Z",
+  "commit": "d242ee5a",
+  "run": "e2e-2026-10-06T04-18-00.394Z",
   "journey": "J-0002",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-06T02:42:08.575Z",
+  "at": "2026-10-06T04:18:25.473Z",
   "ms": 106,
   "media": [
     {
@@ -24,14 +24,14 @@
       "caption": "the step as it played",
       "path": "media/S-0067/3-step.cast",
       "meta": {
-        "startAt": 3.5
+        "startAt": 3.4
       }
     }
   ],
   "failure": null,
   "code": {
-    "packages/client/src/session.ts": "c718ebddb613a0985be1c28ae6bdd8c081d8f43f",
-    "packages/client/test/session.test.ts": "e1ea13e5faac8f0fe8cef41ffd8f60c0cada5620",
+    "packages/client/src/session.ts": "a3d761384c430b856e994e1fac7e3eae8f87f9db",
+    "packages/client/test/session.test.ts": "030ac1ca7a5f3827472412dd7e3979801a46c916",
     "packages/core/test/yolo.test.ts": "1a8a8ce7d800e635bad1edba788bdf3c3e31660f",
     "packages/plugin/src/runtime/powers.ts": "5f2696731d331d8d311938c54ca555d921290289",
     "packages/plugin/test/load-waiting.test.ts": "eb8518bc9f80d05a43ead19cf34041fc566c6613",

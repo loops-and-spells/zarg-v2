@@ -1,12 +1,12 @@
 {
   "scenario": "S-0022",
   "version": "242e762923af",
-  "commit": "69cf99ec",
-  "run": "e2e-2026-10-06T02-23-04.101Z",
+  "commit": "d242ee5a",
+  "run": "e2e-2026-10-06T04-22-03.770Z",
   "journey": "J-0004",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-06T02:29:13.397Z",
+  "at": "2026-10-06T04:24:30.942Z",
   "ms": 21,
   "media": [
     {
@@ -32,7 +32,7 @@
       "caption": "the step as it played",
       "path": "media/S-0022/4-step.cast",
       "meta": {
-        "startAt": 361.4
+        "startAt": 139.2
       }
     }
   ],

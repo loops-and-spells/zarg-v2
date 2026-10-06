@@ -1,3 +1,3 @@
 Write this to the requirements?
 
-Intent 'A todo app for families': keep the operator's words as an outcome it must reach — 'A parent rewards a finished chore with points.'
+Add an outcome to A todo app for families, in the operator's words: Finished chores earn points the parent makes.

@@ -1,12 +1,12 @@
 {
   "scenario": "S-0012",
   "version": "c13f2e00d1bc",
-  "commit": "69cf99ec",
-  "run": "e2e-2026-10-06T02-41-43.446Z",
+  "commit": "d242ee5a",
+  "run": "e2e-2026-10-06T04-18-00.394Z",
   "journey": "J-0001",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-06T02:42:01.727Z",
+  "at": "2026-10-06T04:18:18.673Z",
   "ms": 508,
   "media": [
     {
@@ -38,8 +38,8 @@
   ],
   "failure": null,
   "code": {
-    "packages/agent-zarg/src/thread.ts": "9a7dafab70fe96ecfbe4e961c7d3f48845528523",
-    "packages/agent-zarg/test/thread.test.ts": "8b01895611220b35caa87bb110717d65c8e770d0",
+    "packages/agent-zarg/src/thread.ts": "dcfb53ebe0f0d4eff188aef75278e5b26d4c1b9a",
+    "packages/agent-zarg/test/thread.test.ts": "7ba698c9bee23c8508e114208b3c94b92305b4dc",
     "packages/rlm/src/services/io.ts": "f12052260254143249db74ee45825524708bb2cc",
     "packages/rlm/test/graph.test.ts": "0e41937e73ef29d9ce61e3545e1dcaea92bdcb7c"
   }

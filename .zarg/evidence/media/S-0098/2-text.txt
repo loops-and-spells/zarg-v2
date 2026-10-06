@@ -1,1 +1,1 @@
-No requirement says where a user starts, their first action, or who uses this product — nothing in the project or the graph defines it. Who meets the product first, and in your words: where are they before their first action, and what is that first action?
+Where does a user start, and what is this product for? Name who meets it first (a person, a coding agent at the command line, or the product's own agent that acts inside it), their first action, and what they end up seeing.

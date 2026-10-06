@@ -1,12 +1,12 @@
 {
   "scenario": "S-0090",
   "version": "9375ee874d05",
-  "commit": "69cf99ec",
-  "run": "e2e-2026-10-06T02-41-43.446Z",
+  "commit": "d242ee5a",
+  "run": "e2e-2026-10-06T04-18-00.394Z",
   "journey": "J-0002",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-06T02:42:18.130Z",
+  "at": "2026-10-06T04:18:35.069Z",
   "ms": 300,
   "media": [
     {
@@ -38,7 +38,7 @@
   ],
   "failure": null,
   "code": {
-    "packages/client/src/connect.ts": "fed3357d855a62eb789ecee0bd38b9e25c6668fd",
+    "packages/client/src/connect.ts": "8492b27c3dc412304253be09f66b6fdde269fbed",
     "packages/client/test/connect.test.ts": "63ea61e76fdba70d651aeebaa54f677b3ff6d80b"
   }
 }

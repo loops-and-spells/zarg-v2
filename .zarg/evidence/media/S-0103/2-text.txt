@@ -1,83 +1,91 @@
 {
-  "title": "Member opens their view and 1 more",
+  "title": "Parent assigns chores to family members",
   "journey": "",
   "scenarios": [],
   "changes": [
     {
       "tool": "add-persona",
       "params": {
-        "name": "Family member",
+        "name": "Parent",
         "kind": "human",
-        "text": "A child or adult member of the family"
+        "text": "A parent who runs the family todo app and hands out chores to other members."
       }
     },
     {
       "tool": "add-scenario",
       "params": {
-        "title": "Member opens their view",
-        "when": "Family member opens their chores view",
+        "title": "Parent assigns chores to family members",
+        "when": "Parent assigns a chore to a family member",
         "by": [
           {
-            "name": "Family member"
+            "name": "Parent"
           }
         ],
         "arrives": {
-          "text": "their chores view"
+          "text": "The family todo list with the member's chores"
         },
+        "given": [],
         "then": [
           {
-            "text": "Family member sees the chores assigned to them"
+            "text": "The member's chore is on their list"
           },
           {
-            "text": "Family member sees only their own chores"
-          },
-          {
-            "text": "Family member sees a chore's assignment"
+            "text": "Other members' chores stay on their lists"
           }
-        ],
-        "given": []
+        ]
       }
     },
     {
       "tool": "add-persona",
       "params": {
-        "name": "Child",
+        "name": "Family member",
         "kind": "human",
-        "text": "A child family member who uses the todo app"
+        "text": "A family member who uses the app to view the chores assigned to them."
       }
     },
     {
-      "tool": "add-scenario",
+      "tool": "link",
       "params": {
-        "title": "Child views chores",
-        "when": "Child opens their chores view",
-        "by": [
-          {
-            "name": "Child"
-          }
-        ],
-        "arrives": {
-          "text": "their chores view"
+        "scenario": "S-0001",
+        "edge": "then",
+        "state": {
+          "text": "The member sees the chore assigned to them"
+        }
+      }
+    },
+    {
+      "tool": "add-journey",
+      "params": {
+        "name": "Assigning and seeing family chores"
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "scenario": "S-0001",
+        "edge": "in",
+        "journey": {
+          "id": "J-0001"
+        }
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "edge": "serves",
+        "journey": {
+          "id": "J-0001"
         },
-        "then": [
-          {
-            "text": "Child sees the chores assigned to them"
-          },
-          {
-            "text": "Child sees chores assigned to siblings"
-          }
-        ],
-        "given": []
+        "outcome": "O-0001"
       }
     }
   ],
   "feedback": [],
   "steps": [
-    "A member sees only their assigned chores.",
-    "A child sees the chores assigned to them."
+    "A parent gives each family member their chores, so each can see what is assigned to them."
   ],
   "serves": "gherkin/outcome:O-0001@f5ebc0ef2fe2",
-  "id": "B-02",
+  "id": "B-01",
   "status": "backlog",
   "events": [
     {

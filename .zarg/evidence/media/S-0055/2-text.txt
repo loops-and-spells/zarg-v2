@@ -1,14 +1,24 @@
 [
   {
+    "kind": "pass-error",
+    "title": "implement failed for S-0001",
+    "detail": "implement-scenario did not finish within its budget (25 turns)",
+    "about": [
+      "S-0001"
+    ],
+    "pass": "fd70c8bb77c0",
+    "id": "F-a64125e8",
+    "at": "2026-10-06T04:34:40.101Z"
+  },
+  {
     "kind": "verify-failing",
     "title": "verify still fails after the fix attempts",
     "detail": "",
     "about": [
-      "S-0001",
       "S-0002"
     ],
-    "pass": "ec6877db536d",
-    "id": "F-25090221",
-    "at": "2026-10-06T02:40:26.036Z"
+    "pass": "fd70c8bb77c0",
+    "id": "F-af878bdf",
+    "at": "2026-10-06T04:34:40.101Z"
   }
 ]
