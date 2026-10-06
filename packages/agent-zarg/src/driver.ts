@@ -9,6 +9,8 @@ const ASK_FIRST: ServiceFailure = {
 }
 
 const JUDGED = "(Fix it, or show the same change again if it holds as it is: the developer then decides.)"
+// An id no node has yet, written as a pattern (S-000N, ST-XXXX): the operator sees a new node by its words.
+const placeholderId = (change: string) => change.match(/\b(?:S|ST|J|O|K|P|Q|I)-\d*[A-Z?]+\b/)?.[0]
 const NO_DRAFT = "Show a scenario change with its draft too: Inquire.confirm({ change, draft }), the draft being the gherkin tool calls that write it (add-scenario, link, …), so the checks run before the developer sees it."
 const PICKED_HINT = "They picked an option that is a change: it is added. Write it now, as shown; no Inquire.confirm."
 const ADDED_HINT = "They added it: it is not written yet. Write it now, as shown (the draft's tool calls, in order); no Inquire.confirm."
@@ -188,6 +190,8 @@ export const askFirst = (
             return Effect.succeed({ problems: [`The operator already added this change before zarg restarted; write it now with its wording, without showing it again:\n${change}\nShow a change only when it is a different one.`] } as Answer)
           }
           owedPre = undefined
+          const placeholder = placeholderId(c.change)
+          if (placeholder !== undefined) return Effect.succeed({ problems: [`"${placeholder}" is no id: name a new node by its words (its title or text), never an id it does not have yet.`] } as Answer)
           // A change shown with its draft is checked first: what the checks refuse goes back to the driver, unasked.
           // A scenario change (a When line) is shown with its draft: the checks need its tool calls.
           if (dryRun !== undefined && (c.draft === undefined || c.draft.length === 0) && /^\s*When\b/im.test(c.change))

@@ -46,6 +46,15 @@ describe("ask before writing", () => {
     expect(a.hint).toContain("not written yet")
   })
 
+  test("a change naming a placeholder id (S-000N) goes back: a new node is named by its words", async () => {
+    let asked = 0
+    const guard = askFirst({ ask: () => Effect.sync(() => (asked++, { choice: "add" })) })
+    const back = await Effect.runPromise(guard.asker.confirm!({ change: "Scenario S-000N 'Tracker checks the habit'\nBy Tracker" }))
+    expect(asked).toBe(0)
+    expect(back.problems?.[0]).toContain("S-000N")
+    expect(await Effect.runPromise(guard.asker.confirm!({ change: "Edit ST-0002: the plan picker is shown" }))).toMatchObject({ choice: "add" })
+  })
+
   test("a change added before a restart, shown again reworded, is not asked twice: the driver is told to write it", async () => {
     let asked = 0
     const guard = askFirst({ ask: () => Effect.sync(() => (asked++, { choice: "add" })), approved: () => 'Mark ST-0005 terminal: "The habit keeps its marked days" (ST-0005)' })
