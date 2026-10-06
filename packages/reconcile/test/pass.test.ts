@@ -137,6 +137,27 @@ describe("reconcile pass", () => {
     expect(sh(r, "git status --porcelain")).toBe("")
   })
 
+  // @scenario S-0052
+  test("requirements committed during the pass stay: the landed commit keeps them, the next pass takes them up", async () => {
+    const r = repo()
+    graph(r, ["S-0001"])
+    sh(r, "git add -A && git commit -qm req")
+    let committed = false
+    const spec = stubSpec(r, {
+      during: () => {
+        if (committed) return
+        committed = true
+        writeNode(r, scenario("S-0002", "ST-0001", "ST-0001"))
+        sh(r, "git add -A && git commit -qm 'req: S-0002'")
+      },
+    })
+    expect(await runPass(spec, db())).toMatchObject({ status: "landed", landed: ["S-0001"] })
+    expect(existsSync(join(r, ".zarg/graph/nodes/S-0002.json"))).toBe(true)
+    expect(sh(r, "git show --name-only --format= HEAD")).not.toContain("S-0002")
+    expect(sh(r, "git status --porcelain")).toBe("")
+    expect(await runPass(spec, db())).toMatchObject({ status: "landed", landed: ["S-0002"] })
+  })
+
   test("a pass killed mid-way resumes after the last finished step", async () => {
     const r = repo()
     graph(r, ["S-0001", "S-0002"])

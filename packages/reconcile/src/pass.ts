@@ -257,13 +257,17 @@ const body = (
 
       // One commit on top of the base: the whole graph tree, plans and code, and the checkpoint.
       // @scenario S-0022
-      const squash = (base: string, graph: string) =>
+      // Rebased onto your newer commits, the graph is the rebase's: requirements committed meanwhile stay (the
+      // checkpoint still names the graph this pass reconciled, so the next pass takes them up).
+      const squash = (base: string, graph: string, rebased = false) =>
         Effect.gen(function* () {
           yield* git(main, ["reset", "-q", "--soft", base])
           // The requirements in the commit are exactly the graph this pass reconciled, whatever a phase did.
-          yield* gitRun(main, ["rm", "-r", "-q", "--cached", "--ignore-unmatch", GRAPH])
-          rmSync(join(main, GRAPH), { recursive: true, force: true })
-          yield* git(main, ["read-tree", `--prefix=${GRAPH}/`, "-u", graph])
+          if (!rebased) {
+            yield* gitRun(main, ["rm", "-r", "-q", "--cached", "--ignore-unmatch", GRAPH])
+            rmSync(join(main, GRAPH), { recursive: true, force: true })
+            yield* git(main, ["read-tree", `--prefix=${GRAPH}/`, "-u", graph])
+          }
           // What failed while the rest landed stays pending for the next pass.
           const still = failed()
           yield* Effect.sync(() => Bun.write(join(main, CHECKPOINT), `${JSON.stringify({ graph, ...(still.length > 0 ? { failed: [...still].sort() } : {}) }, null, 2)}\n`))
@@ -305,7 +309,7 @@ const body = (
             return { status: "failed", landed: [], failed: [...live, ...failed()].sort() } satisfies PassResult
           }
           base = r.head!
-          commit = yield* act(`rebased:${attempt}`, Schema.String, squash(base, payload.graph))
+          commit = yield* act(`rebased:${attempt}`, Schema.String, squash(base, payload.graph, true))
           continue
         }
         // @scenario S-0051
