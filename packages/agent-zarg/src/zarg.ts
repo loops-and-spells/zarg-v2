@@ -12,7 +12,7 @@ import { tags } from "@zarg/audit"
 import { commitGraph } from "@zarg/reconcile"
 import { askFirst } from "./driver"
 import { judgeGaps } from "./gaps"
-import { nextOutcomes, nextWhenServed, type NextOption } from "./intent"
+import { nextOutcomes, nextWhenServed, type NextOption, rehearsing } from "./intent"
 import { projectMap } from "./project-map"
 import { makeThread } from "./thread"
 
@@ -116,7 +116,7 @@ export const makeZarg = (host: AgentHost) =>
         const turnOn = host.reconcile === undefined
           ? undefined
           : Effect.map(host.reconcile.turnOn, (a) => (a.on ? `Reconcile is on${a.pending !== undefined && a.pending > 0 ? `; a pass is starting (${a.pending} scenario${a.pending === 1 ? "" : "s"})` : ""}: it implements, verifies and commits each scenario.` : `Reconcile stays off: ${a.reason ?? "it could not start"}.`))
-        return nextWhenServed(snap, focus, built, host.reconcile?.on() ?? false, turnOn)
+        return nextWhenServed(snap, focus, built, host.reconcile?.on() ?? false, turnOn, rehearsing(root))
       })
     // zarg's message bar: a shell panel at the bottom, one line, taking keys (the shell draws it as the bar).
     host.panels.open({ name: "bar", view: "zarg", scope: "shell", edge: "bottom", size: 1, input: "onFocus" })

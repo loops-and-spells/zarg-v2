@@ -1,6 +1,9 @@
 import { expect, test } from "bun:test"
 import { Snapshot } from "@zarg/graph/pure"
-import { nextOutcomes, nextWhenServed } from "../src/intent"
+import { nextOutcomes, nextWhenServed, rehearsing } from "../src/intent"
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 
 test("what next: the outcomes no journey serves, in id order, each with its intent", () => {
   const snap = Snapshot.make([
@@ -26,6 +29,20 @@ test("with every outcome served, what next offers the next steps: rehearse the j
   expect(next[0]).toMatchObject({ id: "rehearse", label: "Rehearse the journeys" })
   expect(next[0]!.task).toContain("Rehearse.run")
   expect(next.slice(1).map((o) => o.label)).toEqual(['Extend the journey from "Parent has chores to assign."'])
+})
+
+test("while a rehearsal runs, what next does not offer one again", () => {
+  const root = mkdtempSync(join(tmpdir(), "zt-rehearsing-"))
+  const dir = join(root, ".zarg", "rehearse")
+  mkdirSync(dir, { recursive: true })
+  expect(rehearsing(root)).toBe(false)
+  writeFileSync(join(dir, "index.json"), JSON.stringify(["r-1", "r-2"]))
+  writeFileSync(join(dir, "r-2.json"), JSON.stringify({ run: "r-2", status: "running" }))
+  expect(rehearsing(root)).toBe(true)
+  const snap = Snapshot.make([{ id: "ST-0001", type: "gherkin/state", props: { text: "a start", entry: true }, edges: [] }] as never)
+  expect(nextWhenServed(snap, undefined, undefined, false, undefined, true).map((o) => o.id)).toEqual(["ST-0001"])
+  writeFileSync(join(dir, "r-2.json"), JSON.stringify({ run: "r-2", status: "done" }))
+  expect(rehearsing(root)).toBe(false)
 })
 
 test("with nothing built (no scenario's code tagged), what next offers building first: rehearse walks only what is built", () => {

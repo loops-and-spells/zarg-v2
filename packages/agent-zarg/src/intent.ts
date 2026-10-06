@@ -1,5 +1,18 @@
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
 import type { Effect } from "effect"
 import type { Snapshot } from "@zarg/graph/pure"
+
+/** Whether a rehearsal is running in the project at `root`: its latest run's record says so (rehearse keeps them in .zarg/rehearse). */
+export const rehearsing = (root: string): boolean => {
+  try {
+    const runs = JSON.parse(readFileSync(join(root, ".zarg", "rehearse", "index.json"), "utf8")) as ReadonlyArray<string>
+    const last = runs.at(-1)
+    return last !== undefined && (JSON.parse(readFileSync(join(root, ".zarg", "rehearse", `${last}.json`), "utf8")) as { status?: string }).status === "running"
+  } catch {
+    return false
+  }
+}
 
 /** One way to go on, offered when nothing is open: what the operator picks becomes their word to the driver. */
 export interface NextOption {
@@ -43,14 +56,15 @@ const build = (run?: Effect.Effect<string>): NextOption => ({
  * the scenarios with code tagged), then extend a journey from where it starts.
  */
 // @scenario S-0014
-export const nextWhenServed = (snap: Snapshot.Snapshot, focus?: ReadonlySet<string>, built?: ReadonlySet<string>, reconcileOn = false, turnOn?: Effect.Effect<string>): ReadonlyArray<NextOption> => {
+export const nextWhenServed = (snap: Snapshot.Snapshot, focus?: ReadonlySet<string>, built?: ReadonlySet<string>, reconcileOn = false, turnOn?: Effect.Effect<string>, rehearsing = false): ReadonlyArray<NextOption> => {
   const nodes = [...snap.nodes.values()]
   const scenarios = nodes.filter((n) => n.type === "gherkin/scenario" && n.props.planned !== true)
   // Reconcile on: a pass builds them, nothing to offer.
   const unbuilt = !reconcileOn && built !== undefined && scenarios.length > 0 && !scenarios.some((n) => built.has(n.id))
   return [
     ...(unbuilt ? [build(turnOn)] : []),
-    REHEARSE,
+    // A rehearsal already running is not offered again: its feedback comes when it ends.
+    ...(rehearsing ? [] : [REHEARSE]),
     ...nodes
       .filter((n) => n.type === "gherkin/state" && n.props.entry === true && (focus === undefined || focus.has(n.id)))
       .map((n): NextOption => ({ id: n.id, label: `Extend the journey from "${String(n.props.text ?? n.id)}"`, task: `Work on the journey that starts at "${String(n.props.text ?? n.id)}" (${n.id}).` })),
