@@ -31,13 +31,25 @@ const highlightOf = (t: ThemeService) => ({
   journey: t.value("journey").fg,
 })
 
+/**
+ * Text as the terminal may draw it: no escape sequences (colour, cursor, title) or other control characters, whoever
+ * wrote it (a plugin's evidence, a command's output in a finding): they garble the screen or drive the terminal.
+ */
+export const printable = (s: string) =>
+  s
+    .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")
+    .replace(/\x1b\][^\x07\x1b]*(\x07|\x1b\\)?/g, "")
+    .replace(/\x1b[@-_]?/g, "")
+    .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "")
+
 // @scenario S-0076
 export const RichText = (p: { content: string; width: number; streaming?: boolean; onHeight?: (height: number) => void }) => {
   const theme = useTheme()
   const syntaxStyle = useMemo(() => syntaxOf(theme), [theme])
   const highlight = useMemo(() => highlightOf(theme), [theme])
+  const content = useMemo(() => printable(p.content), [p.content])
   return (
-    <Markdown content={p.content} width={Math.max(1, p.width)} syntaxStyle={syntaxStyle} fg={theme.value("text").fg} highlight={highlight} streaming={p.streaming ?? false}
+    <Markdown content={content} width={Math.max(1, p.width)} syntaxStyle={syntaxStyle} fg={theme.value("text").fg} highlight={highlight} streaming={p.streaming ?? false}
       tableOptions={{ style: "columns", wrapMode: "word" }} onSizeChange={function () { p.onHeight?.(this.height) }} />
   )
 }

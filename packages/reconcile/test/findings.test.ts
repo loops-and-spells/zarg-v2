@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from "bun:test"
 import { Cause, Data } from "effect"
 import { makeFindings } from "../src"
-import { causeText } from "../src/findings"
+import { causeText, failureTail } from "../src/findings"
 import { cleanup, repo } from "./repo"
 
 afterAll(cleanup)
@@ -34,6 +34,9 @@ describe("findings", () => {
     f.clearGeneral({ ran: true })
     f.clearGeneral()
     expect(heard).toBe(2)
+  })
+  test("a failing verify's output in a finding keeps the failures and the summary, not the stack frames", () => {
+    expect(failureTail("✗ appends a message\nError: ECONNREFUSED\n    at connect (net:1)\n    at run (x.js:2)\n\n\n\n 20 pass\n 34 fail")).toBe("✗ appends a message\nError: ECONNREFUSED\n\n 20 pass\n 34 fail")
   })
   test("a failure reads as its message, never the Cause around it", () => {
     class RlmError extends Data.TaggedError("RlmError")<{ readonly message: string }> {}

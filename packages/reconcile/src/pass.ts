@@ -4,7 +4,7 @@ import { Cause, type Duration, Effect, Schema, Semaphore } from "effect"
 import type { Snapshot } from "@zarg/graph"
 import { Activity, DurableClock, Workflow } from "effect/unstable/workflow"
 import { baseTree, CHECKPOINT, GRAPH, LEGACY_CHECKPOINT, pendingAt, snapshotAtTree } from "./checkpoint"
-import { causeText, type FindingKind, type Findings } from "./findings"
+import { causeText, failureTail, type FindingKind, type Findings } from "./findings"
 import { EMPTY_TREE, git, gitRun, zPaths } from "./git"
 import { land, rebaseOnto } from "./land"
 import { mergeBranches } from "./merge"
@@ -251,7 +251,7 @@ const body = (
       if (yield* isStopped("stopped:verified")) return stoppedResult
       // @scenario S-0055
       if (!verified.passed) {
-        yield* report("verify", [{ kind: "verify-failing", title: "verify still fails after the fix attempts", detail: verified.output.slice(-4000), about: live }])
+        yield* report("verify", [{ kind: "verify-failing", title: "verify still fails after the fix attempts", detail: failureTail(verified.output), about: live }])
         return { status: "failed", landed: [], failed: [...live, ...failed()].sort() } satisfies PassResult
       }
 
@@ -302,7 +302,7 @@ const body = (
           }
           const again = yield* gate(`verify:${attempt}`)
           if (!again.passed) {
-            yield* report(`verify:${attempt}`, [{ kind: "verify-failing", title: "verify fails on top of your new commits", detail: again.output.slice(-4000), about: live }])
+            yield* report(`verify:${attempt}`, [{ kind: "verify-failing", title: "verify fails on top of your new commits", detail: failureTail(again.output), about: live }])
             return { status: "failed", landed: [], failed: [...live, ...failed()].sort() } satisfies PassResult
           }
           base = r.head!

@@ -9,6 +9,15 @@ export const causeText = (cause: Cause.Cause<unknown>) => {
   return (e instanceof Error && e.message !== "" ? e.message : String(e)).slice(0, 4000)
 }
 
+/** A failing command's output as a finding shows it: its end, without stack frames (the failing tests and the summary stay). */
+export const failureTail = (output: string) =>
+  output
+    .split("\n")
+    .filter((l) => !/^\s*at\s/.test(l))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .slice(-4000)
+
 export type FindingKind = "unplannable" | "blocked-scenario" | "merge-conflict" | "verify-failing" | "landing-blocked" | "pass-error"
 
 /** Something a phase could not project; it reaches the operator through the driver's agenda. */
