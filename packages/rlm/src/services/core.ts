@@ -209,8 +209,23 @@ export const ShDef = defineService("Sh", "Shell commands in the repository root.
   },
 })
 
+/**
+ * Starting, stopping or removing containers belongs to the operator: an implementer once started a database from its
+ * worktree (a stack named after the worktree, holding the operator's port) after the operator's own was gone.
+ */
+const SERVICES = /\b(docker(-compose)?|podman(-compose)?)\s+(compose\s+)?(up|down|start|stop|restart|kill|rm|run|create)\b/
+export const servicesRefusal = (command: string) =>
+  SERVICES.test(command)
+    ? "Starting, stopping or removing containers is the operator's: say which service must run (and how) in your result, or block on it; never start one yourself."
+    : undefined
+
 export const sh = (ctx: CoreContext): Bound =>
-  bind(ShDef, { run: ({ command, timeoutMs }) => runCommand(ctx, ["bash", "-c", command], Math.min(timeoutMs ?? 120_000, 600_000)) })
+  bind(ShDef, {
+    run: ({ command, timeoutMs }) => {
+      const refused = servicesRefusal(command)
+      return refused !== undefined ? Effect.fail(fail("ServicesAreTheOperators", refused)) : runCommand(ctx, ["bash", "-c", command], Math.min(timeoutMs ?? 120_000, 600_000))
+    },
+  })
 
 export const VerifyDef = defineService("Verify", "The repository's verify gate.", {
   run: {

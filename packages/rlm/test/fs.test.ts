@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Fiber } from "effect"
 import { Kernel } from "@zarg/kernel"
-import { fs, fsRead, runCommand, sh } from "../src"
+import { fs, fsRead, runCommand, servicesRefusal, sh } from "../src"
 
 let base = ""
 let root = ""
@@ -67,6 +67,14 @@ describe("Sh deadlines", () => {
     const [out] = await run(['return yield* Sh.run({ command: "sleep 5; echo x", timeoutMs: 500 })'])
     expect(Date.now() - started).toBeLessThan(2500)
     expect(out).toContain('"timedOut": true')
+  })
+  test("starting or stopping containers is refused: services are the operator's", () => {
+    expect(servicesRefusal("cd x && docker compose up -d postgres")).toContain("operator's")
+    expect(servicesRefusal("docker-compose down -v")).toContain("operator's")
+    expect(servicesRefusal("docker rm -f main-postgres-1")).toContain("operator's")
+    expect(servicesRefusal("docker compose ps")).toBeUndefined()
+    expect(servicesRefusal("docker ps --format '{{.Names}}'")).toBeUndefined()
+    expect(servicesRefusal("bun test packages/run")).toBeUndefined()
   })
   test("a command's colour codes are stripped: a model and a finding read plain text", async () => {
     const r = await Effect.runPromise(runCommand({ root: mkdtempSync(join(tmpdir(), "zarg-ansi-")), scope: {}, sensitive: [] }, ["bash", "-c", "printf '\\033[31m✗\\033[0m fail\\n' >&2; printf '\\033[1mok\\033[0m'"], 10_000))
