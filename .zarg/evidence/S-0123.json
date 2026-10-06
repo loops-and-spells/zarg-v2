@@ -1,31 +1,31 @@
 {
-  "scenario": "S-0122",
-  "version": "1e92f99ba3dc",
+  "scenario": "S-0123",
+  "version": "ba6ce7a9acf9",
   "commit": "71b87c9c",
   "run": "e2e-2026-10-06T05-58-32.920Z",
   "journey": "J-0004",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-06T05:58:57.187Z",
-  "ms": 5,
+  "at": "2026-10-06T05:59:22.039Z",
+  "ms": 2159,
   "media": [
     {
       "kind": "evidence-terminal/frame",
       "caption": "the screen before",
-      "path": "media/S-0122/1-frame.json"
+      "path": "media/S-0123/1-frame.json"
     },
     {
       "kind": "evidence-terminal/text",
-      "caption": "the build row, as it changed",
-      "path": "media/S-0122/2-text.txt",
+      "caption": "screen",
+      "path": "media/S-0123/2-text.txt",
       "meta": {
         "fold": false
       }
     },
     {
       "kind": "evidence-terminal/text",
-      "caption": "screen",
-      "path": "media/S-0122/3-text.txt",
+      "caption": "git log",
+      "path": "media/S-0123/3-text.txt",
       "meta": {
         "fold": false
       }
@@ -33,19 +33,21 @@
     {
       "kind": "evidence-terminal/frame",
       "caption": "the screen after",
-      "path": "media/S-0122/4-frame.json"
+      "path": "media/S-0123/4-frame.json"
     },
     {
       "kind": "evidence-terminal/cast",
       "caption": "the step as it played",
-      "path": "media/S-0122/5-step.cast",
+      "path": "media/S-0123/5-step.cast",
       "meta": {
-        "startAt": 16.5
+        "startAt": 39.1
       }
     }
   ],
   "failure": null,
   "code": {
-    "packages/core/src/reconcile.ts": "fff184c7daa3f59fcdfdd15dc5962f64e45de576"
+    "packages/client/src/session.ts": "78a7f6bb95cd03a8441f0ece7a27f7edd9cc8435",
+    "packages/reconcile/src/checkpoint.ts": "d56bcc78444ef4b8c6cb6a94f889da8ee3f41fa0",
+    "packages/view-tui/src/commands.ts": "b0535cf53537226493dcad516b2f2cce9ca3dab0"
   }
 }

@@ -196,13 +196,16 @@ export const makeSession = (opts: { readonly client: Client; readonly threadId: 
         set({ ...state, notice: `unknown command: ${name} (try /reconcile, /yolo, /login or /models)` })
         return
       }
+      // @scenario S-0123
+      // `/reconcile S-0006 …`: those scenarios are built again (one recorded as built with no code had no way back).
+      const again = args.map((a) => a.toUpperCase()).filter((a) => /^S-\d+$/.test(a))
       fork(
-        opts.client.reconcile().pipe(
+        opts.client.reconcile(again).pipe(
           Effect.map((a) =>
             !a.on
               ? `Reconcile stays off: ${a.reason ?? "unknown reason"}`
               : (a.pending ?? 0) > 0
-                ? `Reconcile is on; a pass is starting (${a.pending} scenario${a.pending === 1 ? "" : "s"}).`
+                ? `Reconcile is on; a pass is starting (${a.pending} scenario${a.pending === 1 ? "" : "s"}${again.length > 0 ? `, building ${again.join(", ")} again` : ""}).`
                 : "Reconcile is on; nothing to reconcile.",
           ),
           Effect.catch((e) => Effect.succeed(e.message)),

@@ -339,5 +339,16 @@ journey(
       expect(git(s.w, "rev-parse", "HEAD~1")).toBe(mine)
       expect(lines(s.w, ".zarg/threads/implement.jsonl").length).toBeGreaterThan(0)
     }, { timeoutMs: 400_000 })
+
+    proves("S-0123", async (s) => {
+      // S-0003 landed long ago and nothing changed it: the operator asks for it again, and a pass builds it.
+      const before = tasksOf(s.w, "implement").filter((t) => t.includes("Implement scenario S-0003")).length
+      await command(s.term!, "/reconcile S-0003")
+      await s.term!.waitFor(/building S-0003 again/, 30_000)
+      s.note("buffer", "screen", s.term!.screen())
+      expect(await until(180_000, () => tasksOf(s.w, "implement").filter((t) => t.includes("Implement scenario S-0003")).length > before)).toBe(true)
+      expect(await until(180_000, () => git(s.w, "log", "-1", "--format=%s") === "feat: implement S-0003")).toBe(true)
+      s.note("buffer", "git log", git(s.w, "log", "-3", "--format=%h %s"))
+    }, { timeoutMs: 400_000 })
   },
 )

@@ -33,7 +33,7 @@ import { pluginAgents } from "./plugin-agents"
 import { forDriver, makeYolo, PluginControl, pluginHostLayer, trustedAgents, USER_DIR, vaultFrom, ZARG_ROOT } from "./plugins"
 import { STUB_MODEL, stubLayer } from "./stub"
 import { reasonOf, reconcileGate, type ReconcileSettings, rememberReconcile } from "./phases"
-import { checkoutProblem, commitGraph, gitRun, graphFiles } from "@zarg/reconcile"
+import { addAgain, checkoutProblem, commitGraph, gitRun, graphFiles } from "@zarg/reconcile"
 import { makePlanner } from "./planner"
 import { makeReconcile } from "./reconcile"
 import type { ReconcileAnswer } from "./server"
@@ -394,7 +394,9 @@ export const liveCore = (root: string, opts: { readonly stub?: boolean } = {}) =
           return { notice: change.delete !== undefined ? `deleted ${n}` : change.restore !== undefined ? `restored ${n}` : `archived ${n}` }
         }),
     }
-    return { log, threads, driver: roles.driver, turnOn, yolo, actions, commands, prompts, archive, inbox, setup }
+    // `/reconcile S-0006`: build these again (a scenario recorded as built with no code had no way back).
+    const again = (ids: ReadonlyArray<string>) => Effect.sync(() => addAgain(root, ids))
+    return { log, threads, driver: roles.driver, turnOn, again, yolo, actions, commands, prompts, archive, inbox, setup }
   })
 
 /** The project's plugin host options from its environment and config (`[plugins.<name>]` tables). */

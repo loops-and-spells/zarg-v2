@@ -5,6 +5,7 @@ import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { Effect } from "effect"
 import { scenario, cleanup, repo, sh, state, write, writeNode } from "./repo"
+import { addAgain, pendingAt, readAgain } from "../src"
 import { runPass, runPasses, stubSpec } from "./stub-spec"
 
 afterAll(cleanup)
@@ -154,6 +155,16 @@ describe("reconcile pass", () => {
     expect(await runPass(spec, db())).toMatchObject({ status: "landed" })
     expect(sh(r, "git ls-files .zarg/graph")).toContain("S-0002.json")
     expect(sh(r, "git status --porcelain")).toBe("")
+  })
+
+  test("a scenario asked to be built again is pending: the next pass builds it, then it is no longer asked", async () => {
+    const r = repo()
+    graph(r, ["S-0001"])
+    expect(await runPass(stubSpec(r), db())).toMatchObject({ status: "landed", landed: ["S-0001"] })
+    addAgain(r, ["S-0001"])
+    expect(await Effect.runPromise(pendingAt(r))).toEqual(["S-0001"])
+    expect(await runPass(stubSpec(r), db())).toMatchObject({ status: "landed", landed: ["S-0001"] })
+    expect(readAgain(r)).toEqual([])
   })
 
   test("a pass killed mid-way resumes after the last finished step", async () => {

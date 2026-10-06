@@ -319,9 +319,9 @@ describe("slash commands in the input", () => {
   const press = (ui: typeof initialUi, draft: string, name: string) => onKey(ui, idle, { name }, 0, draft)
 
   test("typing / shows the commands; Tab completes; Esc clears", () => {
-    expect(slashBox("/", initialUi)).toMatchObject({ title: "commands", rows: [{ label: "/reconcile", desc: "turn plan and implement on (it stays on)", selected: false }, { label: "/login" }, { label: "/models" }, { label: "/yolo" }] })
+    expect(slashBox("/", initialUi)).toMatchObject({ title: "commands", rows: [{ label: "/reconcile", desc: "turn plan and implement on (it stays on); with scenario ids, build those again", selected: false }, { label: "/login" }, { label: "/models" }, { label: "/yolo" }] })
     const tab = press(initialUi, "/re", "tab")
-    expect(tab.draft).toBe("/reconcile")
+    expect(tab.draft).toBe("/reconcile ")
     expect(press(initialUi, "/re", "escape").draft).toBe("")
     expect(slashBox("hello", initialUi)).toBeUndefined()
     expect(slashBox("/api/v2 is slow", initialUi)).toBeUndefined()
@@ -343,7 +343,7 @@ describe("slash commands in the input", () => {
   })
 
   test("a lint error shows in the box and Enter keeps the draft instead of running", () => {
-    expect(slashBox("/reconcile now", initialUi)?.lint).toBe("/reconcile takes no arguments")
+    expect(slashBox("/login now", initialUi)?.lint).toBe("/login takes no arguments")
     expect(slashBox("/nope", initialUi)?.lint).toBe("unknown command /nope")
     expect(onSubmit(initialUi, idle, "/nope")).toEqual({ ui: initialUi })
     expect(onSubmit(initialUi, idle, "/rec").action).toEqual({ type: "command", text: "/reconcile" })

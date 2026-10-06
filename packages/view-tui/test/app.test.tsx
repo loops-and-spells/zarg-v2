@@ -563,7 +563,7 @@ describe("tui frames", () => {
     await t.waitForVisualIdle()
     const frame = t.captureCharFrame()
     expect(frame).toContain("commands")
-    expect(frame).toContain("/reconcile  turn plan and implement on (it stays on)")
+    expect(frame).toContain("/reconcile  turn plan and implement on (it stays on);")
     // Tab writes the completion into the input itself (the box row alone would not prove it).
     t.mockInput.pressTab()
     await t.waitForVisualIdle()
@@ -617,7 +617,7 @@ describe("tui frames", () => {
     await t.mockInput.typeText("x")
     await t.waitForVisualIdle()
     const line = t.captureCharFrame().split("\n").find((l) => l.includes("› /")) ?? ""
-    expect(line).toContain("/reconcilex")
+    expect(line).toContain("/reconcile x")
   })
 
   test("while answering Something else…, no command box is shown", async () => {

@@ -48,7 +48,8 @@ export const decodeCommands = (raw: ReadonlyArray<unknown>): ReadonlyArray<Slash
 
 // @scenario S-0058
 const table: Array<SlashCommand> = [...decodeCommands([
-  { cmd: "/reconcile", desc: "turn plan and implement on (it stays on)", arg: { kind: "none" } },
+  // @scenario S-0123
+  { cmd: "/reconcile", desc: "turn plan and implement on (it stays on); with scenario ids, build those again", arg: { kind: "text", hint: "S-0006 …" } },
   { cmd: "/login", desc: "set up or log in to a model provider", arg: { kind: "none" } },
   { cmd: "/models", desc: "pick the default model", arg: { kind: "none" } },
   {

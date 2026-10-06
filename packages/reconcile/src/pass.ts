@@ -3,7 +3,7 @@ import { join } from "node:path"
 import { Cause, type Duration, Effect, Schema, Semaphore } from "effect"
 import type { Snapshot } from "@zarg/graph"
 import { Activity, DurableClock, Workflow } from "effect/unstable/workflow"
-import { baseTree, CHECKPOINT, GRAPH, LEGACY_CHECKPOINT, pendingAt, snapshotAtTree } from "./checkpoint"
+import { baseTree, CHECKPOINT, clearAgain, GRAPH, LEGACY_CHECKPOINT, pendingAt, snapshotAtTree } from "./checkpoint"
 import { causeText, failureTail, type FindingKind, type Findings } from "./findings"
 import { EMPTY_TREE, git, gitRun, zPaths } from "./git"
 import { land, rebaseOnto } from "./land"
@@ -334,6 +334,7 @@ const body = (
         Schema.Void,
         Effect.gen(function* () {
           spec.findings.clearFor(live)
+          clearAgain(spec.repo, live)
           for (const [item, f] of failures) spec.findings.raise({ kind: f.kind, title: f.title, detail: f.detail, about: [item], pass: id })
           for (const phase of spec.phases) for (const item of scope.items) yield* removeWorktree(spec.repo, join(root, `${phase.name}-${item}`), branchOf(`${phase.name}-${item}`))
           yield* removeWorktree(spec.repo, main, branchOf("main"))
