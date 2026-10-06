@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect, Fiber } from "effect"
 import { Kernel } from "@zarg/kernel"
-import { fs, fsRead, runCommand, servicesRefusal, sh } from "../src"
+import { editOnce, fs, fsRead, runCommand, servicesRefusal, sh } from "../src"
 
 let base = ""
 let root = ""
@@ -67,6 +67,14 @@ describe("Sh deadlines", () => {
     const [out] = await run(['return yield* Sh.run({ command: "sleep 5; echo x", timeoutMs: 500 })'])
     expect(Date.now() - started).toBeLessThan(2500)
     expect(out).toContain('"timedOut": true')
+  })
+  test("an edit changes the one place its old text is, or says why it cannot", async () => {
+    expect(editOnce("a\nb\nc\n", "b\n", "B\n")).toEqual({ text: "a\nB\nc\n" })
+    expect(editOnce("x $& y", "x", "$1")).toEqual({ text: "$1 $& y" })
+    expect(editOnce("a a", "a", "b")).toMatchObject({ problem: expect.stringContaining("2 times") })
+    expect(editOnce("a", "z", "b")).toMatchObject({ problem: expect.stringContaining("not in the file") })
+    const [out] = await run(['yield* Fs.write({ path: "src/e.ts", content: "const one = 1\\n" })\nyield* Fs.edit({ path: "src/e.ts", old: "one = 1", new: "one = 2" })\nreturn yield* Fs.read({ path: "src/e.ts" })'])
+    expect(out).toBe("const one = 2\n")
   })
   test("starting or stopping containers is refused: services are the operator's", () => {
     expect(servicesRefusal("cd x && docker compose up -d postgres")).toContain("operator's")

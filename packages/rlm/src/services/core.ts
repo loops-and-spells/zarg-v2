@@ -97,7 +97,21 @@ export const FsDef = defineService("Fs", "Files in your scope.", {
     params: Schema.Struct({ path: Schema.String, content: Schema.String }),
     success: Schema.Struct({ bytes: Schema.Number }),
   },
+  edit: {
+    doc: "Change part of a text file: `old` (exact text, found exactly once) becomes `new`. Easier than rewriting a large file. Returns bytes written.",
+    params: Schema.Struct({ path: Schema.String, old: Schema.String, new: Schema.String }),
+    success: Schema.Struct({ bytes: Schema.Number }),
+  },
 })
+
+/** `text` with `old` replaced by `next`, when `old` occurs exactly once; else why not. */
+export const editOnce = (text: string, old: string, next: string): { readonly text: string } | { readonly problem: string } => {
+  if (old === "") return { problem: "old is empty: say which text to change (or Fs.write the whole file)" }
+  const count = text.split(old).length - 1
+  if (count === 0) return { problem: "old is not in the file: copy it exactly from Fs.read, whitespace included" }
+  if (count > 1) return { problem: `old occurs ${count} times: include more of its surrounding lines so it is found once` }
+  return { text: text.replace(old, () => next) }
+}
 
 const fsHandlers = (ctx: CoreContext, readOnly = false) => ({
   read: ({ path }: { path: string }) => {
@@ -155,6 +169,19 @@ export const fs = (ctx: CoreContext): Bound =>
           try: async () => ({ bytes: await Bun.write(`${ctx.root}/${rel}`, content, { createPath: true }) }),
           catch: (e) => fail("WriteFailed", `${rel}: ${e instanceof Error ? e.message : String(e)}`),
         }),
+      ),
+    // An implementer looked for a way to change part of an 11k file and, finding none, read until its budget ran out.
+    edit: ({ path, old, new: next }) =>
+      Effect.flatMap(resolvePath(ctx, path), (rel) =>
+        Effect.flatMap(
+          Effect.tryPromise({ try: () => Bun.file(`${ctx.root}/${rel}`).text(), catch: () => fail("NotFound", `${rel} does not exist or is not readable`) }),
+          (text) => {
+            const r = editOnce(text, old, next)
+            return "problem" in r
+              ? Effect.fail(fail("EditFailed", `${rel}: ${r.problem}`))
+              : Effect.tryPromise({ try: async () => ({ bytes: await Bun.write(`${ctx.root}/${rel}`, r.text) }), catch: (e) => fail("WriteFailed", `${rel}: ${e instanceof Error ? e.message : String(e)}`) })
+          },
+        ),
       ),
   })
 
