@@ -1,13 +1,13 @@
 {
   "scenario": "S-0117",
   "version": "3a1fefac62e3",
-  "commit": "02a07dc5",
-  "run": "e2e-2026-10-06T01-29-10.670Z",
+  "commit": "281fda01",
+  "run": "e2e-2026-10-06T02-07-09.752Z",
   "journey": "J-0009",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-06T01:29:14.743Z",
-  "ms": 487,
+  "at": "2026-10-06T02:07:13.854Z",
+  "ms": 474,
   "media": [
     {
       "kind": "evidence-terminal/text",
@@ -21,7 +21,7 @@
   "failure": null,
   "code": {
     "packages/audit/src/evidence.ts": "00d96cb7ad02123b73c5569d357f797bd36f521d",
-    "packages/audit/test/audit.test.ts": "dbce88754c5df7db370a49f0b9bae2cc01242f42",
+    "packages/audit/test/audit.test.ts": "56a9b58b52f0b54f1ddf33c6cf8976ce1737aeb5",
     "packages/audit/test/evidence.test.ts": "5b7e1d1c3808482a4680c5abba9ff6b58e1e067b"
   }
 }

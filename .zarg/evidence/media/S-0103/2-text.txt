@@ -1,14 +1,76 @@
 {
-  "title": "Parent sees the family chore list",
+  "title": "Parent sets chores for a family member",
   "journey": "",
   "scenarios": [],
-  "changes": [],
+  "changes": [
+    {
+      "tool": "add-persona",
+      "params": {
+        "name": "Parent",
+        "kind": "human",
+        "text": "a parent at home who sets chores for the family"
+      }
+    },
+    {
+      "tool": "add-persona",
+      "params": {
+        "name": "Family member",
+        "kind": "human",
+        "text": "a family member at home who sees chores assigned to them"
+      }
+    },
+    {
+      "tool": "add-journey",
+      "params": {
+        "name": "Family member sees chores assigned to them"
+      }
+    },
+    {
+      "tool": "add-scenario",
+      "params": {
+        "title": "Parent sets chores for a family member",
+        "when": "sets a chore for a family member",
+        "by": [
+          {
+            "name": "Parent"
+          }
+        ],
+        "in": [
+          {
+            "id": "J-0001"
+          }
+        ],
+        "arrives": {
+          "text": "a chore set for a family member"
+        },
+        "then": [
+          {
+            "text": "a family member sees the chore assigned to them"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "edge": "serves",
+        "journey": {
+          "id": "J-0001"
+        },
+        "outcome": "O-0001"
+      }
+    }
+  ],
   "feedback": [],
   "steps": [
-    "Separately, the parent checks the same family list for status. Not needed for the outcome but maybe the intent covers it?"
+    "Add a Parent persona",
+    "Add a Family member persona",
+    "Add journey Family member sees chores assigned to them",
+    "Add scenario Parent sets chores for a family member into J-0001",
+    "Link J-0001 serving O-0001"
   ],
   "serves": "gherkin/outcome:O-0001@f5ebc0ef2fe2",
-  "id": "B-02",
+  "id": "B-01",
   "status": "backlog",
   "events": [
     {

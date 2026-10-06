@@ -1,13 +1,13 @@
 {
   "scenario": "S-0024",
   "version": "16d41ee6471b",
-  "commit": "d6cd9fbf",
-  "run": "e2e-2026-10-06T01-05-36.671Z",
+  "commit": "281fda01",
+  "run": "e2e-2026-10-06T01-38-53.508Z",
   "journey": "J-0004",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-06T01:05:59.297Z",
-  "ms": 4529,
+  "at": "2026-10-06T02:04:56.058Z",
+  "ms": 6463,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -32,13 +32,13 @@
       "caption": "the step as it played",
       "path": "media/S-0024/4-step.cast",
       "meta": {
-        "startAt": 10.1
+        "startAt": 10
       }
     }
   ],
   "failure": null,
   "code": {
     "packages/core/src/phases.ts": "31381a92febad5391666a5f12914aa89977c2771",
-    "packages/reconcile/test/pass.test.ts": "24ebf2698dd5989c6c163047fde20cdf71bc5d25"
+    "packages/reconcile/test/pass.test.ts": "d1f11739ba8befecba6677c3b7831d7a43bce33e"
   }
 }
