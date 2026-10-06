@@ -431,7 +431,11 @@ export default definePlugin({
               const filed = (yield* load).filter((e) => ids.includes(e.id))
               const journeys = [...new Set(filed.flatMap((e) => e.journeys))]
               yield* report(`run:${run}`, `Rehearse run ${run}: ${plural(filed.length, "entry")}${journeys.length > 0 ? ` on ${journeys.join(", ")}` : ""}`, "feedback")
-            } else if (run !== undefined) yield* report(`run:${run}`, `Rehearse run ${run}: nothing found`, "feedback")
+            } else if (run !== undefined) {
+              // Nothing filed still says what was walked: the operator reads it as a pass, not an empty report.
+              const seen = walked ?? []
+              yield* report(`run:${run}`, `Rehearse run ${run}: nothing found${seen.length > 0 ? ` on ${plural(seen.length, "scenario")}` : ""}`, "feedback", seen.length > 0 ? `The testers walked ${seen.join(", ")} and filed nothing.` : undefined)
+            }
             yield* ready
           }),
         ),
@@ -745,7 +749,7 @@ export default definePlugin({
         if (t.key?.startsWith("plans:") === true && (t.key.split(":").at(-1) ?? "").split(",").every((id) => dropped.has(id))) yield* inbox.settle(t.id, "its plans were dropped")
     }))
     /** A report for the inbox: read once opened. */
-    const report = (key: string, title: string, view: string) => Effect.ignore(inbox.post({ kind: "report", key, title, why: "report", origin: { view } }))
+    const report = (key: string, title: string, view: string, evidence?: string) => Effect.ignore(inbox.post({ kind: "report", key, title, why: "report", origin: { view }, ...(evidence !== undefined ? { evidence } : {}) }))
     /** The operator's answer to one of the backlog's topics: the same as the matching action in its views. */
     const answered = ({ key, answer }: { id: string; key?: string; answer?: string }) =>
       Effect.gen(function* () {
