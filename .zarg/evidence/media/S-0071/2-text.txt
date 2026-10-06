@@ -8,7 +8,7 @@
   ▤ Intents            │                                                                                                
                        │                                                                                                
  AGENTS              1 │                                                                                                
-  ⠸ zarg           0/0 │                                                                                                
+  ⠦ zarg           0/0 │                                                                                                
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                
@@ -35,6 +35,6 @@
                        │             N4[Child does the chore] --> N5                                                █   
                        │                                                                                            █   
                        │           Too wide to draw.                                                                █   
-                       │     ⠸ zarg is preparing a reply · 0:00                                                     █   
+                       │     ⠦ zarg is preparing a reply · 0:00                                                     █   
                        │ › type a message, Enter to send                                                                
                        │ core child · running · thread main · stub:scripted   answered   ⏎ send   esc leave             

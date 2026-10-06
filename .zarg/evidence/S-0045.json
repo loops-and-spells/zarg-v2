@@ -1,13 +1,13 @@
 {
   "scenario": "S-0045",
   "version": "7e212bf04ef4",
-  "commit": "97cf6eed",
-  "run": "e2e-2026-10-06T05-40-37.135Z",
+  "commit": "2582d654",
+  "run": "e2e-2026-10-06T07-58-10.399Z",
   "journey": "J-0003",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-06T05:42:04.331Z",
-  "ms": 5572,
+  "at": "2026-10-06T07:58:16.042Z",
+  "ms": 5584,
   "media": [
     {
       "kind": "evidence-terminal/text",
@@ -35,6 +35,6 @@
   "code": {
     "packages/agent-zarg/test/thread.test.ts": "7ba698c9bee23c8508e114208b3c94b92305b4dc",
     "packages/model/src/redact.ts": "fd5cc1bd13a57563584551c96d5376765918ce03",
-    "packages/rlm/src/services/core.ts": "53193af32785c859325757acbc8df5ac033d9aee"
+    "packages/rlm/src/services/core.ts": "1cf24885a0d03329ee52e1e706bcaa359c48a2b0"
   }
 }

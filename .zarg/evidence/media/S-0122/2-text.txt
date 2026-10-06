@@ -8,16 +8,16 @@ running: merging and verifying
 done: landed S-0001
 running: starting
 running: plan S-0003
-running: plan S-0003 · plan S-0004
-running: plan S-0003 · plan S-0004 · plan S-0002
-running: plan S-0004 · plan S-0002
+running: merging and verifying
 running: plan S-0004
+running: plan S-0004 · plan S-0002
+running: plan S-0002
 running: merging and verifying
 running: implement S-0003
 running: implement S-0003 · implement S-0004
 running: implement S-0003 · implement S-0004 · implement S-0002
 running: implement S-0004 · implement S-0002
-running: implement S-0002
+running: implement S-0004
 running: merging and verifying
 running: implement resolve
 running: merging and verifying

@@ -1,14 +1,14 @@
 [
   {
-    "kind": "pass-error",
-    "title": "implement failed for S-0001",
-    "detail": "implement-scenario did not finish within its budget (25 turns)",
+    "kind": "blocked-scenario",
+    "title": "S-0001 cannot be implemented as written",
+    "detail": "Verification gate (Verify.run) configured as `verify = \"exit 1\"` in .zarg/config.toml, so it never passes; typecheck tool absent. Tests pass but the gate's verdict is unverifiable within this scope-instructed gate.",
     "about": [
       "S-0001"
     ],
-    "pass": "fd70c8bb77c0",
-    "id": "F-a64125e8",
-    "at": "2026-10-06T04:34:40.101Z"
+    "pass": "f796c169e43a",
+    "id": "F-269ef6dd",
+    "at": "2026-10-06T08:13:05.961Z"
   },
   {
     "kind": "verify-failing",
@@ -17,8 +17,8 @@
     "about": [
       "S-0002"
     ],
-    "pass": "fd70c8bb77c0",
-    "id": "F-af878bdf",
-    "at": "2026-10-06T04:34:40.101Z"
+    "pass": "f796c169e43a",
+    "id": "F-6b30b364",
+    "at": "2026-10-06T08:13:05.961Z"
   }
 ]

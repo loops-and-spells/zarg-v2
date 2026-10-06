@@ -1,1 +1,7 @@
-Where does a user start, and what is this product for? Name who meets it first (a person, a coding agent at the command line, or the product's own agent that acts inside it), their first action, and what they end up seeing.
+Which comes first: who uses this product — the operator themselves at the command line, an agent that acts on the product's side, or someone you will name? Say which, and in the same words what it does.
+
+You have to name someone: A persona, named in your words (human) who reaches the product as you describe, shown before writing.
+
+You are the first user: A persona, in your words (an operator at the command line who acts it), shown before writing.
+
+A coding agent acts it: A persona, in your words (a CLI coding agent acting the product), shown before writing.

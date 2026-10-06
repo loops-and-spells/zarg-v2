@@ -6,11 +6,11 @@
   ▤ Inbox              │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   
   ▤ Journeys           │     zarg   esc closes                                                                          
   ▤ Intents            │     ·  answered                                                                                
-                       │     ⠼ zarg is preparing a reply · 0:05 · turn 4/25                                             
+                       │     ⠙ zarg is preparing a reply · 0:05 · turn 4/25                                             
  AGENTS              3 │                                                                                                
   ▾ zarg           0/0 │                                                                                                
   └ ▾ driver 1    4/25 │                                                                                                
-▍   └ ⠼ research… 3/10 │                                                                                                
+▍   └ ⠙ research… 3/10 │                                                                                                
                        │                                                                                                
                        │                                                                                                
                        │                                                                                                
@@ -36,5 +36,5 @@
                        │   noSteps         yes  0.83                                                                    
                        │   noPackaging     yes  0.83                                                                    
                        │ · answered                                                                                     
-                       │ ⠼ zarg is preparing a reply · 0:05 · turn 4/25                                                 
+                       │ ⠙ zarg is preparing a reply · 0:05 · turn 4/25                                                 
                        │ core child · running · thread m…   ↑↓ move   ⏎ open   x archive   X archive finished   g next ◆

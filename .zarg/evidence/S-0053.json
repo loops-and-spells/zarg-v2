@@ -1,12 +1,12 @@
 {
   "scenario": "S-0053",
   "version": "53ab7c965ea9",
-  "commit": "71b87c9c",
-  "run": "e2e-2026-10-06T05-58-32.920Z",
+  "commit": "2582d654",
+  "run": "e2e-2026-10-06T07-58-34.224Z",
   "journey": "J-0004",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-06T05:58:57.194Z",
+  "at": "2026-10-06T08:13:25.263Z",
   "ms": 6,
   "media": [
     {
@@ -46,7 +46,7 @@
   ],
   "failure": null,
   "code": {
-    "packages/core/src/phases.ts": "e08a828abdd039f4199e8db62062c6859bb19b9f",
+    "packages/core/src/phases.ts": "e5d79d6adb22df6574d02fee1c9c1437f0307363",
     "packages/reconcile/src/merge.ts": "60c9670552f95087c83c21d5c9e9d52ede48f139",
     "packages/reconcile/test/pass.test.ts": "a2b65a63ad5892eb5bc5c701527ef6319562d9d3",
     "packages/reconcile/test/worktree.test.ts": "8d6537917787f3df13bd4f790ad4ddbe735281b4"

@@ -3,4 +3,4 @@ I-0001 A todo app for families
   Outcome    Each family member sees the chores assigned to them.  # O-0001 ← no journey
   Question   Do children need their own login?  # Q-0001 (answered: No, a parent's login covers them.)
   Outcome    Chores repeat weekly without retyping.  # O-0002 ← no journey
-  Outcome    Parents reward finished chores with points  # O-0003 ← no journey
+  Outcome    Parents reward finished chores with points.  # O-0003 ← no journey

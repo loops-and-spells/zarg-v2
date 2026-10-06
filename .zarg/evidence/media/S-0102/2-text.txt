@@ -1,4 +1,5 @@
 Write this to the requirements?
 
-Outcome of A todo app for families:
-Parents reward finished chores with points.
+Intent: A todo app for families — add one outcome
+Outcome: Parents reward finished chores with points.
+(the result the intent must reach for its users, in your words)

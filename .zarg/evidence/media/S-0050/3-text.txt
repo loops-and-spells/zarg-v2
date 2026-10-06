@@ -1,15 +1,15 @@
                        │  inbox   2 open                                                                                
  ◆ zarg                │                                                                                                
-   project · main      │  ▍◆ zarg          Write this to the requirements? Mar…  question · waiting · 2 options  4m     
+   project · main      │  ▍◆ zarg          When "the child sees the new chore"…  question · waiting · 2 options  7m     
                        │   · zarg          Landing waits on your uncommitted edits in .zarg/plans/S-0…  report  now     
  VIEWS               3 │                                                                                                
-▍ ◇ Inbox            2 │                                                                                                
+▍ ◆ Inbox            2 │                                                                                                
   ▤ Journeys           │                                                                                                
   ▤ Intents            │                                                                                                
                        │                                                                                                
  AGENTS              2 │                                                                                                
   ● zarg           0/0 │                                                                                                
-  ⠇ build          1/1 │                                                                                                
+  ⠸ build          1/1 │                                                                                                
    ━━━━━━━━━━━━━━━━━━━ │                                                                                                
                        │                                                                                                
   ▸ archived         1 │   ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   

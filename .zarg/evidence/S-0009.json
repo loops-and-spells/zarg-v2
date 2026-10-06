@@ -1,13 +1,13 @@
 {
   "scenario": "S-0009",
   "version": "246c8cf2e6d2",
-  "commit": "97cf6eed",
-  "run": "e2e-2026-10-06T05-40-37.135Z",
+  "commit": "2582d654",
+  "run": "e2e-2026-10-06T07-56-48.376Z",
   "journey": "J-0001",
   "passed": true,
   "flaky": false,
-  "at": "2026-10-06T05:40:43.778Z",
-  "ms": 111,
+  "at": "2026-10-06T07:56:55.027Z",
+  "ms": 112,
   "media": [
     {
       "kind": "evidence-terminal/frame",
@@ -39,7 +39,7 @@
   "failure": null,
   "code": {
     "packages/agent-zarg/src/driver.ts": "c097506a744ef156cfb06c30d5a4023f3f1ff2fa",
-    "packages/agent-zarg/src/thread.ts": "dcfb53ebe0f0d4eff188aef75278e5b26d4c1b9a",
+    "packages/agent-zarg/src/thread.ts": "28e2c53862e1c8b547adf24ef82fa2d5dde4e2ed",
     "packages/agent-zarg/src/zarg.ts": "83d8b01720d599ffaa218733c770e03a52188b82",
     "packages/agent-zarg/test/driver.test.ts": "7bd9893cda2f0d2620871ee557073d9ddc955a18"
   }
