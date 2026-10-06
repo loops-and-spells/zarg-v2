@@ -68,7 +68,7 @@ const TOOLS = [
   'edit-state {"id":"ST-0002","text":"…"}: reword a Given/Then sentence (every scenario using it changes)',
   'link {"scenario":"S-0001","edge":"then","state":{"text":"…"}}: add a then (given, arrives likewise); {"scenario":"S-0001","edge":"in","journey":{"id":"J-0001"}} puts it in a journey',
   'unlink {"scenario":"S-0001","edge":"then","state":"ST-0002"}: remove one',
-  'add-journey {"name":"…"}: a new journey (then link its scenarios with in)',
+  'add-journey {"name":"…"}: a new journey (name it by {"name":"…"} in the calls after it: it has no id yet)',
   'link {"edge":"serves","journey":{"id":"J-0001"},"outcome":"O-0001"}: the journey delivers the outcome',
   'link {"edge":"bounds","constraint":"K-0001","journey":{"id":"J-0001"}}: the constraint applies to a journey (or "scenario":"S-0001")',
 ].join("\n")
@@ -254,6 +254,13 @@ export const makeIntent = (d: IntentDeps, reasoning = false) => {
         }
         if (dry !== undefined && !dry.ok) {
           problems = dry.problems
+          continue
+        }
+        // An outcome no journey serves stays uncovered unless the draft links one to it.
+        const unserved = s.kind === "outcome" && s.journeys.length === 0 && !journeys.some((j) => j.serves.includes(s.id))
+        const links = r.units.some((u) => u.changes.some((c) => c.tool === "link" && (c.params as { edge?: unknown; outcome?: unknown })?.edge === "serves" && JSON.stringify((c.params as { outcome?: unknown }).outcome).includes(s.id)))
+        if (unserved && !links) {
+          problems = [`No journey serves ${s.id} yet: link a journey to serve ${s.id} (link {"edge":"serves","journey":{"name":"…"},"outcome":"${s.id}"}).`]
           continue
         }
         // The statement as it is now: changed meanwhile, nothing is filed and the next tick drafts it again.

@@ -53,6 +53,18 @@ describe("the Intent Agent", () => {
     expect(cp().statements["O-0001"]).toEqual({ version: "v1", state: "planned", plans: ["B-1"] })
   })
 
+  test("an outcome no journey serves: a draft that links no journey to it is tried again", async () => {
+    const add = { tool: "add-journey", params: { name: "Counting" } }
+    const bare = JSON.stringify({ units: [unit("new", [add])], steps: [], ask: null })
+    const linked = JSON.stringify({ units: [unit("new", [add, { tool: "link", params: { edge: "serves", journey: { name: "Counting" }, outcome: "O-0001" } }])], steps: [], ask: null })
+    const { a, calls } = setup({ answers: [bare, linked] })
+    await Effect.runPromise(a.tick)
+    const asked = calls.filter(([k]) => k === "complete").map(([, t]) => String(t))
+    expect(asked).toHaveLength(2)
+    expect(asked[1]).toContain("link a journey to serve O-0001")
+    expect(calls.filter(([k]) => k === "plan")).toHaveLength(1)
+  })
+
   test("the log says why a round got nothing: the model call failed, or its answer was not JSON (how it began)", async () => {
     const down = setup({ down: true })
     await Effect.runPromise(down.a.tick)
@@ -233,7 +245,7 @@ describe("the Intent Agent under load", () => {
   const three = ["O-0001", "O-0002", "O-0003"].map((id): Statement => ({ ...outcome, id }))
   const answer = (id: string) => JSON.stringify({ units: [unit("S-0001", [{ tool: "edit-scenario", params: { id: "S-0001", title: id } }])], steps: [], ask: null })
   test("ticks that overlap run one at a time: each statement planned once", async () => {
-    const { a, calls } = setup({ statements: three, answers: three.map((s) => answer(s.id)).concat(three.map((s) => answer(s.id))), slow: 20 })
+    const { a, calls } = setup({ statements: three, journeys: [{ ...checkout, serves: three.map((s) => s.id) }], answers: three.map((s) => answer(s.id)).concat(three.map((s) => answer(s.id))), slow: 20 })
     await Effect.runPromise(Effect.all([a.tick, a.tick, a.tick], { concurrency: "unbounded" }))
     expect(calls.filter(([k]) => k === "plan").length).toBe(3)
   })
@@ -250,7 +262,7 @@ describe("the Intent Agent under load", () => {
     expect(calls.filter(([k]) => k === "log").map(([, t]) => String(t))).toEqual(["the checkpoint could not be read (the checkpoint is not JSON): the Intent Agent waits until it is fixed"])
   })
   test("a planned statement whose plans were all dropped is due again", async () => {
-    const { a, calls } = setup({ cp: { statements: { "O-0001": { version: "v1", state: "planned", plans: ["B-1"] } }, journeys: {} }, dropped: ["B-1"], answers: [answer("O-0001")] })
+    const { a, calls } = setup({ cp: { statements: { "O-0001": { version: "v1", state: "planned", plans: ["B-1"] } }, journeys: {} }, dropped: ["B-1"], journeys: [checkout], answers: [answer("O-0001")] })
     await Effect.runPromise(a.tick)
     expect(calls.filter(([k]) => k === "plan").length).toBe(1)
   })

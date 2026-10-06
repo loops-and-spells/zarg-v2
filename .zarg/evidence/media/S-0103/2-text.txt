@@ -1,27 +1,27 @@
 {
-  "title": "Parent opens the household chore list and 1 more",
+  "title": "Parent opens the shared chore list",
   "journey": "",
   "scenarios": [],
   "changes": [
-    {
-      "tool": "add-journey",
-      "params": {
-        "name": "Family chores overview"
-      }
-    },
     {
       "tool": "add-persona",
       "params": {
         "name": "Parent",
         "kind": "human",
-        "text": "a parent who runs the household and checks chores daily"
+        "text": "parent who keeps the family schedule; reaches the app from phone"
+      }
+    },
+    {
+      "tool": "add-journey",
+      "params": {
+        "name": "Family chores setup"
       }
     },
     {
       "tool": "add-scenario",
       "params": {
-        "title": "Parent checks the household chore list",
-        "when": "the parent opens the chore list",
+        "title": "Parent opens the shared chore list",
+        "when": "opens the family chore list",
         "by": [
           {
             "name": "Parent"
@@ -33,45 +33,24 @@
           }
         ],
         "arrives": {
-          "text": "the chore list"
+          "text": "The shared family chore list"
         },
         "given": [],
         "then": [
           {
-            "text": "the parent sees every chore with its assigned family member"
-          },
-          {
-            "text": "chores without an assignee appear unassigned"
+            "text": "The list shows open chores"
           }
         ]
       }
     },
     {
-      "tool": "link",
-      "params": {
-        "edge": "serves",
-        "journey": {
-          "id": "J-0001"
-        },
-        "outcome": "O-0001"
-      }
-    },
-    {
-      "tool": "add-persona",
-      "params": {
-        "name": "Family member",
-        "kind": "human",
-        "text": "a household member who does the chores assigned to them"
-      }
-    },
-    {
       "tool": "add-scenario",
       "params": {
-        "title": "Family member checks their assigned chores",
-        "when": "the family member opens the chore list",
+        "title": "Family member opens their chores",
+        "when": "opens their assigned chores",
         "by": [
           {
-            "name": "Family member"
+            "name": "Parent"
           }
         ],
         "in": [
@@ -80,12 +59,16 @@
           }
         ],
         "arrives": {
-          "text": "the chore list"
+          "text": "Their assigned chores"
         },
-        "given": [],
         "then": [
           {
-            "text": "the family member sees only the chores assigned to them"
+            "text": "Each sees the chores assigned to them"
+          }
+        ],
+        "given": [
+          {
+            "text": "A parent has assigned chores"
           }
         ]
       }
@@ -93,25 +76,32 @@
     {
       "tool": "link",
       "params": {
+        "scenario": "S-0001",
         "edge": "serves",
         "journey": {
           "id": "J-0001"
         },
         "outcome": "O-0001"
       }
+    },
+    {
+      "tool": "link",
+      "params": {
+        "scenario": "S-0001",
+        "edge": "in",
+        "journey": {
+          "id": "J-0001"
+        }
+      }
     }
   ],
   "feedback": [],
   "steps": [
-    "add the Family chores overview journey",
-    "add Parent as a persona",
-    "create the scenario Parent checks the household chore list in the Family chores overview journey",
-    "set a chore list where the parent sees every chore with its assignee",
-    "link the journey to the outcome Each family member sees the chores assigned to them",
-    "add Family member as a persona",
-    "create the scenario Family member checks their assigned chores in the Family chores overview journey",
-    "set the chore list where the family member sees only their chores",
-    "link the journey to the outcome Each family member sees the chores assigned to them"
+    "Add Parent",
+    "Add journey Family chores setup",
+    "Add scenario S-0001: parent opens list",
+    "Add scenario S-0002: member opens chores",
+    "Link S-0001 to journey and outcome"
   ],
   "serves": "gherkin/outcome:O-0001@f5ebc0ef2fe2",
   "id": "B-01",
