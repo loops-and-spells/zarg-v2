@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 import type { Checkpoint, JourneyInfo, Statement } from "../src/checkpoint"
-import { type IntentDeps, makeIntent, SYSTEM } from "../src/intent"
+import { deliversBy, type IntentDeps, makeIntent, SYSTEM } from "../src/intent"
 
 const intent = { id: "I-0001", title: "Plans", problem: "Visitors leave." }
 const outcome: Statement = { id: "O-0001", kind: "outcome", text: "A visitor picks a plan in one minute", version: "v1", intent, journeys: [] }
@@ -274,5 +274,18 @@ describe("a journey serving nothing, asked", () => {
     const { a, calls } = setup({ cp: { ...settled, journeys: { "J-0009": { version: "x", state: "asked", topic: "T-1" } } }, journeys: [checkout] })
     expect(await Effect.runPromise(a.answered("serve:J-0009", "O-0001", undefined))).toBe("J-0009 is gone")
     expect(calls.filter(([k]) => k === "plan")).toEqual([])
+  })
+})
+
+describe("delivered already", () => {
+  const outcome: Statement = { id: "O-0001", kind: "outcome", text: "A user marks a habit done today", version: "v1", intent: { id: "I-0001", title: "Tally" }, journeys: ["J-0001"] }
+  test("the driver model reads the journeys without reasoning and answers JSON; anything else is not delivered", async () => {
+    const asked: Array<unknown> = []
+    const judge = (text: string) => deliversBy((req) => Effect.sync(() => (asked.push(req), { text })))
+    expect(await Effect.runPromise(judge('{"delivered": true}')(outcome, "Scenario: Tracker marks a habit done today"))).toBe(true)
+    expect(asked[0]).toMatchObject({ reasoning: { enabled: false } })
+    expect(JSON.stringify(asked[0])).toContain("A user marks a habit done today")
+    expect(await Effect.runPromise(judge('{"delivered": false}')(outcome, ""))).toBe(false)
+    expect(await Effect.runPromise(judge("no json")(outcome, ""))).toBe(false)
   })
 })
