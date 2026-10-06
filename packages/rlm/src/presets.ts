@@ -64,8 +64,8 @@ export const DEFAULT_PRESETS: Readonly<Record<string, Preset>> = {
   "implement-scenario": { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: ["research"], role: "implement", budget: { turns: 25 }, result: "implement-scenario", verify: "gate", actBy: { turn: 6, calls: ["Fs.write("], say: "Write the code and its tests now with Fs.write." } },
   fix: { layer: ["Graph", "Fs", "Sh", "Verify", "Rlm"], spawns: [], role: "implement", budget: { turns: 15 }, result: "text", verify: "none" },
   resolve: { layer: ["Fs", "Sh", "Rlm"], spawns: [], role: "implement", budget: { turns: 10 }, result: "resolve", verify: "none" },
-  // A child an agent waits on: a question in it took 5 minutes of research at 15 turns; it reads itself (no children of its own).
-  research: { layer: ["Graph", "Entities:read", "Fs:read", "Decisions", "Rlm"], spawns: [], role: "driver", budget: { turns: 10 }, result: "research", verify: "none" },
+  // A child an agent waits on: a question in it took 5 minutes of research at 15 turns.
+  research: { layer: ["Graph", "Entities:read", "Fs:read", "Decisions", "Rlm"], spawns: ["research"], role: "driver", budget: { turns: 10 }, result: "research", verify: "none" },
 }
 
 /** `[rlm]` from config (already `${VAR}`-expanded), merged over the defaults. */
